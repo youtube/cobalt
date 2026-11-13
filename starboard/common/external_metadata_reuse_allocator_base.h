@@ -54,8 +54,6 @@ class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   void PrintAllocations(bool align_allocated_size,
                         int max_allocations_to_print) const override;
 
-  bool TryFree(void* memory);
-
  protected:
   class MemoryBlock {
    public:
@@ -122,17 +120,18 @@ class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
                                      size_t initial_capacity,
                                      size_t allocation_increment,
                                      size_t max_capacity);
-  ExternalMetadataReuseAllocatorBase(Allocator* fallback_allocator,
-                                     size_t initial_capacity,
-                                     size_t allocation_increment,
-                                     size_t max_capacity,
-                                     bool enable_decommit_on_idle,
-                                     size_t retain_blocks,
-                                     size_t conservative_decommit_blocks,
-                                     bool aggressive_decommit_on_suspend,
-                                     bool memset_on_reclaim,
-                                     bool mark_as_cold_on_reclaim,
-                                     bool enable_decommit_only_on_memory_pressure = false);
+  ExternalMetadataReuseAllocatorBase(
+      Allocator* fallback_allocator,
+      size_t initial_capacity,
+      size_t allocation_increment,
+      size_t max_capacity,
+      bool enable_decommit_on_idle,
+      size_t retain_blocks,
+      size_t conservative_decommit_blocks,
+      bool aggressive_decommit_on_suspend,
+      bool memset_on_reclaim,
+      bool mark_as_cold_on_reclaim,
+      bool enable_decommit_only_on_memory_pressure = false);
   ~ExternalMetadataReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
@@ -151,6 +150,7 @@ class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   // Map from pointers we returned to the user, back to memory blocks.
   typedef std::map<void*, MemoryBlock> AllocatedBlockMap;
 
+  bool TryFree(void* memory);
   FreeBlockSet::iterator ExpandToFit(size_t size, size_t alignment);
 
   void AddAllocatedBlock(void* address, const MemoryBlock& block);
@@ -165,9 +165,8 @@ class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   const bool enable_decommit_on_idle_;
 
   // When true, idle blocks are tracked (retained/pending) when the pool becomes
-  // idle, like |enable_decommit_on_idle_|, but are never decommitted
-  // incrementally on allocation. They are released only by an explicit
-  // DecommitAllDecommitableBlocks() call (e.g. on memory pressure).
+  // idle, like |enable_decommit_on_idle_|, so they can be released by an
+  // explicit DecommitAllDecommitableBlocks() call (e.g. on memory pressure).
   const bool enable_decommit_only_on_memory_pressure_;
 
   // How much has been allocated from us.

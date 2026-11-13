@@ -51,6 +51,7 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   void Free(void* memory) override;
 
   size_t GetAllocated() const override {
+    SB_DCHECK_LE(pending_free_bytes_, total_allocated_in_bytes_);
     return total_allocated_in_bytes_ >= pending_free_bytes_
                ? total_allocated_in_bytes_ - pending_free_bytes_
                : 0;
@@ -186,9 +187,8 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   const bool enable_decommit_on_idle_;
 
   // When true, idle blocks are tracked (retained/pending) when the pool becomes
-  // idle, like |enable_decommit_on_idle_|, but are never decommitted
-  // incrementally on allocation. They are released only by an explicit
-  // DecommitAllDecommitableBlocks() call (e.g. on memory pressure).
+  // idle, like |enable_decommit_on_idle_|, so they can be released by an
+  // explicit DecommitAllDecommitableBlocks() call (e.g. on memory pressure).
   const bool enable_decommit_only_on_memory_pressure_;
 
   // How many bytes has been allocated from us.

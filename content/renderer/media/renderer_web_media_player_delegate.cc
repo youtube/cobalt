@@ -53,6 +53,12 @@ RendererWebMediaPlayerDelegate::RendererWebMediaPlayerDelegate(
 
   idle_cleanup_timer_.SetTaskRunner(
       render_frame->GetTaskRunner(blink::TaskType::kInternalMedia));
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (auto* allocator = ::media::DecoderBufferAllocator::Get()) {
+    allocator->SetSuspended(IsPageHidden());
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 RendererWebMediaPlayerDelegate::~RendererWebMediaPlayerDelegate() {}
@@ -223,6 +229,12 @@ void RendererWebMediaPlayerDelegate::OnPageVisibilityChanged(
     return;
   is_shown_ = is_shown;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (auto* allocator = ::media::DecoderBufferAllocator::Get()) {
+    allocator->SetSuspended(!is_shown);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   if (is_shown) {
     RecordAction(base::UserMetricsAction("Media.Shown"));
 
@@ -230,12 +242,6 @@ void RendererWebMediaPlayerDelegate::OnPageVisibilityChanged(
          it.Advance()) {
       it.GetCurrentValue()->OnPageShown();
     }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (::media::DecoderBufferAllocator::Get()) {
-      ::media::DecoderBufferAllocator::Get()->SetSuspended(false);
-    }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   } else {
     RecordAction(base::UserMetricsAction("Media.Hidden"));
 
@@ -243,12 +249,6 @@ void RendererWebMediaPlayerDelegate::OnPageVisibilityChanged(
          it.Advance()) {
       it.GetCurrentValue()->OnPageHidden();
     }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (::media::DecoderBufferAllocator::Get()) {
-      ::media::DecoderBufferAllocator::Get()->SetSuspended(true);
-    }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   ScheduleUpdateTask();

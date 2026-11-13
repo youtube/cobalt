@@ -212,13 +212,16 @@ void ExternalMetadataReuseAllocatorBase::PrintAllocations(
   }
 
   size_t capacity = GetCapacity();
+  SB_DCHECK_GE(capacity, total_allocated_);
+  size_t free_bytes =
+      capacity >= total_allocated_ ? capacity - total_allocated_ : 0;
   int64_t allocated_percentage =
       capacity == 0 ? 0
                     : static_cast<int64_t>(total_allocated_) * 100 / capacity;
   SB_LOG(INFO) << "Allocated " << total_allocated_ << " bytes ("
                << allocated_percentage << "%) from a pool of capacity "
-               << capacity << " bytes.  There are "
-               << capacity - total_allocated_ << " free bytes.";
+               << capacity << " bytes.  There are " << free_bytes
+               << " free bytes.";
   SB_LOG(INFO) << "Total allocated block: " << allocated_blocks_.size();
 
   int lines = 0;
@@ -274,6 +277,9 @@ void ExternalMetadataReuseAllocatorBase::PrintAllocations(
   }
 }
 
+// TODO(b/520141273): Move TryFree() below the protected constructors/destructor
+// to match the declaration order in the header. Tentatively kept in its
+// original order here so it is easier to review.
 bool ExternalMetadataReuseAllocatorBase::TryFree(void* memory) {
   if (!memory) {
     return true;

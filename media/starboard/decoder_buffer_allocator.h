@@ -15,7 +15,6 @@
 #ifndef MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 #define MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 
-#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <sstream>
@@ -63,6 +62,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
       // MADV_FREE if supported). Any blocks beyond these are aggressively
       // decommitted (e.g. using MADV_DONTNEED).
       size_t conservative_decommit_blocks = 0;
+      // Whether to immediately decommit idle blocks when the app is suspended.
+      bool enable_decommit_on_suspend = false;
       // Whether to aggressively decommit all idle blocks when app is suspended.
       bool aggressive_decommit_on_suspend = false;
       // Whether fallback allocations align to page boundary.
@@ -71,9 +72,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
       bool memset_on_reclaim = false;
       // Whether to advise MADV_COLD on reclamation.
       bool mark_as_cold_on_reclaim = false;
-      // Whether to track idle blocks so they are released only by an explicit
-      // decommit (e.g. on memory pressure). Unlike |enable_decommit_on_idle|,
-      // idle blocks are not decommitted incrementally on later allocations.
+      // Whether to track idle blocks when the pool becomes idle so they can be
+      // released only by an explicit decommit (e.g. on memory pressure).
       bool enable_decommit_only_on_memory_pressure = false;
     };
 
@@ -84,6 +84,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     virtual size_t GetCapacity() const = 0;
     virtual size_t GetAllocated() const = 0;
 
+    // Informs the strategy whether the application is currently suspended.
     virtual void SetSuspended(bool is_suspended) {}
 
     // Decommits idle blocks. When |include_retained_blocks| is true, idle
@@ -106,6 +107,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   static DecoderBufferAllocator* Get();
 
+  // Updates whether the application is currently suspended. Has no effect on
+  // the underlying strategy unless suspend decommit is enabled via V3 settings.
   void SetSuspended(bool is_suspended);
 
   // DecoderBuffer::Allocator methods.
@@ -125,6 +128,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   static base::expected<void, std::string> SetSetting(const std::string& name,
                                                       int value);
+  base::expected<void, std::string> SetSettingForTesting(
+      const std::string& name,
+      int value);
 
  private:
   // Thread-safe state container for periodic decommit tasks running on
@@ -173,9 +179,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
-  static void EnableConfigurableDecommitStrategy(
-      Strategy::ExperimentConfig strategy_config,
-      bool enable_decommit_on_suspend);
+  base::expected<void, std::string> ApplySetting(const std::string& name,
+                                                 int value);
+  void EnableConfigurableDecommitStrategy(
+      Strategy::ExperimentConfig strategy_config);
 
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void EnablePeriodicDecommitLoop();
@@ -203,6 +210,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // ignored.
   bool is_decommit_on_pressure_strategy_ GUARDED_BY(mutex_) = false;
   bool is_suspended_ GUARDED_BY(mutex_) = false;
+  bool decommit_on_suspend_enabled_ GUARDED_BY(mutex_) = false;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation
@@ -211,7 +219,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
   int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  std::atomic<bool> decommit_on_suspend_enabled_{false};
 };
 
 }  // namespace media

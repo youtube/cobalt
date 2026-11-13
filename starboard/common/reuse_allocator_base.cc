@@ -24,17 +24,6 @@
 
 namespace starboard {
 
-namespace {
-
-// Wait 3 periodic ticks (15 seconds at `kDefaultPeriodicDecommitInterval = 5s`
-// in `media/starboard/decoder_buffer_allocator.cc`) after
-// `ReclaimFallbackBlocks()` or fallback block activation before decommitting
-// idle blocks in the background, so consecutive playback transitions and seeks
-// reuse committed pages without MADV_DONTNEED + page-fault thrashing.
-constexpr size_t kDefaultDecommitGraceTicks = 3;
-
-}  // namespace
-
 ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
                                        size_t max_capacity,
                                        size_t retain_blocks,
@@ -70,7 +59,8 @@ void ReuseAllocatorBase::SetSuspended(bool is_suspended) {
 
 void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
     bool include_retained_blocks) {
-  if (aggressive_decommit_on_suspend_ || include_retained_blocks) {
+  if ((is_suspended_ && aggressive_decommit_on_suspend_) ||
+      include_retained_blocks) {
     // Aggressively decommit all idle blocks (including retained and
     // lazily-freed blocks) with MADV_DONTNEED (kAggressive). This
     // instantly drops the process RSS to prevent the OS Out-Of-Memory killer
@@ -78,11 +68,7 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
     for (auto& fallback_block : fallback_allocations_) {
       if (fallback_block.state != kActiveInUse &&
           fallback_block.state != kIdleDecommitted) {
-        fallback_allocator_->Decommit(fallback_block.address,
-                                      fallback_block.size,
-                                      DecommitMode::kAggressive);
-        fallback_block.state = kIdleDecommitted;
-        decommitted_bytes_ += fallback_block.size;
+        DecommitBlock(fallback_block, DecommitMode::kAggressive);
       }
     }
     has_pending_decommits_ = false;
@@ -92,16 +78,7 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
     }
     for (auto it = fallback_allocations_.rbegin();
          it != fallback_allocations_.rend(); ++it) {
-      if (it->state == kIdlePendingDecommit) {
-        fallback_allocator_->Decommit(it->address, it->size,
-                                      DecommitMode::kAggressive);
-        it->state = kIdleDecommitted;
-        decommitted_bytes_ += it->size;
-      } else if (it->state == kIdlePendingFree) {
-        fallback_allocator_->Decommit(it->address, it->size,
-                                      DecommitMode::kConservative);
-        it->state = kIdleFreed;
-      }
+      TryDecommitPendingBlock(*it);
     }
     has_pending_decommits_ = false;
   }
@@ -117,17 +94,7 @@ void ReuseAllocatorBase::TryToDecommitOneBlock() {
   }
   for (auto it = fallback_allocations_.rbegin();
        it != fallback_allocations_.rend(); ++it) {
-    if (it->state == kIdlePendingDecommit) {
-      fallback_allocator_->Decommit(it->address, it->size,
-                                    DecommitMode::kAggressive);
-      it->state = kIdleDecommitted;
-      decommitted_bytes_ += it->size;
-      return;
-    }
-    if (it->state == kIdlePendingFree) {
-      fallback_allocator_->Decommit(it->address, it->size,
-                                    DecommitMode::kConservative);
-      it->state = kIdleFreed;
+    if (TryDecommitPendingBlock(*it)) {
       return;
     }
   }
@@ -150,7 +117,7 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
         decommitted_bytes_ -= fallback_block.size;
       }
       fallback_block.state = kActiveInUse;
-      decommit_grace_ticks_remaining_ = kDefaultDecommitGraceTicks;
+      decommit_grace_ticks_remaining_ = kDecommitGraceTicks;
       *size_to_try = fallback_block.size;
       return {fallback_block.address, static_cast<intptr_t>(i)};
     }
@@ -165,7 +132,7 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
     intptr_t index = static_cast<intptr_t>(fallback_allocations_.size());
     fallback_allocations_.emplace_back(ptr, *size_to_try);
     capacity_ += *size_to_try;
-    decommit_grace_ticks_remaining_ = kDefaultDecommitGraceTicks;
+    decommit_grace_ticks_remaining_ = kDecommitGraceTicks;
     return {ptr, index};
   }
   return {nullptr, -1};
@@ -174,7 +141,8 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
 void ReuseAllocatorBase::ReclaimFallbackBlocks() {
   SB_LOG(INFO) << "Allocator reached idle state, reclaiming "
                << fallback_allocations_.size() << " fallback allocations.";
-  decommit_grace_ticks_remaining_ = kDefaultDecommitGraceTicks;
+  decommit_grace_ticks_remaining_ = kDecommitGraceTicks;
+  has_pending_decommits_ = false;
   for (size_t i = 0; i < fallback_allocations_.size(); ++i) {
     auto& fallback_block = fallback_allocations_[i];
 
@@ -184,12 +152,20 @@ void ReuseAllocatorBase::ReclaimFallbackBlocks() {
       continue;
     }
 
-    if (fallback_block.state == kActiveInUse && memset_on_reclaim_) {
-      memset(fallback_block.address, 0, fallback_block.size);
-    }
-    if (fallback_block.state == kActiveInUse && mark_as_cold_on_reclaim_) {
-      fallback_allocator_->Decommit(fallback_block.address, fallback_block.size,
-                                    DecommitMode::kCold);
+    // Skip zeroing or marking cold if `DecommitAllDecommitableBlocks()` below
+    // is about to discard the block immediately with MADV_DONTNEED.
+    const bool will_aggressively_decommit_now =
+        is_suspended_ && (aggressive_decommit_on_suspend_ ||
+                          i >= retain_blocks_ + conservative_decommit_blocks_);
+    if (fallback_block.state == kActiveInUse &&
+        !will_aggressively_decommit_now) {
+      if (memset_on_reclaim_) {
+        memset(fallback_block.address, 0, fallback_block.size);
+      }
+      if (mark_as_cold_on_reclaim_) {
+        fallback_allocator_->Decommit(fallback_block.address,
+                                      fallback_block.size, DecommitMode::kCold);
+      }
     }
     if (i < retain_blocks_) {
       fallback_block.state = kIdleRetained;
@@ -204,6 +180,30 @@ void ReuseAllocatorBase::ReclaimFallbackBlocks() {
   if (is_suspended_) {
     DecommitAllDecommitableBlocks();
   }
+}
+
+void ReuseAllocatorBase::DecommitBlock(FallbackAllocation& block,
+                                       DecommitMode mode) {
+  fallback_allocator_->Decommit(block.address, block.size, mode);
+  if (mode == DecommitMode::kAggressive) {
+    block.state = kIdleDecommitted;
+    decommitted_bytes_ += block.size;
+    SB_DCHECK_LE(decommitted_bytes_, capacity_);
+  } else {
+    block.state = kIdleFreed;
+  }
+}
+
+bool ReuseAllocatorBase::TryDecommitPendingBlock(FallbackAllocation& block) {
+  if (block.state == kIdlePendingDecommit) {
+    DecommitBlock(block, DecommitMode::kAggressive);
+    return true;
+  }
+  if (block.state == kIdlePendingFree) {
+    DecommitBlock(block, DecommitMode::kConservative);
+    return true;
+  }
+  return false;
 }
 
 }  // namespace starboard

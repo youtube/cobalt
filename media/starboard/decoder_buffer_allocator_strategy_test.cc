@@ -19,7 +19,10 @@
 #include <memory>
 
 #include "base/functional/bind.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/media_switches.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
 #include "starboard/common/embedded_metadata_reuse_allocator_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -217,6 +220,124 @@ TEST(DecoderBufferAllocatorStrategyTest,
   EXPECT_EQ(creation_count, 1);
 
   allocator.Free(DemuxerStream::VIDEO, handle2, 1024);
+}
+
+TEST(DecoderBufferAllocatorStrategyTest,
+     ConfigurableDecommitStrategyV3Validation) {
+  base::test::TaskEnvironment task_environment;
+  DecoderBufferAllocator allocator(/*is_memory_pool_allocated_on_demand=*/false,
+                                   4 * 1024 * 1024, 1024 * 1024);
+
+  // Legacy V1 and V2 setting names must be rejected.
+  EXPECT_FALSE(
+      allocator
+          .SetSettingForTesting(
+              "DecoderBuffer.EnableConfigurableDecommitStrategy", 0x02040100)
+          .has_value());
+  EXPECT_FALSE(
+      allocator
+          .SetSettingForTesting(
+              "DecoderBuffer.EnableConfigurableDecommitStrategyV2", 0x02040100)
+          .has_value());
+
+  // Non-positive values are accepted as no-op placebos.
+  EXPECT_TRUE(allocator
+                  .SetSettingForTesting(
+                      "DecoderBuffer.EnableConfigurableDecommitStrategyV3", 0)
+                  .has_value());
+  EXPECT_TRUE(allocator
+                  .SetSettingForTesting(
+                      "DecoderBuffer.EnableConfigurableDecommitStrategyV3", -1)
+                  .has_value());
+
+  // `block_size_mb == 0` and unknown flag bits (e.g. removed bit 29 `0x20`)
+  // must be rejected.
+  EXPECT_FALSE(
+      allocator
+          .SetSettingForTesting(
+              "DecoderBuffer.EnableConfigurableDecommitStrategyV3", 0x02000100)
+          .has_value());
+  EXPECT_FALSE(
+      allocator
+          .SetSettingForTesting(
+              "DecoderBuffer.EnableConfigurableDecommitStrategyV3", 0x20040100)
+          .has_value());
+
+  // Valid V3 encoding succeeds.
+  EXPECT_TRUE(
+      allocator
+          .SetSettingForTesting(
+              "DecoderBuffer.EnableConfigurableDecommitStrategyV3", 0x03010100)
+          .has_value());
+}
+
+TEST(DecoderBufferAllocatorStrategyTest,
+     SetSuspendedReplaysOnStrategyCreationAndSkipsWhenDisabledOrOnPressure) {
+  base::test::TaskEnvironment task_environment;
+
+  // 1. When kCobaltDecoderBufferDecommitOnMemoryPressure is active without V3,
+  // SetSuspended(true) must not decommit idle blocks.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        media::kCobaltDecoderBufferDecommitOnMemoryPressure,
+        {{"retain_blocks", "0"}});
+    DecoderBufferAllocator pressure_allocator(
+        /*is_memory_pool_allocated_on_demand=*/false, 1024 * 1024, 1024 * 1024);
+    auto h1 = pressure_allocator.Allocate(DemuxerStream::VIDEO, 512 * 1024);
+    auto h2 = pressure_allocator.Allocate(DemuxerStream::VIDEO, 512 * 1024);
+    const size_t full_cap = pressure_allocator.GetCurrentMemoryCapacity();
+    pressure_allocator.Free(DemuxerStream::VIDEO, h1, 512 * 1024);
+    pressure_allocator.Free(DemuxerStream::VIDEO, h2, 512 * 1024);
+
+    pressure_allocator.SetSuspended(true);
+    EXPECT_EQ(pressure_allocator.GetCurrentMemoryCapacity(), full_cap);
+  }
+
+  // 2. When V3 is configured WITHOUT suspend bits (0x02010000: page-aligned,
+  // 1 MB blocks, 0 retain), SetSuspended(true) is a no-op.
+  {
+    DecoderBufferAllocator no_suspend_allocator(
+        /*is_memory_pool_allocated_on_demand=*/false, 1024 * 1024, 1024 * 1024);
+    ASSERT_TRUE(no_suspend_allocator
+                    .SetSettingForTesting(
+                        "DecoderBuffer.EnableConfigurableDecommitStrategyV3",
+                        0x02010000)
+                    .has_value());
+    auto h = no_suspend_allocator.Allocate(DemuxerStream::VIDEO, 64 * 1024);
+    const size_t full_cap = no_suspend_allocator.GetCurrentMemoryCapacity();
+    EXPECT_GE(full_cap, 1024u * 1024u);
+    no_suspend_allocator.Free(DemuxerStream::VIDEO, h, 64 * 1024);
+
+    no_suspend_allocator.SetSuspended(true);
+    EXPECT_EQ(no_suspend_allocator.GetCurrentMemoryCapacity(), full_cap);
+  }
+
+  // 3. When SetSuspended(true) arrives BEFORE V3 strategy creation (e.g.
+  // hidden preload), EnsureStrategyIsCreated() replays SetSuspended(true) and
+  // freeing the active buffer immediately decommits non-retained blocks.
+  {
+    DecoderBufferAllocator preload_allocator(
+        /*is_memory_pool_allocated_on_demand=*/false, 1024 * 1024, 1024 * 1024);
+    preload_allocator.SetSuspended(true);
+    // 0x05010100: aggressive_decommit_on_suspend (implies suspend) |
+    //             enable_decommit_on_suspend, 1 MB block, 1 retain block.
+    ASSERT_TRUE(preload_allocator
+                    .SetSettingForTesting(
+                        "DecoderBuffer.EnableConfigurableDecommitStrategyV3",
+                        0x05010100)
+                    .has_value());
+
+    // Strategy was reset by SetSettingForTesting; Allocate() creates it and
+    // replays `is_suspended_ == true`.
+    auto h = preload_allocator.Allocate(DemuxerStream::VIDEO, 64 * 1024);
+    EXPECT_GE(preload_allocator.GetCurrentMemoryCapacity(), 1024u * 1024u);
+
+    // Freeing while suspended immediately decommits all blocks (including the
+    // retained block because aggressive_decommit_on_suspend is set).
+    preload_allocator.Free(DemuxerStream::VIDEO, h, 64 * 1024);
+    EXPECT_EQ(preload_allocator.GetCurrentMemoryCapacity(), 0u);
+  }
 }
 
 }  // namespace

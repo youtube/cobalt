@@ -207,14 +207,17 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
   }
 
   // Peek at the block header size so `GetAllocated()` reflects this free in
-  // O(1) time before the deferred `TryFree()` runs; the header validation
-  // mirrors `TryFree()`.
+  // O(1) time before the deferred `TryFree()` runs.
   const BlockMetadata* metadata = static_cast<const BlockMetadata*>(memory) - 1;
-  if (metadata->signature == this &&
-      IsValidFallbackIndex(metadata->fallback_index) && metadata->size > 0) {
-    pending_free_bytes_ += static_cast<size_t>(metadata->size);
-    SB_DCHECK_LE(pending_free_bytes_, total_allocated_in_bytes_);
+  SB_DCHECK_EQ(metadata->signature, this);
+  SB_DCHECK(IsValidFallbackIndex(metadata->fallback_index));
+  SB_DCHECK_GT(metadata->size, 0);
+  if (metadata->signature != this ||
+      !IsValidFallbackIndex(metadata->fallback_index) || metadata->size <= 0) {
+    return;
   }
+  pending_free_bytes_ += static_cast<size_t>(metadata->size);
+  SB_DCHECK_LE(pending_free_bytes_, total_allocated_in_bytes_);
   pending_frees_.push_back(memory);
 
   if (pending_frees_.size() == total_allocated_blocks_) {
@@ -352,6 +355,60 @@ void EmbeddedMetadataReuseAllocatorBase::PrintAllocations(
   }
 }
 
+// TODO(b/520141273): Move TryFree() below the protected constructors/destructor
+// to match the declaration order in the header. Tentatively kept in its
+// original order here so it is easier to review.
+bool EmbeddedMetadataReuseAllocatorBase::TryFree(void* memory) {
+  if (!memory) {
+    return true;
+  }
+
+  BlockMetadata* metadata = static_cast<BlockMetadata*>(memory) - 1;
+
+  if (metadata->signature != this ||
+      !IsValidFallbackIndex(metadata->fallback_index)) {
+    return false;
+  }
+
+  // Detach the node from the linked list
+  if (metadata->previous != nullptr) {
+    SB_DCHECK_EQ(metadata->previous->next, metadata);
+    metadata->previous->next = metadata->next;
+  }
+  if (metadata->next != nullptr) {
+    SB_DCHECK_EQ(metadata->next->previous, metadata);
+    metadata->next->previous = metadata->previous;
+  }
+
+  // Update the head, if the node is the head.
+  if (metadata->previous == nullptr) {
+    SB_DCHECK_EQ(metadata, allocated_block_head_);
+
+    allocated_block_head_ = metadata->next;
+
+    if (metadata->next) {
+      // It should have been updated during detaching above.
+      SB_DCHECK_EQ(metadata->next->previous, nullptr);
+    }
+  }
+
+  // Mark this block as free and update the allocated data accordingly.
+  MemoryBlock block(metadata->fallback_index, metadata, metadata->size);
+  AddFreeBlock(block);
+
+  SB_DCHECK_LE(block.size(), total_allocated_in_bytes_);
+  total_allocated_in_bytes_ -= block.size();
+  --total_allocated_blocks_;
+
+  if ((enable_decommit_on_idle_ || enable_decommit_only_on_memory_pressure_) &&
+      total_allocated_in_bytes_ == 0) {
+    free_blocks_.clear();
+    ReclaimFallbackBlocks();
+  }
+
+  return true;
+}
+
 EmbeddedMetadataReuseAllocatorBase::EmbeddedMetadataReuseAllocatorBase(
     Allocator* fallback_allocator,
     size_t initial_capacity,
@@ -410,57 +467,6 @@ EmbeddedMetadataReuseAllocatorBase::~EmbeddedMetadataReuseAllocatorBase() {
   // be the case.
   SB_LOG_IF(ERROR, allocated_block_head_ != nullptr)
       << total_allocated_blocks_ << " blocks still allocated.";
-}
-
-bool EmbeddedMetadataReuseAllocatorBase::TryFree(void* memory) {
-  if (!memory) {
-    return true;
-  }
-
-  BlockMetadata* metadata = static_cast<BlockMetadata*>(memory) - 1;
-
-  if (metadata->signature != this ||
-      !IsValidFallbackIndex(metadata->fallback_index)) {
-    return false;
-  }
-
-  // Detach the node from the linked list
-  if (metadata->previous != nullptr) {
-    SB_DCHECK_EQ(metadata->previous->next, metadata);
-    metadata->previous->next = metadata->next;
-  }
-  if (metadata->next != nullptr) {
-    SB_DCHECK_EQ(metadata->next->previous, metadata);
-    metadata->next->previous = metadata->previous;
-  }
-
-  // Update the head, if the node is the head.
-  if (metadata->previous == nullptr) {
-    SB_DCHECK_EQ(metadata, allocated_block_head_);
-
-    allocated_block_head_ = metadata->next;
-
-    if (metadata->next) {
-      // It should have been updated during detaching above.
-      SB_DCHECK_EQ(metadata->next->previous, nullptr);
-    }
-  }
-
-  // Mark this block as free and update the allocated data accordingly.
-  MemoryBlock block(metadata->fallback_index, metadata, metadata->size);
-  AddFreeBlock(block);
-
-  SB_DCHECK_LE(block.size(), total_allocated_in_bytes_);
-  total_allocated_in_bytes_ -= block.size();
-  --total_allocated_blocks_;
-
-  if ((enable_decommit_on_idle_ || enable_decommit_only_on_memory_pressure_) &&
-      total_allocated_in_bytes_ == 0) {
-    free_blocks_.clear();
-    ReclaimFallbackBlocks();
-  }
-
-  return true;
 }
 
 EmbeddedMetadataReuseAllocatorBase::FreeBlockSet::iterator
