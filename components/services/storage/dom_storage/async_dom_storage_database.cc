@@ -75,6 +75,20 @@ void AsyncDomStorageDatabase::RewriteDB(StatusCallback callback) {
       std::move(callback), base::SequencedTaskRunner::GetCurrentDefault()));
 }
 
+#if BUILDFLAG(IS_COBALT)
+void AsyncDomStorageDatabase::ReopenDB(StatusCallback callback) {
+  DCHECK(database_);
+  database_.PostTaskWithThisObject(base::BindOnce(
+      [](StatusCallback callback,
+         scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
+         DomStorageDatabase* db) {
+        callback_task_runner->PostTask(
+            FROM_HERE, base::BindOnce(std::move(callback), db->Reopen()));
+      },
+      std::move(callback), base::SequencedTaskRunner::GetCurrentDefault()));
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void AsyncDomStorageDatabase::RunBatchDatabaseTasks(
     RunBatchTasksContext context,
     std::vector<BatchDatabaseTask> tasks,

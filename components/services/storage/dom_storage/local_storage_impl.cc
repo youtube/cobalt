@@ -46,6 +46,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/features.h"
+#include "third_party/leveldatabase/env_chromium.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
 namespace storage {
@@ -87,6 +88,17 @@ const int64_t kCurrentLocalStorageSchemaVersion = 1;
 // After this many consecutive commit errors we'll throw away the entire
 // database.
 const int kCommitErrorThreshold = 8;
+#if BUILDFLAG(IS_COBALT)
+// LevelDB with `options.sync = true` latches `bg_error_` in RAM on the very
+// first `logfile_->Sync()` failure, causing all subsequent commits on that
+// `leveldb::DB` instance to fail in RAM until reopened. Trigger non-destructive
+// `ReopenDB()` after 3 failed commit attempts (~3s via auto-retry) instead of
+// waiting for 32+ separate JS write batches.
+constexpr int kCobaltReopenCommitErrorThreshold = 3;
+constexpr base::TimeDelta kInitialReopenRetryCooldown = base::Seconds(2);
+constexpr base::TimeDelta kMaxReopenRetryCooldown = base::Seconds(15);
+constexpr base::TimeDelta kFlushReopenMinInterval = base::Milliseconds(500);
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Limits on the cache size and number of areas in memory, over which the areas
 // are purged.
@@ -203,6 +215,17 @@ StorageAreaImpl::Options createOptions() {
   options.default_commit_delay = kCommitDefaultDelaySecs;
   options.max_bytes_per_hour = kMaxBytesPerHour;
   options.max_commits_per_hour = kMaxCommitsPerHour;
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageErrorRecovery)) {
+    // Keep values cached in RAM (~10-24 KB for YouTube TV's single SPA origin)
+    // on Android and low-end TVs so mid-session commit I/O errors never drop
+    // failed CommitBatch values or overwrite newer mutations via LoadMap()
+    // before ReopenDB() can resync them to disk.
+    options.cache_mode = StorageAreaImpl::CacheMode::KEYS_AND_VALUES;
+    return options;
+  }
+#endif
 #if BUILDFLAG(IS_ANDROID)
     options.cache_mode = StorageAreaImpl::CacheMode::KEYS_ONLY_WHEN_POSSIBLE;
 #else
@@ -236,6 +259,11 @@ class LocalStorageImpl::StorageAreaHolder final
     if (storage_area()->empty()) {
       return;
     }
+#if BUILDFLAG(IS_COBALT)
+    if (!context_->database_) {
+      return;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     // We should not write last_accessed if the data will be purged.
     if (context_->origins_to_purge_on_shutdown_.find(storage_key_.origin()) !=
             context_->origins_to_purge_on_shutdown_.end() ||
@@ -432,6 +460,21 @@ void LocalStorageImpl::Flush() {
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageErrorRecovery) &&
+      !in_memory_ && database_ && !reopen_in_progress_ &&
+      (db_closed_after_failed_reopen_ || commit_error_count_ > 0) &&
+      HasUnsyncedAreaChanges()) {
+    if (!db_closed_after_failed_reopen_ ||
+        base::TimeTicks::Now() - last_reopen_attempt_time_ >=
+            kFlushReopenMinInterval) {
+      StartDatabaseReopen();
+      return;
+    }
+  }
+#endif
+
   for (const auto& it : areas_)
     it.second->storage_area()->ScheduleImmediateCommit();
 }
@@ -474,12 +517,33 @@ void LocalStorageImpl::ShutDown(base::OnceClosure callback) {
 
   connection_state_ = CONNECTION_SHUTDOWN;
 
+#if BUILDFLAG(IS_COBALT)
+  const bool reopen_for_shutdown_resync =
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageErrorRecovery) &&
+      !in_memory_ && database_ && !reopen_in_progress_ &&
+      (db_closed_after_failed_reopen_ || commit_error_count_ > 0) &&
+      HasUnsyncedAreaChanges();
+  if (reopen_for_shutdown_resync) {
+    database_initialized_ = false;
+    database_->ReopenDB(base::DoNothing());
+  }
+#endif
+
   // Flush any uncommitted data.
   for (const auto& it : areas_) {
     auto* area = it.second->storage_area();
     LOCAL_HISTOGRAM_BOOLEAN("LocalStorageContext.ShutDown.MaybeDroppedChanges",
                             area->has_pending_load_tasks());
+#if BUILDFLAG(IS_COBALT)
+    if (reopen_for_shutdown_resync && area->has_unsynced_commit_error()) {
+      area->ScheduleResyncCommitAfterDatabaseReopen(/*immediate=*/true);
+    } else {
+      area->ScheduleImmediateCommit();
+    }
+#else
     area->ScheduleImmediateCommit();
+#endif
     // TODO(dmurph): Monitor the above histogram, and if dropping changes is
     // common then handle that here.
     area->CancelAllPendingRequests();
@@ -506,6 +570,12 @@ void LocalStorageImpl::PurgeMemory() {
     if (it->second->has_bindings()) {
       it->second->storage_area()->PurgeMemory();
       ++it;
+#if BUILDFLAG(IS_COBALT)
+    } else if (base::FeatureList::IsEnabled(
+                   base::features::kCobaltLocalStorageErrorRecovery) &&
+               it->second->storage_area()->has_unsynced_commit_error()) {
+      ++it;
+#endif
     } else {
       it = areas_.erase(it);
     }
@@ -538,6 +608,14 @@ void LocalStorageImpl::PurgeUnusedAreasIfNeeded() {
   }
 
   for (auto it = areas_.begin(); it != areas_.end();) {
+#if BUILDFLAG(IS_COBALT)
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltLocalStorageErrorRecovery) &&
+        it->second->storage_area()->has_unsynced_commit_error()) {
+      ++it;
+      continue;
+    }
+#endif
     if (it->second->has_bindings())
       ++it;
     else
@@ -605,6 +683,18 @@ void LocalStorageImpl::ForceFakeOpenStorageAreaForTesting(
     const blink::StorageKey& storage_key) {
   areas_[storage_key] = std::make_unique<StorageAreaHolder>(this, storage_key);
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool LocalStorageImpl::IsStorageAreaUsingKeysAndValuesCacheForTesting(
+    const blink::StorageKey& storage_key) const {
+  auto it = areas_.find(storage_key);
+  if (it == areas_.end()) {
+    return false;
+  }
+  return it->second->storage_area()->cache_mode() ==
+         StorageAreaImpl::CacheMode::KEYS_AND_VALUES;
+}
+#endif
 
 LocalStorageImpl::~LocalStorageImpl() {
   DCHECK_EQ(connection_state_, CONNECTION_SHUTDOWN);
@@ -678,6 +768,24 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
 #if BUILDFLAG(IS_COBALT)
+    if (!in_memory_ &&
+        base::FeatureList::IsEnabled(
+            base::features::kCobaltLocalStorageErrorRecovery) &&
+        IsNonDestructiveLocalStorageOpenFailure(status)) {
+      // Do not call DestroyDB() when OpenDB failed due to an environmental I/O
+      // condition (ENOSPC, LOCK contention, EACCES, EIO, EMFILE): existing
+      // files on disk are not corrupt. Close the in-RAM database handle
+      // without deleting disk files and serve this session in volatile memory.
+      base::UmaHistogramEnumeration(
+          "Cobalt.LocalStorage.RecoveryEvent",
+          leveldb_env::IndicatesDiskFull(status)
+              ? LocalStorageRecoveryEvent::kOpenFallbackToVolatileMemoryDiskFull
+              : LocalStorageRecoveryEvent::
+                    kOpenFallbackToVolatileMemoryLockOrIOError);
+      database_.reset();
+      OnConnectionFinished();
+      return;
+    }
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseOpenError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
@@ -688,6 +796,25 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
 
   // Verify DB schema version.
   if (database_) {
+#if BUILDFLAG(IS_COBALT)
+    const bool fail_version_read =
+        std::exchange(fail_next_version_read_for_testing_, false);
+    database_->RunDatabaseTask(
+        base::BindOnce(
+            [](const std::vector<uint8_t>& key, bool fail_version_read,
+               const DomStorageDatabase& db) {
+              if (fail_version_read) {
+                db.MakeNextGetFailWithIOErrorForTesting();
+              }
+              DomStorageDatabase::Value value;
+              leveldb::Status status = db.Get(key, &value);
+              return std::make_tuple(status, std::move(value));
+            },
+            std::vector<uint8_t>(kVersionKey.begin(), kVersionKey.end()),
+            fail_version_read),
+        base::BindOnce(&LocalStorageImpl::OnGotDatabaseVersion,
+                       weak_ptr_factory_.GetWeakPtr()));
+#else
     database_->RunDatabaseTask(
         base::BindOnce(
             [](const std::vector<uint8_t>& key, const DomStorageDatabase& db) {
@@ -698,6 +825,7 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
             std::vector<uint8_t>(kVersionKey.begin(), kVersionKey.end())),
         base::BindOnce(&LocalStorageImpl::OnGotDatabaseVersion,
                        weak_ptr_factory_.GetWeakPtr()));
+#endif
     return;
   }
 
@@ -730,6 +858,20 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
   } else {
     // Other read error. Possibly database corruption.
 #if BUILDFLAG(IS_COBALT)
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltLocalStorageErrorRecovery) &&
+        !status.IsCorruption()) {
+      // Do not wipe the on-disk database on a transient I/O error reading
+      // VERSION. `database_.reset()` only closes the in-RAM C++ handle/LOCK
+      // without deleting any files on disk (unlike DeleteAndRecreateDatabase);
+      // subsequent areas fall back to unbacked in-memory mode for this session.
+      base::UmaHistogramEnumeration(
+          "Cobalt.LocalStorage.RecoveryEvent",
+          LocalStorageRecoveryEvent::kVersionReadFallbackToVolatileMemory);
+      database_.reset();
+      OnConnectionFinished();
+      return;
+    }
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseReadError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
@@ -781,6 +923,12 @@ void LocalStorageImpl::DeleteAndRecreateDatabase() {
   // StorageAreas to be queued until the connection is complete.
   connection_state_ = CONNECTION_IN_PROGRESS;
   commit_error_count_ = 0;
+#if BUILDFLAG(IS_COBALT)
+  reopen_in_progress_ = false;
+  db_closed_after_failed_reopen_ = false;
+  delayed_reopen_retry_scheduled_ = false;
+  reopen_attempts_since_last_successful_commit_ = 0;
+#endif
   database_.reset();
 
   bool recreate_in_memory = false;
@@ -934,7 +1082,11 @@ void LocalStorageImpl::OnGotStorageUsageForShutdown(
     }
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (!storage_keys_to_delete.empty() && database_) {
+#else
   if (!storage_keys_to_delete.empty()) {
+#endif
     DeleteStorageKeys(database_.get(), std::move(storage_keys_to_delete),
                       base::BindOnce(&LocalStorageImpl::OnStorageKeysDeleted,
                                      base::Unretained(this)));
@@ -973,10 +1125,67 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
       << connection_state_;
   if (status.ok()) {
     commit_error_count_ = 0;
+#if BUILDFLAG(IS_COBALT)
+    reopen_attempts_since_last_successful_commit_ = 0;
+    db_closed_after_failed_reopen_ = false;
+#endif
     return;
   }
 
   commit_error_count_++;
+#if BUILDFLAG(IS_COBALT)
+  if (connection_state_ != CONNECTION_SHUTDOWN &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageErrorRecovery) &&
+      !in_memory_ && !status.IsCorruption() && database_) {
+    if (reopen_in_progress_) {
+      return;
+    }
+    if (db_closed_after_failed_reopen_ ||
+        (reopen_attempts_since_last_successful_commit_ > 0 &&
+         commit_error_count_ >= kCobaltReopenCommitErrorThreshold)) {
+      const base::TimeDelta cooldown = GetCurrentReopenRetryCooldown();
+      const base::TimeDelta elapsed =
+          base::TimeTicks::Now() - last_reopen_attempt_time_;
+      if (elapsed >= cooldown) {
+        StartDatabaseReopen();
+      } else if (!delayed_reopen_retry_scheduled_) {
+        delayed_reopen_retry_scheduled_ = true;
+        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(&LocalStorageImpl::MaybeRetryReopenAfterCooldown,
+                           weak_ptr_factory_.GetWeakPtr()),
+            cooldown - elapsed);
+      }
+      return;
+    }
+    if (reopen_attempts_since_last_successful_commit_ == 0) {
+      if (commit_error_count_ >= kCobaltReopenCommitErrorThreshold) {
+        // Reopen the persistent `leveldb::DB` handle in place to clear
+        // LevelDB's latched `bg_error_` without calling `DestroyDB()` and
+        // without calling `PurgeAllStorageAreas()`, preserving both on-disk
+        // SST/WAL files and live Blink SPA `StorageArea` Mojo pipes.
+        StartDatabaseReopen();
+      } else {
+        // Arm a 1s deferred retry so even a single failed token-refresh write
+        // with no subsequent JS mutations reaches the reopen threshold and
+        // heals automatically.
+        for (auto& [_, holder] : areas_) {
+          if (holder->storage_area()->has_unsynced_commit_error()) {
+            holder->storage_area()->ScheduleResyncCommitAfterDatabaseReopen(
+                /*immediate=*/false);
+          }
+        }
+      }
+      return;
+    }
+    // An initial reopen already ran for this outage and the post-reopen resync
+    // commit also failed (e.g. ENOSPC with reuse_logs=true where OpenDB
+    // succeeds without writing). Wait passively for future client writes or
+    // Flush() rather than spinning background timers while idle.
+    return;
+  }
+#endif
   if (commit_error_count_ > kCommitErrorThreshold &&
       connection_state_ != CONNECTION_SHUTDOWN) {
     if (tried_to_recover_from_commit_errors_) {
@@ -998,6 +1207,82 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
     DeleteAndRecreateDatabase();
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool LocalStorageImpl::HasUnsyncedAreaChanges() const {
+  return std::ranges::any_of(areas_, [](const auto& iter) {
+    return iter.second->storage_area()->has_changes_to_commit() ||
+           iter.second->storage_area()->has_unsynced_commit_error();
+  });
+}
+
+base::TimeDelta LocalStorageImpl::GetCurrentReopenRetryCooldown() const {
+  const int shift =
+      std::clamp(reopen_attempts_since_last_successful_commit_ - 1, 0, 3);
+  return std::min(kMaxReopenRetryCooldown,
+                  kInitialReopenRetryCooldown * (1 << shift));
+}
+
+void LocalStorageImpl::StartDatabaseReopen() {
+  DCHECK(database_);
+  DCHECK(!reopen_in_progress_);
+  reopen_in_progress_ = true;
+  commit_error_count_ = 0;
+  ++reopen_attempts_since_last_successful_commit_;
+  last_reopen_attempt_time_ = base::TimeTicks::Now();
+  database_->ReopenDB(
+      base::BindOnce(&LocalStorageImpl::OnDatabaseReopenedAfterCommitErrors,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void LocalStorageImpl::MaybeRetryReopenAfterCooldown() {
+  delayed_reopen_retry_scheduled_ = false;
+  if (connection_state_ == CONNECTION_SHUTDOWN || !database_ || in_memory_ ||
+      reopen_in_progress_ || !HasUnsyncedAreaChanges()) {
+    return;
+  }
+  if (db_closed_after_failed_reopen_ ||
+      commit_error_count_ >= kCobaltReopenCommitErrorThreshold) {
+    StartDatabaseReopen();
+  }
+}
+
+void LocalStorageImpl::OnDatabaseReopenedAfterCommitErrors(
+    leveldb::Status status) {
+  reopen_in_progress_ = false;
+  if (connection_state_ == CONNECTION_SHUTDOWN) {
+    return;
+  }
+  if (status.ok()) {
+    db_closed_after_failed_reopen_ = false;
+    commit_error_count_ = 0;
+    database_initialized_ = false;
+    base::UmaHistogramEnumeration(
+        "Cobalt.LocalStorage.RecoveryEvent",
+        LocalStorageRecoveryEvent::kCommitErrorReopenSucceeded);
+    for (auto& [_, holder] : areas_) {
+      holder->storage_area()->ScheduleResyncCommitAfterDatabaseReopen(
+          /*immediate=*/true);
+    }
+    return;
+  }
+  base::UmaHistogramEnumeration(
+      "Cobalt.LocalStorage.RecoveryEvent",
+      LocalStorageRecoveryEvent::kCommitErrorReopenFailed);
+  if (!IsNonDestructiveLocalStorageOpenFailure(status)) {
+    base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseCommitError",
+                                  leveldb_env::GetLevelDBStatusUMAValue(status),
+                                  leveldb_env::LEVELDB_STATUS_MAX);
+    DeleteAndRecreateDatabase();
+    return;
+  }
+  // Leave areas_ connected in KEYS_AND_VALUES mode and mark the DB handle
+  // pending reopen so once the transient I/O / ENOSPC condition clears,
+  // subsequent writes or Flush()/ShutDown() reopen and resync cleanly.
+  db_closed_after_failed_reopen_ = true;
+  commit_error_count_ = 0;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void LocalStorageImpl::DeleteStaleStorageAreas() {
   if (!database_) {

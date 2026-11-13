@@ -337,24 +337,38 @@ Always run the pretty print utility on this file after editing:
 <histogram name="Cobalt.LocalStorage.DatabaseCommitError" enum="LevelDBStatus"
     expires_after="never">
   <owner>colinliang@google.com</owner>
+  <owner>haozheng@google.com</owner>
   <summary>
-    Records the leveldb error when a commit fails in Local Storage.
+    Records the LevelDB status when unrecoverable Local Storage commit errors
+    trigger a destructive DeleteAndRecreateDatabase() reset. Non-destructive
+    in-place reopens when CobaltLocalStorageErrorRecovery is enabled are
+    recorded in Cobalt.LocalStorage.RecoveryEvent instead.
   </summary>
 </histogram>
 
 <histogram name="Cobalt.LocalStorage.DatabaseOpenError" enum="LevelDBStatus"
     expires_after="never">
   <owner>colinliang@google.com</owner>
+  <owner>haozheng@google.com</owner>
   <summary>
-    Records the leveldb error when opening the Local Storage database fails.
+    Records the LevelDB status when opening the Local Storage database fails and
+    triggers a destructive DeleteAndRecreateDatabase() reset (including
+    LEVELDB_STATUS_CORRUPTION when a missing CURRENT file in a non-empty LevelDB
+    directory silently wipes existing SST files while
+    CobaltLocalStorageErrorRecovery is disabled). Non-destructive repairs and
+    volatile-memory fallbacks are recorded in Cobalt.LocalStorage.RecoveryEvent.
   </summary>
 </histogram>
 
 <histogram name="Cobalt.LocalStorage.DatabaseReadError" enum="LevelDBStatus"
     expires_after="never">
   <owner>colinliang@google.com</owner>
+  <owner>haozheng@google.com</owner>
   <summary>
-    Records the leveldb error when a read fails in Local Storage.
+    Records the LevelDB status when reading the Local Storage schema version
+    fails and triggers a destructive DeleteAndRecreateDatabase() reset.
+    Non-destructive volatile-memory fallbacks on transient read I/O errors are
+    recorded in Cobalt.LocalStorage.RecoveryEvent.
   </summary>
 </histogram>
 
@@ -372,6 +386,19 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records the leveldb status when a version mismatch is detected in Local
     Storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LocalStorage.RecoveryEvent"
+    enum="LocalStorageRecoveryEvent" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records non-destructive Local Storage LevelDB recovery outcomes and
+    volatile-memory fallback transitions when CobaltLocalStorageErrorRecovery is
+    enabled, including missing-CURRENT and open-corruption RepairDB() attempts,
+    disk-full or lock/I/O open fallbacks, transient version-read fallbacks, and
+    in-place database reopens after transient commit I/O errors.
   </summary>
 </histogram>
 
@@ -1063,10 +1090,10 @@ Always run the pretty print utility on this file after editing:
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the total wall-clock time spent committing a persistent LocalStorage
-    LevelDB WriteBatch (including synchronous disk flush when options.sync is
-    enabled) in DomStorageDatabase::Commit(). Excludes in-memory and
-    SessionStorage databases.
+    Records the total wall-clock time spent successfully committing a persistent
+    LocalStorage LevelDB WriteBatch (status.ok(), including synchronous disk
+    flush when options.sync is enabled) in DomStorageDatabase::Commit().
+    Excludes failed commits, in-memory databases, and SessionStorage databases.
   </summary>
 </histogram>
 

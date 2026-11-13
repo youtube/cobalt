@@ -85,6 +85,7 @@ Cobalt.Startup.TimeToMilestone.
 Browser.MainThreadsCongestion
 
 # --- P2.2 Data Integrity & Error Guardrails ---
+Cobalt.LocalStorage.RecoveryEvent
 Cobalt.LocalStorage.DatabaseOpenError
 Cobalt.LocalStorage.DatabaseReadError
 Cobalt.LocalStorage.DatabaseCommitError

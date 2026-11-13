@@ -16,6 +16,10 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "third_party/leveldatabase/env_chromium.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage {
 
 BASE_FEATURE(kDomStorageSmartFlushing,
@@ -168,6 +172,24 @@ void StorageAreaImpl::ScheduleImmediateCommit() {
   CommitChanges();
 }
 
+#if BUILDFLAG(IS_COBALT)
+void StorageAreaImpl::ScheduleResyncCommitAfterDatabaseReopen(bool immediate) {
+  if (!database_ || map_state_ != MapState::LOADED_KEYS_AND_VALUES ||
+      (!has_committed_data_ && !commit_batch_ && !has_unsynced_commit_error_)) {
+    return;
+  }
+  CreateCommitBatchIfNeeded();
+  commit_batch_->clear_all_first = true;
+  commit_batch_->changed_values.clear();
+  for (const auto& [key, _] : keys_values_map_) {
+    commit_batch_->changed_keys.insert(key);
+  }
+  if (immediate) {
+    ScheduleImmediateCommit();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void StorageAreaImpl::OnMemoryDump(const std::string& name,
                                    base::trace_event::ProcessMemoryDump* pmd) {
   if (!IsMapLoaded())
@@ -210,6 +232,11 @@ void StorageAreaImpl::OnMemoryDump(const std::string& name,
 void StorageAreaImpl::PurgeMemory() {
   if (!IsMapLoaded() ||  // We're not using any memory.
       commit_batch_ ||   // We leave things alone with changes pending.
+#if BUILDFLAG(IS_COBALT)
+      (base::FeatureList::IsEnabled(
+           base::features::kCobaltLocalStorageErrorRecovery) &&
+       (commit_batches_in_flight_ > 0 || has_unsynced_commit_error_)) ||
+#endif
       !database_) {  // Don't purge anything if we're not backed by a database.
     return;
   }
@@ -761,6 +788,19 @@ StorageAreaImpl::CollectCommit() {
 
   commit_rate_limiter_.add_samples(1);
 
+#if BUILDFLAG(IS_COBALT)
+  if (has_unsynced_commit_error_ && !commit_batch_->copy_to_prefix &&
+      map_state_ == MapState::LOADED_KEYS_AND_VALUES &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageErrorRecovery)) {
+    commit_batch_->clear_all_first = true;
+    commit_batch_->changed_values.clear();
+    for (const auto& [key, _] : keys_values_map_) {
+      commit_batch_->changed_keys.insert(key);
+    }
+  }
+#endif
+
   // Commit all our changes in a single batch.
   AsyncDomStorageDatabase::Commit commit;
   commit.timestamps = std::move(commit_batch_->put_timestamps);
@@ -836,6 +876,15 @@ StorageAreaImpl::CollectCommit() {
 void StorageAreaImpl::OnCommitComplete(leveldb::Status status) {
   has_committed_data_ = true;
   --commit_batches_in_flight_;
+#if BUILDFLAG(IS_COBALT)
+  if (status.ok()) {
+    if (commit_batches_in_flight_ == 0) {
+      has_unsynced_commit_error_ = false;
+    }
+  } else {
+    has_unsynced_commit_error_ = true;
+  }
+#endif
   StartCommitTimer();
 
   if (!status.ok())
