@@ -239,6 +239,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                                         NdkAudioMode::kAudioTrack);
     SB_LOG(INFO) << "`ndk_audio_mode` is set to " << ToString(ndk_audio_mode);
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
+#if SB_API_VERSION >= 15
+        creation_parameters.audio_codec() != kSbMediaAudioCodecIamf &&
+#endif  // SB_API_VERSION >= 15
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
       SB_LOG(INFO) << "Creating non-passthrough components.";
       return PlayerComponents::Factory::CreateComponents(creation_parameters);

@@ -76,6 +76,7 @@ class AudioTrackBridge : public AudioTrack {
   AudioDeviceChange GetAndResetAudioDeviceChange() override;
   int GetUnderrunCount() override;
   int GetStartThresholdInFrames() override;
+  int SetStartThresholdInFrames(int start_threshold_in_frames) override;
   PlayState GetPlayState() override;
 
  private:

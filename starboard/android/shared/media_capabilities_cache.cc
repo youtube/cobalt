@@ -119,6 +119,11 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
       case kSbMediaAudioCodecEac3:
         coding_type = kSbMediaAudioCodingTypeDolbyDigitalPlus;
         break;
+#if SB_API_VERSION >= 15
+      case kSbMediaAudioCodecIamf:
+        coding_type = kSbMediaAudioCodingTypeIamfBaseProfileOpus;
+        break;
+#endif  // SB_API_VERSION >= 15
       default:
         return false;
     }
