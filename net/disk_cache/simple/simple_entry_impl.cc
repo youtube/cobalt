@@ -1029,8 +1029,18 @@ int SimpleEntryImpl::ReadDataInternal(bool sync_possible,
   }
 
   state_ = STATE_IO_PENDING;
+#if BUILDFLAG(IS_COBALT)
+  // Matching Blockfile's SHADER_CACHE contract (BackendImpl::UpdateRank), do
+  // not refresh LRU rank on startup ReadData() enumeration; only writes and
+  // OnExternalCacheHit() reflect actual shader usage.
+  if (doom_state_ == DOOM_NONE && backend_.get() &&
+      cache_type_ != net::SHADER_CACHE) {
+    backend_->index()->UseIfExists(entry_hash_);
+  }
+#else
   if (doom_state_ == DOOM_NONE && backend_.get())
     backend_->index()->UseIfExists(entry_hash_);
+#endif  // BUILDFLAG(IS_COBALT)
 
   SimpleSynchronousEntry::ReadRequest read_req(stream_index, offset, buf_len);
   // Figure out if we should be computing the checksum for this read,
