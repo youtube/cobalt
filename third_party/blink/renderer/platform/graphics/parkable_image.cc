@@ -271,6 +271,11 @@ void ParkableImageImpl::Freeze() {
   // snapshot is allowed to access the buffer's data freely.
   if (CanParkNow())
     AsanPoisonBuffer(rw_buffer_.get());
+
+#if BUILDFLAG(IS_COBALT)
+  // The size is final now, so the image may push RAM over the budget.
+  ParkableImageManager::Instance().OnImageFrozen();
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void ParkableImageImpl::LockData() {
@@ -454,6 +459,9 @@ void ParkableImageImpl::Unpark() {
   // We mark the ParkableImage as having been read here, since any access to
   // its data must first make sure it's not on disk.
   used_ = true;
+#if BUILDFLAG(IS_COBALT)
+  last_used_time_ = base::TimeTicks::Now();
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (!is_on_disk()) {
     AsanUnpoisonBuffer(rw_buffer_.get());

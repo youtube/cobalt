@@ -458,12 +458,22 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
              "CobaltBypassHTMLPreloadScanner",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Disables ParkableImage and ParkableString disk swapping in Cobalt, so no
-// DiskDataAllocator swap file is created in DIR_CACHE and parked data is never
-// read back from disk on the main thread.
+// Keeps up to CobaltParkableMemoryOptimization_max_unparked_kb of encoded
+// ParkableImage data in RAM while the renderer is in the foreground, and parks
+// only the least recently used images above that budget to the swap file.
+// Everything parkable is parked while the renderer is backgrounded or hidden,
+// and on critical memory pressure.
 BASE_FEATURE(kCobaltParkableMemoryOptimization,
              "CobaltParkableMemoryOptimization",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so the param name
+// is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+BASE_FEATURE_PARAM(int,
+                   kCobaltParkableMemoryOptimizationMaxUnparkedKb,
+                   &kCobaltParkableMemoryOptimization,
+                   "CobaltParkableMemoryOptimization_max_unparked_kb",
+                   2048);
 
 // Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
 // devices so that shelf tracks and carousels are promoted to dedicated
@@ -2958,21 +2968,11 @@ bool IsFencedFramesEnabled() {
 }
 
 bool IsParkableStringsToDiskEnabled() {
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(kCobaltParkableMemoryOptimization)) {
-    return false;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
   // Always enabled as soon as compression is enabled.
   return base::FeatureList::IsEnabled(kCompressParkableStrings);
 }
 
 bool IsParkableImagesToDiskEnabled() {
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(kCobaltParkableMemoryOptimization)) {
-    return false;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
   return base::FeatureList::IsEnabled(kParkableImagesToDisk);
 }
 

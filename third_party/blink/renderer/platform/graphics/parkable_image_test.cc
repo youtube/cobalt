@@ -19,6 +19,11 @@
 #include "third_party/blink/renderer/platform/image-decoders/image_decoder_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/memory_pressure_listener.h"
+#include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 using ThreadPoolExecutionMode =
     base::test::TaskEnvironment::ThreadPoolExecutionMode;
 
@@ -1063,24 +1068,311 @@ TEST_F(ParkableImageWithLimitedDiskCapacityTest, ParkWithLimitedDiskCapacity) {
 }
 
 #if BUILDFLAG(IS_COBALT)
-TEST_F(ParkableImageTest, CobaltParkableMemoryOptimizationDisablesDiskParking) {
-  base::test::ScopedFeatureList cobalt_fl(
-      features::kCobaltParkableMemoryOptimization);
-  EXPECT_FALSE(ParkableImageManager::IsParkableImagesToDiskEnabled());
+namespace {
+constexpr size_t kCobaltDataSize = 3.5 * 4096;  // 14 KiB.
+constexpr char kCobaltBudgetParam[] =
+    "CobaltParkableMemoryOptimization_max_unparked_kb";
+}  // namespace
 
+// kCobaltParkableMemoryOptimization with a 32 KiB budget: two 14 KiB images
+// fit, a third one does not.
+class ParkableImageCobaltBudgetTest : public ParkableImageBaseTest {
+ public:
+  ParkableImageCobaltBudgetTest()
+      : ParkableImageCobaltBudgetTest(/*delay_parking=*/false) {}
+
+ protected:
+  explicit ParkableImageCobaltBudgetTest(bool delay_parking)
+      : data_(MakeData()) {
+    std::vector<base::test::FeatureRefAndParams> enabled_features = {
+        {features::kParkableImagesToDisk, {}},
+        {features::kCobaltParkableMemoryOptimization,
+         {{kCobaltBudgetParam, "32"}}}};
+    std::vector<base::test::FeatureRef> disabled_features;
+    if (delay_parking) {
+      enabled_features.push_back({kDelayParkingImages, {}});
+    } else {
+      disabled_features.push_back(kDelayParkingImages);
+    }
+    fl_.InitWithFeaturesAndParameters(enabled_features, disabled_features);
+  }
+
+  static base::HeapArray<uint8_t> MakeData() {
+    auto data = base::HeapArray<uint8_t>::Uninit(kCobaltDataSize);
+    PrepareReferenceData(data);
+    return data;
+  }
+
+  scoped_refptr<ParkableImage> MakeFrozenImage() {
+    auto pi = MakeParkableImageForTesting(data_);
+    pi->Freeze();
+    return pi;
+  }
+
+  base::HeapArray<uint8_t> data_;
+
+ private:
+  base::test::ScopedFeatureList fl_;
+};
+
+// Same as above, with the default 30 s delay before unused images are parked.
+class ParkableImageCobaltBudgetDelayedTest
+    : public ParkableImageCobaltBudgetTest {
+ public:
+  ParkableImageCobaltBudgetDelayedTest()
+      : ParkableImageCobaltBudgetTest(/*delay_parking=*/true) {}
+};
+
+TEST_F(ParkableImageCobaltBudgetTest, UnderBudgetKeepsImagesInRam) {
+  ASSERT_TRUE(ParkableImageManager::IsUnparkedBudgetEnabled());
+  auto pi1 = MakeFrozenImage();
+  auto pi2 = MakeFrozenImage();
+
+  // Only the 5-minute statistics task: no parking task under the budget.
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+  WaitForParking();
+  RunPostedTasks();
+
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+  ExpectWriteStatistics(kCobaltDataSize / 1024, 0);
+  EXPECT_TRUE(IsSameContent(pi1, data_));
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, OverBudgetParksLeastRecentlyUsed) {
+  auto pi1 = MakeFrozenImage();
+  WaitForParking();
+  auto pi2 = MakeFrozenImage();
+  WaitForParking();
+  // pi2 was never used, so its freeze time makes it older than pi1.
+  pi1->Data();
+  WaitForParking();
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+
+  // The third image goes over the budget.
+  auto pi3 = MakeFrozenImage();
+  EXPECT_EQ(2u, GetPendingMainThreadTaskCount());
+  WaitForParking();
+  RunPostedTasks();
+
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_TRUE(is_on_disk(pi2));
+  EXPECT_FALSE(is_on_disk(pi3));
+  ExpectWriteStatistics(kCobaltDataSize / 1024, 1);
+  // Under the budget again, so the parking task does not run again.
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+
+  // Reading pi2 back makes it the most recently used image, so pi1 is parked.
+  pi2->Data();
+  EXPECT_FALSE(is_on_disk(pi2));
+  WaitForParking();
+  RunPostedTasks();
+
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+  EXPECT_FALSE(is_on_disk(pi3));
+  ExpectWriteStatistics(kCobaltDataSize / 1024, 2);
+  ExpectReadStatistics(kCobaltDataSize / 1024, 1);
+  EXPECT_TRUE(IsSameContent(pi2, data_));
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, InFlightWritesCountAsParked) {
+  auto& manager = ParkableImageManager::Instance();
+  auto pi1 = MakeFrozenImage();
+  WaitForParking();
+  auto pi2 = MakeFrozenImage();
+  WaitForParking();
+  auto pi3 = MakeFrozenImage();
+
+  // The first pass starts writing pi1. Its data stays in RAM until the write
+  // completes on the main thread, but the second pass counts it as parked.
+  manager.MaybeParkImagesForTesting();
+  manager.MaybeParkImagesForTesting();
+  RunPostedTasks();
+
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+  EXPECT_FALSE(is_on_disk(pi3));
+  ExpectWriteStatistics(kCobaltDataSize / 1024, 1);
+  WaitForParking();
+  RunPostedTasks();
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, ReschedulesWhileOverBudget) {
+  auto pi1 = MakeFrozenImage();
+  WaitForParking();
+  auto pi2 = MakeFrozenImage();
+  WaitForParking();
+  auto pi3 = MakeFrozenImage();
+  Lock(pi1);
+  Lock(pi2);
+  Lock(pi3);
+
+  // Nothing can be parked, so the task keeps running while over the budget.
+  WaitForParking();
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+  EXPECT_FALSE(is_on_disk(pi3));
+  EXPECT_EQ(2u, GetPendingMainThreadTaskCount());
+
+  // The least recently used image is locked, so the next one is parked.
+  Unlock(pi2);
+  Unlock(pi3);
+  WaitForParking();
+  RunPostedTasks();
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_TRUE(is_on_disk(pi2));
+  EXPECT_FALSE(is_on_disk(pi3));
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+  Unlock(pi1);
+}
+
+TEST_F(ParkableImageCobaltBudgetDelayedTest, ParksOverflowAfterParkingDelay) {
+  auto pi1 = MakeFrozenImage();
+  WaitForParking();
+  auto pi2 = MakeFrozenImage();
+  WaitForParking();
+  auto pi3 = MakeFrozenImage();
+
+  // Unused images cannot be parked within 30 s of being frozen.
+  WaitForParking();
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_EQ(2u, GetPendingMainThreadTaskCount());
+
+  WaitForDelayedParking();
+  RunPostedTasks();
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+  EXPECT_FALSE(is_on_disk(pi3));
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, HiddenRendererParksAll) {
+  auto& manager = ParkableImageManager::Instance();
+  auto pi1 = MakeFrozenImage();
+  auto pi2 = MakeFrozenImage();
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+
+  manager.SetRendererHidden(true);
+  EXPECT_EQ(2u, GetPendingMainThreadTaskCount());
+  WaitForParking();
+  RunPostedTasks();
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_TRUE(is_on_disk(pi2));
+
+  // Back in the foreground, new images stay in RAM under the budget.
+  manager.SetRendererHidden(false);
+  auto pi3 = MakeFrozenImage();
+  WaitForParking();
+  RunPostedTasks();
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi3));
+  ExpectWriteStatistics(kCobaltDataSize / 1024, 2);
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, BackgroundedRendererParksAll) {
+  auto& manager = ParkableImageManager::Instance();
+  auto pi1 = MakeFrozenImage();
+
+  manager.SetRendererBackgrounded(true);
+  WaitForParking();
+  RunPostedTasks();
+  EXPECT_TRUE(is_on_disk(pi1));
+
+  // Images added in the background are parked as without the budget.
+  auto pi2 = MakeFrozenImage();
+  EXPECT_EQ(2u, GetPendingMainThreadTaskCount());
+  WaitForParking();
+  RunPostedTasks();
+  EXPECT_TRUE(is_on_disk(pi2));
+
+  manager.SetRendererBackgrounded(false);
+  auto pi3 = MakeFrozenImage();
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+  WaitForParking();
+  RunPostedTasks();
+  EXPECT_FALSE(is_on_disk(pi3));
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, CriticalMemoryPressureParksAll) {
+  auto pi1 = MakeFrozenImage();
+  auto pi2 = MakeFrozenImage();
+
+  // Moderate pressure is ignored.
+  MemoryPressureListenerRegistry::Instance().OnMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+  RunPostedTasks();
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+
+  // OnPurgeMemory() follows OnMemoryPressure(CRITICAL).
+  MemoryPressureListenerRegistry::Instance().OnMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  MemoryPressureListenerRegistry::Instance().OnPurgeMemory();
+  RunPostedTasks();
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_TRUE(is_on_disk(pi2));
+  ExpectWriteStatistics(kCobaltDataSize / 1024, 2);
+}
+
+TEST_F(ParkableImageBaseTest, CobaltUnparkedBudgetParam) {
+  {
+    base::test::ScopedFeatureList fl;
+    fl.InitWithFeatures({features::kParkableImagesToDisk,
+                         features::kCobaltParkableMemoryOptimization},
+                        {});
+    EXPECT_TRUE(ParkableImageManager::IsUnparkedBudgetEnabled());
+    EXPECT_EQ(2048u * 1024, ParkableImageManager::UnparkedBudgetBytes());
+  }
+  {
+    base::test::ScopedFeatureList fl;
+    fl.InitAndEnableFeatureWithParameters(
+        features::kCobaltParkableMemoryOptimization,
+        {{kCobaltBudgetParam, "-1"}});
+    EXPECT_EQ(0u, ParkableImageManager::UnparkedBudgetBytes());
+  }
+  {
+    base::test::ScopedFeatureList fl;
+    fl.InitAndEnableFeatureWithParameters(
+        features::kCobaltParkableMemoryOptimization,
+        {{kCobaltBudgetParam, "1000000"}});
+    EXPECT_EQ(64u * 1024 * 1024, ParkableImageManager::UnparkedBudgetBytes());
+  }
+  {
+    // The budget needs the swap file.
+    base::test::ScopedFeatureList fl;
+    fl.InitWithFeatures({features::kCobaltParkableMemoryOptimization},
+                        {features::kParkableImagesToDisk});
+    EXPECT_FALSE(ParkableImageManager::IsUnparkedBudgetEnabled());
+  }
+}
+
+// Without kCobaltParkableMemoryOptimization, parking is unchanged.
+TEST_F(ParkableImageTest, CobaltHooksInertWithoutBudget) {
+  auto& manager = ParkableImageManager::Instance();
+  ASSERT_FALSE(ParkableImageManager::IsUnparkedBudgetEnabled());
   const size_t kDataSize = 3.5 * 4096;
   auto data = base::HeapArray<uint8_t>::Uninit(kDataSize);
   PrepareReferenceData(data);
 
   auto pi = MakeParkableImageForTesting(data);
   pi->Freeze();
-  pi->Data();
+  EXPECT_EQ(2u, GetPendingMainThreadTaskCount());
+
+  manager.SetRendererHidden(true);
+  manager.SetRendererBackgrounded(true);
+  manager.OnPurgeMemory();
+  EXPECT_FALSE(is_on_disk(pi));
+  EXPECT_EQ(2u, GetPendingMainThreadTaskCount());
+
   WaitForParking();
   RunPostedTasks();
+  EXPECT_TRUE(is_on_disk(pi));
+  ExpectWriteStatistics(kDataSize / 1024, 1);
 
-  EXPECT_FALSE(is_on_disk(pi));
-  ExpectWriteStatistics(kDataSize / 1024, 0);
-  EXPECT_TRUE(IsSameContent(pi, data));
+  manager.SetRendererHidden(false);
+  manager.SetRendererBackgrounded(false);
 }
 #endif  // BUILDFLAG(IS_COBALT)
 

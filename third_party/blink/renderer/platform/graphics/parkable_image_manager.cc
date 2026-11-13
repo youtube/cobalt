@@ -13,7 +13,35 @@
 #include "third_party/blink/renderer/platform/scheduler/public/main_thread.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <algorithm>
+#include <utility>
+
+#include "base/logging.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
+#include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace blink {
+
+#if BUILDFLAG(IS_COBALT)
+namespace {
+
+// OnPurgeMemory() runs right after OnMemoryPressure(CRITICAL), and not for
+// MODERATE pressure, which Cobalt reports often.
+class ParkableImagePurgeMemoryListener final
+    : public GarbageCollected<ParkableImagePurgeMemoryListener>,
+      public MemoryPressureListener {
+ public:
+  void OnPurgeMemory() override {
+    ParkableImageManager::Instance().OnPurgeMemory();
+  }
+};
+
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT)
 
 struct ParkableImageManager::Statistics {
   size_t unparked_size = 0;
@@ -94,6 +122,10 @@ void ParkableImageManager::ResetForTesting() {
   allocator_for_testing_ = nullptr;
   total_disk_read_time_ = base::TimeDelta();
   total_disk_write_time_ = base::TimeDelta();
+#if BUILDFLAG(IS_COBALT)
+  renderer_backgrounded_ = false;
+  renderer_hidden_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void ParkableImageManager::Add(ParkableImageImpl* impl) {
@@ -105,9 +137,30 @@ void ParkableImageManager::Add(ParkableImageImpl* impl) {
   }
 #endif  // DCHECK_IS_ON()
 
+#if BUILDFLAG(IS_COBALT)
+  // Registered lazily, as for ParkableStrings, and outside |lock_|, since a
+  // garbage-collected allocation can run finalizers that destroy images.
+  if (!did_register_memory_pressure_listener_ && IsUnparkedBudgetEnabled()) {
+    // The registry holds its clients weakly, so keep the listener alive.
+    DEFINE_STATIC_LOCAL(
+        Persistent<ParkableImagePurgeMemoryListener>, listener,
+        (MakeGarbageCollected<ParkableImagePurgeMemoryListener>()));
+    MemoryPressureListenerRegistry::Instance().RegisterClient(listener.Get());
+    did_register_memory_pressure_listener_ = true;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   base::AutoLock lock(lock_);
 
+#if BUILDFLAG(IS_COBALT)
+  // A new image is empty, so it cannot push RAM over the budget.
+  // OnImageFrozen() checks the budget once the image's size is final.
+  if (!IsUnparkedBudgetActive()) {
+    ScheduleDelayedParkingTaskIfNeeded();
+  }
+#else
   ScheduleDelayedParkingTaskIfNeeded();
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (!has_posted_accounting_task_) {
     // |base::Unretained(this)| is fine because |this| is a NoDestructor
@@ -244,10 +297,31 @@ void ParkableImageManager::MaybeParkImages() {
   // synchronous parking calls |ParkableImageManager::OnWrittenToDisk()|;
   WTF::Vector<ParkableImageImpl*> unparked_images(unparked_images_);
 
+#if BUILDFLAG(IS_COBALT)
+  const bool use_budget = IsUnparkedBudgetActive();
+#endif  // BUILDFLAG(IS_COBALT)
+
   // We unlock here so that we can avoid a deadlock, since if the data for the
   // image is already written to disk, we can discard our copy of the data
   // synchronously, which calls back into the manager.
   lock_.Release();
+
+#if BUILDFLAG(IS_COBALT)
+  if (use_budget) {
+    // Under the budget, the task runs again only while RAM is over the budget
+    // and the swap file is writable. OnImageFrozen() and OnReadFromDisk()
+    // schedule it when RAM grows.
+    const bool should_reschedule_for_budget =
+        ParkLeastRecentlyUsedImages(unparked_images, UnparkedBudgetBytes()) &&
+        data_allocator().may_write();
+    lock_.Acquire();
+    has_pending_parking_task_ = false;
+    if (should_reschedule_for_budget) {
+      ScheduleDelayedParkingTaskIfNeeded();
+    }
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   bool should_reschedule = false;
   for (auto* image : unparked_images) {
@@ -263,5 +337,133 @@ void ParkableImageManager::MaybeParkImages() {
   if (should_reschedule)
     ScheduleDelayedParkingTaskIfNeeded();
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+bool ParkableImageManager::IsUnparkedBudgetEnabled() {
+  return IsParkableImagesToDiskEnabled() &&
+         base::FeatureList::IsEnabled(
+             features::kCobaltParkableMemoryOptimization);
+}
+
+// static
+size_t ParkableImageManager::UnparkedBudgetBytes() {
+  // 0 parks every parkable image. 64 MiB is far more encoded image data than
+  // a TV app keeps alive, so it means no foreground parking.
+  constexpr int kMaxUnparkedKb = 64 * 1024;
+  const int unparked_kb =
+      std::clamp(features::kCobaltParkableMemoryOptimizationMaxUnparkedKb.Get(),
+                 0, kMaxUnparkedKb);
+  return static_cast<size_t>(unparked_kb) * 1024;
+}
+
+void ParkableImageManager::SetRendererBackgrounded(bool backgrounded) {
+  DCHECK(IsMainThread());
+  base::AutoLock lock(lock_);
+  const bool was_budget_active = IsUnparkedBudgetActive();
+  renderer_backgrounded_ = backgrounded;
+  OnRendererStateChanged(was_budget_active);
+}
+
+void ParkableImageManager::SetRendererHidden(bool hidden) {
+  DCHECK(IsMainThread());
+  base::AutoLock lock(lock_);
+  const bool was_budget_active = IsUnparkedBudgetActive();
+  renderer_hidden_ = hidden;
+  OnRendererStateChanged(was_budget_active);
+}
+
+void ParkableImageManager::OnRendererStateChanged(bool was_budget_active) {
+  const bool is_budget_active = IsUnparkedBudgetActive();
+  if (was_budget_active == is_budget_active) {
+    return;
+  }
+  VLOG(1) << "ParkableImageManager: RAM budget "
+          << (is_budget_active ? "on" : "off")
+          << " (backgrounded=" << renderer_backgrounded_
+          << ", hidden=" << renderer_hidden_ << ")";
+  if (!is_budget_active) {
+    // Park every parkable image, as without the budget. Parking back in the
+    // foreground follows the budget again, so there is nothing to do then.
+    ScheduleDelayedParkingTaskIfNeeded();
+  }
+}
+
+bool ParkableImageManager::IsUnparkedBudgetActive() const {
+  return IsUnparkedBudgetEnabled() && !renderer_backgrounded_ &&
+         !renderer_hidden_;
+}
+
+void ParkableImageManager::OnImageFrozen() {
+  DCHECK(IsMainThread());
+  base::AutoLock lock(lock_);
+  if (!IsUnparkedBudgetActive()) {
+    // Add() already scheduled the parking task.
+    return;
+  }
+  size_t unparked_size = 0;
+  for (ParkableImageImpl* image : unparked_images_) {
+    unparked_size += image->size();
+  }
+  if (unparked_size > UnparkedBudgetBytes()) {
+    ScheduleDelayedParkingTaskIfNeeded();
+  }
+}
+
+void ParkableImageManager::OnPurgeMemory() {
+  DCHECK(IsMainThread());
+  if (!IsUnparkedBudgetEnabled()) {
+    return;
+  }
+  VLOG(1) << "ParkableImageManager: parking all images on critical memory "
+             "pressure";
+  WTF::Vector<ParkableImageImpl*> unparked_images;
+  {
+    base::AutoLock lock(lock_);
+    unparked_images = WTF::Vector<ParkableImageImpl*>(unparked_images_);
+  }
+  // A budget of 0 parks every image that can be parked now. The parking task
+  // handles the rest.
+  ParkLeastRecentlyUsedImages(unparked_images, /*budget=*/0);
+}
+
+bool ParkableImageManager::ParkLeastRecentlyUsedImages(
+    const WTF::Vector<ParkableImageImpl*>& unparked_images,
+    size_t budget) {
+  // As in MaybeParkImages(), the raw pointers stay valid because images are
+  // only destroyed on the main thread.
+  DCHECK(IsMainThread());
+
+  WTF::Vector<std::pair<base::TimeTicks, ParkableImageImpl*>> candidates;
+  candidates.reserve(unparked_images.size());
+  size_t unparked_size = 0;
+  for (ParkableImageImpl* image : unparked_images) {
+    base::AutoLock image_lock(image->lock_);
+    // The data is released once the write completes, so count it as parked.
+    if (image->background_task_in_progress_) {
+      continue;
+    }
+    unparked_size += image->size();
+    candidates.emplace_back(image->LastUsedTime(), image);
+  }
+  if (unparked_size <= budget) {
+    return false;
+  }
+
+  std::stable_sort(
+      candidates.begin(), candidates.end(),
+      [](const auto& a, const auto& b) { return a.first < b.first; });
+  for (const auto& candidate : candidates) {
+    if (unparked_size <= budget) {
+      break;
+    }
+    ParkableImageImpl* image = candidate.second;
+    if (image->MaybePark(task_runner_)) {
+      unparked_size -= image->size();
+    }
+  }
+  return unparked_size > budget;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink

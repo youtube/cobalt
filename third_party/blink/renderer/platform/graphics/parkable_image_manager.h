@@ -10,11 +10,13 @@
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/platform/disk_data_allocator.h"
 #include "third_party/blink/renderer/platform/graphics/parkable_image.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
@@ -38,15 +40,27 @@ class PLATFORM_EXPORT ParkableImageManager
   size_t Size() const LOCKS_EXCLUDED(lock_);
 
   static bool IsParkableImagesToDiskEnabled() {
-#if BUILDFLAG(IS_COBALT)
-    // Route through the shared helper so kCobaltParkableMemoryOptimization
-    // also stops the renderer's delayed image parking task, not only the
-    // browser's swap file creation.
-    return features::IsParkableImagesToDiskEnabled();
-#else
     return base::FeatureList::IsEnabled(features::kParkableImagesToDisk);
-#endif  // BUILDFLAG(IS_COBALT)
   }
+
+#if BUILDFLAG(IS_COBALT)
+  // Under kCobaltParkableMemoryOptimization, up to UnparkedBudgetBytes() of
+  // encoded image data stays in RAM while the renderer is visible and in the
+  // foreground, and only the least recently used images above the budget are
+  // parked. While the renderer is backgrounded or hidden, every parkable image
+  // is parked, as without the feature. Critical memory pressure parks every
+  // parkable image at once.
+  static bool IsUnparkedBudgetEnabled();
+  static size_t UnparkedBudgetBytes();
+
+  // Called by the main thread scheduler.
+  void SetRendererBackgrounded(bool backgrounded) LOCKS_EXCLUDED(lock_);
+  void SetRendererHidden(bool hidden) LOCKS_EXCLUDED(lock_);
+
+  // Parks every image that can be parked now. Called on critical memory
+  // pressure.
+  void OnPurgeMemory() LOCKS_EXCLUDED(lock_);
+#endif  // BUILDFLAG(IS_COBALT)
 
   void MaybeParkImagesForTesting() { MaybeParkImages(); }
 
@@ -81,6 +95,26 @@ class PLATFORM_EXPORT ParkableImageManager
 
   void ScheduleDelayedParkingTaskIfNeeded() EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void MaybeParkImages() LOCKS_EXCLUDED(lock_);
+
+#if BUILDFLAG(IS_COBALT)
+  // Called by ParkableImageImpl::Freeze(), once the image's size is final.
+  void OnImageFrozen() LOCKS_EXCLUDED(lock_);
+
+  // Whether parking enforces the RAM budget, rather than parking every
+  // parkable image.
+  bool IsUnparkedBudgetActive() const EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+  // Schedules the parking task if the budget stopped applying.
+  void OnRendererStateChanged(bool was_budget_active)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+  // Parks the least recently used images in |unparked_images| until at most
+  // |budget| bytes stay in RAM. Images with a write in flight count as parked.
+  // Returns whether RAM is still over the budget.
+  bool ParkLeastRecentlyUsedImages(
+      const WTF::Vector<ParkableImageImpl*>& unparked_images,
+      size_t budget) LOCKS_EXCLUDED(lock_);
+#endif  // BUILDFLAG(IS_COBALT)
 
   Statistics ComputeStatistics() const EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
@@ -139,6 +173,13 @@ class PLATFORM_EXPORT ParkableImageManager
 
   bool has_pending_parking_task_ GUARDED_BY(lock_) = false;
   bool has_posted_accounting_task_ GUARDED_BY(lock_) = false;
+
+#if BUILDFLAG(IS_COBALT)
+  bool renderer_backgrounded_ GUARDED_BY(lock_) = false;
+  bool renderer_hidden_ GUARDED_BY(lock_) = false;
+  // Main thread only.
+  bool did_register_memory_pressure_listener_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   base::TimeDelta total_disk_read_time_ GUARDED_BY(lock_) = base::TimeDelta();
   base::TimeDelta total_disk_write_time_ GUARDED_BY(lock_) = base::TimeDelta();

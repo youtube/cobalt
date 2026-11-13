@@ -240,6 +240,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClientHintsXRFormFactor);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassBufferingBytesConsumer);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassHTMLPreloadScanner);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltParkableMemoryOptimization);
+// Foreground RAM budget for encoded ParkableImage data, in KiB.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kCobaltParkableMemoryOptimizationMaxUnparkedKb);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltPreserveTrivial3DTransform);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kCobaltSkipHiddenMediaControlsCreation);

@@ -1386,12 +1386,15 @@ TEST_F(CobaltContentBrowserClientTest, CobaltParkableMemoryOptimization) {
   EXPECT_TRUE(blink::features::IsParkableImagesToDiskEnabled());
   EXPECT_TRUE(blink::features::IsParkableStringsToDiskEnabled());
 
+  // The flag caps the encoded image data kept in RAM, so the renderer still
+  // gets a swap file for the overflow and for background parking.
   base::test::ScopedFeatureList feature_list(
       blink::features::kCobaltParkableMemoryOptimization);
-  EXPECT_FALSE(blink::features::IsParkableImagesToDiskEnabled());
-  EXPECT_FALSE(blink::features::IsParkableStringsToDiskEnabled());
-  EXPECT_TRUE(
-      base::FeatureList::IsEnabled(blink::features::kCompressParkableStrings));
+  EXPECT_TRUE(blink::features::IsParkableImagesToDiskEnabled());
+  EXPECT_TRUE(blink::features::IsParkableStringsToDiskEnabled());
+  EXPECT_EQ(
+      2048,
+      blink::features::kCobaltParkableMemoryOptimizationMaxUnparkedKb.Get());
 }
 
 TEST_F(CobaltContentBrowserClientTest,
