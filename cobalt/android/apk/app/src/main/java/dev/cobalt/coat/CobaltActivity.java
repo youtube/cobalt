@@ -82,6 +82,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
   private static final String COBALT_USING_ANDROID_OVERLAY = "cobalt-using-android-overlay";
+  // DO NOT SUBMIT (b/578964869 benchmark): shows the splash screen on warm starts for at least
+  // this many ms, e.g. --warm-start-splash-ms=1500. Off when unset or 0.
+  private static final String WARM_START_SPLASH_MS_SWITCH = "warm-start-splash-ms";
+  // DO NOT SUBMIT (b/578964869 benchmark): whether this Activity has started before, so that
+  // later onStart() calls are warm starts.
+  private boolean mHasStartedBefore;
 
   // How many seconds before the app exits if it fails to land YouTube home page.
   private static final int DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS = 120;
@@ -629,6 +635,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         // document.onresume event
         webContents.onResume();
       }
+      // DO NOT SUBMIT (b/578964869 benchmark): before the visibility:visible event below, so that
+      // the main WebContents stays hidden behind the splash screen.
+      maybeShowWarmStartSplash();
       // visibility:visible event
       if (isNvidiaShield()) {
         updateShellActivityVisible(mWasDisplayOn);
@@ -639,6 +648,35 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
     StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_START);
+  }
+
+  /**
+   * DO NOT SUBMIT: benchmark-only prototype for b/578964869. On a warm start (any onStart() after
+   * this Activity's first), shows the splash screen for --warm-start-splash-ms, if it's set.
+   */
+  private void maybeShowWarmStartSplash() {
+    boolean isWarmStart = mHasStartedBefore;
+    mHasStartedBefore = true;
+    if (!isWarmStart || !CommandLine.isInitialized() || mShellManager == null) {
+      return;
+    }
+    String value = CommandLine.getInstance().getSwitchValue(WARM_START_SPLASH_MS_SWITCH);
+    if (TextUtils.isEmpty(value)) {
+      return;
+    }
+    int minDurationMs;
+    try {
+      minDurationMs = Integer.parseInt(value);
+    } catch (NumberFormatException e) {
+      Log.w(TAG, "WarmSplash: invalid --" + WARM_START_SPLASH_MS_SWITCH + "=" + value);
+      return;
+    }
+    Shell shell = mShellManager.getActiveShell();
+    if (minDurationMs <= 0 || shell == null) {
+      return;
+    }
+    Log.i(TAG, "WarmSplash: warm start, showing the splash screen for " + minDurationMs + "ms");
+    shell.showWarmStartSplash(minDurationMs);
   }
 
   @Override

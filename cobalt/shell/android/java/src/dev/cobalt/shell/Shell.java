@@ -63,6 +63,8 @@ public class Shell {
 
   private boolean mIsFullscreen;
   private boolean mIsActivityVisible;
+  // DO NOT SUBMIT (b/578964869 benchmark): whether the splash screen is up for a warm start.
+  private boolean mIsWarmStartSplash;
 
   private @Nullable OnWebContentsReadyListener mWebContentsReadyListener;
   private @Nullable Callback<Boolean> mOverlayModeChangedCallbackForTesting;
@@ -121,6 +123,21 @@ public class Shell {
   public void loadSplashScreenWebContents() {
     if (mNativeShell == 0) return;
     ShellJni.get().loadSplashScreenWebContents(mNativeShell);
+  }
+
+  /**
+   * DO NOT SUBMIT: benchmark-only prototype for b/578964869. Shows the splash screen again on a
+   * warm start, for at least {@code minDurationMs}; the main WebContents stays hidden until the
+   * switch back to it.
+   */
+  public void showWarmStartSplash(int minDurationMs) {
+    if (mNativeShell == 0) return;
+    mIsWarmStartSplash = true;
+    // Synchronously calls back loadSplashScreenNativeTabContents() if the splash screen shows.
+    ShellJni.get().showWarmStartSplashScreen(mNativeShell, minDurationMs);
+    if (mSplashScreenWebContents == null) {
+      mIsWarmStartSplash = false;
+    }
   }
 
   @SuppressWarnings("NullAway")
@@ -221,6 +238,7 @@ public class Shell {
   @CalledByNative
   private void updateNativeTabContents(WebContents webContents) {
     if (webContents == null || mContentViewRenderView == null) return;
+    mIsWarmStartSplash = false;
     mWebContents = webContents;
     mSplashScreenWebContents = null;
     mNavigationController = mWebContents.getNavigationController();
@@ -232,6 +250,13 @@ public class Shell {
 
   public void onActivityVisible(boolean visible) {
     mIsActivityVisible = visible;
+    if (mIsWarmStartSplash && mSplashScreenWebContents != null) {
+      // DO NOT SUBMIT (b/578964869 benchmark): show the warm-start splash screen; the main
+      // WebContents stays hidden until updateNativeTabContents() switches back to it.
+      mSplashScreenWebContents.updateWebContentsVisibility(
+          visible ? Visibility.VISIBLE : Visibility.HIDDEN);
+      return;
+    }
     if (mWebContents != null) {
       if (visible) {
         mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
@@ -264,6 +289,8 @@ public class Shell {
   @NativeMethods
   interface Natives {
     void loadSplashScreenWebContents(long shellPtr);
+
+    void showWarmStartSplashScreen(long shellPtr, int minDurationMs);
 
     void closeShell(long shellPtr);
   }

@@ -214,6 +214,15 @@ void JNI_Shell_LoadSplashScreenWebContents(JNIEnv* env, jlong shellPtr) {
   shell->LoadSplashScreenWebContents();
 }
 
+// DO NOT SUBMIT: benchmark-only prototype for b/578964869.
+// static
+void JNI_Shell_ShowWarmStartSplashScreen(JNIEnv* env,
+                                         jlong shellPtr,
+                                         jint minDurationMs) {
+  Shell* shell = reinterpret_cast<Shell*>(shellPtr);
+  shell->ShowWarmStartSplashScreen(base::Milliseconds(minDurationMs));
+}
+
 // static
 void JNI_Shell_CloseShell(JNIEnv* env, jlong shellPtr) {
   Shell* shell = reinterpret_cast<Shell*>(shellPtr);

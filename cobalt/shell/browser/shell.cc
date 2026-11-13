@@ -265,6 +265,27 @@ bool CanSplashScreenPlayVideo(std::optional<bool> can_play_video_for_testing) {
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
+// DO NOT SUBMIT (b/578964869 benchmark): names the events that the warm-start
+// splash screen logs with LOG(INFO), for the benchmark to read from logcat.
+const char* WarmStartSplashEventName(SplashScreenMetrics::Event event) {
+  switch (event) {
+    case SplashScreenMetrics::Event::kSplashStart:
+      return "splash start";
+    case SplashScreenMetrics::Event::kSplashLoaded:
+      return "splash loaded";
+    case SplashScreenMetrics::Event::kSplashFirstPaint:
+      return "splash first paint";
+    case SplashScreenMetrics::Event::kSplashVideoStarted:
+      return "splash video started";
+    case SplashScreenMetrics::Event::kSplashVideoEnded:
+      return "splash video ended";
+    case SplashScreenMetrics::Event::kSplashClosed:
+      return "splash closed";
+    default:
+      return nullptr;
+  }
+}
+
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
@@ -774,7 +795,15 @@ void Shell::LoadSplashScreenWebContents() {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
     }
-    if (base::FeatureList::IsEnabled(cobalt::features::kSplashScreenConfig)) {
+    if (is_warm_start_splash_) {
+      // DO NOT SUBMIT (b/578964869 benchmark): the warm-start splash screen
+      // stays up until its own minimum duration.
+      splash_screen_url = net::AppendQueryParameter(
+          splash_screen_url, "timeout",
+          base::NumberToString(
+              warm_start_splash_min_duration_.InMilliseconds()));
+    } else if (base::FeatureList::IsEnabled(
+                   cobalt::features::kSplashScreenConfig)) {
       // Lets the splash screen stay up until the timeout, instead of closing
       // when its animation ends.
       splash_screen_url = net::AppendQueryParameter(
@@ -794,6 +823,60 @@ void Shell::LoadSplashScreenWebContents() {
       ScheduleSwitchToMainWebContents();
     }
   }
+}
+
+void Shell::ShowWarmStartSplashScreen(base::TimeDelta min_duration) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!web_contents_) {
+    LOG(INFO) << "WarmSplash: skipped: no main WebContents";
+    return;
+  }
+  if (splash_screen_web_contents_ || !has_switched_to_main_frame_) {
+    LOG(INFO) << "WarmSplash: skipped: a splash screen is still up";
+    return;
+  }
+  LOG(INFO) << "WarmSplash: showing the splash screen for at least "
+            << min_duration.InMilliseconds() << "ms ("
+            << (is_video_splash_screen_ ? "video" : "image") << ")";
+
+  // The same WebContents as the cold start's splash screen, see
+  // CreateNewWindow() and the constructor.
+  WebContents::CreateParams create_params(web_contents_->GetBrowserContext(),
+                                          nullptr);
+  create_params.main_frame_name = kCobaltSplashMainFrameName;
+  splash_screen_web_contents_ = WebContents::Create(create_params);
+  splash_screen_web_contents_observer_ =
+      std::make_unique<SplashScreenWebContentsObserver>(
+          splash_screen_web_contents_.get(),
+          base::BindOnce(&Shell::OnSplashScreenLoadComplete,
+                         weak_factory_.GetWeakPtr()),
+          base::BindRepeating(&Shell::MarkStartupEvent,
+                              weak_factory_.GetWeakPtr()));
+  splash_screen_web_contents_delegate_ =
+      std::make_unique<SplashScreenWebContentsDelegate>(
+          base::BindPostTaskToCurrentDefault(
+              base::BindOnce(&Shell::ClosingSplashScreenWebContents,
+                             weak_factory_.GetWeakPtr())));
+  splash_screen_web_contents_->SetDelegate(
+      splash_screen_web_contents_delegate_.get());
+
+  // Start over, with the main WebContents already loaded: the switch happens
+  // once the minimum duration has passed (ScheduleSwitchToMainWebContents()),
+  // or when the splash screen closes itself.
+  splash_state_ = STATE_SPLASH_SCREEN_INITIALIZED;
+  has_switched_to_main_frame_ = false;
+  splash_screen_start_time_ = base::TimeTicks();
+  awaiting_splash_video_first_frame_ = false;
+  is_splash_screen_loaded_ = false;
+  is_main_frame_loaded_ = true;
+  is_warm_start_splash_ = true;
+  warm_start_splash_min_duration_ = min_duration;
+
+  // Keep the main WebContents hidden until the switch.
+  if (web_contents_->GetVisibility() != Visibility::HIDDEN) {
+    web_contents_->WasHidden();
+  }
+  LoadSplashScreenWebContents();
 }
 
 void Shell::LoadURL(const GURL& url) {
@@ -1324,7 +1407,8 @@ void Shell::ScheduleSwitchToMainWebContents() {
       base::TimeTicks::Now() - splash_screen_start_time_;
 
   base::TimeDelta min_splash_screen_duration =
-      cobalt::features::kSplashScreenTimeoutParam.Get();
+      is_warm_start_splash_ ? warm_start_splash_min_duration_
+                            : cobalt::features::kSplashScreenTimeoutParam.Get();
   base::TimeDelta remaining_delay =
       min_splash_screen_duration - splash_screen_elapsed;
 
@@ -1371,6 +1455,11 @@ void Shell::SwitchToMainWebContents(
   // This could be called multiple times.
   if (!has_switched_to_main_frame_) {
     VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
+    if (is_warm_start_splash_) {
+      LOG(INFO) << "WarmSplash: switching to the main WebContents (trigger "
+                << static_cast<int>(trigger) << ")";
+      is_warm_start_splash_ = false;
+    }
     has_switched_to_main_frame_ = true;
     if (splash_screen_metrics_) {
       splash_screen_metrics_->OnSwitchedToMain(trigger);
@@ -1459,6 +1548,14 @@ void Shell::OnMainReady() {
 }
 
 void Shell::MarkStartupEvent(SplashScreenMetrics::Event event) {
+  if (is_warm_start_splash_) {
+    // DO NOT SUBMIT (b/578964869 benchmark): the warm-start splash screen's
+    // milestones, for the benchmark. The metrics below were recorded at the
+    // cold start, so they ignore these.
+    if (const char* name = WarmStartSplashEventName(event)) {
+      LOG(INFO) << "WarmSplash: " << name;
+    }
+  }
   if (splash_screen_metrics_) {
     splash_screen_metrics_->MarkEvent(event);
   }
