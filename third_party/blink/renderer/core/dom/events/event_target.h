@@ -32,6 +32,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_EVENTS_EVENT_TARGET_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_EVENTS_EVENT_TARGET_H_
 
+#include "build/build_config.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/events/event_dispatch_result.h"
@@ -47,6 +48,9 @@ namespace blink {
 class AddEventListenerOptionsResolved;
 class DOMWindow;
 class Event;
+#if BUILDFLAG(IS_COBALT)
+class EventListenerOptions;
+#endif
 class ExceptionState;
 class ExecutionContext;
 class LocalDOMWindow;
@@ -342,9 +346,16 @@ class CORE_EXPORT EventTarget : public ScriptWrappable {
   virtual bool AddEventListenerInternal(const AtomicString& event_type,
                                         EventListener*,
                                         const AddEventListenerOptionsResolved*);
+#if BUILDFLAG(IS_COBALT)
+  bool RemoveEventListenerInternal(
+      const AtomicString& event_type,
+      const EventListener*,
+      const RegisteredEventListener::OptionsForMatching&);
+#else
   bool RemoveEventListenerInternal(const AtomicString& event_type,
                                    const EventListener*,
                                    const EventListenerOptions*);
+#endif
 
   // Called when an event listener has been successfully added.
   virtual void AddedEventListener(const AtomicString& event_type,

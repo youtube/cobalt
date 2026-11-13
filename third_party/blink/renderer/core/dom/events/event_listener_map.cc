@@ -35,6 +35,7 @@
 #include "base/bits.h"
 #include "base/compiler_specific.h"
 #include "base/debug/crash_logging.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_event_listener_options.h"
 #include "third_party/blink/renderer/core/dom/events/add_event_listener_options_resolved.h"
 #include "third_party/blink/renderer/core/dom/events/event_listener.h"
@@ -112,7 +113,11 @@ static bool AddListenerToVector(EventListenerVector* listener_vector,
                                 const AddEventListenerOptionsResolved* options,
                                 RegisteredEventListener** registered_listener) {
   for (auto& item : *listener_vector) {
+#if BUILDFLAG(IS_COBALT)
+    if (item->Matches(listener, {options->capture()})) {
+#else
     if (item->Matches(listener, options)) {
+#endif
       // Duplicate listener.
       return false;
     }
@@ -154,7 +159,11 @@ bool EventListenerMap::Add(const AtomicString& event_type,
 static bool RemoveListenerFromVector(
     EventListenerVector* listener_vector,
     const EventListener* listener,
+#if BUILDFLAG(IS_COBALT)
+    const RegisteredEventListener::OptionsForMatching& options,
+#else
     const EventListenerOptions* options,
+#endif
     RegisteredEventListener** registered_listener) {
   EventListenerVector::iterator end = listener_vector->end();
   for (EventListenerVector::iterator iter = listener_vector->begin();
@@ -169,10 +178,15 @@ static bool RemoveListenerFromVector(
   return false;
 }
 
-bool EventListenerMap::Remove(const AtomicString& event_type,
-                              const EventListener* listener,
-                              const EventListenerOptions* options,
-                              RegisteredEventListener** registered_listener) {
+bool EventListenerMap::Remove(
+    const AtomicString& event_type,
+    const EventListener* listener,
+#if BUILDFLAG(IS_COBALT)
+    const RegisteredEventListener::OptionsForMatching& options,
+#else
+    const EventListenerOptions* options,
+#endif
+    RegisteredEventListener** registered_listener) {
   for (unsigned i = 0; i < entries_.size(); ++i) {
     if (entries_[i].first == event_type) {
       bool was_removed = RemoveListenerFromVector(
