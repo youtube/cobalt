@@ -16,6 +16,8 @@
 #include "starboard/media.h"
 // clang-format on
 
+#include <optional>
+
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -39,8 +41,11 @@ bool SbMediaGetAudioConfiguration(
     return false;
   }
 
-  if (MediaCapabilitiesCache::GetInstance()->GetAudioConfiguration(
-          output_index, out_configuration)) {
+  std::optional<SbMediaAudioConfiguration> configuration =
+      MediaCapabilitiesCache::GetInstance()->GetAudioConfiguration(
+          output_index);
+  if (configuration) {
+    *out_configuration = *configuration;
     SB_LOG(INFO) << "Audio connector type for index " << output_index << " is "
                  << GetMediaAudioConnectorName(out_configuration->connector)
                  << " and it has " << out_configuration->number_of_channels

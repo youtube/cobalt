@@ -74,9 +74,8 @@ class AudioOutputManager {
                                 int channel_count,
                                 bool require_hw_av_sync);
 
-  bool GetAudioConfiguration(JNIEnv* env,
-                             int index,
-                             SbMediaAudioConfiguration* configuration);
+  std::optional<SbMediaAudioConfiguration> GetAudioConfiguration(JNIEnv* env,
+                                                                 int index);
 
  private:
   // The constructor runs exactly once because of
