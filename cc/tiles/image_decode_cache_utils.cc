@@ -26,27 +26,23 @@ namespace cc {
 // static
 size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     bool for_renderer) {
-<<<<<<< HEAD
-  base::ByteSize decoded_image_working_set_budget = base::MiBU(128);
-=======
 #if BUILDFLAG(IS_COBALT)
-  static const base::ByteCount cobalt_decoded_image_working_set_budget = []() {
-    base::ByteCount budget = base::MiB(128);
+  static const base::ByteSize cobalt_decoded_image_working_set_budget = []() {
+    base::ByteSize budget = base::MiBU(128);
     auto* command_line = base::CommandLine::ForCurrentProcess();
     if (command_line->HasSwitch(switches::kDecodedImageWorkingSetBudgetBytes)) {
       std::string value = command_line->GetSwitchValueASCII(
           switches::kDecodedImageWorkingSetBudgetBytes);
-      int64_t parsed_value;
-      if (base::StringToInt64(value, &parsed_value) && parsed_value >= 0) {
-        budget = base::ByteCount(parsed_value);
+      uint64_t parsed_value;
+      if (base::StringToUint64(value, &parsed_value)) {
+        budget = base::ByteSize(parsed_value);
       }
     }
     return budget;
   }();
-  return cobalt_decoded_image_working_set_budget.InBytesUnsigned();
+  return cobalt_decoded_image_working_set_budget.InBytes();
 #else
-  base::ByteCount decoded_image_working_set_budget = base::MiB(128);
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  base::ByteSize decoded_image_working_set_budget = base::MiBU(128);
 #if !BUILDFLAG(IS_ANDROID)
   if (for_renderer) {
     const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
@@ -61,12 +57,8 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     }
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD
   return decoded_image_working_set_budget.InBytes();
-=======
-  return decoded_image_working_set_budget.InBytesUnsigned();
 #endif
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 #if BUILDFLAG(IS_COBALT)

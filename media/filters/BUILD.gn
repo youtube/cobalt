@@ -348,12 +348,6 @@ source_set("unit_tests") {
   ]
 
   if (is_android) {
-<<<<<<< HEAD
-=======
-    if (media_use_ffmpeg) {
-      sources += [ "android/video_frame_extractor_unittest.cc" ]
-    }
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     sources -= [
       "decrypting_audio_decoder_unittest.cc",
       "decrypting_video_decoder_unittest.cc",
