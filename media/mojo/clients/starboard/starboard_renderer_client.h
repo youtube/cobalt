@@ -123,6 +123,8 @@ class MEDIA_EXPORT StarboardRendererClient
   void OnDurationChange(base::TimeDelta duration) override;
   void OnBufferedTimeRangesChange(base::TimeDelta start,
                                   base::TimeDelta length) override;
+  void OnUrlPlayerMetadata(base::TimeDelta duration,
+                           const gfx::Size& natural_size) override;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   void RequestOverlayInfo(bool restart_for_transitions) override;

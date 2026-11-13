@@ -165,6 +165,13 @@ void UrlPlayerDemuxer::OnTracksChanged(
 
 void UrlPlayerDemuxer::SetPlaybackRate(double rate) {}
 
+void UrlPlayerDemuxer::OnPlatformMetadata(base::TimeDelta duration,
+                                          const gfx::Size& natural_size) {
+  if (host_) {
+    host_->SetDuration(duration);
+  }
+}
+
 void UrlPlayerDemuxer::OnPlatformDurationChange(base::TimeDelta duration) {
   if (host_) {
     host_->SetDuration(duration);
