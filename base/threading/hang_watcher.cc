@@ -636,25 +636,37 @@ bool HangWatcher::IsEnabled() {
 #if BUILDFLAG(IS_COBALT)
 // static
 void HangWatcher::Suspend() {
-  // suspends hang watching when the application is frozen.
+  // Suspends hang watching when the application is frozen or concealed.
   g_use_hang_watcher.store(false, std::memory_order_relaxed);
 }
 
 // static
 void HangWatcher::Resume() {
-  if (g_instance) {
-    // resumes hang watching when the application is unfrozen, explicitly
-    // ignoring pre-freeze deadlines to prevent false hang reports.
-    base::AutoLock auto_lock(g_instance->watch_state_lock_);
-    base::TimeTicks latest_deadline;
-    for (const auto& state : g_instance->watch_states_) {
-      base::TimeTicks deadline = state->GetDeadline();
-      if (deadline > latest_deadline) {
-        latest_deadline = deadline;
-      }
-    }
-    g_instance->deadline_ignore_threshold_ = latest_deadline;
+  if (!g_instance) {
+    return;
   }
+  base::AutoLock auto_lock(g_instance->watch_state_lock_);
+  // Already active; don't advance deadline_ignore_threshold_ on a duplicate
+  // reveal (e.g. Android compositor + Starboard) and mask a live hang.
+  if (g_use_hang_watcher.load(std::memory_order_relaxed)) {
+    return;
+  }
+  // Registered threads stay in watch_states_ across Suspend(): threads between
+  // tasks (or whose pre-Suspend() task finished) sit at Max(), while a thread
+  // still inside a pre-Suspend() task holds that stale finite deadline. Advance
+  // the ignore threshold past any such stale deadline without resetting it to 0
+  // (which could trigger false/duplicate dumps) or setting it to Max() (which
+  // would suppress all future hang reports).
+  base::TimeTicks latest_deadline = g_instance->deadline_ignore_threshold_;
+  for (const auto& state : g_instance->watch_states_) {
+    base::TimeTicks deadline = state->GetDeadline();
+    if (deadline != internal::HangWatchDeadline::Max() &&
+        deadline > latest_deadline) {
+      latest_deadline = deadline;
+    }
+  }
+  g_instance->deadline_ignore_threshold_ = latest_deadline;
+  // Flip enabled under watch_state_lock_ after updating the threshold.
   g_use_hang_watcher.store(true, std::memory_order_relaxed);
 }
 #endif
@@ -872,6 +884,18 @@ void HangWatcher::Wait() {
       // means the new WatchHangsInScope was constructed very soon after the
       // abnormal sleep happened and might be affected by the root cause still.
       // Ignoring it is cautious and harmless.
+#if BUILDFLAG(IS_COBALT)
+      // Keep threshold monotonic and skip threads sitting at Max() (see
+      // Resume()).
+      base::TimeTicks latest_deadline = deadline_ignore_threshold_;
+      for (const auto& state : watch_states_) {
+        base::TimeTicks deadline = state->GetDeadline();
+        if (deadline != internal::HangWatchDeadline::Max() &&
+            deadline > latest_deadline) {
+          latest_deadline = deadline;
+        }
+      }
+#else
       base::TimeTicks latest_deadline;
       for (const auto& state : watch_states_) {
         base::TimeTicks deadline = state->GetDeadline();
@@ -879,6 +903,7 @@ void HangWatcher::Wait() {
           latest_deadline = deadline;
         }
       }
+#endif
 
       deadline_ignore_threshold_ = latest_deadline;
     }
@@ -1338,12 +1363,18 @@ void HangWatcher::DoDumpWithoutCrashing(
     const WatchStateSnapShot& watch_state_snapshot) {
   TRACE_EVENT("latency", "HangWatcher::DoDumpWithoutCrashing");
 
-#if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing. Actionable: " << watch_state_snapshot.IsActionable();
-#endif
-
   capture_in_progress_.store(true, std::memory_order_relaxed);
   base::AutoLock scope_lock(capture_lock_);
+
+#if BUILDFLAG(IS_COBALT)
+  // Re-check IsEnabled() before dumping in case Suspend() ran after snapshot.
+  if (!IsEnabled()) {
+    capture_in_progress_.store(false, std::memory_order_relaxed);
+    return;
+  }
+  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing. Actionable: "
+            << watch_state_snapshot.IsActionable();
+#endif
 
 #if !BUILDFLAG(IS_NACL)
   const std::string list_of_hung_thread_ids =

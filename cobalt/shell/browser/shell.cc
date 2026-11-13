@@ -37,6 +37,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
+#include "base/threading/hang_watcher.h"
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/switches.h"
@@ -420,6 +421,10 @@ void Shell::OnReveal() {
   CHECK(g_platform);
   if (!g_platform->IsVisible()) {
     g_platform->OnReveal();
+  } else {
+    // Resume HangWatcher even if already visible (e.g. reveal arriving before
+    // a pending conceal ACK flipped is_visible_ to false).
+    base::HangWatcher::Resume();
   }
 }
 
@@ -521,6 +526,10 @@ void Shell::Initialize(std::unique_ptr<ShellPlatformDelegate> platform,
   DCHECK(!g_platform);
   g_platform = platform.release();
   g_platform->Initialize(GetShellDefaultSize(), is_visible);
+  if (!is_visible) {
+    // Hidden startup (preload) starts suspended until OnReveal().
+    base::HangWatcher::Suspend();
+  }
 }
 
 // static
