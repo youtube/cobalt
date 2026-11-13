@@ -415,6 +415,87 @@ TEST_F(MediaCodecVideoDecoderTest, FlushSeekSameColorKeepsCodec) {
   EXPECT_FALSE(error_called_);
 }
 
+TEST_F(MediaCodecVideoDecoderTest,
+       HdrInitialStreamReinitializesOnFirstBufferWhenFlagDisabled) {
+  CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo);
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  auto reinit_color = fake_factory_->last_video_color_metadata();
+  ASSERT_TRUE(reinit_color.has_value());
+  EXPECT_EQ(reinit_color->transfer, kSbMediaTransferIdSmpteSt2084);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       HdrInitialStreamInitializesWithColorMetadataWithoutReinit) {
+  ExperimentalFeatures features(
+      {{std::string(kMediaInitializeVideoCodecWithColorMetadata.key()),
+        int64_t{1}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo,
+                std::move(features));
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  auto initial_color = fake_factory_->last_video_color_metadata();
+  ASSERT_TRUE(initial_color.has_value());
+  EXPECT_EQ(initial_color->transfer, kSbMediaTransferIdSmpteSt2084);
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       FullRangeSdrInitialStreamInitializesWithColorMetadataWithoutReinit) {
+  VideoStreamInfo full_range_info = kDefaultVideoStreamInfo;
+  full_range_info.color_metadata.range = kSbMediaRangeIdFull;
+  ExperimentalFeatures features(
+      {{std::string(kMediaInitializeVideoCodecWithColorMetadata.key()),
+        int64_t{1}}});
+
+  CreateDecoder(/*max_video_capabilities=*/"", &full_range_info,
+                std::move(features));
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  auto initial_color = fake_factory_->last_video_color_metadata();
+  ASSERT_TRUE(initial_color.has_value());
+  EXPECT_EQ(initial_color->range, kSbMediaRangeIdFull);
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      0, 1024, &full_range_info, /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       HdrInitialStreamToSdrFirstBufferRebuildsCodec) {
+  ExperimentalFeatures features(
+      {{std::string(kMediaInitializeVideoCodecWithColorMetadata.key()),
+        int64_t{1}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo,
+                std::move(features));
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      0, 1024, /*stream_info=*/nullptr, /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_FALSE(error_called_);
+}
+
 TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {
   CreateDecoder();
 
