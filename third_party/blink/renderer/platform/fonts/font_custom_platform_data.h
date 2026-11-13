@@ -33,6 +33,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_FONT_CUSTOM_PLATFORM_DATA_H_
 
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/platform/bindings/v8_external_memory_accounter.h"
 #include "third_party/blink/renderer/platform/fonts/font_optical_sizing.h"
 #include "third_party/blink/renderer/platform/fonts/font_orientation.h"
@@ -102,7 +103,11 @@ class PLATFORM_EXPORT FontCustomPlatformData
   sk_sp<SkTypeface> base_typeface_;
   size_t data_size_;
 
+#if BUILDFLAG(IS_COBALT)
+  V8ExternalMemoryAccounter external_memory_accounter_;
+#else
   NO_UNIQUE_ADDRESS V8ExternalMemoryAccounterBase external_memory_accounter_;
+#endif
 };
 
 }  // namespace blink
