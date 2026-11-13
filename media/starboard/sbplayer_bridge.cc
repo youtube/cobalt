@@ -106,6 +106,53 @@ constexpr std::string_view kSbPlayerCreateToInitializedHistogram =
 // Suffix of the variant of the above histograms for every call after the first
 // one in the process.
 constexpr std::string_view kSubsequentCallSuffix = ".Subsequent";
+// Records the latency of the SbPlayerDestroy() call that destroys a valid
+// player, when SbPlayerBridge is destroyed or on Suspend(). The name is
+// extended with a state suffix below, e.g.
+// "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Presenting".
+constexpr std::string_view kSbPlayerDestroyHistogram =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
+// State suffixes, for players destroyed before they reported
+// kSbPlayerStateInitialized, and for the last state they reported otherwise.
+constexpr std::string_view kSbPlayerDestroyBeforeInitializedSuffix =
+    ".BeforeInitialized";
+constexpr std::string_view kSbPlayerDestroyInitializedSuffix = ".Initialized";
+constexpr std::string_view kSbPlayerDestroyPrerollingSuffix = ".Prerolling";
+constexpr std::string_view kSbPlayerDestroyPresentingSuffix = ".Presenting";
+constexpr std::string_view kSbPlayerDestroyEndOfStreamSuffix = ".EndOfStream";
+
+// Returns the state suffix of the SbPlayerDestroy histogram for a player whose
+// last reported state is |last_player_state|.
+std::string_view GetSbPlayerDestroyStateSuffix(
+    std::optional<SbPlayerState> last_player_state) {
+  if (!last_player_state) {
+    return kSbPlayerDestroyBeforeInitializedSuffix;
+  }
+  switch (*last_player_state) {
+    case kSbPlayerStateInitialized:
+      // The closest to the Starboard BM_PlayerDestroy benchmark. Rare, as
+      // SbPlayerBridge seeks as soon as the player is initialized.
+      return kSbPlayerDestroyInitializedSuffix;
+    case kSbPlayerStatePrerolling:
+      return kSbPlayerDestroyPrerollingSuffix;
+    case kSbPlayerStatePresenting:
+      return kSbPlayerDestroyPresentingSuffix;
+    case kSbPlayerStateEndOfStream:
+      return kSbPlayerDestroyEndOfStreamSuffix;
+    case kSbPlayerStateDestroyed:
+      // Never stored by SbPlayerBridge::OnPlayerStatus().
+      break;
+  }
+  NOTREACHED();
+}
+
+// Records |elapsed| to |histogram_name|.
+void RecordLatency(std::string_view histogram_name, base::TimeDelta elapsed) {
+  base::UmaHistogramCustomMicrosecondsTimes(
+      histogram_name, elapsed, /*min=*/base::Milliseconds(1),
+      /*max=*/base::Seconds(10), /*buckets=*/50);
+  LOG(INFO) << histogram_name << " took " << elapsed.InMicroseconds() << " us.";
+}
 
 // Records |elapsed| to |histogram_name|, or to its kSubsequentCallSuffix
 // variant if |is_first_call| is false. |is_first_call| refers to the call that
@@ -113,13 +160,12 @@ constexpr std::string_view kSubsequentCallSuffix = ".Subsequent";
 void RecordSbPlayerLatency(std::string_view histogram_name,
                            base::TimeDelta elapsed,
                            bool is_first_call) {
-  const std::string name =
-      is_first_call ? std::string(histogram_name)
-                    : base::StrCat({histogram_name, kSubsequentCallSuffix});
-  base::UmaHistogramCustomMicrosecondsTimes(
-      name, elapsed, /*min=*/base::Milliseconds(1), /*max=*/base::Seconds(10),
-      /*buckets=*/50);
-  LOG(INFO) << name << " took " << elapsed.InMicroseconds() << " us.";
+  if (is_first_call) {
+    RecordLatency(histogram_name, elapsed);
+  } else {
+    RecordLatency(base::StrCat({histogram_name, kSubsequentCallSuffix}),
+                  elapsed);
+  }
 }
 
 // Removes the buffer at |index| of |buffer_queue| if it has |handle|. Returns
@@ -209,12 +255,37 @@ GetStarboardExtensionExperimentalFeatures(
 template <typename CreateFn>
 SbPlayer SbPlayerBridge::CreateWithUmaLatency(CreateFn&& create_fn) {
   is_first_sb_player_create_ = IsFirstSbPlayerCreateInProcess();
+  last_player_state_.reset();
   const base::ElapsedTimer timer;
   sb_player_create_start_time_ = timer.start_time();
   SbPlayer player = std::forward<CreateFn>(create_fn)();
   RecordSbPlayerLatency(kSbPlayerCreateHistogram, timer.Elapsed(),
                         is_first_sb_player_create_);
   return player;
+}
+
+void SbPlayerBridge::DestroyPlayer() {
+  DCHECK(SbPlayerIsValid(player_));
+  // The state is as observed on |task_runner_|. Player statuses are posted to
+  // it, so a status that is still queued when the player is destroyed isn't
+  // taken into account.
+  const std::string_view state_suffix =
+      GetSbPlayerDestroyStateSuffix(last_player_state_);
+
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+  cval_stats_->StartTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+  const base::ElapsedTimer timer;
+  sbplayer_interface_->Destroy(player_);
+  // Read before anything else runs, so that only Destroy() is measured.
+  const base::TimeDelta elapsed = timer.Elapsed();
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+  cval_stats_->StopTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+  player_ = kSbPlayerInvalid;
+
+  RecordLatency(base::StrCat({kSbPlayerDestroyHistogram, state_suffix}),
+                elapsed);
 }
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
@@ -373,13 +444,7 @@ SbPlayerBridge::~SbPlayerBridge() {
   weak_factory_.InvalidateWeakPtrs();
 
   if (SbPlayerIsValid(player_)) {
-#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-    cval_stats_->StartTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
-#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-    sbplayer_interface_->Destroy(player_);
-#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-    cval_stats_->StopTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
-#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+    DestroyPlayer();
   }
 }
 
@@ -659,15 +724,7 @@ void SbPlayerBridge::Suspend() {
 
   state_ = kSuspended;
 
-#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-  cval_stats_->StartTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
-#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-  sbplayer_interface_->Destroy(player_);
-#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-  cval_stats_->StopTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
-#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-
-  player_ = kSbPlayerInvalid;
+  DestroyPlayer();
 }
 
 void SbPlayerBridge::Resume(SbWindow window) {
@@ -1221,6 +1278,11 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
 
   if (ticket != SB_PLAYER_INITIAL_TICKET && ticket != ticket_) {
     return;
+  }
+
+  // kSbPlayerStateDestroyed is only reported once the player is destroyed.
+  if (state != kSbPlayerStateDestroyed) {
+    last_player_state_ = state;
   }
 
   if (state == kSbPlayerStateInitialized) {

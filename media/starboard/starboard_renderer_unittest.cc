@@ -61,6 +61,23 @@ constexpr char kSbPlayerCreateHistogram[] =
     "Cobalt.Media.LatencyTiming.SbPlayerCreate";
 constexpr char kSbPlayerCreateToInitializedHistogram[] =
     "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
+// Prefix of all the SbPlayerDestroy histograms, which are split by the state of
+// the player when it is destroyed.
+constexpr char kSbPlayerDestroyHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
+constexpr char kSbPlayerDestroyBeforeInitializedHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.BeforeInitialized";
+
+// Returns the number of samples recorded in all the SbPlayerDestroy
+// histograms.
+size_t GetTotalDestroyCount(const base::HistogramTester& histogram_tester) {
+  size_t count = 0;
+  for (const auto& [name, histogram_count] :
+       histogram_tester.GetTotalCountsForPrefix(kSbPlayerDestroyHistogram)) {
+    count += histogram_count;
+  }
+  return count;
+}
 
 // Returns the number of samples recorded in histogram |name| and in its
 // ".Subsequent" variant. Which of the two a sample lands in depends on whether
@@ -436,6 +453,24 @@ TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencyOnFailure) {
   EXPECT_EQ(GetTotalCountAcrossOccurrences(
                 histogram_tester, kSbPlayerCreateToInitializedHistogram),
             0u);
+
+  // A player that was never created isn't destroyed either.
+  renderer_.reset();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 0u);
+}
+
+TEST_F(StarboardRendererTest, RecordsSbPlayerDestroyLatency) {
+  base::HistogramTester histogram_tester;
+  InitializeWithAudioAndVideo();
+  EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 0u);
+
+  renderer_.reset();
+  task_environment_.RunUntilIdle();
+  // The player never reported kSbPlayerStateInitialized.
+  EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 1u);
+  histogram_tester.ExpectTotalCount(kSbPlayerDestroyBeforeInitializedHistogram,
+                                    1);
 }
 
 TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksPresenting) {
@@ -984,6 +1019,27 @@ TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatenciesForUrlPlayer) {
   EXPECT_EQ(GetTotalCountAcrossOccurrences(
                 histogram_tester, kSbPlayerCreateToInitializedHistogram),
             1u);
+}
+
+TEST_F(StarboardRendererTest, RecordsSbPlayerDestroyLatencyForUrlPlayer) {
+  constexpr char kSbPlayerDestroyPresentingHistogram[] =
+      "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Presenting";
+  base::HistogramTester histogram_tester;
+  SbPlayer player = InitializeUrlPlayer();
+  ASSERT_TRUE(player_status_cb_);
+  for (SbPlayerState state :
+       {kSbPlayerStateInitialized, kSbPlayerStatePrerolling,
+        kSbPlayerStatePresenting}) {
+    player_status_cb_(player, context_, state,
+                      /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  }
+  task_environment_.RunUntilIdle();
+
+  renderer_.reset();
+  task_environment_.RunUntilIdle();
+  // URL players are recorded by their last reported state, like other players.
+  EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 1u);
+  histogram_tester.ExpectTotalCount(kSbPlayerDestroyPresentingHistogram, 1);
 }
 
 TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedDuringInitialization) {

@@ -462,6 +462,38 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.Media.LatencyTiming.SbPlayerDestroy{State}"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard player destruction latency. -->
+
+  <owner>johneocampo@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Wall-clock time of the blocking SbPlayerDestroy() call in SbPlayerBridge,
+    recorded for {State}, as SbPlayerDestroy() waits for the pending work of the
+    player. Includes players destroyed with the bridge, which may be playing,
+    and on suspend, which are always paused. The state is as seen by the media
+    thread, so a status that is still queued when the player is destroyed isn't
+    taken into account. Not recorded if player creation failed.
+  </summary>
+  <token key="State">
+    <variant name=".BeforeInitialized"
+        summary="players that didn't report any state yet, which may include
+                 the rest of their initialization"/>
+    <variant name=".EndOfStream"
+        summary="players that last reported kSbPlayerStateEndOfStream"/>
+    <variant name=".Initialized"
+        summary="players that last reported kSbPlayerStateInitialized,
+                 closest to the Starboard BM_PlayerDestroy benchmark. Rare,
+                 as SbPlayerBridge seeks right away"/>
+    <variant name=".Prerolling"
+        summary="players that last reported kSbPlayerStatePrerolling"/>
+    <variant name=".Presenting"
+        summary="players that last reported kSbPlayerStatePresenting,
+                 including paused and suspended players"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Network.NavigationTimeout" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>
