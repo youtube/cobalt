@@ -258,6 +258,15 @@ BASE_DECLARE_FEATURE(kCobaltCodeCacheOptimization);
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltGeneratedCodeCacheSizeBytes);
 BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
 
+// Kill switch for the storage footprint walks after the delayed storage
+// cleanup task (PostCleanup) and every
+// `CobaltStorageFootprintSampler_uptime_interval` of uptime (default 24 h,
+// at least 1 minute), which record Cobalt.Storage.Footprint.*. The walk 10 s
+// after startup does not depend on this feature.
+BASE_DECLARE_FEATURE(kCobaltStorageFootprintSampler);
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kCobaltStorageFootprintSamplerUptimeInterval);
+
 }  // namespace features
 }  // namespace cobalt
 
