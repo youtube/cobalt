@@ -100,6 +100,10 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMaxMemoryForPrepaint);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMaxMemoryForPrepaintPercentage);
 
+// When enabled, the in-process GPU thread runs at realtime-audio priority
+// instead of display-critical. Enabled by default on Android TV and Starboard.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltGpuThreadRealtimePriority);
+
 // When enabled, gates Cobalt persistent storage cleanup and unused database
 // removal optimizations (disabling BTM/DIPS, relocating GPU shader caches to
 // DIR_CACHE and purging orphaned USER_DATA cache directories, disabling unused

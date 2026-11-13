@@ -197,6 +197,26 @@ BASE_FEATURE_PARAM(int,
                    "max_memory_for_prepaint_percentage",
                    0);
 
+// Runs the in-process GPU thread (which both rasterizes tiles and draws/swaps
+// frames in single-process Cobalt) at ThreadType::kRealtimeAudio instead of
+// kDisplayCritical (shared with the compositor threads). On Android this is
+// nice -16 instead of nice -4; on Linux-based Starboard platforms it is
+// SCHED_RR priority 8 when permitted (root or RLIMIT_RTPRIO), otherwise nice
+// -10 instead of nice -8.
+// Legacy Cobalt ran its rasterizer thread near realtime priority. Small
+// smoothness gain on its own (row-to-row missed vsync 5.6% -> 5.2%).
+// Complementary to prepaint (with a 50% prepaint budget: 1.6% -> 1.4%;
+// cold-start missed frames 5.1 -> 3.6 over the first 8 moves). No memory
+// cost. Enabled by default on Android TV and Starboard (not tvOS); can be
+// turned off via Finch.
+BASE_FEATURE(kCobaltGpuThreadRealtimePriority,
+             "CobaltGpuThreadRealtimePriority",
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
+             FEATURE_ENABLED_BY_DEFAULT);
+#else
+             FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 BASE_FEATURE(kCobaltStorageCleanup,
              "CobaltStorageCleanup",
              FEATURE_DISABLED_BY_DEFAULT);
