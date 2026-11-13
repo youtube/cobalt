@@ -20,6 +20,18 @@ Cobalt.Storage.UserData.StartupTotalSizeKB
 Cobalt.Storage.DirCache.StartupTotalSizeKB
 Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite
+Memory.Experimental.Browser2.Small.ParkableImage.OnDiskSize
+Memory.Experimental.Browser2.Small.ParkableImage.UnparkedSize
+Memory.Experimental.Browser2.Small.ParkableImage.TotalSize
+Memory.Experimental.Browser2.Small.ParkableString.CompressedSize
+Memory.Experimental.Browser2.Small.ParkableString.OnDiskSize
+Memory.Experimental.Browser2.Small.ParkableString.SavingsSize
+Memory.Experimental.Browser2.Small.ParkableString.TotalSize
+Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer
+Memory.Experimental.Browser2.PartitionAlloc.Partitions.Buffer
+Memory.Browser.PrivateMemoryFootprint
+Memory.Total.ResidentSet
+Memory.ParkableImage.Write.Size
 
 # --- P0.2 Cache Quotas, Init Sizes & Hit Behavior ---
 SimpleCache.Http.CacheSizeOnInit
@@ -66,6 +78,13 @@ SimpleCache.Http.DiskOpenLatency
 SimpleCache.Http.DiskWriteLatency
 SimpleCache.Code.DiskOpenLatency
 SimpleCache.Code.DiskWriteLatency
+Memory.ParkableImage.Write.Latency
+Memory.ParkableImage.Read.Latency
+Memory.ParkableString.Compression.SizeKb
+Memory.ParkableString.Read.Latency
+# Main-thread cost of in-RAM ParkableString compression: one sample per
+# synchronous decompression when a compressed string is accessed again.
+Memory.ParkableString.Decompression.Latency
 V8.CompileScriptMicroSeconds
 V8.ProduceCodeCacheMicroseconds
 

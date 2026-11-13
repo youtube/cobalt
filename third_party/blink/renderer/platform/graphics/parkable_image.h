@@ -12,6 +12,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "third_party/blink/public/platform/web_data.h"
 #include "third_party/blink/renderer/platform/disk_data_metadata.h"
 #include "third_party/blink/renderer/platform/image-decoders/rw_buffer.h"
@@ -129,6 +130,15 @@ class PLATFORM_EXPORT ParkableImageImpl final
 
   bool CanParkNow() const EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
+#if BUILDFLAG(IS_COBALT)
+  // Returns when the data was last accessed, or when the image was frozen if
+  // it has never been accessed. ParkableImageManager parks the least recently
+  // used images first when it enforces its RAM budget.
+  base::TimeTicks LastUsedTime() const EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+    return last_used_time_.is_null() ? frozen_time_ : last_used_time_;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   mutable base::Lock lock_;
 
   std::unique_ptr<RWBuffer> rw_buffer_ GUARDED_BY(lock_);
@@ -148,6 +158,11 @@ class PLATFORM_EXPORT ParkableImageImpl final
   size_t lock_depth_ GUARDED_BY(lock_) = 0;
   bool background_task_in_progress_ GUARDED_BY(lock_) = false;
   bool used_ GUARDED_BY(lock_) = false;
+#if BUILDFLAG(IS_COBALT)
+  // Last time the data was accessed (see Unpark()), or null if never. Unlike
+  // |frozen_time_|, this can be updated off the main thread, e.g. by decoders.
+  base::TimeTicks last_used_time_ GUARDED_BY(lock_);
+#endif  // BUILDFLAG(IS_COBALT)
 
   THREAD_CHECKER(thread_checker_);
 };
