@@ -93,5 +93,38 @@ TEST(BufferTest, MoveAssignmentOperator) {
   }
 }
 
+TEST(BufferTest, AsSpanEmpty) {
+  Buffer empty;
+  EXPECT_TRUE(empty.as_span().empty());
+  EXPECT_EQ(empty.as_span().data(), nullptr);
+
+  const Buffer& const_empty = empty;
+  EXPECT_TRUE(const_empty.as_span().empty());
+  EXPECT_EQ(const_empty.as_span().data(), nullptr);
+}
+
+TEST(BufferTest, AsSpanAndImplicitConversion) {
+  Buffer buffer(64);
+  span<uint8_t> mutable_span = buffer.as_span();
+  ASSERT_EQ(mutable_span.size(), 64U);
+  EXPECT_EQ(mutable_span.data(), buffer.data());
+
+  for (size_t i = 0; i < mutable_span.size(); ++i) {
+    mutable_span[i] = static_cast<uint8_t>(i);
+  }
+
+  const Buffer& const_buffer = buffer;
+  span<const uint8_t> const_span = const_buffer.as_span();
+  ASSERT_EQ(const_span.size(), 64U);
+  EXPECT_EQ(const_span.data(), const_buffer.data());
+
+  // Verify implicit container conversion to span<const uint8_t>.
+  auto read_via_span = [](span<const uint8_t> s) { return s.subspan(10, 4); };
+  span<const uint8_t> slice = read_via_span(const_buffer);
+  ASSERT_EQ(slice.size(), 4U);
+  EXPECT_EQ(slice[0], 10U);
+  EXPECT_EQ(slice[3], 13U);
+}
+
 }  // namespace
 }  // namespace starboard

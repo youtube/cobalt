@@ -16,7 +16,9 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_
 
 #include <ostream>
+#include <type_traits>
 
+#include "starboard/common/span.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/buffer_internal.h"
@@ -53,21 +55,32 @@ class DecodedAudio {
   bool is_end_of_stream() const { return channels_ == 0; }
   int64_t timestamp() const { return timestamp_; }
   const uint8_t* data() const { return storage_.data() + offset_in_bytes_; }
-  const int16_t* data_as_int16() const {
-    return reinterpret_cast<const int16_t*>(storage_.data() + offset_in_bytes_);
-  }
-  const float* data_as_float32() const {
-    return reinterpret_cast<const float*>(storage_.data() + offset_in_bytes_);
-  }
   int size_in_bytes() const { return size_in_bytes_; }
 
   uint8_t* data() { return storage_.data() + offset_in_bytes_; }
-  int16_t* data_as_int16() {
-    return reinterpret_cast<int16_t*>(storage_.data() + offset_in_bytes_);
+
+  template <typename T = uint8_t>
+  span<const T> as_span() const {
+    static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, int16_t> ||
+                  std::is_same_v<T, float>);
+    if constexpr (std::is_same_v<T, int16_t>) {
+      SB_CHECK_EQ(sample_type_, kSbMediaAudioSampleTypeInt16Deprecated);
+    } else if constexpr (std::is_same_v<T, float>) {
+      SB_CHECK_EQ(sample_type_, kSbMediaAudioSampleTypeFloat32);
+    }
+    span<const uint8_t> bytes =
+        storage_.as_span().subspan(static_cast<size_t>(offset_in_bytes_),
+                                   static_cast<size_t>(size_in_bytes_));
+    SB_CHECK_EQ(bytes.size() % sizeof(T), size_t{0});
+    return {reinterpret_cast<const T*>(bytes.data()), bytes.size() / sizeof(T)};
   }
-  float* data_as_float32() {
-    return reinterpret_cast<float*>(storage_.data() + offset_in_bytes_);
+
+  template <typename T = uint8_t>
+  span<T> as_span() {
+    span<const T> s = static_cast<const DecodedAudio*>(this)->as_span<T>();
+    return {const_cast<T*>(s.data()), s.size()};
   }
+
   int frames() const;
 
   void ShrinkTo(int new_size_in_bytes);

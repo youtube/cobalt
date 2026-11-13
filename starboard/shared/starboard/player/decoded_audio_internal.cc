@@ -210,18 +210,20 @@ DecodedAudio DecodedAudio::SwitchSampleTypeTo(
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
       new_sample_type == kSbMediaAudioSampleTypeFloat32) {
-    const int16_t* old_samples = reinterpret_cast<const int16_t*>(this->data());
-    float* new_samples = reinterpret_cast<float*>(new_decoded_audio.data());
     int total_samples = frames() * channels();
+    const int16_t* old_samples = as_span<int16_t>().first(total_samples).data();
+    float* new_samples =
+        new_decoded_audio.as_span<float>().first(total_samples).data();
 
     for (int i = 0; i < total_samples; ++i) {
       ConvertSample(old_samples + i, new_samples + i);
     }
   } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
              new_sample_type == kSbMediaAudioSampleTypeInt16Deprecated) {
-    const float* old_samples = reinterpret_cast<const float*>(this->data());
-    int16_t* new_samples = reinterpret_cast<int16_t*>(new_decoded_audio.data());
     int total_samples = frames() * channels();
+    const float* old_samples = as_span<float>().first(total_samples).data();
+    int16_t* new_samples =
+        new_decoded_audio.as_span<int16_t>().first(total_samples).data();
 
     for (int i = 0; i < total_samples; ++i) {
       ConvertSample(old_samples + i, new_samples + i);

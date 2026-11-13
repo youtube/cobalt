@@ -20,9 +20,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
+#include "starboard/common/span.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
@@ -45,7 +47,7 @@ DecodedAudio CreateTestDecodedAudio(int frames,
   DecodedAudio audio(channels, kSbMediaAudioSampleTypeFloat32,
                      /*timestamp=*/0, kBufferSize);
 
-  float* data = audio.data_as_float32();
+  span<float> data = audio.as_span<float>();
   for (int i = 0; i < frames; ++i) {
     for (int c = 0; c < channels; ++c) {
       data[i * channels + c] =
@@ -66,10 +68,11 @@ TEST(WsolaInternalTest, OptimalIndex_ExactMatch) {
       kFrames, kChannels, kSampleRate, kFrequency, kAmplitude);
 
   // Place an exact match at index 25
-  float* search_data = search_block.data_as_float32();
-  float* target_data = target_block.data_as_float32();
-  memcpy(search_data + 25 * kChannels, target_data,
-         50 * kChannels * sizeof(float));
+  span<const float> target_data = target_block.as_span<float>();
+  std::copy(target_data.begin(), target_data.end(),
+            search_block.as_span<float>()
+                .subspan(25 * kChannels, target_data.size())
+                .begin());
 
   Interval exclude_interval = {-1, -1};  // No exclusion
 
@@ -110,14 +113,17 @@ TEST(WsolaInternalTest, OptimalIndex_ExcludeInterval) {
       kFrames, kChannels, kSampleRate, kFrequency, kAmplitude);
 
   // Create an exact match within the exclusion interval
-  float* search_data = search_block.data_as_float32();
-  float* target_data = target_block.data_as_float32();
-  memcpy(search_data + 10 * kChannels, target_data,
-         20 * kChannels * sizeof(float));  // Match at 10
+  span<const float> target_data = target_block.as_span<float>();
+  std::copy(target_data.begin(), target_data.end(),
+            search_block.as_span<float>()
+                .subspan(10 * kChannels, target_data.size())
+                .begin());  // Match at 10
 
   // Create another exact match outside the exclusion interval
-  memcpy(search_data + 50 * kChannels, target_data,
-         20 * kChannels * sizeof(float));  // Match at 50
+  std::copy(target_data.begin(), target_data.end(),
+            search_block.as_span<float>()
+                .subspan(50 * kChannels, target_data.size())
+                .begin());  // Match at 50
 
   Interval exclude_interval = {5, 15};  // Exclude indices from 5 to 15
 
@@ -137,10 +143,11 @@ TEST(WsolaInternalTest, OptimalIndex_SmallBlocks) {
   DecodedAudio search_block =
       CreateTestDecodedAudio(kFrames, kChannels, kSampleRate, 440.0f, 0.5f);
 
-  float* search_data = search_block.data_as_float32();
-  float* target_data = target_block.data_as_float32();
-  memcpy(search_data + 10 * kChannels, target_data,
-         5 * kChannels * sizeof(float));
+  span<const float> target_data = target_block.as_span<float>();
+  std::copy(target_data.begin(), target_data.end(),
+            search_block.as_span<float>()
+                .subspan(10 * kChannels, target_data.size())
+                .begin());
 
   Interval exclude_interval = {-1, -1};
 
