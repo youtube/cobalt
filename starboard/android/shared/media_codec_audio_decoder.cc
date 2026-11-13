@@ -58,7 +58,7 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 
 SbMediaAudioSampleType GetSupportedSampleType() {
-  SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(
+  SB_CHECK(SbAudioSinkIsAudioSampleTypeSupported(
       kSbMediaAudioSampleTypeInt16Deprecated));
   return kSbMediaAudioSampleTypeInt16Deprecated;
 }
@@ -111,11 +111,11 @@ MediaCodecAudioDecoder::~MediaCodecAudioDecoder() {}
 void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
                                         const ErrorCB& error_cb) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb);
-  SB_DCHECK(!output_cb_);
-  SB_DCHECK(error_cb);
-  SB_DCHECK(!error_cb_);
-  SB_DCHECK(media_decoder_);
+  SB_CHECK(output_cb);
+  SB_CHECK(!output_cb_);
+  SB_CHECK(error_cb);
+  SB_CHECK(!error_cb_);
+  SB_CHECK(media_decoder_);
 
   output_cb_ = output_cb;
   error_cb_ = error_cb;
@@ -128,8 +128,8 @@ void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
 void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
                                     const ConsumedCB& consumed_cb) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(output_cb_);
+  SB_CHECK(!input_buffers.empty());
+  SB_CHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
   audio_frame_discarder_.OnInputBuffers(input_buffers);
@@ -156,7 +156,7 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
 
 void MediaCodecAudioDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_);
+  SB_CHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
   if (media_decoder_) {
@@ -167,12 +167,12 @@ void MediaCodecAudioDecoder::WriteEndOfStream() {
 std::optional<DecodedAudio> MediaCodecAudioDecoder::Read(
     int* samples_per_second) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_);
+  SB_CHECK(output_cb_);
 
   std::optional<DecodedAudio> result;
   {
     std::lock_guard lock(decoded_audios_mutex_);
-    SB_DCHECK(!decoded_audios_.empty());
+    SB_CHECK(!decoded_audios_.empty());
     if (!decoded_audios_.empty()) {
       result = std::move(decoded_audios_.front());
       VERBOSE_MEDIA_LOG() << "T3: timestamp " << result->timestamp();
@@ -190,7 +190,7 @@ std::optional<DecodedAudio> MediaCodecAudioDecoder::Read(
 
 void MediaCodecAudioDecoder::Reset() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_);
+  SB_CHECK(output_cb_);
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
   // re-create |media_decoder_|.
@@ -237,8 +237,8 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result,
     int /*number_of_pending_inputs*/) {
-  SB_DCHECK(media_codec_bridge);
-  SB_DCHECK(output_cb_);
+  SB_CHECK(media_codec_bridge);
+  SB_CHECK(output_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   if (dequeue_output_result.num_bytes > 0) {

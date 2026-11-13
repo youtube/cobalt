@@ -71,8 +71,8 @@ class VideoFrameImpl final : public VideoFrame {
         media_codec_bridge_(media_codec_bridge),
         released_(false),
         release_callback_(release_callback) {
-    SB_DCHECK(media_codec_bridge_);
-    SB_DCHECK(release_callback_);
+    SB_CHECK(media_codec_bridge_);
+    SB_CHECK(release_callback_);
   }
 
   ~VideoFrameImpl() {
@@ -86,8 +86,8 @@ class VideoFrameImpl final : public VideoFrame {
   }
 
   void Draw(int64_t release_time_in_nanoseconds) {
-    SB_DCHECK(!released_);
-    SB_DCHECK(!is_end_of_stream());
+    SB_CHECK(!released_);
+    SB_CHECK(!is_end_of_stream());
     released_ = true;
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
@@ -170,7 +170,7 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithm {
  public:
   explicit VideoRenderAlgorithmTunneled(VideoFrameTracker* frame_tracker)
       : frame_tracker_(frame_tracker) {
-    SB_DCHECK(frame_tracker_);
+    SB_CHECK(frame_tracker_);
   }
 
   void Render(MediaTimeProvider* media_time_provider,
@@ -215,8 +215,8 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   }
 
   void SetRenderCB(RenderCB render_cb) override {
-    SB_DCHECK(!render_cb_);
-    SB_DCHECK(render_cb);
+    SB_CHECK(!render_cb_);
+    SB_CHECK(render_cb);
 
     render_cb_ = render_cb;
   }
@@ -365,8 +365,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   SB_CHECK(media_codec_factory_);
 
   if (tunnel_mode_config.force_secure_pipeline) {
-    SB_DCHECK(tunnel_mode_audio_session_id_);
-    SB_DCHECK(!drm_system_);
+    SB_CHECK(tunnel_mode_audio_session_id_);
+    SB_CHECK(!drm_system_);
     // To create secure pipeline for tunnel mode, we need use
     // L1("com.widevine.alpha").
 
@@ -449,10 +449,10 @@ void MediaCodecVideoDecoder::Initialize(
     const DecoderStatusCB& decoder_status_cb,
     const ErrorCB& error_cb) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(decoder_status_cb);
-  SB_DCHECK(!decoder_status_cb_);
-  SB_DCHECK(error_cb);
-  SB_DCHECK(!error_cb_);
+  SB_CHECK(decoder_status_cb);
+  SB_CHECK(!decoder_status_cb_);
+  SB_CHECK(error_cb);
+  SB_CHECK(!error_cb_);
 
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
@@ -493,9 +493,9 @@ int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
 void MediaCodecVideoDecoder::WriteInputBuffers(
     const InputBuffers& input_buffers) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
-  SB_DCHECK(decoder_status_cb_);
+  SB_CHECK(!input_buffers.empty());
+  SB_CHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
+  SB_CHECK(decoder_status_cb_);
 
   MEDIA_TRACE_EVENT("starboard", "VideoDecoder::WriteInputBuffers", "timestamp",
                     input_buffers.front()->timestamp(), "size",
@@ -536,7 +536,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   }
 
   if (input_buffer_written_ == 0) {
-    SB_DCHECK_EQ(video_fps_, 0);
+    SB_CHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
 
     // If color metadata is present and is not an identity mapping, then
@@ -544,7 +544,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     const auto& color_metadata =
         input_buffers.front()->video_stream_info().color_metadata;
     if (!IsIdentity(color_metadata)) {
-      SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
+      SB_CHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
       TeardownCodec();
       color_metadata_ = color_metadata;
@@ -595,7 +595,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
 
 void MediaCodecVideoDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(decoder_status_cb_);
+  SB_CHECK(decoder_status_cb_);
 
   if (end_of_stream_written_) {
     SB_LOG(WARNING) << "WriteEndOfStream() is called more than once.";
@@ -782,7 +782,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   SB_CHECK(BelongsToCurrentThread());
 
   if (needs_fps_to_initialize_codec_) {
-    SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
+    SB_CHECK_GT(pending_input_buffers_.size(), 0u);
 
     // Guesstimate the video fps.
     if (pending_input_buffers_.size() == 1) {
@@ -870,7 +870,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   if (needs_fps_to_initialize_codec_) {
     SB_DCHECK_GT(video_fps_, 0);
   } else {
-    SB_DCHECK_EQ(video_fps_, 0);
+    SB_CHECK_EQ(video_fps_, 0);
   }
 
   // If initial stream resolution exceeds max_video_capabilities, update
@@ -916,7 +916,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     if (needs_fps_to_initialize_codec_) {
       SB_DCHECK(!pending_input_buffers_.empty());
     } else {
-      SB_DCHECK(pending_input_buffers_.empty());
+      SB_CHECK(pending_input_buffers_.empty());
     }
     if (!pending_input_buffers_.empty()) {
       WriteInputBuffersInternal(pending_input_buffers_);
@@ -983,7 +983,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   if (is_video_frame_tracker_enabled_) {
-    SB_DCHECK(video_frame_tracker_);
+    SB_CHECK(video_frame_tracker_);
     for (const auto& input_buffer : input_buffers) {
       video_frame_tracker_->OnInputBuffer(input_buffer->timestamp());
     }
@@ -1159,7 +1159,7 @@ void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 }
 
 void MediaCodecVideoDecoder::OnFirstTunnelFrameReady() {
-  SB_DCHECK(tunnel_mode_audio_session_id_);
+  SB_CHECK(tunnel_mode_audio_session_id_);
 
   tunnel_mode_first_frame_rendered_.store(true);
   TryToSignalPrerollForTunnelMode();

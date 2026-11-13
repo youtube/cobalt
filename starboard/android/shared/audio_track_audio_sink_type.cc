@@ -223,9 +223,9 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       audio_track_(std::move(audio_track)),
       last_start_threshold_(audio_track_->GetStartThresholdInFrames()),
       audio_out_thread_(std::make_unique<AudioTrackOutThread>(this)) {
-  SB_DCHECK(callbacks_.update_source_status);
-  SB_DCHECK(callbacks_.consume_frames);
-  SB_DCHECK(frame_buffer_);
+  SB_CHECK(callbacks_.update_source_status);
+  SB_CHECK(callbacks_.consume_frames);
+  SB_CHECK(frame_buffer_);
   SB_CHECK(audio_track_);
 
   SB_LOG(INFO) << "Creating audio sink starts at " << start_time_.load()
@@ -239,7 +239,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
 }
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK_GE(playback_rate, 0.0);
+  SB_CHECK_GE(playback_rate, 0.0);
   SB_DLOG(INFO) << "Set playback rate to " << playback_rate;
 
   {
@@ -516,7 +516,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     SB_DCHECK_GT(expected_written_frames, 0);
     int64_t sync_time =
         start_time_.load() + GetFramesDurationUs(accumulated_written_frames);
-    SB_DCHECK_LE(start_position + expected_written_frames, frames_per_channel_)
+    SB_CHECK_LE(start_position + expected_written_frames, frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
         << ", frames_per_channel_: " << frames_per_channel_

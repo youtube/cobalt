@@ -113,7 +113,7 @@ inline int GetAudioFormatSampleType(
     // TODO: Consider using 18 (AudioFormat.ENCODING_E_AC3_JOC) when supported.
   }
 
-  SB_DCHECK_EQ(coding_type, kSbMediaAudioCodingTypePcm);
+  SB_CHECK_EQ(coding_type, kSbMediaAudioCodingTypePcm);
   SB_CHECK(sample_type);
 
   switch (sample_type.value()) {

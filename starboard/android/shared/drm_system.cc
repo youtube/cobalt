@@ -271,8 +271,8 @@ bool DrmSystem::IsReady() {
 void DrmSystem::RegisterKeyStateChangedCallback(
     const void* observer,
     KeyStateChangedCallback callback) {
-  SB_DCHECK(observer);
-  SB_DCHECK(callback);
+  SB_CHECK(observer);
+  SB_CHECK(callback);
   std::lock_guard lock(key_state_callbacks_mutex_);
   key_state_callbacks_[observer] = std::move(callback);
   has_key_state_callbacks_.store(true);

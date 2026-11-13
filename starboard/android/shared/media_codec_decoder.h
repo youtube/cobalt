@@ -175,8 +175,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     };
 
     explicit PendingInput(Type type = kInvalid) : type(type) {
-      SB_DCHECK_NE(type, kWriteInputBuffer);
-      SB_DCHECK_NE(type, kWriteCodecConfig);
+      SB_CHECK_NE(type, kWriteInputBuffer);
+      SB_CHECK_NE(type, kWriteCodecConfig);
     }
     explicit PendingInput(const std::vector<uint8_t>& codec_config)
         : type(kWriteCodecConfig), codec_config(codec_config) {

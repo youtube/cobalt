@@ -109,7 +109,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
   SB_CHECK(samples_written);
 
   for (const auto& input_buffer : input_buffers) {
-    SB_DCHECK(input_buffer);
+    SB_CHECK(input_buffer);
   }
 
   SbMediaType sample_type = input_buffers.front()->sample_type();
@@ -189,8 +189,8 @@ void ExoPlayerPlayerWorkerHandler::Stop() {
 }
 
 void ExoPlayerPlayerWorkerHandler::Update() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(bridge_->is_valid());
+  SB_CHECK(BelongsToCurrentThread());
+  SB_CHECK(bridge_->is_valid());
   SB_CHECK(get_player_state_cb_);
 
   if (get_player_state_cb_() == kSbPlayerStatePresenting) {
