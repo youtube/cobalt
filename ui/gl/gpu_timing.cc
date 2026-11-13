@@ -9,11 +9,66 @@
 #include "base/containers/circular_deque.h"
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
 #include "ui/gl/gl_version_info.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <bit>
+
+#include "base/logging.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gl {
+
+#if BUILDFLAG(IS_COBALT)
+namespace {
+
+// Maximum acceptable GL_TIMESTAMP_EXT quantization step (8 us) before
+// timestamp queries are considered float32-truncated and switched to GLFence.
+// On Mali drivers that convert 64-bit nanosecond GL_QUERY_RESULT timestamps
+// through 32-bit float (24-bit significand), the quantization step reaches
+// 2^13 ns (8.192 us) at 2^36 ns (~68.7 seconds) of GPU uptime, switching to
+// GLFence uniformly ~1 minute after boot.
+constexpr uint64_t kMaxAcceptableTimestampStepNs = 8'000;
+
+// Minimum CPU submission spacing between consecutive queries counted as
+// independent precision samples.
+constexpr int64_t kMinPrecisionSampleIntervalUs = 2'000;
+constexpr int64_t kMinStalledClockSampleIntervalUs = 4'000;
+
+// Require 6 independent frame samples confirming coarse quantization. Even on
+// a conformant 1 MHz GPU clock scaled by 1000 (3 fixed zero LSBs), the chance
+// of 6 random timestamps all having >=13 trailing zero bits is <= 2^-60.
+constexpr uint32_t kImpreciseTimestampSampleThreshold = 6;
+
+// Bounds for detecting clock unit/timebase mismatches between
+// glGetInteger64v(GL_TIMESTAMP_EXT) and glGetQueryObjectui64v(GL_QUERY_RESULT)
+// (e.g. drivers returning raw crystal ticks from glGetInteger64v).
+constexpr int64_t kMaxCalibratedFutureSkewUs = 500'000;
+constexpr int64_t kMaxCalibratedPastSkewUs = 5'000'000;
+constexpr uint32_t kCalibrationErrorSampleThreshold = 2;
+
+// If |value_ns| matches an IEEE-754 binary32-truncated integer (at most 24
+// significant bits, low `msb - 23` bits all zero) whose local ULP step is at
+// least |min_step_ns|, returns that ULP step in nanoseconds; otherwise 0.
+uint64_t DetectedFloat32StepNs(uint64_t value_ns, uint64_t min_step_ns) {
+  if (value_ns < (uint64_t{1} << 24)) {
+    return 0;
+  }
+  const int msb = std::bit_width(value_ns) - 1;
+  const int zero_lsb_count = msb - 23;
+  // Shift count is in [1, 40] because value_ns is uint64_t with msb in [24,63].
+  const uint64_t step_ns = uint64_t{1} << zero_lsb_count;
+  if (step_ns < min_step_ns) {
+    return 0;
+  }
+  return (value_ns & (step_ns - 1)) == 0 ? step_ns : 0;
+}
+
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT)
 
 class TimeElapsedTimerQuery;
 class TimerQuery;
@@ -40,6 +95,12 @@ class GPUTimingImpl : public GPUTiming {
 
   void ForceTimeElapsedQuery() { force_time_elapsed_query_ = true; }
   bool IsForceTimeElapsedQuery() { return force_time_elapsed_query_; }
+#if BUILDFLAG(IS_COBALT)
+  bool AreTimestampQueriesPrecise();
+  void RecordTimestampQueryResult(uint64_t result_value_ns,
+                                  int64_t query_cpu_time_us,
+                                  int64_t adjusted_result_us);
+#endif  // BUILDFLAG(IS_COBALT)
 
   GPUTiming::TimerType GetTimerType() const { return timer_type_; }
 
@@ -87,6 +148,14 @@ class GPUTimingImpl : public GPUTiming {
   bool offset_valid_ = false;
   bool force_time_elapsed_query_ = false;
   int32_t timestamp_bit_count_gl_ = -1;  // gl implementation timestamp bits
+#if BUILDFLAG(IS_COBALT)
+  bool timestamp_queries_imprecise_ = false;
+  uint64_t last_timestamp_query_ns_ = 0;
+  int64_t last_timestamp_sample_cpu_us_ = 0;
+  bool has_timestamp_sample_ = false;
+  uint32_t imprecise_timestamp_streak_ = 0;
+  uint32_t calibration_error_streak_ = 0;
+#endif  // BUILDFLAG(IS_COBALT)
 
   uint32_t next_timer_query_id_ = 0;
   uint32_t next_good_timer_query_id_ = 0;  // identify bad ids for disjoints.
@@ -286,7 +355,12 @@ class TimeStampTimerQuery : public TimerQuery {
     glDeleteQueries(1, &gl_query_id_);
   }
 
+#if BUILDFLAG(IS_COBALT)
+  scoped_refptr<QueryResult> DoQuery(int64_t query_cpu_time_us) {
+    query_cpu_time_us_ = query_cpu_time_us;
+#else
   scoped_refptr<QueryResult> DoQuery() {
+#endif  // BUILDFLAG(IS_COBALT)
     glQueryCounter(gl_query_id_, GL_TIMESTAMP_EXT);
     query_result_ = new QueryResult();
     return query_result_;
@@ -309,6 +383,12 @@ class TimeStampTimerQuery : public TimerQuery {
 
     const int64_t offset = gpu_timing->CalculateTimerOffset();
     const int64_t adjusted_result = micro_results + offset;
+#if BUILDFLAG(IS_COBALT)
+    if (gpu_timing->IsGoodQueryID(timer_query_id_)) {
+      gpu_timing->RecordTimestampQueryResult(result_value, query_cpu_time_us_,
+                                             adjusted_result);
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     DCHECK(query_result_.get());
     query_result_->SetStartValue(adjusted_result);
     query_result_->SetEndValue(adjusted_result);
@@ -318,6 +398,9 @@ class TimeStampTimerQuery : public TimerQuery {
  private:
   ~TimeStampTimerQuery() override {}
   uint32_t gl_query_id_ = 0;
+#if BUILDFLAG(IS_COBALT)
+  int64_t query_cpu_time_us_ = 0;
+#endif  // BUILDFLAG(IS_COBALT)
   scoped_refptr<QueryResult> query_result_;
 };
 
@@ -339,6 +422,86 @@ GPUTimingImpl::GPUTimingImpl(GLContextReal* context) {
 
 GPUTimingImpl::~GPUTimingImpl() {
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool GPUTimingImpl::AreTimestampQueriesPrecise() {
+  if (timer_type_ != GPUTiming::kTimerTypeDisjoint ||
+      force_time_elapsed_query_ || timestamp_queries_imprecise_) {
+    return false;
+  }
+  if (timestamp_bit_count_gl_ == -1) {
+    timestamp_bit_count_gl_ = QueryTimestampBits();
+    if (timestamp_bit_count_gl_ <= 0) {
+      force_time_elapsed_query_ = true;
+      return false;
+    }
+  }
+  return timestamp_bit_count_gl_ > 0;
+}
+
+void GPUTimingImpl::RecordTimestampQueryResult(uint64_t result_value_ns,
+                                               int64_t query_cpu_time_us,
+                                               int64_t adjusted_result_us) {
+  if (timestamp_queries_imprecise_) {
+    return;
+  }
+
+  const int64_t now_cpu_us = GetCurrentCPUTime();
+  if (adjusted_result_us > now_cpu_us + kMaxCalibratedFutureSkewUs ||
+      adjusted_result_us < query_cpu_time_us - kMaxCalibratedPastSkewUs) {
+    HandleBadQuery();
+    if (++calibration_error_streak_ >= kCalibrationErrorSampleThreshold) {
+      LOG(WARNING) << "GL_TIMESTAMP_EXT calibration mismatch (query_ns="
+                   << result_value_ns << ", adjusted_us=" << adjusted_result_us
+                   << ", now_cpu_us=" << now_cpu_us
+                   << "); disabling timestamp queries for presentation.";
+      timestamp_queries_imprecise_ = true;
+    }
+    return;
+  }
+  calibration_error_streak_ = 0;
+
+  if (has_timestamp_sample_ && result_value_ns < last_timestamp_query_ns_) {
+    // Clock rolled back or reset; restart streak from this sample.
+    imprecise_timestamp_streak_ = 0;
+  }
+
+  const int64_t cpu_gap_us =
+      has_timestamp_sample_
+          ? (query_cpu_time_us - last_timestamp_sample_cpu_us_)
+          : kMinPrecisionSampleIntervalUs;
+  if (cpu_gap_us < kMinPrecisionSampleIntervalUs) {
+    return;
+  }
+
+  const uint64_t float32_step_ns =
+      DetectedFloat32StepNs(result_value_ns, kMaxAcceptableTimestampStepNs);
+  if (has_timestamp_sample_ && result_value_ns == last_timestamp_query_ns_ &&
+      float32_step_ns == 0 && cpu_gap_us < kMinStalledClockSampleIntervalUs) {
+    return;
+  }
+  const bool clock_stalled = has_timestamp_sample_ &&
+                             result_value_ns == last_timestamp_query_ns_ &&
+                             cpu_gap_us >= kMinStalledClockSampleIntervalUs;
+
+  last_timestamp_query_ns_ = result_value_ns;
+  last_timestamp_sample_cpu_us_ = query_cpu_time_us;
+  has_timestamp_sample_ = true;
+
+  if (float32_step_ns > 0 || clock_stalled) {
+    if (++imprecise_timestamp_streak_ >= kImpreciseTimestampSampleThreshold) {
+      LOG(WARNING) << "GL_TIMESTAMP_EXT query results lack full precision "
+                      "(result_ns="
+                   << result_value_ns << ", step_ns=" << float32_step_ns
+                   << ", stalled=" << clock_stalled
+                   << "); falling back from GPU timer.";
+      timestamp_queries_imprecise_ = true;
+    }
+  } else {
+    imprecise_timestamp_streak_ = 0;
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 uint32_t GPUTimingImpl::GetDisjointCount() {
   if (timer_type_ == GPUTiming::kTimerTypeDisjoint) {
@@ -422,7 +585,12 @@ scoped_refptr<QueryResult> GPUTimingImpl::DoTimeStampQuery() {
   }
 
   queries_.push_back(new TimeStampTimerQuery(next_timer_query_id_++));
+#if BUILDFLAG(IS_COBALT)
+  return static_cast<TimeStampTimerQuery*>(queries_.back().get())
+      ->DoQuery(GetCurrentCPUTime());
+#else
   return static_cast<TimeStampTimerQuery*>(queries_.back().get())->DoQuery();
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void GPUTimingImpl::UpdateQueryResults() {
@@ -655,6 +823,12 @@ void GPUTimingClient::ForceTimeElapsedQuery() {
   DCHECK(gpu_timing_);
   gpu_timing_->ForceTimeElapsedQuery();
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool GPUTimingClient::AreTimestampQueriesPrecise() {
+  return gpu_timing_ && gpu_timing_->AreTimestampQueriesPrecise();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 GPUTimingClient::~GPUTimingClient() {
 }

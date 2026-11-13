@@ -48,6 +48,10 @@ TEST(PosixSocketBindTest, RainyDayWrongAddressType) {
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_TRUE(socket_fd > 0);
 
+  const int on = 1;
+  EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)),
+            0);
+
   // Binding with the wrong address type should fail.
   sockaddr_in client_address = {};
   client_address.sin_family = AF_INET6;
@@ -81,20 +85,26 @@ TEST(PosixSocketBindTest, RainyDayBadInterface) {
 
 TEST(PosixSocketBindTest, SunnyDayLocalInterface) {
   sockaddr_in6 address = {};
-  EXPECT_TRUE(
+  ASSERT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
   address.sin6_port = htons(PosixGetPortNumberForTests());
 
-  int socket_domain = AF_INET;
+  int socket_domain = address.sin6_family;
   int socket_type = SOCK_STREAM;
   int socket_protocol = IPPROTO_TCP;
 
   int socket_fd = socket(socket_domain, socket_type, socket_protocol);
   ASSERT_TRUE(socket_fd > 0);
 
+  const int on = 1;
+  EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)),
+            0);
+
+  socklen_t addrlen = (socket_domain == AF_INET6) ? sizeof(struct sockaddr_in6)
+                                                  : sizeof(struct sockaddr_in);
   EXPECT_TRUE(bind(socket_fd, reinterpret_cast<struct sockaddr*>(&address),
-                   sizeof(struct sockaddr)) == 0);
+                   addrlen) == 0);
   EXPECT_TRUE(close(socket_fd) == 0);
 }
 
@@ -111,6 +121,11 @@ TEST(PosixSocketBindTest, SunnyDayAnyAddr) {
   int socket_protocol = IPPROTO_TCP;
   int socket_fd = socket(socket_domain, socket_type, socket_protocol);
   ASSERT_TRUE(socket_fd > 0);
+
+  const int on = 1;
+  EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)),
+            0);
+
   EXPECT_TRUE(bind(socket_fd, reinterpret_cast<sockaddr*>(&address),
                    sizeof(sockaddr_in)) == 0);
   EXPECT_TRUE(close(socket_fd) == 0);

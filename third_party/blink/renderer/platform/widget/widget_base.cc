@@ -958,6 +958,14 @@ void WidgetBase::DidCommitCompositorFrame(base::TimeTicks commit_start_time,
   client_->EndCommitCompositorFrame(commit_start_time, commit_finish_time);
 }
 
+#if BUILDFLAG(IS_COBALT)
+void WidgetBase::DidPresentCobaltFrame(
+    uint32_t frame_token,
+    const viz::FrameTimingDetails& frame_timing_details) {
+  client_->DidPresentCobaltFrame(frame_token, frame_timing_details);
+}
+#endif
+
 void WidgetBase::DidCompletePageScaleAnimation() {
   client_->DidCompletePageScaleAnimation();
 }

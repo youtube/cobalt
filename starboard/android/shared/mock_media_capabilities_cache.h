@@ -61,6 +61,10 @@ class MockMediaCapabilitiesProvider final : public MediaCapabilitiesProvider {
               (SbMediaAudioCodec codec),
               (override));
   MOCK_METHOD(bool,
+              GetIsTunneledAudioSupported,
+              (int encoding, int sampling_frequency_hz, int channels),
+              (override));
+  MOCK_METHOD(bool,
               GetAudioConfiguration,
               (int index, SbMediaAudioConfiguration* configuration),
               (override));

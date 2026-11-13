@@ -20,8 +20,6 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.ApplicationExitInfo;
 import android.app.Service;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -30,26 +28,32 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.InputDevice;
 import android.view.Surface;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.media.ExoPlayerManager;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
+import dev.cobalt.util.ProcessExitReasonHelper;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -84,10 +88,15 @@ public class BaseStarboardBridge {
 
   private Surface mVideoSurface;
   private final Object mVideoSurfaceLock = new Object();
+  // Handles of the SbPlayers that are currently playing, i.e. whose playback rate is greater than
+  // 0. The screen is kept on while it isn't empty. Guarded by itself.
+  private final Set<Long> mActivePlayers = new HashSet<>();
+  private final Handler mMainHandler = new Handler(Looper.getMainLooper());
   private final CobaltSystemConfigChangeReceiver mSysConfigChangeReceiver;
   private final CobaltTextToSpeechHelper mTtsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private final AudioOutputManager mAudioOutputManager;
+  private final ExoPlayerManager mExoPlayerManager;
   private final AudioPermissionRequester mAudioPermissionRequester;
   private final ResourceOverlay mResourceOverlay;
   private final AdvertisingId mAdvertisingId;
@@ -119,12 +128,35 @@ public class BaseStarboardBridge {
   private volatile boolean mApplicationStopped;
   private volatile boolean mApplicationStarted;
 
+  @VisibleForTesting
+  final CaptioningManager.CaptioningChangeListener mCaptioningChangeListener =
+      new CaptioningManager.CaptioningChangeListener() {
+        @Override
+        public void onEnabledChanged(boolean enabled) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onUserStyleChanged(CaptioningManager.CaptionStyle userStyle) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onFontScaleChanged(float fontScale) {
+          onCaptionSettingsChanged();
+        }
+      };
+
+  private boolean mCaptionListenerRegistered;
+
   private long mAppStartTimestamp = 0;
 
-  private final Map<String, CobaltService.Factory> mCobaltServiceFactories = new HashMap<>();
+  private final Map<String, CobaltService.Factory> mCobaltServiceFactories =
+      new ConcurrentHashMap<>();
   // Keyed by native pointer handle so multiple documents, iframes, or overlapping Activities
   // can open services with the same name without colliding or leaking on close.
   private final Map<Long, CobaltService> mCobaltServices = new ConcurrentHashMap<>();
+  private volatile Handler mServiceHandler;
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
@@ -155,11 +187,13 @@ public class BaseStarboardBridge {
     mSysConfigChangeReceiver = null;
     mTtsHelper = null;
     mAudioOutputManager = new AudioOutputManager(appContext);
+    mExoPlayerManager = new ExoPlayerManager(appContext);
     mAudioPermissionRequester = null;
     mResourceOverlay = new ResourceOverlay(appContext);
     mAdvertisingId = null;
     mIsAmatiDevice = false;
     mNativeApp = 0;
+    sInstance = this;
   }
 
   public BaseStarboardBridge(
@@ -183,6 +217,7 @@ public class BaseStarboardBridge {
     mSysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, mStopRequester);
     mTtsHelper = new CobaltTextToSpeechHelper(appContext);
     mAudioOutputManager = new AudioOutputManager(appContext);
+    mExoPlayerManager = new ExoPlayerManager(appContext);
     mAudioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     mResourceOverlay = new ResourceOverlay(appContext);
     mAdvertisingId = new AdvertisingId(appContext);
@@ -224,6 +259,8 @@ public class BaseStarboardBridge {
     void setAndroidPlayServicesVersion(long version);
 
     void setYoutubeCertificationScope(String certScope);
+
+    void sendCaptionSettingsChangedEvent();
   }
 
   private static Boolean sActivityLifecycleCoordinationEnabledForTesting = null;
@@ -279,20 +316,27 @@ public class BaseStarboardBridge {
     }
     mActivities.put(activity, Boolean.TRUE);
     mActivityHolder.set(activity);
+    // FLAG_KEEP_SCREEN_ON is set per window, so (re-)apply it to the started activity.
+    updateKeepScreenOn(activity);
     mSysConfigChangeReceiver.setForeground(true);
     if (isActivityLifecycleCoordinationEnabled()) {
       // Only resume services and trigger foreground logic on 0 -> 1 started activity transition.
       if (activeActivityCount == 0) {
         beforeStartOrResume();
+        registerCaptionSettingsChangeListener();
       }
     } else {
       beforeStartOrResume();
+      registerCaptionSettingsChangeListener();
     }
   }
 
   protected void onActivityStop(Activity activity) {
     Log.i(TAG, "onActivityStop ran: " + activity);
     mActivities.put(activity, Boolean.FALSE);
+    // Clears FLAG_KEEP_SCREEN_ON, as |activity| is now stopped. onActivityStart() sets it again if
+    // a player is still playing.
+    updateKeepScreenOn(activity);
     if (isActivityLifecycleCoordinationEnabled()) {
       // Only suspend services and disable foreground config updates if no other activity instance
       // is currently started.
@@ -302,6 +346,7 @@ public class BaseStarboardBridge {
           mActivityHolder.set(null);
         }
         mSysConfigChangeReceiver.setForeground(false);
+        unregisterCaptionSettingsChangeListener();
       } else {
         if (mActivityHolder.get() == activity) {
           mActivityHolder.set(null);
@@ -315,6 +360,7 @@ public class BaseStarboardBridge {
       beforeSuspend();
       if (mActivityHolder.get() == activity) {
         mActivityHolder.set(null);
+        unregisterCaptionSettingsChangeListener();
       }
       mSysConfigChangeReceiver.setForeground(false);
     }
@@ -391,33 +437,51 @@ public class BaseStarboardBridge {
     }
   }
 
+  // Native Mojo calls (has, open, send, close) are already bound to and invoked on the
+  // CobaltPlatformService thread in C++. Activity lifecycle hooks (beforeStartOrResume,
+  // beforeSuspend, closeAllCobaltService) originate on the UI thread in Java, so they post here to
+  // run on the same service thread.
+  private void runOnServiceThread(Runnable action) {
+    Handler handler = mServiceHandler;
+    if (handler != null && handler.getLooper() != Looper.myLooper()) {
+      if (!handler.post(action)) {
+        action.run();
+      }
+    } else {
+      action.run();
+    }
+  }
+
   protected void beforeStartOrResume() {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
     for (CobaltService service : mCobaltServices.values()) {
-      service.beforeStartOrResume();
+      runOnServiceThread(service::beforeStartOrResume);
     }
     mAdvertisingId.refresh();
   }
 
   protected void beforeSuspend() {
-    try {
-      Log.i(TAG, "Prepare to suspend");
-      // We want the MediaSession to be deactivated immediately before suspending so that by
-      // the
-      // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
-      // the web app can take their time suspending after that.
-      for (CobaltService service : mCobaltServices.values()) {
-        service.beforeSuspend();
-      }
-    } catch (Throwable e) {
-      Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
+    Log.i(TAG, "Prepare to suspend");
+    // We want the MediaSession to be deactivated immediately before suspending so that by the
+    // time the launcher is visible, our "Now Playing" card is already gone. Then Cobalt and the
+    // web app can take their time suspending after that.
+    for (CobaltService service : mCobaltServices.values()) {
+      runOnServiceThread(
+          () -> {
+            try {
+              service.beforeSuspend();
+            } catch (Throwable e) {
+              Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
+            }
+          });
     }
   }
 
   protected void afterStopped() {
     mApplicationStopped = true;
+    unregisterCaptionSettingsChangeListener();
     mTtsHelper.shutdown();
     closeAllCobaltService();
     Activity activity = mActivityHolder.get();
@@ -564,6 +628,45 @@ public class BaseStarboardBridge {
     CaptioningManager cm =
         (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
     return new CaptionSettings(cm);
+  }
+
+  private void registerCaptionSettingsChangeListener() {
+    if (mCaptionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm == null) {
+      return;
+    }
+    cm.addCaptioningChangeListener(mCaptioningChangeListener);
+    mCaptionListenerRegistered = true;
+    // Sync current state on foreground start/resume in case system caption settings changed while
+    // the app was stopped in the background.
+    onCaptionSettingsChanged();
+  }
+
+  private void unregisterCaptionSettingsChangeListener() {
+    if (!mCaptionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm != null) {
+      cm.removeCaptioningChangeListener(mCaptioningChangeListener);
+    }
+    mCaptionListenerRegistered = false;
+  }
+
+  private void onCaptionSettingsChanged() {
+    if (mApplicationStarted && !mApplicationStopped) {
+      mNatives.sendCaptionSettingsChangedEvent();
+    }
+  }
+
+  @VisibleForTesting
+  boolean isCaptionListenerRegisteredForTesting() {
+    return mCaptionListenerRegistered;
   }
 
   /** Java-layer implementation of SbSystemGetLocaleId. */
@@ -740,6 +843,11 @@ public class BaseStarboardBridge {
     return mAudioOutputManager;
   }
 
+  @CalledByNative
+  ExoPlayerManager getExoPlayerManager() {
+    return mExoPlayerManager;
+  }
+
   /** Returns Java layer implementation for AudioPermissionRequester */
   @SuppressWarnings("unused")
   @CalledByNative
@@ -823,6 +931,71 @@ public class BaseStarboardBridge {
     }
   }
 
+  /**
+   * Called when |player| is playing, i.e. its playback rate is set to a value greater than 0. The
+   * screen is kept on while any player is playing. Can be called from any thread. Calling it for a
+   * player that is already playing, e.g. when its playback rate changes, has no effect.
+   */
+  @CalledByNative
+  void addActivePlayer(long player) {
+    boolean isFirstActivePlayer;
+    synchronized (mActivePlayers) {
+      isFirstActivePlayer = mActivePlayers.add(player) && mActivePlayers.size() == 1;
+    }
+    if (isFirstActivePlayer) {
+      mMainHandler.post(() -> updateKeepScreenOn(mActivityHolder.get()));
+    }
+  }
+
+  /**
+   * Called when |player| is no longer playing, i.e. its playback rate is set to 0 or it is being
+   * destroyed. Can be called from any thread. Calling it for a player that isn't playing, e.g. when
+   * a paused player is destroyed, has no effect.
+   */
+  @CalledByNative
+  void removeActivePlayer(long player) {
+    boolean wasLastActivePlayer;
+    synchronized (mActivePlayers) {
+      wasLastActivePlayer = mActivePlayers.remove(player) && mActivePlayers.isEmpty();
+    }
+    if (wasLastActivePlayer) {
+      mMainHandler.post(() -> updateKeepScreenOn(mActivityHolder.get()));
+    }
+  }
+
+  /**
+   * Sets FLAG_KEEP_SCREEN_ON on the window of |activity| if it is started and any player is
+   * playing, and clears it otherwise. Must be called on the UI thread. It always applies the latest
+   * state instead of the state at the time it was posted, so that calls posted from different
+   * threads can't be applied out of order.
+   */
+  private void updateKeepScreenOn(Activity activity) {
+    Window window = activity != null ? activity.getWindow() : null;
+    if (window == null) {
+      // The flag will be applied once an activity is started.
+      return;
+    }
+    // A stopped activity's window isn't visible, so it doesn't need the flag.
+    boolean isStarted = Boolean.TRUE.equals(mActivities.get(activity));
+    boolean hasActivePlayers;
+    synchronized (mActivePlayers) {
+      hasActivePlayers = !mActivePlayers.isEmpty();
+    }
+    boolean keepScreenOn = isStarted && hasActivePlayers;
+    boolean isKeepScreenOnSet =
+        (window.getAttributes().flags & WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0;
+    if (keepScreenOn == isKeepScreenOnSet) {
+      return;
+    }
+    if (keepScreenOn) {
+      window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+      Log.i(TAG, "Screen keep-on enabled for media playback.");
+    } else {
+      window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+      Log.i(TAG, "Screen keep-on disabled.");
+    }
+  }
+
   public void registerCobaltService(CobaltService.Factory factory) {
     mCobaltServiceFactories.put(factory.getServiceName(), factory);
   }
@@ -855,6 +1028,11 @@ public class BaseStarboardBridge {
     }
     CobaltService service = factory.createCobaltService(nativeService);
     if (service != null) {
+      Looper myLooper = Looper.myLooper();
+      if (myLooper != null
+          && (mServiceHandler == null || mServiceHandler.getLooper() != myLooper)) {
+        mServiceHandler = new Handler(myLooper);
+      }
       service.setServiceName(serviceName);
       service.setNativeService(nativeService);
       onServiceCreated(service);
@@ -910,7 +1088,7 @@ public class BaseStarboardBridge {
   @CalledByNative
   public void closeAllCobaltService() {
     for (Long nativeService : new ArrayList<>(mCobaltServices.keySet())) {
-      closeCobaltService(nativeService);
+      runOnServiceThread(() -> closeCobaltService(nativeService));
     }
   }
 
@@ -1053,6 +1231,9 @@ public class BaseStarboardBridge {
   protected void hideSplashScreen() {}
 
   @CalledByNative
+  protected void onPrimaryMainFrameNavigationStarted() {}
+
+  @CalledByNative
   protected void setStartupMilestone(int milestone) {}
 
   @CalledByNative
@@ -1063,38 +1244,7 @@ public class BaseStarboardBridge {
     if (sWasLowMemoryKilledForTesting != null) {
       return sWasLowMemoryKilledForTesting;
     }
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-      return false;
-    }
-    if (mAppContext == null) {
-      return false;
-    }
-    ActivityManager am = (ActivityManager) mAppContext.getSystemService(Context.ACTIVITY_SERVICE);
-    if (am == null) {
-      return false;
-    }
-    return ApiHelperForR.getWasLowMemoryKilled(am);
-  }
-
-  @RequiresApi(Build.VERSION_CODES.R)
-  private static final class ApiHelperForR {
-    private ApiHelperForR() {}
-
-    static boolean getWasLowMemoryKilled(ActivityManager am) {
-      try {
-        // Query the latest process exit reason for this package (pid <= 0).
-        List<ApplicationExitInfo> reasons =
-            am.getHistoricalProcessExitReasons(
-                /* package_name= */ null, /* pid= */ 0, /* maxNum= */ 1);
-        if (reasons == null || reasons.isEmpty() || reasons.get(0) == null) {
-          return false;
-        }
-        return reasons.get(0).getReason() == ApplicationExitInfo.REASON_LOW_MEMORY;
-      } catch (RuntimeException e) {
-        Log.w(TAG, "Failed to get historical process exit reasons", e);
-        return false;
-      }
-    }
+    return ProcessExitReasonHelper.getWasLowMemoryKilled(mAppContext);
   }
 
   @VisibleForTesting

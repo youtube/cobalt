@@ -12,6 +12,9 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/metrics/histogram_tester.h"
+#endif
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/time/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -51,6 +54,9 @@ class MockHighestPmfReporter : public HighestPmfReporter {
 
  private:
   void ReportMetrics() override {
+#if BUILDFLAG(IS_COBALT)
+    HighestPmfReporter::ReportMetrics();
+#endif
     reported_highest_pmf_.push_back(current_highest_pmf_);
     reported_peak_rss_.push_back(peak_resident_bytes_at_current_highest_pmf_);
     reported_webpage_count_.push_back(webpage_counts_at_current_highest_pmf_);
@@ -316,23 +322,68 @@ TEST_F(HighestPmfReporterTest, TestReportTiming) {
 
 #if BUILDFLAG(IS_COBALT)
 TEST_F(HighestPmfReporterTest, TestReportForegroundWithLowerOrFlatMemory) {
+  base::HistogramTester histogram_tester;
   EXPECT_TRUE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
   Page::OrdinaryPages().insert(&GetPage());
+
+  // Pre-navigation background/foreground transitions at process startup
+  // (e.g. RenderThreadImpl::SetProcessState) must be ignored.
+  reporter_->OnProcessBackgrounded();
+  EXPECT_TRUE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
+  reporter_->OnProcessForegrounded();
+  EXPECT_TRUE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
 
   // High startup peak
   memory_usage_monitor_->SetPrivateFootprintBytes(2000.0);
   memory_usage_monitor_->SetPeakResidentBytes(2500.0);
 
+  base::TimeTicks navigation_start_time = NowTicks();
   reporter_->NotifyNavigationStart();
   AdvanceClock(base::Seconds(1));
 
-  // Background and foreground transitions
+  // Background and foreground transitions before initial metrics finish should
+  // be ignored so the initial startup PMF metrics complete.
+  reporter_->OnProcessBackgrounded();
+  EXPECT_TRUE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
+  reporter_->OnProcessForegrounded();
+  EXPECT_TRUE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
+
+  // Finish the initial 4 reports (up to 16 minutes).
+  AdvanceClockTo(navigation_start_time + base::Minutes(16) + base::Seconds(1));
+  EXPECT_EQ(4, reporter_->GetReportCount());
+  EXPECT_FALSE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
+
+  for (const char* suffix : {"0to2min", "2to4min", "4to8min", "8to16min"}) {
+    histogram_tester.ExpectTotalCount(
+        std::string("Memory.Experimental.Renderer."
+                    "HighestPrivateMemoryFootprint.") +
+            suffix,
+        1);
+    histogram_tester.ExpectTotalCount(
+        std::string("Memory.Experimental.Renderer.PeakResidentSet."
+                    "AtHighestPrivateMemoryFootprint.") +
+            suffix,
+        1);
+    histogram_tester.ExpectTotalCount(
+        std::string("Memory.Experimental.Renderer."
+                    "HighestPrivateMemoryFootprintWhenForegrounded.") +
+            suffix,
+        0);
+    histogram_tester.ExpectTotalCount(
+        std::string("Memory.Experimental.Renderer.PeakResidentSet."
+                    "AtHighestPrivateMemoryFootprintWhenForegrounded.") +
+            suffix,
+        0);
+  }
+
+  // Background and foreground transitions after initial metrics completed.
   reporter_->OnProcessBackgrounded();
   EXPECT_FALSE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
 
   base::TimeTicks foreground_time = NowTicks();
   reporter_->OnProcessForegrounded();
   EXPECT_TRUE(MemoryUsageMonitor::Instance().HasObserver(reporter_.get()));
+  EXPECT_EQ(0, reporter_->GetReportCount());
 
   // Lower memory during the new foreground session
   memory_usage_monitor_->SetPrivateFootprintBytes(500.0);
@@ -345,10 +396,18 @@ TEST_F(HighestPmfReporterTest, TestReportForegroundWithLowerOrFlatMemory) {
 
   AdvanceClock(base::Seconds(1));
   EXPECT_EQ(1, reporter_->GetReportCount());
-  EXPECT_EQ(1U, reporter_->GetReportedHighestPmf().size());
-  EXPECT_NEAR(500.0, reporter_->GetReportedHighestPmf().at(0), 0.001);
-  EXPECT_EQ(1U, reporter_->GetReportedPeakRss().size());
-  EXPECT_NEAR(800.0, reporter_->GetReportedPeakRss().at(0), 0.001);
+  EXPECT_EQ(5U, reporter_->GetReportedHighestPmf().size());
+  EXPECT_NEAR(500.0, reporter_->GetReportedHighestPmf().at(4), 0.001);
+  EXPECT_EQ(5U, reporter_->GetReportedPeakRss().size());
+  EXPECT_NEAR(800.0, reporter_->GetReportedPeakRss().at(4), 0.001);
+  histogram_tester.ExpectTotalCount(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "Memory.Experimental.Renderer.PeakResidentSet."
+      "AtHighestPrivateMemoryFootprintWhenForegrounded.0to2min",
+      1);
 }
 #endif
 

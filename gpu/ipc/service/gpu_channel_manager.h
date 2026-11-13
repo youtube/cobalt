@@ -259,6 +259,12 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   GpuChannelManager::OnMemoryAllocatedChangeCallback
   GetOnMemoryAllocatedChangeCallback();
 
+#if BUILDFLAG(IS_COBALT)
+  base::WeakPtr<GpuChannelManager> AsWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
  private:
   friend class GpuChannelManagerTest;
 

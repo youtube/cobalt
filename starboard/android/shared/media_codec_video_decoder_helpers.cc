@@ -47,9 +47,11 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
   }
 
   bool is_low_resolution =
-      mime_type->GetParamIntValue("width", Resolution::k1080p.width) <= 432 &&
-      mime_type->GetParamIntValue("height", Resolution::k1080p.height) <= 240;
-  bool is_low_fps = mime_type->GetParamIntValue("framerate", 30) <= 15;
+      mime_type->GetParamIntValue(kMimeParamWidth, Resolution::k1080p.width) <=
+          432 &&
+      mime_type->GetParamIntValue(kMimeParamHeight,
+                                  Resolution::k1080p.height) <= 240;
+  bool is_low_fps = mime_type->GetParamIntValue(kMimeParamFramerate, 30) <= 15;
 
   if (!is_low_resolution || !is_low_fps) {
     SB_LOG(INFO)
@@ -64,29 +66,29 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
   return true;
 }
 
-std::optional<Size> ParseMaxResolution(
-    const std::string& max_video_capabilities,
-    const Size& frame_size) {
+std::optional<Size> ParseMaxResolution(const std::string& max_video_param,
+                                       std::string_view param_name,
+                                       const Size& frame_size) {
   SB_DCHECK_GT(frame_size.width, 0);
   SB_DCHECK_GT(frame_size.height, 0);
 
-  if (max_video_capabilities.empty()) {
+  if (max_video_param.empty()) {
     return std::nullopt;
   }
 
-  SB_LOG(INFO) << "Try to parse max resolutions from `max_video_capabilities` ("
-               << max_video_capabilities << ").";
+  SB_LOG(INFO) << "Try to parse max resolutions from `" << param_name << "` ("
+               << max_video_param << ").";
 
   auto mime_type =
-      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_capabilities);
+      MimeType::Create("video/mp4; codecs=\"vp9\"; " + max_video_param);
   if (!mime_type) {
-    SB_LOG(WARNING) << "Failed to parse max resolutions as "
-                       "`max_video_capabilities` is invalid.";
+    SB_LOG(WARNING) << "Failed to parse max resolutions as `" << param_name
+                    << "` is invalid.";
     return std::nullopt;
   }
 
-  int width = mime_type->GetParamIntValue("width", -1);
-  int height = mime_type->GetParamIntValue("height", -1);
+  int width = mime_type->GetParamIntValue(kMimeParamWidth, -1);
+  int height = mime_type->GetParamIntValue(kMimeParamHeight, -1);
   if (width <= 0 && height <= 0) {
     SB_LOG(WARNING) << "Failed to parse max resolutions as either width or "
                        "height isn't set.";
@@ -121,15 +123,6 @@ std::optional<Size> ParseMaxResolution(
 bool Equal(const SbMediaMasteringMetadata& lhs,
            const SbMediaMasteringMetadata& rhs) {
   return std::memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
-}
-
-bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
-  const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
-         color_metadata.transfer == kSbMediaTransferIdBt709 &&
-         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
-         color_metadata.range == kSbMediaRangeIdLimited &&
-         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
 }
 
 DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
@@ -203,6 +196,17 @@ DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
   content_region.top = top;
   content_region.bottom = bottom;
   return {content_region, coded_size};
+}
+
+std::optional<Size> GetLowestResolution(const std::optional<Size>& a,
+                                        const std::optional<Size>& b) {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  return Size{std::min(a->width, b->width), std::min(a->height, b->height)};
 }
 
 }  // namespace starboard

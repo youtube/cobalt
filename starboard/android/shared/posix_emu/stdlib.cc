@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <errno.h>
 #include <fcntl.h>
+#include <malloc.h>
 #include <stdlib.h>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -20,6 +22,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 extern "C" {
+
+#if __ANDROID_API__ < 28
+void* aligned_alloc(size_t alignment, size_t size) {
+  if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
+    errno = EINVAL;
+    return nullptr;
+  }
+
+  return memalign(alignment, size);
+}
+#endif  // __ANDROID_API__ < 28
 
 int __real_mkostemp(char* tmpl, int flags);
 

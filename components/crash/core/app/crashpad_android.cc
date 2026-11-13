@@ -569,9 +569,10 @@ class HandlerStarter {
 
 #if BUILDFLAG(IS_COBALT)
     // Disable periodic tasks. In the Android "at-crash" execution model, this
-    // flag prevents an unnecessary file system scan for pending reports, reducing
-    // thread contention during the critical crash dumping window.
-    // TODO: Implement actual database pruning for Android TV.
+    // flag prevents an unnecessary file system scan for pending reports,
+    // reducing thread contention during the critical crash dumping window.
+    // Database pruning is handled synchronously via PruneNow() in the upload
+    // thread observation callback upon report completion.
     arguments.push_back("--no-periodic-tasks");
 #endif
     if (crashpad::SetSanitizationInfo(GetCrashReporterClient(),
@@ -588,7 +589,7 @@ class HandlerStarter {
     // Don't handle SIGQUIT in the browser process on Android; the system masks
     // this and uses it for generating ART stack traces, and if it gets unmasked
     // (e.g. by a WebView app) we don't want to treat this as a crash.
-    
+
 
     #if BUILDFLAG(IS_COBALT)
     // Prevent Crashpad from handling standard crash signals. Only hangs are handled.

@@ -80,6 +80,7 @@ class AudioSinkTestEnvironment {
   }
   void SetIsPlaying(bool is_playing);
   void AppendFrame(int frames_to_append);
+  void FillFrameBuffer();
   int GetFrameBufferFreeSpaceInFrames() const;
 
   // The following functions return true when the expected condition are met.

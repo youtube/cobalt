@@ -15,7 +15,9 @@
 #ifndef STARBOARD_COMMON_MEDIA_H_
 #define STARBOARD_COMMON_MEDIA_H_
 
+#include <optional>
 #include <ostream>
+#include <string_view>
 
 #include "starboard/media.h"
 
@@ -31,25 +33,28 @@ const char* GetMediaRangeIdName(SbMediaRangeId range_id);
 
 const char* GetMediaAudioSampleTypeName(SbMediaAudioSampleType sample_type);
 
-// This function parses the video codec string and returns a codec.  All fields
-// will be filled with information parsed from the codec string when possible,
-// otherwise they will have the following default values:
-//            profile: -1
-//              level: -1
-//          bit_depth: 8
-//         primary_id: kSbMediaPrimaryIdUnspecified
-//        transfer_id: kSbMediaTransferIdUnspecified
-//          matrix_id: kSbMediaMatrixIdUnspecified
-// It returns true when |codec| contains a well-formed codec string, otherwise
-// it returns false.
-bool ParseVideoCodec(const char* codec_string,
-                     SbMediaVideoCodec* codec,
-                     int* profile,
-                     int* level,
-                     int* bit_depth,
-                     SbMediaPrimaryId* primary_id,
-                     SbMediaTransferId* transfer_id,
-                     SbMediaMatrixId* matrix_id);
+// Video codec information parsed from a codec string by ParseVideoCodec().
+// Fields that cannot be determined from the codec string keep their default
+// values.
+struct ParsedVideoCodec {
+  SbMediaVideoCodec codec = kSbMediaVideoCodecNone;
+  int profile = -1;
+  int level = -1;
+  int bit_depth = 8;
+  SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
+  SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
+  SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
+};
+
+// Parses the video codec string (e.g. "vp09.02.10.10"). Returns std::nullopt
+// when |codec_string| isn't a well-formed codec string. On success, the
+// returned |codec| is never kSbMediaVideoCodecNone.
+// |codec_string| doesn't need to be null-terminated.
+std::optional<ParsedVideoCodec> ParseVideoCodec(std::string_view codec_string);
+
+// For logging use only. Prints all fields of |codec_info|, e.g.
+// "codec=vp9, profile=0, level=41, bit_depth=8, primary_id=bt709, ...".
+std::ostream& operator<<(std::ostream& os, const ParsedVideoCodec& codec_info);
 
 }  // namespace starboard
 

@@ -114,7 +114,8 @@ typedef enum SbEventType {
   // The system can send |kSbEventTypePreload| while in the `UNSTARTED` state to
   // push the app into a lower resource consumption state. Applications call
   // `SbSystemRequestConceal()` to request this. Only `Reveal` or `Freeze`
-  // events can follow a `Preload` event. This event has no data argument.
+  // events can follow a `Preload` event. The data argument contains
+  // |SbEventStartData|.
   kSbEventTypePreload,
 
   // The first event an application receives during a normal startup.
@@ -221,6 +222,10 @@ typedef enum SbEventType {
   // The platform's text-to-speech settings have changed. The data field of this
   // SbEvent type is a boolean indicating if text-to-speech is enabled.
   kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
+
+  // One or more of the fields returned by the Accessibility extension's
+  // GetCaptionSettings() has changed.
+  kSbEventTypeAccessibilityCaptionSettingsChanged,
 } SbEventType;
 
 // This structure represents a Starboard event and its data.

@@ -20,6 +20,7 @@ source_set("feature_config_header") {
     "//cobalt/common/features:features",
     "//starboard/android/shared:starboard_platform",
     "//starboard/shared/starboard:feature_list",
+    "//starboard/shared/starboard:features_test_util",
   ]
   sources = [ "feature_config.h" ]
 
@@ -34,7 +35,7 @@ source_set("extension_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+  if (sb_is_modular && current_toolchain == default_toolchain) {
     deps += cobalt_platform_dependencies
   }
 }

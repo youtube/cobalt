@@ -18,7 +18,11 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/thread_annotations.h"
 #include "base/unguessable_token.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
 #include "gpu/ipc/service/gpu_channel_shared_image_interface.h"
@@ -48,10 +52,50 @@ class StarboardGpuFactory : public gpu::CommandBufferStub::DestructionObserver {
   virtual void Initialize(base::UnguessableToken channel_token,
                           int32_t route_id,
                           base::OnceClosure callback) = 0;
+
+  // Shared state for one RunSbDecodeTargetFunctionOnGpu() request. It is
+  // reference counted so that a caller that gives up waiting (see
+  // |abandoned|) can return while the task is still queued on the gpu thread
+  // without the task touching freed memory.
+  struct GlesClosureRun : public base::RefCountedThreadSafe<GlesClosureRun> {
+    enum class Outcome {
+      kPending,
+      // |target_function| ran with the GL context current.
+      kRan,
+      // No command buffer stub (destroyed and could not be re-acquired).
+      // Retrying will not help.
+      kNoStub,
+      // The stub exists but its GL context could not be made current. This
+      // is usually transient.
+      kContextNotCurrent,
+    };
+
+    GlesClosureRun();
+
+    // Guards |abandoned| and the execution of |target_function| so that a
+    // caller cannot return (destroying |target_function_context|) while the
+    // closure is running.
+    base::Lock lock;
+    bool abandoned GUARDED_BY(lock) = false;
+    Outcome outcome = Outcome::kPending;
+    base::WaitableEvent done{base::WaitableEvent::ResetPolicy::MANUAL,
+                             base::WaitableEvent::InitialState::NOT_SIGNALED};
+
+   private:
+    friend class base::RefCountedThreadSafe<GlesClosureRun>;
+    ~GlesClosureRun();
+  };
+
+  // Runs |target_function| on the gpu thread with the command buffer's GL
+  // context made current, records the result in |run->outcome| and signals
+  // |run->done|. If |run->abandoned| is already set the function is not run.
+  // If the context cannot be made current |target_function| is NOT run; the
+  // caller must check |run->outcome| rather than assume it ran, otherwise it
+  // proceeds with an uninitialized decode target (b/565889635).
   virtual void RunSbDecodeTargetFunctionOnGpu(
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context,
-      base::WaitableEvent* done_event) = 0;
+      scoped_refptr<GlesClosureRun> run) = 0;
   virtual void RunCallbackOnGpu(base::OnceCallback<void()> callback,
                                 base::WaitableEvent* done_event) = 0;
   virtual void PostCallbackToGpu(base::OnceCallback<void()> callback) = 0;

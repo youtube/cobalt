@@ -127,6 +127,14 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
     return AudioOutputManager::GetInstance()->HasPassthroughSupportFor(
         env, encoding);
   }
+  bool GetIsTunneledAudioSupported(int encoding,
+                                   int sampling_frequency_hz,
+                                   int channels) override {
+    JNIEnv* env = AttachCurrentThread();
+    return AudioOutputManager::GetInstance()->GetDirectPlaybackSupport(
+        env, encoding, sampling_frequency_hz, channels,
+        /*require_hw_av_sync=*/true);
+  }
   bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* configuration) override {
@@ -258,17 +266,6 @@ bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
 
 bool VideoCodecCapability::AreResolutionAndRateSupported(Size size,
                                                          int fps) const {
-  if (!(j_video_capabilities_.is_null())) {
-    JNIEnv* env = AttachCurrentThread();
-    if (!size.IsEmpty() && fps != 0) {
-      return Java_MediaCodecUtil_areSizeAndRateSupported(
-          env, j_video_capabilities_, size.width, size.height,
-          static_cast<jdouble>(fps));
-    } else if (!size.IsEmpty()) {
-      return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
-                                                 size.width, size.height);
-    }
-  }
   if (size.width != 0 && !supported_widths_.Contains(size.width)) {
     return false;
   }
@@ -278,7 +275,20 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(Size size,
   if (fps != 0 && !supported_frame_rates_.Contains(fps)) {
     return false;
   }
-  return true;
+  if (size.IsEmpty() || j_video_capabilities_.is_null()) {
+    return true;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+
+  if (fps != 0) {
+    return Java_MediaCodecUtil_areSizeAndRateSupported(
+        env, j_video_capabilities_, size.width, size.height,
+        static_cast<jdouble>(fps));
+  }
+
+  return Java_MediaCodecUtil_isSizeSupported(env, j_video_capabilities_,
+                                             size.width, size.height);
 }
 
 // static
@@ -321,9 +331,10 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   if (!is_enabled_) {
     return media_capabilities_provider_->GetIsPassthroughSupported(codec);
   }
-  // IsPassthroughSupported() caches the results of previous quiries, and does
-  // not rely on LazyInitialize(), which is different from other functions.
+  // IsPassthroughSupported() caches the results of previous queries, which are
+  // cleared in UpdateMediaCapabilities_Locked() when the cache is dirty.
   std::lock_guard scoped_lock(mutex_);
+  UpdateMediaCapabilities_Locked();
   auto iter = passthrough_supportabilities_.find(codec);
   if (iter != passthrough_supportabilities_.end()) {
     return iter->second;
@@ -331,6 +342,28 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   bool supported =
       media_capabilities_provider_->GetIsPassthroughSupported(codec);
   passthrough_supportabilities_[codec] = supported;
+  return supported;
+}
+
+bool MediaCapabilitiesCache::IsTunneledAudioSupported(int encoding,
+                                                      int sampling_frequency_hz,
+                                                      int channels) {
+  if (!is_enabled_) {
+    return media_capabilities_provider_->GetIsTunneledAudioSupported(
+        encoding, sampling_frequency_hz, channels);
+  }
+  // IsTunneledAudioSupported() caches the results of previous queries, which
+  // are cleared in UpdateMediaCapabilities_Locked() when the cache is dirty.
+  std::lock_guard scoped_lock(mutex_);
+  UpdateMediaCapabilities_Locked();
+  const auto key = std::make_tuple(encoding, sampling_frequency_hz, channels);
+  auto iter = tunneled_audio_supportabilities_.find(key);
+  if (iter != tunneled_audio_supportabilities_.end()) {
+    return iter->second;
+  }
+  bool supported = media_capabilities_provider_->GetIsTunneledAudioSupported(
+      encoding, sampling_frequency_hz, channels);
+  tunneled_audio_supportabilities_[key] = supported;
   return supported;
 }
 
@@ -474,12 +507,12 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     if (must_support_hdr && !video_capability->is_hdr_capable()) {
       continue;
     }
-    // Reject if resolution or frame rate is not supported.
-    if (!video_capability->AreResolutionAndRateSupported(frame_size, fps)) {
-      continue;
-    }
     // Reject if bitrate is not supported.
     if (bitrate != 0 && !video_capability->IsBitrateSupported(bitrate)) {
+      continue;
+    }
+    // Reject if resolution or frame rate is not supported.
+    if (!video_capability->AreResolutionAndRateSupported(frame_size, fps)) {
       continue;
     }
 
@@ -510,9 +543,10 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
   if (!capabilities_is_dirty_.exchange(false)) {
     return;
   }
-  // We use a different cache strategy (load and cache) for passthrough
-  // supportabilities, so we only clear |passthrough_supportabilities_| here.
+  // We use a different cache strategy (load and cache) for passthrough and
+  // direct playback supportabilities, so we only clear them here.
   passthrough_supportabilities_.clear();
+  tunneled_audio_supportabilities_.clear();
 
   audio_codec_capabilities_map_.clear();
   video_codec_capabilities_map_.clear();

@@ -123,7 +123,7 @@ TEST_F(AppEventRunnerTest, OnReveal) {
 
   // Simulate that the frame was visible before conceal, so OnReveal will
   // trigger WasShown().
-  platform_->AddPreviouslyVisibleWebContentsForTesting(shell_->web_contents());
+  platform_->AddWebContentsToRevealForTesting(shell_->web_contents());
 
   // Bind a mock renderer to CobaltLifecycleManager.
   mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
@@ -150,6 +150,40 @@ TEST_F(AppEventRunnerTest, OnReveal) {
   base::RunLoop().RunUntilIdle();
 }
 
+TEST_F(AppEventRunnerTest, OnRevealWithoutPlatformWindowSkipsRevealAck) {
+  CreateTestShell(false /* is_visible */);
+  platform_->AddWebContentsToRevealForTesting(shell_->web_contents());
+
+  // Bind a mock renderer that never sends a Reveal ACK, so waiting for one
+  // would only end at the transition timeout.
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
+  CobaltLifecycleManager::GetInstance()->BindReceiver(
+      shell_->web_contents()->GetPrimaryMainFrame(),
+      remote.BindNewPipeAndPassReceiver());
+  remote->OnFrameReady();
+  base::RunLoop().RunUntilIdle();
+
+  ON_CALL(*platform_, HasPlatformWindow())
+      .WillByDefault(testing::Return(false));
+  EXPECT_CALL(*platform_, OnReveal());
+  EXPECT_CALL(*platform_, RevealShell(shell_));
+  const base::TimeTicks start = task_environment_.NowTicks();
+  runner_->OnReveal();
+
+  EXPECT_LT(task_environment_.NowTicks() - start, base::Seconds(2));
+  EXPECT_TRUE(runner_->is_visible());
+  EXPECT_TRUE(platform_->IsWaitingForRevealAck());
+
+  // Concealing stops waiting for the Reveal ACK that can't come.
+  EXPECT_CALL(*platform_, OnConceal());
+  runner_->OnConceal();
+  EXPECT_FALSE(runner_->is_visible());
+  EXPECT_FALSE(platform_->IsWaitingForRevealAck());
+
+  remote.reset();
+  base::RunLoop().RunUntilIdle();
+}
+
 TEST_F(AppEventRunnerTest, OnFreeze) {
   CreateTestShell(false /* is_visible */, false /* is_focused */,
                   false /* is_frozen */);
@@ -159,6 +193,53 @@ TEST_F(AppEventRunnerTest, OnFreeze) {
   EXPECT_CALL(*platform_, OnFreeze());
   runner_->OnFreeze();
   EXPECT_TRUE(test_web_contents->IsPageFrozen());
+}
+
+TEST_F(AppEventRunnerTest, OnFreezeWaitsForFrameFrozenAck) {
+  CreateTestShell(false /* is_visible */, false /* is_focused */,
+                  false /* is_frozen */);
+  content::TestWebContents* test_web_contents =
+      static_cast<content::TestWebContents*>(shell_->web_contents());
+
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
+  CobaltLifecycleManager::GetInstance()->BindReceiver(
+      shell_->web_contents()->GetPrimaryMainFrame(),
+      remote.BindNewPipeAndPassReceiver());
+  remote->OnFrameReady();
+  remote->OnPageResumed();
+  base::RunLoop().RunUntilIdle();
+
+  bool freeze_ack_sent = false;
+  bool freeze_callback_called = false;
+
+  EXPECT_CALL(*platform_, OnFreeze()).WillOnce([&]() {
+    platform_->ShellPlatformDelegate::OnFreeze();
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](mojo::Remote<cobalt::mojom::CobaltLifecycleObserver>*
+                              observer_remote,
+                          bool* ack_sent, bool* cb_called) {
+                         EXPECT_FALSE(*cb_called);
+                         *ack_sent = true;
+                         (*observer_remote)->OnPageFrozen();
+                       },
+                       &remote, &freeze_ack_sent, &freeze_callback_called));
+  });
+
+  runner_->OnFreeze(base::BindOnce(
+      [](bool* ack_sent, bool* cb_called) {
+        EXPECT_TRUE(*ack_sent);
+        *cb_called = true;
+      },
+      &freeze_ack_sent, &freeze_callback_called));
+
+  EXPECT_TRUE(freeze_ack_sent);
+  EXPECT_TRUE(freeze_callback_called);
+  EXPECT_TRUE(runner_->is_frozen());
+  EXPECT_TRUE(test_web_contents->IsPageFrozen());
+
+  remote.reset();
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(AppEventRunnerTest, OnUnfreeze) {

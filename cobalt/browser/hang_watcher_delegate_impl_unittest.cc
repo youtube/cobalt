@@ -14,10 +14,12 @@
 
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
 
+#include <map>
 #include <memory>
 #include <string>
 
 #include "base/files/scoped_temp_dir.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
@@ -25,10 +27,42 @@
 #include "base/time/time.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/build/configs/buildflags.h"
+#include "starboard/extension/native_stability.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
+#endif
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
+#elif BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/cobalt_crash_annotations.h"  // nogncheck
+#endif
 
 namespace cobalt {
 namespace browser {
+
+#if BUILDFLAG(USE_EVERGREEN)
+namespace {
+
+std::map<std::string, std::string>& GetEvergreenTestCrashAnnotations() {
+  static base::NoDestructor<std::map<std::string, std::string>> annotations;
+  return *annotations;
+}
+
+bool TestSetStringCallback(const char* key, const char* value) {
+  if (!key || !value) {
+    return false;
+  }
+  GetEvergreenTestCrashAnnotations()[key] = value;
+  return true;
+}
+
+}  // namespace
+#endif  // BUILDFLAG(USE_EVERGREEN)
 
 class HangWatcherDelegateImplTest : public testing::Test {
  protected:
@@ -38,9 +72,36 @@ class HangWatcherDelegateImplTest : public testing::Test {
         base::DIR_CACHE, temp_dir_.GetPath(), true, true);
     instance_ = GlobalFeatures::GetInstance();
     delegate_ = std::make_unique<CobaltHangWatcherDelegate>(instance_);
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
+    h5vcc_native_stability::NativeStabilityManager::GetInstance()
+        ->SetHangAttributesFilePathForTesting(
+            temp_dir_.GetPath().Append("hang_attributes.json"));
+#endif
+#if BUILDFLAG(USE_EVERGREEN)
+    auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
+        SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+    if (crash_ext && crash_ext->version >= 3 &&
+        crash_ext->RegisterSetStringCallback) {
+      crash_ext->RegisterSetStringCallback(&TestSetStringCallback);
+    }
+#endif
   }
 
   void TearDown() override {
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
+    task_environment_.RunUntilIdle();
+    h5vcc_native_stability::NativeStabilityManager::GetInstance()
+        ->ResetForTesting();
+#endif
+#if BUILDFLAG(USE_EVERGREEN)
+    auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
+        SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+    if (crash_ext && crash_ext->version >= 3 &&
+        crash_ext->RegisterSetStringCallback) {
+      crash_ext->RegisterSetStringCallback(nullptr);
+    }
+    GetEvergreenTestCrashAnnotations().clear();
+#endif
     instance_->ClearSetting("EnableHangReporting");
     instance_->ClearSetting("HangWatchTimeSeconds");
     instance_->ClearSetting("HangWatchMonitoringPeriodSeconds");
@@ -61,6 +122,35 @@ class HangWatcherDelegateImplTest : public testing::Test {
   GlobalFeatures* instance_ = nullptr;
 
   std::unique_ptr<CobaltHangWatcherDelegate> delegate_;
+
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
+  void ClearCrashAnnotations() {
+#if BUILDFLAG(USE_EVERGREEN)
+    GetEvergreenTestCrashAnnotations().clear();
+#elif BUILDFLAG(IS_ANDROIDTV)
+    CobaltCrashAnnotations::GetInstance()->ClearAllAnnotations();
+#endif
+  }
+
+  std::string GetCrashAnnotationValue(const std::string& name) {
+#if BUILDFLAG(USE_EVERGREEN)
+    const auto& annotations = GetEvergreenTestCrashAnnotations();
+    auto it = annotations.find(name);
+    return it != annotations.end() ? it->second : "";
+#elif BUILDFLAG(IS_ANDROIDTV)
+    auto* annotations = CobaltCrashAnnotations::GetInstance();
+    auto it = annotations->annotations_.find(name);
+    if (it == annotations->annotations_.end()) {
+      return "";
+    }
+    const auto& annotation = *it->second->annotation;
+    if (!annotation.is_set()) {
+      return "";
+    }
+    return std::string(annotation.value());
+#endif
+  }
+#endif  // BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
 };
 
 TEST_F(HangWatcherDelegateImplTest, IsHangReportingEnabled_DefaultsWhenUnset) {
@@ -504,6 +594,20 @@ TEST_F(HangWatcherDelegateImplTest, SettingsTypeMismatch_FallsBackToFinch) {
   EXPECT_TRUE(delegate_->IsThreadDumpingEnabled(
       base::HangWatcher::ThreadType::kRendererThread));
 }
+
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
+TEST_F(HangWatcherDelegateImplTest,
+       RecordHangStartedAndRecovered_AnnotationUpdated) {
+  ClearCrashAnnotations();
+
+  const std::string kHangUuid = "12345678-1234-4234-8234-123456789abc";
+  delegate_->RecordHangStarted(kHangUuid);
+  EXPECT_EQ(GetCrashAnnotationValue(kNativeStabilityHangUuidKey), kHangUuid);
+
+  delegate_->RecordHangRecovered(kHangUuid);
+  EXPECT_EQ(GetCrashAnnotationValue(kNativeStabilityHangUuidKey), "");
+}
+#endif  // BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
 
 }  // namespace browser
 }  // namespace cobalt

@@ -94,15 +94,18 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
   }
 
   const bool must_support_secure = platform_options.require_secured_decoder;
-  const bool must_support_hdr = color_metadata;
+  // MediaCapabilitiesCache uses the HDR profiles to tell whether a decoder
+  // supports 10-bit, so 10-bit SDR video asks for one too.
+  const bool needs_hdr_capable_decoder =
+      color_metadata || platform_options.is_high_bit_depth;
   const bool must_support_tunnel_mode =
       platform_options.tunnel_mode_audio_session_id.has_value();
 
   std::string decoder_name =
       MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
-          mime, must_support_secure, must_support_hdr,
+          mime, must_support_secure, needs_hdr_capable_decoder,
           platform_options.require_software_codec, must_support_tunnel_mode);
-  if (decoder_name.empty() && color_metadata) {
+  if (decoder_name.empty() && needs_hdr_capable_decoder) {
     decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
         mime, must_support_secure, /*must_support_hdr=*/false,
         platform_options.require_software_codec, must_support_tunnel_mode);
@@ -193,8 +196,6 @@ std::ostream& operator<<(std::ostream& os,
   return os << "{max_input_size=" << options.max_input_size
             << ", skip_video_frames_over_60_fps="
             << ToString(options.skip_video_frames_over_60_fps)
-            << ", ignore_mediacodec_callbacks_during_flushing="
-            << ToString(options.ignore_mediacodec_callbacks_during_flushing)
             << ", enable_frame_renderer_listener="
             << ToString(options.enable_frame_renderer_listener)
             << ", require_secured_decoder="

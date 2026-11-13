@@ -166,6 +166,65 @@ TEST_F(MediaCapabilitiesCacheTest, IsPassthroughSupported_DisabledCache) {
   EXPECT_FALSE(cache_->IsPassthroughSupported(kSbMediaAudioCodecEac3));
 }
 
+TEST_F(MediaCapabilitiesCacheTest, IsTunneledAudioSupported_EnabledCache) {
+  constexpr int kEncodingPcm16Bit = 2;
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetIsTunneledAudioSupported(kEncodingPcm16Bit, 48000, 2))
+      .Times(1)
+      .WillOnce(Return(true));
+  EXPECT_TRUE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 48000, 2));
+  EXPECT_TRUE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 48000, 2));
+
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetIsTunneledAudioSupported(kEncodingPcm16Bit, 22050, 2))
+      .Times(1)
+      .WillOnce(Return(false));
+  EXPECT_FALSE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 22050, 2));
+  EXPECT_FALSE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 22050, 2));
+}
+
+TEST_F(MediaCapabilitiesCacheTest, IsTunneledAudioSupported_DisabledCache) {
+  constexpr int kEncodingPcm16Bit = 2;
+  cache_->SetCacheEnabled(false);
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetIsTunneledAudioSupported(kEncodingPcm16Bit, 48000, 2))
+      .Times(2)
+      .WillRepeatedly(Return(true));
+  EXPECT_TRUE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 48000, 2));
+  EXPECT_TRUE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 48000, 2));
+}
+
+TEST_F(MediaCapabilitiesCacheTest, IsTunneledAudioSupported_ClearCache) {
+  constexpr int kEncodingPcm16Bit = 2;
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetIsTunneledAudioSupported(kEncodingPcm16Bit, 44100, 2))
+      .Times(2)
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  EXPECT_TRUE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 44100, 2));
+  EXPECT_TRUE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 44100, 2));
+
+  cache_->ClearCache();
+
+  EXPECT_FALSE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 44100, 2));
+  EXPECT_FALSE(cache_->IsTunneledAudioSupported(kEncodingPcm16Bit, 44100, 2));
+}
+
+TEST_F(MediaCapabilitiesCacheTest, IsPassthroughSupported_ClearCache) {
+  EXPECT_CALL(*mock_media_capabilities_provider_,
+              GetIsPassthroughSupported(kSbMediaAudioCodecAc3))
+      .Times(2)
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  EXPECT_TRUE(cache_->IsPassthroughSupported(kSbMediaAudioCodecAc3));
+  EXPECT_TRUE(cache_->IsPassthroughSupported(kSbMediaAudioCodecAc3));
+
+  cache_->ClearCache();
+
+  EXPECT_FALSE(cache_->IsPassthroughSupported(kSbMediaAudioCodecAc3));
+  EXPECT_FALSE(cache_->IsPassthroughSupported(kSbMediaAudioCodecAc3));
+}
+
 TEST_F(MediaCapabilitiesCacheTest, GetAudioConfiguration_EnabledCache) {
   std::vector<SbMediaAudioConfiguration> configs = {
       {kSbMediaAudioConnectorHdmi, 0, kSbMediaAudioCodingTypeAc3, 2},

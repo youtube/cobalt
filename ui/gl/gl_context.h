@@ -181,11 +181,6 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext> {
   // Releases this GL context and surface as current on the current thread.
   virtual void ReleaseCurrent(GLSurface* surface) = 0;
 
-#if BUILDFLAG(IS_COBALT)
-  // Destroys the underlying platform-specific GL context.
-  virtual void Destroy() {}
-#endif
-
   // Returns true if this context and surface is current. Pass a null surface
   // if the current surface is not important.
   virtual bool IsCurrent(GLSurface* surface) = 0;

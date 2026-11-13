@@ -110,22 +110,18 @@ const int kNonInitialPrerollFrameCount = 1;
 // rendered, the rest of the playback should play without frame drops. So,
 // tunnel mode prerolling only needs 1 frame.
 const int kTunnelModePrerollFrameCount = 1;
-// The default maximum number of pending inputs allowed in the decoder queue.
-// We set this to 128 frames (approx 2.1 seconds of 60fps video or 4.2 seconds
-// of 30fps video) to provide a buffer safety cushion that helps survive
-// V8 JavaScript main-thread congestion without video starvation.
-constexpr int kDefaultMaxPendingInputsSize = 128;
+// The maximum number of pending inputs allowed in the decoder queue.
+// This value should be large enough to provide a buffer safety cushion that
+// helps survive V8 JavaScript main-thread congestion without video starvation,
+// while not so large that it holds excessive buffers in memory. 512 was
+// determined through experimentation (see b/539672039#comment13).
+constexpr int kMaxPendingInputsSize = 512;
 
 // VideoFrameTracker tracks frames in the entire media pipeline (decoder queue,
 // codec, and renderer). We set its capacity to accommodate the maximum input
-// queue size (`max_pending_inputs_size_`) plus a margin of 100 frames for
-// frames in the codec and renderer.
-constexpr int kVideoFrameTrackerMargin = 100;
-
-// Temporary capacity increase for VideoFrameTracker until the experiment for
-// backpressure fix (kMediaFixNeedMoreInputBackpressure) is completed.
-// TODO: b/539672039 - Remove this once the experiment is completed.
-constexpr int kVideoFrameTrackerCapacityWithoutBackpressureFix = 3'000;
+// queue size (`kMaxPendingInputsSize`) plus a margin of 100 frames for frames
+// in the codec and renderer.
+constexpr int kVideoFrameTrackerCapacity = kMaxPendingInputsSize + 100;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
@@ -204,7 +200,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
       : playback_rate_changed_cb_(playback_rate_changed_cb) {}
 
   bool Render() {
-    SB_DCHECK(render_cb_);
+    SB_CHECK(render_cb_);
 
     rendered_ = false;
     render_cb_(std::bind(&Sink::DrawFrame, this, _1, _2));
@@ -214,7 +210,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
  private:
   void SetPlaybackRate(double playback_rate) override {
-    SB_DCHECK(playback_rate_changed_cb_);
+    SB_CHECK(playback_rate_changed_cb_);
     playback_rate_changed_cb_(playback_rate);
   }
 
@@ -307,9 +303,13 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       output_mode_(stream_config.output_mode),
       decode_target_graphics_context_provider_(
           stream_config.decode_target_graphics_context_provider),
-      max_video_size_(
+      max_video_size_(GetLowestResolution(
           ParseMaxResolution(stream_config.max_video_capabilities,
-                             stream_config.video_stream_info.frame_size)),
+                             "max_video_capabilities",
+                             stream_config.video_stream_info.frame_size),
+          ParseMaxResolution(stream_config.max_video_resolution,
+                             "max_video_resolution",
+                             stream_config.video_stream_info.frame_size))),
       require_software_codec_(
           IsSoftwareDecoderRequired(pipeline_config.experimental_features,
                                     stream_config.max_video_capabilities)),
@@ -337,23 +337,17 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       skip_video_frames_over_60_fps_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipVideoFramesOver60Fps)),
-      ignore_mediacodec_callbacks_during_flushing_(
-          pipeline_config.experimental_features.GetBool(
-              kMediaIgnoreMediaCodecCallbacksDuringFlushing)),
       ignore_stale_rendered_frames_after_seek_(
           pipeline_config.experimental_features.GetBool(
               kMediaIgnoreStaleRenderedFramesAfterSeek)),
       enable_trivial_optimizations_(
           pipeline_config.experimental_features.GetBool(
               kMediaEnableTrivialOptimizations)),
+      enable_codec_thread_improvements_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
-      fix_need_more_input_backpressure_(
-          pipeline_config.experimental_features.GetBool(
-              kMediaFixNeedMoreInputBackpressure)),
-      max_pending_inputs_size_(pipeline_config.experimental_features
-                                   .Get(kMediaVideoDecoderMaxPendingInputsSize)
-                                   .value_or(kDefaultMaxPendingInputsSize)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -390,10 +384,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ = std::make_unique<VideoFrameTracker>(
-        fix_need_more_input_backpressure_
-            ? max_pending_inputs_size_ + kVideoFrameTrackerMargin
-            : kVideoFrameTrackerCapacityWithoutBackpressureFix,
-        ignore_stale_rendered_frames_after_seek_);
+        kVideoFrameTrackerCapacity, ignore_stale_rendered_frames_after_seek_);
   }
 
   if (require_software_codec_) {
@@ -414,7 +405,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << GetMediaVideoCodecName(video_codec_)
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
-               << ", max pending input size=" << max_pending_inputs_size_
+               << ", max pending input size=" << kMaxPendingInputsSize
                << ", max video capabilities=\""
                << stream_config.max_video_capabilities
                << "\", tunnel mode audio session id="
@@ -517,15 +508,31 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         if (IsFrameSizeExceedingCapabilities(frame_size,
                                              max_video_size_.value())) {
           SB_LOG(ERROR) << "Video frame size " << frame_size
-                        << " exceeds max_video_capabilities "
-                        << max_video_size_.value()
+                        << " exceeds max resolution " << max_video_size_.value()
                         << ". Raising kSbPlayerErrorCapabilityChanged.";
           ReportError(kSbPlayerErrorCapabilityChanged,
-                      "Video frame size exceeds max_video_capabilities.");
+                      "Video frame size exceeds max resolution.");
           return;
         }
       }
     }
+  }
+
+  // A flushed codec keeps its configuration across a seek, so check the first
+  // input after the flush in case the codec needs to be rebuilt.
+  if (is_flushed_) {
+    if (NeedsCodecTransition(input_buffers.front())) {
+      SB_LOG(INFO) << "Codec configuration changed at "
+                   << input_buffers.front()->timestamp()
+                   << " after a reset; rebuilding the codec.";
+      TeardownCodec();
+      if (reset_delay_usec_ > 0) {
+        usleep(reset_delay_usec_);
+      }
+      input_buffer_written_ = 0;
+      video_fps_ = 0;
+    }
+    is_flushed_ = false;
   }
 
   if (input_buffer_written_ == 0) {
@@ -601,6 +608,15 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
     // return EOS frame directly.
     first_buffer_timestamp_ = 0;
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+    // With no input written, the MediaCodec produces no output, so the output
+    // loop that normally drives Tick()/sink_->Render() never runs.
+    // VideoRendererImpl only fires its ended callback from within Render(), so
+    // tick the sink once here, otherwise the player never reaches
+    // kSbPlayerStateEndOfStream for a stream that receives EOS before any
+    // input.
+    if (sink_) {
+      sink_->Render();
+    }
     return;
   }
 
@@ -820,9 +836,13 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (!decode_target_graphics_context_provider_) {
         return Failure("Invalid decode target graphics context provider.");
       }
-      DecodeTarget* decode_target =
-          new DecodeTarget(decode_target_graphics_context_provider_);
-      if (!SbDecodeTargetIsValid(decode_target)) {
+      scoped_refptr<DecodeTarget> decode_target =
+          DecodeTarget::Create(decode_target_graphics_context_provider_);
+      if (!SbDecodeTargetIsValid(decode_target.get())) {
+        // Either the provider is unusable or the GLES context runner could
+        // not run the creation closure (b/565889635). Fail the codec
+        // initialization; the player reports a decode error and the web app
+        // can retry.
         return Failure("Could not acquire a decode target from provider.");
       }
       j_output_surface =
@@ -832,12 +852,12 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           env, decode_target->surface_texture());
 
       std::lock_guard lock(decode_target_mutex_);
-      decode_target_ = decode_target;
-      // We manually call AddRef() here because `decode_target_` is stored as a
-      // raw pointer. This ensures Starboard claims its initial ownership of the
-      // target, preventing it from stealing Chromium's reference and deleting
-      // the texture prematurely during TeardownCodec().
-      decode_target_->AddRef();
+      SB_CHECK(!decode_target_);
+      // Transfer the reference into the raw `decode_target_` pointer. Starboard
+      // keeps this initial ownership so that handing out references to
+      // Chromium (GetCurrentDecodeTarget()) cannot delete the texture
+      // prematurely during TeardownCodec().
+      decode_target.swap(&decode_target_);
     } break;
     case kSbPlayerOutputModeInvalid: {
       SB_NOTREACHED();
@@ -874,13 +894,17 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
       video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
+      video_stream_info.color_metadata.bits_per_channel > 8,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      skip_video_frames_over_60_fps_,
-      ignore_mediacodec_callbacks_during_flushing_, enable_ndk_video_,
-      enable_trivial_optimizations_);
+      MediaCodecDecoder::VideoExperimentalOptions{
+          /*skip_video_frames_over_60_fps=*/skip_video_frames_over_60_fps_,
+          /*enable_ndk_video=*/enable_ndk_video_,
+          /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
+          /*enable_codec_thread_improvements=*/
+          enable_codec_thread_improvements_});
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -967,7 +991,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
 
   media_decoder_->WriteInputBuffers(input_buffers);
   if (media_decoder_->GetNumberOfPendingInputs() <
-      static_cast<size_t>(max_pending_inputs_size_)) {
+      static_cast<size_t>(kMaxPendingInputsSize)) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -995,7 +1019,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result,
     int number_of_pending_inputs) {
-  SB_DCHECK(decoder_status_cb_);
+  SB_CHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   bool is_end_of_stream =
@@ -1018,20 +1042,11 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     }
   }
 
-  if (fix_need_more_input_backpressure_) {
-    bool need_more_input = !is_end_of_stream &&
-                           number_of_pending_inputs < max_pending_inputs_size_;
-    decoder_status_cb_(
-        need_more_input ? kNeedMoreInput : kBufferFull,
-        make_scoped_refptr<VideoFrameImpl>(
-            dequeue_output_result, media_codec_bridge,
-            std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
-    return;
-  }
-
+  bool need_more_input =
+      !is_end_of_stream && number_of_pending_inputs < kMaxPendingInputsSize;
   decoder_status_cb_(
-      is_end_of_stream ? kBufferFull : kNeedMoreInput,
-      new VideoFrameImpl(
+      need_more_input ? kNeedMoreInput : kBufferFull,
+      make_scoped_refptr<VideoFrameImpl>(
           dequeue_output_result, media_codec_bridge,
           std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
 }
@@ -1042,7 +1057,7 @@ void MediaCodecVideoDecoder::OnEndOfStreamWritten(
     return;
   }
 
-  SB_DCHECK(decoder_status_cb_);
+  SB_CHECK(decoder_status_cb_);
 
   // TODO: Refactor the VideoDecoder and the VideoRendererImpl to improve the
   //       handling of preroll and EOS for pure punchout decoders.
@@ -1052,7 +1067,7 @@ void MediaCodecVideoDecoder::OnEndOfStreamWritten(
 
 void MediaCodecVideoDecoder::RefreshOutputFormat(
     MediaCodec* media_codec_bridge) {
-  SB_DCHECK(media_codec_bridge);
+  SB_CHECK(media_codec_bridge);
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
   std::lock_guard lock(decode_target_mutex_);
@@ -1138,7 +1153,7 @@ void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
 
 void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(is_video_frame_tracker_enabled_);
-  SB_DCHECK(video_frame_tracker_);
+  SB_CHECK(video_frame_tracker_);
 
   video_frame_tracker_->OnFrameRendered(frame_timestamp);
 }
@@ -1164,7 +1179,7 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
   }
 
   if (media_decoder_->GetNumberOfPendingInputs() <
-      static_cast<size_t>(max_pending_inputs_size_)) {
+      static_cast<size_t>(kMaxPendingInputsSize)) {
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
@@ -1234,6 +1249,9 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
     // initial pre-roll phase after a Flush().
     input_buffer_written_ = 0;
     video_fps_ = 0;
+    is_flushed_ = false;
+  } else {
+    is_flushed_ = true;
   }
   CancelPendingJobs();
 
@@ -1253,6 +1271,36 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
   //       to update the seek status of |video_frame_tracker_|.  This is
   //       slightly flaky as it depends on the behavior of the video renderer.
+}
+
+// Returns true if |input_buffer| uses a configuration the current codec can't
+// decode, e.g. after a SourceBuffer.changeType() call.
+// TODO (b/564788162): Support cross-codec transitions.
+bool MediaCodecVideoDecoder::NeedsCodecTransition(
+    const scoped_refptr<InputBuffer>& input_buffer) const {
+  SB_DCHECK_EQ(input_buffer->video_stream_info().codec, video_codec_);
+  if (!media_decoder_) {
+    return false;
+  }
+  const SbMediaColorMetadata& stream_color =
+      input_buffer->video_stream_info().color_metadata;
+  const bool stream_is_hdr = !IsIdentity(stream_color);
+  const bool codec_is_hdr = color_metadata_.has_value();
+  if (stream_is_hdr != codec_is_hdr) {
+    return true;
+  }
+  // Only compare the fields that reach MediaCodec: CreateVideoMediaCodec()
+  // passes these to the Java ColorInfo, which sets the MediaFormat's color
+  // standard/transfer/range and HDR static info. Others (e.g. matrix) are
+  // unused by the codec.
+  return stream_is_hdr &&
+         (stream_color.primaries != color_metadata_->primaries ||
+          stream_color.transfer != color_metadata_->transfer ||
+          stream_color.range != color_metadata_->range ||
+          stream_color.max_cll != color_metadata_->max_cll ||
+          stream_color.max_fall != color_metadata_->max_fall ||
+          !Equal(stream_color.mastering_metadata,
+                 color_metadata_->mastering_metadata));
 }
 
 }  // namespace starboard

@@ -53,6 +53,10 @@ class AAudio {
       AAudioStreamBuilder* builder,
       AAudioStream_dataCallback callback,
       void* userData);
+  static void (*StreamBuilder_SetErrorCallback)(
+      AAudioStreamBuilder* builder,
+      AAudioStream_errorCallback callback,
+      void* userData);
   static void (*StreamBuilder_SetBufferCapacityInFrames)(
       AAudioStreamBuilder* builder,
       int32_t numFrames);

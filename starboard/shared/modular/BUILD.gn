@@ -81,7 +81,7 @@ if (is_starboard && current_toolchain == starboard_toolchain) {
 }
 
 if (is_cobalt_hermetic_build && !sb_is_evergreen &&
-    current_toolchain == cobalt_toolchain) {
+    current_toolchain == default_toolchain) {
   source_set("cobalt_layer_posix_abi_wrappers") {
     sources = [
       "cobalt_layer_posix__Exit_abi_wrappers.cc",

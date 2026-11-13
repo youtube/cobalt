@@ -24,12 +24,6 @@ Before following these instructions, make sure you have set up your workstation 
    gclient sync
    ```
 
-3. Set up an Android debug keystore required for signing development APKs:
-
-   ```bash
-   keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
-   ```
-
 ## Running in Evergreen Mode
 
 Because Evergreen support is required for certification, partners deploy official Google prebuilt `.crx` packages (available on [GitHub Releases](https://github.com/youtube/cobalt/releases)) into the Slot 0 directory structure, compile the `cobalt_loader` APK, and deploy to target hardware.
@@ -79,7 +73,20 @@ Because Evergreen support is required for certification, partners deploy officia
    cp -rf lib/* assets/app/cobalt/lib/
    cp -rf content/* assets/app/cobalt/content/
 
-   zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk assets/app/cobalt/manifest.json assets/app/cobalt/lib/* assets/app/cobalt/content/*
+   # zip -u does not recurse into subdirectories; use a file list so that
+   # content/ssl/certs/* and content/fonts/* are included
+   find assets -type f | zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk -@
+
+   # zip -u invalidates the APK v2 signature; re-align and re-sign with the bundled debug keystore
+   cd $OLDPWD
+   APK="out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk"
+   BT=$(ls -d third_party/android_sdk/public/build-tools/* | tail -1)
+   $BT/zipalign -f -p 4 $APK $APK.aligned && mv $APK.aligned $APK
+   $BT/apksigner sign \
+     --ks build/android/chromium-debug.keystore \
+     --ks-key-alias chromiumdebugkey --ks-pass pass:chromium \
+     --in $APK --out $APK.signed && mv $APK.signed $APK
+   $BT/apksigner verify --verbose $APK
    ```
 
 5. Deploy and launch on an AOSP device or emulator:
@@ -176,24 +183,90 @@ The No Platform Left Behind (NPLB) test suite verifies Starboard implementation 
    `out/evergreen-arm-softfp-aosp_devel/nplb_loader_apk/nplb_loader-debug.apk` and the
    `out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader` wrapper that drives it.
 
-2. Run NPLB on the target device. The wrapper installs the APK, pushes the
+### Option A: Using the Test Runner Wrapper (Build Host Connected to Device)
+
+1. Run NPLB on the target device. The wrapper installs the APK, pushes the
    runtime dependencies and collects the results:
 
    ```bash
    out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader
    ```
 
-3. Pass standard Google Test filtering arguments:
+2. Pass standard Google Test filtering arguments:
 
    ```bash
    out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader --gtest-filter='*Memory*'
    ```
 
-4. Any other argument is forwarded to NPLB:
+3. Any other argument is forwarded to NPLB:
 
    ```bash
    out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader --gtest_shuffle
    ```
+
+Every test target is built and run the same way, so an upstream test suite only
+needs its own `<suite>_loader` target:
+
+```bash
+autoninja -C out/evergreen-arm-softfp-aosp_devel zlib_unittests_loader
+out/evergreen-arm-softfp-aosp_devel/bin/run_zlib_unittests_loader
+```
+
+### Option B: Standalone APK Execution via ADB (Separate Build Server and Test Host)
+
+When compiling on a remote Linux build server and testing on a separate local
+machine connected to the AOSP device via ADB, package the APK and its runtime
+dependencies the way CI does, copy the archive to the test host and run the
+tests through the APK's instrumentation with `adb`:
+
+1. The build machine must create `nplb_loader_deps.tar.gz`:
+
+   ```bash
+   cobalt/build/archive_test_artifacts.py --source-dir . \
+     --out-dir out/evergreen-arm-softfp-aosp_devel/ --destination-dir . \
+     --targets starboard/nplb:nplb_loader \
+     --compression gz --archive-per-target --use-android-deps-path --flatten-deps
+   ```
+
+2. On the machine with the device, unpack it, install the APK, let it write
+   its output to shared storage and push the test data:
+
+   ```bash
+   mkdir nplb && tar xzf nplb_loader_deps.tar.gz -C nplb
+   adb install -r nplb/nplb_loader_apk/nplb_loader-debug.apk
+   adb shell appops set dev.cobalt.coat MANAGE_EXTERNAL_STORAGE allow
+   adb shell rm -rf /sdcard/chromium_tests_root/
+   adb push nplb/test/ /sdcard/chromium_tests_root/test/
+   ```
+
+3. Run the tests. `-w` waits until the run ends. The test output goes to the
+   given file, which is appended to, so remove it first. The default timeout
+   is 60 seconds, too short for a full run:
+
+   ```bash
+   TIMEOUT_NS=$((60 * 60 * 1000000000))  # 1 hour
+   adb shell rm -f /sdcard/nplb.txt
+   adb shell am instrument -w \
+     -e org.chromium.native_test.NativeTest.GtestFilter "'*Memory*'" \
+     -e org.chromium.native_test.NativeTestInstrumentationTestRunner.StdoutFile /sdcard/nplb.txt \
+     -e org.chromium.native_test.NativeTestInstrumentationTestRunner.ShardNanoTimeout $TIMEOUT_NS \
+     dev.cobalt.coat/dev.cobalt.testing.CobaltInstrumentationTestRunner
+   ```
+
+   For a full run, exclude the tests listed in
+   `cobalt/testing/filters/evergreen-arm-softfp-aosp/nplb_loader_filter.json`
+   with a negative filter, e.g. `"'-*SbPlayer*:*MultiplePlayer*'"`.
+
+4. Read the results:
+
+   ```bash
+   adb shell cat /sdcard/nplb.txt
+   ```
+
+   `am instrument` reports `INSTRUMENTATION_CODE: -1` whatever the outcome.
+   A finished run ends with gtest's `[  PASSED  ]` or `[  FAILED  ]` summary;
+   if it is missing, the tests crashed or timed out, and logcat has the
+   details.
 
 ## Debugging
 

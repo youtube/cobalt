@@ -15,11 +15,17 @@
 #ifndef COBALT_BROWSER_MEMORY_ABLATION_H_
 #define COBALT_BROWSER_MEMORY_ABLATION_H_
 
+#include "base/functional/callback.h"
+
+namespace gpu {
+class GpuChannelManager;
+}  // namespace gpu
+
 namespace cobalt {
 
-// Maximum allowed native memory ablation size in Megabytes (256 MB) to prevent
-// extreme memory allocations or integer overflow on resource-constrained
-// devices.
+// Maximum allowed native/GPU memory ablation size in Megabytes (256 MB) to
+// prevent extreme memory allocations or integer overflow on
+// resource-constrained devices.
 constexpr int kMaxAblationSizeMB = 256;
 
 // Outcome of native memory ablation allocation attempt.
@@ -32,12 +38,45 @@ enum class NativeMemoryAblationResult {
   kMaxValue = kExceedsMaxLimit,
 };
 
+// Outcome of GPU memory ablation allocation attempt.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class GpuMemoryAblationResult {
+  kSuccess = 0,
+  kGlOutOfMemory = 1,
+  kExceedsMaxLimit = 2,
+  kChannelManagerUnavailable = 3,
+  kContextUnavailable = 4,
+  kContextLost = 5,
+  kMakeCurrentFailed = 6,
+  kGlApiUnavailable = 7,
+  kGlOtherError = 8,
+  kMaxValue = kGlOtherError,
+};
+
 // Checks if the native memory ablation Finch feature is enabled and,
 // if so, allocates and commits (dirties) the requested amount of native memory
 // on a background thread after an optional delay to hold for the lifetime of
 // the process.
 // Strictly executes at most once per application lifetime.
 void MaybeApplyMemoryAblation();
+
+// Checks if the GPU memory ablation Finch feature is enabled and, if so,
+// allocates and commits the requested amount of GPU memory on the GPU
+// main thread after an optional delay to hold for the lifetime of the process.
+// Strictly executes at most once per application lifetime.
+void MaybeApplyGpuMemoryAblation(gpu::GpuChannelManager* channel_manager);
+
+// Allocates and retains |size_mb| MB of GPU memory, returning the outcome.
+using GpuMemoryAblationAllocator =
+    base::OnceCallback<GpuMemoryAblationResult(int size_mb)>;
+
+// Same as MaybeApplyGpuMemoryAblation(), but performs the allocation with the
+// injected |allocator|. MaybeApplyGpuMemoryAblation() calls this with the real
+// GL allocator; it is exposed so tests can inject a fake allocator without a
+// hardware GL context.
+void MaybeApplyGpuMemoryAblationWithAllocator(
+    GpuMemoryAblationAllocator allocator);
 
 // Resets internal state for unit testing.
 void ResetMemoryAblationForTesting();

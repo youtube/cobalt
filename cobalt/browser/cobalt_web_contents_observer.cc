@@ -103,24 +103,8 @@ class CobaltWebContentsObserver::PlatformErrorBridge {
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents) {
-  timeout_timer_ = std::make_unique<base::OneShotTimer>();
-
-  // Check if main frame is already created.
   CHECK(web_contents);
-  content::RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
-  if (main_frame && main_frame->IsRenderFrameLive()) {
-    mojo::Remote<cobalt::mojom::CobaltLifecycleController> controller;
-    main_frame->GetRemoteInterfaces()->GetInterface(
-        controller.BindNewPipeAndPassReceiver());
-
-    // Create observer and pass to renderer.
-    mojo::PendingRemote<cobalt::mojom::CobaltLifecycleObserver> observer_remote;
-    CobaltLifecycleManager::GetInstance()->BindReceiver(
-        main_frame, observer_remote.InitWithNewPipeAndPassReceiver());
-    controller->SetObserver(std::move(observer_remote));
-
-    controllers_[main_frame] = std::move(controller);
-  }
+  timeout_timer_ = std::make_unique<base::OneShotTimer>();
 }
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
@@ -146,6 +130,14 @@ void CobaltWebContentsObserver::DidStartNavigation(
       navigation_start_ticks_.is_null()) {
     navigation_start_ticks_ = base::TimeTicks::Now();
     base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 22);
+  }
+
+  // Same-document navigations (pushState, fragment changes) don't load a new
+  // document, so they don't restart the web app's splash screen state.
+  if (!handle->IsSameDocument() &&
+      base::FeatureList::IsEnabled(
+          features::kDisableNetworkDialogDismissButton)) {
+    OnPrimaryMainFrameNavigationStarted();
   }
 
   // Start a navigation timer with a timeout callback to raise a
@@ -226,6 +218,14 @@ void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
   starboard::StarboardBridge::GetInstance()->SetStartupDiagnosisInfo(key,
                                                                      value);
 #endif
+}
+
+void CobaltWebContentsObserver::OnPrimaryMainFrameNavigationStarted() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::StarboardBridge::GetInstance()
+      ->OnPrimaryMainFrameNavigationStarted(env);
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 }
 
 void CobaltWebContentsObserver::OnNavigationTimeout(int64_t navigation_id,

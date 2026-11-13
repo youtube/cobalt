@@ -105,6 +105,8 @@ class PlayerWorker {
     virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
+    virtual void SetMaxVideoResolution(
+        const std::string& max_video_resolution) = 0;
 
     virtual void SetVideoSurfaceView(void* surface_view) = 0;
     virtual void SetExperimentalFeatures(

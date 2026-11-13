@@ -136,6 +136,52 @@ void HostFrameSinkManager::InvalidateFrameSinkId(
   frame_sink_manager_->InvalidateFrameSinkId(frame_sink_id);
 }
 
+#if BUILDFLAG(IS_COBALT)
+// Tears down the active [Root]CompositorFrameSink in Viz for `frame_sink_id`
+// without removing the `FrameSinkId` registration or frame sink hierarchy.
+//
+// In Cobalt, when the window is concealed/suspended, `ui::Compositor` releases
+// its accelerated widget (`RemoveCompositor`), but stays alive so it can bind
+// a new widget on resume without re-registering its `FrameSinkId`. Resetting
+// `display_private_` in the browser neither destroys
+// `RootCompositorFrameSinkImpl` nor blocks the browser thread. Explicitly
+// calling the synchronous `frame_sink_manager_->DestroyCompositorFrameSink`
+// IPC ensures `RootCompositorFrameSinkImpl` (on the Viz thread) and
+// `SkiaOutputSurfaceImplOnGpu` + `NativeViewGLSurfaceEGL` (`eglDestroySurface`
+// on the GPU thread) are destroyed before `SbWindowDestroy` destroys the
+// native window and before `GLDisplayEGL::Shutdown` (`eglTerminate`) shuts
+// down the EGL display.
+void HostFrameSinkManager::DestroyCompositorFrameSink(
+    const FrameSinkId& frame_sink_id) {
+  DCHECK(frame_sink_id.is_valid());
+
+  auto it = frame_sink_data_map_.find(frame_sink_id);
+  if (it == frame_sink_data_map_.end()) {
+    return;
+  }
+
+  FrameSinkData& data = it->second;
+  if (!data.has_created_compositor_frame_sink) {
+    return;
+  }
+
+  const bool destroy_synchronously = data.wait_on_destruction;
+  data.has_created_compositor_frame_sink = false;
+  display_hit_test_query_.erase(frame_sink_id);
+
+  if (destroy_synchronously) {
+    // This synchronous call ensures that the GL context/surface that draw to
+    // the platform window (eg. XWindow, HWND, or SbWindow) get destroyed before
+    // the platform window is destroyed.
+    mojo::SyncCallRestrictions::ScopedAllowSyncCall allow_sync_call;
+    frame_sink_manager_->DestroyCompositorFrameSink(frame_sink_id);
+  } else {
+    frame_sink_manager_->DestroyCompositorFrameSink(frame_sink_id,
+                                                    base::DoNothing());
+  }
+}
+#endif
+
 void HostFrameSinkManager::SetFrameSinkDebugLabel(
     const FrameSinkId& frame_sink_id,
     const std::string& debug_label) {

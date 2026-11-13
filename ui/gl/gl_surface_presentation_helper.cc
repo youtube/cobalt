@@ -16,7 +16,106 @@
 #include "ui/gl/gl_fence.h"
 #include "ui/gl/gpu_timing.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <atomic>
+
+#include "base/memory/ref_counted.h"
+#include "base/synchronization/lock.h"
+#include "base/task/thread_pool.h"
+#include "base/thread_annotations.h"
+#include "ui/gl/gl_bindings.h"
+#include "ui/gl/gl_display.h"
+#include "ui/gl/gl_fence_egl.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gl {
+
+#if BUILDFLAG(IS_COBALT)
+// Performs asynchronous off-thread waiting on an EGLSyncKHR fence so
+// platforms without a VSyncProvider can stamp presentation feedback with
+// sub-millisecond GPU completion timestamps instead of 16.7ms CPU poll ticks.
+//
+// Lifetime and ownership:
+// Ref-counted across threads; co-owned by the pending Frame on the GPU thread
+// and by the WaitOnWorker() task posted to |fence_wait_task_runner_|. The
+// underlying GLFenceEGL is destroyed under |fence_lock_| via ResetFence() or
+// CancelAndResetFence() before surface/display teardown returns.
+//
+// Threading model:
+// Thread-safe; usable across the GPU task runner and the sequenced background
+// worker TaskRunner. |fence_| access and eglClientWaitSyncKHR slices are
+// serialized by |fence_lock_|, while |cancelled_|, |completed_|, and
+// |completion_ticks_us_| synchronize lock-free status polling and cancellation
+// via acquire/release atomics.
+class GLSurfacePresentationHelper::FenceWaitState
+    : public base::RefCountedThreadSafe<
+          GLSurfacePresentationHelper::FenceWaitState> {
+ public:
+  explicit FenceWaitState(std::unique_ptr<GLFenceEGL> fence)
+      : fence_(std::move(fence)) {}
+
+  FenceWaitState(const FenceWaitState&) = delete;
+  FenceWaitState& operator=(const FenceWaitState&) = delete;
+
+  void WaitOnWorker() {
+    // Poll cancellation every 5ms so surface teardown never blocks long, with
+    // a 500ms cap so a wedged fence cannot stall presentation callbacks.
+    constexpr EGLTimeKHR kWaitSliceNs = 5'000'000;
+    constexpr int kMaxWaitSlices = 100;
+
+    base::AutoLock auto_lock(fence_lock_);
+    int slices = 0;
+    while (!cancelled_.load(std::memory_order_acquire)) {
+      if (!fence_) {
+        return;
+      }
+      const EGLint status = fence_->ClientWaitWithTimeoutNanos(kWaitSliceNs);
+      if (status == EGL_CONDITION_SATISFIED_KHR ||
+          status != EGL_TIMEOUT_EXPIRED_KHR || ++slices >= kMaxWaitSlices) {
+        if (status != EGL_CONDITION_SATISFIED_KHR) {
+          LOG(WARNING) << "EGLSync wait ended with status=" << status
+                       << " after " << slices << " slices.";
+        }
+        const int64_t now_us =
+            (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
+        completion_ticks_us_.store(now_us, std::memory_order_release);
+        completed_.store(true, std::memory_order_release);
+        return;
+      }
+    }
+  }
+
+  bool IsCompleted() const {
+    return completed_.load(std::memory_order_acquire);
+  }
+
+  int64_t completion_ticks_us() const {
+    return completion_ticks_us_.load(std::memory_order_acquire);
+  }
+
+  void Cancel() { cancelled_.store(true, std::memory_order_release); }
+
+  void ResetFence() {
+    base::AutoLock auto_lock(fence_lock_);
+    fence_.reset();
+  }
+
+  void CancelAndResetFence() {
+    Cancel();
+    ResetFence();
+  }
+
+ private:
+  friend class base::RefCountedThreadSafe<FenceWaitState>;
+  ~FenceWaitState() = default;
+
+  std::atomic<bool> cancelled_{false};
+  std::atomic<bool> completed_{false};
+  std::atomic<int64_t> completion_ticks_us_{0};
+  base::Lock fence_lock_;
+  std::unique_ptr<GLFenceEGL> fence_ GUARDED_BY(fence_lock_);
+};
+#endif  // BUILDFLAG(IS_COBALT)
 
 GLSurfacePresentationHelper::ScopedSwapBuffers::ScopedSwapBuffers(
     GLSurfacePresentationHelper* helper,
@@ -54,6 +153,14 @@ GLSurfacePresentationHelper::Frame::Frame(
     GLSurface::PresentationCallback callback)
     : fence(std::move(fence)), callback(std::move(callback)) {}
 
+#if BUILDFLAG(IS_COBALT)
+GLSurfacePresentationHelper::Frame::Frame(
+    scoped_refptr<FenceWaitState> fence_wait_state,
+    GLSurface::PresentationCallback callback)
+    : fence_wait_state(std::move(fence_wait_state)),
+      callback(std::move(callback)) {}
+#endif  // BUILDFLAG(IS_COBALT)
+
 GLSurfacePresentationHelper::Frame::Frame(
     GLSurface::PresentationCallback callback)
     : callback(std::move(callback)) {}
@@ -69,7 +176,12 @@ bool GLSurfacePresentationHelper::GetFrameTimestampInfoIfAvailable(
     base::TimeDelta* interval,
     base::TimeTicks* writes_done,
     uint32_t* flags) {
+#if BUILDFLAG(IS_COBALT)
+  DCHECK(frame.timer || frame.fence || frame.fence_wait_state ||
+         egl_timestamp_client_);
+#else
   DCHECK(frame.timer || frame.fence || egl_timestamp_client_);
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (egl_timestamp_client_) {
     bool result = egl_timestamp_client_->GetFrameTimestampInfoIfAvailable(
@@ -97,6 +209,15 @@ bool GLSurfacePresentationHelper::GetFrameTimestampInfoIfAvailable(
     int64_t end = 0;
     frame.timer->GetStartEndTimestamps(&start, &end);
     *timestamp = base::TimeTicks() + base::Microseconds(start);
+#if BUILDFLAG(IS_COBALT)
+  } else if (frame.fence_wait_state) {
+    if (!frame.fence_wait_state->IsCompleted()) {
+      return false;
+    }
+    *timestamp =
+        base::TimeTicks() +
+        base::Microseconds(frame.fence_wait_state->completion_ticks_us());
+#endif  // BUILDFLAG(IS_COBALT)
   } else {
     if (!frame.fence->HasCompleted())
       return false;
@@ -146,6 +267,11 @@ bool GLSurfacePresentationHelper::GetFrameTimestampInfoIfAvailable(
 void GLSurfacePresentationHelper::Frame::Destroy(bool has_context) {
   if (timer) {
     timer->Destroy(has_context);
+#if BUILDFLAG(IS_COBALT)
+  } else if (fence_wait_state) {
+    fence_wait_state->CancelAndResetFence();
+    fence_wait_state.reset();
+#endif  // BUILDFLAG(IS_COBALT)
   } else if (fence) {
     if (has_context)
       fence = nullptr;
@@ -170,6 +296,15 @@ GLSurfacePresentationHelper::~GLSurfacePresentationHelper() {
   // Discard pending frames and run presentation callback with empty
   // PresentationFeedback.
   bool has_context = gl_context_ && gl_context_->IsCurrent(surface_);
+#if BUILDFLAG(IS_COBALT)
+  // Cancel all queued async waits first so the sequenced worker blocks teardown
+  // for at most one 5ms slice regardless of queue depth.
+  for (auto& frame : pending_frames_) {
+    if (frame.fence_wait_state) {
+      frame.fence_wait_state->Cancel();
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   for (auto& frame : pending_frames_) {
     frame.Destroy(has_context);
   }
@@ -189,6 +324,13 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
   // will be discarded.
   if (gpu_timing_client_)
     gpu_timing_client_ = nullptr;
+#if BUILDFLAG(IS_COBALT)
+  for (auto& frame : pending_frames_) {
+    if (frame.fence_wait_state) {
+      frame.fence_wait_state->Cancel();
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   for (auto& frame : pending_frames_) {
     frame.Destroy();
   }
@@ -209,6 +351,30 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
       egl_timestamp_client_ = nullptr;
   }
 
+#if BUILDFLAG(IS_COBALT)
+// https://crbug.com/854298 : disable GLFence on Android as they seem to cause
+// issues on some devices.
+#if !BUILDFLAG(IS_ANDROID)
+  gl_fence_supported_ = GLFence::IsSupported();
+  GLDisplayEGL* display_egl = context->GetGLDisplayEGL();
+  // On EGL surfaces without a VSyncProvider (such as Starboard/RDK), polling
+  // GLFence::HasCompleted() on a 16.7ms CPU timer quantizes presentation
+  // timestamps to CPU wakeup boundaries. When EGL_KHR_fence_sync is available,
+  // wait on an off-thread task runner to stamp TimeTicks::Now() immediately
+  // upon GPU completion.
+  async_egl_fence_supported_ = gl_fence_supported_ && !vsync_provider_ &&
+                               vsync_interval_.is_zero() && display_egl &&
+                               display_egl->GetDisplay() != EGL_NO_DISPLAY &&
+                               display_egl->ext->b_EGL_KHR_fence_sync;
+#endif
+
+  gpu_timing_client_ = context->CreateGPUTimingClient();
+  if (!gpu_timing_client_ || !gpu_timing_client_->IsAvailable() ||
+      (gl_fence_supported_ &&
+       !gpu_timing_client_->AreTimestampQueriesPrecise())) {
+    gpu_timing_client_ = nullptr;
+  }
+#else
   gpu_timing_client_ = context->CreateGPUTimingClient();
   if (!gpu_timing_client_->IsAvailable())
     gpu_timing_client_ = nullptr;
@@ -218,6 +384,7 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
 #if !BUILDFLAG(IS_ANDROID)
   gl_fence_supported_ = GLFence::IsSupported();
 #endif
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void GLSurfacePresentationHelper::PreSwapBuffers(
@@ -225,12 +392,28 @@ void GLSurfacePresentationHelper::PreSwapBuffers(
     int frame_id) {
   if (egl_timestamp_client_) {
     pending_frames_.emplace_back(frame_id, std::move(callback));
+#if BUILDFLAG(IS_COBALT)
+  } else if (gpu_timing_client_ &&
+             (!gl_fence_supported_ ||
+              gpu_timing_client_->AreTimestampQueriesPrecise())) {
+#else
   } else if (gpu_timing_client_) {
+#endif  // BUILDFLAG(IS_COBALT)
     std::unique_ptr<GPUTimer> timer;
     timer = gpu_timing_client_->CreateGPUTimer(false /* prefer_elapsed_time */);
     timer->QueryTimeStamp();
     pending_frames_.push_back(Frame(std::move(timer), std::move(callback)));
   } else if (gl_fence_supported_) {
+#if BUILDFLAG(IS_COBALT)
+    if (async_egl_fence_supported_) {
+      if (auto egl_fence = GLFenceEGL::Create()) {
+        auto wait_state =
+            base::MakeRefCounted<FenceWaitState>(std::move(egl_fence));
+        pending_frames_.push_back(Frame(wait_state, std::move(callback)));
+        return;
+      }
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     auto fence = GLFence::Create();
     pending_frames_.push_back(Frame(std::move(fence), std::move(callback)));
   } else {
@@ -242,6 +425,26 @@ void GLSurfacePresentationHelper::PostSwapBuffers(gfx::SwapResult result) {
   DCHECK(!pending_frames_.empty());
   auto& frame = pending_frames_.back();
   frame.result = result;
+#if BUILDFLAG(IS_COBALT)
+  if (frame.fence_wait_state) {
+    if (result != gfx::SwapResult::SWAP_ACK) {
+      frame.fence_wait_state->CancelAndResetFence();
+      ScheduleCheckPendingFrames(false /* align_with_next_vsync */);
+      return;
+    }
+    if (!fence_wait_task_runner_) {
+      fence_wait_task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
+          {base::MayBlock(), base::TaskPriority::USER_BLOCKING,
+           base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
+    }
+    fence_wait_task_runner_->PostTaskAndReply(
+        FROM_HERE,
+        base::BindOnce(&FenceWaitState::WaitOnWorker, frame.fence_wait_state),
+        base::BindOnce(&GLSurfacePresentationHelper::OnFenceWaitCompleted,
+                       weak_ptr_factory_.GetWeakPtr(), frame.fence_wait_state));
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   ScheduleCheckPendingFrames(false /* align_with_next_vsync */);
 }
 
@@ -266,10 +469,31 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
   if (pending_frames_.empty())
     return;
 
+#if BUILDFLAG(IS_COBALT)
+  bool need_gl_context = egl_timestamp_client_ || gpu_timing_client_;
+  if (!need_gl_context) {
+    for (const auto& frame : pending_frames_) {
+      if (!frame.fence_wait_state) {
+        need_gl_context = true;
+        break;
+      }
+    }
+  }
+  if (need_gl_context && !gl_context_->MakeCurrent(surface_)) {
+#else
   if (!gl_context_->MakeCurrent(surface_)) {
+#endif  // BUILDFLAG(IS_COBALT)
     gl_context_ = nullptr;
     egl_timestamp_client_ = nullptr;
     gpu_timing_client_ = nullptr;
+#if BUILDFLAG(IS_COBALT)
+    async_egl_fence_supported_ = false;
+    for (auto& frame : pending_frames_) {
+      if (frame.fence_wait_state) {
+        frame.fence_wait_state->Cancel();
+      }
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     for (auto& frame : pending_frames_)
       frame.Destroy();
     pending_frames_.clear();
@@ -290,9 +514,22 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
       flags = gfx::PresentationFeedback::kVSync;
     }
     gfx::PresentationFeedback feedback(timestamp, vsync_interval_, flags);
+#if BUILDFLAG(IS_COBALT)
     for (auto& frame : pending_frames_) {
-      if (frame.timer)
+      if (frame.fence_wait_state) {
+        frame.fence_wait_state->Cancel();
+      }
+    }
+#endif  // BUILDFLAG(IS_COBALT)
+    for (auto& frame : pending_frames_) {
+      if (frame.timer) {
         frame.timer->Destroy(true /* has_context */);
+#if BUILDFLAG(IS_COBALT)
+      } else if (frame.fence_wait_state) {
+        frame.fence_wait_state->CancelAndResetFence();
+        frame.fence_wait_state.reset();
+#endif  // BUILDFLAG(IS_COBALT)
+      }
       if (frame.result == gfx::SwapResult::SWAP_ACK)
         std::move(frame.callback).Run(feedback);
       else
@@ -307,8 +544,14 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
     // frame.
     auto frame_presentation_callback =
         [this, &frame](const gfx::PresentationFeedback& feedback) {
-          if (frame.timer)
+          if (frame.timer) {
             frame.timer->Destroy(true /* has_context */);
+#if BUILDFLAG(IS_COBALT)
+          } else if (frame.fence_wait_state) {
+            frame.fence_wait_state->CancelAndResetFence();
+            frame.fence_wait_state.reset();
+#endif  // BUILDFLAG(IS_COBALT)
+          }
           std::move(frame.callback).Run(feedback);
           pending_frames_.pop_front();
         };
@@ -328,14 +571,61 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
                                           &writes_done, &flags))
       break;
 
+#if BUILDFLAG(IS_COBALT)
+    if (frame.timer && gpu_timing_client_ &&
+        gpu_timing_client_->CheckAndResetTimerErrors()) {
+      uint32_t fallback_flags = 0;
+      auto fallback_ts = base::TimeTicks::Now();
+      if (!vsync_interval_.is_zero()) {
+        fallback_ts =
+            fallback_ts.SnappedToNextTick(vsync_timebase_, vsync_interval_);
+        fallback_flags = gfx::PresentationFeedback::kVSync;
+      }
+      gfx::PresentationFeedback fallback(fallback_ts, vsync_interval_,
+                                         fallback_flags);
+      while (!pending_frames_.empty() && pending_frames_.front().timer) {
+        Frame pending = std::move(pending_frames_.front());
+        pending_frames_.pop_front();
+        pending.timer->Destroy(true /* has_context */);
+        std::move(pending.callback)
+            .Run(pending.result == gfx::SwapResult::SWAP_ACK
+                     ? fallback
+                     : gfx::PresentationFeedback::Failure());
+      }
+      continue;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
+
     gfx::PresentationFeedback feedback(timestamp, interval, flags);
     feedback.writes_done_timestamp = writes_done;
     frame_presentation_callback(feedback);
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (gpu_timing_client_ && gl_fence_supported_ &&
+      !gpu_timing_client_->AreTimestampQueriesPrecise() &&
+      (pending_frames_.empty() || !pending_frames_.front().timer)) {
+    gpu_timing_client_ = nullptr;
+  }
+
+  if (!pending_frames_.empty() && !pending_frames_.front().fence_wait_state) {
+    ScheduleCheckPendingFrames(true /* align_with_next_vsync */);
+  }
+#else
   if (!pending_frames_.empty())
     ScheduleCheckPendingFrames(true /* align_with_next_vsync */);
+#endif  // BUILDFLAG(IS_COBALT)
 }
+
+#if BUILDFLAG(IS_COBALT)
+void GLSurfacePresentationHelper::OnFenceWaitCompleted(
+    scoped_refptr<FenceWaitState> fence_wait_state) {
+  fence_wait_state->ResetFence();
+  if (!pending_frames_.empty()) {
+    CheckPendingFrames();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void GLSurfacePresentationHelper::CheckPendingFramesCallback() {
   DCHECK(check_pending_frame_scheduled_);

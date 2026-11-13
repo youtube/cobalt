@@ -16,7 +16,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <string>
+
 #include "starboard/configuration_constants.h"
+#include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,82 +27,67 @@ namespace nplb {
 namespace {
 
 TEST(PosixRenameTest, SucceedsForValidPath) {
-  char temp_path[kSbFileMaxPath];
-  ASSERT_TRUE(
-      SbSystemGetPath(kSbSystemPathTempDirectory, temp_path, kSbFileMaxPath));
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
 
-  char old_path[kSbFileMaxPath];
-  snprintf(old_path, kSbFileMaxPath, "%s%ctemp_old.txt", temp_path,
-           kSbFileSepChar);
+  std::string old_path = temp_dir.path() + kSbFileSepString + "temp_old.txt";
+  std::string new_path = temp_dir.path() + kSbFileSepString + "temp_new.txt";
 
-  char new_path[kSbFileMaxPath];
-  snprintf(new_path, kSbFileMaxPath, "%s%ctemp_new.txt", temp_path,
-           kSbFileSepChar);
-
-  FILE* file = fopen(old_path, "w");
+  FILE* file = fopen(old_path.c_str(), "w");
   ASSERT_NE(file, nullptr);
   EXPECT_EQ(fclose(file), 0);
 
   errno = 0;
-  int result = rename(old_path, new_path);
+  int result = rename(old_path.c_str(), new_path.c_str());
 
   EXPECT_EQ(result, 0) << "rename failed with error: " << strerror(errno);
 
-  EXPECT_EQ(access(old_path, F_OK), -1);
-  EXPECT_EQ(access(new_path, F_OK), 0);
-
-  EXPECT_EQ(unlink(new_path), 0);
+  EXPECT_EQ(access(old_path.c_str(), F_OK), -1);
+  EXPECT_EQ(access(new_path.c_str(), F_OK), 0);
 }
 
 TEST(PosixRenameTest, FailsForInvalidPath) {
-  const char* invalid_path = "non_existent_file.txt";
-  const char* new_path = "new_file.txt";
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
+
+  std::string invalid_path =
+      temp_dir.path() + kSbFileSepString + "non_existent_file.txt";
+  std::string new_path = temp_dir.path() + kSbFileSepString + "new_file.txt";
 
   errno = 0;
-  int result = rename(invalid_path, new_path);
+  int result = rename(invalid_path.c_str(), new_path.c_str());
 
   EXPECT_EQ(result, -1);
   EXPECT_EQ(errno, ENOENT);
 }
 
 TEST(PosixRenameTest, SucceedsForDirectory) {
-  char temp_path[kSbFileMaxPath];
-  ASSERT_TRUE(
-      SbSystemGetPath(kSbSystemPathTempDirectory, temp_path, kSbFileMaxPath));
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
 
-  char old_dir_path[kSbFileMaxPath];
-  snprintf(old_dir_path, kSbFileMaxPath, "%s%ctemp_old_dir", temp_path,
-           kSbFileSepChar);
+  std::string old_dir_path =
+      temp_dir.path() + kSbFileSepString + "temp_old_dir";
+  std::string new_dir_path =
+      temp_dir.path() + kSbFileSepString + "temp_new_dir";
 
-  char new_dir_path[kSbFileMaxPath];
-  snprintf(new_dir_path, kSbFileMaxPath, "%s%ctemp_new_dir", temp_path,
-           kSbFileSepChar);
+  ASSERT_EQ(mkdir(old_dir_path.c_str(), 0755), 0);
 
-  ASSERT_EQ(mkdir(old_dir_path, 0755), 0);
+  std::string file_path = old_dir_path + kSbFileSepString + "temp_file.txt";
 
-  char file_path[kSbFileMaxPath];
-  snprintf(file_path, kSbFileMaxPath, "%s%ctemp_file.txt", old_dir_path,
-           kSbFileSepChar);
-
-  FILE* file = fopen(file_path, "w");
+  FILE* file = fopen(file_path.c_str(), "w");
   ASSERT_NE(file, nullptr);
   EXPECT_EQ(fclose(file), 0);
 
   errno = 0;
-  int result = rename(old_dir_path, new_dir_path);
+  int result = rename(old_dir_path.c_str(), new_dir_path.c_str());
 
   EXPECT_EQ(result, 0) << "rename failed with error: " << strerror(errno);
 
-  EXPECT_EQ(access(old_dir_path, F_OK), -1);
-  EXPECT_EQ(access(new_dir_path, F_OK), 0);
+  EXPECT_EQ(access(old_dir_path.c_str(), F_OK), -1);
+  EXPECT_EQ(access(new_dir_path.c_str(), F_OK), 0);
 
-  char new_file_path[kSbFileMaxPath];
-  snprintf(new_file_path, kSbFileMaxPath, "%s%ctemp_file.txt", new_dir_path,
-           kSbFileSepChar);
-  EXPECT_EQ(access(new_file_path, F_OK), 0);
-
-  EXPECT_EQ(unlink(new_file_path), 0);
-  EXPECT_EQ(rmdir(new_dir_path), 0);
+  std::string new_file_path = new_dir_path + kSbFileSepString + "temp_file.txt";
+  EXPECT_EQ(access(new_file_path.c_str(), F_OK), 0);
 }
 
 }  // namespace

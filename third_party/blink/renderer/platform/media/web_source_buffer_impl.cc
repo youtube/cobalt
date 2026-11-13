@@ -137,10 +137,18 @@ bool WebSourceBufferImpl::EvictCodedFrames(double currentPlaybackTime,
                                     newDataSize);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool WebSourceBufferImpl::AppendToParseBuffer(
+    base::span<const unsigned char> data,
+    base::ScopedClosureRunner release_runner) {
+  return demuxer_->AppendToParseBuffer(id_, data, std::move(release_runner));
+}
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 bool WebSourceBufferImpl::AppendToParseBuffer(
     base::span<const unsigned char> data) {
   return demuxer_->AppendToParseBuffer(id_, data);
 }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 media::StreamParser::ParseStatus WebSourceBufferImpl::RunSegmentParserLoop(
     double* timestamp_offset) {

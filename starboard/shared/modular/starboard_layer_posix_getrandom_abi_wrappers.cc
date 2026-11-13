@@ -17,6 +17,8 @@
 #include <errno.h>
 #include <sys/random.h>
 
+#include "build/build_config.h"
+
 ssize_t __abi_wrap_getrandom(void* buf, size_t buflen, unsigned flags) {
   unsigned platform_flags = 0;
   if (flags & MUSL_GRND_NONBLOCK) {
@@ -32,14 +34,12 @@ ssize_t __abi_wrap_getrandom(void* buf, size_t buflen, unsigned flags) {
     return -1;
   }
 
-#if __ANDROID_API__ < 28 && defined(__clang__)
-// The API doesn exist before API Level 26
-// TODO(b/374300500): add back posix emulation
+#if BUILDFLAG(IS_ANDROID) && __ANDROID_API__ < 28 && defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability"
 #endif
   return getrandom(buf, buflen, platform_flags);
-#if __ANDROID_API__ < 28 && defined(__clang__)
+#if BUILDFLAG(IS_ANDROID) && __ANDROID_API__ < 28 && defined(__clang__)
 #pragma clang diagnostic pop
 #endif
 }

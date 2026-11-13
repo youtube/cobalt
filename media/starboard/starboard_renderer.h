@@ -59,6 +59,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
+                    const std::string& max_video_resolution,
                     const StarboardRendererConfig::ExperimentalFeatures&
                         experimental_features,
                     const gfx::Size& viewport_size
@@ -144,7 +145,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 
-  void OnVideoGeometryChange(const gfx::Rect& output_rect);
+  void OnVideoGeometryChange(const gfx::Rect& output_rect, int z_index);
   void OnSbWindowHandleReady(const uint64_t sb_window_handle);
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
@@ -160,6 +161,17 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   SbPlayerInterface* GetSbPlayerInterface();
 
+  // Drains pending renderer disconnects on the StarboardRenderer sequence,
+  // fallback-suspends any remaining active StarboardRenderer instances so
+  // SbPlayerDestroy completes before the native window is destroyed, and
+  // prevents new SbPlayerBridge creations while concealed. Safe to call from
+  // any thread; |done_cb| is posted back to the caller's sequence.
+  static void FlushAndSuspendActiveRenderers(base::OnceClosure done_cb);
+
+  // Clears the concealed state so newly created or resumed renderers can
+  // create SbPlayerBridge instances again. Safe to call from any thread.
+  static void ResumeActiveRenderers();
+
  private:
   enum State {
     STATE_UNINITIALIZED,
@@ -172,6 +184,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
 #if BUILDFLAG(IS_IOS_TVOS)
   bool IsUrlPlayer() const;
+  // Pushes the platform duration before init_cb_ runs.
+  void OnUrlPlayerInitialized();
   // Handles presenting state for URL player: propagates video resolution
   // for hole-punch rendering and re-applies playback rate.
   void OnUrlPlayerPresenting();
@@ -190,6 +204,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                            int max_buffers,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
+  // Computes PipelineStatistics deltas since the last call from the running
+  // totals reported by SbPlayerBridge::GetInfo(), and posts them to |client_|
+  // if anything changed.
+  void UpdateStatistics(const SbPlayerBridge::PlayerStatistics& totals);
   void OnStatisticsUpdate(const PipelineStatistics& stats);
 
   // SbPlayerBridge::Host implementation.
@@ -225,6 +243,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void OnBufferingStateChange(BufferingState state);
 
   void NotifyError(PipelineStatus status);
+  void OnConcealFallbackSuspend();
 
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
@@ -234,6 +253,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const std::string max_video_resolution_;
   const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
   // TODO: b/375674101 - Connect this to h5vcc setting.
   const int max_samples_per_write_;
@@ -276,6 +296,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // The current overlay info, which possibly specifies an overlay to render to.
   OverlayInfo overlay_info_;
 
+  std::optional<int> z_index_;
   std::optional<gfx::Rect> output_rect_;
 
   // Temporary callback used for Initialize().
@@ -319,8 +340,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   double playback_rate_ = 0.;
   float volume_ = 1.0f;
 
-  uint32_t last_video_frames_decoded_ = 0;
-  uint32_t last_video_frames_dropped_ = 0;
+  // The totals from SbPlayerBridge as of the last call to UpdateStatistics().
+  SbPlayerBridge::PlayerStatistics last_reported_statistics_;
 
   SbWindow sb_window_ = kSbWindowInvalid;
 

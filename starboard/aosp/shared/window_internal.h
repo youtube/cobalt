@@ -17,10 +17,22 @@
 
 #include <android/native_window.h>
 
+#include <mutex>
+
 #include "starboard/window.h"
 
 struct SbWindowPrivate {
-  ANativeWindow* native_window;
+  std::mutex mutex;
+  ANativeWindow* native_window = nullptr;
 };
+
+namespace starboard {
+
+// Gets the reference to the current surface, or nullptr when |window| is
+// invalid or Android has no surface right now. Releases the reference the
+// window held to the surface it replaces.
+ANativeWindow* RefreshWindowSurface(SbWindow window);
+
+}  // namespace starboard
 
 #endif  // STARBOARD_AOSP_SHARED_WINDOW_INTERNAL_H_

@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
 #define COBALT_BROWSER_LIFECYCLE_COBALT_LIFECYCLE_MANAGER_H_
 
+#include <ostream>
 #include <utility>
 #include <vector>
 
@@ -49,9 +50,12 @@ enum class PendingAck {
   kReveal,
   kConceal,
   kBlur,
+  kFreeze,
   kUnfreeze,
   kCookieFlush,
 };
+
+std::ostream& operator<<(std::ostream& os, PendingAck ack);
 
 class CobaltLifecycleManagerObserver {
  public:
@@ -85,6 +89,9 @@ class CobaltLifecycleManagerObserver {
 
   // Called when a WebContents has completed blur.
   virtual void OnAllFramesBlurred(content::WebContents* web_contents) {}
+
+  // Called when all frames of a specific WebContents have completed freeze.
+  virtual void OnAllFramesFrozen(content::WebContents* web_contents) {}
 
   // Called when all frames of a specific WebContents have completed resume.
   virtual void OnAllFramesResumed(content::WebContents* web_contents) {}
@@ -163,6 +170,7 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   void OnPageVisibilityChanged(bool visible) override;
   void OnPageBlurred() override;
   void OnPageFocused() override;
+  void OnPageFrozen() override;
   void OnPageResumed() override;
   void OnFrameReady() override;
 
@@ -217,7 +225,7 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
         content::NavigationHandle* navigation_handle) override;
 
     // Methods to update the tracked state of a specific frame.
-    void SetResumed(content::RenderFrameHost* frame);
+    void SetResumed(content::RenderFrameHost* frame, bool resumed);
     void SetVisible(content::RenderFrameHost* frame, bool visible);
     void SetFocused(content::RenderFrameHost* frame, bool focused);
 

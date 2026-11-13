@@ -9,7 +9,6 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
@@ -32,12 +31,6 @@ class MEDIA_EXPORT SourceBufferState {
   // Callback signature used to create ChunkDemuxerStreams.
   using CreateDemuxerStreamCB =
       base::RepeatingCallback<ChunkDemuxerStream*(DemuxerStream::Type)>;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Overrides the maximum number of bytes that a single call to Parse() will
-  // inspect from the pending buffer.
-  static void SetMaxPendingBytesPerParseOverride(int max_bytes);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   SourceBufferState(std::unique_ptr<StreamParser> stream_parser,
                     std::unique_ptr<FrameProcessor> frame_processor,
@@ -72,7 +65,16 @@ class MEDIA_EXPORT SourceBufferState {
   // append failure using a `QuotaExceededErr` exception per the MSE
   // specification. App could use a back-off and retry strategy or otherwise
   // alter their behavior to attempt to buffer media for further playback.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // `data` is borrowed by the StreamParser and must remain valid until
+  // `release_runner` is destroyed. A null `release_runner` means `data` is not
+  // retained for the parser, which is then handed a copy instead.
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const uint8_t> data,
+      base::ScopedClosureRunner release_runner);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] bool AppendToParseBuffer(base::span<const uint8_t> data);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Tells the stream parser to parse more of the data previously sent to it
   // from this object's AppendToParseBuffer(). `*timestamp_offset` is used and

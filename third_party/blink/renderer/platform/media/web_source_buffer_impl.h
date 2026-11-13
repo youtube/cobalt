@@ -44,8 +44,14 @@ class PLATFORM_EXPORT WebSourceBufferImpl : public WebSourceBuffer {
   double HighestPresentationTimestamp() override;
   bool EvictCodedFrames(double currentPlaybackTime,
                         size_t newDataSize) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const unsigned char> data,
+      base::ScopedClosureRunner release_runner) override;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] bool AppendToParseBuffer(
       base::span<const unsigned char> data) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] media::StreamParser::ParseStatus RunSegmentParserLoop(
       double* timestamp_offset) override;
   bool AppendChunks(

@@ -17,6 +17,8 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include <algorithm>
+
 #include "starboard/common/thread.h"
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -113,9 +115,10 @@ class PosixSetPriorityTests : public ::testing::Test {
 // can ignore any events on this process for a while.
 TEST_F(PosixSetPriorityTests, SetProcessPrioritySuccessfully) {
   errno = 0;
-  const int target_priority = getpriority(PRIO_PROCESS, 0) + 1;
+  const int current_priority = getpriority(PRIO_PROCESS, 0);
   int call_errno = errno;
-  ExpectGetPrioritySuccess(target_priority, call_errno);
+  ExpectGetPrioritySuccess(current_priority, call_errno);
+  const int target_priority = current_priority + 1;
 
   errno = 0;
   ASSERT_EQ(0, setpriority(PRIO_PROCESS, 0, target_priority))
@@ -148,12 +151,33 @@ TEST_F(PosixSetPriorityTests, ErrorOnInvalidWhoForProcess) {
 
 TEST_F(PosixSetPriorityTests, ErrorOnPermissionDenied) {
   errno = 0;
-  const int higher_priority = getpriority(PRIO_PROCESS, 0) - 1;
+  const int current_priority = getpriority(PRIO_PROCESS, 0);
   int call_errno = errno;
-  ExpectGetPrioritySuccess(higher_priority, call_errno);
+  ExpectGetPrioritySuccess(current_priority, call_errno);
+
+#if defined(RLIMIT_NICE)
+  // An unprivileged process may only lower its nice value down to
+  // 20 - RLIMIT_NICE, so going below both that and the current value fails.
+  struct rlimit nice_limit;
+  ASSERT_EQ(0, getrlimit(RLIMIT_NICE, &nice_limit))
+      << "getrlimit failed. Errno: " << errno << " (" << strerror(errno) << ")";
+  // getrlimit(2): "The actual ceiling for the nice value is calculated as
+  // 20 - rlim_cur. The useful range for this limit is thus from 1
+  // (corresponding to a nice value of 19) to 40 (corresponding to a nice
+  // value of -20)." https://man7.org/linux/man-pages/man2/getrlimit.2.html
+  const int ceiling =
+      20 - static_cast<int>(std::min<rlim_t>(nice_limit.rlim_cur, 40));
+  const int denied_priority = std::min(current_priority, ceiling) - 1;
+  if (denied_priority < -20) {
+    GTEST_SKIP() << "RLIMIT_NICE (" << nice_limit.rlim_cur
+                 << ") permits every priority.";
+  }
+#else   // defined(RLIMIT_NICE)
+  const int denied_priority = current_priority - 1;
+#endif  // defined(RLIMIT_NICE)
 
   errno = 0;
-  EXPECT_EQ(-1, setpriority(PRIO_PROCESS, 0, higher_priority));
+  EXPECT_EQ(-1, setpriority(PRIO_PROCESS, 0, denied_priority));
   EXPECT_EQ(EACCES, errno)
       << "Expected EACCES when increasing priority, but got: " << errno << " ("
       << strerror(errno) << ")";

@@ -264,6 +264,11 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
 
   settings.main_frame_before_activation_enabled =
       cmd.HasSwitch(::switches::kEnableMainFrameBeforeActivation);
+#if BUILDFLAG(IS_COBALT)
+  settings.main_frame_before_activation_enabled |=
+      base::FeatureList::IsEnabled(
+          ::features::kCobaltMainFrameBeforeActivation);
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Checkerimaging is not supported for synchronous single-threaded mode, which
   // is what the renderer uses if its not threaded.

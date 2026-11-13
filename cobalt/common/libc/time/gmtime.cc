@@ -14,20 +14,13 @@
 
 #include <time.h>
 
-#include "cobalt/common/libc/time/icu_time_support.h"
-
 extern "C" {
-struct tm* gmtime_r(const time_t* time, struct tm* result) {
-  auto* time_support =
-      cobalt::common::libc::time::IcuTimeSupport::GetInstance();
-  if (time_support->ExplodeGmtTime(time, result)) {
-    return result;
-  }
-  return nullptr;
-}
 
+// UTC has no timezone to apply, so this doesn't need ICU.
+// Unlike musl's gmtime, each thread gets its own buffer.
 struct tm* gmtime(const time_t* time) {
   static thread_local struct tm thread_local_tm;
   return gmtime_r(time, &thread_local_tm);
 }
+
 }  // extern "C"

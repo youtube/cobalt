@@ -27,8 +27,6 @@ namespace starboard {
 
 class AudioOutputManager {
  public:
-  static void SetSeamlessAudioSwitching(bool enable);
-
   // Returns the singleton.
   static AudioOutputManager* GetInstance();
 
@@ -63,6 +61,18 @@ class AudioOutputManager {
                                                       int numberOfChannels);
 
   bool HasPassthroughSupportFor(JNIEnv* env, int encoding);
+
+  // Returns whether audio in |encoding| (an Android AudioFormat encoding) with
+  // |sample_rate| and |channel_count| can be played directly, without going
+  // through the software mixer and resampler of the Android audio framework.
+  // When |require_hw_av_sync| is true, the query is made with FLAG_HW_AV_SYNC,
+  // as used by tunnel mode.  Always returns false on Android API levels lower
+  // than 29.
+  bool GetDirectPlaybackSupport(JNIEnv* env,
+                                int encoding,
+                                int sample_rate,
+                                int channel_count,
+                                bool require_hw_av_sync);
 
   bool GetAudioConfiguration(JNIEnv* env,
                              int index,

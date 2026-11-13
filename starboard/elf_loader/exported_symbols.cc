@@ -218,7 +218,14 @@ ExportedSymbols::ExportedSymbols() {
 
   // Standard POSIX or Linux symbols.
   REGISTER_SYMBOL(alarm);
+#if BUILDFLAG(IS_ANDROID) && __ANDROID_API__ < 28 && defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+#endif
   REGISTER_SYMBOL(aligned_alloc);
+#if BUILDFLAG(IS_ANDROID) && __ANDROID_API__ < 28 && defined(__clang__)
+#pragma clang diagnostic pop
+#endif
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(dup);
@@ -235,7 +242,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
-  REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
@@ -323,6 +329,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(inotify_init1);      // Linux API
   REGISTER_WRAPPER(inotify_rm_watch);   // Linux API
   REGISTER_WRAPPER(ioctl_FIONREAD);     // Linux API
+  REGISTER_WRAPPER(isatty);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(openat);
@@ -418,23 +425,31 @@ ExportedSymbols::ExportedSymbols() {
 
 }  // NOLINT
 
-const void* ExportedSymbols::Lookup(const char* name) {
-  const void* address = map_[name];
+const void* ExportedSymbols::Lookup(const char* name, bool is_weak) const {
+  if (!name) {
+    return nullptr;
+  }
+  auto it = map_.find(name);
   // Any symbol that is not registered as part of the Starboard API in the
   // constructor of this class is a leak, and is an error.
-  if (address) {
-    return address;
+  if (it != map_.end()) {
+    return it->second;
   }
 
   // Not an error, as it could be a weak symbol.
   SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
+  if (is_weak) {
+    return nullptr;
+  }
 #if !defined(OFFICIAL_BUILD)
-  address = dlsym(RTLD_DEFAULT, name);
+  const void* address = dlsym(RTLD_DEFAULT, name);
   if (address == nullptr) {
     SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
   }
-#endif  // !defined(OFFICIAL_BUILD)
   return address;
+#else
+  return nullptr;
+#endif  // !defined(OFFICIAL_BUILD)
 }
 
 }  // namespace elf_loader

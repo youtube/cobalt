@@ -45,13 +45,13 @@ configuration differences between two platforms, they must have separate
 inherit values, we would not be able to receive a default value for any one, so
 each platform must have a definition for every configuration variable.
 
-## Migration from GYP Variables to Cobalt Extensions
+## Migration from Build Configuration Variables to Cobalt Extensions
 
-Cobalt configurations have moved from [cobalt_configuration.gypi](../../cobalt/build/cobalt_configuration.gypi) and platform specific `gyp_configuration.gypi` files to Cobalt extensions, primarily [CobaltExtensionConfigurationApi](../../cobalt/extension/configuration.h), but including the [CobaltExtensionGraphicsApi](../../cobalt/extension/graphics.h).
+Cobalt configurations have moved from the build files, where each platform used to define them, to Cobalt extensions, primarily [CobaltExtensionConfigurationApi](../extension/configuration.h), but including the [CobaltExtensionGraphicsApi](../extension/graphics.h).
 
 Some variables were already in the process of being deprecated, sometimes with a replacement. In those cases, that path was followed.
 
-Implementing the Cobalt extension is completely optional, and when calling the functions corresponding to the old GYP variable, there will be a default value that the function will be able to fall back onto if the extension has not been implemented. That being said, if there is a single function the platform needs a custom implementation for, it must completely implement the CobaltExtensionConfigurationApi. For convenience, we have provided default functions to use to define the API if desired.
+Implementing the Cobalt extension is completely optional, and when calling the functions corresponding to the old build variable, there will be a default value that the function will be able to fall back onto if the extension has not been implemented. That being said, if there is a single function the platform needs a custom implementation for, it must completely implement the CobaltExtensionConfigurationApi. For convenience, we have provided default functions to use to define the API if desired.
 
 ##### Notes
 

@@ -142,10 +142,56 @@ bool AppEventDelegate::IsFrozenLocked() const {
 }
 
 void AppEventDelegate::HandleEvent(const SbEvent* event) {
-  // Use a lock to ensure thread safety as HandleEvent might be called from
-  // different threads (e.g., Starboard thread, UI thread).
-  base::AutoLock lock(lock_);
-  HandleEventLocked(event);
+  if (event->type == kSbEventTypeConceal || event->type == kSbEventTypeFreeze ||
+      event->type == kSbEventTypeStop) {
+    // Wait for the Conceal, Freeze, or Stop transition to complete natively
+    // before allowing HandleEvent to return (or proceeding to teardown on
+    // Stop), ensuring the platform return-time state contract is satisfied
+    // (SbWindow destroyed and GPU resources released on Conceal; persistent
+    // storage flushed on Freeze) and event callbacks are invoked only after
+    // Cobalt has reached the target state.
+    base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+
+    // SetQuitClosure / quit_closure_ receives the callback to quit this local
+    // run_loop; it does not quit the application. This unblocks HandleEvent to
+    // return once the target state is reached.
+    {
+      base::AutoLock lock(lock_);
+      quit_closure_ = run_loop.QuitClosure();
+      HandleEventLocked(event);
+    }
+    run_loop.Run();
+
+    if (event->type == kSbEventTypeStop) {
+      // Run pending tasks until idle before teardown.
+      base::RunLoop(base::RunLoop::Type::kNestableTasksAllowed).RunUntilIdle();
+
+      // Start synchronous teardown.
+      DoTeardown();
+    }
+  } else if (event->type == kSbEventTypeStart) {
+    // Without a platform window, Start continues to Conceal. Wait for that
+    // conceal before returning, just like a Conceal event. The RunLoop is
+    // only created after Start, since there is no task runner before.
+    std::unique_ptr<base::RunLoop> run_loop;
+    {
+      base::AutoLock lock(lock_);
+      const bool is_initial = application_state_ == ApplicationState::kInitial;
+      HandleEventLocked(event);
+      if (!is_initial || !is_transitioning_) {
+        return;
+      }
+      run_loop = std::make_unique<base::RunLoop>(
+          base::RunLoop::Type::kNestableTasksAllowed);
+      quit_closure_ = run_loop->QuitClosure();
+    }
+    run_loop->Run();
+  } else {
+    // Use a lock to ensure thread safety as HandleEvent might be called from
+    // different threads (e.g., Starboard thread, UI thread).
+    base::AutoLock lock(lock_);
+    HandleEventLocked(event);
+  }
 }
 
 void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
@@ -154,6 +200,9 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       target_state_ == ApplicationState::kStopped) {
     LOG(WARNING) << "Received event " << event->type
                  << " after stopping. Event is ignored.";
+    if (quit_closure_) {
+      std::move(quit_closure_).Run();
+    }
     return;
   }
 
@@ -165,6 +214,14 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
         runner_->OnStart(event);
         SetApplicationState(SbEventToTargetApplicationState(event->type));
         target_state_ = application_state_;
+        if (application_state_ == ApplicationState::kStarted &&
+            !runner_->HasValidPlatformWindow()) {
+          // The platform couldn't create a window, for example because the
+          // application went to the background during startup. Conceal, so
+          // that the next Focus reveals and creates the window again.
+          LOG(WARNING) << "No platform window after Start. Concealing.";
+          TransitionToLifeCycleState(ApplicationState::kConcealed);
+        }
         return;
       default:
         // Robustly handle events received before the application has started or
@@ -209,6 +266,17 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       return;
     }
     case kSbEventTypeBlur:
+      // Blur only takes a focused application to Blurred. The platform can
+      // still send a Blur after the application concealed itself without a
+      // platform window. When the application is already headed to Blurred or
+      // further, the Blur must not reveal it.
+      if (target_state_ >= ApplicationState::kBlurred) {
+        LOG(INFO) << "Ignoring Blur while transitioning to "
+                  << GetStateString(target_state_);
+        break;
+      }
+      TransitionToLifeCycleState(ApplicationState::kBlurred);
+      break;
     case kSbEventTypeFocus:
     case kSbEventTypeConceal:
     case kSbEventTypeStop:
@@ -246,6 +314,18 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
 }
 
 void AppEventDelegate::ExecuteNextStep() {
+  if (conceal_after_failed_reveal_) {
+    // A reveal couldn't create a platform window. Conceal before anything else,
+    // whatever the target state, so that a later reveal retries.
+    conceal_after_failed_reveal_ = false;
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(&AppEventDelegate::ExecuteStepOnUIThread,
+                       base::Unretained(this), ApplicationState::kConcealed,
+                       /*is_activating=*/false));
+    return;
+  }
+
   if (application_state_ == target_state_) {
     is_transitioning_ = false;
     if (quit_closure_) {
@@ -337,6 +417,9 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
       LOG(INFO) << "Ignoring ExecuteStepOnUIThread during teardown.";
       return;
     }
+    if (IsRevealStep(next_state, is_activating)) {
+      visible_target_since_reveal_ = false;
+    }
   }
   // Note: ExecuteEventRunner does not change state nor rely on state of this
   // object, and always runs as a posted task on the UI thread, and therefore
@@ -348,6 +431,19 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
   {
     base::AutoLock lock(lock_);
     SetApplicationState(next_state);
+    if (IsRevealStep(next_state, is_activating) &&
+        !runner_->HasValidPlatformWindow()) {
+      // The platform couldn't create a window, for example because the
+      // application went to the background again. Conceal next. Keep the
+      // target state only if a reveal or focus was asked for after this reveal
+      // began, so that it's retried.
+      LOG(WARNING) << "No platform window after Reveal. Concealing.";
+      conceal_after_failed_reveal_ = true;
+      if (!visible_target_since_reveal_ &&
+          target_state_ < ApplicationState::kConcealed) {
+        target_state_ = ApplicationState::kConcealed;
+      }
+    }
     if (application_state_ != target_state_) {
       LOG(INFO) << "Transition to " << GetStateString(next_state)
                 << " complete (target: " << GetStateString(target_state_)
@@ -400,6 +496,9 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
             << " to " << GetStateString(state);
 
   target_state_ = state;
+  if (state <= ApplicationState::kBlurred) {
+    visible_target_since_reveal_ = true;
+  }
 
   if (is_transitioning_) {
     DLOG(INFO) << "Transition already in progress. Updated target to "
@@ -409,6 +508,12 @@ void AppEventDelegate::TransitionToLifeCycleState(ApplicationState state) {
     is_transitioning_ = true;
     ExecuteNextStep();
   }
+}
+
+// static
+bool AppEventDelegate::IsRevealStep(ApplicationState next_state,
+                                    bool is_activating) {
+  return is_activating && next_state == ApplicationState::kBlurred;
 }
 
 // static

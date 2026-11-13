@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     git \
     xz-utils \
+    zstd \
     pkgconf \
     libglib2.0-0 \
     libnss3 \
@@ -56,7 +57,7 @@ RUN cd /tmp \
 ARG rdk_home=/root/rdk-home
 ARG rdk_toolchain=20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh
 
-# Required by the gyp build system.
+# Required by the GN build.
 ENV RDK_HOME=${rdk_home}
 
 RUN apt update -qqy \

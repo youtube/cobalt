@@ -19,18 +19,32 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ApplicationExitInfo;
 import android.app.Service;
 import android.content.Context;
+import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
 import android.view.Surface;
+import android.view.WindowManager;
 import dev.cobalt.coat.CobaltService.ResponseToClient;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.media.VideoSurfaceViewJni;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.ProcessExitReasonHelper;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -39,8 +53,12 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.Shadows;
+import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowLooper;
 
 /** Unit tests for BaseStarboardBridge. */
 @RunWith(RobolectricTestRunner.class)
@@ -96,6 +114,8 @@ public class BaseStarboardBridgeTest {
     BaseStarboardBridge.setActivityLifecycleCoordinationEnabledForTesting(true);
     BaseStarboardBridgeJni.setInstanceForTesting(mockNatives);
     VideoSurfaceViewJni.setInstanceForTesting(mockVideoNatives);
+    ProcessExitReasonHelper.setActivityManagerForTesting(null);
+    BaseStarboardBridge.setWasLowMemoryKilledForTesting(null);
     context = RuntimeEnvironment.getApplication();
 
     activityHolder = new Holder<>();
@@ -111,6 +131,8 @@ public class BaseStarboardBridgeTest {
     BaseStarboardBridgeJni.setInstanceForTesting(null);
     VideoSurfaceViewJni.setInstanceForTesting(null);
     BaseStarboardBridge.setInstanceForTesting(null);
+    BaseStarboardBridge.setWasLowMemoryKilledForTesting(null);
+    ProcessExitReasonHelper.setActivityManagerForTesting(null);
   }
 
   @Test
@@ -425,5 +447,353 @@ public class BaseStarboardBridgeTest {
 
     assertNull(result);
     assertNull(bridge.getOpenedCobaltService("nullResponseService"));
+  }
+
+  @Test
+  public void getWasLowMemoryKilled_testingOverride() {
+    BaseStarboardBridge.setWasLowMemoryKilledForTesting(true);
+    assertTrue(bridge.getWasLowMemoryKilled());
+
+    BaseStarboardBridge.setWasLowMemoryKilledForTesting(false);
+    assertFalse(bridge.getWasLowMemoryKilled());
+  }
+
+  @Test
+  @Config(sdk = Build.VERSION_CODES.R)
+  public void getWasLowMemoryKilled_fromActivityManager_lowMemory() {
+    ActivityManager am = mock(ActivityManager.class);
+    ApplicationExitInfo info = mock(ApplicationExitInfo.class);
+    when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
+    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
+        .thenReturn(Collections.singletonList(info));
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+
+    assertTrue(bridge.getWasLowMemoryKilled());
+  }
+
+  @Test
+  public void addActivePlayer_multiplePlayers_keepsScreenOnUntilAllRemoved() {
+    Activity activity = startActivity();
+    assertFalse(isKeepScreenOnSet(activity));
+
+    bridge.addActivePlayer(1L);
+    bridge.addActivePlayer(2L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    bridge.removeActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    bridge.removeActivePlayer(2L);
+    ShadowLooper.idleMainLooper();
+    assertFalse(isKeepScreenOnSet(activity));
+  }
+
+  @Test
+  public void addAndRemoveActivePlayer_repeatedCalls_areIdempotent() {
+    Activity activity = startActivity();
+
+    // The playback rate of a player can be set to a positive value multiple times, e.g. after each
+    // seek or when the playback rate changes.
+    bridge.addActivePlayer(1L);
+    bridge.addActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    bridge.removeActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertFalse(isKeepScreenOnSet(activity));
+
+    // A player is removed both when it's paused and when it's destroyed. The second removal must
+    // not affect other players.
+    bridge.addActivePlayer(2L);
+    bridge.removeActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+  }
+
+  @Test
+  public void onActivityStart_playbackChangedWhileStopped_appliesLatestState() {
+    // A player starts playing before any activity is started.
+    bridge.addActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+
+    Activity activity = startActivity();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    // Playback stops while the activity is stopped.
+    bridge.onActivityStop(activity);
+    bridge.removeActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+
+    bridge.onActivityStart(activity);
+    assertFalse(isKeepScreenOnSet(activity));
+  }
+
+  @Test
+  public void onActivityStart_recreatedActivity_reappliesKeepScreenOn() {
+    Activity activity1 = startActivity();
+    bridge.addActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity1));
+
+    // During recreation, the new activity is started before the old one is stopped and destroyed.
+    Activity activity2 = startActivity();
+    bridge.onActivityStop(activity1);
+    bridge.onActivityDestroy(activity1);
+    ShadowLooper.idleMainLooper();
+    assertFalse(isKeepScreenOnSet(activity1));
+    assertTrue(isKeepScreenOnSet(activity2));
+  }
+
+  @Test
+  public void onActivityStop_playerStillPlaying_clearsKeepScreenOnUntilStarted() {
+    Activity activity = startActivity();
+    bridge.addActivePlayer(1L);
+    ShadowLooper.idleMainLooper();
+    assertTrue(isKeepScreenOnSet(activity));
+
+    bridge.onActivityStop(activity);
+    assertFalse(isKeepScreenOnSet(activity));
+
+    bridge.onActivityStart(activity);
+    assertTrue(isKeepScreenOnSet(activity));
+  }
+
+  @Test
+  public void captionSettingsChangeListener_lifecycleAndCallbacksForwardToNative() {
+    Activity activity = mock(Activity.class);
+    bridge.onActivityCreate(activity);
+
+    // Starting before applicationStarted() registers the listener but does not call native yet.
+    bridge.onActivityStart(activity);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    verify(mockNatives, never()).sendCaptionSettingsChangedEvent();
+
+    // Once native applicationStarted() is signaled, all CaptioningChangeListener callbacks forward.
+    bridge.applicationStarted();
+    bridge.mCaptioningChangeListener.onEnabledChanged(true);
+    bridge.mCaptioningChangeListener.onUserStyleChanged(null);
+    bridge.mCaptioningChangeListener.onFontScaleChanged(1.5f);
+    verify(mockNatives, times(3)).sendCaptionSettingsChangedEvent();
+
+    // Stopping the activity unregisters the listener; re-starting syncs current state immediately.
+    bridge.onActivityStop(activity);
+    assertFalse(bridge.isCaptionListenerRegisteredForTesting());
+
+    bridge.onActivityStart(activity);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    verify(mockNatives, times(4)).sendCaptionSettingsChangedEvent();
+
+    // After applicationStopping(), callbacks no longer forward to native.
+    bridge.applicationStopping();
+    bridge.mCaptioningChangeListener.onEnabledChanged(false);
+    verify(mockNatives, times(4)).sendCaptionSettingsChangedEvent();
+  }
+
+  @Test
+  public void captionSettingsChangeListener_overlappingActivities_preservesRegistration() {
+    Activity activity1 = mock(Activity.class);
+    Activity activity2 = mock(Activity.class);
+    bridge.applicationStarted();
+
+    bridge.onActivityCreate(activity1);
+    bridge.onActivityStart(activity1);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    verify(mockNatives, times(1)).sendCaptionSettingsChangedEvent();
+
+    // Starting activity2 while activity1 is active keeps listener registered without duplicate
+    // sync.
+    bridge.onActivityCreate(activity2);
+    bridge.onActivityStart(activity2);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    verify(mockNatives, times(1)).sendCaptionSettingsChangedEvent();
+
+    // Stopping stale activity1 while activity2 is active keeps listener registered.
+    bridge.onActivityStop(activity1);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+
+    // Stopping activity2 unregisters listener.
+    bridge.onActivityStop(activity2);
+    assertFalse(bridge.isCaptionListenerRegisteredForTesting());
+
+    // Also verify legacy mode (without coordination switch) ignores stale activity onStop.
+    BaseStarboardBridge.setActivityLifecycleCoordinationEnabledForTesting(false);
+    bridge.onActivityStart(activity1);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    bridge.onActivityStart(activity2);
+    bridge.onActivityStop(activity1);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    bridge.onActivityStop(activity2);
+    assertFalse(bridge.isCaptionListenerRegisteredForTesting());
+  }
+
+  @Test
+  public void openCobaltService_onBackgroundLooper_routesLifecycleCallbacksToServiceLooper()
+      throws Exception {
+    HandlerThread serviceThread = new HandlerThread("CobaltPlatformServiceTest");
+    serviceThread.start();
+    try {
+      Looper serviceLooper = serviceThread.getLooper();
+      Handler serviceHandler = new Handler(serviceLooper);
+      AtomicReference<Looper> resumeLooper = new AtomicReference<>();
+      AtomicReference<Looper> suspendLooper = new AtomicReference<>();
+      AtomicReference<Looper> closeLooper = new AtomicReference<>();
+
+      final TestLifecycleCobaltService service =
+          new TestLifecycleCobaltService() {
+            @Override
+            public void beforeStartOrResume() {
+              super.beforeStartOrResume();
+              resumeLooper.set(Looper.myLooper());
+            }
+
+            @Override
+            public void beforeSuspend() {
+              super.beforeSuspend();
+              suspendLooper.set(Looper.myLooper());
+            }
+
+            @Override
+            public void close() {
+              super.close();
+              closeLooper.set(Looper.myLooper());
+            }
+          };
+
+      bridge.registerCobaltService(
+          new CobaltService.Factory() {
+            @Override
+            public CobaltService createCobaltService(long nativeService) {
+              return service;
+            }
+
+            @Override
+            public String getServiceName() {
+              return "bgService";
+            }
+          });
+
+      serviceHandler.post(() -> bridge.openCobaltService(501L, "bgService"));
+      Shadows.shadowOf(serviceLooper).idle();
+
+      Activity activity = mock(Activity.class);
+      bridge.onActivityCreate(activity);
+      bridge.onActivityStart(activity);
+      Shadows.shadowOf(serviceLooper).idle();
+      assertEquals(1, service.startOrResumeCount);
+      assertEquals(serviceLooper, resumeLooper.get());
+
+      bridge.onActivityStop(activity);
+      Shadows.shadowOf(serviceLooper).idle();
+      assertEquals(1, service.suspendCount);
+      assertEquals(serviceLooper, suspendLooper.get());
+
+      // Calling closeAllCobaltService() (e.g. from H5vccSystemImpl teardown) followed by
+      // onActivityDestroy() must maintain service thread execution without falling back to UI
+      // thread.
+      bridge.closeAllCobaltService();
+      bridge.onActivityDestroy(activity);
+      Shadows.shadowOf(serviceLooper).idle();
+      assertEquals(1, service.closeCount);
+      assertEquals(serviceLooper, closeLooper.get());
+    } finally {
+      serviceThread.quitSafely();
+      serviceThread.join(5000);
+    }
+  }
+
+  @Test
+  public void openCobaltService_updatesServiceHandlerWhenLooperChangesOrQuits() throws Exception {
+    HandlerThread serviceThread1 = new HandlerThread("CobaltPlatformServiceTest1");
+    HandlerThread serviceThread2 = new HandlerThread("CobaltPlatformServiceTest2");
+    serviceThread1.start();
+    serviceThread2.start();
+    try {
+      Looper looper1 = serviceThread1.getLooper();
+      Looper looper2 = serviceThread2.getLooper();
+      Handler handler1 = new Handler(looper1);
+      Handler handler2 = new Handler(looper2);
+      AtomicReference<Looper> resumeLooper = new AtomicReference<>();
+
+      final TestLifecycleCobaltService service1 = new TestLifecycleCobaltService();
+      final TestLifecycleCobaltService service2 =
+          new TestLifecycleCobaltService() {
+            @Override
+            public void beforeStartOrResume() {
+              super.beforeStartOrResume();
+              resumeLooper.set(Looper.myLooper());
+            }
+
+            @Override
+            public void beforeSuspend() {
+              super.beforeSuspend();
+              throw new RuntimeException("simulated beforeSuspend failure");
+            }
+          };
+
+      bridge.registerCobaltService(
+          new CobaltService.Factory() {
+            @Override
+            public CobaltService createCobaltService(long nativeService) {
+              return nativeService == 601L ? service1 : service2;
+            }
+
+            @Override
+            public String getServiceName() {
+              return "switchService";
+            }
+          });
+
+      // Open service1 on looper1 and service2 on looper2 simultaneously, then close service1.
+      handler1.post(() -> bridge.openCobaltService(601L, "switchService"));
+      Shadows.shadowOf(looper1).idle();
+      handler2.post(() -> bridge.openCobaltService(602L, "switchService"));
+      Shadows.shadowOf(looper2).idle();
+
+      Activity activity = mock(Activity.class);
+      bridge.onActivityCreate(activity);
+      bridge.onActivityStart(activity);
+      Shadows.shadowOf(looper1).idle();
+      Shadows.shadowOf(looper2).idle();
+      assertEquals(1, service1.startOrResumeCount);
+      assertEquals(1, service2.startOrResumeCount);
+      assertEquals(looper2, resumeLooper.get());
+
+      handler1.post(() -> bridge.closeCobaltService(601L));
+      Shadows.shadowOf(looper1).idle();
+      assertEquals(1, service1.closeCount);
+
+      // Verify beforeSuspend catches exceptions on the background service looper.
+      bridge.onActivityStop(activity);
+      Shadows.shadowOf(looper2).idle();
+      assertEquals(1, service2.suspendCount);
+
+      // Quit looper2 before onActivityDestroy and verify closeAllCobaltService falls back
+      // synchronously when handler.post returns false.
+      serviceThread2.quitSafely();
+      serviceThread2.join(5000);
+      bridge.onActivityDestroy(activity);
+      assertEquals(1, service2.closeCount);
+    } finally {
+      serviceThread1.quitSafely();
+      serviceThread1.join(5000);
+      serviceThread2.quitSafely();
+      serviceThread2.join(5000);
+    }
+  }
+
+  private Activity startActivity() {
+    Activity activity = Robolectric.buildActivity(Activity.class).create().get();
+    bridge.onActivityCreate(activity);
+    bridge.onActivityStart(activity);
+    return activity;
+  }
+
+  private static boolean isKeepScreenOnSet(Activity activity) {
+    return (activity.getWindow().getAttributes().flags
+            & WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        != 0;
   }
 }

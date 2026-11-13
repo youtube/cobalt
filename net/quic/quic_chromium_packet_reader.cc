@@ -55,6 +55,8 @@ QuicChromiumPacketReader::~QuicChromiumPacketReader() = default;
 
 #if BUILDFLAG(IS_COBALT)
 int QuicChromiumPacketReader::StartReadingMultiplePackets() {
+  // Packets handled here reuse the time read for the yield check.
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
   for (;;) {
 if (read_pending_)
       return OK;
@@ -101,7 +103,7 @@ if (read_pending_)
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
 #if BUILDFLAG(IS_COBALT)
-  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
 #endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
@@ -164,6 +166,8 @@ void QuicChromiumPacketReader::OnReadMultiplePacketComplete(int result) {
 
 void QuicChromiumPacketReader::StartReading() {
 #if BUILDFLAG(IS_COBALT)
+  // Packets handled here reuse the time read for the yield check.
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
   if (try_reading_multiple_packets_) {
     int rv = StartReadingMultiplePackets();
     if (rv == OK || rv == ERR_IO_PENDING) {
@@ -228,7 +232,7 @@ static_assert(static_cast<EcnCodePoint>(quic::ECN_NOT_ECT) == ECN_NOT_ECT &&
               "Mismatch ECN codepoint values");
 bool QuicChromiumPacketReader::ProcessReadResult(int result) {
 #if BUILDFLAG(IS_COBALT)
-  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
 #endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {

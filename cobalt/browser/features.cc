@@ -122,6 +122,30 @@ BASE_FEATURE(kForceVideoSplashScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
+BASE_FEATURE(kEnableCachedSplashFile,
+             "EnableCachedSplashFile",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSplashScreenConfig,
+             "SplashScreenConfig",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so param names are
+// prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSplashScreenTimeoutParam,
+                   &kSplashScreenConfig,
+                   "SplashScreenConfig_timeout",
+                   base::Milliseconds(1500));
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+BASE_FEATURE_PARAM(std::string,
+                   kSplashScreenUrlParam,
+                   &kSplashScreenConfig,
+                   "SplashScreenConfig_url",
+                   "");
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
@@ -145,6 +169,107 @@ const base::FeatureParam<int> kMemoryAblationSizeMBParam{
 
 const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam{
     &kCobaltNativeMemoryAblation, "ablation_delay", base::Seconds(0)};
+
+BASE_FEATURE(kCobaltGpuMemoryAblation,
+             "CobaltGpuMemoryAblation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam{
+    &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_size_mb", 0};
+
+const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam{
+    &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_delay",
+    base::Seconds(0)};
+
+BASE_FEATURE(kEnableCobaltMemoryPressureEvaluator,
+             "EnableCobaltMemoryPressureEvaluator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<double> kCobaltMemoryPressureModerateFractionParam{
+    &kEnableCobaltMemoryPressureEvaluator, "moderate_fraction", 0.85};
+
+const base::FeatureParam<double> kCobaltMemoryPressureCriticalFractionParam{
+    &kEnableCobaltMemoryPressureEvaluator, "critical_fraction", 0.95};
+
+const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
+    &kEnableCobaltMemoryPressureEvaluator, "budget_mb", 0};
+
+const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
+    &kEnableCobaltMemoryPressureEvaluator, "poll_interval_seconds", 10};
+
+// TODO(b/570129950): Remove this flag and the deprecated TrustedHeaderClient
+// code path (CobaltTrustedURLLoaderHeaderClient, CobaltTrustedHeaderClient,
+// CobaltContentBrowserClient::WillCreateURLLoaderFactory, and the IS_COBALT
+// kURLLoadOptionUseHeaderClient/AsCorsPreflight flags in url_loader.cc) after
+// 2026-12-10.
+BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
+             "CobaltSkipTrustedHeaderClient",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltPlatformServicesOffUiThread,
+             "CobaltPlatformServicesOffUiThread",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltFreezeOnBackground,
+             "CobaltFreezeOnBackground",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so the param name
+// is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs{
+    &kCobaltFreezeOnBackground, "CobaltFreezeOnBackground_delay_ms", 0};
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kCobaltProcessStateSummary,
+             "CobaltProcessStateSummary",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kProcessStateSummaryMinFlushIntervalParam,
+                   &kCobaltProcessStateSummary,
+                   "min_flush_interval",
+                   base::Seconds(15));
+#endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE(kCobaltStabilityMetricsDeduplication,
+             "CobaltStabilityMetricsDeduplication",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltStartupPreconnect,
+             "CobaltStartupPreconnect",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause,
+             "CobaltFlushHttpServerPropertiesOnPause",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltHttpCacheQuota,
+             "CobaltHttpCacheQuota",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMaxHttpCacheSizeBytes,
+                   &kCobaltHttpCacheQuota,
+                   "cobalt_http_cache_size_bytes",
+                   12582912);
+
+BASE_FEATURE(kCobaltCodeCacheOptimization,
+             "CobaltCodeCacheOptimization",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so param names are
+// prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+BASE_FEATURE_PARAM(int,
+                   kCobaltGeneratedCodeCacheSizeBytes,
+                   &kCobaltCodeCacheOptimization,
+                   "CobaltCodeCacheOptimization_size_bytes",
+                   10485760);
+
+BASE_FEATURE_PARAM(bool,
+                   kCobaltV8CodeCacheBypassHeatCheck,
+                   &kCobaltCodeCacheOptimization,
+                   "CobaltCodeCacheOptimization_bypass_heat_check",
+                   true);
 
 }  // namespace features
 }  // namespace cobalt

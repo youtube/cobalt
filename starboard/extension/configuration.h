@@ -35,9 +35,9 @@ typedef struct CobaltExtensionConfigurationApi {
 
   // The fields below this point were added in version 1 or later.
 
-  // The functions below configure Cobalt. All correspond to some GYP variable,
-  // but the implementation of this functions will take precedence over the GYP
-  // variable.
+  // The functions below configure Cobalt. Each of them replaces a build
+  // configuration variable, and the implementation of these functions takes
+  // precedence over Cobalt's default value.
 
   // This variable defines what Cobalt's preferred strategy should be for
   // handling internally triggered application exit requests (e.g. the user

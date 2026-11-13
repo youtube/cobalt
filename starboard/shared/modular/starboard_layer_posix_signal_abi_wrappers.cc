@@ -203,12 +203,12 @@ void ReverseWrapperHandler(int signum, siginfo_t* info, void* context) {
   }
   musl_siginfo_t musl_si;
   PlatformToMuslSiginfo(info, &musl_si);
-  // The third argument to the sa_sigaction handler is a ucontext_t*,
-  // which is a machine-dependent and opaque structure per 'man getcontext'.
-  // Since Cobalt does not currently use getcontext/setcontext, and any
-  // code that dereferences this structure would be non-portable, we pass
-  // nullptr.
-  musl_handler(signum, &musl_si, nullptr);
+  // The third argument is the kernel-provided ucontext_t for the interrupted
+  // thread. Its layout is defined by the kernel's signal frame, not by the
+  // libc, so glibc, bionic and musl all describe the same structure and it can
+  // be passed through as-is. V8's SIGPROF sampler and base's crash and
+  // stack-sampling handlers read registers from it.
+  musl_handler(signum, &musl_si, context);
 }
 
 void musl_sigemptyset(musl_sigset_t* set) {

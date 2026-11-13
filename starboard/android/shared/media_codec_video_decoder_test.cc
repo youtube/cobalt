@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/media_codec_video_decoder.h"
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <deque>
@@ -48,25 +49,35 @@ const VideoStreamInfo kDefaultVideoStreamInfo = [] {
   return info;
 }();
 
+const VideoStreamInfo kHdrVideoStreamInfo = [] {
+  VideoStreamInfo info = kDefaultVideoStreamInfo;
+  info.color_metadata.primaries = kSbMediaPrimaryIdBt2020;
+  info.color_metadata.transfer = kSbMediaTransferIdSmpteSt2084;
+  info.color_metadata.matrix = kSbMediaMatrixIdBt2020NonconstantLuminance;
+  info.color_metadata.mastering_metadata.luminance_max = 1000;
+  return info;
+}();
+
 class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
   void CreateDecoder(const std::string& max_video_capabilities = "",
                      const VideoStreamInfo* initial_stream_info = nullptr,
-                     ExperimentalFeatures experimental_features = {}) {
+                     ExperimentalFeatures experimental_features = {},
+                     bool enable_flush_during_seek = false) {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
     fake_factory_ = factory.get();  // Save raw pointer before moving!
 
     MediaCodecVideoDecoder::StreamConfig stream_config{
         initial_stream_info ? *initial_stream_info : kDefaultVideoStreamInfo,
-        /*drm_system=*/kSbDrmSystemInvalid,
-        kSbPlayerOutputModePunchOut,
-        /*decode_target_graphics_context_provider=*/nullptr,
-        /*surface_view=*/dummy_surface_.obj(),
-        max_video_capabilities};
+        /*drm_system=*/kSbDrmSystemInvalid, kSbPlayerOutputModePunchOut,
+        /*decode_target_graphics_context_provider=*/
+        &fake_graphics_context_provider_,
+        /*surface_view=*/dummy_surface_.obj(), max_video_capabilities};
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
     pipeline_config.experimental_features = std::move(experimental_features);
+    pipeline_config.enable_flush_during_seek = enable_flush_during_seek;
     MediaCodecVideoDecoder::PlatformOptions platform_options;
 
     auto result = MediaCodecVideoDecoder::CreateForTesting(
@@ -81,7 +92,13 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     auto sink = decoder_->GetSink();
     ASSERT_NE(sink, nullptr);
     sink->SetRenderCB(
-        [](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {});
+        [this](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {
+          std::lock_guard lock(callback_mutex_);
+          render_count_++;
+          if (on_render_cb_) {
+            on_render_cb_();
+          }
+        });
   }
 
   scoped_refptr<InputBuffer> CreateDummyVideoInputBuffer(
@@ -115,10 +132,30 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     return fake_factory_ ? fake_factory_->last_created_video_codec() : nullptr;
   }
 
+  void InitializeDecoder() {
+    decoder_->Initialize([](VideoDecoder::Status status,
+                            const scoped_refptr<VideoFrame>& frame) {},
+                         [this](SbPlayerError error, const std::string& msg) {
+                           error_called_ = true;
+                         });
+  }
+
+  std::atomic<bool> error_called_{false};
+
   std::mutex callback_mutex_;
   int need_more_input_count_ = 0;
+  int render_count_ = 0;
+  std::function<void()> on_render_cb_;
   JobQueue job_queue_;
   FakeMediaCodecFactory* fake_factory_ = nullptr;
+  // Punch-out decoders clean up the global video window on destruction, which
+  // requires a provider when the test activity's video surface exists.
+  SbDecodeTargetGraphicsContextProvider fake_graphics_context_provider_{
+      nullptr, nullptr,
+      [](SbDecodeTargetGraphicsContextProvider*,
+         SbDecodeTargetGlesContextRunnerTarget,
+         void*) {},
+      nullptr};
   const jni_zero::ScopedJavaGlobalRef<jstring> dummy_surface_{
       base::android::ConvertUTF8ToJavaString(AttachCurrentThread(),
                                              "dummy_surface")};
@@ -249,10 +286,7 @@ TEST_F(
 }
 
 TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
-  CreateDecoder(
-      /*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-      ExperimentalFeatures(
-          {{std::string(kMediaFixNeedMoreInputBackpressure.key()), 1}}));
+  CreateDecoder();
 
   FakeMediaCodec* fake_codec = GetFakeVideoCodec();
   ASSERT_NE(fake_codec, nullptr);
@@ -277,7 +311,7 @@ TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
       },
       [](SbPlayerError error, const std::string& msg) {});
 
-  constexpr int kMaxPendingInputs = 128;
+  constexpr int kMaxPendingInputs = 512;
 
   // Write `kMaxPendingInputs + 1` buffers to fill the queue and go beyond.
   // We expect signals for the first `kMaxPendingInputs - 1` writes.
@@ -314,6 +348,109 @@ TEST_F(MediaCodecVideoDecoderTest, BackpressureOnOutputFrame) {
   {
     std::lock_guard lock(callback_mutex_);
     EXPECT_EQ(need_more_input_count_, kMaxPendingInputs - 1);
+  }
+}
+
+TEST_F(MediaCodecVideoDecoderTest, FlushSeekSdrToHdrRebuildsCodec) {
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+  const int created = fake_factory_->video_codec_create_count();
+
+  decoder_->Reset();
+  // Reset() should flush the codec, not recreate it.
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), created);
+
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(100'000'000, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+  auto color_metadata = fake_factory_->last_video_color_metadata();
+  ASSERT_TRUE(color_metadata.has_value());
+  EXPECT_EQ(color_metadata->transfer, kSbMediaTransferIdSmpteSt2084);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest, FlushSeekHdrToSdrRebuildsCodec) {
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  const int created = fake_factory_->video_codec_create_count();
+
+  decoder_->Reset();
+  // Reset() should flush the codec, not recreate it.
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), created);
+
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      100'000'000, 1024, /*stream_info=*/nullptr, /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest, FlushSeekSameColorKeepsCodec) {
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+  const int created = fake_factory_->video_codec_create_count();
+
+  decoder_->Reset();
+
+  VideoStreamInfo larger_sdr_info = kDefaultVideoStreamInfo;
+  larger_sdr_info.frame_size = {3840, 2160};
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      100'000'000, 1024, &larger_sdr_info, /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {
+  CreateDecoder();
+
+  int eos_frame_count = 0;
+  VideoDecoder::Status received_status = VideoDecoder::kNeedMoreInput;
+  bool eos_delivered_before_render = false;
+
+  on_render_cb_ = [&]() {
+    eos_delivered_before_render = (eos_frame_count == 1);
+  };
+
+  decoder_->Initialize(
+      [&](VideoDecoder::Status status, const scoped_refptr<VideoFrame>& frame) {
+        if (frame && frame->is_end_of_stream()) {
+          eos_frame_count++;
+          received_status = status;
+        }
+      },
+      [](SbPlayerError error, const std::string& msg) {});
+
+  decoder_->WriteEndOfStream();
+
+  EXPECT_EQ(eos_frame_count, 1);
+  EXPECT_EQ(received_status, VideoDecoder::kBufferFull);
+  {
+    std::lock_guard lock(callback_mutex_);
+    EXPECT_EQ(render_count_, 1);
+  }
+  EXPECT_TRUE(eos_delivered_before_render);
+
+  // A duplicate WriteEndOfStream() call should be ignored.
+  decoder_->WriteEndOfStream();
+  EXPECT_EQ(eos_frame_count, 1);
+  {
+    std::lock_guard lock(callback_mutex_);
+    EXPECT_EQ(render_count_, 1);
   }
 }
 

@@ -16,6 +16,7 @@
 
 #include <string_view>
 
+#include "base/check.h"
 #include "base/command_line.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -27,6 +28,7 @@ namespace {
 
 constexpr int64_t kFirstDisplayId = 1;
 constexpr float kDefaultDeviceScaleFactor = 1.f;
+PlatformScreenStarboard* g_instance = nullptr;
 
 namespace switches {
 // NOTE: This is a redefinition of the same shell switch declared in:
@@ -61,9 +63,21 @@ gfx::Rect GetWindowSizeFromCommandLine() {
 
 }  // namespace
 
-PlatformScreenStarboard::PlatformScreenStarboard() {}
+PlatformScreenStarboard::PlatformScreenStarboard() {
+  DCHECK(!g_instance);
+  g_instance = this;
+}
 
-PlatformScreenStarboard::~PlatformScreenStarboard() = default;
+PlatformScreenStarboard::~PlatformScreenStarboard() {
+  if (g_instance == this) {
+    g_instance = nullptr;
+  }
+}
+
+// static
+PlatformScreenStarboard* PlatformScreenStarboard::GetInstance() {
+  return g_instance;
+}
 
 void PlatformScreenStarboard::InitScreen() {
   display::Display display(kFirstDisplayId);
@@ -78,6 +92,19 @@ void PlatformScreenStarboard::InitScreen() {
   // is a fullscreen application and we expect these to be identical.
   display.SetScaleAndBounds(scale_factor, window_size);
   display_list_.AddDisplay(display, display::DisplayList::Type::PRIMARY);
+}
+
+void PlatformScreenStarboard::UpdateDisplayBounds(const gfx::Rect& bounds) {
+  // Ignore empty bounds or calls prior to InitScreen() populating displays.
+  if (bounds.IsEmpty() || display_list_.displays().empty()) {
+    return;
+  }
+  // Synchronize the primary display bounds with the Starboard window bounds.
+  display::Display display = GetPrimaryDisplay();
+  if (display.bounds() != bounds) {
+    display.SetScaleAndBounds(display.device_scale_factor(), bounds);
+    display_list_.UpdateDisplay(display, display::DisplayList::Type::PRIMARY);
+  }
 }
 
 const std::vector<display::Display>& PlatformScreenStarboard::GetAllDisplays()

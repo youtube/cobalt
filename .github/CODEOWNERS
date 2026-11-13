@@ -1,3 +1,13 @@
+/.github/ @youtube/cobalt-ci-owners
+/.pre-commit-config.yaml @youtube/cobalt-ci-owners
+/cobalt/build/*.py @youtube/cobalt-ci-owners
+/cobalt/build/**/*.py @youtube/cobalt-ci-owners
+/cobalt/build/testing/ @youtube/cobalt-ci-owners
+/cobalt/devinfra/ @youtube/cobalt-ci-owners
+/cobalt/docker/ @youtube/cobalt-ci-owners
+/cobalt/precommit/ @youtube/cobalt-ci-owners
+/docker-compose.yaml @youtube/cobalt-ci-owners
+
 # Set owners for the CODEOWNERS file itself.
 /.github/CODEOWNERS @youtube/cobalt-starboard-owners
 
@@ -19,7 +29,6 @@
 /starboard/elf_loader                      @youtube/cobalt-starboard-owners
 /starboard/loader_app                      @youtube/cobalt-starboard-owners
 /starboard/common                          @youtube/cobalt-starboard-owners
-/starboard/common/experimental/            # no owners
 /components/viz/service/display/starboard/ @youtube/cobalt-starboard-owners
 /ui/ozone/platform/starboard/              @youtube/cobalt-starboard-owners
 
@@ -30,9 +39,11 @@
 
 /cobalt/build/gn.py @youtube/cobalt-build
 
-/third_party/blink/ @youtube/cobalt-web-api
 # media team runs experiments through h5vcc settings.
-/third_party/blink/renderer/modules/cobalt/h5vcc_settings/ @youtube/cobalt-web-api @youtube/cobalt-media
+/third_party/blink/renderer/modules/cobalt/h5vcc_settings/ @youtube/cobalt-media
+
+*.idl   @youtube/cobalt-web-api
+*.mojom @youtube/cobalt-web-api
 
 *.nplb_filter.json @youtube/nplb-filters
 /starboard/contrib/rdk @youtube/starboard-rdk-owners

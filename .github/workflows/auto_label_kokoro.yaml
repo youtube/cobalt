@@ -1,26 +1,17 @@
-# Disable dangerous-triggers rule because this workflow uses pull_request_target
-# strictly to edit PR labels (pull-requests: write) without checking out or executing
-# untrusted code from PR branches.
-# actionlint: disable dangerous-triggers
+# Requests the tvOS Kokoro build by labeling the PR from the tvOS Impact
+# result. workflow_run runs this file from the default branch with a write
+# token, and it never checks out or runs PR code.
 name: Auto Label Kokoro
 
-on: # zizmor: ignore[dangerous-triggers]
-  pull_request_target:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
-    branches:
-      - main
-      - staging
-      - autoroll-chromium/main-to-staging
-      - experimental/*
-      - 'stack/**'
+# tvos.yaml looks up this run by name.
+run-name: Auto Label Kokoro (tvOS Impact run ${{ github.event.workflow_run.id }})
 
-concurrency:
-  group: '${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}'
-  cancel-in-progress: true
+on: # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows:
+      - tvOS Impact
+    types:
+      - completed
 
 permissions:
   contents: read
@@ -29,30 +20,51 @@ jobs:
   label-kokoro-run:
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       pull-requests: write
-    if: github.event.pull_request.draft == false
     steps:
-      - name: Apply kokoro:run label to PR for collaborators/committers
-        env:
+      - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
-          AUTHOR_ASSOC: ${{ github.event.pull_request.author_association }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          echo "Author '${PR_AUTHOR}' association: ${AUTHOR_ASSOC}"
-
-          PERMISSION=$(gh api "repos/${REPO}/collaborators/${PR_AUTHOR}/permission" --jq '.permission' 2>/dev/null || echo "none")
-          echo "Author '${PR_AUTHOR}' permission: ${PERMISSION}"
-
-          if [[ "${AUTHOR_ASSOC}" == "OWNER" || "${AUTHOR_ASSOC}" == "MEMBER" || "${AUTHOR_ASSOC}" == "COLLABORATOR" || "${PERMISSION}" == "admin" || "${PERMISSION}" == "write" ]]; then
-            if ! echo "$PR_LABELS" | jq -e '.[] | select(.name == "kokoro:run")' > /dev/null; then
-              echo "Author is a collaborator/committer. Applying kokoro:run label..."
-              gh pr edit "$PR_URL" --add-label "kokoro:run"
-            else
-              echo "kokoro:run label is already present."
-            fi
-          else
-            echo "Author '${PR_AUTHOR}' (assoc: '${AUTHOR_ASSOC}', perm: '${PERMISSION}') is not a committer. Skipping auto-labeling."
+          # A missing result means the tvOS Impact run was cancelled. Fail, so
+          # the tvOS check fails too, unless the PR has a newer commit.
+          dir="${RUNNER_TEMP}/tvos_impact"
+          if ! gh run download "${RUN_ID}" --repo "${REPO}" --name tvos-impact --dir "${dir}"; then
+            echo "::error::No result: tvOS Impact run ${RUN_ID} was cancelled."
+            exit 1
           fi
+
+          # The result comes from a run of PR code. Only accept a PR whose
+          # head is the analyzed commit, and treat anything but false as true.
+          pr_number=$(head -c 32 "${dir}/pr_number" | tr -d '[:space:]')
+          affects_tvos=$(head -c 32 "${dir}/affects_tvos" | tr -d '[:space:]')
+          [[ "${pr_number}" =~ ^[0-9]+$ ]] || { echo "::error::Invalid PR number."; exit 1; }
+
+          pr=$(gh api "repos/${REPO}/pulls/${pr_number}")
+          if [[ "$(jq -r .head.sha <<< "${pr}")" != "${HEAD_SHA}" ]]; then
+            echo "PR #${pr_number} head isn't ${HEAD_SHA}."
+            exit 0
+          fi
+          if [[ "$(jq -r '.state == "open" and .draft == false' <<< "${pr}")" != "true" ]]; then
+            echo "PR #${pr_number} is closed or a draft."
+            exit 0
+          fi
+
+          author=$(jq -r .user.login <<< "${pr}")
+          assoc=$(jq -r .author_association <<< "${pr}")
+          permission=$(gh api "repos/${REPO}/collaborators/${author}/permission" --jq .permission || echo none)
+          echo "${author}: association ${assoc}, permission ${permission}"
+          if [[ ! "${assoc}" =~ ^(OWNER|MEMBER|COLLABORATOR)$ && ! "${permission}" =~ ^(admin|write)$ ]]; then
+            echo "Not a committer."
+            exit 0
+          fi
+
+          if [[ "${affects_tvos}" == "false" ]]; then
+            echo "PR #${pr_number} doesn't affect tvOS."
+            exit 0
+          fi
+          [[ "${affects_tvos}" == "true" ]] || echo "tvOS Impact analysis didn't finish. Labeling anyway."
+          gh pr edit "${pr_number}" --repo "${REPO}" --add-label kokoro:run

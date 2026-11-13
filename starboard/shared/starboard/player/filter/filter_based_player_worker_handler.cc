@@ -99,7 +99,8 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
       max_video_input_size_, experimental_features_, surface_view_,
-      decode_target_graphics_context_provider_, job_queue, drm_system_);
+      decode_target_graphics_context_provider_, job_queue, drm_system_,
+      max_video_resolution_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -120,7 +121,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
     SB_DCHECK(video_renderer_);
   }
-  SB_DCHECK(media_time_provider_);
+  SB_CHECK(media_time_provider_);
 
   if (audio_renderer_) {
     SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
@@ -379,6 +380,13 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   SB_LOG(INFO) << "Set max_video_input_size from " << max_video_input_size_
                << " to " << max_video_input_size;
   max_video_input_size_ = max_video_input_size;
+}
+
+void FilterBasedPlayerWorkerHandler::SetMaxVideoResolution(
+    const std::string& max_video_resolution) {
+  SB_LOG(INFO) << "Set max_video_resolution from \"" << max_video_resolution_
+               << "\" to \"" << max_video_resolution << "\"";
+  max_video_resolution_ = max_video_resolution;
 }
 
 void FilterBasedPlayerWorkerHandler::SetExperimentalFeatures(

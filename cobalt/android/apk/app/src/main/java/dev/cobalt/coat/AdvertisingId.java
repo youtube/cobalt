@@ -16,7 +16,10 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
+import android.content.ContentResolver;
 import android.content.Context;
+import android.provider.Settings;
+import android.text.TextUtils;
 import androidx.annotation.GuardedBy;
 import com.google.android.gms.ads.identifier.AdvertisingIdClient;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
@@ -61,9 +64,34 @@ public class AdvertisingId {
           } catch (IOException
               | GooglePlayServicesNotAvailableException
               | GooglePlayServicesRepairableException e) {
-            Log.e(TAG, "Failed to retrieve Advertising ID (IfA).");
+            AdvertisingIdClient.Info info = getAdvertisingIdInfoFromSettings();
+            if (info == null) {
+              Log.e(TAG, "Failed to retrieve Advertising ID (IfA).");
+              return;
+            }
+            synchronized (mAdvertisingIdInfoLock) {
+              mAdvertisingIdInfo = info;
+            }
+            Log.i(TAG, "Retrieved Advertising ID (IfA) from system settings.");
           }
         });
+  }
+
+  // Devices without Google Play Services can publish the IfA in secure settings instead.
+  private AdvertisingIdClient.Info getAdvertisingIdInfoFromSettings() {
+    ContentResolver resolver = mContext.getContentResolver();
+    try {
+      String id = Settings.Secure.getString(resolver, "advertising_id");
+      if (TextUtils.isEmpty(id)) {
+        return null;
+      }
+      boolean limitAdTracking = Settings.Secure.getInt(resolver, "limit_ad_tracking", 0) != 0;
+      return new AdvertisingIdClient.Info(id, limitAdTracking);
+    } catch (SecurityException e) {
+      // The device may not let apps read these settings.
+      Log.w(TAG, "Failed to read Advertising ID (IfA) from system settings.", e);
+      return null;
+    }
   }
 
   public String getId() {

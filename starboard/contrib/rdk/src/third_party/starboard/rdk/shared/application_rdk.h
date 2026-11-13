@@ -83,8 +83,6 @@ class ApplicationRdk : public QueueApplication {
   void Initialize() override;
   void Teardown() override;
   void Inject(Event* e) override;
-  void OnSuspend() override;
-  void OnResume() override;
 
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() override;

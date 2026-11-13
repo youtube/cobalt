@@ -164,7 +164,7 @@ int RendererMain(MainFunctionParams parameters) {
   base::apple::ScopedNSAutoreleasePool* pool = parameters.autorelease_pool;
 #endif  // BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || (BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID))
   // As the Zygote process starts up earlier than the browser process, it gets
   // its own locale (at login time for Chrome OS). So we have to set the ICU
   // default locale for the renderer process here.
@@ -175,6 +175,7 @@ int RendererMain(MainFunctionParams parameters) {
     base::i18n::SetICUDefaultLocale(locale);
   }
 
+#if BUILDFLAG(IS_CHROMEOS)
   // When we start the renderer on ChromeOS if the system has core scheduling
   // available we want to turn it on.
   chromeos::system::EnableCoreSchedulingIfAvailable();
@@ -191,6 +192,8 @@ int RendererMain(MainFunctionParams parameters) {
   }
 #endif  // defined(ARCH_CPU_X86_64)
 #endif  // BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_CHROMEOS) || (BUILDFLAG(IS_COBALT) &&
+        // BUILDFLAG(IS_ANDROID))
 
   InitializeSkia();
 

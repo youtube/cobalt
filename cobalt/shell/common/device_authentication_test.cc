@@ -14,13 +14,15 @@
 
 #include "cobalt/shell/common/device_authentication.h"
 
+#include <array>
+
 #include "base/base64.h"
 #include "base/base64url.h"
+#include "crypto/hash.h"
+#include "crypto/hmac.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace content {
-
-constexpr size_t kSHA256DigestSize = 32;
 
 namespace {
 
@@ -34,16 +36,18 @@ std::string ToBase64Message(const std::string& cert_scope,
 std::string ComputeBase64URLSignatureFromBase64Message(
     const std::string& base64_message,
     const std::string& base64_secret_key) {
-  uint8_t signature[kSHA256DigestSize];
+  const auto decoded_message = base::Base64Decode(base64_message);
+  CHECK(decoded_message.has_value());
+  const auto decoded_key = base::Base64Decode(base64_secret_key);
+  CHECK(decoded_key.has_value());
 
-  std::string message;
-  CHECK(base::Base64Decode(base64_message, &message));
-  ComputeHMACSHA256SignatureWithProvidedKey(message, base64_secret_key,
-                                            signature, kSHA256DigestSize);
+  // This is a replacement for ComputeSignatureFromSignAPI() in
+  // device_authentication.cc.
+  const std::array<uint8_t, crypto::hash::kSha256Size> signature =
+      crypto::hmac::SignSha256(*decoded_key, *decoded_message);
 
   std::string base_64_url_signature;
-  base::Base64UrlEncode(std::string(signature, signature + kSHA256DigestSize),
-                        base::Base64UrlEncodePolicy::OMIT_PADDING,
+  base::Base64UrlEncode(signature, base::Base64UrlEncodePolicy::OMIT_PADDING,
                         &base_64_url_signature);
   return base_64_url_signature;
 }

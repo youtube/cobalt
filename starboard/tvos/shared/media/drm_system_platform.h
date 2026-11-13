@@ -16,7 +16,9 @@
 #define STARBOARD_TVOS_SHARED_MEDIA_DRM_SYSTEM_PLATFORM_H_
 
 #import <AVFoundation/AVFoundation.h>
+#include <stdint.h>
 
+#include "starboard/common/span.h"
 #include "starboard/drm.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
@@ -43,15 +45,15 @@ class DrmSystemPlatform : public SbDrmSystemPrivate {
   void GenerateSessionUpdateRequest(
       int ticket,
       std::string_view type,
-      std::string_view initialization_data) override = 0;
+      span<const uint8_t> initialization_data) override = 0;
   void UpdateSession(int ticket,
-                     std::string_view key,
+                     span<const uint8_t> key,
                      std::string_view session_id) override = 0;
   void CloseSession(std::string_view session_id) override = 0;
   DecryptStatus Decrypt(InputBuffer* buffer) override = 0;
   bool IsServerCertificateUpdatable() override = 0;
   void UpdateServerCertificate(int ticket,
-                               std::string_view certificate) override = 0;
+                               span<const uint8_t> certificate) override = 0;
   std::optional<std::string_view> GetMetrics() override = 0;
 
   virtual AVContentKey* GetContentKey(const uint8_t* key_id, int key_id_size)

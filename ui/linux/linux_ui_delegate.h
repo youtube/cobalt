@@ -10,10 +10,15 @@
 
 #include "base/component_export.h"
 #include "base/functional/callback_forward.h"
+#include "build/build_config.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "ui/gfx/native_widget_types.h"  // nogncheck
+#else
 namespace gfx {
 using AcceleratedWidget = uint32_t;
 }
+#endif
 
 namespace ui {
 
@@ -34,7 +39,11 @@ class COMPONENT_EXPORT(LINUX_UI) LinuxUiDelegate {
 
   // Only implemented on Wayland.
   virtual bool ExportWindowHandle(
+#if BUILDFLAG(IS_COBALT)
+      gfx::AcceleratedWidget parent_widget,
+#else
       uint32_t parent_widget,
+#endif
       base::OnceCallback<void(const std::string&)> callback);
 
   // Only implemented on X11.

@@ -304,6 +304,116 @@ TEST_F(BoxReaderTest, SkippingUuid) {
   TestTopLevelBox(kData, sizeof(kData), FOURCC_UUID);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderPartialData) {
+  // 1 MB MDAT box where only the 8-byte header is present in the buffer
+  static const uint8_t kMdatHeaderOnly[] = {
+      0x00, 0x10, 0x00, 0x00,  // box size = 1,048,576 bytes
+      'm',  'd',  'a',  't',
+  };
+
+  FourCC type;
+  size_t box_size = 0;
+  // StartTopLevelBox fails because payload is missing
+  EXPECT_EQ(
+      ParseResult::kNeedMoreData,
+      BoxReader::StartTopLevelBox(kMdatHeaderOnly, sizeof(kMdatHeaderOnly),
+                                  &media_log_, &type, &box_size));
+
+  // ReadTopLevelBoxHeader succeeds because header itself is complete
+  EXPECT_EQ(ParseResult::kOk, BoxReader::ReadTopLevelBoxHeader(
+                                  kMdatHeaderOnly, sizeof(kMdatHeaderOnly),
+                                  &media_log_, &type, &box_size));
+  EXPECT_EQ(FOURCC_MDAT, type);
+  EXPECT_EQ(1048576u, box_size);
+
+  // Incomplete header (< 8 bytes) returns kNeedMoreData
+  EXPECT_EQ(ParseResult::kNeedMoreData,
+            BoxReader::ReadTopLevelBoxHeader(kMdatHeaderOnly, 7, &media_log_,
+                                             &type, &box_size));
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderLargeSize) {
+  static const uint8_t kHeader[] = {
+      0x00, 0x00, 0x00, 0x01,  // size = 1, i.e. a 64-bit largesize follows
+      'm',  'd',  'a',  't',   // type
+      0x00, 0x00, 0x00, 0x00,  // largesize, high 32 bits
+      0x00, 0x10, 0x00, 0x00,  // largesize, low 32 bits = 1,048,576 bytes
+  };
+
+  FourCC type;
+  size_t box_size = 0;
+  for (size_t size = 8; size < sizeof(kHeader); ++size) {
+    EXPECT_EQ(ParseResult::kNeedMoreData,
+              BoxReader::ReadTopLevelBoxHeader(kHeader, size, &media_log_,
+                                               &type, &box_size))
+        << "size " << size;
+  }
+
+  EXPECT_EQ(ParseResult::kOk,
+            BoxReader::ReadTopLevelBoxHeader(kHeader, sizeof(kHeader),
+                                             &media_log_, &type, &box_size));
+  EXPECT_EQ(FOURCC_MDAT, type);
+  EXPECT_EQ(1048576u, box_size);
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderSizeZeroIsError) {
+  static const uint8_t kHeader[] = {0x00, 0x00, 0x00, 0x00, 'm', 'd', 'a', 't'};
+
+  EXPECT_MEDIA_LOG(HasSubstr("run to EOS are not supported"));
+  FourCC type;
+  size_t box_size = 0;
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kHeader, sizeof(kHeader),
+                                             &media_log_, &type, &box_size));
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderSizeSmallerThanHeaderIsError) {
+  static const uint8_t kShort[] = {0x00, 0x00, 0x00, 0x04, 'm', 'd', 'a', 't'};
+  static const uint8_t kShortLarge[] = {
+      0x00, 0x00, 0x00, 0x01, 'm',  'd',  'a',  't',
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c,  // largesize = 12
+  };
+
+  FourCC type;
+  size_t box_size = 0;
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kShort, sizeof(kShort),
+                                             &media_log_, &type, &box_size));
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kShortLarge, sizeof(kShortLarge),
+                                             &media_log_, &type, &box_size));
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderSizeAboveInt32MaxIsError) {
+  static const uint8_t kHuge[] = {0xff, 0xff, 0xff, 0xff, 'm', 'd', 'a', 't'};
+  static const uint8_t kHugeLarge[] = {
+      0x00, 0x00, 0x00, 0x01, 'm',  'd',  'a',  't',
+      0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00,  // largesize = 2^31
+  };
+
+  FourCC type;
+  size_t box_size = 0;
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kHuge, sizeof(kHuge), &media_log_,
+                                             &type, &box_size));
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kHugeLarge, sizeof(kHugeLarge),
+                                             &media_log_, &type, &box_size));
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderInvalidTypeIsError) {
+  static const uint8_t kHeader[] = {0x00, 0x00, 0x00, 0x10, 'D', 'A', 'L', 'E'};
+
+  EXPECT_MEDIA_LOG(HasSubstr("Invalid top-level ISO BMFF box type DALE"));
+  FourCC type;
+  size_t box_size = 0;
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kHeader, sizeof(kHeader),
+                                             &media_log_, &type, &box_size));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 TEST_F(BoxReaderTest, NestedBoxWithHugeSize) {
   // This data is not a valid 'emsg' box. It is just used as a top-level box
   // as ReadTopLevelBox() has a restricted set of boxes it allows. |kData|

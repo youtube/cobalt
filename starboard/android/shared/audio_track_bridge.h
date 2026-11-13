@@ -60,12 +60,12 @@ class AudioTrackBridge : public AudioTrack {
 
   // Returns zero or the positive number of samples written, or a negative error
   // code.
-  int WriteSample(Span<const float> samples) override;
-  int WriteSample(Span<const uint16_t> samples, int64_t sync_time) override;
+  int WriteSample(span<const float> samples) override;
+  int WriteSample(span<const uint16_t> samples, int64_t sync_time) override;
   // This is used by passthrough, it treats samples as if they are in bytes.
   // Returns zero or the positive number of samples written, or a negative error
   // code.
-  int WriteSample(Span<const uint8_t> buffer, int64_t sync_time) override;
+  int WriteSample(span<const uint8_t> buffer, int64_t sync_time) override;
 
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;

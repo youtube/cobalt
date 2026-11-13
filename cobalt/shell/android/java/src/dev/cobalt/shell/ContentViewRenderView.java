@@ -9,8 +9,11 @@ import static dev.cobalt.shell.Shell.TAG;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PixelFormat;
+import android.os.Build;
+import android.view.AttachedSurfaceControl;
 import android.view.MotionEvent;
 import android.view.Surface;
+import android.view.SurfaceControl;
 import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.Window;
@@ -81,6 +84,7 @@ public class ContentViewRenderView extends FrameLayout {
                     width,
                     height,
                     holder.getSurface(),
+                    mSurfaceBridge.getSurfaceControl(),
                     /* hostInputToken= */ null);
             if (mWebContents != null) {
               ContentViewRenderViewJni.get()
@@ -200,6 +204,7 @@ public class ContentViewRenderView extends FrameLayout {
   private static class WindowSurfaceBridge {
     private Window mWindow;
     private SurfaceHolder mWindowSurfaceHolder;
+    private SurfaceControl mSurfaceControl;
 
     /**
      * The pending PixelFormat (e.g. TRANSLUCENT for overlay video mode, OPAQUE for normal).
@@ -218,6 +223,70 @@ public class ContentViewRenderView extends FrameLayout {
       }
       Activity activity = windowAndroid.getActivity().get();
       return activity != null ? activity.getWindow() : null;
+    }
+
+    private void ensureSurfaceControl() {
+      if (mSurfaceControl != null || mWindow == null) {
+        return;
+      }
+      // Native can only use a Java SurfaceControl on Android 14+
+      // (ASurfaceControl_fromJava).
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        return;
+      }
+      // Only create the SurfaceControl if native will use it (see
+      // CompositorImpl::SetSurface()); otherwise it would leave an unused, empty
+      // layer attached to the window.
+      if (!ContentViewRenderViewJni.get().shouldUseWindowSurfaceControl()) {
+        return;
+      }
+
+      AttachedSurfaceControl rootSurfaceControl = mWindow.getRootSurfaceControl();
+      if (rootSurfaceControl == null && mWindow.peekDecorView() != null) {
+        rootSurfaceControl = mWindow.peekDecorView().getRootSurfaceControl();
+      }
+      if (rootSurfaceControl == null) {
+        Log.w(TAG, "ContentViewRenderView: AttachedSurfaceControl rootSurfaceControl is null");
+        return;
+      }
+
+      SurfaceControl surfaceControl =
+          new SurfaceControl.Builder().setName("CobaltWindowSurfaceControl").build();
+      try (SurfaceControl.Transaction transaction =
+          rootSurfaceControl.buildReparentTransaction(surfaceControl)) {
+        if (transaction == null) {
+          Log.w(TAG, "ContentViewRenderView: buildReparentTransaction returned null");
+          surfaceControl.release();
+          return;
+        }
+
+        transaction.setVisibility(surfaceControl, true).apply();
+      }
+      mSurfaceControl = surfaceControl;
+    }
+
+    /**
+     * Releases the window SurfaceControl.
+     *
+     * @param detachFromWindow Whether to also reparent it away from the window. Pass false when the
+     *     window surface is being destroyed: the window layer is destroyed together with its
+     *     children, and detaching early would defeat PreserveChildSurfaceControls() (b/157439199).
+     */
+    private void releaseSurfaceControl(boolean detachFromWindow) {
+      if (mSurfaceControl == null) {
+        return;
+      }
+
+      try {
+        if (detachFromWindow) {
+          try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
+            transaction.reparent(mSurfaceControl, null).apply();
+          }
+        }
+      } finally {
+        mSurfaceControl.release();
+        mSurfaceControl = null;
+      }
     }
 
     private void registerStartupListener() {
@@ -292,11 +361,11 @@ public class ContentViewRenderView extends FrameLayout {
               mWindowSurfaceHolder = null;
               mPendingTasks.clear();
 
-              if (!mIsSurfaceCreatedDispatched) {
-                return;
+              if (mIsSurfaceCreatedDispatched) {
+                mIsSurfaceCreatedDispatched = false;
+                surfaceCallback.surfaceDestroyed(holder);
               }
-              mIsSurfaceCreatedDispatched = false;
-              surfaceCallback.surfaceDestroyed(holder);
+              releaseSurfaceControl(/* detachFromWindow= */ false);
             }
 
             @Override
@@ -309,6 +378,7 @@ public class ContentViewRenderView extends FrameLayout {
 
             private void handleSurfaceCreated(SurfaceHolder holder) {
               Log.i(TAG, "ContentViewRenderView: Surface created");
+              ensureSurfaceControl();
               applyPendingSurfaceFormat();
               surfaceCallback.surfaceCreated(holder);
               mIsSurfaceCreatedDispatched = true;
@@ -322,11 +392,16 @@ public class ContentViewRenderView extends FrameLayout {
       } else {
         Log.w(TAG, "ContentViewRenderView: disconnect() is called w/o connect().");
       }
+      releaseSurfaceControl(/* detachFromWindow= */ true);
       mWindow = null;
       mWindowSurfaceHolder = null;
       mPendingSurfaceFormat = null;
       mPendingTasks.clear();
       mIsSurfaceCreatedDispatched = false;
+    }
+
+    private SurfaceControl getSurfaceControl() {
+      return mSurfaceControl;
     }
 
     private void setFormat(int format) {
@@ -409,9 +484,12 @@ public class ContentViewRenderView extends FrameLayout {
         int width,
         int height,
         Surface surface,
+        SurfaceControl surfaceControl,
         Object hostInputToken);
 
     void setOverlayVideoMode(
         long nativeContentViewRenderView, ContentViewRenderView caller, boolean enabled);
+
+    boolean shouldUseWindowSurfaceControl();
   }
 }

@@ -26,6 +26,10 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/latency/latency_info.h"
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/timer/timer.h"
+#endif
+
 class SkColorFilter;
 
 namespace viz {
@@ -545,6 +549,11 @@ class VIZ_SERVICE_EXPORT SkiaRenderer : public DirectRenderer {
   // Used to get mailboxes for the root render pass when
   // capabilities().renderer_allocates_images = true.
   std::unique_ptr<BufferQueue> buffer_queue_;
+
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  void DestroyPrimaryPlaneBuffers();
+  base::OneShotTimer destroy_buffers_timer_;
+#endif
 
 #if BUILDFLAG(ENABLE_VULKAN) && BUILDFLAG(IS_CHROMEOS) && \
     BUILDFLAG(USE_V4L2_CODEC)

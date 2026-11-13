@@ -31,6 +31,7 @@ static_library("test_support") {
     ":starboard_platform",
     "//base",
     "//base/test:test_support",
+    "//starboard/shared/starboard:features_test_util",
   ]
 
   sources = [
@@ -232,6 +233,7 @@ static_library("starboard_platform") {
     sources += internal_tvos_sources
 
     deps += [
+      "//cobalt/internal/third_party/platform_drm:headers",
       "//starboard/shared/widevine:oemcrypto",
       "//third_party/internal/ce_cdm/cdm:widevine_cdm_core",
       "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
@@ -253,4 +255,20 @@ static_library("starboard_platform") {
   if (use_starboard_media) {
     defines = [ "USE_STARBOARD_MEDIA" ]
   }
+}
+
+source_set("starboard_platform_tests") {
+  testonly = true
+
+  sources = [ "media_is_video_supported_test.cc" ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  deps = [
+    ":starboard_platform",
+    "//starboard/shared/starboard:feature_list",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/testing:scoped_feature_list",
+    "//testing/gtest",
+  ]
 }

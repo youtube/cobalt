@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -27,12 +28,15 @@
 #include "ui/events/platform/platform_event_source.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
+#include "ui/ozone/platform/starboard/platform_screen_starboard.h"
 
 #if BUILDFLAG(IS_COBALT)
 
 namespace ui {
 
 namespace {
+constexpr char kContentShellHostWindowSize[] = "content-shell-host-window-size";
+
 std::unique_ptr<PlatformWindowStarboard::WindowCreatedCallback>
     g_created_callback =
         std::make_unique<PlatformWindowStarboard::WindowCreatedCallback>(
@@ -138,6 +142,11 @@ void PlatformWindowStarboard::SetBoundsInPixels(const gfx::Rect& bounds) {
   // changes the bounds.
   bool origin_changed = bounds_.origin() != bounds.origin();
   bounds_ = bounds;
+  // Keep the primary display bounds in PlatformScreenStarboard synchronized
+  // with any PlatformWindow bounds update.
+  if (PlatformScreenStarboard::GetInstance()) {
+    PlatformScreenStarboard::GetInstance()->UpdateDisplayBounds(bounds_);
+  }
   delegate_->OnBoundsChanged({origin_changed});
 }
 
@@ -154,33 +163,10 @@ gfx::Rect PlatformWindowStarboard::GetBoundsInDIP() const {
 }
 
 void PlatformWindowStarboard::Show(bool inactive) {
-  if (!SbWindowIsValid(sb_window_)) {
-    SbWindowOptions options{};
-    SbWindowSetDefaultOptions(&options);
-    options.size.width = bounds_.width();
-    options.size.height = bounds_.height();
-
-    sb_window_ = SbWindowCreate(&options);
-    CHECK(SbWindowIsValid(sb_window_));
-
-    SbWindowSize size{};
-    if (SbWindowGetSize(sb_window_, &size)) {
-      bounds_ = gfx::Rect(bounds_.x(), bounds_.y(), size.width, size.height);
-    } else {
-      LOG(WARNING)
-          << "PlatformWindowStarboard::Show(): SbWindowGetSize failed.";
-    }
-
-    (*g_created_callback).Run(sb_window_);
+  if (!CreateSbWindow(/*notify_bounds_changed=*/false)) {
+    return;
   }
-
-  if (!widget_available_) {
-    widget_available_ = true;
-
-    intptr_t handle =
-        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_));
-    delegate_->OnAcceleratedWidgetAvailable(handle);
-  }
+  EnsureAcceleratedWidgetAvailable();
 }
 
 void PlatformWindowStarboard::Hide() {
@@ -248,31 +234,64 @@ void PlatformWindowStarboard::DestroySbWindowInstance() {
 }
 
 void PlatformWindowStarboard::Restore() {
-  if (!SbWindowIsValid(sb_window_)) {
-    SbWindowOptions options{};
-    SbWindowSetDefaultOptions(&options);
-    options.size.width = bounds_.width();
-    options.size.height = bounds_.height();
+  if (!CreateSbWindow(/*notify_bounds_changed=*/true)) {
+    return;
+  }
+  EnsureAcceleratedWidgetAvailable();
+}
 
-    sb_window_ = SbWindowCreate(&options);
-    CHECK(SbWindowIsValid(sb_window_));
-
-    SbWindowSize size{};
-    if (SbWindowGetSize(sb_window_, &size)) {
-      bounds_ = gfx::Rect(bounds_.x(), bounds_.y(), size.width, size.height);
-    } else {
-      LOG(WARNING)
-          << "PlatformWindowStarboard::Restore(): SbWindowGetSize failed.";
-    }
-
-    (*g_created_callback).Run(sb_window_);
+bool PlatformWindowStarboard::CreateSbWindow(bool notify_bounds_changed) {
+  if (SbWindowIsValid(sb_window_)) {
+    return true;
   }
 
+  SbWindowOptions options{};
+  SbWindowSetDefaultOptions(&options);
+  // Only request an explicit SbWindow size when overridden via --window-size
+  // (translated to --content-shell-host-window-size) on the command line.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          kContentShellHostWindowSize)) {
+    options.size.width = bounds_.width();
+    options.size.height = bounds_.height();
+  }
+
+  sb_window_ = SbWindowCreate(&options);
+  if (!SbWindowIsValid(sb_window_)) {
+    // The platform can lose its surface while Cobalt starts or reveals, for
+    // example when the app goes to the background. Leave the accelerated
+    // widget unavailable until a later Restore() creates the window.
+    LOG(WARNING) << "PlatformWindowStarboard: SbWindowCreate failed.";
+    return false;
+  }
+
+  // Query the actual native window dimensions from Starboard and update both
+  // the window bounds and primary screen display bounds.
+  SbWindowSize size{};
+  if (SbWindowGetSize(sb_window_, &size)) {
+    gfx::Rect new_bounds(bounds_.x(), bounds_.y(), size.width, size.height);
+    bool bounds_changed = bounds_ != new_bounds;
+    bounds_ = new_bounds;
+    if (PlatformScreenStarboard::GetInstance()) {
+      PlatformScreenStarboard::GetInstance()->UpdateDisplayBounds(bounds_);
+    }
+    if (notify_bounds_changed && bounds_changed) {
+      delegate_->OnBoundsChanged({/*origin_changed=*/false});
+    }
+  } else {
+    LOG(WARNING)
+        << "PlatformWindowStarboard::CreateSbWindow(): SbWindowGetSize failed.";
+  }
+
+  (*g_created_callback).Run(sb_window_);
+  return true;
+}
+
+void PlatformWindowStarboard::EnsureAcceleratedWidgetAvailable() {
   if (!widget_available_) {
     widget_available_ = true;
 
-    intptr_t handle =
-        reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_));
+    gfx::AcceleratedWidget handle = reinterpret_cast<gfx::AcceleratedWidget>(
+        SbWindowGetPlatformHandle(sb_window_));
     delegate_->OnAcceleratedWidgetAvailable(handle);
   }
 }

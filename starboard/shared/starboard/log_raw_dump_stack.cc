@@ -35,8 +35,11 @@ void SbLogRawDumpStack(int frames_to_skip) {
   for (int i = 1 + frames_to_skip; i < count; ++i) {
     char symbol[512];
     void* address = stack[i];
+    // Subtract one as return address of function may be in the next function
+    // when a function is annotated as noreturn.
+    const void* symbol_address = static_cast<const char*>(stack[i]) - 1;
     bool result =
-        SbSystemSymbolize(stack[i], symbol, SB_ARRAY_SIZE_INT(symbol));
+        SbSystemSymbolize(symbol_address, symbol, SB_ARRAY_SIZE_INT(symbol));
 #if BUILDFLAG(IS_STARBOARD)
     if (!result && valid_evergreen_info &&
         IS_EVERGREEN_ADDRESS(stack[i], evergreen_info)) {

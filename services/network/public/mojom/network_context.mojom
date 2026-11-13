@@ -636,6 +636,14 @@ struct NetworkContextParams {
   // Modifies the default value of the QUIC connection timeout, this value
   // gets applied while constructing NetworkContext by updating the quic_params.
   int64? quic_idle_connection_timeout_seconds;
+
+  // Extra request headers (e.g. Cobalt's Sec-CH-UA-Co-* client hints) that the
+  // network service adds to every request made through a URLLoader of this
+  // context, including each redirect hop. This avoids the per-request round
+  // trips to the browser that a TrustedHeaderClient would need. The headers
+  // are fixed for the lifetime of the context.
+  [EnableIf=is_cobalt]
+  map<string, string> cobalt_extra_request_headers;
 };
 
 struct NetworkConditions {
@@ -1780,4 +1788,12 @@ interface NetworkContext {
   [AllowedContext=sandbox.mojom.Context.kBrowser]
   GetDeviceBoundSessionManager(
       pending_receiver<DeviceBoundSessionManager> device_bound_session_manager);
+
+  // Writes HttpServerProperties to disk now instead of waiting for its
+  // write-coalescing timer, so recent server hints survive the process being
+  // killed without running the NetworkContext destructor. The reply is sent
+  // once the write has been committed; `flushed` is true if an update was
+  // pending (that is, it would otherwise have waited for the timer).
+  [EnableIf=is_cobalt]
+  FlushHttpServerProperties() => (bool flushed);
 };

@@ -14,13 +14,18 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include "base/barrier_closure.h"
+#include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/synchronization/lock.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/thread_annotations.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -40,12 +45,44 @@
 #include "media/base/android_overlay_config.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/media/url_player.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 namespace media {
 
 namespace {
 
 using ::starboard::GetMediaAudioConnectorName;
 using ::starboard::GetPlayerStateName;
+
+struct ActiveRendererEntry {
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+  base::WeakPtr<StarboardRenderer> weak_this;
+};
+
+// Tracks active StarboardRenderer instances and conceal state so
+// FlushAndSuspendActiveRenderers() can be safely invoked from the browser UI
+// thread during kSbEventTypeConceal.
+// TODO(b/570356133): Move StarboardRendererConcealRegistry ownership into
+// GpuMojoMediaClientStarboard via MediaService to avoid a static singleton.
+struct StarboardRendererConcealRegistry {
+  base::Lock lock;
+  base::flat_map<StarboardRenderer*, ActiveRendererEntry> active_renderers
+      GUARDED_BY(lock);
+  bool is_concealed GUARDED_BY(lock) = false;
+};
+
+StarboardRendererConcealRegistry& GetConcealRegistry() {
+  static base::NoDestructor<StarboardRendererConcealRegistry> registry;
+  return *registry;
+}
+
+bool IsApplicationConcealed() {
+  auto& registry = GetConcealRegistry();
+  base::AutoLock auto_lock(registry.lock);
+  return registry.is_concealed;
+}
 
 // In the OnNeedData(), it attempts to write one more audio access
 // unit than the audio write duration. Specifically, the check
@@ -126,6 +163,15 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       return 1;
   }
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+TimeDelta MapUrlPlayerDuration(TimeDelta duration) {
+  if (duration == kNoTimestamp || duration <= TimeDelta()) {
+    return kInfiniteDuration;
+  }
+  return duration;
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -135,6 +181,7 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
+    const std::string& max_video_resolution,
     const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
@@ -150,6 +197,7 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
+      max_video_resolution_(max_video_resolution),
       experimental_features_(experimental_features),
       max_samples_per_write_(experimental_features.Get(kMediaMaxSamplesPerWrite)
                                  .value_or(kDefaultMaxSamplePerWrite)),
@@ -162,6 +210,12 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.active_renderers.emplace(
+        this, ActiveRendererEntry{task_runner_, weak_factory_.GetWeakPtr()});
+  }
   LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
@@ -174,10 +228,16 @@ StarboardRenderer::StarboardRenderer(
 
 StarboardRenderer::~StarboardRenderer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  weak_factory_.InvalidateWeakPtrs();
 
   LOG(INFO) << "Destructing StarboardRenderer.";
 
   player_bridge_.reset();
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.active_renderers.erase(this);
+  }
 
   LOG(INFO) << "SbPlayerBridge destructed.";
 }
@@ -214,6 +274,14 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   client_ = client;
   init_cb_ = std::move(init_cb);
+
+  // If the application is concealed, abort initialization immediately so
+  // SbPlayerCreate is not invoked on a destroyed native window.
+  if (IsApplicationConcealed()) {
+    state_ = STATE_ERROR;
+    std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
+    return;
+  }
 
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
@@ -393,6 +461,11 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
 
+  // GetMediaTime() reports |seek_time_| until the SbPlayer presents. This is
+  // set before the delayed retry below, as the pipeline already queries media
+  // time once StartPlayingFrom() has been called.
+  seek_time_ = time;
+
   if (audio_read_in_progress_ || video_read_in_progress_) {
     constexpr TimeDelta kDelay = base::Milliseconds(50);
     task_runner_->PostDelayedTask(
@@ -409,8 +482,6 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   // Ignore pending delayed calls to OnNeedData, and update variables used to
   // decide when to delay.
   audio_read_delayed_ = false;
-
-  seek_time_ = time;
 
   if (state_ != STATE_FLUSHED) {
     DCHECK_EQ(state_, STATE_ERROR);
@@ -474,50 +545,19 @@ TimeDelta StarboardRenderer::GetMediaTime() {
     return base::Microseconds(0);
   }
 
-  uint32_t video_frames_decoded, video_frames_dropped;
-  uint64_t audio_bytes_decoded, video_bytes_decoded;
-  TimeDelta media_time, duration;
-  SbPlayerBridge::PlayerInfo info{&video_frames_decoded, &video_frames_dropped,
-                                  &audio_bytes_decoded,  &video_bytes_decoded,
-                                  &media_time,           &duration};
+  const SbPlayerBridge::PlayerInfo info = player_bridge_->GetInfo();
+  TimeDelta media_time = info.media_time;
 
-  player_bridge_->GetInfo(&info);
-
-  // Report dropped frames since we have the info anyway.
-  PipelineStatistics statistics;
-
-  statistics.audio_bytes_decoded = audio_bytes_decoded;
-  statistics.video_bytes_decoded = video_bytes_decoded;
-
-  if (video_frames_decoded > last_video_frames_decoded_) {
-    statistics.video_frames_decoded =
-        video_frames_decoded - last_video_frames_decoded_;
-    last_video_frames_decoded_ = video_frames_decoded;
-  }
-
-  if (video_frames_dropped > last_video_frames_dropped_) {
-    statistics.video_frames_dropped =
-        video_frames_dropped - last_video_frames_dropped_;
-    last_video_frames_dropped_ = video_frames_dropped;
-  }
-
-  if (statistics.video_frames_decoded > 0 ||
-      statistics.video_frames_dropped > 0) {
-    // TODO(b/375273093): Refine frame drops reporting, and double check
-    //                    whether we should report more statistics, and/or
-    //                    reduce the frequency of reporting.
-    task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
-                                  weak_factory_.GetWeakPtr(), statistics));
-  }
+  // Report statistics since we have the info anyway.
+  UpdateStatistics(info.statistics);
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
     UpdateUrlPlayerVideoResolution();
 
-    if (duration_change_cb_ && duration != kNoTimestamp &&
-        duration != last_duration_) {
-      last_duration_ = duration;
-      duration_change_cb_.Run(duration);
+    if (duration_change_cb_ && info.duration != kNoTimestamp &&
+        info.duration != last_duration_) {
+      last_duration_ = info.duration;
+      duration_change_cb_.Run(info.duration);
     }
 
     // Polling buffered ranges on every media-time update may affect
@@ -537,6 +577,20 @@ TimeDelta StarboardRenderer::GetMediaTime() {
     }
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
+
+  // |buffering_state_| is BUFFERING_HAVE_NOTHING from Flush() until the
+  // SbPlayer reports kSbPlayerStatePresenting, i.e. while a seek is pending.
+  // SbPlayerGetInfo() may keep reporting the pre-seek position until the
+  // SbPlayer completes the seek asynchronously. PipelineImpl clamps media time
+  // so that it never goes backwards, so leaking a stale pre-seek position here
+  // would freeze currentTime after a backwards seek until playback catches up.
+  // Report the seek time until the SbPlayer presents.
+  // Note that this has to be revisited if StarboardRenderer ever reports
+  // underflow via BUFFERING_HAVE_NOTHING during playback, as media time would
+  // then jump back to the last seek time.
+  if (buffering_state_ == BUFFERING_HAVE_NOTHING) {
+    media_time = seek_time_;
+  }
 
   StoreMediaTime(media_time);
 
@@ -569,17 +623,23 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
-void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
+void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect,
+                                              int z_index) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
-  if (output_rect_ == output_rect) {
+  const bool output_rect_changed = output_rect_ != output_rect;
+  if (!output_rect_changed && z_index_ == z_index) {
     return;
   }
 
   output_rect_ = output_rect;
+  z_index_ = z_index;
 
 #if BUILDFLAG(IS_ANDROID)
-  if (overlay_ && output_rect_) {
-    overlay_->ScheduleLayout(*output_rect_);
+  if (overlay_) {
+    // AndroidOverlay has no z-order, so only forward changes of the rect.
+    if (output_rect_changed) {
+      overlay_->ScheduleLayout(*output_rect_);
+    }
     return;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -627,6 +687,24 @@ void StarboardRenderer::UpdateUrlPlayerVideoResolution() {
   client_->OnVideoNaturalSizeChange(size);
   if (player_bridge_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut) {
     paint_video_hole_frame_cb_.Run(size);
+  }
+}
+
+void StarboardRenderer::OnUrlPlayerInitialized() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!player_bridge_) {
+    return;
+  }
+
+  TimeDelta duration;
+  SbPlayerBridge::PlayerInfo info{nullptr, nullptr, nullptr,
+                                  nullptr, nullptr, &duration};
+  player_bridge_->GetInfo(&info);
+
+  // Keep the raw value so that GetMediaTime() doesn't push it again.
+  last_duration_ = duration;
+  if (duration_change_cb_) {
+    duration_change_cb_.Run(MapUrlPlayerDuration(duration));
   }
 }
 
@@ -724,6 +802,15 @@ void StarboardRenderer::UpdateAudioWriteDuration() {
 
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  // If concealed while waiting for an asynchronous window handle or overlay,
+  // abort before constructing SbPlayerBridge on a destroyed native window.
+  if (IsApplicationConcealed() || state_ == STATE_ERROR) {
+    state_ = STATE_ERROR;
+    if (init_cb_) {
+      std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
+    }
+    return;
+  }
   DCHECK(init_cb_);
   DCHECK_EQ(state_, STATE_INITIALIZING);
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -766,6 +853,10 @@ void StarboardRenderer::CreatePlayerBridge() {
   // number of active players.
   player_bridge_.reset();
 
+  // Statistics are computed as deltas against the counters of the current
+  // SbPlayerBridge, so reset the baseline whenever a new bridge is created.
+  last_reported_statistics_ = {};
+
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
     player_bridge_.reset(new SbPlayerBridge(
@@ -796,6 +887,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         false,
         // TODO(b/326825450): Revisit 360 videos.
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
+        max_video_resolution_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
         /*max_video_input_size=*/-1, experimental_features_
 #if BUILDFLAG(IS_ANDROID)
@@ -863,11 +955,11 @@ void StarboardRenderer::CreatePlayerBridge() {
 }
 
 void StarboardRenderer::ApplyPendingBounds() {
-  if (!player_bridge_ || !output_rect_) {
+  if (!player_bridge_ || !z_index_ || !output_rect_) {
     return;
   }
 
-  player_bridge_->SetBounds(*output_rect_);
+  player_bridge_->SetBounds(*z_index_, *output_rect_);
 }
 
 void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
@@ -937,7 +1029,14 @@ void StarboardRenderer::OnDemuxerStreamRead(
     return;
   }
 
-  DCHECK(player_bridge_);
+  if (state_ == STATE_ERROR || !player_bridge_) {
+    if (stream == audio_stream_) {
+      audio_read_in_progress_ = false;
+    } else if (stream == video_stream_) {
+      video_read_in_progress_ = false;
+    }
+    return;
+  }
 
   if (status == DemuxerStream::kOk) {
     if (stream == audio_stream_) {
@@ -998,6 +1097,51 @@ void StarboardRenderer::OnDemuxerStreamRead(
   } else if (status == DemuxerStream::kError) {
     state_ = STATE_ERROR;
     NotifyError(PIPELINE_ERROR_READ);
+  }
+}
+
+void StarboardRenderer::UpdateStatistics(
+    const SbPlayerBridge::PlayerStatistics& totals) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  PipelineStatistics statistics;
+
+  // RendererClient::OnStatisticsUpdate() expects deltas since the last call,
+  // while SbPlayerBridge::GetInfo() returns running totals.
+  auto& last = last_reported_statistics_;
+  if (totals.total_audio_bytes_decoded > last.total_audio_bytes_decoded) {
+    statistics.audio_bytes_decoded =
+        totals.total_audio_bytes_decoded - last.total_audio_bytes_decoded;
+    last.total_audio_bytes_decoded = totals.total_audio_bytes_decoded;
+  }
+
+  if (totals.total_video_bytes_decoded > last.total_video_bytes_decoded) {
+    statistics.video_bytes_decoded =
+        totals.total_video_bytes_decoded - last.total_video_bytes_decoded;
+    last.total_video_bytes_decoded = totals.total_video_bytes_decoded;
+  }
+
+  if (totals.total_video_frames_decoded > last.total_video_frames_decoded) {
+    statistics.video_frames_decoded =
+        totals.total_video_frames_decoded - last.total_video_frames_decoded;
+    last.total_video_frames_decoded = totals.total_video_frames_decoded;
+  }
+
+  if (totals.total_video_frames_dropped > last.total_video_frames_dropped) {
+    statistics.video_frames_dropped =
+        totals.total_video_frames_dropped - last.total_video_frames_dropped;
+    last.total_video_frames_dropped = totals.total_video_frames_dropped;
+  }
+
+  if (statistics.audio_bytes_decoded > 0 ||
+      statistics.video_bytes_decoded > 0 ||
+      statistics.video_frames_decoded > 0 ||
+      statistics.video_frames_dropped > 0) {
+    // TODO(b/375273093): Report final statistics at end of stream, and double
+    // check whether we should change the reporting frequency.
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
+                                  weak_factory_.GetWeakPtr(), statistics));
   }
 }
 
@@ -1140,6 +1284,11 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
   switch (state) {
     case kSbPlayerStateInitialized:
       CHECK(init_cb_);
+#if BUILDFLAG(IS_IOS_TVOS)
+      if (IsUrlPlayer()) {
+        OnUrlPlayerInitialized();
+      }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
       std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
       break;
     case kSbPlayerStatePrerolling:
@@ -1178,6 +1327,17 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
 
   state_ = STATE_ERROR;
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  // SbUrlPlayerError codes continue past kSbPlayerErrorMax, so the switch
+  // below cannot name them.
+  if (IsUrlPlayer() &&
+      error == static_cast<SbPlayerError>(kSbUrlPlayerErrorSrcNotSupported)) {
+    MEDIA_LOG(ERROR, media_log_) << message;
+    NotifyError(DEMUXER_ERROR_COULD_NOT_OPEN);
+    return;
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   switch (error) {
     case kSbPlayerErrorDecode:
       MEDIA_LOG(ERROR, media_log_) << message;
@@ -1208,9 +1368,74 @@ void StarboardRenderer::NotifyError(PipelineStatus status) {
   // pointer dereference in `MojoRenderer::OnError()`.
   if (init_cb_) {
     std::move(init_cb_).Run(status);
-  } else {
+  } else if (client_) {
     client_->OnError(status);
   }
+}
+
+// static
+void StarboardRenderer::FlushAndSuspendActiveRenderers(
+    base::OnceClosure done_cb) {
+  std::vector<ActiveRendererEntry> entries;
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.is_concealed = true;
+    entries.reserve(registry.active_renderers.size());
+    for (const auto& [renderer, entry] : registry.active_renderers) {
+      entries.push_back(entry);
+    }
+  }
+
+  base::OnceClosure reply_cb =
+      base::SequencedTaskRunner::HasCurrentDefault()
+          ? base::BindPostTaskToCurrentDefault(std::move(done_cb))
+          : std::move(done_cb);
+
+  if (entries.empty()) {
+    std::move(reply_cb).Run();
+    return;
+  }
+
+  // Post to the tail of each active StarboardRenderer's sequence so any queued
+  // MojoRendererService disconnect tasks execute first, then fallback-suspend
+  // any remaining StarboardRenderer instances before replying to the conceal
+  // barrier.
+  base::RepeatingClosure barrier_cb =
+      base::BarrierClosure(entries.size(), std::move(reply_cb));
+  for (auto& entry : entries) {
+    if (!entry.task_runner->PostTask(
+            FROM_HERE, base::BindOnce(
+                           [](base::WeakPtr<StarboardRenderer> renderer,
+                              base::OnceClosure done) {
+                             if (renderer) {
+                               renderer->OnConcealFallbackSuspend();
+                             }
+                             std::move(done).Run();
+                           },
+                           std::move(entry.weak_this), barrier_cb))) {
+      barrier_cb.Run();
+    }
+  }
+}
+
+// static
+void StarboardRenderer::ResumeActiveRenderers() {
+  auto& registry = GetConcealRegistry();
+  base::AutoLock auto_lock(registry.lock);
+  registry.is_concealed = false;
+}
+
+void StarboardRenderer::OnConcealFallbackSuspend() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (player_bridge_) {
+    player_bridge_->Suspend();
+  }
+  if (state_ == STATE_UNINITIALIZED || state_ == STATE_ERROR) {
+    return;
+  }
+  state_ = STATE_ERROR;
+  NotifyError(PIPELINE_ERROR_ABORT);
 }
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {

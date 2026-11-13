@@ -711,6 +711,14 @@ int __abi_wrap_access(const char* path, int amode) {
   return access(path, access_helper(amode));
 }
 
+int __abi_wrap_isatty(int fd) {
+  int result = isatty(fd);
+  if (result == 0 && errno != EBADF) {
+    errno = ENOTTY;
+  }
+  return result;
+}
+
 int __abi_wrap_fchown(int fd, musl_uid_t owner, musl_gid_t group) {
   return fchown(fd, static_cast<uid_t>(owner), static_cast<gid_t>(group));
 }

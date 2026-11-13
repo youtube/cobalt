@@ -35,7 +35,6 @@ namespace {
 using jni_zero::AttachCurrentThread;
 using ::starboard::StarboardBridge;
 
-const char kFriendlyName[] = "Android";
 const char kUnknownValue[] = "unknown";
 
 #if !BUILDFLAG(IS_STARBOARD)
@@ -141,7 +140,8 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                       value_length, kUnknownValue);
 
     case kSbSystemPropertyFriendlyName:
-      return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);
+      return GetAndroidSystemProperty("ro.product.model", out_value,
+                                      value_length, kUnknownValue);
 
     case kSbSystemPropertyPlatformName:
       return CopyAndroidPlatformName(out_value, value_length);

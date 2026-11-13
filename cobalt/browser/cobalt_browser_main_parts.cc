@@ -15,10 +15,13 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
@@ -32,24 +35,60 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/browser/constants/cobalt_pref_names.h"
+#include "cobalt/browser/experiments/experiment_config_manager.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
 #include "cobalt/browser/memory_ablation.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
+#include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/shell/browser/splash_cache.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/prefs/pref_service.h"
+#include "components/services/storage/public/cpp/constants.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
+#include "net/disk_cache/cache_util.h"
+#include "sql/database.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "cobalt/memory/android_os_signal_evaluator.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/storage_partition.h"
+#include "content/public/common/content_switches.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "net/base/network_anonymization_key.h"
+#include "net/base/schemeful_site.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/mojom/fetch_api.mojom.h"
+#include "services/network/public/mojom/network_context.mojom.h"
+#include "url/gurl.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+#include "base/memory/memory_pressure_monitor.h"
+#include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
+#include "media/media_buildflags.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/media_client.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -71,15 +110,15 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
-#include "components/crash/content/browser/process_exit_reason_from_system_android.h"
+#include "base/android/jni_android.h"
+#include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
-#else
-#include "cobalt/browser/cobalt_content_browser_client.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX)
@@ -245,23 +284,27 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void RecordPriorSessionExitReasons() {
+int64_t RecordPriorSessionExitReasons(bool deduplication_enabled,
+                                      int64_t last_logged_timestamp_ms) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
-    return;
+    return -1;
   }
-  base::FilePath base_dir;
-  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
-    return;
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_ProcessExitReasonHelper_setDeduplicationEnabled(env,
+                                                       deduplication_enabled);
+  int64_t recorded_timestamp_ms =
+      Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(
+          env, last_logged_timestamp_ms);
+  int exit_reason = -1;
+  auto summary =
+      CobaltProcessStateSummaryManager::GetInstance()->GetPriorSessionSummary(
+          &exit_reason);
+  if (summary.has_value() &&
+      (exit_reason >= 0 || summary->startup_guard_triggered_kill)) {
+    EmitPriorSessionExitSummaryHistograms(exit_reason, *summary);
   }
-  base::FilePath metrics_dir =
-      base_dir.AppendASCII(kBrowserStabilityMetricsName);
-  for (base::ProcessId pid :
-       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
-                               base::GetCurrentProcId())) {
-    crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
-        pid, "Cobalt.Stability.Android.SystemExitReason");
-  }
+  return recorded_timestamp_ms;
 }
 #endif
 
@@ -286,7 +329,177 @@ bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
 #endif
 }
 
+constexpr base::TimeDelta kStorageCleanupDelay = base::Seconds(30);
+
+// Legacy directory names created by earlier M138 Cobalt builds before those
+// subsystems were disabled or switched to in-memory backing under
+// kCobaltStorageCleanup:
+// - "Shared Dictionary": content::StoragePartitionImpl::InitNetworkContext()
+//   (content/browser/storage_partition_impl.cc) when
+//   AllowCompressionDictionaryTransport() returned true.
+// - "VideoDecodeStats": content::BrowserContext::CreateVideoDecodePerfHistory()
+//   (content/browser/browser_context.cc) before kUseInMemoryDBDefault was set
+//   to true.
+// - "shared_proto_db": leveldb_proto::ProtoDatabaseProvider
+//   (components/leveldb_proto/public/proto_database_provider.cc), instantiated
+//   solely by VideoDecodeStatsDBImpl on Cobalt.
+constexpr base::FilePath::CharType kLegacySharedDictionaryDir[] =
+    FILE_PATH_LITERAL("Shared Dictionary");
+constexpr base::FilePath::CharType kLegacyVideoDecodeStatsDir[] =
+    FILE_PATH_LITERAL("VideoDecodeStats");
+constexpr base::FilePath::CharType kLegacySharedProtoDbDir[] =
+    FILE_PATH_LITERAL("shared_proto_db");
+
+void DeleteUnusedSqliteDatabaseFiles(const base::FilePath& user_data_dir,
+                                     const base::FilePath& db_name) {
+  const base::FilePath db_path = user_data_dir.Append(db_name);
+  const base::FilePath candidates[] = {
+      db_path,
+      sql::Database::JournalPath(db_path),
+      sql::Database::WriteAheadLogPath(db_path),
+      sql::Database::SharedMemoryFilePath(db_path),
+  };
+  for (const base::FilePath& target : candidates) {
+    if (!user_data_dir.IsParent(target) || !base::PathExists(target) ||
+        base::DirectoryExists(target)) {
+      continue;
+    }
+    base::DeleteFile(target);
+  }
+}
+
+void RunDelayedStorageCleanup() {
+  base::FilePath user_data_dir;
+  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir)) {
+    return;
+  }
+  base::FilePath cache_dir;
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+    DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
+  }
+  DeleteUnusedChromiumStoragePaths(user_data_dir);
+}
+
+#if BUILDFLAG(IS_ANDROID)
+// Returns the URL the Java layer navigates to from ShellManager.launchShell():
+// the --url switch when present (forwarded from the Activity intent), otherwise
+// the default YouTube TV URL.
+GURL GetStartupUrlForPreconnect(const base::CommandLine& command_line) {
+  if (command_line.HasSwitch(::switches::kBrowserTest) &&
+      !command_line.HasSwitch(switches::kInitialURL)) {
+    return GURL();
+  }
+  return GURL(switches::GetInitialURL(command_line));
+}
+
+// Preconnects one socket to the startup URL origin so DNS resolution and the
+// TCP/TLS handshake overlap with the rest of browser startup.
+void PreconnectToStartupOrigin(content::BrowserContext* browser_context) {
+  if (!browser_context) {
+    return;
+  }
+  const GURL startup_url =
+      GetStartupUrlForPreconnect(*base::CommandLine::ForCurrentProcess());
+  if (!startup_url.is_valid() || !startup_url.SchemeIsHTTPOrHTTPS()) {
+    return;
+  }
+
+  network::mojom::NetworkContext* network_context =
+      browser_context->GetDefaultStoragePartition()->GetNetworkContext();
+  if (!network_context) {
+    return;
+  }
+
+  constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
+      net::DefineNetworkTrafficAnnotation(
+          "cobalt_startup_preconnect",
+          "Preconnects to the initial launch URL origin during Cobalt browser "
+          "startup.");
+  // PreconnectSockets() only uses the scheme, host and port of `startup_url`.
+  network_context->PreconnectSockets(
+      /*num_streams=*/1, startup_url, network::mojom::CredentialsMode::kInclude,
+      net::NetworkAnonymizationKey::CreateSameSite(
+          net::SchemefulSite(startup_url)),
+      net::MutableNetworkTrafficAnnotationTag(kTrafficAnnotation),
+      /*keepalive_config=*/std::nullopt,
+      /*observer_client=*/mojo::NullRemote());
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 }  // namespace
+
+void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
+                                            const base::FilePath& cache_dir) {
+  if (user_data_dir.empty() || cache_dir.empty() ||
+      user_data_dir == cache_dir) {
+    return;
+  }
+
+  constexpr const char* kOrphanedCacheDirs[] = {
+      "Cache",
+      "Code Cache",
+      "ShaderCache",
+      "GrShaderCache",
+  };
+  for (const char* dir_name : kOrphanedCacheDirs) {
+    base::FilePath orphaned_dir = user_data_dir.AppendASCII(dir_name);
+    if (orphaned_dir == cache_dir || orphaned_dir.IsParent(cache_dir) ||
+        !base::PathExists(orphaned_dir)) {
+      continue;
+    }
+    if (!disk_cache::CleanupDirectorySync(orphaned_dir)) {
+      LOG(ERROR) << "Failed to cleanup orphaned cache directory: "
+                 << orphaned_dir;
+    }
+  }
+}
+
+void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir) {
+  if (user_data_dir.empty() || !base::DirectoryExists(user_data_dir)) {
+    return;
+  }
+
+  // Note: With kCobaltStorageCleanup enabled, all of the subsystems below are
+  // either disabled or configured for in-memory operation, so Cobalt will never
+  // create on-disk files for them again even if upstream Chromium changes their
+  // default filenames in the future. This cleanup exists solely to reclaim
+  // legacy files persisted by earlier M138 Cobalt builds.
+
+  // 1. Standalone file configured by CobaltContentBrowserClient (inherited from
+  // ShellContentBrowserClient) prior to kCobaltStorageCleanup.
+  const base::FilePath sct_reports_path =
+      user_data_dir.Append(kSCTAuditingPendingReportsFileName);
+  if (user_data_dir.IsParent(sct_reports_path) &&
+      base::PathExists(sct_reports_path) &&
+      !base::DirectoryExists(sct_reports_path)) {
+    base::DeleteFile(sct_reports_path);
+  }
+
+  // 2. SQLite databases and their companion -journal / -wal / -shm files:
+  // - kTrustTokenFilename: configured in
+  //   CobaltContentBrowserClient::ConfigureNetworkContextParams().
+  // - ::storage::kSharedStoragePath: created by
+  //   StoragePartitionImpl::Initialize() when
+  //   blink::features::kSharedStorageAPI was enabled.
+  DeleteUnusedSqliteDatabaseFiles(user_data_dir,
+                                  base::FilePath(kTrustTokenFilename));
+  DeleteUnusedSqliteDatabaseFiles(
+      user_data_dir, base::FilePath(::storage::kSharedStoragePath));
+
+  // 3. LevelDB / cache directories for disabled or in-memory subsystems.
+  const base::FilePath unused_directories[] = {
+      user_data_dir.Append(kLegacySharedDictionaryDir),
+      user_data_dir.AppendASCII(::storage::kSessionStorageDirectory),
+      user_data_dir.Append(kLegacyVideoDecodeStatsDir),
+      user_data_dir.Append(kLegacySharedProtoDbDir),
+  };
+  for (const base::FilePath& target : unused_directories) {
+    if (!user_data_dir.IsParent(target) || !base::DirectoryExists(target)) {
+      continue;
+    }
+    base::DeletePathRecursively(target);
+  }
+}
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
   if (!base::GlobalHistogramAllocator::Get()) {
@@ -356,7 +569,13 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
   // invokes ShellManager.launchShell() which reaches C++ via JNI.
   // On Linux, we might need the base behavior.
   // go/chrobalt-pre-initialization-storage-migration-pipeline
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  // Experiment (b/576795062): warm up the connection to the startup URL origin
+  // while WebContents creation is still deferred.
+  if (base::FeatureList::IsEnabled(features::kCobaltStartupPreconnect)) {
+    PreconnectToStartupOrigin(browser_context());
+  }
+#else
   ShellBrowserMainParts::InitializeMessageLoopContext();
 #endif
 }
@@ -364,6 +583,8 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
 CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
                                                bool is_visible)
     : ShellBrowserMainParts(deep_link, is_visible) {}
+
+CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
 
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -411,14 +632,44 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                        kBrowserStabilityMetricsName, base::GetCurrentProcId()));
   }
 
+  if (base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
+    base::ThreadPool::PostDelayedTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::ThreadPolicy::PREFER_BACKGROUND,
+         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+        base::BindOnce(&RunDelayedStorageCleanup), kStorageCleanupDelay);
+  }
+
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::BuildInfo::GetInstance()->sdk_int() >=
       base::android::SDK_VERSION_R) {
-    base::ThreadPool::PostTask(
+    const bool deduplication_enabled = base::FeatureList::IsEnabled(
+        features::kCobaltStabilityMetricsDeduplication);
+    int64_t last_logged_timestamp_ms = -1;
+    if (deduplication_enabled) {
+      if (PrefService* local_state =
+              GlobalFeatures::GetInstance()->metrics_local_state()) {
+        last_logged_timestamp_ms =
+            local_state->GetInt64(kLastLoggedProcessExitTimestampMs);
+      }
+    }
+    base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE,
         {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-        base::BindOnce(&RecordPriorSessionExitReasons));
+        base::BindOnce(&RecordPriorSessionExitReasons, deduplication_enabled,
+                       last_logged_timestamp_ms),
+        base::BindOnce([](int64_t recorded_timestamp_ms) {
+          if (recorded_timestamp_ms > 0) {
+            if (PrefService* local_state =
+                    GlobalFeatures::GetInstance()->metrics_local_state()) {
+              local_state->SetInt64(kLastLoggedProcessExitTimestampMs,
+                                    recorded_timestamp_ms);
+              local_state->CommitPendingWrite();
+            }
+          }
+        }));
   }
 #endif
 
@@ -441,15 +692,20 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   client->SetUserAgentCrashAnnotation();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
   auto* native_stability_manager =
       h5vcc_native_stability::NativeStabilityManager::GetInstance();
 
+#if BUILDFLAG(USE_EVERGREEN)
+  // Only 3P (Evergreen) platforms currently provide native stability tracking
+  // for crashes.
+  //
   // TODO: b/528362453 - Consider moving this to an earlier startup stage (e.g.
   // PreEarlyInitialization) to ensure early startup crashes are also tagged.
   native_stability_manager->ArmCrashUuidAnnotation();
-  native_stability_manager->PruneStorage();
 #endif  // BUILDFLAG(USE_EVERGREEN)
+  native_stability_manager->PruneStorage();
+#endif  // BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
@@ -459,7 +715,52 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     return result;
   }
 
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  // Register Cobalt memory pressure evaluators when enabled via Finch or
+  // command line.
+  if (base::FeatureList::IsEnabled(
+          features::kEnableCobaltMemoryPressureEvaluator)) {
+    // static_cast is safe because MultiSourceMemoryPressureMonitor is the only
+    // implementation of MemoryPressureMonitor.
+    auto* monitor =
+        static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
+            base::MemoryPressureMonitor::Get());
+    if (!monitor) {
+      memory_pressure_monitor_ =
+          std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
+      monitor = memory_pressure_monitor_.get();
+    }
+    if (monitor) {
+      cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
+          media_allowance_getter;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      media_allowance_getter = base::BindRepeating(
+          &::media::MediaClient::GetMediaSourceCurrentMemoryCapacity);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      monitor->SetSystemEvaluator(
+          std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
+              monitor->CreateVoter(), std::move(media_allowance_getter)));
+      LOG(INFO)
+          << "CobaltSystemMemoryPressureEvaluator registered successfully.";
+
+#if BUILDFLAG(IS_ANDROID)
+      // Register evaluator for Android OS memory pressure signals.
+      android_os_signal_evaluator_ =
+          std::make_unique<cobalt::memory::AndroidOsSignalEvaluator>(
+              monitor->CreateVoter());
+      LOG(INFO) << "AndroidOsSignalEvaluator registered successfully.";
+#endif  // BUILDFLAG(IS_ANDROID)
+    } else {
+      LOG(WARNING)
+          << "No MemoryPressureMonitor available; cannot register evaluators.";
+    }
+  } else {
+    LOG(INFO) << "Cobalt memory pressure evaluators are disabled by Finch.";
+  }
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+
   StartStorageMigration();
+  ScheduleCobaltStorageMetricsRecording();
 
   return result;
 }
@@ -494,9 +795,28 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
   CHECK(sequence_checker_.CalledOnValidSequence());
   LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
   migration_finished_ = true;
+  MaybeClearCachedSplashFiles();
   if (pending_task_) {
     std::move(pending_task_).Run();
   }
+}
+
+void CobaltBrowserMainParts::MaybeClearCachedSplashFiles() {
+  // If bad cached splash assets crash Cobalt, the app cannot launch at all.
+  // Finch turns into crash safe mode but only lasts one launch, after which the
+  // regular config reads the same file again. So clear the cached splash assets
+  // in crash safe mode, whatever caused the crashes and regardless of
+  // kEnableCachedSplashFile, as clearing is cheap.
+  // TODO(b/576340659): Revisit this once the cached splash assets prove stable.
+  if (!GlobalFeatures::GetInstance()
+           ->experiment_config_manager()
+           ->IsCrashSafeMode()) {
+    return;
+  }
+  LOG(INFO) << "Clearing cached splash assets in Finch's crash safe mode.";
+  content::ClearCachedSplashFiles(
+      browser_context(),
+      content::H5vccSchemeURLLoaderFactory::GetSplashDomain());
 }
 
 void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
@@ -512,6 +832,16 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
                  "immediately.";
     std::move(task).Run();
   }
+}
+
+void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+#if BUILDFLAG(IS_ANDROID)
+  android_os_signal_evaluator_.reset();
+#endif
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  memory_pressure_monitor_.reset();
+#endif
+  ShellBrowserMainParts::PostMainMessageLoopRun();
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {

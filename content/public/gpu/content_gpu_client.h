@@ -21,6 +21,9 @@ class VideoGeometrySetterService;
 
 namespace gpu {
 struct GpuPreferences;
+#if BUILDFLAG(IS_COBALT)
+class GpuChannelManager;
+#endif  // BUILDFLAG(IS_COBALT)
 class GpuDriverBugWorkarounds;
 class Scheduler;
 class SharedImageManager;
@@ -40,6 +43,9 @@ class CONTENT_EXPORT ContentGpuClient {
 
   // Called during initialization once the GpuService has been initialized.
   virtual void GpuServiceInitialized() {}
+#if BUILDFLAG(IS_COBALT)
+  virtual void GpuServiceInitialized(gpu::GpuChannelManager* channel_manager) {}
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Registers Mojo interface binders that can handle interface requests from
   // the browser. Binders registered here will never run until the GPU process

@@ -18,8 +18,6 @@
 #include <android/native_window.h>
 
 namespace starboard {
-namespace android {
-namespace shared {
 
 // Holds the reference to |window| that backs the Starboard window on AOSP.
 void SetWindowSurface(ANativeWindow* window);
@@ -27,8 +25,9 @@ void SetWindowSurface(ANativeWindow* window);
 // Returns the currently held window or nullptr if there is no surface.
 ANativeWindow* AcquireWindowSurface();
 
-}  // namespace shared
-}  // namespace android
+// Tells if Android currently has a surface for the app's window.
+bool HasWindowSurface();
+
 }  // namespace starboard
 
 #endif  // STARBOARD_AOSP_SHARED_WINDOW_SURFACE_H_

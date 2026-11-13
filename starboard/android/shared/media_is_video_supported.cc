@@ -20,6 +20,7 @@
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/mime_param.h"
 #include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
@@ -27,24 +28,15 @@
 
 namespace starboard {
 
-bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                           const MimeType* mime_type,
-                           int profile,
-                           int level,
-                           int bit_depth,
-                           SbMediaPrimaryId primary_id,
-                           SbMediaTransferId transfer_id,
-                           SbMediaMatrixId matrix_id,
-                           int frame_width,
-                           int frame_height,
-                           int64_t bitrate,
-                           int fps,
-                           bool decode_to_texture_required) {
-  const bool must_support_hdr =
-      !IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
-  if (must_support_hdr &&
+bool MediaIsVideoSupported(const MimeType* mime_type,
+                           const VideoSupportQueryParams& params) {
+  const ParsedVideoCodec& codec_info = params.codec_info;
+
+  // 10-bit video with SDR color doesn't need an HDR display.
+  if (!IsSDRColor(codec_info.primary_id, codec_info.transfer_id,
+                  codec_info.matrix_id) &&
       !MediaCapabilitiesCache::GetInstance()
-           ->IsHDRTransferCharacteristicsSupported(transfer_id)) {
+           ->IsHDRTransferCharacteristicsSupported(codec_info.transfer_id)) {
     return false;
   }
   // While not necessarily true, for now we assume that all Android devices
@@ -54,14 +46,14 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   if (mime_type) {
     // Allows for enabling tunneled playback. Disabled by default.
     // https://source.android.com/devices/tv/multimedia-tunneling
-    if (!mime_type->ValidateBoolParameter("tunnelmode")) {
+    if (!mime_type->ValidateBoolParameter(kMimeParamTunnelMode)) {
       return false;
     }
     must_support_tunnel_mode =
-        mime_type->GetParamBoolValue("tunnelmode", false);
+        mime_type->GetParamBoolValue(kMimeParamTunnelMode, false);
   }
 
-  if (must_support_tunnel_mode && decode_to_texture_required) {
+  if (must_support_tunnel_mode && params.decode_to_texture_required) {
     SB_LOG(WARNING) << "Tunnel mode is rejected because output mode decode to "
                        "texture is required but not supported.";
     return false;
@@ -74,7 +66,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  const char* mime = SupportedVideoCodecToMimeType(video_codec);
+  const char* mime = SupportedVideoCodecToMimeType(codec_info.codec);
   if (!mime) {
     return false;
   }
@@ -85,9 +77,15 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // requirement with the secure playback requirement.
   const bool require_secure_playback = must_support_tunnel_mode;
 
+  // 10-bit video still needs a decoder that handles 10-bit, even with SDR
+  // color. MediaCapabilitiesCache checks that through the decoder's HDR
+  // profiles.
+  const bool needs_hdr_capable_decoder =
+      !Is8BitSDRVideo(codec_info.bit_depth, codec_info.primary_id,
+                      codec_info.transfer_id, codec_info.matrix_id);
   return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
-      mime, require_secure_playback, must_support_hdr, must_support_tunnel_mode,
-      Size(frame_width, frame_height), bitrate, fps);
+      mime, require_secure_playback, needs_hdr_capable_decoder,
+      must_support_tunnel_mode, params.frame_size, params.bitrate, params.fps);
 }
 
 }  // namespace starboard

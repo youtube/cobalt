@@ -31,6 +31,35 @@
 #ifndef THIRD_PARTY_STARBOARD_RDK_SHARED_PLATFORM_SERVICE_H_
 #define THIRD_PARTY_STARBOARD_RDK_SHARED_PLATFORM_SERVICE_H_
 
+#include <memory>
+#include <string>
+
+#include "starboard/extension/platform_service.h"
+
+typedef struct PlatformServiceImpl {
+  void* context;
+  ReceiveMessageCallback receive_callback;
+
+  PlatformServiceImpl(void* context, ReceiveMessageCallback receive_callback)
+      : context(context), receive_callback(receive_callback) {}
+
+  PlatformServiceImpl() = default;
+} PlatformServiceImpl;
+
+typedef struct CobaltPlatformServiceApi {
+  const char* name;
+  uint32_t version;
+  bool (*Has)(const char* name);
+  PlatformServiceImpl* (*Open)(void* context,
+                               ReceiveMessageCallback receive_callback);
+  void (*Close)(PlatformServiceImpl* service);
+  void* (*Send)(PlatformServiceImpl* service,
+                const void* data,
+                uint64_t length,
+                uint64_t* output_length,
+                bool* invalid_state);
+} CobaltPlatformServiceApi;
+
 namespace starboard {
 
 const void* GetPlatformServiceApi();

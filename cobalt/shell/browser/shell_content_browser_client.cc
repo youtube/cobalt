@@ -113,11 +113,13 @@
 #include "components/crash/content/browser/crash_handler_host_linux.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
-#include "components/crash/core/app/crash_switches.h"
-#include "components/crash/core/app/crashpad.h"
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "components/crash/core/app/crash_switches.h"  // nogncheck
+#include "components/crash/core/app/crashpad.h"        // nogncheck
 #include "content/public/common/content_descriptors.h"
-#endif
+#endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) &&
+        // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #if BUILDFLAG(ENABLE_CAST_RENDERER)
 #include "media/mojo/services/media_service_factory.h"  // nogncheck
@@ -125,6 +127,11 @@
 
 #if BUILDFLAG(IS_CT_SUPPORTED)
 #include "services/network/public/mojom/ct_log_info.mojom.h"
+#endif
+
+#if BUILDFLAG(IS_IOS)
+#include "components/application_locale_storage/application_locale_storage.h"  // nogncheck
+#include "ui/base/l10n/l10n_util_mac.h"
 #endif
 
 namespace content {
@@ -146,7 +153,7 @@ GetShellContentBrowserClientInstancesImpl() {
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   return crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();
 }
-#elif BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   int fd;
   pid_t pid;
@@ -322,7 +329,7 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
                                  kForwardSwitches);
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     int fd;
@@ -333,8 +340,19 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
           base::NumberToString(pid));
     }
   }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
+
+#if BUILDFLAG(IS_IOS)
+std::string ShellContentBrowserClient::GetApplicationLocale() {
+  if (!application_locale_storage_) {
+    application_locale_storage_ = std::make_unique<ApplicationLocaleStorage>();
+    application_locale_storage_->Set(l10n_util::GetLocaleOverride());
+  }
+
+  return application_locale_storage_->Get();
+}
+#endif
 
 device::GeolocationSystemPermissionManager*
 ShellContentBrowserClient::GetGeolocationSystemPermissionManager() {
@@ -528,13 +546,13 @@ std::unique_ptr<LoginDelegate> ShellContentBrowserClient::CreateLoginDelegate(
   return nullptr;
 }
 
-base::Value::Dict ShellContentBrowserClient::GetNetLogConstants() {
-  base::Value::Dict client_constants;
+base::DictValue ShellContentBrowserClient::GetNetLogConstants() {
+  base::DictValue client_constants;
   client_constants.Set("name", "content_shell");
   base::CommandLine::StringType command_line =
       base::CommandLine::ForCurrentProcess()->GetCommandLineString();
   client_constants.Set("command_line", command_line);
-  base::Value::Dict constants;
+  base::DictValue constants;
   constants.Set("clientInfo", std::move(client_constants));
   return constants;
 }
@@ -588,10 +606,12 @@ void ShellContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
       base::GlobalDescriptors::GetInstance()->Get(kShellPakDescriptor),
       base::GlobalDescriptors::GetInstance()->GetRegion(kShellPakDescriptor));
 #endif
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   int crash_signal_fd = GetCrashSignalFD(command_line);
   if (crash_signal_fd >= 0) {
     mappings->Share(kCrashDumpSignal, crash_signal_fd);
   }
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 #endif  // BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_ANDROID)

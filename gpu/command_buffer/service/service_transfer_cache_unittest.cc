@@ -5,17 +5,15 @@
 #include "gpu/command_buffer/service/service_transfer_cache.h"
 
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 #include "cc/paint/raw_memory_transfer_cache_entry.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_preferences.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if BUILDFLAG(IS_COBALT)
-#include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
-#include "gpu/config/gpu_finch_features.h"
-#endif
 
 namespace gpu {
 
@@ -145,7 +143,6 @@ TEST(ServiceTransferCacheTest, PurgeEntryOnTimer) {
 }
 
 #if BUILDFLAG(IS_COBALT)
-
 // PurgeEntryOnTimer above calls PruneOldEntries() directly, so it never runs
 // through MaybePostPruneOldEntries() and never sees the feature check. The two
 // tests below go through the public CreateLocalEntry() path and let the real
@@ -201,6 +198,131 @@ TEST(ServiceTransferCacheTest, IdleEntryIsReclaimedWhenPruneFeatureEnabled) {
   EXPECT_TRUE(flush_called);
 }
 
+class TestImageTransferCacheEntry
+    : public cc::TransferCacheEntryBase<cc::ServiceTransferCacheEntry,
+                                        cc::TransferCacheEntryType::kImage> {
+ public:
+  explicit TestImageTransferCacheEntry(size_t size) : size_(size) {}
+  size_t CachedSize() const override { return size_; }
+  bool Deserialize(GrDirectContext* gr_context,
+                   skgpu::graphite::Recorder* graphite_recorder,
+                   base::span<const uint8_t> data) override {
+    return true;
+  }
+
+ private:
+  size_t size_;
+};
+
+std::unique_ptr<cc::ServiceTransferCacheEntry> CreateImageEntry(size_t size) {
+  return std::make_unique<TestImageTransferCacheEntry>(size);
+}
+
+TEST(ServiceTransferCacheTest, DecodedImagesAndPeakMetrics) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+  base::HistogramTester histogram_tester;
+
+  constexpr size_t kMiB = 1024 * 1024;
+  constexpr size_t kImage1Size = 4 * kMiB;
+  constexpr size_t kImage2Size = 8 * kMiB;
+  ServiceTransferCache cache{GpuPreferences(), base::RepeatingClosure()};
+  cache.SetCacheSizeLimitForTesting(16 * kMiB);
+  uint32_t entry_id = 0u;
+
+  EXPECT_EQ(0u, ServiceTransferCache::GetPeakImageMemoryUsageBytes());
+  EXPECT_EQ(0u, ServiceTransferCache::GetTotalImageMemoryUsageBytes());
+
+  // Add first image entry.
+  cache.CreateLocalEntry(
+      ServiceTransferCache::EntryKey(kDecoderId,
+                                     cc::TransferCacheEntryType::kImage,
+                                     ++entry_id),
+      CreateImageEntry(kImage1Size));
+  EXPECT_EQ(kImage1Size, ServiceTransferCache::GetPeakImageMemoryUsageBytes());
+  EXPECT_EQ(kImage1Size, ServiceTransferCache::GetTotalImageMemoryUsageBytes());
+
+  // Add second image entry.
+  cache.CreateLocalEntry(
+      ServiceTransferCache::EntryKey(kDecoderId,
+                                     cc::TransferCacheEntryType::kImage,
+                                     ++entry_id),
+      CreateImageEntry(kImage2Size));
+  EXPECT_EQ(kImage1Size + kImage2Size,
+            ServiceTransferCache::GetPeakImageMemoryUsageBytes());
+  EXPECT_EQ(kImage1Size + kImage2Size,
+            ServiceTransferCache::GetTotalImageMemoryUsageBytes());
+
+  // Delete first image entry.
+  cache.DeleteEntry(ServiceTransferCache::EntryKey(
+      kDecoderId, cc::TransferCacheEntryType::kImage, 1));
+  // Peak should retain total of both images (12 MB), while current is 8 MB.
+  EXPECT_EQ(kImage1Size + kImage2Size,
+            ServiceTransferCache::GetPeakImageMemoryUsageBytes());
+  EXPECT_EQ(kImage2Size, ServiceTransferCache::GetTotalImageMemoryUsageBytes());
+
+  // Fast forward by default interval (1 minute).
+  task_environment.FastForwardBy(
+      features::kCobaltDecodedImagesMetricsInterval.Get());
+
+  histogram_tester.ExpectUniqueSample("Memory.GPU.DecodedImages", 8, 1);
+  histogram_tester.ExpectUniqueSample("Memory.GPU.DecodedImages.Peak", 12, 1);
+
+  // Fast forward another minute with no changes.
+  task_environment.FastForwardBy(
+      features::kCobaltDecodedImagesMetricsInterval.Get());
+
+  histogram_tester.ExpectUniqueSample("Memory.GPU.DecodedImages", 8, 2);
+  histogram_tester.ExpectBucketCount("Memory.GPU.DecodedImages.Peak", 12, 1);
+  histogram_tester.ExpectBucketCount("Memory.GPU.DecodedImages.Peak", 8, 1);
+  histogram_tester.ExpectTotalCount("Memory.GPU.DecodedImages.Peak", 2);
+}
+
+TEST(ServiceTransferCacheTest, DecodedImagesMetricsFeatureDisabled) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kCobaltDecodedImagesMetrics);
+
+  constexpr size_t kMiB = 1024 * 1024;
+  base::HistogramTester histogram_tester;
+  ServiceTransferCache cache{GpuPreferences(), base::RepeatingClosure()};
+  cache.SetCacheSizeLimitForTesting(16 * kMiB);
+
+  cache.CreateLocalEntry(
+      ServiceTransferCache::EntryKey(kDecoderId,
+                                     cc::TransferCacheEntryType::kImage, 1),
+      CreateImageEntry(4 * kMiB));
+
+  task_environment.FastForwardBy(base::Minutes(5));
+
+  histogram_tester.ExpectTotalCount("Memory.GPU.DecodedImages", 0);
+  histogram_tester.ExpectTotalCount("Memory.GPU.DecodedImages.Peak", 0);
+}
+
+TEST(ServiceTransferCacheTest, DecodedImagesMetricsCustomInterval) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltDecodedImagesMetrics, {{"interval", "30s"}});
+
+  constexpr size_t kMiB = 1024 * 1024;
+  base::HistogramTester histogram_tester;
+  ServiceTransferCache cache{GpuPreferences(), base::RepeatingClosure()};
+  cache.SetCacheSizeLimitForTesting(16 * kMiB);
+
+  cache.CreateLocalEntry(
+      ServiceTransferCache::EntryKey(kDecoderId,
+                                     cc::TransferCacheEntryType::kImage, 1),
+      CreateImageEntry(4 * kMiB));
+
+  task_environment.FastForwardBy(base::Seconds(30));
+
+  histogram_tester.ExpectUniqueSample("Memory.GPU.DecodedImages", 4, 1);
+  histogram_tester.ExpectUniqueSample("Memory.GPU.DecodedImages.Peak", 4, 1);
+}
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace gpu

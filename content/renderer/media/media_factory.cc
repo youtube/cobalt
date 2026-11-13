@@ -451,11 +451,11 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
       render_frame_->GetRenderFrameMediaPlaybackOptions(),
       decoder_factory_.get(), client->RemotePlaybackClientWrapper(),
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-      &media_observer, client->GetElementId(), 
-      client->GetMaxVideoCapabilities());
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+      &media_observer, client->GetElementId(),
+      client->GetMaxVideoCapabilities(), client->GetMaxVideoResolution());
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
       &media_observer, client->GetElementId());
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(ENABLE_MEDIA_REMOTING)
   DCHECK(media_observer);
@@ -549,10 +549,12 @@ MediaFactory::CreateRendererFactorySelector(
     media::RemotePlaybackClientWrapper* client_wrapper,
     base::WeakPtr<media::MediaObserver>* out_media_observer,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    int element_id, const std::string& max_video_capabilities) {
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+    int element_id,
+    const std::string& max_video_capabilities,
+    const std::string& max_video_resolution) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     int element_id) {
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   using media::RendererType;
 
   RenderThreadImpl* render_thread = RenderThreadImpl::current();
@@ -609,6 +611,7 @@ MediaFactory::CreateRendererFactorySelector(
   media::RendererFactoryTraits renderer_factory_traits;
   GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits);
   renderer_factory_traits.max_video_capabilities = max_video_capabilities;
+  renderer_factory_traits.max_video_resolution = max_video_resolution;
   is_base_renderer_factory_set = true;
   factory_selector->AddBaseFactory(RendererType::kStarboard,
     std::make_unique<media::StarboardRendererClientFactory>(media_log,

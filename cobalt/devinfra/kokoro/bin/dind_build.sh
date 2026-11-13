@@ -50,6 +50,7 @@ pipeline () {
   # Set up gclient and run sync.
   ##############################################################################
   cd "${gclient_root}"
+  configure_gob_auth
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
   # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
   # `--end-of-options` to `git checkout`. Need to update git on runners.
@@ -59,7 +60,7 @@ pipeline () {
   source tools/depot_tools/bootstrap_python3 && bootstrap_python3
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
   gclient config --name=src --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' "${git_url}"
-  if [[ "${TARGET_PLATFORM}" =~ android ]]; then
+  if [[ "${TARGET_PLATFORM}" =~ (android|aosp) ]]; then
     echo "target_os=['android']" >> .gclient
   fi
   if [[ "${TARGET_PLATFORM}" =~ evergreen-arm64 ]]; then

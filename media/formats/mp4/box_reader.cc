@@ -165,6 +165,49 @@ ParseResult BoxReader::StartTopLevelBox(const uint8_t* buf,
   return ParseResult::kOk;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+ParseResult BoxReader::ReadTopLevelBoxHeader(const uint8_t* buf,
+                                             const size_t buf_size,
+                                             MediaLog* media_log,
+                                             FourCC* out_type,
+                                             size_t* out_box_size) {
+  BufferReader reader(buf, buf_size);
+  if (!reader.HasBytes(8)) {
+    return ParseResult::kNeedMoreData;
+  }
+
+  uint64_t box_size = 0;
+  FourCC type;
+  CHECK(reader.Read4Into8(&box_size));
+  CHECK(reader.ReadFourCC(&type));
+
+  if (box_size == 0) {
+    MEDIA_LOG(DEBUG, media_log)
+        << "ISO BMFF boxes that run to EOS are not supported";
+    return ParseResult::kError;
+  } else if (box_size == 1) {
+    if (!reader.HasBytes(8)) {
+      return ParseResult::kNeedMoreData;
+    }
+    CHECK(reader.Read8(&box_size));
+  }
+
+  if (box_size < base::strict_cast<uint64_t>(reader.pos()) ||
+      box_size > static_cast<uint64_t>(std::numeric_limits<int32_t>::max())) {
+    return ParseResult::kError;
+  }
+
+  if (!IsValidTopLevelBox(type, media_log)) {
+    return ParseResult::kError;
+  }
+
+  *out_type = type;
+  *out_box_size = base::checked_cast<size_t>(box_size);
+  return ParseResult::kOk;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 // static
 BoxReader* BoxReader::ReadConcatentatedBoxes(const uint8_t* buf,
                                              const size_t buf_size,

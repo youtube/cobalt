@@ -21,6 +21,9 @@ namespace base {
 // Init the message loop for tests on Starboard.
 void InitStarboardTestMessageLoop();
 
+// Points the test data paths at an alternative deployment location.
+void InitStarboardTestPaths();
+
 }  // namespace base
 
 #endif  // BASE_TEST_TEST_SUPPORT_STARBOARD_H_

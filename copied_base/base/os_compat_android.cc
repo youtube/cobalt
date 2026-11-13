@@ -23,8 +23,7 @@
 #include "base/strings/string_piece.h"
 
 extern "C" {
-// TODO(b/374300500): when posix emulation is re-enabled, move
-// futimes to the emulation layer.
+
 #if __ANDROID_API__ < 26
 // There is no futimes() avaiable in Bionic, so we provide our own
 // implementation until it is there.

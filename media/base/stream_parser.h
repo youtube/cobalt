@@ -19,6 +19,10 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/functional/callback_helpers.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/demuxer_stream.h"
 #include "media/base/eme_constants.h"
 #include "media/base/media_export.h"
@@ -163,6 +167,24 @@ class MEDIA_EXPORT StreamParser {
   // buffer media for further playback.
   [[nodiscard]] virtual bool AppendToParseBuffer(
       base::span<const uint8_t> buf) = 0;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Zero-copy variant of AppendToParseBuffer() above.
+  //
+  // Unlike the copying variant, `buf` is *borrowed*: the parser may retain the
+  // span itself rather than copying its contents. The caller guarantees that
+  // the memory referenced by `buf` stays valid until `release_runner` is
+  // destroyed (or run). The parser signals that it is done with `buf` by
+  // destroying `release_runner`, which may happen on any thread and at any time
+  // after this call returns, including from the parser's destructor.
+  [[nodiscard]] virtual bool AppendToParseBuffer(
+      base::span<const uint8_t> buf,
+      base::ScopedClosureRunner release_runner) {
+    // Default implementation which `release_runner` runs when it goes out of
+    // scope here.
+    return AppendToParseBuffer(buf);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Attempts to parse more data previously provided via AppendToParseBuffer().
   // May not attempt to parse all of it in one pass;

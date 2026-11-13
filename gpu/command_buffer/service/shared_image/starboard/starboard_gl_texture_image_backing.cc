@@ -14,6 +14,7 @@
 
 #include "gpu/command_buffer/service/shared_image/starboard/starboard_gl_texture_image_backing.h"
 
+#include "base/logging.h"
 #include "build/build_config.h"
 #include "components/viz/common/resources/resource_sizes.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
@@ -69,8 +70,13 @@ class StarboardGLTextureBacking::
   }
 
   bool BeginAccess(GLenum mode) override NO_THREAD_SAFETY_ANALYSIS {
-    // This representation should only be called for read.
-    DCHECK(mode == GL_SHARED_IMAGE_ACCESS_MODE_READ_CHROMIUM);
+    // The textures are owned and written by Starboard, so this representation
+    // only supports read access. Enforce this in all builds rather than only
+    // when DCHECKs are enabled.
+    if (mode != GL_SHARED_IMAGE_ACCESS_MODE_READ_CHROMIUM) {
+      LOG(ERROR) << "StarboardGLTextureBacking only supports read access.";
+      return false;
+    }
 #if BUILDFLAG(IS_ANDROID)
     if (GetDrDcLockPtr()) {
       GetDrDcLockPtr()->Acquire();

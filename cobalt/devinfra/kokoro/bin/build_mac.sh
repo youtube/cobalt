@@ -27,6 +27,7 @@ pipeline () {
   # Set up gclient and run sync.
   ##############################################################################
   cd "${gclient_root}"
+  configure_gob_auth
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools --filter=blob:none
   # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
   # `--end-of-options` to `git checkout`. Need to update git on runners.
@@ -109,8 +110,8 @@ setup_mac () {
   }
   export GSUTIL="gcloud_storage_shim"
 
-  if is_release_build && is_release_config; then
-    # Configure gsutil to use auth from keystore.
+  # Authenticate gcloud service account if key is available in keystore.
+  if [ -f "${KOKORO_KEYSTORE_DIR:-}/${GCLOUD_KEY_FILE_NAME:-}" ]; then
     gcloud auth activate-service-account --key-file="${KOKORO_KEYSTORE_DIR}/${GCLOUD_KEY_FILE_NAME}"
   fi
 }

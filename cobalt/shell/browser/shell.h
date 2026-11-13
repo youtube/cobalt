@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,7 @@
 #include "build/build_config.h"
 #include "cobalt/build/configs/buildflags.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/shell/browser/splash_screen_metrics.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 #include "components/js_injection/browser/js_communication_host.h"
@@ -94,6 +96,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   void LoadSplashScreenWebContents();
 
+  // Called when the main WebContents calls h5vcc.system.hideSplashScreen().
+  void OnMainReady();
+
   // Do one-time initialization at application startup. This must be matched
   // with a Shell::Shutdown() at application termination, where |platform|
   // will be released.
@@ -105,6 +110,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static void Shutdown();  // Idempotent, can be called twice.
 
   static ShellPlatformDelegate* GetPlatform();
+
+  base::WeakPtr<Shell> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
 
   static void OnBlur();
   static void OnFocus();
@@ -193,7 +200,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       RenderWidgetHost* render_widget_host,
       base::RepeatingClosure hang_monitor_restarter) override;
   void ActivateContents(WebContents* contents) override;
-  bool IsBackForwardCacheSupported(WebContents& contents) override;
   PreloadingEligibility IsPrerender2Supported(
       WebContents& web_contents,
       PreloadingTriggerType trigger_type) override;
@@ -227,6 +233,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static void MaybeHideSystemSplashScreen();
   static void ResetSystemSplashScreenForTesting();
+  // Makes the splash screen behave as if splash.html could, or couldn't, play
+  // its video, or asks Starboard again if `can_play_video` is unset.
+  static void SetCanSplashScreenPlayVideoForTesting(
+      std::optional<bool> can_play_video);
 
  private:
   class DevToolsWebContentsObserver;
@@ -290,10 +300,19 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void DidStopLoading() override;
 
   void RegisterInjectedJavaScript();
-  void SwitchToMainWebContents();
+  void SwitchToMainWebContents(SplashScreenMetrics::SwitchTrigger trigger);
   void ScheduleSwitchToMainWebContents();
   void ClosingSplashScreenWebContents();
   void OnSplashScreenLoadComplete();
+  void MarkStartupEvent(SplashScreenMetrics::Event event);
+  // Starts the splash screen's minimum duration, once, and schedules the
+  // switch to the main WebContents if it has loaded.
+  void StartSplashScreenTimer();
+  // Called when the video of the splash screen starts playing, i.e., once
+  // SbPlayer has prerolled it.
+  void OnSplashScreenVideoStarted();
+  // Called with whether splash.html plays its video rather than its image.
+  void OnSplashScreenVideoSupportChecked(bool can_play_video);
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -306,6 +325,14 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool is_main_frame_loaded_ = false;
   bool has_switched_to_main_frame_ = false;
   base::TimeTicks splash_screen_start_time_;
+  // Startup timing metrics of the launch. Null for windows other than the
+  // first one.
+  std::unique_ptr<SplashScreenMetrics> splash_screen_metrics_;
+  // Whether the splash screen's minimum duration waits for its video to start
+  // playing.
+  bool awaiting_splash_video_first_frame_ = false;
+  // Whether the page of the splash screen has loaded.
+  bool is_splash_screen_loaded_ = false;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 

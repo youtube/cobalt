@@ -20,6 +20,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker_impl.h"
 #include "base/thread_annotations.h"
+#include "build/buildflag.h"
 
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
@@ -35,11 +36,42 @@ namespace metrics_services_manager {
 class MetricsServicesManager;
 }  // namespace metrics_services_manager
 
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+namespace memory_pressure {
+class MultiSourceMemoryPressureMonitor;
+}  // namespace memory_pressure
+#endif
+
+namespace base {
+class FilePath;
+}  // namespace base
+
 namespace cobalt {
+
+#if BUILDFLAG(IS_ANDROID)
+namespace memory {
+class AndroidOsSignalEvaluator;
+}  // namespace memory
+#endif
 
 class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
 class GlobalFeatures;
+
+// Cleans up legacy/orphaned cache directories ("Cache", "Code Cache",
+// "ShaderCache", "GrShaderCache") under |user_data_dir| using
+// disk_cache::CleanupDirectorySync() when
+// |user_data_dir| is distinct from |cache_dir|.
+void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
+                                            const base::FilePath& cache_dir);
+
+// Cleans up legacy on-disk files and directories for Chromium storage
+// subsystems that are disabled or kept in-memory on Cobalt ("SCT Auditing
+// Pending Reports", "Trust Tokens", "Shared Dictionary", "Session Storage",
+// "VideoDecodeStats", "shared_proto_db", "SharedStorage") under
+// |user_data_dir|. Fast-paths with PathExists() so subsequent launches perform
+// zero disk writes.
+void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir);
 
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.
@@ -51,12 +83,13 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
 
-  ~CobaltBrowserMainParts() override = default;
+  ~CobaltBrowserMainParts() override;
 
   // ShellBrowserMainParts overrides.
   int PreEarlyInitialization() override;
   int PreCreateThreads() override;
   int PreMainMessageLoopRun() override;
+  void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
 
 // TODO(cobalt, b/383301493): we should consider moving any ATV-specific
@@ -80,6 +113,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   // C25 Storage Migration
   void StartStorageMigration();
   void OnMigrationComplete();
+  // Deletes the cached splash assets in Finch's crash safe mode.
+  void MaybeClearCachedSplashFiles();
   void PostOrRunIfStorageMigrationFinished(base::OnceClosure task) override;
 
  protected:
@@ -90,6 +125,15 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
   base::OnceClosure pending_task_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<memory_pressure::MultiSourceMemoryPressureMonitor>
+      memory_pressure_monitor_;
+#endif
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<memory::AndroidOsSignalEvaluator>
+      android_os_signal_evaluator_;
+#endif
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };

@@ -496,15 +496,23 @@ const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowNsInTandem{
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as
-// audio write duration during SbPlayer prerolling.
-// For example, '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/1s'.
-// TODO: b/433993748 - Disable CobaltAudioWriteDuration and make kAudioWriteDurationLocal to base::Microseconds(kSbPlayerWriteDurationLocal).
+// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as the audio
+// write duration for SbPlayer.
+// For example, '--enable-features=CobaltAudioWriteDuration' uses
+// |kSbPlayerWriteDurationLocal| (0.5s) for local, or
+// '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/2s' to
+// set a custom value.
+// When disabled, Cobalt uses the values set in
+// CobaltContentRendererClient::GetStarboardRendererFactoryTraits(), i.e., 1s
+// for local (intentionally different from |kSbPlayerWriteDurationLocal| to
+// align with Cobalt C25) and |kSbPlayerWriteDurationRemote| for remote.
+// See b/433993748.
 BASE_FEATURE(kCobaltAudioWriteDuration,
              "CobaltAudioWriteDuration",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal", base::Milliseconds(1000)};
+    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal",
+    base::Microseconds(kSbPlayerWriteDurationLocal)};
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
     &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
 #if BUILDFLAG(IS_ANDROID)
@@ -517,11 +525,101 @@ BASE_FEATURE(kCobaltUsingAndroidOverlay,
 BASE_FEATURE(kCobaltBypassMojoForMedia,
              "CobaltBypassMojoForMedia",
              base::FEATURE_DISABLED_BY_DEFAULT);
-// When enabled, Cobalt routes media frame buffer allocations into Starboard's
-// media memory pool via Chromium M126+ ExternalMemoryAllocator interface.
-BASE_FEATURE(kCobaltUseExternalMediaMemoryPool,
-             "CobaltUseExternalMediaMemoryPool",
+// When enabled, Cobalt uses PartitionAlloc for DecoderBuffer storage instead of
+// DecoderBufferAllocator.
+// Experiment bug: b/563478845
+BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
+             "CobaltDisableDecoderBufferAllocator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, DecoderBufferAllocator uses a strategy that tracks idle pool
+// blocks and returns them to the OS on memory pressure. Blocks that hold live
+// DecoderBuffers are never released. The h5vcc setting
+// "DecoderBuffer.EnableConfigurableDecommitStrategy" still overrides the
+// strategy configuration.
+BASE_FEATURE(kCobaltDecoderBufferDecommitOnMemoryPressure,
+             "CobaltDecoderBufferDecommitOnMemoryPressure",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// Number of idle pool blocks kept committed on MODERATE memory pressure, so the
+// next playback can reuse them without page faults. Ignored when the h5vcc
+// setting overrides the strategy.
+BASE_FEATURE_PARAM(int,
+                   kCobaltDecoderBufferDecommitRetainBlocks,
+                   &kCobaltDecoderBufferDecommitOnMemoryPressure,
+                   "retain_blocks",
+                   4);
+// Whether CRITICAL memory pressure also releases blocks in the retain window.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltDecoderBufferDecommitReleaseRetainedOnCritical,
+                   &kCobaltDecoderBufferDecommitOnMemoryPressure,
+                   "release_retained_on_critical",
+                   true);
+// When enabled, the MediaSource stream parsers parse appended data in place
+// rather than copying it into an internal byte queue. Cobalt retains the
+// ArrayBuffer passed to SourceBuffer.appendBuffer() until the StreamParser is
+// done with it. The data is handed to the parser as a borrowed `base::span`
+// paired with a release closure; the parser destroys the closure to drop
+// Cobalt's reference to the ArrayBuffer.
+//
+// NOTE: This deviates from the MSE specification, which allows the web app to
+// modify or reuse the appended buffer as soon as appendBuffer() returns.
+// Disabled by default on Android, enabled by default on other platforms.
+BASE_FEATURE(kCobaltInPlaceMediaSourceParser,
+             "CobaltInPlaceMediaSourceParser",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+// Whether kCobaltInPlaceMediaSourceParser borrows or copies appended data.
+// When false, the stream parser is instead meant to copy each append into
+// memory that it owns, and then parse it in place.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltInPlaceMediaSourceParserBorrowMode,
+                   &kCobaltInPlaceMediaSourceParser,
+                   "borrow_mode",
+#if BUILDFLAG(IS_ANDROID)
+                   false);
+#else   // BUILDFLAG(IS_ANDROID)
+                   true);
+#endif  // BUILDFLAG(IS_ANDROID)
+// When enabled, each feature below replaces the video buffer budget returned by
+// SbMediaGetVideoBufferBudget() for its resolution tier with the value of its
+// "BudgetMB" param.
+// When enabled, each feature below lowers the video buffer budget returned by
+// SbMediaGetVideoBufferBudget() for its resolution tier to the value of its
+// "<FeatureName>_budget_mb" param. It never raises the platform's budget.
+BASE_FEATURE(kCobaltVideoBufferBudget1080p,
+             "CobaltVideoBufferBudget1080p",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudget1080pMB,
+                   &kCobaltVideoBufferBudget1080p,
+                   "CobaltVideoBufferBudget1080p_budget_mb",
+                   0);
+BASE_FEATURE(kCobaltVideoBufferBudget4kSdr,
+             "CobaltVideoBufferBudget4kSdr",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudget4kSdrMB,
+                   &kCobaltVideoBufferBudget4kSdr,
+                   "CobaltVideoBufferBudget4kSdr_budget_mb",
+                   0);
+BASE_FEATURE(kCobaltVideoBufferBudget4kHdr,
+             "CobaltVideoBufferBudget4kHdr",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudget4kHdrMB,
+                   &kCobaltVideoBufferBudget4kHdr,
+                   "CobaltVideoBufferBudget4kHdr_budget_mb",
+                   0);
+BASE_FEATURE(kCobaltVideoBufferBudgetAbove4k,
+             "CobaltVideoBufferBudgetAbove4k",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudgetAbove4kMB,
+                   &kCobaltVideoBufferBudgetAbove4k,
+                   "CobaltVideoBufferBudgetAbove4k_budget_mb",
+                   0);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

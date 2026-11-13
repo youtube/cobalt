@@ -21,6 +21,10 @@
 #include "media/filters/frame_processor.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/functional/callback_helpers.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 using base::test::RunClosure;
@@ -143,7 +147,14 @@ class SourceBufferStateTest : public ::testing::Test {
                   /* Indicate successful parse with no uninspected data. */
                   Return(StreamParser::ParseStatus::kSuccess)));
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // A null runner means `stream_data` is not retained, so the parser is
+    // handed a copy, matching the expectation set above.
+    EXPECT_TRUE(
+        sbs->AppendToParseBuffer(stream_data, base::ScopedClosureRunner()));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     EXPECT_TRUE(sbs->AppendToParseBuffer(stream_data));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     EXPECT_EQ(StreamParser::ParseStatus::kSuccess,
               sbs->RunSegmentParserLoop(t, t, &t));
 

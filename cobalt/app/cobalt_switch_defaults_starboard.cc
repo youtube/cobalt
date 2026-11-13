@@ -19,7 +19,6 @@
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
@@ -54,9 +53,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // disabled.
       ::switches::kNoZygote,
       sandbox::policy::switches::kNoSandbox,
-      // Rasterize Tiles directly to GPU memory
-      // (ZeroCopyRasterBufferProvider).
-      blink::switches::kEnableZeroCopy,
       // Enable low-end device mode. This comes with a load of memory and CPU
       // saving goodies but can degrade the experience considerably. One of
       // the known regressions is 4444 textures, which are then disabled
@@ -83,7 +79,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Disable Vulkan.
       {::switches::kDisableFeatures, "Vulkan"},
       {::switches::kEnableFeatures,
-       "LimitImageDecodeCacheSize:mb/24, "
        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
        // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
        // creation, but egl extension required to support the attribute is
@@ -93,16 +88,16 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        "SmallerInterestArea, "
        "ReclaimPrepaintTilesWhenIdle, "
        "ReclaimOldPrepaintTiles, "
-       "WebAudioRemoveAudioDestinationResampler"},
+       "WebAudioRemoveAudioDestinationResampler, "
+       "DomStorageSmartFlushing"},
   // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
       {::switches::kUseGL, "angle"},
       {::switches::kUseANGLE, "gles-egl"},
 #endif
-      // Use passthrough command decoder.
-      {::switches::kUseCmdDecoder, "passthrough"},
-      // Set the default size for the content shell/starboard window.
-      {::switches::kContentShellHostWindowSize, "1920x1080"},
+  // Do not set a default kContentShellHostWindowSize here so that
+  // SbWindowCreate() can use the Starboard platform's native window size
+  // unless explicitly overridden via --window-size.
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // Enable remote Devtools access.
       {::switches::kRemoteDebuggingPort, "9222"},
@@ -120,8 +115,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // Disable decommitting pooled pages to prevent virtual memory
        // fragmentation.
        "--no-decommit-pooled-pages "
-       // Enable memory saving mode with little v8 performance tradeoff.
-       "--optimize-for-size "
        // Disable v8 concurrent marking by default.
        "--no-concurrent-marking"},
   };

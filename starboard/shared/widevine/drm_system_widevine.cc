@@ -281,15 +281,8 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
 
   for (auto wv_key_system : kWidevineKeySystems) {
     if (mime_type->subtype() == wv_key_system) {
-      for (int i = 0; i < mime_type->GetParamCount(); ++i) {
-        if (mime_type->GetParamName(i) == "encryptionscheme") {
-          auto value = mime_type->GetParamStringValue(i);
-          if (value != "cenc" && value != "cbcs" && value != "cbcs-1-9") {
-            return false;
-          }
-        }
-      }
-      return true;
+      return mime_type->ValidateStringParameter(kMimeParamEncryptionScheme,
+                                                "cenc|cbcs|cbcs-1-9");
     }
   }
   return false;
@@ -303,10 +296,11 @@ bool DrmSystemWidevine::IsDrmSystemWidevine(SbDrmSystem drm_system) {
 void DrmSystemWidevine::GenerateSessionUpdateRequest(
     int ticket,
     std::string_view type,
-    std::string_view initialization_data) {
+    span<const uint8_t> initialization_data) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
-  const std::string init_str(initialization_data);
+  const std::string init_str(initialization_data.begin(),
+                             initialization_data.end());
   wv3cdm::InitDataType init_type = wv3cdm::kWebM;
   if (type == "cenc") {
     init_type = wv3cdm::kCenc;
@@ -334,20 +328,19 @@ void DrmSystemWidevine::GenerateSessionUpdateRequest(
 }
 
 void DrmSystemWidevine::UpdateSession(int ticket,
-                                      std::string_view key,
+                                      span<const uint8_t> key,
                                       std::string_view sb_drm_session_id) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  const std::string str_key(key);
+  const std::string str_key(key.begin(), key.end());
 
   wv3cdm::Status status;
   if (!pending_generate_session_update_requests_.empty()) {
     status = ProcessServerCertificateResponse(str_key);
   } else {
-    std::string wvcdm_session_id;
-    bool succeeded =
-        SbDrmSessionIdToWvdmSessionId(sb_drm_session_id, &wvcdm_session_id);
-    SB_DCHECK(succeeded);
-    status = cdm_->update(wvcdm_session_id, str_key);
+    std::optional<std::string> wvcdm_session_id =
+        SbDrmSessionIdToWvdmSessionId(sb_drm_session_id);
+    SB_DCHECK(wvcdm_session_id.has_value());
+    status = cdm_->update(wvcdm_session_id.value_or(""), str_key);
     first_update_session_received_.store(true);
   }
   SB_DLOG(INFO) << "Update keys status " << status;
@@ -362,11 +355,9 @@ void DrmSystemWidevine::UpdateSession(int ticket,
 
 void DrmSystemWidevine::CloseSession(std::string_view sb_drm_session_id) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  std::string wvcdm_session_id;
-  bool succeeded =
-      SbDrmSessionIdToWvdmSessionId(sb_drm_session_id, &wvcdm_session_id);
-  if (succeeded) {
-    cdm_->close(wvcdm_session_id);
+  if (auto wvcdm_session_id =
+          SbDrmSessionIdToWvdmSessionId(sb_drm_session_id)) {
+    cdm_->close(*wvcdm_session_id);
   }
   session_closed_callback_(this, context_, sb_drm_session_id.data(),
                            static_cast<int>(sb_drm_session_id.size()));
@@ -531,10 +522,11 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
   return kSuccess;
 }
 
-void DrmSystemWidevine::UpdateServerCertificate(int ticket,
-                                                std::string_view certificate) {
+void DrmSystemWidevine::UpdateServerCertificate(
+    int ticket,
+    span<const uint8_t> certificate) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  const std::string str_certificate(certificate);
+  const std::string str_certificate(certificate.begin(), certificate.end());
   wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);
 
   is_server_certificate_set_ = (status == wv3cdm::kSuccess);
@@ -644,6 +636,11 @@ void DrmSystemWidevine::onKeyStatusesChange(const std::string& wvcdm_session_id,
   for (auto& key_status : key_statuses) {
     SbDrmKeyId sb_key_id;
     SB_DCHECK_LE(key_status.first.size(), sizeof(sb_key_id.identifier));
+    if (key_status.first.size() > sizeof(sb_key_id.identifier)) {
+      SB_LOG(ERROR) << "Ignoring key ID with invalid size "
+                    << key_status.first.size();
+      continue;  // Skip this key status.
+    }
     memcpy(sb_key_id.identifier, key_status.first.c_str(),
            key_status.first.size());
     sb_key_id.identifier_size = static_cast<int>(key_status.first.size());
@@ -706,17 +703,15 @@ std::string DrmSystemWidevine::WvdmSessionIdToSbDrmSessionId(
   return wvcdm_session_id;
 }
 
-bool DrmSystemWidevine::SbDrmSessionIdToWvdmSessionId(
-    std::string_view sb_drm_session_id,
-    std::string* wvcdm_session_id) {
-  SB_DCHECK(wvcdm_session_id);
-  const std::string str_sb_drm_session_id(sb_drm_session_id);
-  if (str_sb_drm_session_id == kFirstSbDrmSessionId) {
-    *wvcdm_session_id = first_wvcdm_session_id_;
-    return !first_wvcdm_session_id_.empty();
+std::optional<std::string> DrmSystemWidevine::SbDrmSessionIdToWvdmSessionId(
+    std::string_view sb_drm_session_id) const {
+  if (sb_drm_session_id == kFirstSbDrmSessionId) {
+    if (first_wvcdm_session_id_.empty()) {
+      return std::nullopt;
+    }
+    return first_wvcdm_session_id_;
   }
-  *wvcdm_session_id = str_sb_drm_session_id;
-  return true;
+  return std::string(sb_drm_session_id);
 }
 
 void DrmSystemWidevine::SendServerCertificateRequest(int ticket) {

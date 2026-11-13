@@ -16,12 +16,24 @@
 #define COBALT_BROWSER_METRICS_COBALT_STABILITY_METRICS_HELPER_H_
 
 #include <string>
-#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/process/process_handle.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
+#endif
 
 namespace cobalt {
+
+#if BUILDFLAG(IS_ANDROID)
+// Emits pre-joined memory and stability histograms for a prior session snapshot
+// according to |exit_reason|.
+void EmitPriorSessionExitSummaryHistograms(
+    int exit_reason,
+    const ProcessStateSummaryData& summary);
+#endif
 
 // Returns the total size in bytes of all .pma files in |metrics_dir|.
 int64_t GetTotalStabilityMetricsPmaDirSizeBytes(
@@ -37,15 +49,18 @@ bool EnsurePmaDirectoryBudget(const base::FilePath& metrics_dir,
                               int64_t max_total_bytes,
                               int64_t bytes_to_add);
 
-// Extracts process IDs of prior sessions from persistent memory allocator
-// (.pma) files located in |metrics_dir| matching |expected_allocator_name|.
-// Ignores non-.pma files, files where ParseFilePath fails, files with
-// mismatched allocator names, PIDs <= 0, and |current_pid|. Returned PIDs are
-// deduplicated.
-std::vector<base::ProcessId> ExtractPriorSessionPids(
-    const base::FilePath& metrics_dir,
-    const std::string& expected_allocator_name,
-    base::ProcessId current_pid);
+// Action taken on each prior-session .pma file encountered in
+// ClearOtherStabilityMetricsPmaFiles().
+// These values are persisted to logs (CobaltStabilityPmaFileAction in
+// enums.xml). Entries should not be renumbered and numeric values should
+// never be reused.
+enum class StabilityPmaFileAction {
+  kMergedAndDeleted = 0,
+  kAlreadyMarkedDeleted = 1,
+  kCorruptOrUnacceptableDeleted = 2,
+  kInvalidFileNameDeleted = 3,
+  kMaxValue = kInvalidFileNameDeleted,
+};
 
 // Reads all persistent memory allocator (.pma) files in |metrics_dir|
 // matching |expected_allocator_name| (excluding |current_pid|) into memory by

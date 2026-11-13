@@ -53,13 +53,9 @@ void CobaltLifecycleController::BindMojoReceiver(
     mojo::PendingReceiver<cobalt::mojom::blink::CobaltLifecycleController>
         receiver) {
   if (receiver.is_valid()) {
-    if (receiver_.is_bound()) {
-      LOG(WARNING) << "CobaltLifecycleController receiver is ALREADY BOUND!";
-    } else {
-      receiver_.reset();
-      receiver_.Bind(std::move(receiver), GetExecutionContext()->GetTaskRunner(
-                                              TaskType::kInternalDefault));
-    }
+    receiver_.reset();
+    receiver_.Bind(std::move(receiver), GetExecutionContext()->GetTaskRunner(
+                                            TaskType::kInternalDefault));
   }
 }
 
@@ -91,6 +87,7 @@ void CobaltLifecycleController::ContextDestroyed() {
 void CobaltLifecycleController::SetObserver(
     mojo::PendingRemote<cobalt::mojom::blink::CobaltLifecycleObserver>
         observer) {
+  remote_observer_.reset();
   remote_observer_.Bind(
       std::move(observer),
       GetExecutionContext()->GetTaskRunner(TaskType::kInternalDefault));
@@ -111,7 +108,11 @@ void CobaltLifecycleController::SetObserver(
       remote_observer_->OnPageBlurred();
     }
 
-    remote_observer_->OnPageResumed();
+    if (GetPage()->Frozen()) {
+      remote_observer_->OnPageFrozen();
+    } else {
+      remote_observer_->OnPageResumed();
+    }
   }
   remote_observer_->OnFrameReady();
 }
@@ -174,6 +175,17 @@ void CobaltLifecycleController::ContextLifecycleStateChanged(
             }
           },
           std::ref(remote_observer_)));
+    }
+  } else if (state == mojom::blink::FrameLifecycleState::kFrozen) {
+    // LocalFrame::OnPageLifecycleStateUpdated() invokes DidFreeze() (which
+    // synchronously dispatches the JS 'freeze' / document.onfreeze event)
+    // before calling DomWindow()->SetLifecycleState(kFrozen). In addition,
+    // PageSchedulerImpl::SetPageFrozenImpl(true) disables freezable frame task
+    // queues (including TaskType::kDOMManipulation) while frozen. Therefore,
+    // send OnPageFrozen() directly over the Mojo pipe rather than posting to
+    // TaskType::kDOMManipulation.
+    if (remote_observer_.is_bound()) {
+      remote_observer_->OnPageFrozen();
     }
   }
 }

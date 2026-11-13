@@ -38,6 +38,7 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_local = kNoTimestamp;
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
+  std::string max_video_resolution;
   StarboardRendererConfig::ExperimentalFeatures experimental_features;
   gfx::Size viewport_size;
   GetSbWindowHandleCallback get_sb_window_handle_callback;

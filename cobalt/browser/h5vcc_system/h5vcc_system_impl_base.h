@@ -63,6 +63,7 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   void Exit() override;
   void HideSplashScreen() override;
   void GetWasLowMemoryKilled(GetWasLowMemoryKilledCallback) override;
+  void GetLowMemoryKillDetails(GetLowMemoryKillDetailsCallback) override;
 
  private:
   H5vccSystemImpl(content::RenderFrameHost& render_frame_host,
@@ -71,6 +72,10 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
 
   void PerformExitStrategy();
   void OnFlushCookiesComplete(std::unique_ptr<base::ElapsedTimer> timer);
+
+  // Tells the Shell that its main WebContents called hideSplashScreen(), for
+  // startup metrics.
+  void NotifyMainReady();
 
   COBALT_THREAD_CHECKER(thread_checker_);
 

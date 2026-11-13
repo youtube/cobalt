@@ -16,6 +16,7 @@ import("//build/linux/strip_binary.gni")
 import("//build/toolchain/toolchain.gni")
 import("//cobalt/build/locales.gni")
 import("//cobalt/build/modular_executable.gni")
+import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
 
@@ -49,7 +50,16 @@ group("gn_all") {
   # TODO(b/371589344): Fix android build configs.
   deps = [ "//starboard:starboard_group" ]
   if (sb_enable_benchmark) {
-    deps += [ "//starboard/benchmark" ]
+    deps += [
+      "//starboard/benchmark",
+
+      # Built so that the Starboard benchmarks keep compiling wherever
+      # benchmarks are enabled. Intentionally not listed in
+      # cobalt/build/testing/targets/*/test_targets.json, so they are not run
+      # automatically.
+      "//starboard/benchmark:audio_sink_benchmarks",
+      "//starboard/benchmark:player_benchmarks",
+    ]
   }
   if (!cobalt_is_release_build) {
     deps += [ "//starboard/nplb" ]
@@ -65,30 +75,20 @@ group("gn_all") {
   if (is_cobalt_hermetic_build) {
     deps += [
       ":cobalt_loader",
-      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
-      "//starboard/loader_app:loader_app($starboard_toolchain)",
       "//starboard/tools/zstd_compress:zstd_compress_unittest($host_toolchain)",
     ]
   }
   if (is_starboard && build_updater_sandbox) {
     deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
-  if (use_crashpad) {
-    # On Starboard platforms, build both the crashpad_handler binary and the
-    # crashpad_database_util tool. On other platforms (e.g. ATV, tvOS) it is
-    # still useful to build the crashpad_database_util binary to inspect crash
-    # databases on the host.
-    if (is_starboard) {
-      deps += [
-        "//third_party/crashpad/crashpad/handler:crashpad_handler($native_toolchain)",
-        "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_toolchain)",
-      ]
-    } else if (is_ios) {
-      deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($host_toolchain)" ]
-    } else {
-      # This applies to e.g. ATV, where the default toolchain is the host one.
-      deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util" ]
-    }
+
+  # Build the crashpad_database_util binary to inspect Crashpad databases.
+  if (use_evergreen) {
+    deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_toolchain)" ]
+  } else if (is_ios) {
+    deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($host_toolchain)" ]
+  } else if (is_androidtv) {
+    deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util" ]
   }
 }
 
@@ -258,18 +258,25 @@ source_set("common") {
     "app/app_event_delegate.h",
     "app/app_event_runner.cc",
     "app/app_event_runner.h",
-    "app/cobalt_crash_reporter_client.cc",
-    "app/cobalt_crash_reporter_client.h",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
     "app/cobalt_switch_defaults.cc",
     "app/cobalt_switch_defaults.h",
   ]
 
+  if (!is_cobalt_hermetic_build) {
+    sources += [
+      "app/cobalt_crash_reporter_client.cc",
+      "app/cobalt_crash_reporter_client.h",
+    ]
+  }
+
   if (is_starboard) {
     sources += [ "app/cobalt_switch_defaults_starboard.cc" ]
   } else if (is_ios && target_platform == "tvos") {
     sources += [ "app/cobalt_switch_defaults_tvos.cc" ]
+  } else if (is_android) {
+    sources += [ "app/cobalt_switch_defaults_android.cc" ]
   }
 
   if (use_evergreen) {
@@ -298,6 +305,7 @@ source_set("common") {
     "//components/memory_system",
     "//content/public/app",
     "//gpu/command_buffer/service",
+    "//gpu/config",
     "//media",
     "//sandbox/policy",
     "//services/device/time_zone_monitor",
@@ -305,6 +313,13 @@ source_set("common") {
     "//third_party/blink/public/common",
     "//ui/gl",
   ]
+
+  if (is_android) {
+    deps += [
+      "//components/services/storage",
+      "//content/public/common",
+    ]
+  }
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
@@ -316,6 +331,10 @@ source_set("common") {
 
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
+  }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader" ]
   }
 }
 
@@ -351,7 +370,6 @@ test("cobalt_unittests") {
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_memory/low_memory_manager_unittest.cc",
     "//cobalt/browser/h5vcc_metrics/histogram_fetcher_test.cc",
-    "//cobalt/browser/h5vcc_native_stability/native_stability_manager_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/memory_ablation_unittest.cc",
     "//cobalt/browser/metrics/cobalt_detailed_metrics_delegate_unittest.cc",
@@ -361,10 +379,28 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/metrics/cobalt_stability_metrics_helper_unittest.cc",
+    "//cobalt/browser/metrics/cobalt_storage_metrics_helper_unittest.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
+    "//cobalt/browser/v8_cpu_profiler_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
+    "//cobalt/shell/browser/splash_cache_unittest.cc",
+    "//components/services/storage/dom_storage/dom_storage_database_unittest.cc",
   ]
+
+  # On tvOS (is_ios), MessagePumpType::DEFAULT uses MessagePumpCFRunLoop.
+  # LocalStorageImplTest predicates inside base::test::RunUntil() (which run
+  # from MessagePumpCFRunLoopBase::PreWaitObserver / DoIdleWork()) spin nested
+  # base::RunLoop::Run() calls in GetDatabaseContents() and DoTestGet(),
+  # triggering WorkItemScope and RunLevelTracker DCHECKs in
+  # message_pump_apple.mm and thread_controller.cc.
+  if (!is_ios) {
+    sources += [
+      "//components/services/storage/dom_storage/local_storage_impl_unittest.cc",
+      "//components/services/storage/dom_storage/storage_area_test_util.cc",
+      "//components/services/storage/dom_storage/storage_area_test_util.h",
+    ]
+  }
 
   # Memory instrumentation host-side tool tests require launching external
   # Python processes, which is not supported on Starboard and modular/Evergreen
@@ -390,6 +426,13 @@ test("cobalt_unittests") {
     ]
   }
 
+  if (is_android) {
+    sources += [
+      "//cobalt/android/androidtv_flag_map_test.cc",
+      "//cobalt/app/cobalt_switch_defaults_android_test.cc",
+    ]
+  }
+
   if (use_evergreen) {
     sources += [ "//cobalt/browser/loader_app_metrics_unittest.cc" ]
   }
@@ -399,6 +442,7 @@ test("cobalt_unittests") {
   if (!is_android) {
     sources += [
       "//cobalt/shell/browser/lifecycle_unittest.cc",
+      "//cobalt/shell/browser/splash_screen_metrics_unittest.cc",
       "//cobalt/shell/browser/splash_screen_unittest.cc",
     ]
   }
@@ -426,8 +470,9 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_memory",
     "//cobalt/browser/h5vcc_memory:low_memory_manager",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
-    "//cobalt/browser/h5vcc_native_stability",
-    "//cobalt/browser/h5vcc_native_stability/public/mojom",
+    "//cobalt/browser/h5vcc_native_stability:unit_tests",
+    "//cobalt/browser/h5vcc_platform_service",
+    "//cobalt/browser/h5vcc_platform_service/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
@@ -438,17 +483,24 @@ test("cobalt_unittests") {
     "//components/metrics:test_support",
     "//components/prefs",
     "//components/prefs:test_support",
+    "//components/services/storage",
+    "//components/services/storage/public/cpp",
     "//components/variations",
     "//components/variations/service",
     "//content/test:test_support",
+    "//gin",
+    "//gin:gin_test",
     "//media:test_support",
     "//mojo/core/embedder",
     "//mojo/core/test:run_all_unittests",
     "//net/traffic_annotation:test_support",
     "//services/network/public/cpp",
+    "//sql",
+    "//storage/browser:test_support",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/metrics_proto",
+    "//v8",
   ]
 
   # All configs that provide definitions for switch constants.
@@ -467,16 +519,33 @@ test("cobalt_unittests") {
     "//ui/events/devices",
   ]
 
+  if (is_starboard || is_androidtv) {
+    deps += [ "//cobalt/browser/h5vcc_native_stability" ]
+  }
+
+  if (use_starboard_media) {
+    deps += [ "//cobalt/media/service:unit_tests" ]
+  }
+
   if (is_starboard) {
     deps += [ "//ui/ozone/platform/starboard" ]
   }
 
   if (is_android) {
+    sources += [ "//cobalt/browser/metrics/cobalt_process_state_summary_manager_unittest.cc" ]
     deps += [
       "//base:base_java_test_support",
+      "//cobalt/android:androidtv_flags",
+      "//cobalt/android:cobalt_main_java",
+      "//components/network_session_configurator/common",
       "//content/public/android:content_java",
       "//ui/android:ui_java",
+      "//ui/display",
     ]
+  }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
   }
 
   if (use_aura) {

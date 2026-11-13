@@ -38,8 +38,7 @@ TEST(SbAudioSinkTest, SomeFramesConsumed) {
   ASSERT_TRUE(environment);
 
   // Audio sink need to be fully filled once to ensure it can start working.
-  int frames_to_append = frame_buffers.frames_per_channel();
-  environment->AppendFrame(frames_to_append);
+  environment->FillFrameBuffer();
 
   EXPECT_TRUE(environment->WaitUntilSomeFramesAreConsumed());
 }
@@ -61,8 +60,7 @@ TEST(SbAudioSinkTest, MultipleAppendAndConsume) {
   ASSERT_TRUE(environment);
 
   // Audio sink need to be fully filled once to ensure it can start working.
-  int frames_to_append = frame_buffers.frames_per_channel();
-  environment->AppendFrame(frames_to_append);
+  environment->FillFrameBuffer();
 
   EXPECT_TRUE(environment->WaitUntilSomeFramesAreConsumed());
   ASSERT_GT(environment->GetFrameBufferFreeSpaceInFrames(), 0);
@@ -78,8 +76,7 @@ TEST(SbAudioSinkTest, Pause) {
   environment->SetIsPlaying(false);
 
   // Audio sink need to be fully filled once to ensure it can start working.
-  int frames_to_append = frame_buffers.frames_per_channel();
-  environment->AppendFrame(frames_to_append);
+  environment->FillFrameBuffer();
 
   int free_space = environment->GetFrameBufferFreeSpaceInFrames();
   EXPECT_TRUE(environment->WaitUntilUpdateStatusCalled());
@@ -95,8 +92,7 @@ TEST(SbAudioSinkTest, Underflow) {
   ASSERT_TRUE(environment);
 
   // Audio sink need to be fully filled once to ensure it can start working.
-  int frames_to_append = frame_buffers.frames_per_channel();
-  environment->AppendFrame(frames_to_append);
+  environment->FillFrameBuffer();
 
   EXPECT_TRUE(environment->WaitUntilSomeFramesAreConsumed());
   usleep(250'000);
@@ -110,6 +106,10 @@ TEST(SbAudioSinkTest, ContinuousAppend) {
 
   auto environment = AudioSinkTestEnvironment::Create(frame_buffers);
   ASSERT_TRUE(environment);
+
+  // Audio sink need to be fully filled once to ensure it can start working.
+  environment->FillFrameBuffer();
+  ASSERT_TRUE(environment->WaitUntilSomeFramesAreConsumed());
 
   int sample_rate = environment->sample_rate();
   // We are trying to send 1/4s worth of audio samples.

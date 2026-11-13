@@ -21,6 +21,8 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/android/shared/fake_audio_track.h"
@@ -36,6 +38,12 @@ using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+
+AudioTrackAudioSinkType::Options ThresholdGrowthOptions() {
+  AudioTrackAudioSinkType::Options options;
+  options.restart_on_audio_threshold_growth = true;
+  return options;
+}
 
 class AudioTrackAudioSinkTest : public ::testing::Test {
  protected:
@@ -91,7 +99,6 @@ class AudioTrackAudioSinkTest : public ::testing::Test {
 };
 
 TEST_F(AudioTrackAudioSinkTest, CreateAndDestroy) {
-  AudioTrackAudioSinkType type;
   auto fake_track = std::make_unique<FakeAudioTrack>(
       2, 48000, kSbMediaAudioSampleTypeFloat32);
   FakeAudioTrack* track_ptr = fake_track.get();
@@ -103,14 +110,12 @@ TEST_F(AudioTrackAudioSinkTest, CreateAndDestroy) {
   };
 
   auto sink = AudioTrackAudioSink::CreateForTesting(
-      &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
-      512, callbacks, 0,
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false,
-      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
-  EXPECT_TRUE(sink->IsType(&type));
 
   // Let the sink thread run and process frames.
   int elapsed_ms = 0;
@@ -124,7 +129,6 @@ TEST_F(AudioTrackAudioSinkTest, CreateAndDestroy) {
 }
 
 TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
-  AudioTrackAudioSinkType type;
   auto fake_track = std::make_unique<FakeAudioTrack>(
       2, 48000, kSbMediaAudioSampleTypeFloat32);
   FakeAudioTrack* track_ptr = fake_track.get();
@@ -136,11 +140,10 @@ TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
   };
 
   auto sink = AudioTrackAudioSink::CreateForTesting(
-      &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
-      512, callbacks, 0,
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false,
-      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
   int elapsed_ms = 0;
@@ -171,7 +174,6 @@ TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
 }
 
 TEST_F(AudioTrackAudioSinkTest, FlushAndResumePlayback) {
-  AudioTrackAudioSinkType type;
   auto fake_track = std::make_unique<FakeAudioTrack>(
       2, 48000, kSbMediaAudioSampleTypeFloat32);
   FakeAudioTrack* track_ptr = fake_track.get();
@@ -183,11 +185,10 @@ TEST_F(AudioTrackAudioSinkTest, FlushAndResumePlayback) {
   };
 
   auto sink = AudioTrackAudioSink::CreateForTesting(
-      &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
-      512, callbacks, 0,
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false,
-      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
   int elapsed_ms = 0;
@@ -225,7 +226,6 @@ TEST_F(AudioTrackAudioSinkTest, FlushAndResumePlayback) {
 }
 
 TEST_F(AudioTrackAudioSinkTest, FlushWhilePlayingResumesPlayback) {
-  AudioTrackAudioSinkType type;
   auto fake_track = std::make_unique<FakeAudioTrack>(
       /*channels=*/2, /*sampling_frequency_hz=*/48000,
       kSbMediaAudioSampleTypeFloat32);
@@ -238,13 +238,12 @@ TEST_F(AudioTrackAudioSinkTest, FlushWhilePlayingResumesPlayback) {
   };
 
   auto sink = AudioTrackAudioSink::CreateForTesting(
-      &type, /*channels=*/2, /*sampling_frequency_hz=*/48000,
+      /*channels=*/2, /*sampling_frequency_hz=*/48000,
       kSbMediaAudioSampleTypeFloat32, frame_buffers_,
       /*frames_per_channel=*/1024, /*preferred_buffer_size=*/512, callbacks,
       /*start_media_time=*/0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false,
-      /*pause_using_audio_track_state=*/false, std::move(fake_track),
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track),
       /*context=*/this);
 
   ASSERT_NE(sink, nullptr);
@@ -279,7 +278,6 @@ TEST_F(AudioTrackAudioSinkTest, FlushWhilePlayingResumesPlayback) {
 
 TEST_F(AudioTrackAudioSinkTest,
        HandlesFramesInBufferLessThanFramesInAudioTrack) {
-  AudioTrackAudioSinkType type;
   auto fake_track = std::make_unique<FakeAudioTrack>(
       2, 48000, kSbMediaAudioSampleTypeFloat32);
   FakeAudioTrack* track_ptr = fake_track.get();
@@ -293,11 +291,10 @@ TEST_F(AudioTrackAudioSinkTest,
   // Start with 512 frames in buffer.
   frames_in_buffer_ = 512;
   auto sink = AudioTrackAudioSink::CreateForTesting(
-      &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
-      512, callbacks, 0,
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false,
-      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
 
@@ -331,7 +328,6 @@ TEST_F(AudioTrackAudioSinkTest,
 
 TEST_F(AudioTrackAudioSinkTest,
        FlushDuringSeekAvoidsNegativeExpectedWrittenFrames) {
-  AudioTrackAudioSinkType type;
   auto fake_track = std::make_unique<FakeAudioTrack>(
       /*channels=*/2, /*sampling_frequency_hz=*/48000,
       kSbMediaAudioSampleTypeFloat32);
@@ -346,13 +342,12 @@ TEST_F(AudioTrackAudioSinkTest,
   // Start with 512 frames in buffer.
   frames_in_buffer_ = 512;
   auto sink = AudioTrackAudioSink::CreateForTesting(
-      &type, /*channels=*/2, /*sampling_frequency_hz=*/48000,
+      /*channels=*/2, /*sampling_frequency_hz=*/48000,
       kSbMediaAudioSampleTypeFloat32, frame_buffers_,
       /*frames_per_channel=*/1024, /*preferred_buffer_size=*/512, callbacks,
       /*start_media_time=*/0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false,
-      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
 
@@ -392,7 +387,6 @@ TEST_F(AudioTrackAudioSinkTest,
 }
 
 TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeResetAndContinue) {
-  AudioTrackAudioSinkType type;
   auto fake_track = std::make_unique<FakeAudioTrack>(
       2, 48000, kSbMediaAudioSampleTypeFloat32);
   FakeAudioTrack* track_ptr = fake_track.get();
@@ -405,11 +399,10 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeResetAndContinue) {
 
   frames_in_buffer_ = 512;
   auto sink = AudioTrackAudioSink::CreateForTesting(
-      &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
-      512, callbacks, 0,
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false,
-      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
 
@@ -452,7 +445,6 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeResetAndContinue) {
 }
 
 TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeRestartPlayer) {
-  AudioTrackAudioSinkType type;
   auto fake_track = std::make_unique<FakeAudioTrack>(
       2, 48000, kSbMediaAudioSampleTypeFloat32);
   FakeAudioTrack* track_ptr = fake_track.get();
@@ -465,11 +457,10 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeRestartPlayer) {
 
   frames_in_buffer_ = 512;
   auto sink = AudioTrackAudioSink::CreateForTesting(
-      &type, 2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024,
-      512, callbacks, 0,
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
-      /*allow_audio_writing_on_pause=*/false,
-      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
 
   ASSERT_NE(sink, nullptr);
 
@@ -499,6 +490,290 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeRestartPlayer) {
   }
 
   sink.reset();
+}
+
+TEST_F(AudioTrackAudioSinkTest, DoesNotWriteWhilePausedByDefault) {
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      /*error=*/nullptr,
+  };
+
+  is_playing_ = false;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
+  ASSERT_NE(sink, nullptr);
+
+  // Give the sink thread time to run several iterations.
+  usleep(200'000);
+
+  EXPECT_EQ(track_ptr->written_frames(), 0);
+}
+
+TEST_F(AudioTrackAudioSinkTest, WritesWhilePausedWhenAllowAudioWritingOnPause) {
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      /*error=*/nullptr,
+  };
+
+  is_playing_ = false;
+  AudioTrackAudioSinkType::Options options;
+  options.allow_audio_writing_on_pause = true;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt, options,
+      std::move(fake_track), this);
+  ASSERT_NE(sink, nullptr);
+
+  int elapsed_ms = 0;
+  while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+
+  EXPECT_GT(track_ptr->written_frames(), 0);
+}
+
+// Simulates the platform recreating the AudioTrack with a start threshold that
+// the sink buffer can never fill (b/573043984), e.g. after an audio route
+// switch to a Cast speaker group.
+TEST_F(AudioTrackAudioSinkTest, StartThresholdGrowsBeyondSinkBufferRestarts) {
+  constexpr int kFramesPerChannel = 8192;
+  frame_buffer_.resize(kFramesPerChannel * 2 * sizeof(float), 0);
+  frame_buffers_[0] = frame_buffer_.data();
+
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+  // The initial start threshold fits in the sink buffer.
+  track_ptr->set_start_threshold(1024);
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  frames_in_buffer_ = 512;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_,
+      kFramesPerChannel, 512, callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt, ThresholdGrowthOptions(),
+      std::move(fake_track), /*context=*/this);
+
+  ASSERT_NE(sink, nullptr);
+
+  int elapsed_ms = 0;
+  while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_GT(track_ptr->written_frames(), 0);
+
+  // The playback head of the fake track doesn't move, and the recreated track
+  // requires more frames than the sink buffer can hold.
+  track_ptr->set_start_threshold(kFramesPerChannel);
+
+  elapsed_ms = 0;
+  while (!error_reported_ && elapsed_ms < 3000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+
+  EXPECT_TRUE(error_reported_);
+  EXPECT_TRUE(capability_changed_);
+  {
+    std::lock_guard<std::mutex> lock(error_mutex_);
+    EXPECT_EQ(error_msg_, "AudioTrack start threshold exceeds sink buffer");
+  }
+}
+
+// A start threshold that is already too large at creation is not acted on, so
+// that a recreated player can't restart repeatedly.
+TEST_F(AudioTrackAudioSinkTest, InitialStartThresholdBeyondSinkBufferIgnored) {
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+  track_ptr->set_start_threshold(4096);
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  frames_in_buffer_ = 512;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt, ThresholdGrowthOptions(),
+      std::move(fake_track), /*context=*/this);
+
+  ASSERT_NE(sink, nullptr);
+
+  // Wait for several start threshold checks.
+  usleep(1'500'000);
+
+  EXPECT_GT(track_ptr->written_frames(), 0);
+  EXPECT_FALSE(error_reported_);
+}
+
+// A start threshold that grows after track recreation (dropping previously
+// written frames) but still fits in the sink buffer flushes and re-feeds the
+// unconsumed sink buffer without restarting playback.
+TEST_F(AudioTrackAudioSinkTest, StartThresholdGrowsWithinSinkBufferContinues) {
+  constexpr int kFramesPerChannel = 8192;
+  frame_buffer_.resize(kFramesPerChannel * 2 * sizeof(float), 0);
+  frame_buffers_[0] = frame_buffer_.data();
+
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+  track_ptr->set_start_threshold(2048);
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  // Fill the sink buffer up to max_frames_in_audio_track (8192 - 1024 = 7168).
+  constexpr int kFramesInBuffer = kFramesPerChannel - 1024;
+  frames_in_buffer_ = kFramesInBuffer;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_,
+      kFramesPerChannel, 512, callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt, ThresholdGrowthOptions(),
+      std::move(fake_track), /*context=*/this);
+
+  ASSERT_NE(sink, nullptr);
+
+  int elapsed_ms = 0;
+  while (track_ptr->written_frames() < kFramesInBuffer && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_EQ(track_ptr->written_frames(), kFramesInBuffer);
+
+  // Simulate restoreTrack_l() recreating the track with a larger threshold
+  // (4096 <= 7168) and dropping queued frames while frames_in_audio_track in
+  // the sink is already at kFramesInBuffer.
+  track_ptr->simulate_track_recreation(4096);
+
+  elapsed_ms = 0;
+  while (track_ptr->written_frames() < 4096 && elapsed_ms < 3000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+
+  EXPECT_GE(track_ptr->pause_and_flush_count(), 1);
+  EXPECT_GE(track_ptr->written_frames(), 4096);
+  EXPECT_FALSE(error_reported_);
+}
+
+// Sinks created without an error callback (e.g. Web Audio via
+// SbAudioSinkCreate) do not exit the audio thread when the start threshold
+// grows beyond the sink buffer.
+TEST_F(AudioTrackAudioSinkTest,
+       StartThresholdGrowsBeyondSinkBufferWithoutErrorCallbackContinues) {
+  constexpr int kFramesPerChannel = 8192;
+  frame_buffer_.resize(kFramesPerChannel * 2 * sizeof(float), 0);
+  frame_buffers_[0] = frame_buffer_.data();
+
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+  track_ptr->set_start_threshold(1024);
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      /*error=*/nullptr,
+  };
+
+  frames_in_buffer_ = 512;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_,
+      kFramesPerChannel, 512, callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt, ThresholdGrowthOptions(),
+      std::move(fake_track), /*context=*/this);
+
+  ASSERT_NE(sink, nullptr);
+
+  int elapsed_ms = 0;
+  while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_GT(track_ptr->written_frames(), 0);
+
+  track_ptr->set_start_threshold(kFramesPerChannel);
+
+  // Wait past the 500ms stall check interval, then supply more frames and
+  // verify the audio thread is still alive and writing.
+  usleep(700'000);
+  const int64_t written_before = track_ptr->written_frames();
+  frames_in_buffer_ = 1024;
+  elapsed_ms = 0;
+  while (track_ptr->written_frames() <= written_before && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_GT(track_ptr->written_frames(), written_before);
+}
+
+TEST_F(AudioTrackAudioSinkTest,
+       StartThresholdGrowsBeyondSinkBufferOptionDisabledIgnored) {
+  constexpr int kFramesPerChannel = 8192;
+  frame_buffer_.resize(kFramesPerChannel * 2 * sizeof(float), 0);
+  frame_buffers_[0] = frame_buffer_.data();
+
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+  track_ptr->set_start_threshold(1024);
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  frames_in_buffer_ = 512;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_,
+      kFramesPerChannel, 512, callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track),
+      /*context=*/this);
+
+  ASSERT_NE(sink, nullptr);
+
+  int elapsed_ms = 0;
+  while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_GT(track_ptr->written_frames(), 0);
+
+  track_ptr->set_start_threshold(kFramesPerChannel);
+
+  usleep(1'500'000);
+
+  EXPECT_FALSE(error_reported_);
 }
 
 }  // namespace

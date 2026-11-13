@@ -243,6 +243,20 @@ void VizProcessTransportFactory::RemoveCompositor(ui::Compositor* compositor) {
 #endif
 
   compositor_data_map_.erase(compositor);
+#if BUILDFLAG(IS_COBALT)
+  // Synchronously destroy the RootCompositorFrameSink in Viz (and its
+  // SkiaOutputSurfaceImplOnGpu and EGLSurface on the GPU thread) while keeping
+  // the FrameSinkId registered. RemoveCompositor() is invoked from
+  // ui::Compositor::ReleaseAcceleratedWidget() right before
+  // PlatformWindowStarboard::Hide() calls SbWindowDestroy() and before
+  // ShellPlatformDelegate::OnAllFramesConcealed() shuts down the EGLDisplay.
+  // Without this explicit synchronous teardown, RootCompositorFrameSinkImpl and
+  // NativeViewGLSurfaceEGL outlive both the native SbWindow and the EGLDisplay.
+  if (compositor && compositor->frame_sink_id().is_valid()) {
+    GetHostFrameSinkManager()->DestroyCompositorFrameSink(
+        compositor->frame_sink_id());
+  }
+#endif
 }
 
 cc::TaskGraphRunner* VizProcessTransportFactory::GetTaskGraphRunner() {

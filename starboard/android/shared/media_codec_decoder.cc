@@ -18,13 +18,13 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <iterator>
 
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/memfd_media_buffer_pool.h"
 #include "starboard/audio_sink.h"
-#include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
@@ -42,6 +42,19 @@ const jint kNoBufferFlags = 0;
 
 constexpr int64_t kDefaultVideoDecoderPollIntervalUs = 1'000;         // 1 msec
 constexpr int64_t kDefaultVideoDecoderTunnelPollIntervalUs = 10'000;  // 10 msec
+// Default wait interval between video output thread Tick() calls (~125Hz, i.e.
+// roughly twice a 60fps display refresh rate so frame release times are checked
+// at least twice per vsync interval).
+constexpr auto kDefaultWaitForNextFrameInterval =
+    std::chrono::microseconds(8'000);
+
+// Fallback timeout while waiting for a DRM key (MEDIA_CODEC_NO_KEY) in
+// InputThreadFuncV2().
+constexpr int64_t kDrmKeyWaitFallbackIntervalUs = 50'000;  // 50 msec
+// Exponential backoff bounds while the output is restricted
+// (MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION, e.g. HDCP is lost).
+constexpr int64_t kMinOutputRestrictedBackoffUs = 10'000;   // 10 msec
+constexpr int64_t kMaxOutputRestrictedBackoffUs = 250'000;  // 250 msec
 
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
@@ -128,6 +141,7 @@ MediaCodecDecoder::CreateForVideo(
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
+    bool is_high_bit_depth,
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
@@ -135,20 +149,16 @@ MediaCodecDecoder::CreateForVideo(
     int max_video_input_size,
     int64_t flush_delay_usec,
     bool use_dual_threads,
-    bool skip_video_frames_over_60_fps,
-    bool ignore_mediacodec_callbacks_during_flushing,
-    bool enable_ndk_video,
-    bool enable_trivial_optimizations) {
+    const VideoExperimentalOptions& experimental_options) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
       video_codec, frame_size_hint, max_frame_size, fps, j_output_surface,
-      drm_system, color_metadata, require_software_codec, frame_rendered_cb,
-      first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
-      enable_frame_renderer_listener, max_video_input_size, flush_delay_usec,
-      use_dual_threads, skip_video_frames_over_60_fps,
-      ignore_mediacodec_callbacks_during_flushing, enable_ndk_video,
-      enable_trivial_optimizations, &error_message);
+      drm_system, color_metadata, require_software_codec, is_high_bit_depth,
+      frame_rendered_cb, first_tunnel_frame_ready_cb,
+      tunnel_mode_audio_session_id, enable_frame_renderer_listener,
+      max_video_input_size, flush_delay_usec, use_dual_threads,
+      experimental_options, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -211,6 +221,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
+    bool is_high_bit_depth,
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
@@ -218,10 +229,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     int max_video_input_size,
     int64_t flush_delay_usec,
     bool use_dual_threads,
-    bool skip_video_frames_over_60_fps,
-    bool ignore_mediacodec_callbacks_during_flushing,
-    bool enable_ndk_video,
-    bool enable_trivial_optimizations,
+    const VideoExperimentalOptions& experimental_options,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -235,7 +243,11 @@ MediaCodecDecoder::MediaCodecDecoder(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
       use_dual_threads_(use_dual_threads),
-      enable_trivial_optimizations_(enable_trivial_optimizations) {
+      enable_trivial_optimizations_(
+          experimental_options.enable_trivial_optimizations),
+      enable_codec_thread_improvements_(
+          use_dual_threads &&
+          experimental_options.enable_codec_thread_improvements) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -252,10 +264,10 @@ MediaCodecDecoder::MediaCodecDecoder(
   auto media_codec_bridge = media_codec_factory.CreateVideoMediaCodec(
       video_codec, frame_size_hint, fps, max_frame_size,
       /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
-      {max_video_input_size, skip_video_frames_over_60_fps,
-       ignore_mediacodec_callbacks_during_flushing,
+      {max_video_input_size, experimental_options.skip_video_frames_over_60_fps,
        enable_frame_renderer_listener, require_secured_decoder,
-       require_software_codec, tunnel_mode_audio_session_id, enable_ndk_video});
+       require_software_codec, tunnel_mode_audio_session_id,
+       experimental_options.enable_ndk_video, is_high_bit_depth});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
@@ -265,17 +277,31 @@ MediaCodecDecoder::MediaCodecDecoder(
                   << *error_message;
     return;
   }
+  if (enable_codec_thread_improvements_ && drm_system_) {
+    // Wake up InputThreadFuncV2() when DRM key state changes instead of
+    // polling.
+    drm_system_->RegisterKeyStateChangedCallback(
+        this, [this] { OnDrmKeyStateChanged(); });
+  }
   SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
                << ToString(tunnel_mode_enabled_)
                << ", video_decoder_poll_interval(msec)="
                << video_decoder_poll_interval_us_ / 1'000
                << ", use_dual_threads=" << ToString(use_dual_threads_)
                << ", enable_trivial_optimizations="
-               << ToString(enable_trivial_optimizations_);
+               << ToString(enable_trivial_optimizations_)
+               << ", enable_codec_thread_improvements="
+               << ToString(enable_codec_thread_improvements_);
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
+
+  if (enable_codec_thread_improvements_ && drm_system_) {
+    // Unregister before joining decoder threads; this blocks until any
+    // in-flight OnDrmKeyStateChanged() callback returns.
+    drm_system_->UnregisterKeyStateChangedCallback(this);
+  }
 
   TerminateDecoderThread();
 
@@ -324,11 +350,34 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   if (use_dual_threads_) {
     SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
     if (!video_input_thread_) {
+      // The input thread makes synchronous JNI/Binder calls into the codec on
+      // every frame.  With the codec thread improvements it runs at the same
+      // priority as the output thread and the player worker, so it isn't
+      // preempted by them while queueing input; otherwise it keeps the default
+      // priority.
       video_input_thread_ = std::make_unique<DecoderThread>(
-          "VidDecIn", [this] { InputThreadFunc(); });
+          "VidDecIn",
+          [this] {
+            if (enable_codec_thread_improvements_) {
+              InputThreadFuncV2();
+            } else {
+              InputThreadFunc();
+            }
+          },
+          enable_codec_thread_improvements_
+              ? std::make_optional(ThreadPriority::kHigh)
+              : std::nullopt);
       video_input_thread_->Start();
       video_output_thread_ = std::make_unique<DecoderThread>(
-          "VidDecOut", [this] { OutputThreadFunc(); }, ThreadPriority::kHigh);
+          "VidDecOut",
+          [this] {
+            if (enable_codec_thread_improvements_) {
+              OutputThreadFuncV2();
+            } else {
+              OutputThreadFunc();
+            }
+          },
+          ThreadPriority::kHigh);
       video_output_thread_->Start();
     }
   } else if (!decoder_thread_) {
@@ -351,7 +400,15 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
   if (need_signal) {
     if (use_dual_threads_) {
-      video_input_condition_variable_.notify_one();
+      // With the codec thread improvements the input thread only waits for a
+      // complete (input, input buffer index) pair, so only signal it when an
+      // index is already available in the shared queue or held by the input
+      // thread itself.
+      if (!enable_codec_thread_improvements_ ||
+          !input_buffer_indices_.empty() ||
+          unmatched_input_thread_indices_ > 0) {
+        video_input_condition_variable_.notify_one();
+      }
     } else {
       condition_variable_.notify_one();
     }
@@ -367,7 +424,13 @@ void MediaCodecDecoder::WriteEndOfStream() {
   ++number_of_pending_inputs_;
   if (pending_inputs_.size() == 1) {
     if (use_dual_threads_) {
-      video_input_condition_variable_.notify_one();
+      // Only signal when an input buffer index is already available to pair
+      // with the end-of-stream input (see WriteInputBuffers()).
+      if (!enable_codec_thread_improvements_ ||
+          !input_buffer_indices_.empty() ||
+          unmatched_input_thread_indices_ > 0) {
+        video_input_condition_variable_.notify_one();
+      }
     } else {
       condition_variable_.notify_one();
     }
@@ -402,16 +465,26 @@ bool MediaCodecDecoder::Flush() {
   }
 
   // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
-  number_of_pending_inputs_.store(0);
-  pending_inputs_.clear();
-  input_buffer_indices_.clear();
-  dequeue_output_results_.clear();
-  pending_input_to_retry_ = std::nullopt;
+  {
+    std::unique_lock lock(mutex_, std::defer_lock);
+    if (enable_codec_thread_improvements_) {
+      // The MediaCodec callback thread may still touch the shared state, so
+      // hold |mutex_| while resetting it.
+      lock.lock();
+    }
+    number_of_pending_inputs_.store(0);
+    pending_inputs_.clear();
+    input_buffer_indices_.clear();
+    dequeue_output_results_.clear();
+    pending_input_to_retry_ = std::nullopt;
+    unmatched_input_thread_inputs_ = 0;
+    unmatched_input_thread_indices_ = 0;
 
-  // 2.3. Add OutputFormatChanged to get current output format after Flush().
-  DequeueOutputResult dequeue_output_result = {};
-  dequeue_output_result.index = -1;
-  dequeue_output_results_.push_back(dequeue_output_result);
+    // 2.3. Add OutputFormatChanged to get current output format after Flush().
+    DequeueOutputResult dequeue_output_result = {};
+    dequeue_output_result.index = -1;
+    dequeue_output_results_.push_back(dequeue_output_result);
+  }
 
   // 2.4. Wait for |flush_delay_usec_| on pre Android 13 devices.
   if (flush_delay_usec_ > 0) {
@@ -616,6 +689,92 @@ void MediaCodecDecoder::InputThreadFunc() {
   }
 }
 
+void MediaCodecDecoder::InputThreadFuncV2() {
+  // Initialize() should be called before creating the thread, where `error_cb_`
+  // is set.  Check `error_cb_` here to ensure Initialize() has been called.
+  SB_DCHECK(error_cb_);
+  SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+  SB_DCHECK(use_dual_threads_);
+  SB_DCHECK(enable_codec_thread_improvements_);
+
+  std::deque<PendingInput> pending_inputs;
+  std::vector<int> input_buffer_indices;
+
+  auto can_process_input = [this, &pending_inputs, &input_buffer_indices] {
+    return pending_input_to_retry_ ||
+           (!pending_inputs.empty() && !input_buffer_indices.empty());
+  };
+
+  int64_t output_restricted_backoff_us = kMinOutputRestrictedBackoffUs;
+
+  while (!destroying_.load()) {
+    if (can_process_input()) {
+      // Snapshot the DRM key state generation before queueing so an update
+      // racing with a failed queue attempt is detected by the wait predicate.
+      const uint64_t observed_drm_generation =
+          drm_system_ ? drm_system_->GetKeyStateGeneration() : 0;
+      if (ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices)) {
+        output_restricted_backoff_us = kMinOutputRestrictedBackoffUs;
+        continue;
+      }
+      if (!pending_input_to_retry_) {
+        // The input wasn't held for retry: either its input buffer index was
+        // unusable (e.g. stale after flush) and the input was returned to
+        // |pending_inputs|, or a fatal capacity error was reported.  Sleep 1 ms
+        // to avoid busy looping.
+        usleep(1'000);
+        continue;
+      }
+      // Wait until the DRM key state changes or the fallback interval elapses
+      // (or back off exponentially while output protection is restricted); also
+      // paces retries after a reported fatal error until teardown.
+      std::unique_lock lock(mutex_);
+      const int64_t wait_duration_us = is_output_restricted_
+                                           ? output_restricted_backoff_us
+                                           : kDrmKeyWaitFallbackIntervalUs;
+      const bool woke_on_event = video_input_condition_variable_.wait_for(
+          lock, std::chrono::microseconds(wait_duration_us),
+          [this, observed_drm_generation] {
+            return destroying_.load() ||
+                   (drm_system_ && drm_system_->GetKeyStateGeneration() !=
+                                       observed_drm_generation);
+          });
+      if (!is_output_restricted_) {
+        output_restricted_backoff_us = kMinOutputRestrictedBackoffUs;
+      } else if (!woke_on_event) {
+        output_restricted_backoff_us = std::min(
+            output_restricted_backoff_us * 2, kMaxOutputRestrictedBackoffUs);
+      }
+      continue;
+    }
+
+    std::unique_lock lock(mutex_);
+    // Publish the unmatched local counts under |mutex_| so producers know
+    // whether a new input or input buffer index completes a pair and needs a
+    // signal.
+    unmatched_input_thread_inputs_ = pending_inputs.size();
+    unmatched_input_thread_indices_ = input_buffer_indices.size();
+    // Wait until a complete (input, input buffer index) pair is available
+    // across the shared and local queues.
+    video_input_condition_variable_.wait_for(
+        lock, std::chrono::seconds(1),
+        [this, &pending_inputs, &input_buffer_indices] {
+          return destroying_.load() ||
+                 ((!pending_inputs_.empty() || !pending_inputs.empty()) &&
+                  (!input_buffer_indices_.empty() ||
+                   !input_buffer_indices.empty()));
+        });
+    // Clear the published counts once awake so producers don't signal
+    // needlessly while the thread is active.
+    unmatched_input_thread_inputs_ = 0;
+    unmatched_input_thread_indices_ = 0;
+    if (destroying_.load()) {
+      break;
+    }
+    CollectPendingInputData_Locked(&pending_inputs, &input_buffer_indices);
+  }
+}
+
 void MediaCodecDecoder::OutputThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
@@ -660,9 +819,70 @@ void MediaCodecDecoder::OutputThreadFunc() {
           // TODO(b/329686979): Allow Tick() to return the time to next frame
           // release to dynamically adjust the wait duration.
           video_output_condition_variable_.wait_for(
-              lock, std::chrono::microseconds(8'000));
+              lock, kDefaultWaitForNextFrameInterval);
         }
       }
+    }
+  }
+}
+
+void MediaCodecDecoder::OutputThreadFuncV2() {
+  // Initialize() should be called before creating the thread, where `error_cb_`
+  // is set.  Check `error_cb_` here to ensure Initialize() has been called.
+  SB_DCHECK(error_cb_);
+  SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+  SB_DCHECK(use_dual_threads_);
+  SB_DCHECK(enable_codec_thread_improvements_);
+
+  std::vector<DequeueOutputResult> dequeue_output_results;
+
+  while (!destroying_.load()) {
+    dequeue_output_results.clear();
+    {
+      std::unique_lock lock(mutex_);
+      if (dequeue_output_results_.empty()) {
+        if (tunnel_mode_enabled_) {
+          // In tunnel mode the codec renders frames itself; sleep until an
+          // output format change arrives or the thread is terminated.
+          video_output_condition_variable_.wait(lock, [this] {
+            return destroying_.load() || !dequeue_output_results_.empty();
+          });
+        } else {
+          // TODO(b/329686979): Allow Tick() to return the time to next frame
+          // release to dynamically adjust the wait duration.
+          video_output_condition_variable_.wait_for(
+              lock, kDefaultWaitForNextFrameInterval, [this] {
+                return destroying_.load() || !dequeue_output_results_.empty();
+              });
+        }
+      }
+      if (destroying_.load()) {
+        break;
+      }
+      // Collect pending outputs before releasing |mutex_| so they are all
+      // drained in one lock acquisition per wakeup.
+      CollectPendingOutputData_Locked(&dequeue_output_results);
+    }
+
+    // Process all collected output buffers in a batch before calling Tick() so
+    // the renderer sees every newly arrived frame right away.
+    for (const auto& dequeue_output_result : dequeue_output_results) {
+      if (dequeue_output_result.index < 0) {
+        host_->RefreshOutputFormat(media_codec_bridge_.get());
+      } else if (!tunnel_mode_enabled_) {
+        host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                   dequeue_output_result,
+                                   GetNumberOfPendingInputs());
+      }
+    }
+
+    if (!tunnel_mode_enabled_) {
+      // Call Tick() once per iteration after draining pending output buffers.
+      // Its return value is ignored because a single Tick() already renders
+      // any frame currently due for display, so immediately re-running the loop
+      // without waiting when Tick() returns true would only trigger a redundant
+      // no-op Tick() call.
+      host_->Tick(media_codec_bridge_.get());
     }
   }
 }
@@ -711,8 +931,8 @@ void MediaCodecDecoder::CollectPendingData_Locked(
 void MediaCodecDecoder::CollectPendingInputData_Locked(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices) {
-  SB_DCHECK(pending_inputs);
-  SB_DCHECK(input_buffer_indices);
+  SB_CHECK(pending_inputs);
+  SB_CHECK(input_buffer_indices);
 
   if (enable_trivial_optimizations_) {
     pending_inputs->insert(pending_inputs->end(),
@@ -732,7 +952,7 @@ void MediaCodecDecoder::CollectPendingInputData_Locked(
 
 void MediaCodecDecoder::CollectPendingOutputData_Locked(
     std::vector<DequeueOutputResult>* dequeue_output_results) {
-  SB_DCHECK(dequeue_output_results);
+  SB_CHECK(dequeue_output_results);
 
   dequeue_output_results->insert(dequeue_output_results->end(),
                                  dequeue_output_results_.begin(),
@@ -837,18 +1057,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     SB_DCHECK_GE(size, 0);
     SB_DCHECK_LE(static_cast<size_t>(size), capacity);
 
-    using ::starboard::experimental::IsPointerAnnotated;
-    using ::starboard::experimental::UnannotatePointer;
-
-    if (IsPointerAnnotated(data)) {
-      auto* pool = MemFdMediaBufferPool::Get();
-      SB_DCHECK(pool);
-
-      // Unannotate the pointer here to convert it into the position the
-      // extension understands.
-      intptr_t position = UnannotatePointer(reinterpret_cast<intptr_t>(data));
-      pool->Read(position, address, size);
-    } else {
+    if (size > 0) {
       memcpy(address, data, size);
     }
   }
@@ -937,7 +1146,10 @@ void MediaCodecDecoder::HandleError(const char* action_name, jint status) {
     SB_LOG(INFO) << "|" << action_name << "| failed with status: "
                  << GetNameForMediaCodecStatus(status)
                  << ", will try again after a delay.";
-    sched_yield();
+    // InputThreadFuncV2() waits for a DRM key state change instead of spinning.
+    if (!enable_codec_thread_improvements_) {
+      sched_yield();
+    }
   } else {
     SB_LOG(ERROR) << "|" << action_name << "| failed with status: "
                   << GetNameForMediaCodecStatus(status) << ".";
@@ -961,6 +1173,13 @@ void MediaCodecDecoder::ReportError(const SbPlayerError error,
   if (error_cb_) {
     error_cb_(error_, error_message_);
   }
+}
+
+void MediaCodecDecoder::OnDrmKeyStateChanged() {
+  // Acquire |mutex_| before signaling so the wakeup cannot be lost between
+  // InputThreadFuncV2()'s generation predicate check and its wait.
+  std::lock_guard lock(mutex_);
+  video_input_condition_variable_.notify_one();
 }
 
 void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
@@ -998,7 +1217,12 @@ void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int32_t buffer_index) {
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
     if (use_dual_threads_) {
-      video_input_condition_variable_.notify_one();
+      // With the codec thread improvements, only signal when this index
+      // completes a pair with a pending input in the shared or local queue.
+      if (!enable_codec_thread_improvements_ || !pending_inputs_.empty() ||
+          unmatched_input_thread_inputs_ > 0) {
+        video_input_condition_variable_.notify_one();
+      }
     } else {
       condition_variable_.notify_one();
     }

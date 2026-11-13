@@ -48,6 +48,7 @@
 #include <mutex>
 #include <unistd.h>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -73,7 +74,7 @@ constexpr int MAX_ALLOWED_SESSION = 4;
 class GStreamerAudioSink : public SbAudioSinkPrivate {
  public:
   GStreamerAudioSink(
-      Type* type,
+      GStreamerAudioSinkType* type,
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType audio_sample_type,
@@ -84,8 +85,6 @@ class GStreamerAudioSink : public SbAudioSinkPrivate {
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context);
   ~GStreamerAudioSink() override;
-
-  bool IsType(Type* type) override { return type_ == type; }
 
   void SetPlaybackRate(double playback_rate) override {
     SB_NOTIMPLEMENTED();
@@ -113,7 +112,7 @@ class GStreamerAudioSink : public SbAudioSinkPrivate {
     return channels_ * GetBytesPerSample(audio_sample_type_);
   }
 
-  Type* type_{nullptr};
+  GStreamerAudioSinkType* type_{nullptr};
   int channels_{0};
   int sampling_frequency_hz_{0};
   SbMediaAudioSampleType audio_sample_type_{kSbMediaAudioSampleTypeFloat32};
@@ -142,7 +141,7 @@ class GStreamerAudioSink : public SbAudioSinkPrivate {
 };
 
 GStreamerAudioSink::GStreamerAudioSink(
-    Type* type,
+    GStreamerAudioSinkType* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
@@ -266,6 +265,7 @@ GStreamerAudioSink::~GStreamerAudioSink() {
   g_main_loop_unref(mainloop_);
   gst_object_unref(pipeline_);
   g_main_context_unref(main_loop_context_);
+  type_->OnSinkDestroyed();
 }
 
 // static

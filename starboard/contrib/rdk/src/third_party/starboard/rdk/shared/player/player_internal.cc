@@ -50,6 +50,7 @@
 #include "starboard/common/media.h"
 #include <optional>
 #include <sys/resource.h>
+#include "starboard/common/string.h"
 #include "starboard/common/thread.h"
 #include "starboard/common/time.h"
 #include "starboard/drm.h"
@@ -84,7 +85,7 @@ int Player::MaxNumberOfSamplesPerWrite() {
   return kMaxNumberOfSamplesPerWrite;
 }
 
-using ::starboard::IsSDRVideo;
+using ::starboard::Is8BitSDRVideo;
 // **************************** GST/GLIB Helpers **************************** //
 
 namespace {
@@ -498,13 +499,12 @@ void gst_cobalt_src_setup_and_add_app_src(SbMediaType media_type,
     // If the queue blocks, appsrc stops pushing buffers which halts the buffer
     // probe triggers, preventing the did-reach-buffering-target event and
     // trapping the pipeline in a paused state.
-    uint32_t max_queue_buffers = (media_type == kSbMediaTypeVideo) ? 300 : 60;
     GstElement* queue = gst_element_factory_make("queue", nullptr);
     g_object_set (
       G_OBJECT (queue),
-      "max-size-buffers", (guint) max_queue_buffers,
-      "max-size-bytes", 0,
-      "max-size-time", (gint64) 0,
+      "max-size-buffers", (guint) 0,
+      "max-size-bytes", (guint) 0,
+      "max-size-time", (guint64) 5 * GST_SECOND,
       "silent", TRUE,
       nullptr);
     gst_bin_add(GST_BIN(element), queue);
@@ -708,9 +708,14 @@ struct MaxVideoCapabilities {
   }
 
   bool HasLowResolution() const {
-    return
-      width.has_value() && *width < 1920 &&
-      height.has_value() && *height < 1080;
+    if (!width.has_value() || !height.has_value()) {
+      return false;
+    }
+    // Compare orientation-agnostically so portrait streams are treated the
+    // same as their landscape equivalents.
+    const uint32_t long_edge = std::max(*width, *height);
+    const uint32_t short_edge = std::min(*width, *height);
+    return long_edge < 1920 && short_edge < 1080;
   }
 };
 
@@ -807,10 +812,10 @@ static void AddColorMetadataToGstCaps(GstCaps* caps, const SbMediaColorMetadata&
   if (color_metadata.bits_per_channel < 8) {
     return;
   }
-  if (IsSDRVideo(color_metadata.bits_per_channel,
-                 color_metadata.primaries,
-                 color_metadata.transfer,
-                 color_metadata.matrix)) {
+  if (Is8BitSDRVideo(color_metadata.bits_per_channel,
+                     color_metadata.primaries,
+                     color_metadata.transfer,
+                     color_metadata.matrix)) {
     return;
   }
 
@@ -905,22 +910,13 @@ static void AddVideoMimeToGstCaps(GstCaps* caps, const char* mime) {
     gst_caps_set_simple (caps, "dovi-stream", G_TYPE_BOOLEAN, TRUE, NULL);
 
     // try parsing profile and level from codec string
-    SbMediaVideoCodec video_codec;
-    int profile = -1;
-    int level = -1;
-    int bit_depth = 8;
-    SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
-    SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
-    SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
-
-    if (::starboard::ParseVideoCodec(codec_string, &video_codec, &profile, &level,
-                                     &bit_depth, &primary_id, &transfer_id, &matrix_id)) {
-      GST_DEBUG("Got video codec: %u, bit_depth: %d, profile: %d, level: %d.",
-                video_codec, bit_depth, profile, level);
+    if (auto codec_info = ::starboard::ParseVideoCodec(codec_string)) {
+      GST_DEBUG("Got video codec info: %s",
+                ::starboard::ToString(*codec_info).c_str());
       gst_caps_set_simple (
         caps,
-        "dv_profile", G_TYPE_INT, profile,
-        "dv_level",  G_TYPE_INT, level,
+        "dv_profile", G_TYPE_INT, codec_info->profile,
+        "dv_level",  G_TYPE_INT, codec_info->level,
         NULL);
     } else {
       GST_WARNING("Couldn't parse video codec info from mime type '%s'.", mime);

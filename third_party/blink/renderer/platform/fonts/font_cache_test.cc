@@ -42,9 +42,17 @@ TEST_F(FontCacheTest, getLastResortFallbackFont) {
   // term of font/glyph selection.
   // TODO(crbug.com/1065468): Remove the test for kWebkitBodyFamily when
   // -webkit-body in unshipped.
+#if BUILDFLAG(IS_COBALT)
+  for (FontDescription::GenericFamilyType family_type :
+       {FontDescription::kStandardFamily, FontDescription::kWebkitBodyFamily,
+        FontDescription::kSansSerifFamily, FontDescription::kSerifFamily,
+        FontDescription::kMonospaceFamily, FontDescription::kCursiveFamily,
+        FontDescription::kFantasyFamily}) {
+#else
   for (FontDescription::GenericFamilyType family_type :
        {FontDescription::kStandardFamily, FontDescription::kWebkitBodyFamily,
         FontDescription::kSansSerifFamily}) {
+#endif  // BUILDFLAG(IS_COBALT)
     FontDescription font_description;
     font_description.SetGenericFamily(family_type);
     const SimpleFontData* font_data =
@@ -73,6 +81,49 @@ TEST_F(FontCacheTest, NoFallbackForPrivateUseArea) {
     }
   }
 }
+
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+// A bold weight requested for a character that falls back to a Regular-only
+// typeface (e.g. CJK via NotoSansCJK-Regular) synthesizes bold, as in
+// Cobalt 25.
+TEST_F(FontCacheTest, FallbackSynthesizesBoldForRegularOnlyTypeface) {
+  FontCache& font_cache = FontCache::Get();
+  constexpr UChar32 kCjkCharacter = 0x4E00;
+
+  FontDescription bold_description;
+  bold_description.SetGenericFamily(FontDescription::kSansSerifFamily);
+  bold_description.SetWeight(kBoldWeightValue);
+  const SimpleFontData* bold_fallback = font_cache.FallbackFontForCharacter(
+      bold_description, kCjkCharacter, nullptr);
+  ASSERT_TRUE(bold_fallback);
+  ASSERT_FALSE(bold_fallback->PlatformData().Typeface()->isBold());
+  EXPECT_TRUE(bold_fallback->PlatformData().SyntheticBold());
+
+  // A normal weight does not synthesize bold.
+  FontDescription normal_description;
+  normal_description.SetGenericFamily(FontDescription::kSansSerifFamily);
+  normal_description.SetWeight(kNormalWeightValue);
+  const SimpleFontData* normal_fallback = font_cache.FallbackFontForCharacter(
+      normal_description, kCjkCharacter, nullptr);
+  ASSERT_TRUE(normal_fallback);
+  EXPECT_FALSE(normal_fallback->PlatformData().SyntheticBold());
+}
+
+// A bold weight requested for a character whose fallback typeface is already
+// bold does not synthesize bold.
+TEST_F(FontCacheTest, FallbackDoesNotSynthesizeBoldForBoldTypeface) {
+  FontCache& font_cache = FontCache::Get();
+
+  FontDescription bold_description;
+  bold_description.SetGenericFamily(FontDescription::kSansSerifFamily);
+  bold_description.SetWeight(kBoldWeightValue);
+  const SimpleFontData* bold_fallback =
+      font_cache.FallbackFontForCharacter(bold_description, 'A', nullptr);
+  ASSERT_TRUE(bold_fallback);
+  ASSERT_TRUE(bold_fallback->PlatformData().Typeface()->isBold());
+  EXPECT_FALSE(bold_fallback->PlatformData().SyntheticBold());
+}
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 TEST_F(FontCacheTest, FallbackForEmojis) {

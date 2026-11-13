@@ -22,6 +22,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/fake_demuxer_stream.h"
 #include "media/base/media_switches.h"
@@ -40,6 +41,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "media/starboard/url_player_demuxer.h"
+#include "url/gurl.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 namespace media {
 
 using ::testing::_;
@@ -57,8 +63,9 @@ struct FakeMojomRendererCallRecord {
 
 class FakeMojomRenderer : public mojom::Renderer {
  public:
-  explicit FakeMojomRenderer(FakeMojomRendererCallRecord* record = nullptr)
-      : record_(record) {}
+  explicit FakeMojomRenderer(FakeMojomRendererCallRecord* record = nullptr,
+                             bool initialize_result = true)
+      : record_(record), initialize_result_(initialize_result) {}
   ~FakeMojomRenderer() override = default;
 
   void Initialize(
@@ -70,7 +77,7 @@ class FakeMojomRenderer : public mojom::Renderer {
       record_->last_stream_count =
           streams ? std::make_optional(streams->size()) : std::nullopt;
     }
-    std::move(cb).Run(true);
+    std::move(cb).Run(initialize_result_);
   }
   MOCK_METHOD1(Flush, void(FlushCallback));
   void StartPlayingFrom(base::TimeDelta time) override {}
@@ -83,6 +90,7 @@ class FakeMojomRenderer : public mojom::Renderer {
 
  private:
   FakeMojomRendererCallRecord* record_ = nullptr;
+  const bool initialize_result_ = true;
 };
 
 class FakeStarboardRendererExtension
@@ -165,10 +173,12 @@ class StarboardRendererClientTest : public ::testing::Test {
   }
 
   void InitializeStarboardRendererClient(bool with_gpu_factories = true,
-                                         bool bypass_mojo_for_media = false) {
+                                         bool bypass_mojo_for_media = false,
+                                         bool mojo_initialize_result = true) {
     mojo::PendingRemote<mojom::Renderer> renderer_remote;
     mojo::MakeSelfOwnedReceiver(
-        std::make_unique<FakeMojomRenderer>(&fake_mojom_renderer_record_),
+        std::make_unique<FakeMojomRenderer>(&fake_mojom_renderer_record_,
+                                            mojo_initialize_result),
         renderer_remote.InitWithNewPipeAndPassReceiver());
 
     mojo::PendingRemote<mojom::StarboardRendererExtension>
@@ -212,6 +222,11 @@ class StarboardRendererClientTest : public ::testing::Test {
   NiceMock<MockRendererClientStarboard> renderer_client_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   std::unique_ptr<FakeMediaResource> media_resource_;
+#if BUILDFLAG(IS_IOS_TVOS)
+  UrlPlayerDemuxer url_player_demuxer_{
+      task_environment_.GetMainThreadTaskRunner(),
+      GURL("https://example.com/master.m3u8")};
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   std::unique_ptr<StarboardRendererClient> starboard_renderer_client_;
   FakeMojomRendererCallRecord fake_mojom_renderer_record_;
 };
@@ -381,9 +396,79 @@ TEST_F(StarboardRendererClientTest, InitializeWithBypassBridge_Failure) {
               Run(HasStatusCode(PIPELINE_ERROR_INITIALIZATION_FAILED)));
   client->Initialize(media_resource_.get(), &renderer_client_,
                      renderer_init_cb_.Get());
-  client->UpdateStarboardRenderingMode(StarboardRenderingMode::kPunchOut);
   task_environment_.RunUntilIdle();
 }
+
+TEST_F(StarboardRendererClientTest,
+       InitializeErrorWithoutRenderingModeRunsInitCb) {
+  InitializeStarboardRendererClient(/*with_gpu_factories=*/true,
+                                    /*bypass_mojo_for_media=*/false,
+                                    /*mojo_initialize_result=*/false);
+
+  EXPECT_CALL(renderer_init_cb_,
+              Run(HasStatusCode(PIPELINE_ERROR_INITIALIZATION_FAILED)));
+  starboard_renderer_client_->Initialize(
+      media_resource_.get(), &renderer_client_, renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererClientTest,
+       InitializeSuccessWaitsForRenderingModeBeforeInitCb) {
+  InitializeStarboardRendererClient();
+
+  EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
+  starboard_renderer_client_->Initialize(
+      media_resource_.get(), &renderer_client_, renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+  // The Initialize() reply has arrived, but the rendering mode hasn't.
+  EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
+
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kPunchOut);
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
+}
+
+TEST_F(StarboardRendererClientTest,
+       LateRenderingModeAfterInitializeErrorIsNoOp) {
+  InitializeStarboardRendererClient(/*with_gpu_factories=*/true,
+                                    /*bypass_mojo_for_media=*/false,
+                                    /*mojo_initialize_result=*/false);
+
+  EXPECT_CALL(renderer_init_cb_,
+              Run(HasStatusCode(PIPELINE_ERROR_INITIALIZATION_FAILED)));
+  starboard_renderer_client_->Initialize(
+      media_resource_.get(), &renderer_client_, renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
+
+  EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kDecodeToTexture);
+  task_environment_.RunUntilIdle();
+}
+
+#if BUILDFLAG(IS_IOS_TVOS)
+TEST_F(StarboardRendererClientTest, UrlPlayerInitCbWaitsForDuration) {
+  InitializeStarboardRendererClient();
+
+  EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
+  starboard_renderer_client_->Initialize(
+      &url_player_demuxer_, &renderer_client_, renderer_init_cb_.Get());
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kPunchOut);
+  task_environment_.RunUntilIdle();
+  // The Initialize() reply and the rendering mode have arrived, but the
+  // duration hasn't.
+  EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
+
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  starboard_renderer_client_->OnDurationChange(base::Seconds(10));
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 }  // namespace
 

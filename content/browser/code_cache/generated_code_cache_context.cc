@@ -10,9 +10,11 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "build/build_config.h"
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
 
 namespace content {
@@ -98,8 +100,14 @@ void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
       base::OnTaskRunnerDeleter(task_runner_)};
 
   generated_wasm_code_cache_ = {
-      new GeneratedCodeCache(path.AppendASCII("wasm"), max_bytes,
-                             GeneratedCodeCache::CodeCacheType::kWebAssembly),
+      new GeneratedCodeCache(
+          path.AppendASCII("wasm"),
+#if BUILDFLAG(IS_COBALT)
+          kGeneratedWasmCodeCacheBytes,
+#else
+          max_bytes,
+#endif
+          GeneratedCodeCache::CodeCacheType::kWebAssembly),
       base::OnTaskRunnerDeleter(task_runner_)};
 }
 

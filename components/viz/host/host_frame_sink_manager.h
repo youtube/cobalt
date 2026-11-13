@@ -106,6 +106,22 @@ class VIZ_HOST_EXPORT HostFrameSinkManager
   void InvalidateFrameSinkId(const FrameSinkId& frame_sink_id,
                              HostFrameSinkClient* client);
 
+#if BUILDFLAG(IS_COBALT)
+  // Destroys the [Root]CompositorFrameSink for `frame_sink_id` while keeping
+  // `frame_sink_id` registered in `frame_sink_data_map_` so the compositor can
+  // recreate the root frame sink on resume.
+  //
+  // When `wait_on_destruction` is true, this blocks synchronously on the Viz
+  // and GPU threads until `RootCompositorFrameSinkImpl`,
+  // `SkiaOutputSurfaceImplOnGpu`, and the underlying `EGLSurface`
+  // (`NativeViewGLSurfaceEGL` / `eglDestroySurface`) are destroyed. This
+  // guarantees correct teardown ordering during suspend/conceal: the
+  // `EGLSurface` is destroyed first, before the caller destroys the native
+  // platform window (`SbWindowDestroy`) and before the `EGLDisplay` is shut
+  // down (`eglTerminate`).
+  void DestroyCompositorFrameSink(const FrameSinkId& frame_sink_id);
+#endif
+
   // |debug_label| is used when printing out the surface hierarchy so we know
   // which clients are contributing which surfaces.
   void SetFrameSinkDebugLabel(const FrameSinkId& frame_sink_id,

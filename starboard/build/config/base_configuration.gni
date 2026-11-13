@@ -40,7 +40,7 @@ declare_args() {
   sb_enable_lib = false
 
   # Directory path to static contents' data.
-  sb_static_contents_output_data_dir = "$root_out_dir/content/data"
+  sb_static_contents_output_data_dir = "$root_out_dir"
 
   # Whether to use the libunwind library on Evergreen compatible platform.
   sb_evergreen_compatible_use_libunwind = false
@@ -126,11 +126,4 @@ declare_args() {
   # all unused symbols and nplb fails to link.
   # TODO: b/297808555 Remove this flag after nplb is fixed
   sb_has_unused_symbol_issue = false
-
-  # Platforms can set this to false to avoid building and using a real crashpad
-  # implementation. If false, crashpad either won't be built or a stub
-  # implementation will be built and used.
-  # TODO: b/406511608 - remove once crashpad builds and behaves as expected on
-  # all Early Access Program platforms.
-  use_crashpad = use_evergreen
 }

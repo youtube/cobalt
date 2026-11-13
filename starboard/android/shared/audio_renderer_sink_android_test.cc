@@ -14,7 +14,9 @@
 
 #include "starboard/android/shared/audio_renderer_sink_android.h"
 
+#include <functional>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "starboard/android/shared/audio_sink_android.h"
@@ -36,10 +38,15 @@ constexpr SbMediaAudioSampleType kSampleType =
 
 class FakeAudioSinkAndroid : public AudioSinkAndroid {
  public:
-  FakeAudioSinkAndroid(SbAudioSinkPrivate::Type* type, bool flush_succeeds)
-      : type_(type), flush_succeeds_(flush_succeeds) {}
+  FakeAudioSinkAndroid(bool flush_succeeds,
+                       std::function<void(FakeAudioSinkAndroid*)> on_destroy)
+      : flush_succeeds_(flush_succeeds), on_destroy_(std::move(on_destroy)) {}
 
-  bool IsType(SbAudioSinkPrivate::Type* type) override { return type == type_; }
+  ~FakeAudioSinkAndroid() override {
+    if (on_destroy_) {
+      on_destroy_(this);
+    }
+  }
 
   void SetPlaybackRate(double playback_rate) override {
     playback_rate_ = playback_rate;
@@ -64,8 +71,8 @@ class FakeAudioSinkAndroid : public AudioSinkAndroid {
   double volume() const { return volume_; }
 
  private:
-  SbAudioSinkPrivate::Type* type_;
   bool flush_succeeds_ = true;
+  std::function<void(FakeAudioSinkAndroid*)> on_destroy_;
   bool flush_called_ = false;
   bool start_time_set_ = false;
   int64_t last_start_time_us_ = -1;
@@ -95,23 +102,17 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override {
-    auto sink = new FakeAudioSinkAndroid(this, flush_succeeds_);
+    auto sink = new FakeAudioSinkAndroid(
+        flush_succeeds_, [this](FakeAudioSinkAndroid* destroyed_sink) {
+          if (destroyed_sink == last_created_sink_) {
+            last_sink_destroyed_ = true;
+          }
+          ++destroy_count_;
+        });
     last_created_sink_ = sink;
     last_sink_destroyed_ = false;
     ++create_count_;
     return sink;
-  }
-
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
-  }
-
-  void Destroy(SbAudioSink audio_sink) override {
-    if (audio_sink == last_created_sink_) {
-      last_sink_destroyed_ = true;
-    }
-    ++destroy_count_;
-    delete audio_sink;
   }
 
   SbAudioSinkPrivate::Type* old_primary_type_ = nullptr;
@@ -139,6 +140,15 @@ class DummyRenderCallback : public AudioRendererSink::RenderCallback {
                const std::string& error_message) override {}
 };
 
+AudioStreamInfo CreateAudioStreamInfo() {
+  AudioStreamInfo audio_stream_info;
+  audio_stream_info.codec = kSbMediaAudioCodecAac;
+  audio_stream_info.number_of_channels = kChannels;
+  audio_stream_info.samples_per_second = kSamplingFrequencyHz;
+  audio_stream_info.bits_per_sample = 16;
+  return audio_stream_info;
+}
+
 class AudioRendererSinkAndroidTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -150,11 +160,11 @@ class AudioRendererSinkAndroidTest : public ::testing::Test {
   void TearDown() override { fake_sink_type_.reset(); }
 
   std::unique_ptr<AudioRendererSink> CreateSink(bool allow_flush_during_seek) {
+    AudioRendererSinkAndroid::Options options;
+    options.allow_flush_during_seek = allow_flush_during_seek;
+
     return std::make_unique<AudioRendererSinkAndroid>(
-        /*tunnel_mode_audio_session_id=*/std::nullopt,
-        /*allow_audio_writing_on_pause=*/false,
-        /*enable_video_renderer_vsp_adjustment=*/false, allow_flush_during_seek,
-        /*pause_using_audio_track_state=*/false,
+        CreateAudioStreamInfo(), options,
         [this](int64_t start_media_time, int channels,
                int sampling_frequency_hz,
                SbMediaAudioSampleType audio_sample_type,

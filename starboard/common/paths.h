@@ -22,11 +22,10 @@ namespace starboard {
 // Returns an empty string on error.
 std::string PrependContentPath(const std::string& path);
 
-// Returns the absolute path to a directory that contains Cobalt's trusted
-// Certificate Authority (CA) root certificates, or an empty string if it can't
-// be found.
-std::string GetCACertificatesPath();
-std::string GetCACertificatesPath(const std::string& content_subdir);
+// Returns the absolute path of the ssl/certs/ directory in the content
+// directory, or in its `content_subdir` subdirectory. Returns an empty string
+// if that directory doesn't exist.
+std::string GetCACertificatesPath(const std::string& content_subdir = "");
 
 }  // namespace starboard
 

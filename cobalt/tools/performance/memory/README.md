@@ -89,6 +89,118 @@ The benchmark supports flags for testing different configurations and query para
   ./rdk_kabuki_memory_benchmark.sh --app-memory-saving-mode=true --url-params="my_param=something"
   ```
 
+### 5. `capture_smaps.py`
+Captures `/proc/<pid>/smaps` (plus `smaps_rollup`, `status`, `cmdline` and
+`/proc/meminfo`) from a remote Linux device over **passwordless SSH** into a
+timestamped snapshot directory. The target process is found with the
+equivalent of `ps -ef | grep <pattern>`; if several processes match (e.g. a
+launcher wrapper and its child) the one with the largest `VmRSS` is used.
+Everything is fetched in a single SSH round trip so the files form a
+near-atomic snapshot. Device independent: only needs `ssh`, `ps` and `/proc`.
+
+**Usage:**
+```bash
+# Capture from target device, pattern "cobalt", output ./smaps_snapshots/
+python3 capture_smaps.py --host 10.0.0.5
+
+# Different device / process, then analyze immediately
+python3 capture_smaps.py --host 10.0.0.5 --pattern WPEProcess --analyze
+
+# Known PID; 12 snapshots 5 s apart (e.g. to catch a peak)
+python3 capture_smaps.py --pid 8661 --interval 5 --count 12
+```
+
+### 6. `analyze_smaps.py`
+Analyzes a snapshot directory (or a bare smaps file) and attributes the
+process footprint using only generic Linux / glibc / Chromium / Cobalt
+conventions - no vendor-specific (Tizen, RDK, Mali...) knowledge:
+
+- Detects the Cobalt engine loaded into **anonymous memory** by the Evergreen
+  loader and splits it into `.text` / `.rodata` / `.data+.bss`.
+- `[anon:partition_alloc]`, `[anon:v8]`, `[heap]`, `[stack]`/`[tstack]`,
+  `/dev/shm`+`memfd`, `/dev/*` device nodes, shared libraries (code vs. CoW
+  data), fonts, other files.
+- Heuristics for **glibc malloc arenas** (1 MiB / 64 MiB aligned `rw-p` +
+  `---p` tail) and **pthread stacks** (small `---p` guard followed by an
+  adjacent `rw-p` region) when the kernel does not name anonymous VMAs.
+- Report: totals, reconciliation against `/proc/<pid>/status`
+  (`VmRSS`/`RssAnon`/`RssFile`/`RssShmem` - the delta vs. smaps RSS is
+  typically GPU driver memory in `VM_PFNMAP` mappings that smaps reports as
+  0 kB), category breakdown ranked by RSS or PSS with % and running sum, the
+  largest items per category ("... and N other minor entries"), shared
+  libraries, thread stacks and the top individual mappings.
+
+**Usage:**
+```bash
+python3 analyze_smaps.py smaps_snapshots/20261008_175850_pid8661/
+python3 analyze_smaps.py some/smaps.txt --status status.txt --meminfo meminfo.txt
+python3 analyze_smaps.py <snapshot_dir> --metric pss --top 15 --md report.md
+python3 analyze_smaps.py <snapshot_dir> --json > data.json
+```
+
+### 7. `cdp_meminfra_tracing.py`
+Connects to a running Cobalt / Chromium instance over the Chrome DevTools
+Protocol (CDP) WebSocket (default `localhost:9222`) and captures a native
+**Perfetto protobuf trace** (`.perfetto-trace` / `.pftrace`) with the
+`disabled-by-default-memory-infra` categories enabled. Automatically resolves
+the Browser target for complete multi-process memory attribution, supports
+configurable periodic dumps, deterministic GC triggering, and category
+presets (`memory`, `rdk`, `minimal`). Output traces can be viewed directly on
+https://ui.perfetto.dev.
+
+**Usage:**
+```bash
+# Capture a 10 s memory-infra trace on localhost:9222
+python3 cdp_meminfra_tracing.py
+
+# RDK preset with cc, gpu, skia, v8 and 500 ms periodic dumps
+python3 cdp_meminfra_tracing.py --preset rdk --duration 30 --periodic-interval 500
+
+# Interactive mode (stop with Enter or Ctrl+C) with gzip compression
+python3 cdp_meminfra_tracing.py -i --compress -o trace.perfetto-trace.gz
+```
+
+### 8. `analyze_memory_trace.py`
+Parses and attributes memory breakdowns from Perfetto protobuf traces
+(`.perfetto-trace`, `.pftrace`) and legacy Chromium JSON traces (`.json`,
+`.json.gz`) without external protobuf dependencies. Analyzes:
+- **V8**: Heaps, code space, old/new space, large object space, global handles.
+- **Blink & DOM**: GC page spaces (`NormalPageSpace`, `CustomSpace`), DOM counts (`Node`, `Document`, `LayoutObject`).
+- **Skia**: Glyph caches, per-font allocations, GPU text blobs and resources.
+- **CC**: Rasterized tile memory, active tile counts, composited layer resources.
+- **GPU**: Shared image texture mailboxes, dimensions, formats and purgeability.
+- **PartitionAlloc & Malloc**: Partitions (`buffer`, `array_buffer`), fragmentation, system heap.
+- **Other**: Shared memory, parkable strings, SQLite, storage, web caches.
+
+Supports dump comparison (`--compare` to highlight memory growth/churn),
+detailed leaf inspection (`-v`), JSON export (`--json`), Markdown reports
+(`-o report.md`), and live tracing over CDP (`--live`).
+
+**Usage:**
+```bash
+# Analyze a trace file
+python3 analyze_memory_trace.py trace.perfetto-trace
+
+# Compare initial vs final dump to show growth delta
+python3 analyze_memory_trace.py trace.perfetto-trace --compare
+
+# Capture live from localhost:9222 and analyze immediately
+python3 analyze_memory_trace.py --live
+```
+
+### 9. `analyze_memory_umas.py`
+Summarizes memory-related UMA histograms from a JSON dump (such as the one
+produced by CDP's `Browser.getHistograms` via `cdp_dump_uma.py`). Normalizes
+memory sizes to MiB, parses histogram buckets into mean, median and peak, and
+shows % of `Memory.Browser.ResidentSet`.
+
+**Usage:**
+```bash
+python3 analyze_memory_umas.py histograms.json
+python3 analyze_memory_umas.py histograms.json --filter Browser2
+python3 analyze_memory_umas.py histograms.json --sizes-only
+```
+
 ## Interpreting Results & Gotchas
 
 When using `compare_accuracy.py`, you may see significant differences in the "Max Error" column (e.g., >20%) even when the "Median Error" is very low (<5%). Here is how to interpret these results:

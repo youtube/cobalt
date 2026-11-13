@@ -31,6 +31,7 @@
 #include "build/buildflag.h"
 #include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/context_factory.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -299,6 +300,20 @@ void ShellPlatformDelegate::CreatePlatformWindowInternal(
   params.wm_class_name = params.wm_class_class;
 #endif  // BUILDFLAG(IS_LINUX)
   shell_data.window_widget->Init(std::move(params));
+#if BUILDFLAG(IS_STARBOARD)
+  // Sync the shell content size with the actual Starboard window bounds
+  // queried via SbWindowGetSize() during widget initialization so that
+  // SetContents() does not resize the native window back to the fallback size.
+  if (auto* native_window = shell_data.window_widget->GetNativeWindow();
+      native_window && native_window->GetHost()) {
+    gfx::Size actual_size =
+        native_window->GetHost()->GetBoundsInPixels().size();
+    if (!actual_size.IsEmpty()) {
+      shell_data.content_size = actual_size;
+      shell_data.initial_size_ = actual_size;
+    }
+  }
+#endif
 
   // |window_widget| is made visible in PlatformSetContents(), so that the
   // platform-window size does not need to change due to layout again.
@@ -335,7 +350,7 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {
   if (!is_visible_) {
-    TrackPreviouslyVisibleWebContents(web_contents);
+    TrackWebContentsToReveal(web_contents);
   }
   auto it = shell_data_map_.find(shell);
   if (it == shell_data_map_.end()) {
@@ -347,6 +362,25 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     shell_data.window_widget->GetNativeWindow()->Show();
     shell_data.window_widget->Restore();
   }
+}
+bool ShellPlatformDelegate::HasPlatformWindow() const {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  for (const auto& [shell, shell_data] : shell_data_map_) {
+    if (!shell_data.window_widget) {
+      continue;
+    }
+    auto* native_window = shell_data.window_widget->GetNativeWindow();
+    if (!native_window || !native_window->GetHost()) {
+      continue;
+    }
+    auto* host_platform =
+        static_cast<aura::WindowTreeHostPlatform*>(native_window->GetHost());
+    auto* platform_window = host_platform->platform_window();
+    if (platform_window && platform_window->IsVisible()) {
+      return true;
+    }
+  }
+  return false;
 }
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
   // Dynamically re-enable Chromium's thread watchdog on resume!
@@ -431,6 +465,19 @@ void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
     shell_data.window_widget->Show();
   }
 }
+
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
+void ShellPlatformDelegate::SetContentsOnReveal(Shell* shell) {
+  // If the splash screen was still up when the application was concealed,
+  // show it again. Shell::SwitchToMainWebContents() replaces it once the main
+  // page has loaded.
+  if (shell->splash_screen_web_contents()) {
+    LoadSplashScreenContents(shell);
+  } else {
+    SetContents(shell);
+  }
+}
+#endif
 
 void ShellPlatformDelegate::UpdateContents(Shell* shell) {
   SetContents(shell);

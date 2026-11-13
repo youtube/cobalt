@@ -25,10 +25,6 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/command_line.h"
-#endif
-
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
@@ -655,21 +651,19 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
         cache_handler->WillProduceCodeCache();
       }
 #if BUILDFLAG(IS_COBALT)
-      static const bool defer_v8_code_cache_write =
-          base::CommandLine::ForCurrentProcess()->HasSwitch(
-              "defer-v8-code-cache-write");
       if (produce_cache_options ==
-              V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
-          defer_v8_code_cache_write) {
-        // Route V8 cache write through ThreadScheduler's Idle queue to free up thread
-        // space for more critical work on startup.
-        auto code_cache_task = WTF::BindOnce(&DelayedProduceCodeCacheTask,
-                                             WrapPersistent(script_state),
-                                             v8::Global<v8::Script>(isolate, script),
-                                             WrapPersistent(cache_handler),
-                                             classic_script->SourceText().length(),
-                                             classic_script->SourceUrl(),
-                                             classic_script->StartPosition());
+          V8CodeCache::ProduceCacheOptions::kProduceCodeCache) {
+        // Route the V8 code cache write through ThreadScheduler's idle queue
+        // so that serializing bytecode to disk does not compete with more
+        // critical work (e.g. rendering) on the main thread during startup.
+        // The task only runs when the frame has leftover budget before the
+        // next vsync.
+        auto code_cache_task = WTF::BindOnce(
+            &DelayedProduceCodeCacheTask, WrapPersistent(script_state),
+            v8::Global<v8::Script>(isolate, script),
+            WrapPersistent(cache_handler),
+            classic_script->SourceText().length(), classic_script->SourceUrl(),
+            classic_script->StartPosition());
 
         if (auto* scheduler = ThreadScheduler::Current()) {
           scheduler->PostDelayedIdleTask(
@@ -680,6 +674,7 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
                   },
                   std::move(code_cache_task)));
         } else {
+          // No scheduler available on this thread; write the cache now.
           std::move(code_cache_task).Run();
         }
       } else

@@ -52,7 +52,6 @@ const char kUncompressedLibraryPath[] = "lib/libcobalt.so";
 const std::unordered_map<std::string, std::string>
     kChannelAndSbVersionToOmahaIdMap = {
         {"control18", "{18C5B2A4-D8E2-4F31-9A4C-7E2B1D4F8A31}"},
-        {"dogfood18", "{29D6C3B5-E9F3-4042-AB5D-8F3C2E5A9B42}"},
         {"experiment18", "{4BF8E5D7-0B15-4264-CD7F-A15E407CBD64}"},
         {"prod18", "{5C09F6E8-1C26-4375-DE80-B26F518DCE75}"},
         {"qa18", "{6D1A07F9-2D37-4486-EF91-C370629EDF86}"},
@@ -73,6 +72,8 @@ const char kDefaultManifestVersion[] = "1.0.0";
 
 const char kOmahaCobalt27NightlyAppID[] =
     "{7B255C60-876C-41E1-A5E7-C0F9EBE78772}";
+const char kOmahaCobalt27DogfoodAppID[] =
+    "{29D6C3B5-E9F3-4042-AB5D-8F3C2E5A9B42}";
 const char kOmahaCobaltTrunkAppID[] = "{A9557415-DDCD-4948-8113-C643EFCF710C}";
 
 bool CreateProductDirectory(base::FilePath* path) {

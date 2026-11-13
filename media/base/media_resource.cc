@@ -26,16 +26,9 @@ DemuxerStream* MediaResource::GetFirstStream(DemuxerStream::Type type) {
 }
 
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-GURL MediaResource::GetMediaUrl() const {
-  return GURL();
+UrlPlayerMediaResource* MediaResource::AsUrlPlayerMediaResource() {
+  return nullptr;
 }
-
-void MediaResource::ForwardDurationChangeToDemuxerHost(
-    base::TimeDelta duration) {}
-
-void MediaResource::ForwardBufferedTimeRangesToDemuxerHost(
-    base::TimeDelta start,
-    base::TimeDelta length) {}
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

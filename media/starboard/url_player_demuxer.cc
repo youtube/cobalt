@@ -94,6 +94,10 @@ std::vector<DemuxerStream*> UrlPlayerDemuxer::GetAllStreams() {
   return {&audio_stream_, &video_stream_};
 }
 
+UrlPlayerMediaResource* UrlPlayerDemuxer::AsUrlPlayerMediaResource() {
+  return this;
+}
+
 GURL UrlPlayerDemuxer::GetMediaUrl() const {
   return url_;
 }
@@ -161,21 +165,32 @@ void UrlPlayerDemuxer::OnTracksChanged(
 
 void UrlPlayerDemuxer::SetPlaybackRate(double rate) {}
 
-void UrlPlayerDemuxer::ForwardDurationChangeToDemuxerHost(
-    base::TimeDelta duration) {
+void UrlPlayerDemuxer::OnPlatformDurationChange(base::TimeDelta duration) {
   if (host_) {
     host_->SetDuration(duration);
   }
 }
 
-void UrlPlayerDemuxer::ForwardBufferedTimeRangesToDemuxerHost(
-    base::TimeDelta start,
-    base::TimeDelta length) {
+void UrlPlayerDemuxer::OnPlatformBufferedRangesChange(base::TimeDelta start,
+                                                      base::TimeDelta length) {
   if (host_) {
     Ranges<base::TimeDelta> ranges;
     ranges.Add(start, start + length);
     host_->OnBufferedTimeRangesChanged(ranges);
   }
+}
+
+void UrlPlayerDemuxer::OnPlatformEncryptedMediaInitData(
+    EmeInitDataType init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  if (encrypted_media_init_data_cb_) {
+    encrypted_media_init_data_cb_.Run(init_data_type, init_data);
+  }
+}
+
+void UrlPlayerDemuxer::SetEncryptedMediaInitDataCB(
+    EncryptedMediaInitDataCB cb) {
+  encrypted_media_init_data_cb_ = std::move(cb);
 }
 
 }  // namespace media

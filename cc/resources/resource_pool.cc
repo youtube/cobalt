@@ -34,8 +34,23 @@
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/mailbox.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <atomic>
+
+#include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_conversions.h"
+#include "cc/base/features.h"
+#endif
+
 using base::trace_event::MemoryAllocatorDump;
 using base::trace_event::MemoryDumpLevelOfDetail;
+
+#if BUILDFLAG(IS_COBALT)
+namespace {
+std::atomic<uint64_t> g_total_tile_memory_usage_bytes{0};
+std::atomic<uint64_t> g_peak_tile_memory_usage_bytes{0};
+}  // namespace
+#endif
 
 namespace cc {
 
@@ -191,6 +206,9 @@ ResourcePool::ResourcePool(
   memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
       FROM_HERE, base::BindRepeating(&ResourcePool::OnMemoryPressure,
                                      weak_ptr_factory_.GetWeakPtr()));
+#if BUILDFLAG(IS_COBALT)
+  ScheduleRecordTileMemoryMetrics();
+#endif
 }
 
 ResourcePool::~ResourcePool() {
@@ -395,6 +413,18 @@ void ResourcePool::OnBackingAllocated(PoolResource* resource) {
   total_memory_usage_bytes_ += size;
   if (resource->state() == PoolResource::kUnused)
     unused_memory_usage_bytes_ += size;
+#if BUILDFLAG(IS_COBALT)
+  peak_memory_usage_bytes_ =
+      std::max(peak_memory_usage_bytes_, total_memory_usage_bytes_);
+  g_total_tile_memory_usage_bytes.fetch_add(size, std::memory_order_relaxed);
+  uint64_t current_global =
+      g_total_tile_memory_usage_bytes.load(std::memory_order_relaxed);
+  if (current_global >
+      g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed)) {
+    g_peak_tile_memory_usage_bytes.store(current_global,
+                                         std::memory_order_relaxed);
+  }
+#endif
 }
 
 void ResourcePool::OnResourceReleased(size_t unique_id,
@@ -586,6 +616,10 @@ bool ResourcePool::ResourceUsageTooHigh() {
 void ResourcePool::DeleteResource(std::unique_ptr<PoolResource> resource) {
   DCHECK_GE(total_memory_usage_bytes_, resource->memory_usage());
   total_memory_usage_bytes_ -= resource->memory_usage();
+#if BUILDFLAG(IS_COBALT)
+  g_total_tile_memory_usage_bytes.fetch_sub(resource->memory_usage(),
+                                            std::memory_order_relaxed);
+#endif
   --total_resource_count_;
   if (flush_evicted_resources_deadline_ == base::TimeTicks::Max()) {
     flush_evicted_resources_deadline_ =
@@ -722,6 +756,49 @@ void ResourcePool::OnMemoryPressure(
       break;
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void ResourcePool::ScheduleRecordTileMemoryMetrics() {
+  CHECK(task_runner_);
+  if (!base::FeatureList::IsEnabled(features::kCobaltTileMemoryMetrics)) {
+    return;
+  }
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&ResourcePool::RecordTileMemoryMetrics,
+                     weak_ptr_factory_.GetWeakPtr()),
+      features::kCobaltTileMemoryMetricsInterval.Get());
+}
+
+void ResourcePool::RecordTileMemoryMetrics() {
+  const base::TimeTicks now = clock_->NowTicks();
+  if (!last_tile_memory_metrics_time_.is_null() &&
+      now - last_tile_memory_metrics_time_ <
+          features::kCobaltTileMemoryMetricsInterval.Get()) {
+    return;
+  }
+  last_tile_memory_metrics_time_ = now;
+
+  constexpr size_t kMiB = 1024 * 1024;
+  base::UmaHistogramMemoryMB(
+      "Memory.GPU.TileMemory",
+      base::checked_cast<int>(total_memory_usage_bytes_ / kMiB));
+  base::UmaHistogramMemoryMB(
+      "Memory.GPU.TileMemory.Peak",
+      base::checked_cast<int>(peak_memory_usage_bytes_ / kMiB));
+  peak_memory_usage_bytes_ = total_memory_usage_bytes_;
+
+  ScheduleRecordTileMemoryMetrics();
+}
+
+uint64_t ResourcePool::GetGlobalTotalTileMemoryUsageBytes() {
+  return g_total_tile_memory_usage_bytes.load(std::memory_order_relaxed);
+}
+
+uint64_t ResourcePool::GetGlobalPeakTileMemoryUsageBytes() {
+  return g_peak_tile_memory_usage_bytes.load(std::memory_order_relaxed);
+}
+#endif
 
 ResourcePool::PoolResource::PoolResource(ResourcePool* resource_pool,
                                          size_t unique_id,

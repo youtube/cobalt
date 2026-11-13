@@ -27,6 +27,10 @@
 #include "media/filters/manifest_demuxer.h"
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/url_player_media_resource.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 namespace {
@@ -342,6 +346,15 @@ PipelineStatus DemuxerManager::CreateDemuxer(
   if (demuxer_override_) {
     // TODO(crbug.com/40128583): Should everything else after this block
     // run in the demuxer override case?
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (UrlPlayerMediaResource* url_player_resource =
+            demuxer_override_->AsUrlPlayerMediaResource()) {
+      url_player_resource->SetEncryptedMediaInitDataCB(
+          base::BindPostTaskToCurrentDefault(
+              base::BindRepeating(&DemuxerManager::OnEncryptedMediaInitData,
+                                  weak_factory_.GetWeakPtr())));
+    }
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
     SetDemuxer(std::move(demuxer_override_));
   } else if (!load_media_source) {
 #if BUILDFLAG(ENABLE_FFMPEG)
@@ -365,6 +378,11 @@ PipelineStatus DemuxerManager::CreateDemuxer(
   // A myriad of reasons exists that prevent us from entering a suspended state
   // after metadata is reached - in this case we'll have to do a normal startup.
   if (demuxer_->GetDemuxerType() == DemuxerType::kChunkDemuxer ||
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+      // The URL player's metadata needs the renderer, which a suspended start
+      // doesn't create.
+      demuxer_->GetDemuxerType() == DemuxerType::kUrlPlayerDemuxer ||
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
       preload != DataSource::METADATA || client_->CouldPlayIfEnoughData() ||
       IsStreaming()) {
     return std::move(on_demuxer_created)

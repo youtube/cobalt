@@ -60,7 +60,7 @@ To configure your local workspace, clone the Cobalt repository and use `gclient`
    ```bash
    gclient config --name=src https://github.com/youtube/cobalt.git
    cd src
-   gclient sync --no-history -r $(git rev-parse @)
+   gclient sync --no-history
    ```
 
 3. Install system build dependencies and execute gclient hooks:

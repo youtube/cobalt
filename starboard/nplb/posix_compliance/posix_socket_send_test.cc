@@ -23,6 +23,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
+#include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
@@ -45,14 +46,20 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   int64_t now = start;
   int64_t kTimeout = 1'000'000;  // 1 second
   int result = 0;
+  int send_errno = 0;
   while (result >= 0 && (now - start < kTimeout)) {
     result =
         send(*(trio_ptr->server_socket_fd_ptr), send_buf, kBufSize, kSendFlags);
+    if (result < 0) {
+      // errno is thread-local, so use it as the return value for the caller to
+      // read.
+      send_errno = errno;
+    }
     now = starboard::CurrentMonotonicTime();
   }
 
   delete[] send_buf;
-  return NULL;
+  return ToVoid(send_errno);
 }
 
 TEST(PosixSocketSendTest, RainyDayInvalidSocket) {
@@ -97,19 +104,21 @@ TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
   pthread_create(&send_thread, NULL, PosixSocketSendToServerSocketEntryPoint,
                  static_cast<void*>(&trio_as_void_ptr));
 
-  // Close the client, which should cause writes to the server socket to
+  // Close the client, which should cause writes to the server socket to fail.
   EXPECT_TRUE(close(client_socket_fd) == 0);
 
   // Wait for the thread to exit and check the last socket error.
-  void* thread_result;
+  void* thread_result = nullptr;
   EXPECT_TRUE(pthread_join(send_thread, &thread_result) == 0);
+  int send_errno = static_cast<int>(FromVoid(thread_result));
 
-  EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
-              errno == ENOTCONN ||     // errno on Windows
-              errno == EINPROGRESS ||  // errno on Evergreen
-              errno == ENETUNREACH     // errno on raspi
-  );
-  SB_DLOG(INFO) << "Failed to send, errno = " << strerror(errno);
+  EXPECT_TRUE(send_errno == ECONNRESET || send_errno == ENETRESET ||
+              send_errno == EPIPE ||
+              send_errno == ENOTCONN ||     // errno on Windows
+              send_errno == EINPROGRESS ||  // errno on Evergreen
+              send_errno == ENETUNREACH     // errno on raspi
+              )
+      << "Failed to send, errno = " << strerror(send_errno);
 
   // Clean up the server socket.
   EXPECT_TRUE(close(server_socket_fd) == 0);

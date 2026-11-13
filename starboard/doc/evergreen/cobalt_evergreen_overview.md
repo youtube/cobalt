@@ -112,7 +112,7 @@ except that it sets `is_starboard = false`.
 For example:
 
 ```
-gcc_toolchain("target") {
+gcc_toolchain("starboard") {
   ...
 }
 
@@ -170,8 +170,8 @@ Note: `sb_api_version` defaults to the latest supported Starboard version in the
 current branch.
 
 
-The partner port of Starboard is built with the partner’s "target" toolchain and
-is linked into the `loader_app`, which knows how to dynamically load
+The partner port of Starboard is built with the partner's "starboard" toolchain
+and is linked into the `loader_app`, which knows how to dynamically load
 `libcobalt.lz4`. And the `crashpad_handler` binary is built with the partner's
 "native_target" toolchain. For example:
 
@@ -292,22 +292,21 @@ These tests are enabled automatically for all Starboard platforms (`is_starboard
 
 1. Build the `crashpad_database_util` target and deploy it onto the device.
 ```
-$ gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa"'
-$ ninja -C out/<partner_port_name>_qa native_target/crashpad_database_util
+$ python3 cobalt/build/gn.py -p <partner_port_name> -c qa
+$ autoninja -C out/<partner_port_name>_qa native_target/crashpad_database_util
 ```
 2. Remove the existing state for crashpad as it throttles uploads to 1 per hour:
 ```
 $ rm -rf <kSbSystemPathCacheDirectory>/crashpad_database/
-
 ```
 3. Launch Cobalt.
-4. Trigger crash by sending `abort` signal to the `loader_app` process:
+4. Trigger a crash by sending the `abort` signal to the process running Cobalt,
+e.g. `loader_app`:
 ```
 $ kill -6 <pid>
 ```
-5. Verify the crash was uploaded through running `crashpad_database_util` on the device
-pointing it to the cache directory, where the crash data is stored.
-
+5. Verify the crash was uploaded by running `crashpad_database_util` on the
+device, pointing it to the crash database in the cache directory:
 ```
 $ crashpad_database_util -d <kSbSystemPathCacheDirectory>/crashpad_database/ --show-completed-reports --show-all-report-info
 ```

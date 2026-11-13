@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <errno.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 
@@ -133,7 +135,15 @@ TEST(PosixFileGetInfoTest, ReportsHardLinkCount) {
   std::string path2 = temp_dir.path() + "/hardlink";
 
   // Create a hard link.
-  ASSERT_EQ(link(path1.c_str(), path2.c_str()), 0);
+  if (link(path1.c_str(), path2.c_str()) != 0) {
+    const int link_errno = errno;
+    // EACCES means hard links are forbidden here, e.g. by Android's SELinux
+    // policy for apps.
+    if (link_errno == EACCES) {
+      GTEST_SKIP() << "Hard links are not permitted: " << strerror(link_errno);
+    }
+    FAIL() << "link failed with error: " << strerror(link_errno);
+  }
 
   // fstat the original file.
   int fd = open(path1.c_str(), O_RDONLY);

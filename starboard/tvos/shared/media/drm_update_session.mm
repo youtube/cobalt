@@ -12,7 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/drm.h"
+// clang-format on
+
+#include <stdint.h>
+
+#include "starboard/common/span.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 #import "starboard/tvos/shared/media/application_drm_system.h"
@@ -60,6 +66,8 @@ void SbDrmUpdateSession(SbDrmSystem drm_system,
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
   drm_system->UpdateSession(
-      ticket, std::string_view(static_cast<const char*>(key), key_size),
+      ticket,
+      starboard::make_span(static_cast<const uint8_t*>(key),
+                           static_cast<size_t>(key_size)),
       std::string_view(static_cast<const char*>(session_id), session_id_size));
 }

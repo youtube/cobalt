@@ -1795,7 +1795,10 @@ component("net") {
       "cert/internal/trust_store_in_memory_starboard.h",
     ]
     deps += [ "//starboard/common" ]
-    data_deps = [ "//starboard/content/ssl:copy_ssl_certificates_evergreen" ]
+
+    if (!use_evergreen) {
+      data_deps = [ "//starboard/content/ssl:copy_ssl_certificates" ]
+    }
   } else if (is_cobalt && is_linux && chrome_root_store_supported) {
     # We use `is_cobalt` here because non-starboard configs builds Chromedriver
     # which needs to use the Chrome Root Store only.

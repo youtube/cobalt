@@ -14,6 +14,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdint.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -30,7 +31,6 @@ constexpr long kShortSleepNs = 1'000'000;  // 1 millisecond.
 constexpr long kShortSleepUs = kShortSleepNs / 1'000;
 // A slightly longer duration for testing actual sleep.
 constexpr long kTestSleepNs = 50'000'000;  // 50 milliseconds.
-constexpr long kTestSleepUs = kTestSleepNs / 1'000;
 // A very long duration for testing interruption.
 constexpr long kLongSleepSec = 10;  // 10 seconds.
 // Duration for alarm to trigger, should be less than kLongSleepSec.
@@ -110,100 +110,106 @@ long TimevalDiffToMicroseconds(const struct timeval* start,
   return (seconds_diff * 1'000'000L) + useconds_diff;
 }
 
+int64_t TimespecDiffToNanoseconds(const struct timespec* start,
+                                  const struct timespec* end) {
+  if (!start || !end) {
+    return 0;
+  }
+  int64_t seconds_diff =
+      static_cast<int64_t>(end->tv_sec) - static_cast<int64_t>(start->tv_sec);
+  int64_t nseconds_diff =
+      static_cast<int64_t>(end->tv_nsec) - static_cast<int64_t>(start->tv_nsec);
+  return (seconds_diff * kNanosecondsPerSecond) + nseconds_diff;
+}
+
 TEST_F(PosixClockNanosleepTest, RelativeSleepMonotonicClock) {
-  struct timeval start_time;
-  ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
-      << "gettimeofday failed for start_time";
+  struct timespec start_time;
+  ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &start_time))
+      << "clock_gettime failed for start_time";
 
   struct timespec req = {0, kTestSleepNs};
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
   EXPECT_EQ(0, ret) << "Expected successful sleep, got: " << strerror(ret);
 
-  struct timeval end_time;
-  ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
-      << "gettimeofday failed for end_time";
+  struct timespec end_time;
+  ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &end_time))
+      << "clock_gettime failed for end_time";
 
-  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, kTestSleepUs)
-      << "Sleep duration was too short. Requested: " << kTestSleepUs
-      << "us, Elapsed: " << elapsed_us << "us.";
+  int64_t elapsed_ns = TimespecDiffToNanoseconds(&start_time, &end_time);
+  EXPECT_GE(elapsed_ns, kTestSleepNs)
+      << "Sleep duration was too short. Requested: " << kTestSleepNs
+      << "ns, Elapsed: " << elapsed_ns << "ns.";
 }
 
 TEST_F(PosixClockNanosleepTest, RelativeSleepRealtimeClock) {
-  struct timeval start_time;
-  ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
-      << "gettimeofday failed for start_time";
+  struct timespec start_time;
+  ASSERT_EQ(0, clock_gettime(CLOCK_REALTIME, &start_time))
+      << "clock_gettime failed for start_time";
 
   struct timespec req = {0, kTestSleepNs};
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_REALTIME, 0, &req, &rem);
   EXPECT_EQ(0, ret) << "Expected successful sleep, got: " << strerror(ret);
 
-  struct timeval end_time;
-  ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
-      << "gettimeofday failed for end_time";
+  struct timespec end_time;
+  ASSERT_EQ(0, clock_gettime(CLOCK_REALTIME, &end_time))
+      << "clock_gettime failed for end_time";
 
-  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, kTestSleepUs)
-      << "Sleep duration was too short. Requested: " << kTestSleepUs
-      << "us, Elapsed: " << elapsed_us << "us.";
+  int64_t elapsed_ns = TimespecDiffToNanoseconds(&start_time, &end_time);
+  EXPECT_GE(elapsed_ns, kTestSleepNs)
+      << "Sleep duration was too short. Requested: " << kTestSleepNs
+      << "ns, Elapsed: " << elapsed_ns << "ns.";
 }
 
 TEST_F(PosixClockNanosleepTest, AbsoluteSleepMonotonicClock) {
-  struct timespec req;
+  struct timespec start_time;
   clockid_t clock_id = CLOCK_MONOTONIC;
 
-  ASSERT_EQ(0, clock_gettime(clock_id, &req))
+  ASSERT_EQ(0, clock_gettime(clock_id, &start_time))
       << "Failed to get current time for CLOCK_MONOTONIC";
 
+  struct timespec req = start_time;
   AddNsToTimespec(&req, kTestSleepNs);
-
-  struct timeval start_time;
-  ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
-      << "gettimeofday failed for start_time";
 
   struct timespec rem;
   int ret = clock_nanosleep(clock_id, TIMER_ABSTIME, &req, &rem);
   EXPECT_EQ(0, ret) << "Expected successful absolute sleep, got: "
                     << strerror(ret);
 
-  struct timeval end_time;
-  ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
-      << "gettimeofday failed for end_time";
+  struct timespec end_time;
+  ASSERT_EQ(0, clock_gettime(clock_id, &end_time))
+      << "clock_gettime failed for end_time";
 
-  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, kTestSleepUs)
-      << "Sleep duration was too short. Requested: " << kTestSleepUs
-      << "us, Elapsed: " << elapsed_us << "us.";
+  int64_t elapsed_ns = TimespecDiffToNanoseconds(&start_time, &end_time);
+  EXPECT_GE(elapsed_ns, kTestSleepNs)
+      << "Sleep duration was too short. Requested: " << kTestSleepNs
+      << "ns, Elapsed: " << elapsed_ns << "ns.";
 }
 
 TEST_F(PosixClockNanosleepTest, AbsoluteSleepRealtimeClock) {
-  struct timespec req;
+  struct timespec start_time;
   clockid_t clock_id = CLOCK_REALTIME;
 
-  ASSERT_EQ(0, clock_gettime(clock_id, &req))
+  ASSERT_EQ(0, clock_gettime(clock_id, &start_time))
       << "Failed to get current time for CLOCK_REALTIME";
 
+  struct timespec req = start_time;
   AddNsToTimespec(&req, kTestSleepNs);
-
-  struct timeval start_time;
-  ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
-      << "gettimeofday failed for start_time";
 
   struct timespec rem;
   int ret = clock_nanosleep(clock_id, TIMER_ABSTIME, &req, &rem);
   EXPECT_EQ(0, ret) << "Expected successful absolute sleep, got: "
                     << strerror(ret);
 
-  struct timeval end_time;
-  ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
-      << "gettimeofday failed for end_time";
+  struct timespec end_time;
+  ASSERT_EQ(0, clock_gettime(clock_id, &end_time))
+      << "clock_gettime failed for end_time";
 
-  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, kTestSleepUs)
-      << "Sleep duration was too short. Requested: " << kTestSleepUs
-      << "us, Elapsed: " << elapsed_us << "us.";
+  int64_t elapsed_ns = TimespecDiffToNanoseconds(&start_time, &end_time);
+  EXPECT_GE(elapsed_ns, kTestSleepNs)
+      << "Sleep duration was too short. Requested: " << kTestSleepNs
+      << "ns, Elapsed: " << elapsed_ns << "ns.";
 }
 
 TEST_F(PosixClockNanosleepTest, AbsoluteSleepTimeInPastReturnsImmediately) {

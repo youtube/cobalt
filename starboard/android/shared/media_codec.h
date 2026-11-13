@@ -82,12 +82,13 @@ class MediaCodec {
   struct VideoPlatformOptions {
     int max_input_size = 0;
     bool skip_video_frames_over_60_fps = false;
-    bool ignore_mediacodec_callbacks_during_flushing = false;
     bool enable_frame_renderer_listener = false;
     bool require_secured_decoder = false;
     bool require_software_codec = false;
     std::optional<int> tunnel_mode_audio_session_id;
     bool enable_ndk_video = false;
+    // True for video with more than 8 bits per channel.
+    bool is_high_bit_depth = false;
   };
 
   static constexpr int32_t kBufferFlagCodecConfig = 2;
@@ -149,7 +150,7 @@ class MediaCodec {
 
   virtual ~MediaCodec() = default;
 
-  virtual Span<uint8_t> GetInputBufferAddress(jint index) = 0;
+  virtual span<uint8_t> GetInputBufferAddress(jint index) = 0;
   virtual jint QueueInputBuffer(jint index,
                                 jint offset,
                                 jint size,
@@ -162,7 +163,7 @@ class MediaCodec {
                                       jlong presentation_time_microseconds,
                                       jboolean is_decode_only) = 0;
 
-  virtual Span<uint8_t> GetOutputBufferAddress(jint index) = 0;
+  virtual span<uint8_t> GetOutputBufferAddress(jint index) = 0;
   virtual void ReleaseOutputBuffer(jint index, jboolean render) = 0;
   virtual void ReleaseOutputBufferAtTimestamp(jint index,
                                               jlong render_timestamp_ns) = 0;

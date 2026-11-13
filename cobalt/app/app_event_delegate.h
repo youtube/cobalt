@@ -90,7 +90,10 @@ class AppEventDelegate {
   AppEventDelegate(const AppEventDelegate&) = delete;
   AppEventDelegate& operator=(const AppEventDelegate&) = delete;
 
-  // Receives a Starboard event and handles it.
+  // Receives a Starboard event and handles it. For deactivating events with a
+  // synchronous return-time contract (Conceal, Freeze, and Stop), blocks the
+  // calling thread's RunLoop until the target state (and teardown, for Stop)
+  // is reached.
   void HandleEvent(const SbEvent* event) LOCKS_EXCLUDED(lock_);
 
   void DoTeardown() LOCKS_EXCLUDED(lock_);
@@ -111,14 +114,15 @@ class AppEventDelegate {
  private:
   static const char* GetStateString(ApplicationState state);
 
+  // Returns true if the step to |next_state| is kConcealed -> kBlurred, which
+  // calls OnReveal() and creates the platform window.
+  static bool IsRevealStep(ApplicationState next_state, bool is_activating);
+
   void HandleEventLocked(const SbEvent* event) EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Starts a transition of the application state from its current state to the
   // target |state| by traversing all intermediate states in strict linear
-  // order. If this is a deactivating transition (e.g. Conceal or Freeze), it
-  // synchronously blocks the calling OS (Starboard) thread using a nested
-  // base::RunLoop until the target state is reached or a safety timeout occurs.
-  // Activating transitions are executed asynchronously.
+  // order.
   void TransitionToLifeCycleState(ApplicationState state)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
@@ -169,6 +173,13 @@ class AppEventDelegate {
   ApplicationState target_state_ GUARDED_BY(lock_) = ApplicationState::kInitial;
   bool is_transitioning_ GUARDED_BY(lock_) = false;
   bool is_tearing_down_ GUARDED_BY(lock_) = false;
+  // Set when a reveal step couldn't create a platform window. The next step is
+  // then kBlurred -> kConcealed, whatever the target state.
+  bool conceal_after_failed_reveal_ GUARDED_BY(lock_) = false;
+  // Set when the target becomes a visible state (kStarted or kBlurred),
+  // cleared when a reveal step starts. After a reveal step that couldn't
+  // create a window, true means the reveal should be tried again.
+  bool visible_target_since_reveal_ GUARDED_BY(lock_) = false;
   base::OnceClosure quit_closure_ GUARDED_BY(lock_);
 
 #if BUILDFLAG(IS_STARBOARD)

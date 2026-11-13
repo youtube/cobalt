@@ -17,11 +17,19 @@
 namespace blink {
 
 MainThreadDebugger::MainThreadDebugger(v8::Isolate* isolate)
-    : ThreadDebuggerCommonImpl(isolate) {}
+    : ThreadDebuggerCommonImpl(isolate), paused_(false) {}
 MainThreadDebugger::~MainThreadDebugger() = default;
 
-MainThreadDebugger* MainThreadDebugger::Instance(v8::Isolate*) {
-  return nullptr;
+// V8Initializer::InitializeMainThread() always constructs a MainThreadDebugger
+// and registers it on V8PerIsolateData, even when
+// `enable_devtools_backend = false`. Mirror main_thread_debugger.cc and return
+// that instance so callers invoking inline getters or ThreadDebuggerCommonImpl
+// base-class methods do not dereference nullptr. See b/564844345.
+MainThreadDebugger* MainThreadDebugger::Instance(v8::Isolate* isolate) {
+  DCHECK(IsMainThread());
+  ThreadDebugger* debugger = ThreadDebugger::From(isolate);
+  DCHECK(debugger && !debugger->IsWorker());
+  return static_cast<MainThreadDebugger*>(debugger);
 }
 void MainThreadDebugger::ContextWillBeDestroyed(ScriptState*) {}
 void MainThreadDebugger::ContextCreated(ScriptState*,

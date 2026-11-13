@@ -139,13 +139,25 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
 
   int GetClosestStyleIndex(const SkFontStyle& pattern);
 
-  // When the CobaltMmapFontCache feature is enabled and |entry| refers to a
-  // WOFF2 file, returns an mmap-backed stream of the decompressed SFNT cache
-  // file (creating the cache file on first use). Returns nullptr when the
-  // feature is disabled, for non-WOFF2 entries, or on failure; callers must
-  // then fall back to the memory-chunk stream path.
-  std::unique_ptr<SkStreamAsset> OpenMmapCacheStream(
-      SkFontStyleSetEntry_Cobalt* entry);
+  // Only called when the CobaltMmapFontCache feature is enabled. If |entry|
+  // refers to a WOFF2 file, returns a stream of its decompressed SFNT bytes
+  // and generates the face info of |entry| from it (see
+  // GenerateStyleFaceInfo()). That is an mmap-backed stream of the font's
+  // cache file if a valid one exists, and otherwise a stream of the font
+  // decompressed into memory, whose bytes are then written to the cache file
+  // in the background (for later sessions). Returns nullptr for non-WOFF2
+  // entries or on failure; callers must then fall back to the memory-chunk
+  // stream path. Never writes files itself, so it is safe where blocking is
+  // disallowed.
+  std::unique_ptr<SkStreamAsset> OpenDecompressedStream(
+      SkFontStyleSetEntry_Cobalt* entry,
+      int style_index);
+
+  // Creates the typeface of |style| from |stream|, a stream returned by
+  // OpenDecompressedStream() for |style|.
+  void CreateDecompressedTypeface(SkFontStyleSetEntry_Cobalt* style,
+                                  int style_index,
+                                  std::unique_ptr<SkStreamAsset> stream);
 
   void CreateStreamProviderTypeface(
       SkFontStyleSetEntry_Cobalt* style,

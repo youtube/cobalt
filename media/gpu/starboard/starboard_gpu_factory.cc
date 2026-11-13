@@ -20,4 +20,8 @@ StarboardGpuFactory::StarboardGpuFactory() = default;
 
 StarboardGpuFactory::~StarboardGpuFactory() = default;
 
+StarboardGpuFactory::GlesClosureRun::GlesClosureRun() = default;
+
+StarboardGpuFactory::GlesClosureRun::~GlesClosureRun() = default;
+
 }  // namespace media

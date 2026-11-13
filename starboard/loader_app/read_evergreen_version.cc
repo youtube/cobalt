@@ -54,8 +54,12 @@ bool ReadEvergreenVersion(const std::vector<char>& manifest_file_path,
 
   Json::Reader reader;
   Json::Value obj;
+  // Validate the JSON types before accessing them: jsoncpp is built with
+  // JSON_USE_EXCEPTION=0, so calling isMember() on a non-object value or
+  // asString() on a non-string value aborts the process.
   if (!reader.parse(file_data.data(), file_data.data() + read_size, obj) ||
-      !obj.isMember(kVersionKey)) {
+      !obj.isObject() || !obj.isMember(kVersionKey) ||
+      !obj[kVersionKey].isString()) {
     SB_LOG(WARNING) << "Failed to parse version from the manifest file at the "
                        "installation path.";
     return false;

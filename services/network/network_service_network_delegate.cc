@@ -110,6 +110,16 @@ int NetworkServiceNetworkDelegate::OnBeforeURLRequest(
   if (!loader)
     return net::OK;
 
+#if BUILDFLAG(IS_COBALT)
+  // Runs on URLRequest::Start(), which is called again after every redirect,
+  // so each hop gets the headers.
+  if (const auto* headers = network_context_->cobalt_extra_request_headers()) {
+    for (const auto& [name, value] : *headers) {
+      request->SetExtraRequestHeaderByName(name, value, /*overwrite=*/true);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   if (network_service) {
     loader->SetEnableReportingRawHeaders(network_service->HasRawHeadersAccess(
         loader->GetProcessId(), *effective_url));

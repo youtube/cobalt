@@ -20,10 +20,10 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/notreached.h"
-#include "base/path_service.h"
 #include "base/time/time.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
+#include "starboard/common/paths.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "third_party/boringssl/src/include/openssl/x509.h"
@@ -36,18 +36,10 @@ namespace {
 // Each certificate file name is 8 bit hash + ".0" suffix.
 const short kCertFileNameLength = 10;
 const char kCertificateHeader[] = "CERTIFICATE";
-const char kSSLDirName[] = "ssl";
-const char kCertsDirName[] = "certs";
-
-base::FilePath GetCertificateDirPath() {
-  base::FilePath cert_path;
-  base::PathService::Get(base::DIR_EXE, &cert_path);
-  cert_path = cert_path.Append(kSSLDirName).Append(kCertsDirName);
-  return cert_path;
-}
 
 std::vector<std::shared_ptr<const bssl::ParsedCertificate>> GetAllCertsOnDisk() {
-  DIR* sb_certs_directory = opendir(GetCertificateDirPath().value().c_str());
+  const base::FilePath cert_dir_path(starboard::GetCACertificatesPath());
+  DIR* sb_certs_directory = opendir(cert_dir_path.value().c_str());
   if (!sb_certs_directory) {
 // Unit tests, for example, do not use production certificates.
 #if defined(OFFICIAL_BUILD)
@@ -81,8 +73,8 @@ std::vector<std::shared_ptr<const bssl::ParsedCertificate>> GetAllCertsOnDisk() 
     if (strlen(dir_entry.data()) != kCertFileNameLength) {
       continue;
     }
-    
-    base::FilePath cert_path = GetCertificateDirPath().Append(dir_entry.data());
+
+    base::FilePath cert_path = cert_dir_path.Append(dir_entry.data());
     std::string cert_buffer;
     CHECK(base::ReadFileToString(cert_path, &cert_buffer))
         << "ssl/certs/" << cert_path.value() << " failed to open.";

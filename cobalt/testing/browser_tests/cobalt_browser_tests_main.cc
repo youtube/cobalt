@@ -14,9 +14,11 @@
 
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 #include "base/allocator/partition_alloc_features.h"
 #include "base/at_exit.h"
+#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
@@ -24,7 +26,9 @@
 #include "base/test/test_suite.h"
 #include "base/test/test_support_starboard.h"
 #include "base/test/test_timeouts.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 #include "content/public/test/test_launcher.h"
 #include "starboard/event.h"
@@ -34,6 +38,10 @@
 #include "ui/linux/linux_ui_factory.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
+#if SB_IS(EVERGREEN)
+#include "ui/gl/gl_switches.h"
+#endif
+
 namespace {
 // This delegate is the bridge between the content::LaunchTests function
 // and the Google Test framework.
@@ -42,9 +50,19 @@ class CobaltBrowserTestLauncherDelegate : public content::TestLauncherDelegate {
   // This method is called by content::LaunchTests to
   // execute the entire suite of discovered Google Tests.
   int RunTestSuite(int argc, char** argv) override {
-    base::TestSuite test_suite(argc, argv);
-    test_suite.DisableCheckForLeakedGlobals();
-    return test_suite.Run();
+    // Intentionally leak TestSuite so ~TestSuite() does not destroy its
+    // base::AtExitManager when RunTestSuite() returns. On Starboard in
+    // single-process mode, ~RenderProcessHostImpl() releases
+    // Chrome_InProcRendererThread without joining it and relies on std::_Exit()
+    // in kSbEventTypeStop; running ~AtExitManager() before std::_Exit() races
+    // with in-flight Mojo disconnect tasks on Chrome_InProcRendererThread.
+    auto* test_suite = new base::TestSuite(argc, argv);
+    test_suite->DisableCheckForLeakedGlobals();
+    return test_suite->Run();
+  }
+
+  std::string GetUserDataDirectoryCommandLineSwitch() override {
+    return switches::kContentShellUserDataDir;
   }
 
   content::ContentMainDelegate* CreateContentMainDelegate() override {
@@ -70,15 +88,40 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
       SbEventStartData* start_data =
           static_cast<SbEventStartData*>(event->data);
 
+#if SB_IS(EVERGREEN)
+      // Production Cobalt runs CommandLinePreprocessor inside CobaltInit(), but
+      // cobalt_browsertests enters through content::LaunchTests and
+      // BrowserTestBase::SetUp(), which read base::CommandLine and
+      // base::FeatureList before ContentMain runs. When launched directly via
+      // loader_app on Evergreen, start_data only contains raw test runner
+      // arguments without Cobalt's Starboard defaults (Ozone platform, ANGLE
+      // GLES-EGL flags, and default feature overrides). Run
+      // CommandLinePreprocessor here, strip the trailing positional startup URL
+      // it appends so GTest/LaunchTests only sees program name and switches,
+      // and transfer the resulting feature overrides into base::FeatureList.
+      cobalt::CommandLinePreprocessor init_cmd_line(
+          start_data->argument_count, start_data->argument_values);
+      const auto& init_argv = init_cmd_line.argv();
+      std::vector<char*> args;
+      const size_t arg_count =
+          init_argv.size() > 1 ? init_argv.size() - 1 : init_argv.size();
+      args.reserve(arg_count);
+      for (size_t i = 0; i < arg_count; ++i) {
+        args.push_back(const_cast<char*>(init_argv[i].c_str()));
+      }
+      int argc = static_cast<int>(args.size());
+      char** argv = args.data();
+#else
       int argc = start_data->argument_count;
       char** argv = const_cast<char**>(start_data->argument_values);
+#endif
 
       base::CommandLine::Init(argc, argv);
       testing::InitGoogleTest(&argc, argv);
 
       base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
       std::string disabled_features =
-          command_line->GetSwitchValueASCII("disable-features");
+          command_line->GetSwitchValueASCII(switches::kDisableFeatures);
       if (disabled_features.empty()) {
         disabled_features = "PartitionAllocDanglingPtr";
       } else if (disabled_features.find("PartitionAllocDanglingPtr") ==
@@ -86,11 +129,50 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
         disabled_features += ",PartitionAllocDanglingPtr";
       }
 
+#if SB_IS(EVERGREEN)
+      // Strip ':param/value' field-trial parameter suffixes (such as
+      // 'LimitImageDecodeCacheSize:mb/24' from CommandLinePreprocessor) before
+      // initializing FeatureList. BrowserTestBase::SetUp() serializes
+      // FeatureList overrides across a FieldTrialList reset into ContentMain,
+      // which hits DCHECK(trial) for unactivated '<Study...' trial references.
+      const std::string raw_enable_features =
+          command_line->GetSwitchValueASCII(switches::kEnableFeatures);
+      std::string enabled_features;
+      for (const auto& entry :
+           base::FeatureList::SplitFeatureListString(raw_enable_features)) {
+        const auto colon_pos = entry.find(':');
+        const std::string_view feature_name =
+            colon_pos == std::string_view::npos ? entry
+                                                : entry.substr(0, colon_pos);
+        if (!enabled_features.empty()) {
+          enabled_features += ',';
+        }
+        enabled_features.append(feature_name.data(), feature_name.size());
+      }
+
+      auto feature_list = std::make_unique<base::FeatureList>();
+      feature_list->InitFromCommandLine(enabled_features, disabled_features);
+      base::FeatureList::SetInstance(std::move(feature_list));
+
+      // BrowserTestBase::SetUp() asserts that kEnableFeatures and
+      // kDisableFeatures are not on the command line before copying active
+      // features from base::FeatureList::GetInstance() back onto command_line.
+      command_line->RemoveSwitch(switches::kEnableFeatures);
+      command_line->RemoveSwitch(switches::kDisableFeatures);
+
+      // Evergreen devices use native system EGL/GLES2 without software GL
+      // (SwiftShader). Without kUseGpuInTests, BrowserTestBase::SetUp()
+      // appends --override-use-software-gl-for-tests, causing GLContextEGL to
+      // pass ANGLE-specific robustness attributes that fail with
+      // EGL_BAD_ATTRIBUTE on native RDK EGL drivers.
+      command_line->AppendSwitch(switches::kUseGpuInTests);
+#else
       auto feature_list = std::make_unique<base::FeatureList>();
       feature_list->InitFromCommandLine(
-          command_line->GetSwitchValueASCII("enable-features"),
+          command_line->GetSwitchValueASCII(switches::kEnableFeatures),
           disabled_features);
       base::FeatureList::SetInstance(std::move(feature_list));
+#endif
 
       // TODO(b/433354983): Support more platforms.
       ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());

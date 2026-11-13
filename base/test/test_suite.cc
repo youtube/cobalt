@@ -577,6 +577,7 @@ void TestSuite::Initialize() {
 
 #if BUILDFLAG(IS_STARBOARD)
   InitStarboardTestMessageLoop();
+  InitStarboardTestPaths();
 #endif
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
@@ -657,12 +658,16 @@ void TestSuite::Initialize() {
 }
 
 void TestSuite::InitializeFromCommandLine(int* argc, char** argv) {
+#if BUILDFLAG(IS_IOS) && BUILDFLAG(IS_COBALT)
+  InitIOSArgs(*argc, argv);
+#endif
+
   // CommandLine::Init() is called earlier from PreInitialize().
   testing::InitGoogleTest(argc, argv);
   testing::InitGoogleMock(argc, argv);
   MaybeInitFuzztest(*argc, argv);
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_COBALT)
   InitIOSArgs(*argc, argv);
 #endif
 }

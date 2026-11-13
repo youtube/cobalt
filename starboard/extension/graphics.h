@@ -58,9 +58,9 @@ typedef struct CobaltExtensionGraphicsApi {
   // is executed a little too early. Return a negative number if frames should
   // only be presented when something changes (i.e. there is no maximum frame
   // interval).
-  // NOTE: The gyp variable 'cobalt_minimum_frame_time_in_milliseconds' takes
-  // precedence over this. For example, if the minimum frame time is 8ms and
-  // the maximum frame interval is 0ms, then the renderer will target 125 fps.
+  // NOTE: 'GetMinimumFrameIntervalInMilliseconds' below takes precedence over
+  // this. For example, if the minimum frame time is 8ms and the maximum frame
+  // interval is 0ms, then the renderer will target 125 fps.
   float (*GetMaximumFrameIntervalInMilliseconds)();
 
   // The fields below this point were added in version 2 or later.

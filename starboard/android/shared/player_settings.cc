@@ -15,6 +15,7 @@
 #include "starboard/android/shared/player_settings.h"
 
 #include "starboard/android/shared/video_max_video_input_size.h"
+#include "starboard/android/shared/video_max_video_resolution.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/extension/player_settings.h"
 
@@ -26,6 +27,7 @@ const StarboardExtensionPlayerSettingsApi kPlayerSettingsApi = {
     kStarboardExtensionPlayerSettingsName,
     1,
     &SetMaxVideoInputSizeForCurrentThread,
+    &SetMaxVideoResolutionForCurrentThread,
     &SetVideoSurfaceViewForCurrentThread,
 };
 

@@ -49,6 +49,7 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/public/browser/browser_thread.h"
@@ -95,6 +96,10 @@ class AppEventRunnerImpl : public AppEventRunner,
   PendingAck pending_ack() const override {
     base::AutoLock lock(lock_);
     return pending_ack_;
+  }
+
+  bool HasValidPlatformWindow() const override {
+    return content::Shell::GetPlatform()->HasPlatformWindow();
   }
 
   void InitializeSystem() override {
@@ -186,7 +191,7 @@ class AppEventRunnerImpl : public AppEventRunner,
     content::Shell::OnBlur();
     auto* client = cobalt::CobaltContentBrowserClient::Get();
     if (client) {
-      client->FlushCookiesAndLocalStorage(base::DoNothing());
+      client->FlushCookiesAndLocalStorageOnPause();
     }
 #if BUILDFLAG(IS_STARBOARD)
     if (platform_event_source_) {
@@ -246,11 +251,17 @@ class AppEventRunnerImpl : public AppEventRunner,
 
   void DoReveal() override {
     content::Shell::OnReveal();
-    WaitForAck(PendingAck::kReveal);
+    // Without a platform window, the frames can't become visible, so a reveal
+    // ACK would never come. In that case AppEventDelegate conceals the
+    // application again anyway.
+    if (HasValidPlatformWindow()) {
+      WaitForAck(PendingAck::kReveal);
+    }
   }
 
   void DoFreeze(base::OnceClosure callback) override {
     content::Shell::OnFreeze();
+    WaitForAck(PendingAck::kFreeze);
     WaitForAck(PendingAck::kCookieFlush);
     std::move(callback).Run();
 #if BUILDFLAG(USE_EVERGREEN)
@@ -487,6 +498,12 @@ class AppEventRunnerImpl : public AppEventRunner,
       base::AutoUnlock unlock(lock_);
       run_loop.Run();
     }
+    if (quit_closure_) {
+      LOG(WARNING) << "WaitForAck timed out: timeout(msec)="
+                   << kTransitionTimeout.InMilliseconds()
+                   << ", ack_type=" << ack_type;
+      quit_closure_.Reset();
+    }
     pending_ack_ = PendingAck::kNone;
   }
 
@@ -524,6 +541,15 @@ class AppEventRunnerImpl : public AppEventRunner,
   void OnAllFramesResumed(content::WebContents* web_contents) override {
     base::AutoLock lock(lock_);
     if (pending_ack_ == PendingAck::kUnfreeze) {
+      if (quit_closure_) {
+        std::move(quit_closure_).Run();
+      }
+    }
+  }
+
+  void OnAllFramesFrozen(content::WebContents* web_contents) override {
+    base::AutoLock lock(lock_);
+    if (pending_ack_ == PendingAck::kFreeze) {
       if (quit_closure_) {
         std::move(quit_closure_).Run();
       }
