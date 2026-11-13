@@ -175,6 +175,31 @@ gfx::Size TileSizeCalculator::CalculateTileSize(gfx::Size content_bounds) {
     return tile_size_;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (layer_impl()->IsSingleTileVisibleOnlyEnabled()) {
+    int tw = std::clamp(
+        MathUtil::UncheckedRoundUp(content_bounds.width(),
+                                   kTileMinimalAlignment),
+        kTileMinimalAlignment, affecting_params_.max_texture_size);
+    int th = std::clamp(
+        MathUtil::UncheckedRoundUp(content_bounds.height(),
+                                   kTileMinimalAlignment),
+        kTileMinimalAlignment, affecting_params_.max_texture_size);
+    tile_size_ = gfx::Size(tw, th);
+    return tile_size_;
+  }
+  if (layer_impl()->IsSingleTileVisibleInterestAreaEnabled()) {
+    gfx::Size single_size = AdjustGpuTileSize(
+        content_bounds.width(), content_bounds.height(),
+        affecting_params_.max_tile_size,
+        /*min_height_for_gpu_raster_tile=*/4);
+    int tw = std::min(single_size.width(), affecting_params_.max_texture_size);
+    int th = std::min(single_size.height(), affecting_params_.max_texture_size);
+    tile_size_ = gfx::Size(tw, th);
+    return tile_size_;
+  }
+#endif
+
   int default_tile_width = 0;
   int default_tile_height = 0;
   if (affecting_params_.use_gpu_rasterization) {
