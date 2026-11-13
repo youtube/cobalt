@@ -26,6 +26,7 @@
 
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/fake_media_codec.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -684,6 +685,48 @@ TEST_F(MediaCodecVideoDecoderTest,
   EXPECT_EQ(queued_inputs[0].flags & MediaCodec::kBufferFlagEndOfStream, 0);
   EXPECT_NE(queued_inputs[1].flags & MediaCodec::kBufferFlagEndOfStream, 0);
 
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       FpsGatedCodecCreationRetryKeepsRequestingInput) {
+  // AV1 codec creation is deferred until enough inputs arrive to estimate the
+  // fps, as long as 8K AV1 is treated as capped at 30fps.
+  MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(false);
+  ASSERT_TRUE(MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
+  VideoStreamInfo av1_info = kDefaultVideoStreamInfo;
+  av1_info.codec = kSbMediaVideoCodecAv1;
+  CreateDecoder(/*max_video_capabilities=*/"", &av1_info,
+                CodecCreationRetryFeatures(3),
+                /*enable_flush_during_seek=*/false,
+                /*codec_creation_failures=*/1);
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 0);
+
+  int need_more_input_count = 0;
+  decoder_->Initialize(
+      [&](VideoDecoder::Status status, const scoped_refptr<VideoFrame>& frame) {
+        if (status == VideoDecoder::kNeedMoreInput) {
+          need_more_input_count++;
+        }
+      },
+      [this](SbPlayerError error, const std::string& msg) {
+        error_called_ = true;
+      });
+
+  // The third input triggers codec creation, which fails and schedules a
+  // retry. The decoder keeps requesting input while the retry is pending.
+  for (int i = 0; i < 3; ++i) {
+    decoder_->WriteInputBuffers(
+        {CreateDummyVideoInputBuffer(i * 33'333, 1024, &av1_info)});
+  }
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_EQ(GetFakeVideoCodec(), nullptr);
+  EXPECT_EQ(need_more_input_count, 3);
+
+  ASSERT_TRUE(PumpJobQueueUntil(
+      [this] { return fake_factory_->video_codec_create_count() == 2; },
+      kRetryWaitTimeoutMs));
+  EXPECT_NE(GetFakeVideoCodec(), nullptr);
   EXPECT_FALSE(error_called_);
 }
 
