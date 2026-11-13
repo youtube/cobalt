@@ -31,6 +31,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# Imported as a package by the unit tests, and as a sibling module when this
+# file runs as a script.
+try:
+  from cobalt.tools.storage import storage_footprint
+except ImportError:  # pragma: no cover
+  import storage_footprint  # pylint: disable=import-error
+
 DEFAULT_PACKAGE = "dev.cobalt.coat"
 DEFAULT_ACTIVITY = "dev.cobalt.app.MainActivity"
 DEFAULT_HOME_URL = "https://www.youtube.com/tv"
@@ -348,6 +355,27 @@ def collect_android_snapshot(
          f"-exec stat -c '%s %Y %n' {{}} + 2>/dev/null")
   _, out = run_adb_shell(cmd, package=package)
   return parse_stat_output(out, package=package)
+
+
+def collect_android_entries(
+    package: str = DEFAULT_PACKAGE) -> List[storage_footprint.StatEntry]:
+  """Lists every file and directory (with allocated blocks) of the app."""
+  roots = storage_footprint.android_roots(package)
+  dirs = [r.device_path for r in roots if r.name in ("AppData", "UserDe")]
+  _, out = run_adb_shell(
+      storage_footprint.find_stat_command(dirs), package=package)
+  return storage_footprint.parse_stat_entries(out)
+
+
+def snapshot_from_entries(
+    entries: List[storage_footprint.StatEntry],
+    package: str = DEFAULT_PACKAGE) -> Dict[str, Tuple[int, int]]:
+  """The regular files of |entries| as {rel_path: (size_bytes, mtime)}."""
+  return {
+      normalize_android_rel_path(e.path, package): (e.size, e.mtime)
+      for e in entries
+      if e.is_file
+  }
 
 
 def _strip_deleted_suffix(path: str) -> str:
@@ -966,6 +994,12 @@ def format_markdown_report(report: Dict[str, Any]) -> str:
       "",
       "---",
       "",
+  ])
+  footprint_md = report.get("footprint_markdown")
+  if footprint_md:
+    lines.extend([footprint_md.rstrip("\n"), "", "---", ""])
+
+  lines.extend([
       "## Section A: Storage Type Summary (Full Footprint Accounting)",
       "",
       ("| Storage Type | Location | Start KB | Peak KB (Time) | Final KB | "
@@ -1035,9 +1069,18 @@ def _poll_for_duration(
     proc_io_fn: Optional[Callable[[], Optional[ProcIoSample]]] = None,
     verify_apis_fn: Optional[Callable[[], Optional[Dict[str, Any]]]] = None,
     action_cb: Optional[Callable[[float], None]] = None,
-    phase_label: str = "") -> None:
-  """Polls storage snapshots every interval_sec for duration_sec."""
+    phase_label: str = "",
+    timeline: Optional[storage_footprint.FootprintTimeline] = None,
+    entries_fn: Optional[Callable[[], List[storage_footprint.StatEntry]]] = None
+) -> None:
+  """Polls storage snapshots every interval_sec for duration_sec.
+
+  With |timeline| and |entries_fn|, each poll lists files and directories
+  once, and feeds both |tracker| and the footprint timeline.
+  """
   phase_start = time.time()
+  if timeline:
+    timeline.event(phase_start - run_start_time, "cuj_phase", phase_label)
   while True:
     now = time.time()
     phase_elapsed = now - phase_start
@@ -1046,10 +1089,13 @@ def _poll_for_duration(
     if action_cb:
       action_cb(phase_elapsed)
 
-    snap = snapshot_fn()
-    tracker.record_snapshot(total_elapsed, snap)
-    if proc_io_fn:
-      tracker.record_proc_io(total_elapsed, proc_io_fn())
+    _record_poll(
+        tracker,
+        total_elapsed,
+        snapshot_fn,
+        proc_io_fn=proc_io_fn,
+        timeline=timeline,
+        entries_fn=entries_fn)
     if (verify_apis_fn and not tracker.storage_api_verification_attempted and
         (phase_label == "manual" or phase_elapsed >= 15.0)):
       tracker.storage_api_verification_attempted = True
@@ -1057,15 +1103,44 @@ def _poll_for_duration(
 
     pers_kb = tracker.final_persistent_bytes / 1024.0
     peak_kb = tracker.peak_persistent_bytes / 1024.0
+    footprint = (f" | Footprint: "
+                 f"{storage_footprint.fmt_size(timeline.last_total_bytes)}"
+                 if timeline else "")
     print(f"[{total_elapsed:6.1f}s] {phase_label:<15} | "
           f"Persistent: {pers_kb:7.2f} KB (Peak: {peak_kb:7.2f} KB) | "
-          f"Tracked Files: {len(tracker.file_records)}")
+          f"Tracked Files: {len(tracker.file_records)}{footprint}")
 
     if phase_elapsed >= duration_sec:
       break
 
     sleep_for = max(min(0.1, interval_sec), interval_sec - (time.time() - now))
     time.sleep(sleep_for)
+
+
+def _record_poll(
+    tracker: StorageTracker, elapsed_sec: float,
+    snapshot_fn: Callable[[], Dict[str, Tuple[int, int]]], *,
+    proc_io_fn: Optional[Callable[[], Optional[ProcIoSample]]],
+    timeline: Optional[storage_footprint.FootprintTimeline],
+    entries_fn: Optional[Callable[[],
+                                  List[storage_footprint.StatEntry]]]) -> None:
+  """Takes one storage snapshot and /proc sample and records them."""
+  if timeline and entries_fn:
+    entries = entries_fn()
+    tracker.record_snapshot(elapsed_sec,
+                            snapshot_from_entries(entries, tracker.package))
+  else:
+    entries = None
+    tracker.record_snapshot(elapsed_sec, snapshot_fn())
+  proc_io = proc_io_fn() if proc_io_fn else None
+  if proc_io_fn:
+    tracker.record_proc_io(elapsed_sec, proc_io)
+  if timeline and entries:
+    timeline.sample(
+        elapsed_sec,
+        entries,
+        pid=proc_io.pid if proc_io else None,
+        io=(proc_io.read_bytes, proc_io.write_bytes) if proc_io else None)
 
 
 def _launch_cobalt_android(url: str,
@@ -1151,7 +1226,8 @@ def _make_playback_action() -> Callable[[float], None]:
   return _playback_action
 
 
-def _make_pause_action() -> Callable[[float], None]:
+def _make_pause_action(
+    on_home: Optional[Callable[[], None]] = None) -> Callable[[float], None]:
   """Creates the stateful KEYCODE_HOME backgrounding callback."""
   paused_sent = [False]
 
@@ -1159,6 +1235,8 @@ def _make_pause_action() -> Callable[[float], None]:
     if phase_elapsed >= 5.0 and not paused_sent[0]:
       paused_sent[0] = True
       run_adb_shell("input keyevent KEYCODE_HOME", package=None)
+      if on_home:
+        on_home()
 
   return _pause_action
 
@@ -1174,11 +1252,24 @@ def run_cuj_android(
     verify_storage_apis: bool = False,
     cdp_port: int = DEFAULT_CDP_PORT,
     verify_apis_fn: Optional[Callable[[], Optional[Dict[str, Any]]]] = None,
-    extra_args: str = "") -> float:
-  """Executes the specified CUJ on Android TV while polling storage."""
+    extra_args: str = "",
+    timeline: Optional[storage_footprint.FootprintTimeline] = None,
+    entries_fn: Optional[Callable[[], List[storage_footprint.StatEntry]]] = None
+) -> float:
+  """Executes the specified CUJ on Android TV while polling storage.
+
+  With |timeline|, every poll is also written to the footprint timeline,
+  together with launch, HOME, CUJ phase and process start/exit events.
+  """
   if snapshot_fn is None:
     verify_android_device_connected()
   snap_callable = snapshot_fn or (lambda: collect_android_snapshot(package))
+  if timeline and entries_fn is None and snapshot_fn is None:
+
+    def _default_entries() -> List[storage_footprint.StatEntry]:
+      return collect_android_entries(package)
+
+    entries_fn = _default_entries
   io_callable = proc_io_fn
   if io_callable is None and snapshot_fn is None:
 
@@ -1197,10 +1288,43 @@ def run_cuj_android(
 
   run_start = time.time()
 
+  def event(name: str, detail: str = "") -> None:
+    if timeline:
+      timeline.event(time.time() - run_start, name, detail)
+
+  def launch(url: str) -> None:
+    _launch_cobalt_android(
+        url,
+        package=package,
+        stop_first=True,
+        enable_cdp=verify_storage_apis,
+        extra_args=extra_args)
+    event("launch", url)
+
+  def poll(duration_sec: float,
+           phase_label: str,
+           action_cb: Optional[Callable[[float], None]] = None) -> None:
+    _poll_for_duration(
+        tracker,
+        duration_sec=duration_sec,
+        interval_sec=interval_sec,
+        run_start_time=run_start,
+        snapshot_fn=snap_callable,
+        proc_io_fn=io_callable,
+        verify_apis_fn=apis_callable,
+        action_cb=action_cb,
+        phase_label=phase_label,
+        timeline=timeline,
+        entries_fn=entries_fn)
+
   # Take initial baseline snapshot at t=0s before launching CUJ actions
-  tracker.record_snapshot(0.0, snap_callable())
-  if io_callable:
-    tracker.record_proc_io(0.0, io_callable())
+  _record_poll(
+      tracker,
+      0.0,
+      snap_callable,
+      proc_io_fn=io_callable,
+      timeline=timeline,
+      entries_fn=entries_fn)
 
   cujs_to_run = ([
       "cold_start", "home_scroll", "video_playback", "pause_flush",
@@ -1209,117 +1333,35 @@ def run_cuj_android(
 
   for active_cuj in cujs_to_run:
     print(f"\n=== Running CUJ: {active_cuj} ===")
+    event("cuj", active_cuj)
     if active_cuj == "manual":
       print("Passive monitoring active (no app restart or synthetic keys). "
             "Interact with the app and press Ctrl+C to stop and generate "
             "report...")
-      _poll_for_duration(
-          tracker,
-          duration_sec=float("inf"),
-          interval_sec=interval_sec,
-          run_start_time=run_start,
-          snapshot_fn=snap_callable,
-          proc_io_fn=io_callable,
-          verify_apis_fn=apis_callable,
-          phase_label="manual")
+      poll(float("inf"), "manual")
 
     elif active_cuj == "cold_start":
-      _launch_cobalt_android(
-          DEFAULT_HOME_URL,
-          package=package,
-          stop_first=True,
-          enable_cdp=verify_storage_apis,
-          extra_args=extra_args)
-      _poll_for_duration(
-          tracker,
-          duration_sec=60.0,
-          interval_sec=interval_sec,
-          run_start_time=run_start,
-          snapshot_fn=snap_callable,
-          proc_io_fn=io_callable,
-          verify_apis_fn=apis_callable,
-          phase_label="cold_start")
+      launch(DEFAULT_HOME_URL)
+      poll(60.0, "cold_start")
 
     elif active_cuj == "home_scroll":
-      _launch_cobalt_android(
-          DEFAULT_HOME_URL,
-          package=package,
-          stop_first=True,
-          enable_cdp=verify_storage_apis,
-          extra_args=extra_args)
-      _poll_for_duration(
-          tracker,
-          duration_sec=90.0,
-          interval_sec=interval_sec,
-          run_start_time=run_start,
-          snapshot_fn=snap_callable,
-          proc_io_fn=io_callable,
-          verify_apis_fn=apis_callable,
-          action_cb=_make_scroll_action(),
-          phase_label="home_scroll")
+      launch(DEFAULT_HOME_URL)
+      poll(90.0, "home_scroll", _make_scroll_action())
 
     elif active_cuj == "video_playback":
-      _launch_cobalt_android(
-          DEFAULT_VIDEO_URL,
-          package=package,
-          stop_first=True,
-          enable_cdp=verify_storage_apis,
-          extra_args=extra_args)
-      _poll_for_duration(
-          tracker,
-          duration_sec=180.0,
-          interval_sec=interval_sec,
-          run_start_time=run_start,
-          snapshot_fn=snap_callable,
-          proc_io_fn=io_callable,
-          verify_apis_fn=apis_callable,
-          action_cb=_make_playback_action(),
-          phase_label="video_playback")
+      launch(DEFAULT_VIDEO_URL)
+      poll(180.0, "video_playback", _make_playback_action())
 
     elif active_cuj == "pause_flush":
-      _launch_cobalt_android(
-          DEFAULT_HOME_URL,
-          package=package,
-          stop_first=True,
-          enable_cdp=verify_storage_apis,
-          extra_args=extra_args)
-      _poll_for_duration(
-          tracker,
-          duration_sec=10.0,
-          interval_sec=interval_sec,
-          run_start_time=run_start,
-          snapshot_fn=snap_callable,
-          proc_io_fn=io_callable,
-          verify_apis_fn=apis_callable,
-          phase_label="pre_pause")
-      _poll_for_duration(
-          tracker,
-          duration_sec=30.0,
-          interval_sec=interval_sec,
-          run_start_time=run_start,
-          snapshot_fn=snap_callable,
-          proc_io_fn=io_callable,
-          verify_apis_fn=apis_callable,
-          action_cb=_make_pause_action(),
-          phase_label="pause_flush")
+      launch(DEFAULT_HOME_URL)
+      poll(10.0, "pre_pause")
+      poll(30.0, "pause_flush",
+           _make_pause_action(on_home=lambda: event("home", "KEYCODE_HOME")))
 
     elif active_cuj == "warm_relaunch":
       for cycle in range(1, 4):
-        _launch_cobalt_android(
-            DEFAULT_HOME_URL,
-            package=package,
-            stop_first=True,
-            enable_cdp=verify_storage_apis,
-            extra_args=extra_args)
-        _poll_for_duration(
-            tracker,
-            duration_sec=20.0,
-            interval_sec=interval_sec,
-            run_start_time=run_start,
-            snapshot_fn=snap_callable,
-            proc_io_fn=io_callable,
-            verify_apis_fn=apis_callable,
-            phase_label=f"warm_relaunch_{cycle}")
+        launch(DEFAULT_HOME_URL)
+        poll(20.0, f"warm_relaunch_{cycle}")
 
   return time.time() - run_start
 
@@ -1373,16 +1415,52 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
       type=str,
       default="",
       help="Output report file path (.md or .json).")
+  parser.add_argument(
+      "--timeline",
+      type=str,
+      default="",
+      help=("Footprint timeline JSONL path (default: next to the report, "
+            "<report>_footprint.jsonl). An HTML view with the same name "
+            "(.html) is written at the end."))
+  parser.add_argument(
+      "--compare",
+      nargs=2,
+      metavar=("A_JSONL", "B_JSONL"),
+      help=("Compare the footprint timelines of two runs and print a "
+            "Markdown table (no device needed)."))
   return parser.parse_args(argv)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
   args = parse_args(argv)
 
+  if args.compare:
+    a, b = (
+        storage_footprint.analyze(storage_footprint.load_timeline(path))
+        for path in args.compare)
+    text = storage_footprint.format_comparison(a, b)
+    if args.output:
+      with open(args.output, "w", encoding="utf-8") as f:
+        f.write(text)
+    print(text)
+    return 0
+
   timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
   output_path = args.output or f"storage_report_{args.cuj}_{timestamp}.md"
+  timeline_path = args.timeline or (os.path.splitext(output_path)[0] +
+                                    "_footprint.jsonl")
+  html_path = os.path.splitext(timeline_path)[0] + ".html"
 
   tracker = StorageTracker(package=args.package)
+  timeline = storage_footprint.FootprintTimeline(
+      timeline_path,
+      package=args.package,
+      platform=args.platform,
+      cuj=args.cuj,
+      interval_sec=args.interval,
+      extra_args=args.extra_args,
+      roots=storage_footprint.android_roots(args.package),
+      table=storage_footprint.load_bucket_table())
   start_time = time.time()
   try:
     duration_sec = run_cuj_android(
@@ -1392,13 +1470,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         package=args.package,
         verify_storage_apis=args.verify_storage_apis,
         cdp_port=args.cdp_port,
-        extra_args=args.extra_args)
+        extra_args=args.extra_args,
+        timeline=timeline)
   except KeyboardInterrupt:
     duration_sec = time.time() - start_time
     print("\nInterrupted by user; generating report from collected samples...")
   except RuntimeError as exc:
     print(f"Error: {exc}", file=sys.stderr)
     return 1
+  finally:
+    timeline.close()
 
   report_data = tracker.build_summary_data(
       platform=args.platform,
@@ -1406,7 +1487,26 @@ def main(argv: Optional[List[str]] = None) -> int:
       duration_sec=duration_sec,
       interval_sec=args.interval)
 
+  analysis = None
+  if timeline.sample_count:
+    analysis = storage_footprint.write_reports(timeline_path, html_path)
+    report_data["footprint_markdown"] = storage_footprint.format_markdown(
+        analysis, os.path.basename(html_path))
+
   if output_path.endswith(".json"):
+    report_data.pop("footprint_markdown", None)
+    if analysis:
+      report_data["storage_footprint"] = {
+          "timeline":
+              timeline_path,
+          "html":
+              html_path,
+          "findings": [{
+              "severity": f.severity,
+              "title": f.title,
+              "details": f.details
+          } for f in analysis.findings],
+      }
     content = json.dumps(report_data, indent=2) + "\n"
   else:
     content = format_markdown_report(report_data)
@@ -1415,6 +1515,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     f.write(content)
 
   print(f"\nReport written to: {output_path}")
+  if analysis:
+    print(f"Footprint timeline: {timeline_path}")
+    print(f"Footprint HTML view: {html_path}")
   return 0
 
 
