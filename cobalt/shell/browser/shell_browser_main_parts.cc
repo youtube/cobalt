@@ -14,6 +14,8 @@
 
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 
+#include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/base_switches.h"
@@ -126,7 +128,17 @@ GURL GetStartupURL(bool should_preload) {
   }
 
   if (should_preload) {
-    initial_url = net::AppendQueryParameter(initial_url, "launch", "preload");
+    // The launch URL may already carry launch=preload (query or fragment).
+    std::string launch_value;
+    const bool has_preload_param =
+        (net::GetValueForKeyInQuery(initial_url, "launch", &launch_value) &&
+         launch_value == "preload") ||
+        (initial_url.has_ref() &&
+         initial_url.ref_piece().find("launch=preload") !=
+             std::string_view::npos);
+    if (!has_preload_param) {
+      initial_url = net::AppendQueryParameter(initial_url, "launch", "preload");
+    }
   }
 
 #if BUILDFLAG(IS_STARBOARD)
