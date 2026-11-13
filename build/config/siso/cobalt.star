@@ -409,6 +409,11 @@ def __filegroups(ctx):
     return fg
 
 def __step_config(ctx, step_config):
+    if "default" in step_config.get("platforms", {}):
+        step_config["platforms"]["large"] = step_config["platforms"]["default"]
+    for rule in step_config["rules"]:
+        rule.pop("platform_ref", None)
+
     args = gn.args(ctx)
     if args.get("use_custom_libc") == "true":
         for rule in step_config["rules"]:
