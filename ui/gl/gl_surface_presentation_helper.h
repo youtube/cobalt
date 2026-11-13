@@ -17,6 +17,8 @@
 #if BUILDFLAG(IS_COBALT)
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/tick_clock.h"
+#include "base/timer/timer.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
 namespace gfx {
@@ -70,6 +72,9 @@ class GL_EXPORT GLSurfacePresentationHelper {
   void OnMakeCurrent(GLContext* context, GLSurface* surface);
   void PreSwapBuffers(GLSurface::PresentationCallback callback, int frame_id);
   void PostSwapBuffers(gfx::SwapResult result);
+#if BUILDFLAG(IS_COBALT)
+  void SetTickClockForTesting(const base::TickClock* tick_clock);
+#endif  // BUILDFLAG(IS_COBALT)
 
  private:
 #if BUILDFLAG(IS_COBALT)
@@ -98,6 +103,7 @@ class GL_EXPORT GLSurfacePresentationHelper {
     std::unique_ptr<GLFence> fence;
 #if BUILDFLAG(IS_COBALT)
     scoped_refptr<FenceWaitState> fence_wait_state;
+    base::TimeTicks cached_gpu_done_timestamp;
 #endif  // BUILDFLAG(IS_COBALT)
     int frame_id = -1;
     GLSurface::PresentationCallback callback;
@@ -123,6 +129,11 @@ class GL_EXPORT GLSurfacePresentationHelper {
   void ScheduleCheckPendingFrames(bool align_with_next_vsync);
 #if BUILDFLAG(IS_COBALT)
   void OnFenceWaitCompleted(scoped_refptr<FenceWaitState> fence_wait_state);
+  base::TimeTicks CurrentTimeTicks() const;
+  base::TimeDelta EffectiveNominalVSyncInterval() const;
+  void ObserveBlockingSwapCadence(base::TimeTicks swap_ack_time);
+  void ScheduleDeferredPresentationCheck(base::TimeTicks target_time);
+  void OnDeferredPresentationTimerFired();
 #endif  // BUILDFLAG(IS_COBALT)
 
   const raw_ptr<gfx::VSyncProvider> vsync_provider_;
@@ -139,6 +150,12 @@ class GL_EXPORT GLSurfacePresentationHelper {
   bool gl_fence_supported_ = false;
 #if BUILDFLAG(IS_COBALT)
   bool async_egl_fence_supported_ = false;
+  raw_ptr<const base::TickClock> tick_clock_ = nullptr;
+  base::TimeTicks last_swap_ack_time_;
+  base::circular_deque<base::TimeDelta> recent_swap_deltas_;
+  base::TimeDelta estimated_vsync_interval_;
+  base::TimeTicks last_presented_timestamp_;
+  base::DeadlineTimer deferred_presentation_timer_;
 #endif  // BUILDFLAG(IS_COBALT)
   raw_ptr<EGLTimestampClient> egl_timestamp_client_ = nullptr;
   bool update_vsync_pending_ = false;

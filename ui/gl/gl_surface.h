@@ -32,6 +32,10 @@
 #include "base/android/scoped_hardware_buffer_fence_sync.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/time/time.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gfx {
 class ColorSpace;
 class VSyncProvider;
@@ -200,6 +204,13 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface> {
   // triple-buffered surfaces this would return 3, etc.
   virtual int GetBufferCount() const;
 
+#if BUILDFLAG(IS_COBALT)
+  // Optional display VSync interval reported by the platform window/screen
+  // when no gfx::VSyncProvider is available; zero when unknown.
+  virtual base::TimeDelta GetNominalVSyncInterval() const;
+  void SetNominalVSyncInterval(base::TimeDelta interval);
+#endif  // BUILDFLAG(IS_COBALT)
+
   // Return the interface used for querying EGL timestamps.
   virtual EGLTimestampClient* GetEGLTimestampClient();
 
@@ -231,6 +242,10 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface> {
 
   friend class base::RefCounted<GLSurface>;
   friend class GLContext;
+
+#if BUILDFLAG(IS_COBALT)
+  base::TimeDelta nominal_vsync_interval_;
+#endif  // BUILDFLAG(IS_COBALT)
 
   base::WeakPtrFactory<GLSurface> weak_ptr_factory_{this};
 };

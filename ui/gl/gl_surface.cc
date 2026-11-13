@@ -134,6 +134,16 @@ int GLSurface::GetBufferCount() const {
   return 2;
 }
 
+#if BUILDFLAG(IS_COBALT)
+base::TimeDelta GLSurface::GetNominalVSyncInterval() const {
+  return nominal_vsync_interval_;
+}
+
+void GLSurface::SetNominalVSyncInterval(base::TimeDelta interval) {
+  nominal_vsync_interval_ = interval;
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 bool GLSurface::SupportsPlaneGpuFences() const {
   return false;
 }

@@ -315,6 +315,191 @@ void BackToBackBeginFrameSource::OnTimerTick() {
     FilterAndIssueBeginFrame(obs, args);
 }
 
+#if BUILDFLAG(IS_COBALT)
+// BufferedSwapBeginFrameSource -------------------------------------------
+BufferedSwapBeginFrameSource::BufferedSwapBeginFrameSource(
+    std::unique_ptr<DelayBasedTimeSource> time_source,
+    uint32_t restart_id)
+    : SyntheticBeginFrameSource(restart_id),
+      time_source_(std::move(time_source)),
+      next_sequence_number_(BeginFrameArgs::kStartingFrameNumber) {
+  time_source_->SetClient(this);
+  time_source_->SetTimebaseAndInterval(base::TimeTicks(), base::TimeDelta());
+}
+
+BufferedSwapBeginFrameSource::~BufferedSwapBeginFrameSource() = default;
+
+base::TimeDelta BufferedSwapBeginFrameSource::EffectiveInterval() const {
+  const base::TimeDelta interval = max_vrr_interval_.value_or(vsync_interval_);
+  return interval.is_positive() ? interval : BeginFrameArgs::DefaultInterval();
+}
+
+base::TimeTicks BufferedSwapBeginFrameSource::ComputeNextFrameTime(
+    base::TimeTicks now) const {
+  const base::TimeDelta interval = EffectiveInterval();
+  const base::TimeDelta max_cushion = interval * kMaxBufferedSwapFrames;
+  const base::TimeTicks min_valid_ticks =
+      base::TimeTicks() + base::Microseconds(1);
+
+  if (last_frame_time_.is_null()) {
+    const base::TimeTicks prefill_origin = now - max_cushion;
+    return std::max(min_valid_ticks, prefill_origin);
+  }
+
+  base::TimeTicks next_frame_time = last_frame_time_ + interval;
+  if (now - next_frame_time > max_cushion) {
+    // The EGL back-buffer cushion drained completely (either after an idle
+    // period or a multi-frame stall). Advance by whole VSync intervals back
+    // into the [now - max_cushion, now] window so animations reflect real
+    // elapsed VSyncs while preserving pre-fill capacity.
+    const int64_t missed_intervals =
+        (now - max_cushion - next_frame_time) / interval + 1;
+    next_frame_time += missed_intervals * interval;
+  }
+  return std::max(min_valid_ticks, next_frame_time);
+}
+
+void BufferedSwapBeginFrameSource::ScheduleNextTick() {
+  if (observers_.empty() ||
+      pending_begin_frame_observers_.size() < observers_.size()) {
+    time_source_->SetActive(false);
+    return;
+  }
+  if (time_source_->Active() && !scheduled_frame_time_.is_null()) {
+    return;
+  }
+
+  const base::TimeTicks now = time_source_->CurrentTimeTicks();
+  scheduled_frame_time_ = ComputeNextFrameTime(now);
+  time_source_->ScheduleTickAt(scheduled_frame_time_);
+}
+
+void BufferedSwapBeginFrameSource::AddObserver(BeginFrameObserver* obs) {
+  DCHECK(obs);
+  DCHECK(!base::Contains(observers_, obs));
+
+  const bool frame_in_flight =
+      !observers_.empty() &&
+      pending_begin_frame_observers_.size() < observers_.size();
+  observers_.insert(obs);
+  obs->OnBeginFrameSourcePausedChanged(false);
+
+  if (frame_in_flight && last_begin_frame_args_.IsValid()) {
+    if (CheckBeginFrameContinuity(obs, last_begin_frame_args_)) {
+      BeginFrameArgs missed_args = last_begin_frame_args_;
+      missed_args.type = BeginFrameArgs::MISSED;
+      missed_args.deadline =
+          std::max(missed_args.deadline,
+                   time_source_->CurrentTimeTicks() + EffectiveInterval());
+      FilterAndIssueBeginFrame(obs, missed_args);
+      return;
+    }
+    pending_begin_frame_observers_.insert(obs);
+    return;
+  }
+
+  pending_begin_frame_observers_.insert(obs);
+  ScheduleNextTick();
+}
+
+void BufferedSwapBeginFrameSource::RemoveObserver(BeginFrameObserver* obs) {
+  DCHECK(obs);
+  DCHECK(base::Contains(observers_, obs));
+  observers_.erase(obs);
+  pending_begin_frame_observers_.erase(obs);
+  if (observers_.empty()) {
+    time_source_->SetActive(false);
+    scheduled_frame_time_ = base::TimeTicks();
+    return;
+  }
+  if (pending_begin_frame_observers_.size() == observers_.size() &&
+      !time_source_->Active()) {
+    ScheduleNextTick();
+  }
+}
+
+void BufferedSwapBeginFrameSource::DidFinishFrame(BeginFrameObserver* obs) {
+  if (!base::Contains(observers_, obs)) {
+    return;
+  }
+  pending_begin_frame_observers_.insert(obs);
+  if (pending_begin_frame_observers_.size() == observers_.size()) {
+    ScheduleNextTick();
+  }
+}
+
+void BufferedSwapBeginFrameSource::OnGpuNoLongerBusy() {
+  ScheduleNextTick();
+}
+
+void BufferedSwapBeginFrameSource::OnUpdateVSyncParameters(
+    base::TimeTicks timebase,
+    base::TimeDelta interval) {
+  if (interval.is_zero()) {
+    interval = BeginFrameArgs::DefaultInterval();
+  }
+  vsync_interval_ = interval;
+}
+
+void BufferedSwapBeginFrameSource::SetMaxVrrInterval(
+    const std::optional<base::TimeDelta>& max_vrr_interval) {
+  DCHECK(!max_vrr_interval.has_value() || max_vrr_interval->is_positive());
+  max_vrr_interval_ = max_vrr_interval;
+}
+
+void BufferedSwapBeginFrameSource::OnTimerTick() {
+  if (!time_source_->Active()) {
+    return;
+  }
+  if (observers_.empty() ||
+      pending_begin_frame_observers_.size() < observers_.size()) {
+    time_source_->SetActive(false);
+    return;
+  }
+  if (RequestCallbackOnGpuAvailable()) {
+    time_source_->SetActive(false);
+    return;
+  }
+
+  const base::TimeTicks now = time_source_->CurrentTimeTicks();
+  base::TimeTicks frame_time = scheduled_frame_time_.is_null()
+                                   ? ComputeNextFrameTime(now)
+                                   : scheduled_frame_time_;
+  // Re-check against |now| in case the task woke up late after a long stall or
+  // slightly early before |scheduled_frame_time_|.
+  if (frame_time > now) {
+    time_source_->ScheduleTickAt(frame_time);
+    return;
+  }
+  const base::TimeDelta interval = EffectiveInterval();
+  const base::TimeDelta max_cushion = interval * kMaxBufferedSwapFrames;
+  if (now - frame_time > max_cushion) {
+    const int64_t missed_intervals =
+        (now - max_cushion - frame_time) / interval + 1;
+    frame_time += missed_intervals * interval;
+  }
+
+  scheduled_frame_time_ = base::TimeTicks();
+  last_frame_time_ = frame_time;
+  const base::TimeTicks deadline = std::max(now, frame_time) + interval;
+  BeginFrameArgs args = BeginFrameArgs::Create(
+      BEGINFRAME_FROM_HERE, source_id(), next_sequence_number_++, frame_time,
+      deadline, interval, BeginFrameArgs::NORMAL);
+  last_begin_frame_args_ = args;
+
+  time_source_->SetActive(false);
+
+  base::flat_set<raw_ptr<BeginFrameObserver, CtnExperimental>>
+      pending_observers;
+  pending_observers.swap(pending_begin_frame_observers_);
+  for (BeginFrameObserver* obs : pending_observers) {
+    if (base::Contains(observers_, obs)) {
+      FilterAndIssueBeginFrame(obs, args);
+    }
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 // DelayBasedBeginFrameSource ---------------------------------------------
 DelayBasedBeginFrameSource::DelayBasedBeginFrameSource(
     std::unique_ptr<DelayBasedTimeSource> time_source,

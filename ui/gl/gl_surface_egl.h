@@ -107,6 +107,9 @@ class GL_EXPORT NativeViewGLSurfaceEGL : public GLSurfaceEGL,
   void SetVSyncEnabled(bool enabled) override;
   gfx::SurfaceOrigin GetOrigin() const override;
   EGLTimestampClient* GetEGLTimestampClient() override;
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  int GetBufferCount() const override;
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
   // EGLTimestampClient implementation.
   bool IsEGLTimestampSupported() const override;
