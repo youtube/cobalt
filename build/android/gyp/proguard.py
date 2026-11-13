@@ -38,6 +38,7 @@ _IGNORE_WARNINGS = (
     r'/third_party/.*Proguard configuration rule does not match anything',
     # Ignore cronet's test rules (low priority to fix).
     r'cronet/android/test/proguard.cfg.*Proguard configuration rule does not',
+    r'cobalt_apk\.resources\.proguard\.txt.*Proguard configuration rule does not',
     r'Proguard configuration rule does not match anything:.*(?:' + '|'.join([
         # aapt2 generates keeps for these.
         r'class android\.',
@@ -389,6 +390,7 @@ def _OptimizeWithR8(options, config_paths, libraries, dynamic_config_data):
 
     if options.disable_checks:
       cmd += ['--map-diagnostics:CheckDiscardDiagnostic', 'error', 'none']
+      cmd += ['--map-diagnostics:CheckDiscardDiagnostic', 'warning', 'none']
     # Triggered by rules from deps we cannot control.
     cmd += [('--map-diagnostics:EmptyMemberRulesToDefaultInitRuleConversion'
              'Diagnostic'), 'warning', 'none']
