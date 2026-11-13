@@ -264,7 +264,7 @@ source_set("global_features") {
   ]
 }
 
-if (is_starboard || is_androidtv) {
+if (is_starboard || is_androidtv || (is_ios && target_platform == "tvos")) {
   source_set("hang_watcher_delegate") {
     sources = [
       "hang_watcher_delegate_impl.cc",
@@ -277,7 +277,7 @@ if (is_starboard || is_androidtv) {
       "//cobalt/build/configs:buildflags",
       "//starboard:starboard_headers_only",
     ]
-    if (is_androidtv) {
+    if (is_androidtv || (is_ios && target_platform == "tvos")) {
       deps += [ ":cobalt_crash_annotations" ]
     }
   }
