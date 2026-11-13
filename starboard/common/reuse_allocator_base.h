@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
@@ -39,20 +40,47 @@ namespace starboard {
 // accessing or allocating memory concurrently across multiple threads.
 class ReuseAllocatorBase : public Allocator {
  public:
+  // Number of TryToDecommitOneBlock() calls to skip after
+  // ReclaimFallbackBlocks() or fallback block activation so consecutive
+  // playback transitions and seeks can reuse committed pages without
+  // page-fault thrashing.
+  static constexpr size_t kDecommitGraceTicks = 3;
+
   // Allocator methods.
-  size_t GetCapacity() const override { return capacity_; }
+  // Returns the committed capacity: total bytes obtained from the fallback
+  // allocator minus bytes currently aggressively decommitted (kIdleDecommitted,
+  // MADV_DONTNEED). Blocks decommitted with MADV_FREE (kIdleFreed) are still
+  // counted because the kernel may not have reclaimed them yet. Note that
+  // `max_capacity_` enforcement deliberately uses the raw `capacity_` since the
+  // virtual address range of decommitted blocks remains reserved and reusable.
+  size_t GetCapacity() const override {
+    SB_DCHECK_LE(decommitted_bytes_, capacity_);
+    return capacity_ >= decommitted_bytes_ ? capacity_ - decommitted_bytes_ : 0;
+  }
+
+  // Updates whether the application is currently suspended. When
+  // |is_suspended| transitions to true, any currently decommitable idle blocks
+  // (non-retained idle blocks, plus retained idle blocks when constructed with
+  // |aggressive_decommit_on_suspend|) are decommitted immediately, and any
+  // subsequent ReclaimFallbackBlocks() call while suspended will also decommit
+  // reclaimed blocks immediately instead of staging them for periodic
+  // background decommit.
+  void SetSuspended(bool is_suspended);
 
   // Immediately decommit all remaining decommitable blocks (e.g. on app
-  // suspend). Retained blocks are included if the allocator was constructed
-  // with |aggressive_decommit_on_suspend|, or if |include_retained_blocks| is
-  // true for this call (e.g. on critical memory pressure). In that case all
-  // idle blocks, including lazily freed ones, are released immediately (e.g.
-  // MADV_DONTNEED). Blocks in use are never affected.
+  // suspend). Retained blocks are included if the allocator is currently
+  // suspended and was constructed with |aggressive_decommit_on_suspend|, or if
+  // |include_retained_blocks| is true for this call (e.g. on critical memory
+  // pressure). In that case all idle blocks, including lazily freed ones, are
+  // released immediately (e.g. MADV_DONTNEED). Blocks in use are never
+  // affected.
   void DecommitAllDecommitableBlocks(bool include_retained_blocks = false);
 
-  // Attempts to decommit a single pending idle block, amortized by `cadence`.
-  // When `cadence == 1`, it immediately decommits a pending block.
-  void TryToDecommitOneBlock(int cadence);
+  // Attempts to decommit a single pending idle block once `kDecommitGraceTicks`
+  // calls have elapsed since the pool last reached idle or activated a
+  // fallback block. After the grace window, each call decommits one pending
+  // block.
+  void TryToDecommitOneBlock();
 
  protected:
   // TODO(b/454441375): Refactor positional boolean parameters into an Options
@@ -121,6 +149,9 @@ class ReuseAllocatorBase : public Allocator {
         : address(init_address), size(init_size) {}
   };
 
+  void DecommitBlock(FallbackAllocation& block, DecommitMode mode);
+  bool TryDecommitPendingBlock(FallbackAllocation& block);
+
   // We will allocate from the given allocator whenever we can't find pre-used
   // memory to allocate.
   Allocator* const fallback_allocator_;
@@ -153,11 +184,21 @@ class ReuseAllocatorBase : public Allocator {
   // allocator.
   size_t capacity_ = 0;
 
-  // Counter to amortize decommits over multiple allocation attempts.
-  size_t block_decommit_attempt_count_ = 0;
+  // How many bytes in `fallback_allocations_` are currently aggressively
+  // decommitted (kIdleDecommitted via MADV_DONTNEED).
+  size_t decommitted_bytes_ = 0;
+
+  // Number of periodic decommit ticks to wait after ReclaimFallbackBlocks() or
+  // AllocateFallbackBlock() before decommitting idle blocks, allowing
+  // video-to-video transitions and seeks to reuse already-committed blocks
+  // without page-fault storms.
+  size_t decommit_grace_ticks_remaining_ = 0;
 
   // Set to true when idle reclamation stages blocks for decommit.
   bool has_pending_decommits_ = false;
+
+  // Whether the application is currently suspended.
+  bool is_suspended_ = false;
 };
 
 }  // namespace starboard

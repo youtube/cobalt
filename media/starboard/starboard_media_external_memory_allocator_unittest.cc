@@ -78,11 +78,14 @@ TEST_F(StarboardMediaExternalMemoryAllocatorTest,
   size_t allocated_both = DecoderBufferAllocator::Get()->GetAllocatedMemory();
   EXPECT_GE(allocated_both, initial_allocated + 3072u);
 
-  // Note: Starboard's default EmbeddedMetadataReuseAllocatorBase defers
-  // deallocation (batched free) until all allocated blocks are freed. Thus,
-  // freeing only ext_mem1 may keep GetAllocatedMemory() unchanged until
-  // ext_mem2 is also released.
+  // Freeing ext_mem1 immediately reduces GetAllocatedMemory() even while
+  // coalescing into the free list is deferred until the next Allocate() or full
+  // pool drain.
   ext_mem1.reset();
+  EXPECT_LT(DecoderBufferAllocator::Get()->GetAllocatedMemory(),
+            allocated_both);
+  EXPECT_GT(DecoderBufferAllocator::Get()->GetAllocatedMemory(),
+            initial_allocated);
   ext_mem2.reset();
   EXPECT_EQ(DecoderBufferAllocator::Get()->GetAllocatedMemory(),
             initial_allocated);
