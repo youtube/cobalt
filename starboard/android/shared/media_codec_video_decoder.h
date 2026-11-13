@@ -141,8 +141,28 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFrameAvailable() override;
 
  private:
-  // Attempt to initialize the codec.
-  Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
+  // Outcome of a successful TryInitializeCodec() call.
+  enum class CodecInitStatus { kInitialized, kRetryScheduled };
+
+  // Sets up the surface the codec renders to: the Android video surface in
+  // punch-out mode, or a new decode target in decode-to-texture mode.
+  Result<jni_zero::ScopedJavaLocalRef<jobject>> PrepareOutputSurface();
+  // Creates the platform MediaCodec rendering to |j_output_surface|.
+  Result<void> InitializeCodec(
+      const VideoStreamInfo& video_stream_info,
+      const jni_zero::JavaRef<jobject>& j_output_surface);
+  // Prepares the output surface and initializes the codec, tearing the codec
+  // down on failure. A failure to create the MediaCodec itself is retried
+  // later while retry budget remains, returning kRetryScheduled. Returns a
+  // failure when the caller has to report an error.
+  Result<CodecInitStatus> TryInitializeCodec(
+      const VideoStreamInfo& video_stream_info);
+  void RetryCodecCreation();
+  void CancelPendingCodecCreationRetry();
+  // Queues |input_buffers| into |pending_input_buffers_| while a codec
+  // creation retry is pending, applying back-pressure at
+  // kMaxPendingInputsSize.
+  void BufferInputsForPendingCodec(const InputBuffers& input_buffers);
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
@@ -288,6 +308,30 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::optional<VideoOutputFormat> output_format_;
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
+
+  // Codec creation retry state.
+  struct PendingCodecCreationRetry {
+    JobQueue::JobToken job_token = JobQueue::JobToken::kUnscheduled;
+    // Stream info used by the failed attempt, for retries that fire before any
+    // input buffer has arrived (constructor path).
+    VideoStreamInfo stream_info;
+    // Set when WriteEndOfStream() is called while the retry is pending. The
+    // end of stream is forwarded to the codec once it is created.
+    bool end_of_stream = false;
+  };
+  struct CodecCreationRetryState {
+    explicit CodecCreationRetryState(int max_retries)
+        : max_retries(max_retries), retries_left(max_retries) {}
+
+    // 0 when retries are disabled.
+    const int max_retries;
+    // Reset on every successful codec creation and on Reset(), i.e. the
+    // budget applies per codec initialization episode.
+    int retries_left;
+    // Engaged while a retry is scheduled.
+    std::optional<PendingCodecCreationRetry> pending;
+  };
+  CodecCreationRetryState codec_creation_retry_;
 
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateInternal(
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,

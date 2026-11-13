@@ -32,6 +32,18 @@ class ExperimentalFeatures;
 bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
                                const std::string& max_video_capabilities);
 
+// The maximum number of times MediaCodecVideoDecoder retries creating the
+// platform MediaCodec. With the 50ms linear backoff, the retries take at most
+// 50 + 100 + ... + 500ms = 2.75s before an error is reported.
+inline constexpr int kMaxVideoCodecCreationRetryCount = 10;
+
+// Returns how many times MediaCodecVideoDecoder retries creating the platform
+// MediaCodec after a failure, from the H5VCC setting
+// `Media.VideoCodecCreationRetryCount` in |features|. Returns 0 (retries
+// disabled) when the setting is unset, not an int, or not positive. The result
+// is capped at |kMaxVideoCodecCreationRetryCount|.
+int GetVideoCodecCreationRetryCount(const ExperimentalFeatures& features);
+
 std::optional<Size> ParseMaxResolution(
     const std::string& max_video_capabilities,
     std::string_view param_name,

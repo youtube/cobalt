@@ -16,8 +16,10 @@
 
 #include <array>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "starboard/android/shared/media_common.h"
 #include "starboard/shared/starboard/experimental_features.h"
@@ -60,6 +62,42 @@ TEST(MediaCodecVideoDecoderHelpersTest, IsSoftwareDecoderRequired) {
       features_without_sw_decoder, "width=1920; height=1080; framerate=30"));
   EXPECT_TRUE(IsSoftwareDecoderRequired(features_without_sw_decoder,
                                         "width=432; height=240; framerate=15"));
+}
+
+TEST(MediaCodecVideoDecoderHelpersTest, GetVideoCodecCreationRetryCount) {
+  const auto h5vcc_setting = [](ExperimentalFeatures::Value value) {
+    return ExperimentalFeatures(ExperimentalFeatures::Map{
+        {std::string(kMediaVideoCodecCreationRetryCount.key()),
+         std::move(value)}});
+  };
+
+  // Retries are disabled when the setting is unset, 0 (the "unset" sentinel),
+  // negative, or not an int.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(ExperimentalFeatures()), 0);
+  EXPECT_EQ(
+      GetVideoCodecCreationRetryCount(h5vcc_setting(static_cast<int64_t>(0))),
+      0);
+  EXPECT_EQ(
+      GetVideoCodecCreationRetryCount(h5vcc_setting(static_cast<int64_t>(-1))),
+      0);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(std::string("5"))),
+            0);
+
+  // A positive value is the retry count.
+  EXPECT_EQ(
+      GetVideoCodecCreationRetryCount(h5vcc_setting(static_cast<int64_t>(3))),
+      3);
+
+  // The retry count is capped.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(
+                static_cast<int64_t>(kMaxVideoCodecCreationRetryCount))),
+            kMaxVideoCodecCreationRetryCount);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(
+                static_cast<int64_t>(kMaxVideoCodecCreationRetryCount + 1))),
+            kMaxVideoCodecCreationRetryCount);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(
+                static_cast<int64_t>(std::numeric_limits<int>::max()))),
+            kMaxVideoCodecCreationRetryCount);
 }
 
 TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {

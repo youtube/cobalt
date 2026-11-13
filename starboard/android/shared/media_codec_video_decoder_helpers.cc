@@ -66,6 +66,17 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
   return true;
 }
 
+int GetVideoCodecCreationRetryCount(const ExperimentalFeatures& features) {
+  const int retry_count =
+      features.Get(kMediaVideoCodecCreationRetryCount).value_or(0);
+  if (retry_count > kMaxVideoCodecCreationRetryCount) {
+    SB_LOG(WARNING) << "Video MediaCodec creation retry count " << retry_count
+                    << " is capped at " << kMaxVideoCodecCreationRetryCount
+                    << ".";
+  }
+  return std::clamp(retry_count, 0, kMaxVideoCodecCreationRetryCount);
+}
+
 std::optional<Size> ParseMaxResolution(const std::string& max_video_param,
                                        std::string_view param_name,
                                        const Size& frame_size) {
