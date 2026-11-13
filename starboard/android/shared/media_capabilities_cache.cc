@@ -33,6 +33,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
@@ -543,6 +544,11 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
   if (!capabilities_is_dirty_.exchange(false)) {
     return;
   }
+  // DO NOT SUBMIT: benchmark only. Times each step of the update, for the
+  // MediaCapabilitiesCache prewarm A/B; Starboard's log prefix names the
+  // thread that runs it.
+  const int64_t start_us = CurrentMonotonicTime();
+  SB_LOG(INFO) << "MediaCapabilitiesCache update: started.";
   // We use a different cache strategy (load and cache) for passthrough and
   // direct playback supportabilities, so we only clear them here.
   passthrough_supportabilities_.clear();
@@ -553,13 +559,27 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
   audio_configurations_.clear();
   is_widevine_supported_ =
       media_capabilities_provider_->GetIsWidevineSupported();
+  const int64_t widevine_us = CurrentMonotonicTime();
   is_cbcs_supported_ = media_capabilities_provider_->GetIsCbcsSchemeSupported();
+  const int64_t cbcs_us = CurrentMonotonicTime();
   supported_transfer_ids_ =
       media_capabilities_provider_->GetSupportedHdrTypes();
+  const int64_t hdr_us = CurrentMonotonicTime();
   media_capabilities_provider_->GetCodecCapabilities(
       audio_codec_capabilities_map_, video_codec_capabilities_map_);
+  const int64_t codecs_us = CurrentMonotonicTime();
   LoadAudioConfigurations_Locked();
+  const int64_t audio_us = CurrentMonotonicTime();
   LoadIsAv18kCappedAt30_Locked();
+  const int64_t end_us = CurrentMonotonicTime();
+  SB_LOG(INFO) << "MediaCapabilitiesCache update: widevine="
+               << (widevine_us - start_us) / 1000.0
+               << " cbcs=" << (cbcs_us - widevine_us) / 1000.0
+               << " hdr=" << (hdr_us - cbcs_us) / 1000.0
+               << " codecs=" << (codecs_us - hdr_us) / 1000.0
+               << " audio=" << (audio_us - codecs_us) / 1000.0
+               << " av1=" << (end_us - audio_us) / 1000.0
+               << " total=" << (end_us - start_us) / 1000.0 << " ms";
 }
 
 void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
