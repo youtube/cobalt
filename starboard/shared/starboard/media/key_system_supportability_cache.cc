@@ -53,7 +53,7 @@ class KeySystemSupportabilityContainer {
                                     Supportability supportability) {
     SB_CHECK(key_system);
     SB_DCHECK_GT(strlen(key_system), 0U);
-    SB_DCHECK_NE(supportability, kSupportabilityUnknown);
+    SB_CHECK_NE(supportability, kSupportabilityUnknown);
 
     std::lock_guard scoped_lock(mutex_);
     key_system_supportabilities_[codec][key_system] = supportability;

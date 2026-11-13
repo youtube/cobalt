@@ -268,7 +268,7 @@ MimeSupportabilityCache::Entry* MimeSupportabilityCache::GetEntry_Locked(
 Supportability MimeSupportabilityCache::IsBitrateSupported_Locked(
     const Entry& entry,
     int bitrate) const {
-  SB_DCHECK_GE(bitrate, 0);
+  SB_CHECK_GE(bitrate, 0);
 
   if (bitrate <= entry.max_supported_bitrate) {
     return kSupportabilitySupported;
@@ -284,8 +284,8 @@ void MimeSupportabilityCache::UpdateBitrateSupportability_Locked(
     int bitrate,
     Supportability supportability) {
   SB_DCHECK(entry);
-  SB_DCHECK_GE(bitrate, 0);
-  SB_DCHECK_NE(supportability, kSupportabilityUnknown);
+  SB_CHECK_GE(bitrate, 0);
+  SB_CHECK_NE(supportability, kSupportabilityUnknown);
 
   if (supportability == kSupportabilitySupported) {
     SB_DCHECK_LT(bitrate, entry->min_unsupported_bitrate);

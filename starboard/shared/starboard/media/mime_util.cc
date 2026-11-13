@@ -70,7 +70,7 @@ bool IsSupportedKeySystem(SbMediaVideoCodec codec, const char* key_system) {
 }
 
 bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
-  SB_DCHECK(mime_info.has_audio_info());
+  SB_CHECK(mime_info.has_audio_info());
 
   const MimeType& mime_type = mime_info.mime_type();
   const ParsedMimeInfo::AudioCodecInfo& audio_info = mime_info.audio_info();
@@ -124,7 +124,7 @@ bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
 }
 
 bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
-  SB_DCHECK(mime_info.has_video_info());
+  SB_CHECK(mime_info.has_video_info());
 
   const MimeType& mime_type = mime_info.mime_type();
   const ParsedMimeInfo::VideoCodecInfo& video_info = mime_info.video_info();
