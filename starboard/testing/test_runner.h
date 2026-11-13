@@ -25,6 +25,11 @@ using RunTestsCallback = std::function<int(int, char**)>;
 // dispatches `action` to a background thread while pumping the main loop.
 void RunTestBlockingAction(std::function<void()> action);
 
+// Performs one-time platform initialization required before
+// ::testing::InitGoogleTest() (e.g. initializing Starboard features before
+// INSTANTIATE_TEST_SUITE_P value generators run).
+void InitializePlatformTestSuite();
+
 // Registers global test environments required by the platform (e.g. Android /
 // tvOS).
 void RegisterPlatformTestEnvironments(int argc, char** argv);

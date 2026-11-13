@@ -21,6 +21,7 @@
 #include "base/test/bind.h"
 #include "base/test/test_support_ios.h"
 #include "starboard/common/log.h"
+#include "starboard/shared/starboard/features_test_util.h"
 #include "starboard/tvos/shared/run_in_background_thread_and_wait.h"
 #include "starboard/tvos/shared/starboard_test_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,6 +30,10 @@ namespace starboard {
 
 void RunTestBlockingAction(std::function<void()> action) {
   RunInBackgroundThreadAndWait(std::move(action));
+}
+
+void InitializePlatformTestSuite() {
+  features::InitializeStarboardFeatureListWithDefaults();
 }
 
 void RegisterPlatformTestEnvironments(int argc, char** argv) {
