@@ -25,10 +25,17 @@
 
 #include "third_party/blink/renderer/platform/wtf/text/encoding_tables.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace WTF {
 
+#if !BUILDFLAG(IS_COBALT)
+// b/561702947: Disabled for unused functionality from ICU.
+// Legacy East Asian character conversion tables (.cnv files) were removed
+// from Cobalt's ICU database to conserve binary size. Cobalt and YouTube on TV
+// operate entirely in UTF-8.
 namespace {
 
 // From https://encoding.spec.whatwg.org/index-jis0208.txt
@@ -10474,4 +10481,5 @@ TEST(EncodingTables, EnsureGb18030EncodeTable) {
 }
 
 }  // namespace
+#endif  // !BUILDFLAG(IS_COBALT)
 }  // namespace WTF
