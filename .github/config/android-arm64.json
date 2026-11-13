@@ -1,5 +1,7 @@
 {
   "docker_service": "linux",
+  "publish_golden": true,
+  "target_os": "android",
   "platforms": [
     "android-arm64"
   ],

@@ -1,5 +1,7 @@
 {
   "docker_service": "linux",
+  "publish_golden": true,
+  "publish_src": true,
   "platforms": [
     "linux-x64x11"
   ],
@@ -32,5 +34,10 @@
       "name": "x64",
       "platform": "linux-x64x11"
     }
+  ],
+  "target_cpu": [
+    "x64",
+    "arm",
+    "arm64"
   ]
 }
