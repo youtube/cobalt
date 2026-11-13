@@ -59,8 +59,6 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   void PrintAllocations(bool align_allocated_size,
                         int max_allocations_to_print) const override;
 
-  bool TryFree(void* memory);
-
  protected:
   class MemoryBlock {
    public:
@@ -165,6 +163,7 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
     BlockMetadata* next;
   };
 
+  bool TryFree(void* memory);
   FreeBlockSet::iterator ExpandToFit(size_t size, size_t alignment);
 
   void AddAllocatedBlock(const MemoryBlock& block);

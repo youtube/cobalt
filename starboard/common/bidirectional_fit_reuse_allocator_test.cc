@@ -567,17 +567,17 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   EXPECT_EQ(this->allocator_->GetAllocated(), 0U);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
-  // During the 3-tick grace period, TryToDecommitOneBlock(1) should not
+  // During the 3-tick grace period, TryToDecommitOneBlock() should not
   // decommit any blocks.
   for (int i = 0; i < 3; ++i) {
-    this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+    this->allocator_->TryToDecommitOneBlock();
     EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
     EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
   }
 
   // On the 4th tick after reaching idle, the non-retained block is decommitted
   // and subtracted from GetCapacity().
-  this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+  this->allocator_->TryToDecommitOneBlock();
   ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
   EXPECT_EQ(this->allocator_->GetCapacity(),
             full_capacity - this->mock_fallback_allocator_->decommits[0].size);
@@ -636,17 +636,17 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
 
   // Drain the grace period, then decommit the single pending block.
   for (int i = 0; i < 3; ++i) {
-    this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+    this->allocator_->TryToDecommitOneBlock();
     EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
   }
-  this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+  this->allocator_->TryToDecommitOneBlock();
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3U);
   EXPECT_EQ(this->allocator_->GetCapacity(),
             full_capacity - 2 * fallback_block_size);
 
   // Further ticks must not decommit the already-decommitted block again.
   for (int i = 0; i < 5; ++i) {
-    this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+    this->allocator_->TryToDecommitOneBlock();
   }
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3U);
   EXPECT_EQ(this->allocator_->GetCapacity(),

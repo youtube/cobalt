@@ -251,7 +251,7 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     // The value is a 32-bit integer encoding four parts:
     // flags (8 bits), block_size (in MB), retain_blocks (count), and
     // conservative_decommit_blocks (count). For example,
-    // 0x01040402 sets aggressive_decommit_on_suspend to true, 4 MB block size,
+    // 0x01040402 sets enable_decommit_on_suspend to true, 4 MB block size,
     // 4 retain blocks, and 2 conservative decommit blocks respectively.
     // Passing multiple parameters encoded within a single integer is not
     // ideal, but it simplifies experiment setup in the current framework.
@@ -322,7 +322,7 @@ void DecoderBufferAllocator::OnPeriodicDecommitTask(
   state->RunIfValid([](DecoderBufferAllocator* allocator) {
     base::AutoLock scoped_lock(allocator->mutex_);
     if (allocator->strategy_) {
-      allocator->strategy_->TryToDecommitOneBlock(/*cadence=*/1);
+      allocator->strategy_->TryToDecommitOneBlock();
     }
     allocator->SchedulePeriodicDecommitTask_Locked();
   });

@@ -60,9 +60,9 @@ class ReuseAllocatorBase : public Allocator {
 
   // Attempts to decommit a single pending idle block after the post-reclaim /
   // post-activation grace window (`decommit_grace_ticks_remaining_` calls) has
-  // elapsed, amortized by `cadence`. Once the grace window has elapsed and
-  // `cadence == 1`, each call decommits one pending block.
-  void TryToDecommitOneBlock(int cadence);
+  // elapsed. Once the grace window has elapsed, each call decommits one
+  // pending block.
+  void TryToDecommitOneBlock();
 
  protected:
   // TODO(b/454441375): Refactor positional boolean parameters into an Options
@@ -167,12 +167,10 @@ class ReuseAllocatorBase : public Allocator {
   // decommitted (kIdleDecommitted via MADV_DONTNEED).
   size_t decommitted_bytes_ = 0;
 
-  // Counter to amortize decommits over multiple allocation attempts.
-  size_t block_decommit_attempt_count_ = 0;
-
-  // Number of periodic decommit ticks to wait after ReclaimFallbackBlocks()
-  // before decommitting idle blocks, allowing video-to-video transitions and
-  // seeks to reuse already-committed blocks without page-fault storms.
+  // Number of periodic decommit ticks to wait after ReclaimFallbackBlocks() or
+  // AllocateFallbackBlock() before decommitting idle blocks, allowing
+  // video-to-video transitions and seeks to reuse already-committed blocks
+  // without page-fault storms.
   size_t decommit_grace_ticks_remaining_ = 0;
 
   // Set to true when idle reclamation stages blocks for decommit.

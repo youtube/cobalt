@@ -75,8 +75,8 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
         include_retained_blocks);
   }
 
-  void TryToDecommitOneBlock(int cadence) override {
-    bidirectional_fit_allocator_.TryToDecommitOneBlock(cadence);
+  void TryToDecommitOneBlock() override {
+    bidirectional_fit_allocator_.TryToDecommitOneBlock();
   }
 
  private:
