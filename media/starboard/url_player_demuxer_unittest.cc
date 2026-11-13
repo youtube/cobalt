@@ -180,7 +180,12 @@ class UrlPlayerDemuxerManagerTest : public ::testing::Test {
               *out_start_type = type;
               return PipelineStatus(PIPELINE_OK);
             },
+<<<<<<< ours
             &demuxer_, &start_type_));
+=======
+            &demuxer_, &start_type_),
+        {});
+>>>>>>> theirs
     EXPECT_TRUE(status.is_ok());
   }
 
