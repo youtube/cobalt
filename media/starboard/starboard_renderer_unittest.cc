@@ -50,6 +50,7 @@ using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SaveArg;
+using ::testing::SetArgPointee;
 using ::testing::StrictMock;
 
 namespace media {
@@ -1001,6 +1002,8 @@ TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedDuringInitialization) {
 TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedAfterInitialization) {
   SbPlayer player = InitializeUrlPlayer();
   ASSERT_TRUE(player_status_cb_);
+  EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
+      .WillOnce(SetArgPointee<1>(SbPlayerInfo{}));
   player_status_cb_(player, context_, kSbPlayerStateInitialized,
                     SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();

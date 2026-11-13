@@ -22,6 +22,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/fake_demuxer_stream.h"
 #include "media/base/media_switches.h"
@@ -39,6 +40,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "media/starboard/url_player_demuxer.h"
+#include "url/gurl.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace media {
 
@@ -216,6 +222,11 @@ class StarboardRendererClientTest : public ::testing::Test {
   NiceMock<MockRendererClientStarboard> renderer_client_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   std::unique_ptr<FakeMediaResource> media_resource_;
+#if BUILDFLAG(IS_IOS_TVOS)
+  UrlPlayerDemuxer url_player_demuxer_{
+      task_environment_.GetMainThreadTaskRunner(),
+      GURL("https://example.com/master.m3u8")};
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   std::unique_ptr<StarboardRendererClient> starboard_renderer_client_;
   FakeMojomRendererCallRecord fake_mojom_renderer_record_;
 };
@@ -437,6 +448,27 @@ TEST_F(StarboardRendererClientTest,
       StarboardRenderingMode::kDecodeToTexture);
   task_environment_.RunUntilIdle();
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+TEST_F(StarboardRendererClientTest, UrlPlayerInitCbWaitsForDuration) {
+  InitializeStarboardRendererClient();
+
+  EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
+  starboard_renderer_client_->Initialize(
+      &url_player_demuxer_, &renderer_client_, renderer_init_cb_.Get());
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kPunchOut);
+  task_environment_.RunUntilIdle();
+  // The Initialize() reply and the rendering mode have arrived, but the
+  // duration hasn't.
+  EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
+
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  starboard_renderer_client_->OnDurationChange(base::Seconds(10));
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 }  // namespace
 
