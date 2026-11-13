@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/iamf_util.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,6 +28,10 @@ TEST(IamfUtilTest, Valid) {
   EXPECT_TRUE(IamfMimeUtil::Create("iamf.000.000.fLaC").has_value());
   EXPECT_TRUE(IamfMimeUtil::Create("iamf.000.000.ipcm").has_value());
   EXPECT_TRUE(IamfMimeUtil::Create("iamf.000.000.mp4a.40.2").has_value());
+
+  // Non-null-terminated string_view slice.
+  constexpr std::string_view kBuffer = "iamf.000.000.Opus;trailing";
+  EXPECT_TRUE(IamfMimeUtil::Create(kBuffer.substr(0, 17)).has_value());
 }
 
 TEST(IamfUtilTest, Invalid) {
@@ -72,6 +77,12 @@ TEST(IamfUtilTest, Invalid) {
 
   // No delimiting period between codec param string and primary profile
   EXPECT_FALSE(IamfMimeUtil::Create("iamf000.000.Opus").has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamfX.000.000.Opus").has_value());
+
+  // Embedded NUL byte must not silently truncate
+  EXPECT_FALSE(
+      IamfMimeUtil::Create(std::string_view("iamf.000.000.Opus\0extra", 23))
+          .has_value());
 
   // Invalid primary profile length
   EXPECT_FALSE(IamfMimeUtil::Create("iamf.00.000.Opus").has_value());

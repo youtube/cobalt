@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <string_view>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -72,41 +73,39 @@ bool VideoConfig::operator!=(const VideoConfig& that) const {
   return !(*this == that);
 }
 
-SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
-                                          const char* subtype) {
+SbMediaAudioCodec GetAudioCodecFromString(std::string_view codec,
+                                          std::string_view subtype) {
   const bool kCheckAc3Audio = true;
-  if (strncmp(codec, "mp4a.40.", 8) == 0) {
+  if (StartsWith(codec, "mp4a.40.")) {
     return kSbMediaAudioCodecAac;
   }
   if (kCheckAc3Audio) {
-    if (strcmp(codec, "ac-3") == 0) {
+    if (codec == "ac-3") {
       return kSbMediaAudioCodecAc3;
     }
-    if (strcmp(codec, "ec-3") == 0) {
+    if (codec == "ec-3") {
       return kSbMediaAudioCodecEac3;
     }
   }
-  if (strcmp(codec, "opus") == 0) {
+  if (codec == "opus") {
     return kSbMediaAudioCodecOpus;
   }
-  if (strcmp(codec, "vorbis") == 0) {
+  if (codec == "vorbis") {
     return kSbMediaAudioCodecVorbis;
   }
-  if (strcmp(codec, "mp3") == 0 || strcmp(codec, "mp4a.69") == 0 ||
-      strcmp(codec, "mp4a.6B") == 0) {
+  if (codec == "mp3" || codec == "mp4a.69" || codec == "mp4a.6B") {
     return kSbMediaAudioCodecMp3;
   }
-  if (strcmp(codec, "flac") == 0) {
+  if (codec == "flac") {
     return kSbMediaAudioCodecFlac;
   }
   // For WAV, the "codecs" parameter of a MIME type refers to the WAVE format
   // ID, where 1 represents PCM: https://datatracker.ietf.org/doc/html/rfc2361
-  const bool is_wav =
-      strcmp(subtype, "wav") == 0 || strcmp(subtype, "wave") == 0;
-  if (is_wav && strcmp(codec, "1") == 0) {
+  const bool is_wav = subtype == "wav" || subtype == "wave";
+  if (is_wav && codec == "1") {
     return kSbMediaAudioCodecPcm;
   }
-  if (strcmp(codec, "iamf") == 0 || IamfMimeUtil::Create(codec).has_value()) {
+  if (codec == "iamf" || IamfMimeUtil::Create(codec).has_value()) {
     return kSbMediaAudioCodecIamf;
   }
   return kSbMediaAudioCodecNone;
