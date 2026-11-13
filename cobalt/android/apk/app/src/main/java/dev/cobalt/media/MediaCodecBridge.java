@@ -476,6 +476,24 @@ class MediaCodecBridge {
       outCreateMediaCodecBridgeResult.mErrorMessage = "videoCapabilities is null";
       return;
     }
+    // Fail when the stream is larger than the decoder supports, for example 8K on a 4K device.
+    // Starting the decoder anyway fails inside the vendor codec, which could lead to a platform
+    // crash. Only the upper bounds are checked, because isSizeSupported() also rejects sizes that
+    // decoders play fine, such as odd heights.
+    if (widthHint > videoCapabilities.getSupportedWidths().getUpper()
+        || heightHint > videoCapabilities.getSupportedHeights().getUpper()) {
+      String message =
+          String.format(
+              Locale.US,
+              "%s doesn't support the frame size %dx%d",
+              decoderName,
+              widthHint,
+              heightHint);
+      Log.e(TAG, message);
+      mediaCodec.release();
+      outCreateMediaCodecBridgeResult.mErrorMessage = message;
+      return;
+    }
 
     MediaCodecBridge bridge =
         new MediaCodecBridge(
