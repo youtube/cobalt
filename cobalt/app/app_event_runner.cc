@@ -58,6 +58,7 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/renderer/renderer_thread_parker.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #endif
@@ -73,6 +74,12 @@ namespace {
 // normal operations to complete, but short enough to avoid unnecessary
 // user-perceived delays.
 constexpr base::TimeDelta kTransitionTimeout = base::Seconds(2);
+
+#if BUILDFLAG(IS_STARBOARD)
+// How long teardown waits for the in-process renderer main thread to stop
+// running work.
+constexpr base::TimeDelta kRendererParkTimeout = base::Seconds(1);
+#endif  // BUILDFLAG(IS_STARBOARD)
 }  // namespace
 
 namespace {
@@ -152,6 +159,14 @@ class AppEventRunnerImpl : public AppEventRunner,
   void DoStop() override {
     base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_blocking;
 
+#if BUILDFLAG(IS_STARBOARD)
+    // The in-process renderer main thread is not joined during teardown, so
+    // stop it from running any more work before destroying the objects it
+    // uses.
+    const bool park_requested =
+        RendererThreadParker::GetInstance()->RequestPark();
+#endif  // BUILDFLAG(IS_STARBOARD)
+
     content::Shell::OnStop();
 
     content::Shell::Shutdown();
@@ -161,6 +176,23 @@ class AppEventRunnerImpl : public AppEventRunner,
     if (content_main_delegate_) {
       content_main_delegate_->Shutdown();
     }
+
+#if BUILDFLAG(IS_STARBOARD)
+    // Wait for the renderer main thread only now: shutting down the browser
+    // main runner above releases a renderer that is blocked on the browser,
+    // for example in a synchronous GPU channel request made while concealed.
+    // Everything destroyed below, including the ContentRendererClient and the
+    // AtExitManager, is used by the renderer main thread. If it does not
+    // comply in time, teardown proceeds regardless, as the platform may be
+    // waiting for this process to exit.
+    if (park_requested &&
+        !RendererThreadParker::GetInstance()->WaitUntilQuiescent(
+            kRendererParkTimeout)) {
+      LOG(WARNING) << "Renderer main thread still busy after "
+                   << kRendererParkTimeout.InMilliseconds()
+                   << " ms; continuing teardown.";
+    }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if !BUILDFLAG(IS_ANDROID)
     // Must be called after content_main_delegate_->Shutdown() to prevent

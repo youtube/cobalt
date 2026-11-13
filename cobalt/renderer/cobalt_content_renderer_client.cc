@@ -19,6 +19,7 @@
 #include <tuple>
 #include <variant>
 
+#include "base/command_line.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
 #include "base/threading/hang_watcher.h"
@@ -26,9 +27,11 @@
 #include "build/build_config.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
+#include "cobalt/renderer/renderer_thread_parker.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "media/base/decoder_buffer.h"
@@ -254,6 +257,16 @@ void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
 
 void CobaltContentRendererClient::RenderThreadStarted() {
   CHECK(content::RenderThread::IsMainThread());
+
+#if BUILDFLAG(IS_STARBOARD)
+  // In single-process mode this thread is not joined at shutdown, so it must
+  // be stopped from running work once teardown starts. See
+  // RendererThreadParker.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kSingleProcess)) {
+    RendererThreadParker::GetInstance()->InstallOnCurrentThread();
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
