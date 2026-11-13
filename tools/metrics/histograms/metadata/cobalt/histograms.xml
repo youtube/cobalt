@@ -567,6 +567,36 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Responsiveness.IOJanksTotalPerMinute" units="janks"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Cobalt's copy of Browser.Responsiveness.IOJanksTotalPerMinute. Like
+    Cobalt.Responsiveness.IOJankyIntervalsPerMinute, but sums the janky
+    intervals of all threads instead of counting each 1-second interval once, so
+    concurrent stalls on several threads (e.g. storage engines contending for
+    the disk) all count.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Responsiveness.IOJankyIntervalsPerMinute"
+    units="intervals" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Cobalt's copy of Browser.Responsiveness.IOJankyIntervalsPerMinute, from
+    base::EnableIOJankMonitoringForProcess() in the browser process. Recorded
+    once per minute of browser process uptime: the number (0-60) of 1-second
+    intervals in that minute to which a ScopedBlockingCall(MAY_BLOCK) of 1
+    second or longer on a non-background thread (e.g. the UI and IO threads and
+    foreground thread pool workers doing disk I/O) was attributed. A blocking
+    call is attributed to the interval in which it began and to as many
+    intervals as its length, rounded to the nearest second. Not recorded across
+    device sleep or while the process is frozen.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.ContentEndedBeforeSwitch.{SplashMode}"
     enum="Boolean" expires_after="never">
   <owner>borongchen@google.com</owner>
@@ -1111,18 +1141,36 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.ProcessIo.StartupMajorPageFaults"
+    units="faults" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the number of major page faults (page faults that had to read from
+    storage, e.g. paging in the native library, APK assets, ICU data and fonts
+    through mmap) of the browser process since it started, sampled 10 seconds
+    after browser startup from getrusage(RUSAGE_SELF) ru_majflt. High values
+    mean a cold page cache. Recorded once per browser process launch. Android
+    only.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.ProcessIo.StartupReadKB" units="KB"
     expires_after="never">
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the cumulative block-layer kilobytes read from storage
-    (/proc/self/io read_bytes) by the browser process during the first 10
-    seconds after browser startup. Recorded once per browser process launch; it
-    is not recorded again when Cobalt resumes from the background. On platforms
-    that preload Cobalt, this window may fall entirely within the preload,
-    before the app is visible. Sampled before computing directory sizes so that
-    metadata stat() calls do not inflate the reading.
+    Records the cumulative block-layer kilobytes read from storage by the
+    browser process since it started, sampled 10 seconds after browser startup.
+    Source: getrusage(RUSAGE_SELF) ru_inblock on Android, which reports the same
+    kernel counter as /proc/self/io read_bytes but, unlike /proc/self/io, is
+    readable on release (non-debuggable) APKs; /proc/self/io read_bytes on other
+    platforms. Older Android builds read /proc/self/io and so recorded this only
+    on debuggable APKs. Recorded once per browser process launch; it is not
+    recorded again when Cobalt resumes from the background. On platforms that
+    preload Cobalt, this window may fall entirely within the preload, before the
+    app is visible. Sampled before computing directory sizes so that metadata
+    stat() calls do not inflate the reading.
   </summary>
 </histogram>
 
@@ -1131,12 +1179,14 @@ Always run the pretty print utility on this file after editing:
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the cumulative block-layer kilobytes written to storage
-    (/proc/self/io write_bytes) by the browser process during the first 10
-    seconds after browser startup. Recorded once per browser process launch; it
-    is not recorded again when Cobalt resumes from the background. On platforms
-    that preload Cobalt, this window may fall entirely within the preload,
-    before the app is visible.
+    Records the cumulative block-layer kilobytes written to storage by the
+    browser process since it started, sampled 10 seconds after browser startup.
+    Source: getrusage(RUSAGE_SELF) ru_oublock on Android (the same kernel
+    counter as /proc/self/io write_bytes, readable on release APKs);
+    /proc/self/io write_bytes on other platforms. Recorded once per browser
+    process launch; it is not recorded again when Cobalt resumes from the
+    background. On platforms that preload Cobalt, this window may fall entirely
+    within the preload, before the app is visible.
   </summary>
 </histogram>
 
@@ -1146,11 +1196,12 @@ Always run the pretty print utility on this file after editing:
   <owner>charleykim@google.com</owner>
   <summary>
     Records the steady-state block-layer write rate in kilobytes per minute,
-    sampled every 5 minutes on a BEST_EFFORT background sequence from
-    /proc/self/io write_bytes deltas after the 10-second post-startup baseline.
-    Sampling continues for the life of the browser process, including while
-    Cobalt is in the background; if the OS freezes the process, the next sample
-    covers the longer interval.
+    sampled every 5 minutes on a BEST_EFFORT background sequence from deltas of
+    the Cobalt.Storage.ProcessIo.StartupWriteKB counter (getrusage on Android,
+    /proc/self/io elsewhere) after the 10-second post-startup baseline. Sampling
+    continues for the life of the browser process, including while Cobalt is in
+    the background; if the OS freezes the process, the next sample covers the
+    longer interval.
   </summary>
 </histogram>
 
