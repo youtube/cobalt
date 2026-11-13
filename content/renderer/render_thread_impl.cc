@@ -1167,6 +1167,48 @@ RenderThreadImpl::GetVideoFrameCompositorContextProvider(
   return video_frame_compositor_context_provider_;
 }
 
+#if BUILDFLAG(IS_COBALT)
+scoped_refptr<viz::RasterContextProvider>
+RenderThreadImpl::GetVideoFrameCompositorContextProviderForChannel(
+    scoped_refptr<gpu::GpuChannelHost> gpu_channel_host,
+    scoped_refptr<viz::RasterContextProvider> unwanted_context_provider) {
+  DCHECK(IsMainThread());
+  if (!gpu_channel_host || gpu_channel_host->IsLost()) {
+    return nullptr;
+  }
+
+  // Unlike GetVideoFrameCompositorContextProvider(), only reuse the cached
+  // context if it was created on |gpu_channel_host|. Otherwise a submitter that
+  // has no context yet (and so passes no |unwanted_context_provider|) would be
+  // handed a context from a channel torn down on conceal, fail to bind it, and
+  // only get a working one after its retry delay.
+  if (video_frame_compositor_context_provider_ &&
+      video_frame_compositor_context_provider_ != unwanted_context_provider &&
+      video_frame_compositor_gpu_channel_ == gpu_channel_host) {
+    return video_frame_compositor_context_provider_;
+  }
+
+  // Need to make sure these references are removed on the correct task runner.
+  if (video_frame_compositor_context_provider_) {
+    blink_platform_impl_->VideoFrameCompositorTaskRunner()->ReleaseSoon(
+        FROM_HERE, std::move(video_frame_compositor_context_provider_));
+  }
+
+  // Same configuration as GetVideoFrameCompositorContextProvider(). Creating
+  // the context does not block. If |gpu_channel_host| is lost by now, binding
+  // fails on the video frame compositor thread and the submitter retries.
+  video_frame_compositor_context_provider_ = CreateOffscreenContext(
+      gpu_channel_host, gpu::SharedMemoryLimits::ForMailboxContext(),
+      /*support_locking=*/false, /*support_gles2_interface=*/false,
+      /*support_raster_interface=*/true, /*support_gpu_rasterization=*/false,
+      /*support_grcontext=*/false, /*automatic_flushes=*/false,
+      viz::command_buffer_metrics::ContextType::RENDER_COMPOSITOR,
+      kGpuStreamIdMedia, kGpuStreamPriorityMedia);
+  video_frame_compositor_gpu_channel_ = std::move(gpu_channel_host);
+  return video_frame_compositor_context_provider_;
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 scoped_refptr<gpu::ClientSharedImageInterface>
 RenderThreadImpl::GetRenderThreadSharedImageInterface() {
   if (shared_image_interface_ &&
