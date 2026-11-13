@@ -72,6 +72,7 @@ group("cobalt_shell_lib_deps") {
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/lifecycle",
     "//cobalt/build/configs:buildflags",
+    "//cobalt/common/clean_exit_beacon",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/custom_handlers",

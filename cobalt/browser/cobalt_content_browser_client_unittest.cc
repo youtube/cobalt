@@ -49,6 +49,7 @@
 #include "cobalt/browser/h5vcc_platform_service/platform_service_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/common/clean_exit_beacon/clean_exit_beacon_state.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/services/storage/public/cpp/constants.h"
@@ -56,6 +57,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/site_instance.h"
+#include "content/public/common/content_switches.h"
 #include "content/test/test_web_contents.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
@@ -1376,6 +1378,45 @@ TEST_F(CobaltPlatformServiceBinderTest,
   state_.on_close = close_loop.QuitClosure();
   service.reset();
   close_loop.Run();
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       AppendExtraCommandLineSwitchesForwardsCleanExitBeaconFlag) {
+  base::test::ScopedCommandLine scoped_command_line;
+  ResetCleanExitBeaconFlaggedForTesting();
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/std::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  SetCleanExitBeaconFlagged(true);
+  base::CommandLine flagged_renderer_cmd(base::CommandLine::NO_PROGRAM);
+  flagged_renderer_cmd.AppendSwitchASCII(::switches::kProcessType,
+                                         ::switches::kRendererProcess);
+  client.AppendExtraCommandLineSwitches(&flagged_renderer_cmd,
+                                        /*child_process_id=*/1);
+  EXPECT_TRUE(flagged_renderer_cmd.HasSwitch(kCleanExitBeaconFlaggedSwitch));
+
+  base::CommandLine flagged_gpu_cmd(base::CommandLine::NO_PROGRAM);
+  flagged_gpu_cmd.AppendSwitchASCII(::switches::kProcessType,
+                                    ::switches::kGpuProcess);
+  client.AppendExtraCommandLineSwitches(&flagged_gpu_cmd,
+                                        /*child_process_id=*/2);
+  EXPECT_FALSE(flagged_gpu_cmd.HasSwitch(kCleanExitBeaconFlaggedSwitch));
+
+  // Even if the browser launch command line contains the switch, an unflagged
+  // startup snapshot must not forward it to child renderers.
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      kCleanExitBeaconFlaggedSwitch);
+  SetCleanExitBeaconFlagged(false);
+  base::CommandLine unflagged_renderer_cmd(base::CommandLine::NO_PROGRAM);
+  unflagged_renderer_cmd.AppendSwitchASCII(::switches::kProcessType,
+                                           ::switches::kRendererProcess);
+  client.AppendExtraCommandLineSwitches(&unflagged_renderer_cmd,
+                                        /*child_process_id=*/3);
+  EXPECT_FALSE(unflagged_renderer_cmd.HasSwitch(kCleanExitBeaconFlaggedSwitch));
+
+  ResetCleanExitBeaconFlaggedForTesting();
 }
 
 }  // namespace

@@ -20,5 +20,8 @@ blink_modules_sources("h5vcc_system") {
     "h_5_vcc_system.h",
   ]
 
-  deps = [ "//cobalt/browser/h5vcc_system/public/mojom:mojom_blink" ]
+  deps = [
+    "//cobalt/browser/h5vcc_system/public/mojom:mojom_blink",
+    "//cobalt/common/clean_exit_beacon",
+  ]
 }

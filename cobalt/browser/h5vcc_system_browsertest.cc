@@ -12,11 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
 #include <string>
 
+#include "base/base_paths.h"
+#include "base/command_line.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/path_service.h"
+#include "base/test/scoped_path_override.h"
+#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "cobalt/common/clean_exit_beacon/clean_exit_beacon_state.h"
+#include "cobalt/shell/common/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
+#include "components/metrics/clean_exit_beacon.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -278,6 +290,115 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
 
   EXPECT_TRUE(CheckDefaultWasLowMemoryKilled());
   EXPECT_TRUE(CheckDefaultLowMemoryKillDetails());
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
+                       VerifyIsCleanExitBeaconFlaggedDefaultClean) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url1 = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url1));
+
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "typeof window.h5vcc.system."
+                              "isCleanExitBeaconFlagged === 'function'")
+                  .ExtractBool());
+  EXPECT_FALSE(content::EvalJs(shell()->web_contents(),
+                               "window.h5vcc.system.isCleanExitBeaconFlagged() "
+                               "instanceof Promise")
+                   .ExtractBool());
+  EXPECT_EQ(false,
+            content::EvalJs(shell()->web_contents(),
+                            "window.h5vcc.system.isCleanExitBeaconFlagged()"));
+
+  GURL url2 = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url2));
+  EXPECT_EQ(false,
+            content::EvalJs(shell()->web_contents(),
+                            "window.h5vcc.system.isCleanExitBeaconFlagged()"));
+}
+
+class H5vccSystemBeaconFileBrowserTestBase : public H5vccSystemBrowserTest {
+ protected:
+  void ConfigureBeaconFile(base::CommandLine* command_line,
+                           bool exited_cleanly,
+                           int crash_streak) {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    base::FilePath cache_dir;
+    if (base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
+        !cache_dir.empty()) {
+      CHECK(user_data_dir_.CreateUniqueTempDirUnderPath(cache_dir));
+    } else {
+      CHECK(user_data_dir_.CreateUniqueTempDir());
+    }
+    const base::FilePath beacon_file_path =
+        user_data_dir_.GetPath().Append(metrics::kCleanExitBeaconFilename);
+    CHECK(base::WriteFile(
+        beacon_file_path,
+        metrics::CleanExitBeacon::CreateBeaconFileContentsForTesting(
+            exited_cleanly, crash_streak)));
+    // Override SHELL_DIR_USER_DATA directly in PathService in addition to
+    // setting `--user-data-dir`, because tvOS BasicStartupComplete() rewrites
+    // `--user-data-dir` to `base::DIR_CACHE`.
+    user_data_override_.emplace(content::SHELL_DIR_USER_DATA,
+                                user_data_dir_.GetPath(),
+                                /*is_absolute=*/true, /*create=*/true);
+    command_line->AppendSwitchPath(switches::kContentShellUserDataDir,
+                                   user_data_dir_.GetPath());
+  }
+
+  base::ScopedTempDir user_data_dir_;
+  std::optional<base::ScopedPathOverride> user_data_override_;
+};
+
+class H5vccSystemFlaggedCleanExitBeaconBrowserTest
+    : public H5vccSystemBeaconFileBrowserTestBase {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    H5vccSystemBrowserTest::SetUpCommandLine(command_line);
+    ConfigureBeaconFile(command_line, /*exited_cleanly=*/false,
+                        /*crash_streak=*/1);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(H5vccSystemFlaggedCleanExitBeaconBrowserTest,
+                       ReportsTrueWhenPreviousSessionDidNotExitCleanly) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url1 = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url1));
+
+  EXPECT_EQ(true,
+            content::EvalJs(shell()->web_contents(),
+                            "window.h5vcc.system.isCleanExitBeaconFlagged()"));
+
+  GURL url2 = embedded_test_server()->GetURL("/title2.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url2));
+  EXPECT_EQ(true,
+            content::EvalJs(shell()->web_contents(),
+                            "window.h5vcc.system.isCleanExitBeaconFlagged()"));
+}
+
+class H5vccSystemCleanBeaconFileBrowserTest
+    : public H5vccSystemBeaconFileBrowserTestBase {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    H5vccSystemBrowserTest::SetUpCommandLine(command_line);
+    ConfigureBeaconFile(command_line, /*exited_cleanly=*/true,
+                        /*crash_streak=*/0);
+    // Pre-populate the internal switch to verify CleanExitBeacon::Initialize()
+    // authoritatively overrides it when the previous session exited cleanly.
+    command_line->AppendSwitch(kCleanExitBeaconFlaggedSwitch);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(H5vccSystemCleanBeaconFileBrowserTest,
+                       ReportsFalseWhenPreviousSessionExitedCleanly) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+  EXPECT_EQ(false,
+            content::EvalJs(shell()->web_contents(),
+                            "window.h5vcc.system.isCleanExitBeaconFlagged()"));
 }
 
 }  // namespace cobalt

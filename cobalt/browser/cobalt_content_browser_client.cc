@@ -56,6 +56,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/build/configs/buildflags.h"
+#include "cobalt/common/clean_exit_beacon/clean_exit_beacon_state.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/shell/browser/shell.h"
@@ -64,6 +65,7 @@
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/version.h"
 #include "components/embedder_support/user_agent_utils.h"
+#include "components/metrics/clean_exit_beacon.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -1057,11 +1059,14 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   auto* global_features = GlobalFeatures::GetInstance();
   global_features->metrics_services_manager()->InstantiateFieldTrialList();
+  auto* metrics_state_manager =
+      global_features->metrics_services_manager_client()
+          ->GetMetricsStateManager();
+  SetCleanExitBeaconFlagged(
+      !metrics_state_manager->clean_exit_beacon()->exited_cleanly());
   // Mark the session as unclean at startup. If the session exits cleanly, it
   // will be marked as clean in CobaltMetricsServiceClient's destructor.
-  global_features->metrics_services_manager_client()
-      ->GetMetricsStateManager()
-      ->LogHasSessionShutdownCleanly(false, false);
+  metrics_state_manager->LogHasSessionShutdownCleanly(false, false);
 
   auto feature_list = std::make_unique<base::FeatureList>();
 

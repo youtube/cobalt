@@ -99,6 +99,7 @@ source_set("browser") {
     "//cobalt/browser/performance/public/mojom",
     "//cobalt/browser/user_agent",
     "//cobalt/build/configs:buildflags",
+    "//cobalt/common/clean_exit_beacon",
     "//cobalt/common/features",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",

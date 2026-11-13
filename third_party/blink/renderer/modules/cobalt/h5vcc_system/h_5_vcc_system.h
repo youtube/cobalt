@@ -67,6 +67,7 @@ class MODULES_EXPORT H5vccSystem final
   ScriptPromise<IDLNullable<LowMemoryKillDetails>> getLowMemoryKillDetails(
       ScriptState*,
       ExceptionState&);
+  bool isCleanExitBeaconFlagged() const;
 
   void Trace(Visitor*) const override;
 

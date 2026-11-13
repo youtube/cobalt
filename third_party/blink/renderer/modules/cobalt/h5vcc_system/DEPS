@@ -1,0 +1,4 @@
+include_rules = [
+    "+cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom-blink.h",
+    "+cobalt/common/clean_exit_beacon/clean_exit_beacon_state.h",
+]
