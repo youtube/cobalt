@@ -2,13 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-<<<<<<< HEAD
 import("//media/media_options.gni")
-=======
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 source_set("renderers") {
   # Do not expand the visibility here without double-checking with OWNERS, this
