@@ -458,6 +458,14 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
              "CobaltBypassHTMLPreloadScanner",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables MemoryPurgeManager background and freeze memory purging in Cobalt on
+// Android TV, overriding Android's static kPurgeEnabled=false gate with a 1s
+// delay, allowing CanPurge() when all pages are frozen, and retaining
+// background state while hidden across priority boosts (b/581944540).
+BASE_FEATURE(kCobaltEnableBlinkMemoryPurgeManager,
+             "CobaltEnableBlinkMemoryPurgeManager",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
 // devices so that shelf tracks and carousels are promoted to dedicated
 // hardware-composited cc::PictureLayers rather than triggering CPU repaints.
