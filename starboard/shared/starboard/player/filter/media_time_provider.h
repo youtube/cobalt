@@ -21,6 +21,17 @@
 
 namespace starboard {
 
+// The current media time and the playback state it was sampled with.  All
+// fields are sampled together, so they are consistent with each other.
+struct MediaTimeInfo {
+  // The current media time in microseconds.
+  int64_t media_time = 0;
+  bool is_playing = false;
+  bool is_eos_played = false;
+  bool is_underflow = false;
+  double playback_rate = 0.0;
+};
+
 class MediaTimeProvider {
  public:
   virtual void Play() = 0;
@@ -28,10 +39,7 @@ class MediaTimeProvider {
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual void Seek(int64_t seek_to_pts) = 0;
   // This function can be called from *any* thread.
-  virtual int64_t GetCurrentMediaTime(bool* is_playing,
-                                      bool* is_eos_played,
-                                      bool* is_underflow,
-                                      double* playback_rate) = 0;
+  virtual MediaTimeInfo GetCurrentMediaTime() = 0;
 
   // Returns the latest timestamp (in microseconds) that has been written to the
   // audio sink. This can be used to synchronize video frame submission with the
