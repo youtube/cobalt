@@ -114,15 +114,19 @@ DecoderBufferAllocator* DecoderBufferAllocator::Get() {
   return static_cast<DecoderBufferAllocator*>(DecoderBuffer::Allocator::Get());
 }
 
-void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
-  // TODO(b/520141273): Revisit decommit on suspend (e.g. offloading decommits
-  // off the renderer main thread and coordinating with async player teardown).
+void DecoderBufferAllocator::SetSuspended(bool is_suspended) {
+  base::AutoLock scoped_lock(mutex_);
+  if (is_suspended_ == is_suspended) {
+    return;
+  }
+  is_suspended_ = is_suspended;
   if (!decommit_on_suspend_enabled_.load(std::memory_order_acquire)) {
     return;
   }
-  base::AutoLock scoped_lock(mutex_);
-  if (strategy_) {
-    strategy_->DecommitAllDecommitableBlocks(/*include_retained_blocks=*/false);
+  LOG(INFO) << "DecoderBufferAllocator suspend state changed to "
+            << (is_suspended ? "suspended." : "resumed.");
+  if (strategy_ && !is_decommit_on_pressure_strategy_) {
+    strategy_->SetSuspended(is_suspended);
   }
 }
 
@@ -253,16 +257,22 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     // The value is a 32-bit integer encoding four parts:
     // flags (8 bits), block_size (in MB), retain_blocks (count), and
     // conservative_decommit_blocks (count). For example,
-    // 0x02040402 sets allocate_with_page_alignment to true, 4 MB block size,
+    // 0x01040402 sets enable_decommit_on_suspend to true, 4 MB block size,
     // 4 retain blocks, and 2 conservative decommit blocks respectively.
     // Passing multiple parameters encoded within a single integer is not
     // ideal, but it simplifies experiment setup in the current framework.
     //
-    // TODO(b/520141273): Revisit decommit on suspend.
-    // - flags (8 bits; bits 24 and 26 are reserved):
+    // - flags (8 bits):
+    //   - enable_decommit_on_suspend (bit 24): When set (bit 24 is non-zero),
+    //     informs the allocator of app suspend/resume so idle blocks are
+    //     decommitted immediately while suspended instead of waiting for
+    //     periodic background decommit.
     //   - allocate_with_page_alignment (bit 25): When set (bit 25 is
     //     non-zero), forces new OS block allocations to be page-aligned and
     //     rounded up to page sizes. Default is true.
+    //   - aggressive_decommit_on_suspend (bit 26): When set (bit 26 is
+    //     non-zero), aggressively decommits all idle blocks (ignoring retain
+    //     window) while suspended (implies enable_decommit_on_suspend).
     //   - memset_on_reclaim (bit 27): When set (bit 27 is non-zero),
     //     memsets reclaimed blocks to 0.
     //   - mark_as_cold_on_reclaim (bit 28): When set (bit 28 is non-zero),
@@ -300,11 +310,15 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     strategy_config.enable_decommit_on_idle = true;
     strategy_config.retain_blocks = (unsigned_value >> 8) & 0xFF;
     strategy_config.conservative_decommit_blocks = unsigned_value & 0xFF;
+    strategy_config.aggressive_decommit_on_suspend = (flags & 0x04) != 0;
     strategy_config.allocate_with_page_alignment = (flags & 0x02) != 0;
     strategy_config.memset_on_reclaim = (flags & 0x08) != 0;
     strategy_config.mark_as_cold_on_reclaim = (flags & 0x10) != 0;
 
-    EnableConfigurableDecommitStrategy(strategy_config);
+    bool enable_decommit_on_suspend = (flags & 0x01) != 0;
+
+    EnableConfigurableDecommitStrategy(strategy_config,
+                                       enable_decommit_on_suspend);
     return base::ok();
   }
   return base::unexpected(name + " isn't a supported setting.");
@@ -324,7 +338,8 @@ void DecoderBufferAllocator::OnPeriodicDecommitTask(
 
 // static
 void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
-    Strategy::ExperimentConfig strategy_config) {
+    Strategy::ExperimentConfig strategy_config,
+    bool enable_decommit_on_suspend) {
   auto* allocator = Get();
   CHECK(allocator);
   // Checking MADV_COLD support directly here simplifies experimental setup
@@ -336,14 +351,22 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
     strategy_config.mark_as_cold_on_reclaim = false;
   }
 #endif  // !defined(MADV_COLD)
-  // TODO(b/520141273): Revisit decommit on suspend.
+  if (strategy_config.aggressive_decommit_on_suspend) {
+    enable_decommit_on_suspend = true;
+  }
+  if (enable_decommit_on_suspend) {
+    // This optimization is enable only, and isn't expected to be disabled.
+    allocator->decommit_on_suspend_enabled_.store(true,
+                                                  std::memory_order_release);
+  }
   if (strategy_config.enable_decommit_on_idle) {
     // This feature is enable only, and isn't expected to be disabled.
     allocator->EnablePeriodicDecommitLoop();
   }
   allocator->UpdateAllocatorStrategy(base::BindRepeating(
       [](const Strategy::ExperimentConfig& strategy_config,
-         int initial_capacity, int allocation_unit)
+         bool enable_decommit_on_suspend, int initial_capacity,
+         int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         LOG(INFO)
             << "DecoderBufferAllocator is using "
@@ -357,8 +380,12 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
             << "retain_blocks: " << strategy_config.retain_blocks << ", "
             << "conservative_decommit_blocks: "
             << strategy_config.conservative_decommit_blocks
+            << ", enable_decommit_on_suspend: "
+            << ToString(enable_decommit_on_suspend)
             << ", allocate_with_page_alignment: "
             << ToString(strategy_config.allocate_with_page_alignment)
+            << ", aggressive_decommit_on_suspend: "
+            << ToString(strategy_config.aggressive_decommit_on_suspend)
             << ", memset_on_reclaim: "
             << ToString(strategy_config.memset_on_reclaim)
             << ", mark_as_cold_on_reclaim: "
@@ -366,7 +393,7 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
 
         return std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
       },
-      strategy_config));
+      strategy_config, enable_decommit_on_suspend));
 }
 
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
@@ -384,6 +411,10 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     strategy_ = experimental_strategy_create_cb_.Run(initial_capacity_,
                                                      allocation_unit_);
     if (strategy_) {
+      if (decommit_on_suspend_enabled_.load(std::memory_order_acquire) &&
+          is_suspended_) {
+        strategy_->SetSuspended(true);
+      }
       LOG(INFO) << "Allocated " << initial_capacity_
                 << " bytes for decoder buffer pool.";
       return;

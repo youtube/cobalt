@@ -84,6 +84,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     virtual size_t GetCapacity() const = 0;
     virtual size_t GetAllocated() const = 0;
 
+    virtual void SetSuspended(bool is_suspended) {}
+
     // Decommits idle blocks. When |include_retained_blocks| is true, idle
     // blocks in the retain window are decommitted as well, regardless of the
     // strategy's suspend configuration. Blocks in use are never affected.
@@ -104,7 +106,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   static DecoderBufferAllocator* Get();
 
-  void DecommitAllDecommitableBlocks();
+  void SetSuspended(bool is_suspended);
 
   // DecoderBuffer::Allocator methods.
   Handle Allocate(DemuxerStream::Type type, size_t size) override;
@@ -172,7 +174,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   static void EnableConfigurableDecommitStrategy(
-      Strategy::ExperimentConfig strategy_config);
+      Strategy::ExperimentConfig strategy_config,
+      bool enable_decommit_on_suspend);
 
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void EnablePeriodicDecommitLoop();
@@ -199,6 +202,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // (e.g. from h5vcc settings) is in use, in which case memory pressure is
   // ignored.
   bool is_decommit_on_pressure_strategy_ GUARDED_BY(mutex_) = false;
+  bool is_suspended_ GUARDED_BY(mutex_) = false;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation

@@ -50,6 +50,13 @@ class ReuseAllocatorBase : public Allocator {
     return capacity_ >= decommitted_bytes_ ? capacity_ - decommitted_bytes_ : 0;
   }
 
+  // Updates whether the application is currently suspended. When `is_suspended`
+  // transitions to true, any currently idle blocks are decommitted immediately,
+  // and any subsequent `ReclaimFallbackBlocks()` call while suspended will also
+  // decommit reclaimed blocks immediately instead of staging them for periodic
+  // background decommit.
+  void SetSuspended(bool is_suspended);
+
   // Immediately decommit all remaining decommitable blocks (e.g. on app
   // suspend). Retained blocks are included if the allocator was constructed
   // with |aggressive_decommit_on_suspend|, or if |include_retained_blocks| is
@@ -175,6 +182,9 @@ class ReuseAllocatorBase : public Allocator {
 
   // Set to true when idle reclamation stages blocks for decommit.
   bool has_pending_decommits_ = false;
+
+  // Whether the application is currently suspended.
+  bool is_suspended_ = false;
 };
 
 }  // namespace starboard

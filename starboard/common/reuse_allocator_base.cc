@@ -58,6 +58,16 @@ ReuseAllocatorBase::~ReuseAllocatorBase() {
   }
 }
 
+void ReuseAllocatorBase::SetSuspended(bool is_suspended) {
+  if (is_suspended_ == is_suspended) {
+    return;
+  }
+  is_suspended_ = is_suspended;
+  if (is_suspended_) {
+    DecommitAllDecommitableBlocks();
+  }
+}
+
 void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
     bool include_retained_blocks) {
   if (aggressive_decommit_on_suspend_ || include_retained_blocks) {
@@ -190,6 +200,9 @@ void ReuseAllocatorBase::ReclaimFallbackBlocks() {
       fallback_block.state = kIdlePendingDecommit;
       has_pending_decommits_ = true;
     }
+  }
+  if (is_suspended_) {
+    DecommitAllDecommitableBlocks();
   }
 }
 

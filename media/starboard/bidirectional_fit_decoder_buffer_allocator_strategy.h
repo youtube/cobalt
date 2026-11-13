@@ -70,6 +70,10 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
     return bidirectional_fit_allocator_.GetAllocated();
   }
 
+  void SetSuspended(bool is_suspended) override {
+    bidirectional_fit_allocator_.SetSuspended(is_suspended);
+  }
+
   void DecommitAllDecommitableBlocks(bool include_retained_blocks) override {
     bidirectional_fit_allocator_.DecommitAllDecommitableBlocks(
         include_retained_blocks);

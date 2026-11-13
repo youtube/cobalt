@@ -161,7 +161,8 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
 
   void ResetAllocatorWithTieredDecommitSupport(
       size_t retain_blocks,
-      size_t conservative_decommit_blocks) {
+      size_t conservative_decommit_blocks,
+      bool aggressive_decommit_on_suspend = false) {
     void* tmp = nullptr;
     std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
@@ -175,8 +176,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     allocator_ =
         std::make_unique<BidirectionalFitReuseAllocator<ReuseAllocatorBase>>(
             mock_fallback_allocator_, 0, 0, 0, true, retain_blocks,
-            conservative_decommit_blocks,
-            /*aggressive_decommit_on_suspend=*/false,
+            conservative_decommit_blocks, aggressive_decommit_on_suspend,
             /*memset_on_reclaim=*/false,
             /*mark_as_cold_on_reclaim=*/false);
 
@@ -661,6 +661,88 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
 
   this->allocator_->Free(block1);
   this->allocator_->Free(block2);
+}
+
+TYPED_TEST(BidirectionalFitReuseAllocatorTest,
+           SuspendAndResumeImmediateDecommit) {
+  constexpr size_t kAlignment = sizeof(void*);
+  constexpr size_t kBlockSize = 64 * 1024;
+
+  this->ResetAllocatorWithTieredDecommitSupport(/*retain_blocks=*/1,
+                                                /*conservative_blocks=*/0);
+
+  void* block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  void* block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  ASSERT_NE(block1, nullptr);
+  ASSERT_NE(block2, nullptr);
+  const size_t full_capacity = this->allocator_->GetCapacity();
+
+  // Case 1: Pool is already idle inside the grace period when
+  // SetSuspended(true) arrives -> non-retained block is decommitted
+  // immediately.
+  this->allocator_->Free(block1);
+  this->allocator_->Free(block2);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
+
+  this->allocator_->SetSuspended(true);
+  ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
+  const size_t fallback_block_size =
+      this->mock_fallback_allocator_->decommits[0].size;
+  EXPECT_EQ(this->allocator_->GetCapacity(),
+            full_capacity - fallback_block_size);
+
+  // Resume and reactivate both blocks.
+  this->allocator_->SetSuspended(false);
+  block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  ASSERT_NE(block1, nullptr);
+  ASSERT_NE(block2, nullptr);
+  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
+
+  // Case 2: App suspends while playback is still active; active blocks are
+  // untouched at SetSuspended(true), and decommit happens immediately as soon
+  // as the last block is freed.
+  this->allocator_->SetSuspended(true);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
+  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
+
+  this->allocator_->Free(block1);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
+  this->allocator_->Free(block2);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
+  EXPECT_EQ(this->allocator_->GetCapacity(),
+            full_capacity - fallback_block_size);
+
+  // Case 3: Resuming restores normal foreground grace-period deferral.
+  this->allocator_->SetSuspended(false);
+  block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  ASSERT_NE(block1, nullptr);
+  ASSERT_NE(block2, nullptr);
+  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
+
+  this->allocator_->Free(block1);
+  this->allocator_->Free(block2);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
+  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
+
+  // Case 4: Aggressive suspend decommits retained blocks immediately too.
+  this->ResetAllocatorWithTieredDecommitSupport(
+      /*retain_blocks=*/1,
+      /*conservative_blocks=*/0,
+      /*aggressive_decommit_on_suspend=*/true);
+  block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  ASSERT_NE(block1, nullptr);
+  ASSERT_NE(block2, nullptr);
+  const size_t aggressive_full_capacity = this->allocator_->GetCapacity();
+
+  this->allocator_->SetSuspended(true);
+  this->allocator_->Free(block1);
+  this->allocator_->Free(block2);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
+  EXPECT_EQ(this->allocator_->GetCapacity(),
+            aggressive_full_capacity - 2 * fallback_block_size);
 }
 
 }  // namespace starboard

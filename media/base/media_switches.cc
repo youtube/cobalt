@@ -534,7 +534,7 @@ BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
 // When enabled, DecoderBufferAllocator uses a strategy that tracks idle pool
 // blocks and returns them to the OS on memory pressure. Blocks that hold live
 // DecoderBuffers are never released. The h5vcc setting
-// "DecoderBuffer.EnableConfigurableDecommitStrategy" still overrides the
+// "DecoderBuffer.EnableConfigurableDecommitStrategyV3" still overrides the
 // strategy configuration.
 BASE_FEATURE(kCobaltDecoderBufferDecommitOnMemoryPressure,
              "CobaltDecoderBufferDecommitOnMemoryPressure",
