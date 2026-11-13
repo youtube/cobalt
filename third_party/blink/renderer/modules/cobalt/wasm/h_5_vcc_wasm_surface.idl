@@ -1,0 +1,35 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Surfaces bind players to <video> elements. A <video> in the top-level
+// document whose src is a blob: URL ending in `#sb-surface=<token>` punches a
+// hole where the element is, and the players created on that surface follow
+// it. The element is display-only: it doesn't play, and its currentTime stays
+// 0. Use one element per surface; with several, the most recently drawn wins.
+// When the element goes away, the players keep their last position, so to
+// replace it, give the new element the same token (it may flicker briefly).
+// See h_5_vcc_wasm_imports.idl.
+[
+    Exposed=(Window,DedicatedWorker),
+    RuntimeEnabled=H5vccWasmImports,
+    SecureContext
+]
+interface H5vccWasmSurface {
+  // Returns a surface handle, never 0.
+  [NoAllocDirectCall] unsigned long create();
+  [NoAllocDirectCall] undefined destroy(unsigned long surface);
+
+  // Returns "" for unknown surfaces. The token is an overlay plane id.
+  DOMString token(unsigned long surface);
+};

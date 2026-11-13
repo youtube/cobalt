@@ -2494,6 +2494,11 @@
       status: "test",
     },
     {
+      // Cobalt: h5vccWasmImports on Window and DedicatedWorkerGlobalScope,
+      // which gives a page direct control of Starboard (e.g. SbPlayer).
+      name: "H5vccWasmImports",
+    },
+    {
       // Enables Skipping children for invisible select elements containing
       // non-editable node while calculating end of paragraph.
       name: "HandleDeletionAtStartAndEndBoundaryContainingHiddenElement",
