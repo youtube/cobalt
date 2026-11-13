@@ -248,8 +248,25 @@ inline constexpr ExperimentalFeatureKey<bool>
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
 
+// When enabled, MediaCodecVideoDecoder seeds HDR color metadata before eager
+// codec creation, skips redundant codec re-initializations across non-HDR SDR
+// color-space differences (e.g. BT.601 <-> BT.709 or full-range SDR), and
+// restricts MediaFormat HDR configuration in MediaCodecBridge to true PQ/HLG
+// transfers. Disabled (false) by default so the unflagged path is a strict
+// no-op for A/B experimentation.
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaSkipRedundantColorCodecReinit("Media.SkipRedundantColorCodecReinit");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
     "Media.SkipVideoFramesOver60Fps");
+
+// Maximum number of bounded backoff retries inside InitializeCodec() when
+// synchronous video MediaCodec creation/start fails transiently (e.g. while a
+// vendor OMX/Codec2 HAL is still asynchronously releasing the previous codec
+// instance). Defaults to 0 (retries disabled / strict no-op) when unset, 0, or
+// negative; clamped to at most 5 retries.
+inline constexpr ExperimentalFeatureKey<int> kMediaVideoCodecCreationMaxRetries(
+    "Media.VideoCodecCreationMaxRetries");
 
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(

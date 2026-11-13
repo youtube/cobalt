@@ -125,6 +125,16 @@ constexpr int kVideoFrameTrackerCapacity = kMaxPendingInputsSize + 100;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
+// Default (0 = strict no-op when unset) and upper-bound retry budget and linear
+// backoff step when synchronous MediaCodec creation/start fails transiently
+// (e.g. while a vendor OMX/Codec2 HAL is still asynchronously releasing the
+// previous hardware decoder instance: 3 retries = 50 + 100 + 150 = 300 ms;
+// capped at 5 retries = 750 ms total sleep so worst-case backoff stays below
+// OnSurfaceDestroyed()'s 1,000 ms wait).
+constexpr int kDefaultCodecCreationMaxRetries = 0;
+constexpr int kMaxAllowedCodecCreationRetries = 5;
+constexpr int64_t kCodecCreationRetryBaseDelayUsec = 50'000;  // 50 ms
+
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
                                      int ticket,
@@ -357,6 +367,15 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               .Get(kMediaVideoDecoderInitialPrerollCount)
               .value_or(kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
+      skip_redundant_color_codec_reinit_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaSkipRedundantColorCodecReinit)),
+      max_codec_creation_retries_(
+          std::clamp(pipeline_config.experimental_features
+                         .Get(kMediaVideoCodecCreationMaxRetries)
+                         .value_or(kDefaultCodecCreationMaxRetries),
+                     0,
+                     kMaxAllowedCodecCreationRetries)),
       surface_texture_bridge_(
           output_mode_ == kSbPlayerOutputModeDecodeToTexture
               ? std::make_unique<VideoSurfaceTextureBridge>(this)
@@ -392,6 +411,24 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   }
 
   if (!needs_fps_to_initialize_codec_) {
+    // Why seed |color_metadata_| before eager InitializeCodec():
+    // SbPlayerBridge::UpdateVideoConfig() already populates
+    // |stream_config.video_stream_info.color_metadata| from the container init
+    // segment before SbPlayerCreate(). Leaving |color_metadata_| as
+    // std::nullopt here previously created a throwaway SDR MediaCodec, only
+    // for the first WriteInputBuffers() call milliseconds later to invoke
+    // TeardownCodec() and InitializeCodec() back-to-back with zero delay.
+    // On SoCs whose vendor OMX/Codec2 HAL releases hardware decoder instances
+    // asynchronously in the background ("phantom release", e.g. Sony mt5895
+    // MtkOmxVdec), that self-inflicted destroy-then-create collides with the
+    // first instance's teardown, causing 1.6-4.0 s Presenting stalls (which on
+    // TV Shorts >= 2-3 s also trip YouTube's slow_seek_shorts watchdog into
+    // destroying and recreating <video>) or CodecException start() failures.
+    if (skip_redundant_color_codec_reinit_ &&
+        ShouldConfigureHdrColorMetadata(
+            stream_config.video_stream_info.color_metadata)) {
+      color_metadata_ = stream_config.video_stream_info.color_metadata;
+    }
     auto result = InitializeCodec(stream_config.video_stream_info);
     if (!result) {
       *error_message =
@@ -413,7 +450,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_)
+               << ", max_codec_creation_retries="
+               << max_codec_creation_retries_;
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -539,19 +578,49 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
 
-    // If color metadata is present and is not an identity mapping, then
-    // teardown the codec so it can be reinitalized with the new metadata.
     const auto& color_metadata =
         input_buffers.front()->video_stream_info().color_metadata;
-    if (!IsIdentity(color_metadata)) {
-      SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
-      SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
-      TeardownCodec();
-      color_metadata_ = color_metadata;
+    if (skip_redundant_color_codec_reinit_) {
+      // Why check NeedsCodecTransition() instead of unconditionally tearing
+      // down on Frame #1:
+      //   1. When the constructor already initialized |media_decoder_| with
+      //      matching HDR metadata (or SDR for BT.709 / BT.601 / full-range
+      //      SDR), NeedsCodecTransition() is false and we keep the existing
+      //      codec without a redundant Frame #1 teardown/recreate.
+      //   2. Only if the first sample's in-band bitstream metadata genuinely
+      //      differs from the init segment (e.g. SDR container header -> HDR10
+      //      keyframe) does NeedsCodecTransition() return true and rebuild
+      //      once.
+      if (NeedsCodecTransition(input_buffers.front())) {
+        SB_LOG(INFO)
+            << "Reinitializing codec due to first-buffer color metadata "
+               "mismatch.";
+        TeardownCodec();
+        if (reset_delay_usec_ > 0) {
+          usleep(reset_delay_usec_);
+        }
+      }
+
+      // Populate |color_metadata_| whenever |media_decoder_| has not been
+      // created yet (deferred AV1 fps-estimation path, post-Reset() re-init, or
+      // after the first-buffer mismatch TeardownCodec() above).
+      if (!media_decoder_ && ShouldConfigureHdrColorMetadata(color_metadata)) {
+        SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
+        color_metadata_ = color_metadata;
+      }
+    } else {
+      // Default unflagged path: strict no-op preserving legacy behavior.
+      const bool has_hdr_color_metadata = !IsIdentity(color_metadata);
+      if (has_hdr_color_metadata) {
+        SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
+        SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
+        TeardownCodec();
+        color_metadata_ = color_metadata;
+      }
     }
 
     // Re-initialize the codec now if it was torn down either in |Reset| or
-    // because we need to change the color metadata.
+    // because first-buffer color metadata genuinely changed.
     if (!needs_fps_to_initialize_codec_ && media_decoder_ == NULL) {
       auto result = InitializeCodec(input_buffers.front()->video_stream_info());
       if (!result) {
@@ -889,22 +958,76 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaCodecDecoder
   //                    ctor.
-  auto result = MediaCodecDecoder::CreateForVideo(
-      *media_codec_factory_, job_queue(), /*host=*/this,
-      video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
-      video_fps_, j_output_surface, drm_system_,
-      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
-      video_stream_info.color_metadata.bits_per_channel > 8,
-      std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
-      std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
-      tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
-      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      MediaCodecDecoder::VideoExperimentalOptions{
-          /*skip_video_frames_over_60_fps=*/skip_video_frames_over_60_fps_,
-          /*enable_ndk_video=*/enable_ndk_video_,
-          /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
-          /*enable_codec_thread_improvements=*/
-          enable_codec_thread_improvements_});
+  //
+  // Why retry synchronous MediaCodec creation with short linear backoff:
+  // Even after eliminating self-inflicted Frame #1 and SDR color-space
+  // rebuilds, legitimate transitions (true SDR <-> HDR gapless Shorts,
+  // non-flushed seeks, or rapid cross-player <video> recreation such as
+  // YouTube's slow_seek_shorts watchdog) can still overlap a vendor HAL's
+  // asynchronous background ("phantom") release of the previous hardware
+  // decoder instance (e.g. Sony mt5895 MtkOmxVdec). When the vendor driver
+  // fails createByCodecName()/configure()/start() synchronously instead of
+  // waiting internally, 0 retries immediately aborts playback with
+  // kSbPlayerErrorDecode. A bounded retry on |player_worker| while holding
+  // |j_output_surface| absorbs short HAL reclaim windows on both initial
+  // startup and in-player re-initialization without delaying normal starts.
+  auto abort_on_surface_destroy = [this](const char* phase) {
+    if (!surface_destroy_requested_.load()) {
+      return false;
+    }
+    SB_LOG(WARNING) << "Aborting MediaCodec creation retry because surface "
+                       "destruction was requested"
+                    << phase << ".";
+    surface_destroy_requested_.store(false);
+    owns_video_surface_ = false;
+    {
+      std::lock_guard lock(surface_destroy_mutex_);
+      surface_destroyed_ = true;
+    }
+    surface_condition_variable_.notify_one();
+    return true;
+  };
+
+  NonNullResult<std::unique_ptr<MediaCodecDecoder>> result =
+      Failure("Uninitialized");
+  for (int attempt = 0; attempt <= max_codec_creation_retries_; ++attempt) {
+    if (attempt > 0) {
+      if (abort_on_surface_destroy("")) {
+        break;
+      }
+      const int64_t delay_usec =
+          static_cast<int64_t>(attempt) * kCodecCreationRetryBaseDelayUsec;
+      SB_LOG(WARNING) << "Retrying video MediaCodec creation (attempt "
+                      << attempt << "/" << max_codec_creation_retries_
+                      << ") after " << (delay_usec / 1000)
+                      << " ms backoff; previous error: " << result.error();
+      usleep(delay_usec);
+      if (abort_on_surface_destroy(" during backoff")) {
+        break;
+      }
+    }
+    result = MediaCodecDecoder::CreateForVideo(
+        *media_codec_factory_, job_queue(), /*host=*/this,
+        video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
+        video_fps_, j_output_surface, drm_system_,
+        color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
+        video_stream_info.color_metadata.bits_per_channel > 8,
+        std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
+        std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
+        tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
+        max_video_input_size_, flush_delay_usec_, use_dual_threads_,
+        MediaCodecDecoder::VideoExperimentalOptions{
+            /*skip_video_frames_over_60_fps=*/skip_video_frames_over_60_fps_,
+            /*enable_ndk_video=*/enable_ndk_video_,
+            /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
+            /*enable_codec_thread_improvements=*/
+            enable_codec_thread_improvements_,
+            /*skip_redundant_color_codec_reinit=*/
+            skip_redundant_color_codec_reinit_});
+    if (result) {
+      break;
+    }
+  }
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -1201,12 +1324,15 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
     // Wait until codec is stopped.
     std::unique_lock lock(surface_destroy_mutex_);
     surface_destroyed_ = false;
+    surface_destroy_requested_.store(true);
     Schedule(std::bind(&MediaCodecVideoDecoder::OnSurfaceDestroyed, this));
     surface_condition_variable_.wait_for(lock,
                                          std::chrono::microseconds(1'000'000),
                                          [this] { return surface_destroyed_; });
+    surface_destroy_requested_.store(false);
     return;
   }
+  surface_destroy_requested_.store(false);
   // When this function is called, the decoder no longer owns the surface.
   owns_video_surface_ = false;
   TeardownCodec();
@@ -1284,20 +1410,46 @@ bool MediaCodecVideoDecoder::NeedsCodecTransition(
   }
   const SbMediaColorMetadata& stream_color =
       input_buffer->video_stream_info().color_metadata;
-  const bool stream_is_hdr = !IsIdentity(stream_color);
+  if (!skip_redundant_color_codec_reinit_) {
+    const bool stream_is_hdr = !IsIdentity(stream_color);
+    const bool codec_is_hdr = color_metadata_.has_value();
+    if (stream_is_hdr != codec_is_hdr) {
+      return true;
+    }
+    if (!stream_is_hdr) {
+      return false;
+    }
+    return stream_color.primaries != color_metadata_->primaries ||
+           stream_color.transfer != color_metadata_->transfer ||
+           stream_color.range != color_metadata_->range ||
+           stream_color.max_cll != color_metadata_->max_cll ||
+           stream_color.max_fall != color_metadata_->max_fall ||
+           !Equal(stream_color.mastering_metadata,
+                  color_metadata_->mastering_metadata);
+  }
+  // Why use ShouldConfigureHdrColorMetadata() instead of `!IsIdentity()`:
+  // Transitions between two SDR color spaces (such as <= 480p BT.601 and
+  // 1080p BT.709 across gapless Shorts or ABR) both map to `j_color_info ==
+  // nullptr` in MediaCodecBridge, so rebuilding the hardware decoder across
+  // them is a pure stall/error hazard with zero MediaFormat difference.
+  const bool stream_is_hdr = ShouldConfigureHdrColorMetadata(stream_color);
   const bool codec_is_hdr = color_metadata_.has_value();
   if (stream_is_hdr != codec_is_hdr) {
     return true;
   }
-  // Only compare the fields that reach MediaCodec: CreateVideoMediaCodec()
-  // passes these to the Java ColorInfo, which sets the MediaFormat's color
-  // standard/transfer/range and HDR static info. Others (e.g. matrix) are
-  // unused by the codec.
-  return stream_is_hdr &&
-         (stream_color.primaries != color_metadata_->primaries ||
-          stream_color.transfer != color_metadata_->transfer ||
-          stream_color.range != color_metadata_->range ||
-          stream_color.max_cll != color_metadata_->max_cll ||
+  if (!stream_is_hdr) {
+    return false;
+  }
+  // Only compare fields that MediaCodecBridge actually forwards to MediaFormat:
+  // color standard/transfer/range for all HDR streams, plus SMPTE ST 2086 /
+  // CTA-861.3 static metadata for PQ (ST2084) streams.
+  if (stream_color.primaries != color_metadata_->primaries ||
+      stream_color.transfer != color_metadata_->transfer ||
+      stream_color.range != color_metadata_->range) {
+    return true;
+  }
+  return stream_color.transfer == kSbMediaTransferIdSmpteSt2084 &&
+         (stream_color.max_cll != color_metadata_->max_cll ||
           stream_color.max_fall != color_metadata_->max_fall ||
           !Equal(stream_color.mastering_metadata,
                  color_metadata_->mastering_metadata));

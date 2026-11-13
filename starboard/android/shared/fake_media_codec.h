@@ -143,18 +143,45 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
     return last_created_video_codec_;
   }
   int video_codec_create_count() const { return video_codec_create_count_; }
+  // Fails the next |count| CreateVideoMediaCodec() calls to simulate transient
+  // or persistent vendor HAL creation/start failures. Failed attempts still
+  // increment video_codec_create_count().
+  void set_video_codec_creation_failures_remaining(int count) {
+    video_codec_creation_failures_remaining_ = count;
+  }
+  // Optional external counter incremented on every CreateVideoMediaCodec()
+  // call, allowing tests to observe attempt counts even if decoder creation
+  // fails and destroys this factory.
+  void set_external_video_codec_create_counter(std::atomic<int>* counter) {
+    external_video_codec_create_counter_ = counter;
+  }
   std::optional<SbMediaColorMetadata> last_video_color_metadata() const {
     std::lock_guard lock(mutex_);
     return last_video_color_metadata_;
+  }
+  std::optional<MediaCodec::VideoPlatformOptions> last_video_platform_options()
+      const {
+    std::lock_guard lock(mutex_);
+    return last_video_platform_options_;
+  }
+  void set_on_create_video_codec_callback(std::function<void()> callback) {
+    std::lock_guard lock(mutex_);
+    on_create_video_codec_callback_ = std::move(callback);
   }
 
  private:
   std::atomic<FakeMediaCodec*> last_created_audio_codec_{nullptr};
   std::atomic<FakeMediaCodec*> last_created_video_codec_{nullptr};
   std::atomic<int> video_codec_create_count_{0};
+  std::atomic<int> video_codec_creation_failures_remaining_{0};
+  std::atomic<int>* external_video_codec_create_counter_ = nullptr;
   mutable std::mutex mutex_;
   std::optional<SbMediaColorMetadata>
       last_video_color_metadata_;  // Guarded by |mutex_|.
+  std::optional<MediaCodec::VideoPlatformOptions>
+      last_video_platform_options_;  // Guarded by |mutex_|.
+  std::function<void()>
+      on_create_video_codec_callback_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard

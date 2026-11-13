@@ -19,6 +19,7 @@
 #include <condition_variable>
 #include <deque>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 #include "base/android/jni_string.h"
@@ -63,9 +64,41 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   void CreateDecoder(const std::string& max_video_capabilities = "",
                      const VideoStreamInfo* initial_stream_info = nullptr,
                      ExperimentalFeatures experimental_features = {},
-                     bool enable_flush_during_seek = false) {
+                     bool enable_flush_during_seek = false,
+                     int initial_creation_failures = 0) {
+    auto result =
+        TryCreateDecoder(max_video_capabilities, initial_stream_info,
+                         std::move(experimental_features),
+                         enable_flush_during_seek, initial_creation_failures);
+    ASSERT_TRUE(result);
+    decoder_ = std::move(result.value());
+
+    // Setup sink to avoid crashes in Tick() on decoder thread
+    auto sink = decoder_->GetSink();
+    ASSERT_NE(sink, nullptr);
+    sink->SetRenderCB(
+        [this](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {
+          std::lock_guard lock(callback_mutex_);
+          render_count_++;
+          if (on_render_cb_) {
+            on_render_cb_();
+          }
+        });
+  }
+
+  NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> TryCreateDecoder(
+      const std::string& max_video_capabilities = "",
+      const VideoStreamInfo* initial_stream_info = nullptr,
+      ExperimentalFeatures experimental_features = {},
+      bool enable_flush_during_seek = false,
+      int initial_creation_failures = 0,
+      std::atomic<int>* external_create_counter = nullptr) {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
-    fake_factory_ = factory.get();  // Save raw pointer before moving!
+    factory->set_video_codec_creation_failures_remaining(
+        initial_creation_failures);
+    factory->set_external_video_codec_create_counter(external_create_counter);
+    FakeMediaCodecFactory* raw_factory = factory.get();
+    fake_factory_ = nullptr;
 
     MediaCodecVideoDecoder::StreamConfig stream_config{
         initial_stream_info ? *initial_stream_info : kDefaultVideoStreamInfo,
@@ -84,21 +117,10 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
         std::move(factory),  // Transfer ownership
         &job_queue_, stream_config, tunnel_config, pipeline_config,
         platform_options);
-
-    ASSERT_TRUE(result);
-    decoder_ = std::move(result.value());
-
-    // Setup sink to avoid crashes in Tick() on decoder thread
-    auto sink = decoder_->GetSink();
-    ASSERT_NE(sink, nullptr);
-    sink->SetRenderCB(
-        [this](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {
-          std::lock_guard lock(callback_mutex_);
-          render_count_++;
-          if (on_render_cb_) {
-            on_render_cb_();
-          }
-        });
+    if (result) {
+      fake_factory_ = raw_factory;
+    }
+    return result;
   }
 
   scoped_refptr<InputBuffer> CreateDummyVideoInputBuffer(
@@ -452,6 +474,291 @@ TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {
     std::lock_guard lock(callback_mutex_);
     EXPECT_EQ(render_count_, 1);
   }
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       DefaultUnflaggedPathPreservesLegacyBehaviorAndZeroRetries) {
+  // 1. Default unflagged (and explicit 0 H5VCC sentinel) HDR startup preserves
+  // legacy double-create behavior and forwards
+  // skip_redundant_color_codec_reinit = false.
+  ExperimentalFeatures zero_sentinel_features(
+      {{std::string(kMediaSkipRedundantColorCodecReinit.key()), int64_t{0}},
+       {std::string(kMediaVideoCodecCreationMaxRetries.key()), int64_t{0}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo,
+                zero_sentinel_features);
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+  ASSERT_TRUE(fake_factory_->last_video_platform_options().has_value());
+  EXPECT_FALSE(fake_factory_->last_video_platform_options()
+                   ->skip_redundant_color_codec_reinit);
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_FALSE(error_called_);
+
+  // 2. Explicit 0 H5VCC sentinel creation failure performs 0 retries.
+  decoder_.reset();
+  std::atomic<int> create_attempts{0};
+  auto result =
+      TryCreateDecoder(/*max_video_capabilities=*/"", &kDefaultVideoStreamInfo,
+                       std::move(zero_sentinel_features),
+                       /*enable_flush_during_seek=*/false,
+                       /*initial_creation_failures=*/1, &create_attempts);
+  EXPECT_FALSE(result);
+  EXPECT_EQ(fake_factory_, nullptr);
+  EXPECT_EQ(create_attempts.load(), 1);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       HdrInitialStreamCreatesCodecOnceWithHdrMetadata) {
+  ExperimentalFeatures features(
+      {{std::string(kMediaSkipRedundantColorCodecReinit.key()), int64_t{1}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo,
+                std::move(features));
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  auto initial_color = fake_factory_->last_video_color_metadata();
+  ASSERT_TRUE(initial_color.has_value());
+  EXPECT_EQ(initial_color->transfer, kSbMediaTransferIdSmpteSt2084);
+  ASSERT_TRUE(fake_factory_->last_video_platform_options().has_value());
+  EXPECT_TRUE(fake_factory_->last_video_platform_options()
+                  ->skip_redundant_color_codec_reinit);
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+
+  // Frame #1 matches initial HDR metadata: must NOT tear down and recreate.
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       Bt601SdrStartupAndFlushedSeekToBt709KeepSingleCodec) {
+  VideoStreamInfo bt601_sdr_info = kDefaultVideoStreamInfo;
+  bt601_sdr_info.frame_size = {854, 480};
+  bt601_sdr_info.color_metadata.primaries = kSbMediaPrimaryIdSmpte170M;
+  bt601_sdr_info.color_metadata.transfer = kSbMediaTransferIdSmpte170M;
+  bt601_sdr_info.color_metadata.matrix = kSbMediaMatrixIdSmpte170M;
+
+  ExperimentalFeatures features(
+      {{std::string(kMediaSkipRedundantColorCodecReinit.key()), int64_t{1}}});
+  CreateDecoder(/*max_video_capabilities=*/"width=1920; height=1080",
+                &bt601_sdr_info, std::move(features),
+                /*enable_flush_during_seek=*/true);
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      0, 1024, &bt601_sdr_info, /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+
+  // Flushed seek from 480p BT.601 SDR to 1080p BT.709 SDR must keep the same
+  // codec without rebuilding.
+  decoder_->Reset();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      100'000'000, 1024, &kDefaultVideoStreamInfo, /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+
+  // Flushed seek back to 480p BT.601 SDR also keeps the same codec.
+  decoder_->Reset();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      200'000'000, 1024, &bt601_sdr_info, /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       FullRangeSdrInitialStreamDoesNotConfigureHdrOrRebuild) {
+  VideoStreamInfo full_range_sdr_info = kDefaultVideoStreamInfo;
+  full_range_sdr_info.color_metadata.range = kSbMediaRangeIdFull;
+
+  ExperimentalFeatures features(
+      {{std::string(kMediaSkipRedundantColorCodecReinit.key()), int64_t{1}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &full_range_sdr_info,
+                std::move(features));
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      0, 1024, &full_range_sdr_info, /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       HdrInitialStreamToSdrFirstBufferRebuildsCodecOnce) {
+  ExperimentalFeatures features(
+      {{std::string(kMediaSkipRedundantColorCodecReinit.key()), int64_t{1}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo,
+                std::move(features));
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      0, 1024, /*stream_info=*/nullptr, /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       TransientCreationFailuresRecoverOnStartupAndReinit) {
+  // 2 transient failures during constructor InitializeCodec() recover on
+  // retry attempt 2 (3 total CreateVideoMediaCodec calls) when retry budget
+  // is enabled via Media.VideoCodecCreationMaxRetries.
+  ExperimentalFeatures features(
+      {{std::string(kMediaVideoCodecCreationMaxRetries.key()), int64_t{3}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &kDefaultVideoStreamInfo,
+                std::move(features),
+                /*enable_flush_during_seek=*/true,
+                /*initial_creation_failures=*/2);
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
+  ASSERT_NE(GetFakeVideoCodec(), nullptr);
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+
+  // Simulate 2 transient HAL phantom-release failures during an SDR -> HDR
+  // flushed transition re-initialization.
+  decoder_->Reset();
+  fake_factory_->set_video_codec_creation_failures_remaining(2);
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(100'000'000, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 6);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       PersistentCreationFailureExhaustsMaxRetriesAndFails) {
+  std::atomic<int> create_attempts{0};
+  ExperimentalFeatures features(
+      {{std::string(kMediaVideoCodecCreationMaxRetries.key()), int64_t{2}}});
+  auto result =
+      TryCreateDecoder(/*max_video_capabilities=*/"", &kDefaultVideoStreamInfo,
+                       std::move(features),
+                       /*enable_flush_during_seek=*/false,
+                       /*initial_creation_failures=*/3, &create_attempts);
+  EXPECT_FALSE(result);
+  EXPECT_EQ(fake_factory_, nullptr);
+  EXPECT_EQ(create_attempts.load(), 3);
+}
+
+TEST_F(MediaCodecVideoDecoderTest, NegativeMaxRetriesDisablesCreationRetries) {
+  std::atomic<int> create_attempts{0};
+  ExperimentalFeatures features(
+      {{std::string(kMediaVideoCodecCreationMaxRetries.key()), int64_t{-1}}});
+  auto result =
+      TryCreateDecoder(/*max_video_capabilities=*/"", &kDefaultVideoStreamInfo,
+                       std::move(features),
+                       /*enable_flush_during_seek=*/false,
+                       /*initial_creation_failures=*/1, &create_attempts);
+  EXPECT_FALSE(result);
+  EXPECT_EQ(fake_factory_, nullptr);
+  EXPECT_EQ(create_attempts.load(), 1);
+}
+
+TEST_F(
+    MediaCodecVideoDecoderTest,
+    FlushSeekPqStaticMetadataChangeRebuildsWhileHlgStaticMetadataKeepsCodec) {
+  // PQ (ST2084) forwards KEY_HDR_STATIC_INFO, so changing max_cll must rebuild.
+  ExperimentalFeatures features(
+      {{std::string(kMediaSkipRedundantColorCodecReinit.key()), int64_t{1}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo,
+                std::move(features),
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+
+  VideoStreamInfo pq_higher_cll = kHdrVideoStreamInfo;
+  pq_higher_cll.color_metadata.max_cll = 2000;
+  decoder_->Reset();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(100'000'000, 1024, &pq_higher_cll,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+
+  // Switch to HLG (rebuilds once from PQ -> HLG).
+  VideoStreamInfo hlg_info = kDefaultVideoStreamInfo;
+  hlg_info.color_metadata.primaries = kSbMediaPrimaryIdBt2020;
+  hlg_info.color_metadata.transfer = kSbMediaTransferIdAribStdB67;
+  hlg_info.color_metadata.matrix = kSbMediaMatrixIdBt2020NonconstantLuminance;
+  decoder_->Reset();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(200'000'000, 1024, &hlg_info,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
+
+  // HLG does not use KEY_HDR_STATIC_INFO, so varying max_cll keeps the codec.
+  VideoStreamInfo hlg_different_cll = hlg_info;
+  hlg_different_cll.color_metadata.max_cll = 1500;
+  decoder_->Reset();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(300'000'000, 1024, &hlg_different_cll,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       OnSurfaceDestroyedAbortsCreationRetryWithoutWaitingForTimeout) {
+  ExperimentalFeatures features(
+      {{std::string(kMediaVideoCodecCreationMaxRetries.key()), int64_t{5}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &kDefaultVideoStreamInfo,
+                std::move(features),
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+
+  decoder_->Reset();
+  fake_factory_->set_video_codec_creation_failures_remaining(5);
+
+  std::thread ui_surface_destroy_thread;
+  std::atomic<int64_t> surface_destroy_elapsed_ms{-1};
+  std::atomic<bool> triggered{false};
+  fake_factory_->set_on_create_video_codec_callback([&]() {
+    if (!triggered.exchange(true)) {
+      ui_surface_destroy_thread = std::thread([&]() {
+        const auto start = std::chrono::steady_clock::now();
+        decoder_->OnSurfaceDestroyedForTesting();
+        surface_destroy_elapsed_ms.store(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - start)
+                .count());
+      });
+    }
+  });
+
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(100'000'000, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  ASSERT_TRUE(ui_surface_destroy_thread.joinable());
+  ui_surface_destroy_thread.join();
+
+  // Retry budget was 5 (up to 750 ms), and OnSurfaceDestroyed()'s timeout is
+  // 1,000 ms; aborting after the first 50 ms backoff must wake the UI thread
+  // well below the 1,000 ms timeout and stop further retry attempts.
+  EXPECT_TRUE(error_called_);
+  EXPECT_LE(fake_factory_->video_codec_create_count(), 3);
+  EXPECT_GE(surface_destroy_elapsed_ms.load(), 0);
+  EXPECT_LT(surface_destroy_elapsed_ms.load(), 500);
 }
 
 }  // namespace
