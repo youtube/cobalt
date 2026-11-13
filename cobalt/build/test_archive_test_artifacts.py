@@ -203,13 +203,59 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     self.assertEqual(mock_call.call_count, 2)
     collect_cmd = mock_call.call_args_list[0][0][0]
     self.assertIn('collect_test_artifacts.py', collect_cmd[1])
-    self.assertIn('cobalt_browsertests_host_deps.tar.gz', collect_cmd)
+    self.assertIn('android_test_host_deps.tar.gz', collect_cmd)
+    self.assertIn('--toolchain-only', collect_cmd)
+    self.assertEqual(mock_call.call_args_list[0][1].get('cwd'), self.source_dir)
 
     tar_cmd = mock_call.call_args_list[1][0][0]
     self.assertIn('tar', tar_cmd)
     self.assertIn(
         os.path.join(self.dest_dir, 'cobalt_browsertests_loader_deps.tar.gz'),
         tar_cmd)
+
+  @mock.patch('os.path.getsize', return_value=1024)
+  @mock.patch('subprocess.check_call')
+  def test_create_archive_android_emits_slim_host_deps_once_and_reuses_it(
+      self, mock_call, unused_mock_getsize):
+    for pkg, name in (('base', 'base_unittests'),
+                      ('cobalt/testing/browser_tests', 'cobalt_browsertests')):
+      p = os.path.join(self.out_dir, 'gen.runtime', pkg,
+                       f'{name}__test_runner_script.runtime_deps')
+      os.makedirs(os.path.dirname(p), exist_ok=True)
+      with open(p, 'w', encoding='utf-8') as f:
+        f.write(f'{name}_apk/{name}-debug.apk\n../../cobalt/test/data/f.txt\n')
+
+    def run(targets):
+      archive_test_artifacts.create_archive(
+          targets=targets,
+          source_dir=self.source_dir,
+          out_dir=self.out_dir,
+          destination_dir=self.dest_dir,
+          archive_per_target=True,
+          use_android_deps_path=True,
+          compression='gz',
+          compression_level=1,
+          flatten_deps=True)
+
+    run([
+        'base:base_unittests',
+        'cobalt/testing/browser_tests:cobalt_browsertests'
+    ])
+    self.assertEqual(mock_call.call_count, 3)
+    self.assertIn('android_test_host_deps.tar.gz',
+                  mock_call.call_args_list[0][0][0])
+    self.assertIn('--toolchain-only', mock_call.call_args_list[0][0][0])
+    self.assertEqual([c[0][0][0] for c in mock_call.call_args_list[1:]],
+                     ['tar', 'tar'])
+
+    with open(
+        os.path.join(self.dest_dir, 'android_test_host_deps.tar.gz'),
+        'w',
+        encoding='utf-8') as f:
+      f.write('cached')
+    mock_call.reset_mock()
+    run(['cobalt/testing/browser_tests:cobalt_browsertests'])
+    self.assertEqual([c[0][0][0] for c in mock_call.call_args_list], ['tar'])
 
   @mock.patch('archive_test_artifacts._make_tar')
   def test_create_archive_relative_paths(self, mock_make_tar):

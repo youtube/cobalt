@@ -12,7 +12,8 @@
     "target": "base:base_unittests",
     "executable": "out/android-arm_devel/base_unittests_apk/base_unittests-debug.apk",
     "runs_on": "device",
-    "test_type": "gtest"
+    "test_type": "gtest",
+    "shards": 2
   },
   {
     "target": "cobalt/testing/browser_tests:cobalt_browsertests",
@@ -83,7 +84,8 @@
     "target": "starboard/nplb:nplb",
     "executable": "out/android-arm_devel/nplb_apk/nplb-debug.apk",
     "runs_on": "device",
-    "test_type": "gtest"
+    "test_type": "gtest",
+    "shards": 2
   },
   {
     "target": "starboard/android/shared:starboard_platform_tests",
@@ -137,7 +139,8 @@
     "target": "third_party/boringssl:boringssl_crypto_tests",
     "executable": "out/android-arm_devel/boringssl_crypto_tests_apk/boringssl_crypto_tests-debug.apk",
     "runs_on": "device",
-    "test_type": "gtest"
+    "test_type": "gtest",
+    "shards": 2
   },
   {
     "target": "third_party/boringssl:boringssl_ssl_tests",

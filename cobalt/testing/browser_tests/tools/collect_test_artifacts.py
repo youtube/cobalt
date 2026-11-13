@@ -13,17 +13,40 @@ into a portable compressed tarball.
 import argparse
 import logging
 import os
+from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
 
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format='[%(levelname)s] %(message)s',
     datefmt='%H:%M:%S')
+
+_PRUNED_DEPOT_TOOLS_PATHS = (
+    '.git', 'external_bin', 'python3', 'python3.bat', 'python3.py',
+    'python3_bin_reldir.txt',
+    *(f'.cipd_bin/{b}'
+      for b in ('.cipd', 'reclient', 'uv', 'dirmd', 'pinpoint', 'crowbar',
+                'lucicfg', 'led', 'bb', 'rdb', 'luci', 'luci-auth',
+                'luci-auth-ssh-helper', 'luci-auth-ssh-plugin',
+                'git-credential-luci', 'prpc')))
+
+
+def prune_toolchain_stage(src_stage, staged_dt=None):
+  """Removes unused catapult and depot_tools paths in --toolchain-only mode."""
+  to_remove = [os.path.join(src_stage, 'third_party/catapult/third_party/vinn')]
+  if staged_dt and os.path.isdir(staged_dt):
+    to_remove.extend(
+        os.path.join(staged_dt, p) for p in _PRUNED_DEPOT_TOOLS_PATHS)
+    to_remove.extend(Path(staged_dt).glob('bootstrap-*'))
+  for p in to_remove:
+    if os.path.isdir(p) and not os.path.islink(p):
+      shutil.rmtree(p)
+    elif os.path.lexists(p):
+      os.unlink(p)
 
 
 def find_runtime_deps(build_dir):
@@ -71,15 +94,12 @@ def copy_fast(src, dst):
   dst_parent = os.path.dirname(dst)
   os.makedirs(dst_parent, exist_ok=True)
   try:
-    if os.path.isdir(src):
-      # Use system cp -af for directories to handle many files efficiently.
-      # -a preserves attributes, -f forces overwrite by unlinking if needed.
-      subprocess.run(['cp', '-af', src, dst_parent + '/'], check=True)
+    if os.path.isdir(src) and not os.path.islink(src):
+      subprocess.run(['cp', '-afT', src, dst], check=True)
     else:
-      # Use cp -af for files too.
       subprocess.run(['cp', '-af', src, dst], check=True)
   except (subprocess.CalledProcessError, subprocess.SubprocessError, OSError):
-    if os.path.isdir(src):
+    if os.path.isdir(src) and not os.path.islink(src):
       shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
     else:
       shutil.copy2(src, dst, follow_symlinks=False)
@@ -148,6 +168,11 @@ def main():
       default=('cobalt/testing/browser_tests/tools/'
                'platform-tools_r33.0.1-linux.zip'),
       help='The zip file to incorporate into the tarball.')
+  parser.add_argument(
+      '--toolchain-only',
+      action='store_true',
+      help='Package only the shared Android host toolchain and build_vars.json.'
+  )
   args = parser.parse_args()
 
   if args.output_dir:
@@ -159,6 +184,7 @@ def main():
 
   target_map = {}
   copied_sources = set()
+  has_valid_build_dir = False
 
   with tempfile.TemporaryDirectory() as stage_dir:
     src_stage = os.path.join(stage_dir, 'src')
@@ -169,12 +195,16 @@ def main():
       if not os.path.isdir(build_dir):
         logging.warning('Build directory %s not found. Skipping.', build_dir)
         continue
+      rel_build_dir = os.path.relpath(build_dir)
+      if not rel_build_dir.startswith('..'):
+        build_dir = rel_build_dir
 
       is_android = any(
           platform_token in os.path.basename(build_dir).lower()
           for platform_token in ('android', 'aosp'))
-      runtime_deps_path = find_runtime_deps(build_dir)
-      if not runtime_deps_path:
+      runtime_deps_path = (None if args.toolchain_only else
+                           find_runtime_deps(build_dir))
+      if not args.toolchain_only and not runtime_deps_path:
         logging.warning('Could not find runtime_deps in %s. Skipping.',
                         build_dir)
         continue
@@ -184,6 +214,19 @@ def main():
         copy_if_needed(adb_platform_tools,
                        os.path.join(stage_dir, 'tools/platform-tools.zip'),
                        copied_sources)
+
+      if args.toolchain_only:
+        staged_build_dir = os.path.join(
+            src_stage,
+            os.path.join('out', os.path.basename(build_dir))
+            if os.path.isabs(build_dir) else build_dir)
+        os.makedirs(staged_build_dir, exist_ok=True)
+        if is_android:
+          copy_if_needed(
+              os.path.join(build_dir, 'build_vars.json'),
+              os.path.join(staged_build_dir, 'build_vars.json'), copied_sources)
+        has_valid_build_dir = True
+        continue
 
       test_runner_rel = get_test_runner(build_dir)
       logging.info('Processing build directory: %s', build_dir)
@@ -243,7 +286,7 @@ def main():
       copy_if_needed(test_runner_full,
                      os.path.join(src_stage, test_runner_full), copied_sources)
 
-    if not target_map:
+    if not target_map and not has_valid_build_dir:
       logging.error('No valid build directories processed.')
       sys.exit(1)
 
@@ -255,15 +298,24 @@ def main():
     # Add essential directories manually (shared across all targets)
     essential_dirs = [
         'build/android', 'build/util', 'build/skia_gold_common', 'testing',
-        'third_party/android_build_tools', 'third_party/catapult/common',
+        'third_party/catapult/common',
         'third_party/catapult/dependency_manager', 'third_party/catapult/devil',
         'third_party/catapult/third_party', 'third_party/logdog',
         'third_party/android_sdk/public/platform-tools',
         'third_party/android_sdk/public/build-tools',
-        'third_party/android_platform/development/scripts', 'tools/python',
-        'third_party/llvm-build/Release+Asserts/bin/llvm-symbolizer',
-        'third_party/llvm-build/Release+Asserts/bin/llvm-objdump'
+        'third_party/android_platform/development/scripts', 'tools/python'
     ]
+    if args.toolchain_only:
+      essential_dirs.extend([
+          'third_party/android_build_tools/bundletool',
+          'third_party/android_build_tools/aapt2',
+      ])
+    else:
+      essential_dirs.extend([
+          'third_party/android_build_tools',
+          'third_party/llvm-build/Release+Asserts/bin/llvm-symbolizer',
+          'third_party/llvm-build/Release+Asserts/bin/llvm-objdump',
+      ])
     for d in essential_dirs:
       copy_if_needed(d, os.path.join(src_stage, d), copied_sources)
 
@@ -272,14 +324,21 @@ def main():
     for f in Path('build').glob('*.py'):
       copy_if_needed(
           str(f), os.path.join(src_stage, 'build', f.name), copied_sources)
+    copy_if_needed('build/config/gclient_args.gni',
+                   os.path.join(src_stage, 'build/config/gclient_args.gni'),
+                   copied_sources)
 
     # Add depot_tools
+    staged_dt = None
     vpython_path = shutil.which('vpython3')
     if vpython_path:
       depot_tools_src = os.path.dirname(vpython_path)
       logging.info('Bundling depot_tools from %s', depot_tools_src)
-      copy_if_needed(depot_tools_src, os.path.join(stage_dir, 'depot_tools'),
-                     copied_sources)
+      staged_dt = os.path.join(stage_dir, 'depot_tools')
+      copy_if_needed(depot_tools_src, staged_dt, copied_sources)
+
+    if args.toolchain_only:
+      prune_toolchain_stage(src_stage, staged_dt)
 
     # Add .vpython3 files
     copy_if_needed('.vpython3', os.path.join(src_stage, '.vpython3'),
@@ -287,8 +346,8 @@ def main():
     copy_if_needed('v8/.vpython3', os.path.join(src_stage, 'v8', '.vpython3'),
                    copied_sources)
 
-    # Generate runner
-    generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
+    if not args.toolchain_only:
+      generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
 
     logging.info('Creating tarball: %s', args.output)
     if args.compression == 'gz':
