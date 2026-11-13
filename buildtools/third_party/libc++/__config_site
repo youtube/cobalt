@@ -26,12 +26,10 @@
 #define _LIBCPP_HAS_MONOTONIC_CLOCK 1
 #define _LIBCPP_HAS_TERMINAL 1
 
-#if !defined(_LIBCPP_HAS_MUSL_LIBC)
 #ifdef ANDROID_HOST_MUSL
 #define _LIBCPP_HAS_MUSL_LIBC 1
 #else
 #define _LIBCPP_HAS_MUSL_LIBC 0
-#endif
 #endif
 
 #ifdef _WIN32

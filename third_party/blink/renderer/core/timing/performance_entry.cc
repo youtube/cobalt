@@ -148,11 +148,6 @@ PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
   if (entry_type == performance_entry_names::kScroll) {
     return kScroll;
   }
-#if BUILDFLAG(IS_COBALT)
-  if (entry_type == performance_entry_names::kCobaltFrame) {
-    return kCobaltFrame;
-  }
-#endif
   return kInvalid;
 }
 

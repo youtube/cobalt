@@ -78,9 +78,7 @@
 #include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/blob_storage/file_backed_blob_factory_frame_impl.h"
-#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
-#endif
 #include "content/browser/broadcast_channel/broadcast_channel_provider.h"
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/browser_main_loop.h"
@@ -90,19 +88,15 @@
 #include "content/browser/code_cache/generated_code_cache_context.h"
 #include "content/browser/data_url_loader_factory.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/digital_credentials/digital_identity_request_impl.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/dom_storage/dom_storage_context_wrapper.h"
 #include "content/browser/download/data_url_blob_reader.h"
 #include "content/browser/feature_observer.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-#include "content/browser/fenced_frame/automatic_beacon_info.h"   // nogncheck
-#include "content/browser/fenced_frame/fenced_document_data.h"     // nogncheck
-#include "content/browser/fenced_frame/fenced_frame.h"            // nogncheck
-#include "content/browser/fenced_frame/fenced_frame_reporter.h"   // nogncheck
-#include "content/browser/fenced_frame/fenced_frame_url_mapping.h" // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "content/browser/fenced_frame/automatic_beacon_info.h"
+#include "content/browser/fenced_frame/fenced_document_data.h"
+#include "content/browser/fenced_frame/fenced_frame.h"
+#include "content/browser/fenced_frame/fenced_frame_reporter.h"
+#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
 #include "content/browser/file_system/file_system_manager_impl.h"
 #include "content/browser/file_system/file_system_url_loader_factory.h"
 #include "content/browser/file_system_access/file_system_access_manager_impl.h"
@@ -112,9 +106,7 @@
 #include "content/browser/guest_page_holder_impl.h"
 #include "content/browser/idle/idle_manager_impl.h"
 #include "content/browser/installedapp/installed_app_provider_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/interest_group/ad_auction_document_data.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/loader/file_url_loader_factory.h"
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -173,9 +165,7 @@
 #include "content/browser/sandboxed_opaque_origin_creator.h"
 #include "content/browser/scoped_active_url.h"
 #include "content/browser/security/coop/cross_origin_opener_policy_reporter.h"
-#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/serial/serial_service.h"
-#endif
 #include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/site_info.h"
 #include "content/browser/sms/webotp_service.h"
@@ -183,17 +173,13 @@
 #include "content/browser/storage_access/storage_access_handle.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/browser/url_loader_factory_params_helper.h"
-#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/usb/web_usb_service_impl.h"
-#endif
 #include "content/browser/web_exposed_isolation_info.h"
 #include "content/browser/web_package/prefetched_signed_exchange_cache.h"
 #include "content/browser/webauth/authenticator_impl.h"
 #include "content/browser/webauth/webauth_request_security_checker.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/webid/flags.h"
 #include "content/browser/webid/request_service.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/websockets/websocket_connector_impl.h"
 #include "content/browser/webtransport/web_transport_connector_impl.h"
 #include "content/browser/webui/url_data_manager_backend.h"
@@ -360,9 +346,7 @@
 #include "content/public/browser/android/java_interfaces.h"
 #include "content/public/browser/authenticator_request_client_delegate.h"
 #else
-#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/hid/hid_service.h"
-#endif
 #include "content/browser/host_zoom_map_impl.h"
 #endif
 
@@ -693,7 +677,6 @@ DetermineWhetherToForbidTrustTokenOperation(
   std::unique_ptr<network::PermissionsPolicy> subframe_policy;
   // TODO(crbug.com/40263106): Add WPT to test how TrustTokens behave in
   // a FencedFrame's subframe.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (frame->IsFencedFrameRoot()) {
     const std::optional<FencedFrameProperties>& fenced_frame_properties =
         frame->frame_tree_node()->GetFencedFrameProperties();
@@ -763,9 +746,6 @@ DetermineWhetherToForbidTrustTokenOperation(
       return network::mojom::TrustTokenOperationPolicyVerdict::kForbid;
   }
   return network::mojom::TrustTokenOperationPolicyVerdict::kForbid;
-#else
-  return network::mojom::TrustTokenOperationPolicyVerdict::kForbid;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 // When a frame creates its initial subresource loaders, it needs to know
@@ -1110,7 +1090,6 @@ bool CoopSuppressOpener(const RenderFrameHostImpl* opener) {
   }
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void RecordAutomaticBeaconOutcome(const blink::AutomaticBeaconOutcome outcome) {
   base::UmaHistogramEnumeration(blink::kAutomaticBeaconOutcomeHistogram,
                                 outcome);
@@ -1122,7 +1101,6 @@ void RecordAutomaticBeaconOutcome(const blink::AutomaticBeaconOutcome outcome) {
 // `is_same_origin` is set to false (i.e. the frame initiating an automatic
 // beacon is cross-origin to the mapped URL of the root frame's fenced frame
 // config), the data must be marked as cross-origin exposed.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 FencedDocumentData* GetFencedDocumentData(
     RenderFrameHostImpl* rfh,
     blink::mojom::AutomaticBeaconType event_type,
@@ -1156,7 +1134,6 @@ FencedDocumentData* GetFencedDocumentData(
   }
   return nullptr;
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 bool FencedFrameAutomaticBeaconsAllowed(RenderFrameHostImpl* rfh) {
   if (!rfh->GetLastResponseHead() || !rfh->GetLastResponseHead()->headers) {
@@ -1169,7 +1146,6 @@ bool FencedFrameAutomaticBeaconsAllowed(RenderFrameHostImpl* rfh) {
 
   return allow && base::EqualsCaseInsensitiveASCII(*allow, "true");
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 // Check if the document is loaded without URLLoaderClient.
 bool IsDocumentLoadedWithoutUrlLoaderClient(
@@ -9864,19 +9840,12 @@ void RenderFrameHostImpl::DidChangeIframeAttributes(
     return;
   }
 
-  if (attributes->browsing_topics) {
-#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_150
-    const bool topics_disabled = true;
-#else
-    const bool topics_disabled =
-        !base::FeatureList::IsEnabled(network::features::kBrowsingTopics);
-#endif  // !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) || !CHROMIUM_MILESTONE_LE_150
-    if (topics_disabled) {
-      bad_message::ReceivedBadMessage(
-          GetProcess(),
-          bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
-      return;
-    }
+  if (attributes->browsing_topics &&
+      !base::FeatureList::IsEnabled(network::features::kBrowsingTopics)) {
+    bad_message::ReceivedBadMessage(
+        GetProcess(),
+        bad_message::RFH_RECEIVED_INVALID_BROWSING_TOPICS_ATTRIBUTE);
+    return;
   }
 
   if (attributes->shared_storage_writable_opted_in &&
@@ -10575,7 +10544,6 @@ void RenderFrameHostImpl::SendLegacyTechEvent(
 
 void RenderFrameHostImpl::SendPrivateAggregationRequestsForFencedFrameEvent(
     const std::string& event_type) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!base::FeatureList::IsEnabled(blink::features::kPrivateAggregationApi) ||
       !blink::features::kPrivateAggregationApiEnabledInProtectedAudience
            .Get()) {
@@ -10624,23 +10592,17 @@ void RenderFrameHostImpl::SendPrivateAggregationRequestsForFencedFrameEvent(
 
   fenced_frame_properties->fenced_frame_reporter()
       ->SendPrivateAggregationRequestsForEvent(event_type);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 std::vector<FencedFrame*> RenderFrameHostImpl::GetFencedFrames() const {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::vector<FencedFrame*> result;
   for (const std::unique_ptr<FencedFrame>& fenced_frame : fenced_frames_) {
     result.push_back(fenced_frame.get());
   }
   return result;
-#else
-  return {};
-#endif
 }
 
 void RenderFrameHostImpl::DestroyFencedFrame(FencedFrame& fenced_frame) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   auto it = std::ranges::find_if(fenced_frames_,
                                  base::MatchesUniquePtr(&fenced_frame));
   CHECK(it != fenced_frames_.end());
@@ -10650,7 +10612,6 @@ void RenderFrameHostImpl::DestroyFencedFrame(FencedFrame& fenced_frame) {
       inner_root->frame_tree_node()->GetFencedFrameProperties(
           FencedFramePropertiesNodeSource::kFrameTreeRoot);
   fenced_frames_.erase(it);
-#endif
 }
 
 void RenderFrameHostImpl::TakeGuestOwnership(
@@ -10685,7 +10646,6 @@ void RenderFrameHostImpl::CreateFencedFrame(
     blink::mojom::RemoteFrameInterfacesFromRendererPtr remote_frame_interfaces,
     const blink::RemoteFrameToken& frame_token,
     const base::UnguessableToken& devtools_frame_token) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // We should defer fenced frame creation during prerendering, so creation at
   // this point is an error.
   if (GetLifecycleState() == RenderFrameHost::LifecycleState::kPrerendering) {
@@ -10746,10 +10706,6 @@ void RenderFrameHostImpl::CreateFencedFrame(
   // Fenced frames (after their first navigation) do not have opaque origins,
   // and this default-constructed FRS does not impact that.
   CHECK(initial_replicated_state.origin.opaque());
-#else
-  bad_message::ReceivedBadMessage(
-      GetProcess(), bad_message::RFH_FENCED_FRAME_MOJO_WHEN_DISABLED);
-#endif
 }
 
 // TODO(crbug.com/40250533): Move SendFencedFrameReportingBeacon into a separate
@@ -10759,7 +10715,6 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeacon(
     const std::string& event_type,
     const std::vector<blink::FencedFrame::ReportingDestination>& destinations,
     bool cross_origin_exposed) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!IsFencedFrameReportingFromRendererAllowed(cross_origin_exposed)) {
     return;
   }
@@ -10783,7 +10738,6 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeacon(
         DestinationEnumEvent(event_type, event_data, cross_origin_exposed),
         destination);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 // TODO(crbug.com/40250533): Move SendFencedFrameReportingBeaconToCustomURL into
@@ -10791,7 +10745,6 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeacon(
 void RenderFrameHostImpl::SendFencedFrameReportingBeaconToCustomURL(
     const GURL& destination_url,
     bool cross_origin_exposed) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!destination_url.is_valid() ||
       !destination_url.SchemeIs(url::kHttpsScheme)) {
     mojo::ReportBadMessage(
@@ -10807,13 +10760,11 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeaconToCustomURL(
   SendFencedFrameReportingBeaconInternal(
       DestinationURLEvent(destination_url, cross_origin_exposed),
       blink::FencedFrame::ReportingDestination::kBuyer);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::MaybeSendFencedFrameAutomaticReportingBeacon(
     NavigationRequest& navigation_request,
     blink::mojom::AutomaticBeaconType event_type) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!blink::features::IsFencedFramesEnabled()) {
     return;
   }
@@ -10920,10 +10871,8 @@ void RenderFrameHostImpl::MaybeSendFencedFrameAutomaticReportingBeacon(
   if (fenced_document_data) {
     fenced_document_data->MaybeResetAutomaticBeaconData(event_type);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 bool RenderFrameHostImpl::IsFencedFrameReportingFromRendererAllowed(
     bool cross_origin_exposed) {
   if (!blink::features::IsFencedFramesEnabled()) {
@@ -11021,7 +10970,6 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeaconInternal(
     AddMessageToConsole(console_message_level, error_message);
   }
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void RenderFrameHostImpl::SetFencedFrameAutomaticBeaconReportEventData(
     blink::mojom::AutomaticBeaconType event_type,
@@ -11029,7 +10977,6 @@ void RenderFrameHostImpl::SetFencedFrameAutomaticBeaconReportEventData(
     const std::vector<blink::FencedFrame::ReportingDestination>& destinations,
     bool once,
     bool cross_origin_exposed) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!blink::features::IsFencedFramesEnabled()) {
     mojo::ReportBadMessage(
         "SetFencedFrameAutomaticBeaconReportEventData() received while "
@@ -11109,7 +11056,6 @@ void RenderFrameHostImpl::SetFencedFrameAutomaticBeaconReportEventData(
 
   base::UmaHistogramEnumeration(blink::kAutomaticBeaconEventTypeHistogram,
                                 event_type);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 RenderFrameHostImpl* RenderFrameHostImpl::GetBeforeUnloadInitiator() {
@@ -12465,18 +12411,8 @@ void RenderFrameHostImpl::StartPendingDeletionOnSubtree(
       // unload handler if necessary. So delegate sending IPC on the topmost
       // ancestor using the same process.
       RenderFrameHostImpl* local_ancestor = child;
-#if BUILDFLAG(IS_COBALT)
-      // Stop the traversal at `this` so the ancestor is chosen strictly from
-      // within the subtree being deleted. If `this` were selected as the
-      // local ancestor, `this->DeleteRenderFrame()` would be a no-op because
-      // `this` is already pending deletion, leaving `child` waiting for an
-      // unload ACK that is never requested and hanging navigation.
-      for (auto* rfh = child->parent_.get(); rfh && rfh != this;
-           rfh = rfh->parent_) {
-#else
       for (auto* rfh = child->parent_.get(); rfh != parent_;
            rfh = rfh->parent_) {
-#endif
         if (rfh->GetSiteInstance()->group() ==
             child->GetSiteInstance()->group()) {
           local_ancestor = rfh;
@@ -14396,7 +14332,6 @@ void RenderFrameHostImpl::CreateSecurePaymentConfirmationService(
   }
 }
 
-#if !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::CreateWebUsbService(
     mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) {
   if (!base::FeatureList::IsEnabled(features::kWebUsb)) {
@@ -14417,11 +14352,9 @@ void RenderFrameHostImpl::CreateWebUsbService(
                 BackForwardCacheDisable::DisabledReasonId::kWebUSB));
   WebUsbServiceImpl::Create(*this, std::move(receiver));
 }
-#endif
 
 void RenderFrameHostImpl::ResetPermissionsPolicy(
     const network::ParsedPermissionsPolicy& header_policy) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (IsFencedFrameRoot()) {
     const std::optional<FencedFrameProperties>& fenced_frame_properties =
         frame_tree_node()->GetFencedFrameProperties();
@@ -14458,7 +14391,6 @@ void RenderFrameHostImpl::ResetPermissionsPolicy(
     }
     return;
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   if (IsOutermostMainFrame() && GetSiteInstance()
                                     ->GetWebExposedIsolationInfo()
@@ -14820,16 +14752,13 @@ void RenderFrameHostImpl::CreateDedicatedWorkerHostFactory(
       std::move(receiver));
 }
 
-#if (BUILDFLAG(IS_ANDROID) ||                           \
-     (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))) && \
-    !BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
 void RenderFrameHostImpl::BindNFCReceiver(
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
   delegate_->GetNFC(this, std::move(receiver));
 }
 #endif
 
-#if !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindSerialService(
     mojo::PendingReceiver<blink::mojom::SerialService> receiver) {
   if (!IsFeatureEnabled(network::mojom::PermissionsPolicyFeature::kSerial)) {
@@ -14857,14 +14786,13 @@ void RenderFrameHostImpl::BindSerialService(
 
   SerialService::GetOrCreateForCurrentDocument(this)->Bind(std::move(receiver));
 }
-#endif
 
 void RenderFrameHostImpl::BindModelContextHost(
     mojo::PendingReceiver<blink::mojom::ModelContextHost> receiver) {
   ModelContextUserData::Bind(this, std::move(receiver));
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   HidService::Create(this, std::move(receiver));
@@ -14968,18 +14896,14 @@ void RenderFrameHostImpl::BindWebOTPServiceReceiver(
 
 void RenderFrameHostImpl::BindDigitalIdentityRequestReceiver(
     mojo::PendingReceiver<blink::mojom::DigitalIdentityRequest> receiver) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   DigitalIdentityRequestImpl::CreateInstance(*this, std::move(receiver));
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::BindFederatedAuthRequestReceiver(
     mojo::PendingReceiver<blink::mojom::FederatedAuthRequest> receiver) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   webid::RequestService* service =
       webid::RequestService::GetOrCreateForCurrentDocument(this);
   service->BindReceiver(std::move(receiver));
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::BindRestrictedCookieManager(
@@ -16271,7 +16195,6 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
     document_associated_data_->set_keep_alive_url_loader_factory_context(
         navigation_request->keep_alive_url_loader_factory_context());
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     const std::optional<FencedFrameProperties>& fenced_frame_properties =
         navigation_request->ComputeFencedFrameProperties();
     // On navigations of fenced frame/urn iframe roots initiated within the
@@ -16294,7 +16217,6 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                 ->GetValueIgnoringVisibility());
       }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
       if (fenced_frame_properties->ad_auction_data().has_value()) {
         AdAuctionDocumentData::CreateForCurrentDocument(
             this,
@@ -16305,9 +16227,7 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                 ->GetValueIgnoringVisibility()
                 .interest_group_name);
       }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
     // Continue observing the events for the committed navigation.
     // This is intended to receive delayed IPC calls. If `navigation_request`
@@ -16496,12 +16416,10 @@ void RenderFrameHostImpl::DidCommitNewDocument(
   // a new document.)
   // This must be done before `ResetPermissionsPolicy()` below, which looks up
   // the stored fenced frame properties.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (navigation_request->GetFencedFrameProperties()) {
     frame_tree_node()->set_fenced_frame_properties(
         navigation_request->GetFencedFrameProperties());
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   ResetPermissionsPolicy(params.permissions_policy_header);
 

@@ -64,7 +64,6 @@ jclass FindClassHook(JNIEnv* env, const char* class_name) {
   return g_previous_functions->FindClass(env, class_name);
 }
 #endif  // !BUILDFLAG(IS_ROBOLECTRIC)
-
 }  // namespace
 
 LogFatalCallback g_log_fatal_callback_for_testing = nullptr;

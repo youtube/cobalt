@@ -46,7 +46,7 @@
 #include "wow64apiset.h"
 #endif
 
-#if (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+#if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
 #include <pthread.h>
 #endif  // PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
 
@@ -274,7 +274,7 @@ void PartitionAllocMallocInitOnce() {
     return;
   }
 
-#if (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+#if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
   // When fork() is called, only the current thread continues to execute in the
   // child process. If the lock is held, but *not* by this thread when fork() is
   // called, we have a deadlock.
@@ -299,7 +299,7 @@ void PartitionAllocMallocInitOnce() {
   int err =
       pthread_atfork(BeforeForkInParent, AfterForkInParent, AfterForkInChild);
   PA_CHECK(err == 0);
-#endif  // (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+#endif  // PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
 }
 
 }  // namespace
@@ -1035,10 +1035,6 @@ void PartitionRoot::Init(PartitionOptions opts) {
     scheduler_loop_quarantine_for_advanced_memory_safety_checks_.Configure(
         scheduler_loop_quarantine_root_,
         opts.scheduler_loop_quarantine_for_advanced_memory_safety_checks_config);
-#if BUILDFLAG(IS_COBALT)
-    settings_.scheduler_loop_quarantine_global_config =
-        opts.scheduler_loop_quarantine_global_config;
-#endif  // BUILDFLAG(IS_COBALT)
     settings_.scheduler_loop_quarantine_thread_local_config =
         opts.scheduler_loop_quarantine_thread_local_config;
 

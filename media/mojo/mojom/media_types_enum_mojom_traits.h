@@ -392,10 +392,6 @@ struct EnumTraits<media::mojom::RendererType, ::media::RendererType> {
         return media::mojom::RendererType::kContentEmbedderDefined;
       case ::media::RendererType::kTest:
         return media::mojom::RendererType::kTest;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      case ::media::RendererType::kStarboard:
-        return media::mojom::RendererType::kStarboard;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
     NOTREACHED();
@@ -425,10 +421,6 @@ struct EnumTraits<media::mojom::RendererType, ::media::RendererType> {
         return ::media::RendererType::kContentEmbedderDefined;
       case media::mojom::RendererType::kTest:
         return ::media::RendererType::kTest;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      case media::mojom::RendererType::kStarboard:
-        return ::media::RendererType::kStarboard;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
     NOTREACHED();
@@ -453,10 +445,6 @@ struct EnumTraits<media::mojom::DemuxerType, ::media::DemuxerType> {
         return media::mojom::DemuxerType::kStreamProviderDemuxer;
       case ::media::DemuxerType::kManifestDemuxer:
         return media::mojom::DemuxerType::kManifestDemuxer;
-#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-      case ::media::DemuxerType::kUrlPlayerDemuxer:
-        return media::mojom::DemuxerType::kUrlPlayerDemuxer;
-#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
     NOTREACHED();
@@ -480,10 +468,6 @@ struct EnumTraits<media::mojom::DemuxerType, ::media::DemuxerType> {
         return ::media::DemuxerType::kStreamProviderDemuxer;
       case media::mojom::DemuxerType::kManifestDemuxer:
         return ::media::DemuxerType::kManifestDemuxer;
-#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-      case media::mojom::DemuxerType::kUrlPlayerDemuxer:
-        return ::media::DemuxerType::kUrlPlayerDemuxer;
-#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
     NOTREACHED();
