@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 
+#include "build/build_config.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
@@ -11,12 +12,21 @@
 #include "third_party/blink/renderer/platform/scheduler/public/main_thread_scheduler.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/platform/fonts/font_global_context.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
+#endif
+
 namespace blink::test {
 
 TaskEnvironment::~TaskEnvironment() {
   // Run a full GC before resetting the main thread overrider. This ensures that
   // we can properly clean up objects like PerformanceMonitor that need to call
   // MainThreadImpl::RemoveTaskTimeObserver().
+#if BUILDFLAG(IS_COBALT)
+  SharedGpuContext::Reset();
+  FontGlobalContext::ClearMemory();
+#endif
   ThreadState::Current()->CollectAllGarbageForTesting();
   RunUntilIdle();
 
