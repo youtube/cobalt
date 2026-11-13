@@ -57,11 +57,14 @@ void DummySessionClosedFunc(SbDrmSystem drm_system,
                             const void* session_id,
                             int session_id_size) {}
 
-SbDrmSystem CreateDummyDrmSystem(const char* key_system) {
+SbDrmSystem CreateDummyDrmSystem(
+    const char* key_system,
+    void* context,
+    SbDrmSessionUpdateRequestFunc update_request_callback) {
   return SbDrmCreateSystem(
-      key_system, NULL /* context */, DummySessionUpdateRequestFunc,
-      DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
-      DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
+      key_system, context, update_request_callback, DummySessionUpdatedFunc,
+      DummySessionKeyStatusesChangedFunc, DummyServerCertificateUpdatedFunc,
+      DummySessionClosedFunc);
 }
 
 }  // namespace starboard
