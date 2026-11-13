@@ -94,6 +94,15 @@ TEST_F(ParseVideoCodecTest, LongFormAv1) {
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdBt2020NonconstantLuminance);
 }
 
+TEST_F(ParseVideoCodecTest, LongFormAv1Bt470BgPrimaries) {
+  ASSERT_TRUE(Parse("av01.0.08M.08.0.110.05.01.06.0"));
+  EXPECT_EQ(codec_, kSbMediaVideoCodecAv1);
+  EXPECT_EQ(bit_depth_, 8);
+  EXPECT_EQ(color_primary_id_, kSbMediaPrimaryIdBt470Bg);
+  EXPECT_EQ(transfer_id_, kSbMediaTransferIdBt709);
+  EXPECT_EQ(matrix_id_, kSbMediaMatrixIdSmpte170M);
+}
+
 TEST_F(ParseVideoCodecTest, InvalidAv1) {
   EXPECT_FALSE(Parse("av01.0.04M.10.0.110.9.16.9.0"));
   EXPECT_FALSE(Parse("av01.0.04M.10.0.110.09.16.09"));
