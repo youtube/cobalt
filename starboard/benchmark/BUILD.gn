@@ -120,8 +120,6 @@ test("media_benchmarks") {
     "media/audio_sink/audio_sink_benchmark_helper.cc",
     "media/audio_sink/audio_sink_benchmark_helper.h",
     "media/audio_sink/audio_sink_create_benchmark.cc",
-    "media/audio_sink/audio_sink_get_max_channels_benchmark.cc",
-    "media/audio_sink/audio_sink_get_nearest_supported_sample_frequency_benchmark.cc",
   ]
 
   deps = cobalt_platform_dependencies + [

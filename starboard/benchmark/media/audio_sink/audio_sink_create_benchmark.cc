@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <chrono>
-
 #include "starboard/audio_sink.h"
 #include "starboard/benchmark/media/audio_sink/audio_sink_benchmark_helper.h"
 #include "starboard/media.h"
@@ -21,6 +19,58 @@
 
 namespace starboard {
 namespace {
+
+// Measures the first SbAudioSinkCreate() call in the process, which can be
+// slower than later ones (e.g. due to lazy platform initialization). This
+// mirrors the Cobalt.Media.LatencyTiming.SbAudioSinkCreate UMA, which records
+// the first call separately from later ones (...SbAudioSinkCreate.Subsequent).
+// BM_AudioSinkCreate below measures later calls.
+//
+// Only one sample can be taken per process, so run the benchmark binary
+// repeatedly for more samples.
+void BM_AudioSinkCreateFirstCall(::benchmark::State& state) {
+  if (HasCreatedAudioSink()) {
+    state.SkipWithMessage(
+        "An SbAudioSink was already created in this process; run with "
+        "--benchmark_filter=BM_AudioSinkCreateFirstCall");
+    return;
+  }
+
+  // Stereo is what WebAudio creates through CobaltAudioRendererSink.
+  const AudioSinkBenchmarkConfig config{/*channels=*/2,
+                                        kSbMediaAudioSampleTypeFloat32,
+                                        /*sampling_frequency_hz=*/48'000};
+  AudioSinkConfigSupport support = GetAudioSinkConfigSupport(config);
+  if (support != AudioSinkConfigSupport::kSupported) {
+    state.SkipWithMessage(ToString(support));
+    return;
+  }
+
+  AudioSinkBenchmarkFrameBuffers frame_buffers(config);
+
+  for (auto _ : state) {
+    double elapsed_seconds = 0;
+    SbAudioSink audio_sink =
+        TimedAudioSinkCreate(config, frame_buffers, &elapsed_seconds);
+
+    if (!SbAudioSinkIsValid(audio_sink)) {
+      state.SkipWithError("SbAudioSinkCreate failed");
+      break;
+    }
+
+    state.SetIterationTime(elapsed_seconds);
+
+    // Not timed. SbAudioSinkDestroy() joins the sink's audio thread, which can
+    // cost more than the creation measured above.
+    SbAudioSinkDestroy(audio_sink);
+  }
+}
+// Registered before the other benchmarks in this file so that, without a
+// filter, it runs before they create any sink.
+BENCHMARK(BM_AudioSinkCreateFirstCall)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMicrosecond)
+    ->Iterations(1);
 
 void BM_AudioSinkCreate(::benchmark::State& state,
                         AudioSinkBenchmarkConfig config) {
@@ -33,25 +83,16 @@ void BM_AudioSinkCreate(::benchmark::State& state,
   AudioSinkBenchmarkFrameBuffers frame_buffers(config);
 
   for (auto _ : state) {
-    auto start_time = std::chrono::steady_clock::now();
-
-    SbAudioSink audio_sink = SbAudioSinkCreate(
-        config.channels, config.sampling_frequency_hz, config.sample_type,
-        kSbMediaAudioFrameStorageTypeInterleaved, frame_buffers.frame_buffers(),
-        frame_buffers.frames_per_channel(),
-        AudioSinkBenchmarkUpdateSourceStatusFunc,
-        AudioSinkBenchmarkConsumeFramesFunc, /*context=*/nullptr);
-
-    auto end_time = std::chrono::steady_clock::now();
+    double elapsed_seconds = 0;
+    SbAudioSink audio_sink =
+        TimedAudioSinkCreate(config, frame_buffers, &elapsed_seconds);
 
     if (!SbAudioSinkIsValid(audio_sink)) {
       state.SkipWithError("SbAudioSinkCreate failed");
       break;
     }
 
-    auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
-        end_time - start_time);
-    state.SetIterationTime(elapsed.count());
+    state.SetIterationTime(elapsed_seconds);
 
     // Not timed. SbAudioSinkDestroy() joins the sink's audio thread, which can
     // cost more than the creation measured above.

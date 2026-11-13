@@ -14,12 +14,18 @@
 
 #include "starboard/benchmark/media/audio_sink/audio_sink_benchmark_helper.h"
 
+#include <chrono>
 #include <cstddef>
 
 #include "starboard/common/check_op.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
+
+namespace {
+// Set by TimedAudioSinkCreate(). Only accessed on the benchmark thread.
+bool g_audio_sink_created = false;
+}  // namespace
 
 AudioSinkConfigSupport GetAudioSinkConfigSupport(
     const AudioSinkBenchmarkConfig& config) {
@@ -87,5 +93,31 @@ void AudioSinkBenchmarkUpdateSourceStatusFunc(int* frames_in_buffer,
 }
 
 void AudioSinkBenchmarkConsumeFramesFunc(int frames_consumed, void* context) {}
+
+SbAudioSink TimedAudioSinkCreate(const AudioSinkBenchmarkConfig& config,
+                                 AudioSinkBenchmarkFrameBuffers& frame_buffers,
+                                 double* elapsed_seconds) {
+  SB_CHECK(elapsed_seconds);
+
+  auto start_time = std::chrono::steady_clock::now();
+
+  SbAudioSink audio_sink = SbAudioSinkCreate(
+      config.channels, config.sampling_frequency_hz, config.sample_type,
+      kSbMediaAudioFrameStorageTypeInterleaved, frame_buffers.frame_buffers(),
+      frame_buffers.frames_per_channel(),
+      AudioSinkBenchmarkUpdateSourceStatusFunc,
+      AudioSinkBenchmarkConsumeFramesFunc, /*context=*/nullptr);
+
+  auto end_time = std::chrono::steady_clock::now();
+
+  g_audio_sink_created = true;
+  std::chrono::duration<double> elapsed = end_time - start_time;
+  *elapsed_seconds = elapsed.count();
+  return audio_sink;
+}
+
+bool HasCreatedAudioSink() {
+  return g_audio_sink_created;
+}
 
 }  // namespace starboard

@@ -91,6 +91,21 @@ void AudioSinkBenchmarkUpdateSourceStatusFunc(int* frames_in_buffer,
                                               void* context);
 void AudioSinkBenchmarkConsumeFramesFunc(int frames_consumed, void* context);
 
+// Creates a sink for |config| with |frame_buffers|, interleaved frame storage
+// and the idle callbacks above, and stores the wall-clock duration of the
+// SbAudioSinkCreate() call alone in |elapsed_seconds|. Benchmarks that create
+// sinks should go through this function so that HasCreatedAudioSink() stays
+// accurate. Must be called on the benchmark thread.
+SbAudioSink TimedAudioSinkCreate(const AudioSinkBenchmarkConfig& config,
+                                 AudioSinkBenchmarkFrameBuffers& frame_buffers,
+                                 double* elapsed_seconds);
+
+// Whether TimedAudioSinkCreate() has been called in this process. The first
+// SbAudioSinkCreate() in a process can be slower than later ones (e.g. due to
+// lazy platform initialization), so it is benchmarked separately. Must be
+// called on the benchmark thread.
+bool HasCreatedAudioSink();
+
 }  // namespace starboard
 
 #endif  // STARBOARD_BENCHMARK_MEDIA_AUDIO_SINK_AUDIO_SINK_BENCHMARK_HELPER_H_
