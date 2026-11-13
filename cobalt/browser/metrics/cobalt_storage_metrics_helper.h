@@ -15,7 +15,10 @@
 #ifndef COBALT_BROWSER_METRICS_COBALT_STORAGE_METRICS_HELPER_H_
 #define COBALT_BROWSER_METRICS_COBALT_STORAGE_METRICS_HELPER_H_
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string_view>
 
 #include "base/files/file_path.h"
@@ -38,11 +41,58 @@ bool ParseProcIoCounters(std::string_view proc_io_contents,
 // false on platforms without /proc/self/io.
 bool ReadCurrentProcessIoCounters(ProcessIoCounters* out_counters);
 
+// The consumers that the cache directory (base::DIR_CACHE) is split into for
+// size accounting. Every file in the directory belongs to exactly one bucket.
+enum class CacheDirBucket {
+  // HTTP cache: <cache_dir>/Cache.
+  kHttpCache = 0,
+  // V8 JavaScript code cache: <cache_dir>/Code Cache/js.
+  kJsCodeCache,
+  // WebAssembly code cache: <cache_dir>/Code Cache/wasm.
+  kWasmCodeCache,
+  // <cache_dir>/Service Worker, which holds CacheStorage.
+  kServiceWorker,
+  // GPU shader disk caches: <cache_dir>/GrShaderCache and
+  // <cache_dir>/ShaderCache.
+  kGpuShaderCache,
+  // Everything else in the cache directory.
+  kOther,
+  kMaxValue = kOther,
+};
+
+inline constexpr size_t kCacheDirBucketCount =
+    static_cast<size_t>(CacheDirBucket::kMaxValue) + 1;
+
+// Returns the name of |bucket| as used in histogram names, e.g. "HttpCache" in
+// Cobalt.Storage.DirCache.HttpCache.StartupSizeKB.
+std::string_view GetCacheDirBucketName(CacheDirBucket bucket);
+
+// On-disk size of each bucket of the cache directory, in bytes.
+struct CacheDirBucketSizes {
+  int64_t& operator[](CacheDirBucket bucket) {
+    return bytes[static_cast<size_t>(bucket)];
+  }
+  int64_t operator[](CacheDirBucket bucket) const {
+    return bytes[static_cast<size_t>(bucket)];
+  }
+
+  // The size of the whole cache directory, which is the sum of all buckets.
+  int64_t TotalBytes() const;
+
+  std::array<int64_t, kCacheDirBucketCount> bytes = {};
+};
+
+// Walks |cache_dir| once and returns the size of each bucket. The total is the
+// same as base::ComputeDirectorySize(cache_dir).
+// Must be called on a task runner that allows blocking I/O.
+CacheDirBucketSizes ComputeCacheDirBucketSizes(const base::FilePath& cache_dir);
+
 // Emits startup process block I/O histograms first (from |io_counters| if
 // valid) and then computes and emits USER_DATA and DIR_CACHE footprint
-// histograms.
+// histograms, including one per CacheDirBucket. Returns the DIR_CACHE bucket
+// sizes that were recorded, or nullopt if |cache_dir| does not exist.
 // Must be called on a task runner that allows blocking I/O.
-void RecordStartupStorageAndIoMetricsForPaths(
+std::optional<CacheDirBucketSizes> RecordStartupStorageAndIoMetricsForPaths(
     const base::FilePath& user_data_dir,
     const base::FilePath& cache_dir,
     const ProcessIoCounters* io_counters);

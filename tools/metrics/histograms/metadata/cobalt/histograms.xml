@@ -990,6 +990,39 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.DirCache.{Bucket}.StartupSizeKB" units="KB"
+    expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the on-disk size in kilobytes of {Bucket} in Cobalt's evictable
+    cache directory (base::DIR_CACHE), 10 seconds after browser startup, on a
+    BEST_EFFORT background thread. Recorded once per browser process launch, in
+    the same directory walk as Cobalt.Storage.DirCache.StartupTotalSizeKB, on
+    every platform and regardless of any feature. Every file in the cache
+    directory is counted in exactly one bucket, so the byte counts of the
+    buckets add up to the total; each sample is rounded down to whole kilobytes
+    separately, so the sum of the six samples can be up to 5 KB below the total.
+    A bucket whose directory does not exist is recorded as 0; the Service Worker
+    directory is in the cache directory on Starboard only, so ServiceWorker is
+    always 0 on Android. Because the cache persists across launches, this mostly
+    reflects the size left by earlier sessions plus startup writes.
+  </summary>
+  <token key="Bucket">
+    <variant name="GpuShaderCache"
+        summary="the GPU shader disk caches (the GrShaderCache and
+                 ShaderCache directories)"/>
+    <variant name="HttpCache" summary="the HTTP cache (the Cache directory)"/>
+    <variant name="JsCodeCache"
+        summary="the V8 JavaScript code cache (the Code Cache/js directory)"/>
+    <variant name="Other"
+        summary="everything that is not in one of the other five buckets"/>
+    <variant name="ServiceWorker"
+        summary="the Service Worker directory, which holds CacheStorage"/>
+    <variant name="WasmCodeCache"
+        summary="the WebAssembly code cache (the Code Cache/wasm directory)"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Storage.Exit.CookieFlushDuration" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
