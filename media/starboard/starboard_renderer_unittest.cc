@@ -63,19 +63,16 @@ constexpr char kSbPlayerCreateHistogram[] =
     "Cobalt.Media.LatencyTiming.SbPlayerCreate";
 constexpr char kSbPlayerCreateToInitializedHistogram[] =
     "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
-// Prefix of all the SbPlayerDestroy histograms, which are split by the state of
-// the player when it is destroyed.
-constexpr char kSbPlayerDestroyHistogram[] =
+constexpr char kSbPlayerDestroyHistogramPrefix[] =
     "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
-constexpr char kSbPlayerDestroyBeforeInitializedHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.BeforeInitialized";
+constexpr char kSbPlayerDestroyBeforePrerollingHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.BeforePrerolling";
 
-// Returns the number of samples recorded in all the SbPlayerDestroy
-// histograms.
 size_t GetTotalDestroyCount(const base::HistogramTester& histogram_tester) {
   size_t count = 0;
   for (const auto& [name, histogram_count] :
-       histogram_tester.GetTotalCountsForPrefix(kSbPlayerDestroyHistogram)) {
+       histogram_tester.GetTotalCountsForPrefix(
+           kSbPlayerDestroyHistogramPrefix)) {
     count += histogram_count;
   }
   return count;
@@ -467,14 +464,18 @@ TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencyOnFailure) {
 
 TEST_F(StarboardRendererTest, RecordsSbPlayerDestroyLatency) {
   base::HistogramTester histogram_tester;
-  InitializeWithAudioAndVideo();
+  SbPlayer player = InitializeWithAudioAndVideo();
+  // |renderer_| finishes initializing once the player is initialized.
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
   EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 0u);
 
   renderer_.reset();
   task_environment_.RunUntilIdle();
-  // The player never reported kSbPlayerStateInitialized.
   EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 1u);
-  histogram_tester.ExpectTotalCount(kSbPlayerDestroyBeforeInitializedHistogram,
+  histogram_tester.ExpectTotalCount(kSbPlayerDestroyBeforePrerollingHistogram,
                                     1);
 }
 
