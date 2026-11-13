@@ -124,6 +124,10 @@ BASE_FEATURE_PARAM(int,
                    "CobaltGpuDiscardableCacheLimit_mb",
                    32);
 
+BASE_FEATURE(kCobaltPurgeSkiaCachesOnModeratePressure,
+             "CobaltPurgeSkiaCachesOnModeratePressure",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltV8MaxOldSpaceSize,
              "CobaltV8MaxOldSpaceSize",
              FEATURE_DISABLED_BY_DEFAULT);
