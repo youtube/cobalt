@@ -93,6 +93,7 @@ class ShellBrowserContext : public BrowserContext {
   bool ignore_certificate_errors_ = false;
   base::FilePath path_;
   std::unique_ptr<SimpleFactoryKey> key_;
+  std::unique_ptr<PermissionControllerDelegate> permission_manager_;
   raw_ptr<ClientHintsControllerDelegate> client_hints_controller_delegate_ =
       nullptr;
 };
