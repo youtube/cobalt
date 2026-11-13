@@ -2735,6 +2735,18 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     // number of samples in currently bound FBO and require to reset sample
     // coverage each time FBO changes.
     ANGLE_FEATURE_CONDITION(features, resetSampleCoverageOnFBOChange, isQualcomm);
+
+    // NVIDIA's Android EGL driver follows EGL_KHR_surfaceless_context strictly: if a native
+    // context is first made current without a surface, the default framebuffer's draw/read
+    // buffers start as GL_NONE and stay that way when a window surface is attached later.
+    // FramebufferGL::syncState() never syncs the default framebuffer, so draws to it are
+    // silently dropped (black screen). http://anglebug.com/42263498, http://b/576231761
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    ANGLE_FEATURE_CONDITION(features, resetDefaultFramebufferDrawBuffersAfterSurfaceless,
+                            IsAndroid() && isNvidia);
+#else
+    ANGLE_FEATURE_CONDITION(features, resetDefaultFramebufferDrawBuffersAfterSurfaceless, false);
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 }
 
 void InitializeFrontendFeatures(const FunctionsGL *functions, angle::FrontendFeatures *features)

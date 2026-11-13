@@ -42,6 +42,41 @@ TEST_F(GpuDriverBugListTest, CurrentListForImagination) {
       GpuControlList::kOsAndroid, "4.1", gpu_info);
   EXPECT_EQ(1u, bugs.count(USE_CLIENT_SIDE_ARRAYS_FOR_STREAM_BUFFERS));
 }
+
+// NVIDIA SHIELD (Tegra) must not use partial swaps on onscreen surfaces, both
+// with the native GLES driver and with ANGLE's GLES backend (32-bit SHIELD
+// builds always use ANGLE + the passthrough command decoder). b/576231761
+TEST_F(GpuDriverBugListTest, NvidiaShieldDisablesPostSubBuffers) {
+  std::unique_ptr<GpuDriverBugList> list = GpuDriverBugList::Create();
+
+  GPUInfo native_info;
+  native_info.gl_vendor = "NVIDIA Corporation";
+  native_info.gl_renderer = "NVIDIA Tegra X1 (nvgpu)/integrated";
+  native_info.gl_version = "OpenGL ES 3.2 NVIDIA 32.5.0";
+  std::set<int> bugs =
+      list->MakeDecision(GpuControlList::kOsAndroid, "11", native_info);
+  EXPECT_EQ(1u, bugs.count(DISABLE_POST_SUB_BUFFERS_FOR_ONSCREEN_SURFACES));
+
+  GPUInfo angle_info;
+  angle_info.gl_vendor = "Google Inc. (NVIDIA Corporation)";
+  angle_info.gl_renderer =
+      "ANGLE (NVIDIA Corporation, NVIDIA Tegra X1 (nvgpu)/integrated, "
+      "OpenGL ES 3.2 NVIDIA 32.5.0)";
+  angle_info.gl_version = "OpenGL ES 2.0.0 (ANGLE 2.1.0)";
+  bugs = list->MakeDecision(GpuControlList::kOsAndroid, "11", angle_info);
+  EXPECT_EQ(1u, bugs.count(DISABLE_POST_SUB_BUFFERS_FOR_ONSCREEN_SURFACES));
+}
+
+TEST_F(GpuDriverBugListTest, NonNvidiaAndroidKeepsPostSubBuffers) {
+  std::unique_ptr<GpuDriverBugList> list = GpuDriverBugList::Create();
+  GPUInfo gpu_info;
+  gpu_info.gl_vendor = "ARM";
+  gpu_info.gl_renderer = "Mali-G31";
+  gpu_info.gl_version = "OpenGL ES 3.2 v1.r20p0";
+  std::set<int> bugs =
+      list->MakeDecision(GpuControlList::kOsAndroid, "11", gpu_info);
+  EXPECT_EQ(0u, bugs.count(DISABLE_POST_SUB_BUFFERS_FOR_ONSCREEN_SURFACES));
+}
 #endif  // BUILDFLAG(IS_ANDROID)
 
 TEST_F(GpuDriverBugListTest, AppendSingleWorkaround) {
