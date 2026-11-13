@@ -258,6 +258,35 @@ BASE_DECLARE_FEATURE(kCobaltCodeCacheOptimization);
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltGeneratedCodeCacheSizeBytes);
 BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
 
+// Gives each cache that shares Starboard's cache directory its own quota in
+// bytes, and fits the quotas to the platform's budget for that directory
+// (kSbMaxSystemPathCacheDirectorySize). See AllocateCacheQuotas() in
+// cobalt/browser/cache_quota_allocator.h for the rules.
+//
+// The quotas are for the HTTP cache (default: 9437184 bytes / 9 MiB), the
+// JavaScript code cache (5242880 / 5 MiB), the WebAssembly code cache
+// (1048576 / 1 MiB), one origin's Service Worker scripts and CacheStorage
+// (6291456 / 6 MiB), the GPU shader cache (2097152 / 2 MiB) and everything
+// else in the directory (1048576 / 1 MiB). The defaults add up to 24 MiB, the
+// smallest budget a platform may have.
+//
+// `CobaltCacheQuotas_uncommitted_policy` chooses what happens when the quotas
+// do not add up to the budget: "http" (default) gives the difference to, or
+// takes it from, the HTTP cache; "scale" multiplies every quota by
+// budget / sum; "none" leaves the quotas as configured.
+//
+// Nothing reads these params yet, so enabling the feature has no effect.
+// Locally:
+// --enable-features=CobaltCacheQuotas:CobaltCacheQuotas_http_cache_size_bytes/4194304/CobaltCacheQuotas_js_code_cache_size_bytes/10485760
+BASE_DECLARE_FEATURE(kCobaltCacheQuotas);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltCacheQuotasHttpCacheSizeBytes);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltCacheQuotasJsCodeCacheSizeBytes);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltCacheQuotasWasmCodeCacheSizeBytes);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltCacheQuotasCacheStorageSizeBytes);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltCacheQuotasGpuShaderCacheSizeBytes);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltCacheQuotasOtherSizeBytes);
+BASE_DECLARE_FEATURE_PARAM(std::string, kCobaltCacheQuotasUncommittedPolicy);
+
 }  // namespace features
 }  // namespace cobalt
 
