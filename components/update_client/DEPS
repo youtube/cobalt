@@ -14,12 +14,8 @@ include_rules = [
 ]
 
 specific_include_rules = {
-<<<<<<< HEAD
-  "(test_configurator|.*_unittest\\.(cc|h))" : [
-=======
   # Allow the unit tests to depend on the network for testing purposes.
-  "(test_configurator|.*_unittest\.(cc|h))" : [
->>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  "(test_configurator|.*_unittest\\.(cc|h))" : [
     "+net",
     "+services/network/public/cpp",
     "+services/network/public/mojom",
