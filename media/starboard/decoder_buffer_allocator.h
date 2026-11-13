@@ -89,7 +89,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     // strategy's suspend configuration. Blocks in use are never affected.
     virtual void DecommitAllDecommitableBlocks(
         bool include_retained_blocks) = 0;
-    virtual void TryToDecommitOneBlock(int cadence) {}
+    virtual void TryToDecommitOneBlock() {}
   };
 
   using StrategyCreateCB =
