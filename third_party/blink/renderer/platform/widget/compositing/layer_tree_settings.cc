@@ -162,7 +162,14 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   actual.bytes_limit_when_visible = 0;
   actual.priority_cutoff_when_visible =
 #if BUILDFLAG(IS_COBALT)
-      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
+      // Only rasterize tiles required for the current draw when the Cobalt
+      // prepaint budget is 0. With a non-zero budget, prepaint (SOON-bin)
+      // tiles must be allowed too, otherwise the budget is never used.
+      (base::FeatureList::IsEnabled(
+           base::features::kCobaltMaxMemoryForPrepaint) &&
+       base::features::kCobaltMaxMemoryForPrepaintPercentage.Get() <= 0)
+          ? gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY
+          : gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
 #else
       gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
 #endif

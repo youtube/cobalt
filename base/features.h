@@ -95,7 +95,10 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // When enabled, gates the compositor's prepaint memory budget via Finch feature
 // and parameter. Applies to all Cobalt platforms (Android TV and 3P/Starboard).
 // The parameter is the percentage of the tile memory budget that may be spent
-// on prepaint (non-visible) tiles; 0 disables prepaint raster entirely.
+// on prepaint (non-visible) tiles; 0 disables prepaint raster entirely. A
+// non-zero value also lets prepaint tiles be scheduled (memory priority cutoff
+// NICE_TO_HAVE instead of REQUIRED_ONLY). Android TV and Starboard default 50;
+// see features.cc for the measured smoothness gain and memory cost.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMaxMemoryForPrepaint);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMaxMemoryForPrepaintPercentage);

@@ -183,10 +183,28 @@ BASE_FEATURE_PARAM(double,
                    "gpu_rasterization_skewport_target_time_in_seconds",
                    0.0);
 
-// Enabled by default so that all Cobalt platforms disable prepaint raster.
-// Setting the parameter to a non-zero percentage (e.g. 50 or 67) restores a
-// prepaint budget via Finch without requiring a binary change; disabling the
-// feature falls back to the upstream per-platform defaults.
+// Enabled by default so that the prepaint memory budget is controlled by
+// Cobalt (and Finch) instead of the upstream per-platform defaults. The
+// parameter is the percentage of the tile memory budget that may be spent on
+// prepaint (not yet visible) tiles; 0 disables prepaint raster entirely.
+// Disabling the feature falls back to the upstream per-platform defaults.
+//
+// Android TV and Starboard (Linux/3P) default: 50. Without prepaint, content
+// that scrolls into view (e.g. the next YouTube Home row during a row-to-row
+// slide) is rasterized just-in-time on the in-process GPU thread that also
+// draws and swaps frames, which drops frames. Measured on a Chromecast with
+// Google TV (1080p, Mali-G31, 4xA55), 150 s automated row-heavy D-pad
+// navigation:
+//   row-to-row missed vsync    7.0-7.1% -> 1.5-1.7%, row median 56 -> 60 fps
+//   cold start (first 8 moves) missed frames roughly -35%
+// Memory cost (row-heavy navigation, 2 x 240 s per arm):
+//   ~+15-17 MB RSS median, ~+11 MB RSS peak, ~+30 MB PSS, of which
+//   ~+8-26 MB is GPU tile memory (GL mtrack). The cost is bounded by the tile
+//   memory budget (64 MB on 32-bit, see kCobaltForceGpuMemAvailable): 50% means
+//   at most ~32 MB of prepaint tiles.
+// Smaller budgets were measured to be worse than 0 (25%: row missed vsync
+// 5.8-7.2%, 10%: 7.6-7.7%): they start prepaint raster but cannot keep the
+// tiles. Use 0 or ~50, not values in between. tvOS keeps 0.
 BASE_FEATURE(kCobaltMaxMemoryForPrepaint,
              "CobaltMaxMemoryForPrepaint",
              FEATURE_ENABLED_BY_DEFAULT);
@@ -195,7 +213,11 @@ BASE_FEATURE_PARAM(int,
                    kCobaltMaxMemoryForPrepaintPercentage,
                    &kCobaltMaxMemoryForPrepaint,
                    "max_memory_for_prepaint_percentage",
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
+                   50);
+#else
                    0);
+#endif
 
 BASE_FEATURE(kCobaltStorageCleanup,
              "CobaltStorageCleanup",
