@@ -194,6 +194,11 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
   }
 }
 
+bool VideoSurfaceHolder::IsVideoSurfaceHeldByAnotherHolder() const {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  return g_video_surface_holder && g_video_surface_holder != this;
+}
+
 void VideoSurfaceHolder::CleanUpVideoSurface(
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
@@ -209,6 +214,28 @@ void VideoSurfaceHolder::CleanUpVideoSurface(
   gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
                                     g_native_video_window);
   SB_LOG(INFO) << "Video surface has been cleared.";
+}
+
+void VideoSurfaceHolder::SetVideoSurfaceVisible(bool visible) {
+  JNIEnv* env = AttachCurrentThread();
+  if (!env) {
+    SB_LOG(INFO)
+        << "Tried to set video window visibility when JNIEnv was null.";
+    return;
+  }
+
+  Java_VideoSurfaceView_setVideoSurfaceVisible(env, visible);
+}
+
+void VideoSurfaceHolder::ShowVideoSurfaceWithNextFrame() {
+  JNIEnv* env = AttachCurrentThread();
+  if (!env) {
+    SB_LOG(INFO)
+        << "Tried to show video window with next frame when JNIEnv was null.";
+    return;
+  }
+
+  Java_VideoSurfaceView_showVideoSurfaceWithNextFrame(env);
 }
 
 void VideoSurfaceHolder::ResetVideoSurface() {
