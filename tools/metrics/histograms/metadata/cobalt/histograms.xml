@@ -462,6 +462,37 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.Media.LatencyTiming.SbPlayerDestroy{State}"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard player destruction latency. -->
+
+  <owner>johneocampo@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Wall-clock time taken by the SbPlayerDestroy() call that destroys a valid
+    platform player in SbPlayerBridge, when the bridge is destroyed or when the
+    player is suspended. SbPlayerDestroy() blocks until the pending work of the
+    player is done, so its latency depends on the state of the player, which is
+    why it is recorded separately for each state. Players that weren't
+    initialized yet, i.e. didn't report kSbPlayerStateInitialized, include the
+    rest of their initialization. Initialized players without any sample written
+    to them are the closest to the Starboard BM_PlayerDestroy benchmark. The
+    state is as observed by SbPlayerBridge on its media thread, which receives
+    player statuses asynchronously. So a player whose kSbPlayerStateInitialized
+    status is still queued when it is destroyed is recorded as not initialized
+    yet. Not recorded if player creation failed. Recorded for {State}. See also
+    Cobalt.Media.LatencyTiming.SbPlayerCreate{Occurrence}.
+  </summary>
+  <token key="State">
+    <variant name=".Active"
+        summary="players with samples written to them, e.g. during playback"/>
+    <variant name=".BeforeInitialized"
+        summary="players that weren't initialized yet"/>
+    <variant name=".Idle"
+        summary="initialized players without any sample written to them"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Network.NavigationTimeout" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>

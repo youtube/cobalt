@@ -261,6 +261,10 @@ class SbPlayerBridge {
   // the player reports kSbPlayerStateInitialized.
   template <typename CreateFn>
   SbPlayer CreateWithUmaLatency(CreateFn&& create_fn);
+  // Destroys |player_|, which must be valid, and sets it to kSbPlayerInvalid.
+  // Records the latency of the SbPlayerDestroy() call to CVal and to UMA, where
+  // it is split by the state of the player.
+  void DestroyPlayer();
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   void WriteNextBuffersFromCache(DemuxerStream::Type type,
@@ -424,6 +428,9 @@ class SbPlayerBridge {
   // Whether the last call that created the player was the first one in the
   // process. Used for latency UMA.
   bool is_first_sb_player_create_ = false;
+  // Whether any sample was written to the current player. Used for latency
+  // UMA.
+  bool has_written_samples_ = false;
 
 #if BUILDFLAG(IS_IOS_TVOS)
   const bool is_url_based_;
