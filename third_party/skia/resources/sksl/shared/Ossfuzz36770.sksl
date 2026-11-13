@@ -1,2 +1,0 @@
-in T { int x; };
-void main() { sk_FragCoord; }

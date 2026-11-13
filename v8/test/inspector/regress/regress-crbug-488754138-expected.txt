@@ -1,3 +1,0 @@
-Regression test for crbug.com/488754138
-
-Running test: repro

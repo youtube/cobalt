@@ -1,7 +1,0 @@
-InterfaceBlock {
-    $mat g;
-};
-
-/*%%*
-type '$mat' is generic
-*%%*/
