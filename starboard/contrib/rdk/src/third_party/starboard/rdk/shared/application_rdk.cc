@@ -478,8 +478,12 @@ void ApplicationRdk::InjectAccessibilityCaptionSettingsChanged() {
   // Event deprecated in Starboard 17+
 }
 
-void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged() {
-  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged, NULL, NULL));
+void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged(bool enabled) {
+  // Per starboard/event.h, the event data is a bool indicating whether
+  // text-to-speech is enabled.
+  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
+                   new bool(enabled),
+                   &ApplicationRdk::DeleteDestructor<bool>));
 }
 
 const char* ApplicationRdk::GetLocaleId() {

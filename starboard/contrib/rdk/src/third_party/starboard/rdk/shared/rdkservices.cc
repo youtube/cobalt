@@ -410,7 +410,7 @@ public:
     }
     if (notify_on_change && ApplicationRdk::Get()) {
       SB_LOG(INFO) << "Accessibility voice guidance setting changed, enabled = " << enabled;
-      ApplicationRdk::Get()->InjectAccessibilityTextToSpeechSettingsChanged();
+      ApplicationRdk::Get()->InjectAccessibilityTextToSpeechSettingsChanged(enabled);
     }
   }
 
