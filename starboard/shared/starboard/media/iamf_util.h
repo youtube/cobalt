@@ -17,7 +17,7 @@
 
 #include <limits>
 #include <optional>
-#include <string>
+#include <string_view>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -50,7 +50,7 @@ class IamfMimeUtil {
     uint8_t additional_profile;
   };
 
-  static std::optional<IamfMimeUtil> Create(const std::string& mime_type);
+  static std::optional<IamfMimeUtil> Create(std::string_view mime_type);
 
   // Parses IAMF Config OBUs for the primary and additional profiles,
   // based on IAMF specification v1.0.0-errata.

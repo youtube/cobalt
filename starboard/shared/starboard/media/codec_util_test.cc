@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/media/codec_util.h"
 
+#include <string_view>
 #include <vector>
 
 #include "starboard/media.h"
@@ -345,6 +346,17 @@ TEST(CodecUtilTest, ParsesIamfCodec) {
   EXPECT_EQ(GetAudioCodecFromString("iamf.000.000.mp4a.40.3", ""),
             kSbMediaAudioCodecNone);
   EXPECT_EQ(GetAudioCodecFromString("iamf.000.0000.Opus", ""),
+            kSbMediaAudioCodecNone);
+}
+
+TEST(CodecUtilTest, ParsesNonNullTerminatedStringView) {
+  constexpr std::string_view kCodecs = "opus,vorbis";
+  constexpr std::string_view kSubtype = "audio/wav;extra";
+  EXPECT_EQ(GetAudioCodecFromString(kCodecs.substr(0, 4), ""),
+            kSbMediaAudioCodecOpus);
+  EXPECT_EQ(GetAudioCodecFromString("1", kSubtype.substr(6, 3)),
+            kSbMediaAudioCodecPcm);
+  EXPECT_EQ(GetAudioCodecFromString(std::string_view("opus\0extra", 10), ""),
             kSbMediaAudioCodecNone);
 }
 
