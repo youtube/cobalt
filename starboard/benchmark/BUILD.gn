@@ -76,7 +76,8 @@ source_set("gtest_wrapper") {
 }
 
 # The end-to-end SbPlayer benchmarks: creating, destroying and seeking a
-# player.
+# player. The target also contains a disabled-by-default create/destroy
+# endurance test, see player/player_endurance_test.cc for how to run it.
 test("player_benchmarks") {
   testonly = true
 
@@ -85,6 +86,7 @@ test("player_benchmarks") {
     "player/player_benchmark_helper.h",
     "player/player_create_benchmark.cc",
     "player/player_destroy_benchmark.cc",
+    "player/player_endurance_test.cc",
     "player/player_seek_benchmark.cc",
   ]
 
