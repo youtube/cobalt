@@ -46,7 +46,7 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
   return cobalt_decoded_image_working_set_budget.InBytesUnsigned();
 #else
   base::ByteCount decoded_image_working_set_budget = base::MiB(128);
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if !BUILDFLAG(IS_ANDROID)
   if (for_renderer) {
     const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
@@ -66,7 +66,7 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
 =======
   return decoded_image_working_set_budget.InBytesUnsigned();
 #endif
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 #if BUILDFLAG(IS_COBALT)

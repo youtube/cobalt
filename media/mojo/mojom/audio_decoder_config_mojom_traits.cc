@@ -68,7 +68,7 @@ bool StructTraits<media::mojom::AudioDecoderConfigDataView,
 
   output->set_mime_type(mime_type);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   output->set_profile(profile);
   output->set_target_output_channel_layout(target_output_channel_layout);
   output->set_target_output_sample_format(target_output_sample_format);

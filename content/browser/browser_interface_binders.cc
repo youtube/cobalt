@@ -42,7 +42,7 @@
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/browsing_topics/browsing_topics_document_host.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/contacts/contacts_manager_impl.h"
 #include "content/browser/content_index/content_index_service_impl.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
@@ -314,7 +314,7 @@ bool ShouldSkipLanguageDetectionInitialization(RenderProcessHost* process) {
 }
 #endif
 
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void BindBarcodeDetectionProvider(
     mojo::PendingReceiver<shape_detection::mojom::BarcodeDetectionProvider>
         receiver) {
@@ -1347,7 +1347,7 @@ void PopulateBinderMapWithContext(
             }));
   }
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   map->Add<blink::mojom::BackgroundFetchService>(
       &BackgroundFetchServiceImpl::CreateForFrame);
@@ -1645,7 +1645,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
             base::Unretained(host)));
   }
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void PopulateBinderMapWithContext(
@@ -1786,7 +1786,7 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
             base::Unretained(host)));
   }
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::DirectSocketsService>(base::BindRepeating(

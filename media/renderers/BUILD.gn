@@ -8,7 +8,7 @@ import("//media/media_options.gni")
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
->>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 84d8037e7cb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 source_set("renderers") {
   # Do not expand the visibility here without double-checking with OWNERS, this
