@@ -437,7 +437,11 @@ const void* ExportedSymbols::Lookup(const char* name, bool is_weak) const {
   if (is_weak) {
     return nullptr;
   }
+<<<<<<< ours
 #if !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+=======
+#if !defined(OFFICIAL_BUILD)
+>>>>>>> theirs
   const void* address = dlsym(RTLD_DEFAULT, name);
   if (address == nullptr) {
     SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
@@ -445,7 +449,11 @@ const void* ExportedSymbols::Lookup(const char* name, bool is_weak) const {
   return address;
 #else
   return nullptr;
+<<<<<<< ours
 #endif  // !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+=======
+#endif  // !defined(OFFICIAL_BUILD)
+>>>>>>> theirs
 }
 
 }  // namespace elf_loader
