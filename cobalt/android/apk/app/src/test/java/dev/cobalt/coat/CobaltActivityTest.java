@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -34,23 +35,28 @@ import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.browser.CobaltContentBrowserClientJni;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.AndroidTvFlags;
+import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.content.browser.input.ImeAdapterImpl;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.NetworkChangeNotifier;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.InOrder;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.shadows.ShadowLooper;
@@ -334,11 +340,10 @@ public class CobaltActivityTest {
         KeyEvent.KEYCODE_BACK, new KeyEvent(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_DOWN));
     verify(mockImeAdapterImpl, times(1))
         .dispatchKeyEvent(
-            argThat(
-                e -> {
-                  return e.getKeyCode() == KeyEvent.KEYCODE_ESCAPE
-                      && e.getAction() == KeyEvent.ACTION_DOWN;
-                }));
+            argThat(e -> {
+              return e.getKeyCode() == KeyEvent.KEYCODE_ESCAPE
+                  && e.getAction() == KeyEvent.ACTION_DOWN;
+            }));
   }
 
   @Test
@@ -351,11 +356,10 @@ public class CobaltActivityTest {
         KeyEvent.KEYCODE_BACK, new KeyEvent(KeyEvent.KEYCODE_BACK, KeyEvent.ACTION_UP));
     verify(mockImeAdapterImpl, times(1))
         .dispatchKeyEvent(
-            argThat(
-                e -> {
-                  return e.getKeyCode() == KeyEvent.KEYCODE_ESCAPE
-                      && e.getAction() == KeyEvent.ACTION_UP;
-                }));
+            argThat(e -> {
+              return e.getKeyCode() == KeyEvent.KEYCODE_ESCAPE
+                  && e.getAction() == KeyEvent.ACTION_UP;
+            }));
   }
 
   @Test
@@ -388,11 +392,58 @@ public class CobaltActivityTest {
     verify(mockImeAdapterImpl, never()).dispatchKeyEvent(any());
   }
 
+  private static void setMockNativesForTesting(
+      String jniClassName, String nativesClassName, String mockName, boolean installMock) {
+    try {
+      Class<?> jniClass = Class.forName(jniClassName);
+      Class<?> nativesClass = Class.forName(nativesClassName);
+      Object instance =
+          installMock
+              ? java.lang.reflect.Proxy.newProxyInstance(
+                  nativesClass.getClassLoader(),
+                  new Class<?>[] {nativesClass},
+                  (proxy, method, args) -> {
+                    if (method.getDeclaringClass() == Object.class) {
+                      String name = method.getName();
+                      if ("equals".equals(name)) return proxy == args[0];
+                      if ("hashCode".equals(name)) return System.identityHashCode(proxy);
+                      if ("toString".equals(name)) return mockName;
+                    }
+                    return null;
+                  })
+              : null;
+      java.lang.reflect.Method setInst =
+          jniClass.getDeclaredMethod("setInstanceForTesting", nativesClass);
+      setInst.setAccessible(true);
+      setInst.invoke(null, instance);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static void setDisplayUtilNativesForTesting(boolean installMock) {
+    setMockNativesForTesting(
+        "dev.cobalt.util.DisplayUtilJni",
+        "dev.cobalt.util.DisplayUtil$Natives",
+        "MockDisplayUtilNatives",
+        installMock);
+  }
+
+  private static void setAudioOutputManagerNativesForTesting(boolean installMock) {
+    setMockNativesForTesting(
+        "dev.cobalt.media.AudioOutputManagerJni",
+        "dev.cobalt.media.AudioOutputManager$Natives",
+        "MockAudioOutputManagerNatives",
+        installMock);
+  }
+
   @Before
   public void setUp() {
     ContextUtils.initApplicationContextForTests(RuntimeEnvironment.getApplication());
     ApplicationStatus.initialize(RuntimeEnvironment.getApplication());
     AppEventBridgeJni.setInstanceForTesting(mock(AppEventBridge.Natives.class));
+    setDisplayUtilNativesForTesting(/* installMock= */ true);
+    setAudioOutputManagerNativesForTesting(/* installMock= */ true);
     StartupGuard.getInstance().disarm();
     NetworkChangeNotifier.resetInstanceForTests();
   }
@@ -401,6 +452,11 @@ public class CobaltActivityTest {
   public void tearDown() {
     StartupGuard.getInstance().disarm();
     NetworkChangeNotifier.resetInstanceForTests();
+    DisplayUtil.removeDisplayListener(RuntimeEnvironment.getApplication());
+    setDisplayUtilNativesForTesting(/* installMock= */ false);
+    dev.cobalt.media.AudioOutputManager.removeAudioDeviceListener(
+        RuntimeEnvironment.getApplication());
+    setAudioOutputManagerNativesForTesting(/* installMock= */ false);
     CobaltContentBrowserClientJni.setInstanceForTesting(null);
     JavaSwitches.setOverrideForTesting(null);
     // RobolectricTestRunner doesn't run ResettersForTesting, so reset CommandLine explicitly.
@@ -722,6 +778,219 @@ public class CobaltActivityTest {
         createActivityForFreezeTests(/* isShield= */ true, /* finchFeatureEnabled= */ true);
     assertTrue(activity.shouldFreezeOnBackground());
     assertEquals(1500L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  // --- CobaltFlushStorageOnFreeze ---
+
+  public static class StorageFlushTestActivity extends CobaltActivity {
+    boolean mFreezeOnBackgroundEnabled;
+    boolean mFlushStorageOnFreezeEnabled;
+    AtomicReference<WebContents> mWebContentsRef = new AtomicReference<>();
+    private final StarboardBridge mStarboardBridge = mock(StarboardBridge.class);
+
+    @Override
+    protected boolean isDevelopmentBuild() {
+      return false;
+    }
+
+    @Override
+    public boolean useStarboardLifeCycle() {
+      return false;
+    }
+
+    @Override
+    protected boolean isNvidiaShield() {
+      return false;
+    }
+
+    @Override
+    protected boolean isFreezeOnBackgroundFeatureEnabled() {
+      return mFreezeOnBackgroundEnabled;
+    }
+
+    @Override
+    protected boolean isFlushStorageOnFreezeFeatureEnabled() {
+      return mFlushStorageOnFreezeEnabled;
+    }
+
+    @Override
+    public WebContents getActiveWebContents() {
+      return mWebContentsRef.get();
+    }
+
+    @Override
+    protected ImeAdapterImpl getImeAdapterImpl() {
+      return null;
+    }
+
+    @Override
+    protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+      return mStarboardBridge;
+    }
+
+    @Override
+    protected StarboardBridge getStarboardBridge() {
+      return mStarboardBridge;
+    }
+  }
+
+  private CobaltActivity createActivityForStorageFlushTests(
+      final boolean freezeOnBackgroundEnabled,
+      final boolean flushStorageOnFreezeEnabled,
+      final AtomicReference<WebContents> webContentsRef) {
+    StorageFlushTestActivity activity =
+        Robolectric.buildActivity(StorageFlushTestActivity.class).get();
+    activity.mFreezeOnBackgroundEnabled = freezeOnBackgroundEnabled;
+    activity.mFlushStorageOnFreezeEnabled = flushStorageOnFreezeEnabled;
+    activity.mWebContentsRef = webContentsRef;
+    try {
+      java.lang.reflect.Method dispatchCreated =
+          android.app.Application.class.getDeclaredMethod(
+              "dispatchActivityCreated", android.app.Activity.class, Bundle.class);
+      dispatchCreated.setAccessible(true);
+      dispatchCreated.invoke(RuntimeEnvironment.getApplication(), activity, null);
+
+      java.lang.reflect.Method dispatchStarted =
+          android.app.Application.class.getDeclaredMethod(
+              "dispatchActivityStarted", android.app.Activity.class);
+      dispatchStarted.setAccessible(true);
+      dispatchStarted.invoke(RuntimeEnvironment.getApplication(), activity);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+    return activity;
+  }
+
+  private static CobaltContentBrowserClient.Natives mockNativesWithFreezeDelay(int delayMs) {
+    CobaltContentBrowserClient.Natives natives = mock(CobaltContentBrowserClient.Natives.class);
+    when(natives.getFreezeOnBackgroundDelayMs()).thenReturn(delayMs);
+    CobaltContentBrowserClientJni.setInstanceForTesting(natives);
+    return natives;
+  }
+
+  @Test
+  public void testOnStop_FlushStorageOnFreeze_DeferredToFreeze() {
+    CobaltContentBrowserClient.Natives natives = mockNativesWithFreezeDelay(1500);
+    WebContents webContents = mock(WebContents.class);
+    AtomicReference<WebContents> webContentsRef = new AtomicReference<>(webContents);
+    CobaltActivity activity =
+        createActivityForStorageFlushTests(
+            /* freezeOnBackgroundEnabled= */ true,
+            /* flushStorageOnFreezeEnabled= */ true,
+            webContentsRef);
+
+    activity.onStop();
+
+    verify(natives, never()).flushCookiesAndLocalStorage();
+    verify(webContents, never()).onFreeze();
+
+    ShadowLooper.shadowMainLooper().idleFor(Duration.ofMillis(1500));
+
+    InOrder inOrder = inOrder(webContents, natives);
+    inOrder.verify(webContents).onFreeze();
+    inOrder.verify(natives).flushCookiesAndLocalStorage();
+  }
+
+  @Test
+  public void testOnStop_FlushStorageOnFreeze_FeatureDisabled_FlushesImmediately() {
+    CobaltContentBrowserClient.Natives natives = mockNativesWithFreezeDelay(1500);
+    WebContents webContents = mock(WebContents.class);
+    AtomicReference<WebContents> webContentsRef = new AtomicReference<>(webContents);
+    CobaltActivity activity =
+        createActivityForStorageFlushTests(
+            /* freezeOnBackgroundEnabled= */ true,
+            /* flushStorageOnFreezeEnabled= */ false,
+            webContentsRef);
+
+    activity.onStop();
+
+    verify(natives, times(1)).flushCookiesAndLocalStorage();
+    verify(webContents, never()).onFreeze();
+
+    ShadowLooper.shadowMainLooper().idleFor(Duration.ofMillis(1500));
+
+    verify(webContents, times(1)).onFreeze();
+    verify(natives, times(1)).flushCookiesAndLocalStorage();
+  }
+
+  @Test
+  public void testOnStop_FlushStorageOnFreeze_ImmediateFreeze_FlushesImmediately() {
+    CobaltContentBrowserClient.Natives natives = mockNativesWithFreezeDelay(0);
+    WebContents webContents = mock(WebContents.class);
+    AtomicReference<WebContents> webContentsRef = new AtomicReference<>(webContents);
+    CobaltActivity activity =
+        createActivityForStorageFlushTests(
+            /* freezeOnBackgroundEnabled= */ true,
+            /* flushStorageOnFreezeEnabled= */ true,
+            webContentsRef);
+
+    activity.onStop();
+
+    InOrder inOrder = inOrder(webContents, natives);
+    inOrder.verify(webContents).onFreeze();
+    inOrder.verify(natives).flushCookiesAndLocalStorage();
+  }
+
+  @Test
+  public void testOnDestroy_FlushStorageOnFreeze_FlushesEarlyWithoutDoubleFlush() {
+    CobaltContentBrowserClient.Natives natives = mockNativesWithFreezeDelay(1500);
+    WebContents webContents = mock(WebContents.class);
+    AtomicReference<WebContents> webContentsRef = new AtomicReference<>(webContents);
+    CobaltActivity activity =
+        createActivityForStorageFlushTests(
+            /* freezeOnBackgroundEnabled= */ true,
+            /* flushStorageOnFreezeEnabled= */ true,
+            webContentsRef);
+
+    activity.onStop();
+    verify(natives, never()).flushCookiesAndLocalStorage();
+
+    activity.onDestroy();
+    verify(natives, times(1)).flushCookiesAndLocalStorage();
+
+    ShadowLooper.shadowMainLooper().idleFor(Duration.ofMillis(1500));
+    verify(webContents, never()).onFreeze();
+    verify(natives, times(1)).flushCookiesAndLocalStorage();
+  }
+
+  @Test
+  public void testOnStart_FlushStorageOnFreeze_CancelsPendingFlushAndFreeze() {
+    CobaltContentBrowserClient.Natives natives = mockNativesWithFreezeDelay(1500);
+    WebContents webContents = mock(WebContents.class);
+    AtomicReference<WebContents> webContentsRef = new AtomicReference<>(webContents);
+    CobaltActivity activity =
+        createActivityForStorageFlushTests(
+            /* freezeOnBackgroundEnabled= */ true,
+            /* flushStorageOnFreezeEnabled= */ true,
+            webContentsRef);
+
+    activity.onStop();
+    activity.onStart();
+
+    ShadowLooper.shadowMainLooper().idleFor(Duration.ofMillis(1500));
+    verify(webContents, never()).onFreeze();
+    verify(natives, never()).flushCookiesAndLocalStorage();
+  }
+
+  @Test
+  public void testOnStop_FlushStorageOnFreeze_NullWebContentsAtFreezeTimeStillFlushes() {
+    CobaltContentBrowserClient.Natives natives = mockNativesWithFreezeDelay(1500);
+    WebContents webContents = mock(WebContents.class);
+    AtomicReference<WebContents> webContentsRef = new AtomicReference<>(webContents);
+    CobaltActivity activity =
+        createActivityForStorageFlushTests(
+            /* freezeOnBackgroundEnabled= */ true,
+            /* flushStorageOnFreezeEnabled= */ true,
+            webContentsRef);
+
+    activity.onStop();
+    verify(natives, never()).flushCookiesAndLocalStorage();
+
+    webContentsRef.set(null);
+
+    ShadowLooper.shadowMainLooper().idleFor(Duration.ofMillis(1500));
+    verify(webContents, never()).onFreeze();
+    verify(natives, times(1)).flushCookiesAndLocalStorage();
   }
 
   // --- onPrimaryMainFrameNavigationStarted() ---
