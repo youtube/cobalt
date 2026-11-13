@@ -4,10 +4,18 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/js_event_listener.h"
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
+#endif
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/event_interface_names.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/probe/core_probes.h"
+#endif
 
 namespace blink {
 
@@ -54,6 +62,32 @@ void JSEventListener::InvokeInternal(EventTarget&,
               : V8EventListener::IgnorePause::kDontIgnore)) {
     return;
   }
+#if BUILDFLAG(IS_COBALT)
+  // Fast path for callable function listeners (the common case, e.g.
+  // addEventListener('click', (e) => { ... })).
+  // This bypasses the generic CallbackInvokeHelper machinery in
+  // InvokeWithoutRunnabilityCheck(), avoids looking up the "handleEvent"
+  // property on the callback object, and directly reuses the existing
+  // |js_event| wrapper instead of re-wrapping the event a second time.
+  if (event_listener_->IsCallbackObjectCallable()) {
+    ScriptState* script_state = event_listener_->CallbackRelevantScriptState();
+    v8::Context::BackupIncumbentScope backup_incumbent_scope(
+        event_listener_->IncumbentScriptState()->GetContext());
+    ExecutionContext* execution_context = ExecutionContext::From(script_state);
+    v8::Local<v8::Function> function =
+        event_listener_->CallbackObject().As<v8::Function>();
+    v8::Local<v8::Value> receiver = event.currentTarget()->ToV8(script_state);
+    if (receiver.IsEmpty()) {
+      receiver = v8::Undefined(GetIsolate());
+    }
+    v8::Local<v8::Value> argv[1] = {js_event};
+    probe::InvokeCallback probe_scope(*script_state, "EventListener",
+                                      /*callback=*/nullptr, function);
+    std::ignore = V8ScriptRunner::CallFunction(function, execution_context,
+                                               receiver, 1, argv, GetIsolate());
+    return;
+  }
+#endif
   [[maybe_unused]] v8::Maybe<void> maybe_result =
       event_listener_->InvokeWithoutRunnabilityCheck(event.currentTarget(),
                                                      &event);
