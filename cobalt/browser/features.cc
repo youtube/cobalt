@@ -219,6 +219,10 @@ BASE_FEATURE(kCobaltFreezeOnBackground,
 const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs{
     &kCobaltFreezeOnBackground, "CobaltFreezeOnBackground_delay_ms", 0};
 
+BASE_FEATURE(kCobaltFlushStorageOnFreeze,
+             "CobaltFlushStorageOnFreeze",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltProcessStateSummary,
              "CobaltProcessStateSummary",

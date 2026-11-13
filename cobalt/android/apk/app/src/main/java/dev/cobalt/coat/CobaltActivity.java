@@ -101,6 +101,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
   private Runnable mFreezeRunnable;
+  private boolean mPendingStorageFlushOnFreeze;
   private final Handler mHandler = new Handler(Looper.getMainLooper());
 
   // Delay between visibility:hidden and the freeze event on NVIDIA Shield, which always freezes
@@ -506,11 +507,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     Log.i(TAG, "Arming StartupGuard with " + timeout + " second timeout.");
     StartupGuard.getInstance()
-        .setPreCrashHook(
-            () ->
-                CobaltProcessStateSummary.setStartupGuardTriggeredKill(
-                    StartupGuard.getInstance().getStartupStatus(),
-                    StartupGuard.getInstance().getHighestMilestone()));
+        .setPreCrashHook(() ->
+            CobaltProcessStateSummary.setStartupGuardTriggeredKill(
+                StartupGuard.getInstance().getStartupStatus(),
+                StartupGuard.getInstance().getHighestMilestone()));
     StartupGuard.getInstance().scheduleCrash(timeout);
   }
 
@@ -683,9 +683,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
     }
 
-    // Persist pending cookie and DOM storage writes so they are not lost if the
-    // process is killed while the app is in the background.
-    CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+    flushCookiesAndLocalStorageOnStop();
 
     MemoryPressureMonitor.INSTANCE.disablePolling();
   }
@@ -714,6 +712,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (isNvidiaShield()) {
       unregisterDisplayListener();
     }
+    flushCookiesAndLocalStorageOnDestroy();
     cancelPendingFreeze();
     if (mShellManager != null) {
       mShellManager.destroy();
@@ -914,6 +913,16 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   }
 
   /**
+   * Returns whether the CobaltFlushStorageOnFreeze Finch feature is enabled. Finch state lives in
+   * native, so this is false until the native library and base::FeatureList are initialized.
+   */
+  @VisibleForTesting
+  protected boolean isFlushStorageOnFreezeFeatureEnabled() {
+    return FeatureList.isNativeInitialized()
+        && CobaltContentBrowserClient.isFlushStorageOnFreezeEnabled();
+  }
+
+  /**
    * Returns whether the web app should receive a freeze event when the Activity is stopped. NVIDIA
    * Shield always freezes (see {@link #SHIELD_FREEZE_DELAY_MS}); every other device follows the
    * CobaltFreezeOnBackground Finch feature.
@@ -956,6 +965,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       mHandler.removeCallbacks(mFreezeRunnable);
       mFreezeRunnable = null;
     }
+    if (isFlushStorageOnFreezeFeatureEnabled()) {
+      mPendingStorageFlushOnFreeze = false;
+    }
   }
 
   /** Dispatches the document freeze event to the active WebContents, if there still is one. */
@@ -963,6 +975,34 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       webContents.onFreeze();
+    }
+    if (isFlushStorageOnFreezeFeatureEnabled()) {
+      if (mPendingStorageFlushOnFreeze) {
+        mPendingStorageFlushOnFreeze = false;
+        CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+      }
+    }
+  }
+
+  private void flushCookiesAndLocalStorageOnStop() {
+    if (isFlushStorageOnFreezeFeatureEnabled()) {
+      if (mFreezeRunnable != null) {
+        mPendingStorageFlushOnFreeze = true;
+        return;
+      }
+      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+      return;
+    }
+
+    CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+  }
+
+  private void flushCookiesAndLocalStorageOnDestroy() {
+    if (isFlushStorageOnFreezeFeatureEnabled()) {
+      if (mPendingStorageFlushOnFreeze) {
+        mPendingStorageFlushOnFreeze = false;
+        CobaltContentBrowserClient.flushCookiesAndLocalStorage();
+      }
     }
   }
 
