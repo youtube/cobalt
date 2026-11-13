@@ -22,11 +22,13 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/scoped_blocking_call_internal.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -83,13 +85,15 @@ TEST(CobaltStorageMetricsHelperTest, RecordStartupStorageAndIoMetricsForPaths) {
   };
 
   base::HistogramTester histogram_tester;
-  RecordStartupStorageAndIoMetricsForPaths(user_data_dir.GetPath(),
-                                           cache_dir.GetPath(), &io_counters);
+  RecordStartupStorageAndIoMetricsForPaths(
+      {.user_data = user_data_dir.GetPath(), .dir_cache = cache_dir.GetPath()},
+      &io_counters);
 
   histogram_tester.ExpectUniqueSample("Cobalt.Storage.ProcessIo.StartupReadKB",
                                       12288, 1);
   histogram_tester.ExpectUniqueSample("Cobalt.Storage.ProcessIo.StartupWriteKB",
                                       350, 1);
+  // Logical sizes (sum of file sizes).
   histogram_tester.ExpectUniqueSample(
       "Cobalt.Storage.UserData.StartupTotalSizeKB", 24, 1);
   histogram_tester.ExpectUniqueSample(
@@ -97,6 +101,19 @@ TEST(CobaltStorageMetricsHelperTest, RecordStartupStorageAndIoMetricsForPaths) {
   // /proc/self/io does not report major page faults.
   histogram_tester.ExpectTotalCount(
       "Cobalt.Storage.ProcessIo.StartupMajorPageFaults", 0);
+  // The same walk records the allocated footprint.
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.Footprint.Startup.UserData.SizeKB", 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.Footprint.Startup.UserData.FileCount", 1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.Footprint.Startup.DirCache.FileCount", 1, 1);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.Footprint.Startup.Bucket.Cookies.SizeKB", 1);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.Footprint.Startup.AppData.SizeKB", 0);
+  histogram_tester.ExpectUniqueSample("Cobalt.Storage.Footprint.WalkTruncated",
+                                      false, 1);
 }
 
 TEST(CobaltStorageMetricsHelperTest, ProcessIoCountersFromRusage) {
@@ -128,8 +145,7 @@ TEST(CobaltStorageMetricsHelperTest, RecordsStartupMajorPageFaults) {
                                           &io_counters));
 
   base::HistogramTester histogram_tester;
-  RecordStartupStorageAndIoMetricsForPaths(base::FilePath(), base::FilePath(),
-                                           &io_counters);
+  RecordStartupStorageAndIoMetricsForPaths(StorageRootPaths(), &io_counters);
 
   histogram_tester.ExpectUniqueSample("Cobalt.Storage.ProcessIo.StartupReadKB",
                                       12288, 1);
@@ -137,6 +153,25 @@ TEST(CobaltStorageMetricsHelperTest, RecordsStartupMajorPageFaults) {
                                       1024, 1);
   histogram_tester.ExpectUniqueSample(
       "Cobalt.Storage.ProcessIo.StartupMajorPageFaults", 4321, 1);
+}
+
+TEST(CobaltStorageMetricsHelperTest, StorageFootprintUptimeInterval) {
+  EXPECT_EQ(GetStorageFootprintUptimeInterval(), base::Hours(24));
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltStorageFootprintSampler,
+        {{"CobaltStorageFootprintSampler_uptime_interval", "2m"}});
+    EXPECT_EQ(GetStorageFootprintUptimeInterval(), base::Minutes(2));
+  }
+  {
+    // Clamped to at least 1 minute.
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltStorageFootprintSampler,
+        {{"CobaltStorageFootprintSampler_uptime_interval", "5s"}});
+    EXPECT_EQ(GetStorageFootprintUptimeInterval(), base::Minutes(1));
+  }
 }
 
 TEST(CobaltStorageMetricsHelperTest, ReadCurrentProcessIoCounters) {

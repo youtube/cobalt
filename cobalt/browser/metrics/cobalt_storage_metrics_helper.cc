@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/base_paths.h"
+#include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
@@ -33,7 +34,9 @@
 #include "base/thread_annotations.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/shell/common/shell_paths.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -53,6 +56,10 @@ constexpr base::TimeDelta kPostStartupStorageMetricsDelay = base::Seconds(10);
 // Matches Cobalt's default 5-minute UMA upload interval so that each uploaded
 // log carries roughly one write-rate sample.
 constexpr base::TimeDelta kPeriodicWriteRateSampleInterval = base::Minutes(5);
+
+// Lower bound of CobaltStorageFootprintSampler_uptime_interval, so that a
+// misconfigured param cannot make the sampler walk the storage continuously.
+constexpr base::TimeDelta kMinStorageFootprintUptimeInterval = base::Minutes(1);
 
 // Histogram bucket bounds (exponential, 100 buckets). These histograms record
 // one sample per session, so the larger bucket count adds no upload cost.
@@ -82,7 +89,8 @@ void RecordIOJank(int janky_intervals_per_minute, int total_janks_per_minute) {
 // write rates. It is managed as a process-wide singleton with a lifetime
 // spanning the entire run of the browser process. All state mutations and
 // metric recordings are sequence-affine and execute on its internal
-// BEST_EFFORT background task runner.
+// BEST_EFFORT background task runner, which also runs the storage footprint
+// walks.
 class StorageIoWriteRateTracker {
  public:
   static StorageIoWriteRateTracker* GetInstance() {
@@ -150,6 +158,52 @@ void RunPeriodicWriteRateSample() {
       kPeriodicWriteRateSampleInterval);
 }
 
+StorageRootPaths GetStorageRootPaths() {
+  StorageRootPaths paths;
+  base::PathService::Get(content::SHELL_DIR_USER_DATA, &paths.user_data);
+  base::PathService::Get(base::DIR_CACHE, &paths.dir_cache);
+#if BUILDFLAG(IS_ANDROID)
+  // DIR_ANDROID_APP_DATA is <app data dir>/app_content_shell.
+  base::FilePath app_content_shell_dir;
+  if (base::PathService::Get(base::DIR_ANDROID_APP_DATA,
+                             &app_content_shell_dir)) {
+    paths.app_data = app_content_shell_dir.DirName();
+  }
+#endif
+  return paths;
+}
+
+StorageFootprint SampleStorageFootprint(StorageFootprintPhase phase,
+                                        const StorageRootPaths& root_paths) {
+  const base::ElapsedTimer timer;
+  StorageFootprint footprint = ComputeStorageFootprint(root_paths);
+  RecordStorageFootprintHistograms(phase, footprint, timer.Elapsed());
+  return footprint;
+}
+
+// Footprint walks run on the StorageIoWriteRateTracker sequence, so they never
+// overlap each other.
+void PostUptimeStorageFootprintSample();
+
+void RunUptimeStorageFootprintSample() {
+  SampleStorageFootprint(StorageFootprintPhase::kUptime, GetStorageRootPaths());
+  PostUptimeStorageFootprintSample();
+}
+
+void PostUptimeStorageFootprintSample() {
+  if (!base::FeatureList::IsEnabled(features::kCobaltStorageFootprintSampler)) {
+    return;
+  }
+  StorageIoWriteRateTracker::GetInstance()->task_runner()->PostDelayedTask(
+      FROM_HERE, base::BindOnce(&RunUptimeStorageFootprintSample),
+      GetStorageFootprintUptimeInterval());
+}
+
+void RunPostCleanupStorageFootprintSample() {
+  SampleStorageFootprint(StorageFootprintPhase::kPostCleanup,
+                         GetStorageRootPaths());
+}
+
 void RunPostStartupStorageMetricsTask() {
   // 1. Sample the block I/O counters FIRST, before any directory walk, so that
   // StartupReadKB is never polluted by stat()/readdir() metadata reads.
@@ -160,15 +214,9 @@ void RunPostStartupStorageMetricsTask() {
         io_counters.write_bytes, base::TimeTicks::Now());
   }
 
-  // 2. Resolve USER_DATA and DIR_CACHE paths and emit footprint + I/O metrics.
-  base::FilePath user_data_dir;
-  base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir);
-
-  base::FilePath cache_dir;
-  base::PathService::Get(base::DIR_CACHE, &cache_dir);
-
+  // 2. Walk the storage roots and emit footprint + I/O metrics.
   RecordStartupStorageAndIoMetricsForPaths(
-      user_data_dir, cache_dir, has_io_counters ? &io_counters : nullptr);
+      GetStorageRootPaths(), has_io_counters ? &io_counters : nullptr);
 
   // 3. Schedule periodic steady-state write-rate sampling.
   if (has_io_counters) {
@@ -176,6 +224,9 @@ void RunPostStartupStorageMetricsTask() {
         FROM_HERE, base::BindOnce(&RunPeriodicWriteRateSample),
         kPeriodicWriteRateSampleInterval);
   }
+
+  // 4. Schedule the first Uptime footprint sample.
+  PostUptimeStorageFootprintSample();
 }
 
 }  // namespace
@@ -266,8 +317,7 @@ void EnableCobaltIOJankMonitoring() {
 }
 
 void RecordStartupStorageAndIoMetricsForPaths(
-    const base::FilePath& user_data_dir,
-    const base::FilePath& cache_dir,
+    const StorageRootPaths& root_paths,
     const ProcessIoCounters* io_counters) {
   if (io_counters && io_counters->read_bytes >= 0 &&
       io_counters->write_bytes >= 0) {
@@ -286,20 +336,27 @@ void RecordStartupStorageAndIoMetricsForPaths(
     }
   }
 
-  if (!user_data_dir.empty() && base::DirectoryExists(user_data_dir)) {
-    const int64_t user_data_bytes = base::ComputeDirectorySize(user_data_dir);
+  const StorageFootprint footprint =
+      SampleStorageFootprint(StorageFootprintPhase::kStartup, root_paths);
+  if (footprint.truncated) {
+    return;
+  }
+  // The logical sizes, which these histograms have always recorded.
+  const StorageFootprint::RootUsage& user_data =
+      footprint.root(StorageRoot::kUserData);
+  if (user_data.measured) {
     base::UmaHistogramCustomCounts(
         "Cobalt.Storage.UserData.StartupTotalSizeKB",
-        base::saturated_cast<int>(user_data_bytes / 1024), kMinStorageSizeKB,
-        kMaxStorageSizeKB, kStorageSizeBuckets);
+        base::saturated_cast<int>(user_data.logical_bytes / 1024),
+        kMinStorageSizeKB, kMaxStorageSizeKB, kStorageSizeBuckets);
   }
-
-  if (!cache_dir.empty() && base::DirectoryExists(cache_dir)) {
-    const int64_t dir_cache_bytes = base::ComputeDirectorySize(cache_dir);
+  const StorageFootprint::RootUsage& dir_cache =
+      footprint.root(StorageRoot::kDirCache);
+  if (dir_cache.measured) {
     base::UmaHistogramCustomCounts(
         "Cobalt.Storage.DirCache.StartupTotalSizeKB",
-        base::saturated_cast<int>(dir_cache_bytes / 1024), kMinStorageSizeKB,
-        kMaxStorageSizeKB, kStorageSizeBuckets);
+        base::saturated_cast<int>(dir_cache.logical_bytes / 1024),
+        kMinStorageSizeKB, kMaxStorageSizeKB, kStorageSizeBuckets);
   }
 }
 
@@ -325,6 +382,19 @@ void ScheduleCobaltStorageMetricsRecording() {
   StorageIoWriteRateTracker::GetInstance()->task_runner()->PostDelayedTask(
       FROM_HERE, base::BindOnce(&RunPostStartupStorageMetricsTask),
       kPostStartupStorageMetricsDelay);
+}
+
+void ScheduleCobaltStorageFootprintAfterCleanup() {
+  if (!base::FeatureList::IsEnabled(features::kCobaltStorageFootprintSampler)) {
+    return;
+  }
+  StorageIoWriteRateTracker::GetInstance()->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&RunPostCleanupStorageFootprintSample));
+}
+
+base::TimeDelta GetStorageFootprintUptimeInterval() {
+  return std::max(features::kCobaltStorageFootprintSamplerUptimeInterval.Get(),
+                  kMinStorageFootprintUptimeInterval);
 }
 
 }  // namespace cobalt

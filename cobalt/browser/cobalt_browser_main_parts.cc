@@ -368,16 +368,19 @@ void DeleteUnusedSqliteDatabaseFiles(const base::FilePath& user_data_dir,
   }
 }
 
-void RunDelayedStorageCleanup() {
+void RunDelayedStorageCleanup(bool cleanup_enabled) {
   base::FilePath user_data_dir;
-  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir)) {
-    return;
+  if (cleanup_enabled &&
+      base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir)) {
+    base::FilePath cache_dir;
+    if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+      DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
+    }
+    DeleteUnusedChromiumStoragePaths(user_data_dir);
   }
-  base::FilePath cache_dir;
-  if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
-    DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
-  }
-  DeleteUnusedChromiumStoragePaths(user_data_dir);
+  // Measure the result, or the same moment when the cleanup is disabled, so
+  // that both arms of a kCobaltStorageCleanup experiment have the sample.
+  ScheduleCobaltStorageFootprintAfterCleanup();
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -633,14 +636,17 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                        kBrowserStabilityMetricsName, base::GetCurrentProcId()));
   }
 
-  if (base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
-    base::ThreadPool::PostDelayedTask(
-        FROM_HERE,
-        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-         base::ThreadPolicy::PREFER_BACKGROUND,
-         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-        base::BindOnce(&RunDelayedStorageCleanup), kStorageCleanupDelay);
-  }
+  // Posted even when kCobaltStorageCleanup is disabled, because the task also
+  // schedules the PostCleanup storage footprint sample.
+  base::ThreadPool::PostDelayedTask(
+      FROM_HERE,
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::ThreadPolicy::PREFER_BACKGROUND,
+       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+      base::BindOnce(
+          &RunDelayedStorageCleanup,
+          base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)),
+      kStorageCleanupDelay);
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::BuildInfo::GetInstance()->sdk_int() >=

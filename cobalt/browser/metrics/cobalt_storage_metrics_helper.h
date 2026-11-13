@@ -20,6 +20,7 @@
 
 #include "base/files/file_path.h"
 #include "base/time/time.h"
+#include "cobalt/browser/metrics/cobalt_storage_footprint.h"
 
 namespace cobalt {
 
@@ -62,12 +63,13 @@ bool ReadCurrentProcessIoCounters(ProcessIoCounters* out_counters);
 void EnableCobaltIOJankMonitoring();
 
 // Emits startup process block I/O histograms first (from |io_counters| if
-// valid) and then computes and emits USER_DATA and DIR_CACHE footprint
-// histograms.
+// valid), then walks the storage roots once and emits the
+// Cobalt.Storage.Footprint.Startup.* histograms and, from the same walk,
+// Cobalt.Storage.UserData.StartupTotalSizeKB and
+// Cobalt.Storage.DirCache.StartupTotalSizeKB.
 // Must be called on a task runner that allows blocking I/O.
 void RecordStartupStorageAndIoMetricsForPaths(
-    const base::FilePath& user_data_dir,
-    const base::FilePath& cache_dir,
+    const StorageRootPaths& root_paths,
     const ProcessIoCounters* io_counters);
 
 // Emits Cobalt.Storage.ProcessIo.WriteRateKBPerMin for a post-startup interval
@@ -79,9 +81,21 @@ bool RecordSteadyStateWriteRateForInterval(int64_t baseline_write_bytes,
                                            base::TimeTicks current_time);
 
 // Schedules the deferred (+10s) post-startup storage footprint and block I/O
-// telemetry task and periodic (every 5 minutes) steady-state write-rate
-// sampling on a BEST_EFFORT background sequence.
+// telemetry task, periodic (every 5 minutes) steady-state write-rate sampling,
+// and, if kCobaltStorageFootprintSampler is enabled, a storage footprint
+// sample every GetStorageFootprintUptimeInterval(), on a BEST_EFFORT
+// background sequence.
 void ScheduleCobaltStorageMetricsRecording();
+
+// Schedules the PostCleanup storage footprint sample on the same sequence if
+// kCobaltStorageFootprintSampler is enabled. Call once per process, when the
+// delayed storage cleanup task finishes or, if kCobaltStorageCleanup is
+// disabled, when it would have run. May be called from any thread.
+void ScheduleCobaltStorageFootprintAfterCleanup();
+
+// Returns the interval between Uptime storage footprint samples:
+// CobaltStorageFootprintSampler_uptime_interval, at least 1 minute.
+base::TimeDelta GetStorageFootprintUptimeInterval();
 
 }  // namespace cobalt
 

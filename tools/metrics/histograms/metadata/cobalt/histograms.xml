@@ -57,6 +57,96 @@ Always run the pretty print utility on this file after editing:
       summary="stopped as part of user session management"/>
 </variants>
 
+<variants name="CobaltStorageBucket">
+  <variant name="AndroidDbAndPrefs"
+      summary="the Java app's databases/ and shared_prefs/ directories
+               (Android only)"/>
+  <variant name="AndroidFiles"
+      summary="the Java app's files/ directory (Android only)"/>
+  <variant name="AndroidNoBackup"
+      summary="the Java app's no_backup/ directory, e.g. the WorkManager
+               database (Android only)"/>
+  <variant name="BlobStorage"
+      summary="blob_storage in the user data directory"/>
+  <variant name="CleanupTargets"
+      summary="the user data paths that kCobaltStorageCleanup deletes: caches
+               that older builds kept in the user data directory (Cache, Code
+               Cache, ShaderCache, GrShaderCache, and their old_*_000
+               directories pending deletion) and the storage of the
+               subsystems that it disables or keeps in memory (Session
+               Storage, Shared Dictionary, VideoDecodeStats, shared_proto_db,
+               Trust Tokens, SCT Auditing Pending Reports, SharedStorage).
+               While kCobaltStorageCleanup is disabled, some of these are in
+               use, e.g. the GPU program cache in ShaderCache, so this is the
+               space that enabling the cleanup would reclaim"/>
+  <variant name="CodeCacheJs"
+      summary="the V8 JavaScript code cache (Code Cache/js in the cache
+               directory)"/>
+  <variant name="CodeCacheWasm"
+      summary="the WebAssembly code cache (Code Cache/wasm in the cache
+               directory)"/>
+  <variant name="Cookies"
+      summary="the Cookies SQLite database and its companion files"/>
+  <variant name="Crashpad"
+      summary="the crashpad database in the cache directory"/>
+  <variant name="DIPS"
+      summary="the DIPS (bounce tracking mitigations) SQLite database and its
+               companion files"/>
+  <variant name="FontCache" summary="font_cache in the cache directory"/>
+  <variant name="GrShaderCache"
+      summary="the Skia GPU shader cache (GrShaderCache in the cache
+               directory)"/>
+  <variant name="HttpCache"
+      summary="the HTTP cache (Cache in the cache directory)"/>
+  <variant name="IndexedDB" summary="IndexedDB databases"/>
+  <variant name="LocalStorage" summary="the Local Storage LevelDB database"/>
+  <variant name="NetworkState"
+      summary="Network Persistent State, TransportSecurity, Reporting and
+               NEL, and the Network directory (except Network/Cookies)"/>
+  <variant name="OtherAppData"
+      summary="everything else in the app's data directory, e.g. code_cache/
+               and app_textures/ (Android only)"/>
+  <variant name="OtherCache"
+      summary="everything else in the cache directory, e.g. Variations and
+               Experiment Config"/>
+  <variant name="OtherUserData"
+      summary="everything else in the user data directory"/>
+  <variant name="QuotaManager"
+      summary="the QuotaManager database (WebStorage in the user data
+               directory)"/>
+  <variant name="ServiceWorker"
+      summary="the Service Worker database and script cache"/>
+  <variant name="ShaderCache"
+      summary="the GPU program cache in the cache directory (ShaderCache),
+               used while kCobaltStorageCleanup is enabled"/>
+  <variant name="StabilityPma"
+      summary="the BrowserStabilityMetrics persistent histogram (.pma) files"/>
+</variants>
+
+<variants name="CobaltStorageFootprintPhase">
+  <variant name="PostCleanup"
+      summary="after the delayed storage cleanup task, which runs 30 seconds
+               after browser startup and deletes legacy paths only if
+               kCobaltStorageCleanup is enabled"/>
+  <variant name="Startup" summary="10 seconds after browser startup"/>
+  <variant name="Uptime"
+      summary="every 24 hours of browser process uptime (time while the
+               device is suspended does not count;
+               CobaltStorageFootprintSampler_uptime_interval)"/>
+</variants>
+
+<variants name="CobaltStorageRoot">
+  <variant name="AppData"
+      summary="the app's private data directory (Android only,
+               Context.getDataDir()), which contains the user data and cache
+               directories and the Java app's directories"/>
+  <variant name="DirCache"
+      summary="the cache directory (base::DIR_CACHE), which the OS may clear"/>
+  <variant name="UserData"
+      summary="the persistent user data directory
+               (content::SHELL_DIR_USER_DATA)"/>
+</variants>
+
 <histogram name="Android.MemoryPressureNotification{AndroidProcessType}"
     enum="Android.MemoryPressureNotification" expires_after="never">
   <owner>sideboard@google.com</owner>
@@ -1009,14 +1099,17 @@ Always run the pretty print utility on this file after editing:
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the total on-disk size in kilobytes of Cobalt's evictable cache
-    directory (base::DIR_CACHE), 10 seconds after browser startup, on a
-    BEST_EFFORT background thread. Recorded once per browser process launch; it
-    is not recorded again when Cobalt resumes from the background or is revealed
-    after a preload, so each sample represents one process launch. Because the
-    cache persists across launches, this mostly reflects the size left by
-    earlier sessions plus startup writes; launches that start with an empty
-    cache show up as low values.
+    Records the total logical size (the sum of file sizes) in kilobytes of
+    Cobalt's evictable cache directory (base::DIR_CACHE), 10 seconds after
+    browser startup, on a BEST_EFFORT background thread. Recorded once per
+    browser process launch; it is not recorded again when Cobalt resumes from
+    the background or is revealed after a preload, so each sample represents one
+    process launch. Because the cache persists across launches, this mostly
+    reflects the size left by earlier sessions plus startup writes; launches
+    that start with an empty cache show up as low values. Computed from the walk
+    that records Cobalt.Storage.Footprint.Startup.DirCache.SizeKB (allocated
+    size, up to 4 GB, with a breakdown by bucket), and not recorded if that walk
+    was truncated. Values above 100 MB fall into the overflow bucket.
   </summary>
 </histogram>
 
@@ -1043,6 +1136,81 @@ Always run the pretty print utility on this file after editing:
     the commit is scheduled, not the completion of the data write to persistent
     storage.
   </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Footprint.WalkTruncated" enum="Boolean"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records, for each storage footprint walk (Startup, PostCleanup, and Uptime),
+    whether it stopped after 100,000 files and directories, before visiting
+    everything. Truncated walks record no sizes or file counts.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.Footprint.{Phase}.Bucket.{Bucket}.SizeKB"
+    units="KB" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the disk space in kilobytes allocated to {Bucket} (st_blocks * 512),
+    sampled {Phase}. Every file and directory in the storage directories belongs
+    to exactly one bucket, by its path (see
+    cobalt/browser/metrics/cobalt_storage_buckets.inc), so on Android the
+    buckets add up to the AppData size. Records 0 when the bucket is empty, so
+    that the share of devices with the bucket is visible; buckets of directories
+    that are not measured on the platform are not recorded. Range: 1 KB to 4 GB.
+    Not recorded if the walk was truncated. The PostCleanup and Uptime samples
+    are recorded only while CobaltStorageFootprintSampler is enabled.
+  </summary>
+  <token key="Phase" variants="CobaltStorageFootprintPhase"/>
+  <token key="Bucket" variants="CobaltStorageBucket"/>
+</histogram>
+
+<histogram name="Cobalt.Storage.Footprint.{Phase}.WalkDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the wall time of the storage directory walk sampled {Phase}, i.e.
+    the cost of the Cobalt.Storage.Footprint histograms. The walk runs on a
+    BEST_EFFORT background sequence and calls lstat() once per file and
+    directory.
+  </summary>
+  <token key="Phase" variants="CobaltStorageFootprintPhase"/>
+</histogram>
+
+<histogram name="Cobalt.Storage.Footprint.{Phase}.{Root}.FileCount"
+    units="files" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the number of regular files in {Root}, including its subdirectories,
+    sampled {Phase}. Directories and symbolic links are not counted. Not
+    recorded if the walk was truncated.
+  </summary>
+  <token key="Phase" variants="CobaltStorageFootprintPhase"/>
+  <token key="Root" variants="CobaltStorageRoot"/>
+</histogram>
+
+<histogram name="Cobalt.Storage.Footprint.{Phase}.{Root}.SizeKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the disk space in kilobytes allocated to {Root} and everything in
+    it, sampled {Phase}. Allocated space is st_blocks * 512, which is what `du`
+    and the OS count; on f2fs every file and directory also takes a 4 KB inode
+    block. Measured by one walk of the storage directories on a BEST_EFFORT
+    background sequence, without following symbolic links. On Android the
+    AppData directory contains the other two, so AppData includes UserData and
+    DirCache. Range: 1 KB to 4 GB. Not recorded if the walk was truncated. The
+    PostCleanup and Uptime samples are recorded only while
+    CobaltStorageFootprintSampler is enabled.
+  </summary>
+  <token key="Phase" variants="CobaltStorageFootprintPhase"/>
+  <token key="Root" variants="CobaltStorageRoot"/>
 </histogram>
 
 <histogram name="Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB" units="KB"
@@ -1210,11 +1378,15 @@ Always run the pretty print utility on this file after editing:
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the total on-disk size in kilobytes of Cobalt's persistent user data
-    directory (content::SHELL_DIR_USER_DATA), 10 seconds after browser startup,
-    on a BEST_EFFORT background thread. Recorded once per browser process
-    launch; it is not recorded again when Cobalt resumes from the background or
-    is revealed after a preload, so each sample represents one process launch.
+    Records the total logical size (the sum of file sizes) in kilobytes of
+    Cobalt's persistent user data directory (content::SHELL_DIR_USER_DATA), 10
+    seconds after browser startup, on a BEST_EFFORT background thread. Recorded
+    once per browser process launch; it is not recorded again when Cobalt
+    resumes from the background or is revealed after a preload, so each sample
+    represents one process launch. Computed from the walk that records
+    Cobalt.Storage.Footprint.Startup.UserData.SizeKB (allocated size, up to 4
+    GB, with a breakdown by bucket), and not recorded if that walk was
+    truncated. Values above 100 MB fall into the overflow bucket.
   </summary>
 </histogram>
 
