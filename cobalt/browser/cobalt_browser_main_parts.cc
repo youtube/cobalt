@@ -618,6 +618,7 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  EnableCobaltIOJankMonitoring();
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
 
   base::FilePath base_dir;
