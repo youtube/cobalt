@@ -172,8 +172,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   static void EnableConfigurableDecommitStrategy(
-      Strategy::ExperimentConfig strategy_config,
-      bool enable_decommit_on_suspend);
+      Strategy::ExperimentConfig strategy_config);
 
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void EnablePeriodicDecommitLoop();
