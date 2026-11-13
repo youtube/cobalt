@@ -20,12 +20,13 @@
 namespace starboard {
 
 StarboardTestEnvironment::StarboardTestEnvironment(int argc, char** argv)
-    : command_line_(argc, argv) {}
+    : command_line_(argc, argv) {
+  features::InitializeStarboardFeatureListWithDefaults();
+}
 
 StarboardTestEnvironment::~StarboardTestEnvironment() = default;
 
 void StarboardTestEnvironment::SetUp() {
-  features::InitializeStarboardFeatureListWithDefaults();
   application_darwin_ = std::make_unique<ApplicationDarwin>(
       std::make_unique<CommandLine>(command_line_));
 }

@@ -36,7 +36,6 @@ bool IsTestExecutable() {
 namespace {
 
 int RunTests(int argc, char** argv) {
-  starboard::RegisterPlatformTestEnvironments(argc, argv);
   return RUN_ALL_TESTS();
 }
 
@@ -72,6 +71,11 @@ int InitAndRunAllTests(int argc, char** argv) {
   char** final_argv = argv;
 #endif
 
+  // Register platform test environments before InitGoogleTest() because
+  // InitGoogleTest() instantiates parameterized test suites (e.g.,
+  // GetSupportedVideoTests() -> MediaIsVideoSupported()), which may query
+  // Starboard features initialized by the platform test environment.
+  starboard::RegisterPlatformTestEnvironments(argc, final_argv);
   ::testing::InitGoogleTest(&argc, final_argv);
   return starboard::RunPlatformTestSuite(argc, final_argv, &RunTests);
 }

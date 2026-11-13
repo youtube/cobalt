@@ -15,8 +15,10 @@
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 
 #include <optional>
+#include <variant>
 
 #include "base/test/task_environment.h"
+#include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 
@@ -27,6 +29,28 @@ ContentBrowserTestShellMainDelegate::ContentBrowserTestShellMainDelegate()
 
 ContentBrowserTestShellMainDelegate::~ContentBrowserTestShellMainDelegate() =
     default;
+
+std::optional<int> ContentBrowserTestShellMainDelegate::PostEarlyInitialization(
+    InvokedIn invoked_in) {
+  std::optional<int> result =
+      ShellMainTestDelegate::PostEarlyInitialization(invoked_in);
+  if (result.has_value()) {
+    return result;
+  }
+  if (std::holds_alternative<InvokedInBrowserProcess>(invoked_in)) {
+    // Generic ContentBrowserTest delegates do not execute
+    // CobaltContentBrowserClient::CreateFeatureListAndFieldTrials(). Push the
+    // initialized base::FeatureList state down to Starboard once per process
+    // (for per-test overrides in reused processes, use
+    // starboard::features::ScopedFeatureList).
+    static bool starboard_features_initialized = false;
+    if (!starboard_features_initialized) {
+      starboard_features_initialized = true;
+      cobalt::features::InitializeStarboardFeatures();
+    }
+  }
+  return std::nullopt;
+}
 
 void ContentBrowserTestShellMainDelegate::CreateThreadPool(
     std::string_view name) {

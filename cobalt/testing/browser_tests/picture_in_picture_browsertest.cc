@@ -22,7 +22,6 @@
 #include "build/build_config.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/features.h"
-#include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
@@ -103,11 +102,6 @@ class PictureInPictureBrowserTest : public ContentBrowserTest {
     // Running in single-process mode keeps browser, renderer, and GPU threads
     // in shared memory so hardware video decoding and geometry updates work.
     command_line->AppendSwitch(switches::kSingleProcess);
-
-    // Initialize Starboard features explicitly because generic test browser
-    // delegates do not execute
-    // `CobaltContentBrowserClient::PostEarlyInitialization()`.
-    cobalt::features::InitializeStarboardFeatures();
 
     // When `--single-process` is appended inside `SetUpCommandLine()` on
     // Android, `ContentMainRunnerImpl::Initialize()` has already run earlier
