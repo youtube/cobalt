@@ -271,5 +271,55 @@ BASE_FEATURE_PARAM(bool,
                    "CobaltCodeCacheOptimization_bypass_heat_check",
                    true);
 
+BASE_FEATURE(kCobaltCacheQuotas,
+             "CobaltCacheQuotas",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so param names are
+// prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+// The default sizes must match kDefaultCacheQuotaSizes in
+// cobalt/browser/cache_quota_allocator.h.
+BASE_FEATURE_PARAM(int,
+                   kCobaltCacheQuotasHttpCacheSizeBytes,
+                   &kCobaltCacheQuotas,
+                   "CobaltCacheQuotas_http_cache_size_bytes",
+                   9437184);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltCacheQuotasJsCodeCacheSizeBytes,
+                   &kCobaltCacheQuotas,
+                   "CobaltCacheQuotas_js_code_cache_size_bytes",
+                   5242880);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltCacheQuotasWasmCodeCacheSizeBytes,
+                   &kCobaltCacheQuotas,
+                   "CobaltCacheQuotas_wasm_code_cache_size_bytes",
+                   1048576);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltCacheQuotasCacheStorageSizeBytes,
+                   &kCobaltCacheQuotas,
+                   "CobaltCacheQuotas_cache_storage_size_bytes",
+                   6291456);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltCacheQuotasGpuShaderCacheSizeBytes,
+                   &kCobaltCacheQuotas,
+                   "CobaltCacheQuotas_gpu_shader_cache_size_bytes",
+                   2097152);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltCacheQuotasOtherSizeBytes,
+                   &kCobaltCacheQuotas,
+                   "CobaltCacheQuotas_other_size_bytes",
+                   1048576);
+
+BASE_FEATURE_PARAM(std::string,
+                   kCobaltCacheQuotasUncommittedPolicy,
+                   &kCobaltCacheQuotas,
+                   "CobaltCacheQuotas_uncommitted_policy",
+                   "http");
+
 }  // namespace features
 }  // namespace cobalt
