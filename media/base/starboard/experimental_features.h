@@ -179,6 +179,17 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
 inline constexpr ExperimentalFeatureKey<bool> kMediaForceDecodeToTexture(
     "Media.ForceDecodeToTexture");
 
+// When true, StarboardRenderer handles mid-playback underflow: when the
+// playback position nears the end of the data written for a stream that is
+// waiting on the demuxer (a video-only starvation while audio is still
+// buffered is tolerated for a few seconds first), it pauses the SbPlayer and
+// reports BUFFERING_HAVE_NOTHING, and resumes once enough data has been
+// written. See PlaybackUnderflowDetector for the exact rules. Without this,
+// such an underflow is never surfaced to the HTMLMediaElement, so readyState
+// stays HAVE_ENOUGH_DATA and no 'waiting' event fires. See b/578446041.
+inline constexpr ExperimentalFeatureKey<bool> kMediaHandlePlaybackUnderflow(
+    "Media.HandlePlaybackUnderflow");
+
 inline constexpr ExperimentalFeatureKey<int> kMediaMaxSamplesPerWrite(
     "Media.MaxSamplesPerWrite");
 // keep-sorted end
