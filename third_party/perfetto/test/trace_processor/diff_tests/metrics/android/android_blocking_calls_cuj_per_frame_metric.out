@@ -1,0 +1,139 @@
+android_blocking_calls_cuj_per_frame_metric {
+  cuj {
+    name: "BACK_PANEL_ARROW"
+    process {
+      name: "com.android.systemui"
+      uid: 10001
+      android_user_id: 0
+      pid: 5000
+      is_kernel_task: false
+    }
+    blocking_calls {
+      name: "CreateGraphicsPipeline"
+      max_dur_per_frame_ms: 0
+      max_dur_per_frame_ns: 800000
+      mean_dur_per_frame_ms: 0
+      mean_dur_per_frame_ns: 200000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.250000
+    }
+    blocking_calls {
+      name: "DrawFrames"
+      max_dur_per_frame_ms: 1
+      max_dur_per_frame_ns: 1000000
+      mean_dur_per_frame_ms: 1
+      mean_dur_per_frame_ns: 1000000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 1.000000
+    }
+    blocking_calls {
+      name: "Texture upload"
+      max_dur_per_frame_ms: 0
+      max_dur_per_frame_ns: 100000
+      mean_dur_per_frame_ms: 0
+      mean_dur_per_frame_ns: 25000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.250000
+    }
+    blocking_calls {
+      name: "animation"
+      max_dur_per_frame_ms: 2
+      max_dur_per_frame_ns: 2000000
+      mean_dur_per_frame_ms: 1
+      mean_dur_per_frame_ns: 1000000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.500000
+    }
+    blocking_calls {
+      name: "binder transaction"
+      max_dur_per_frame_ms: 3
+      max_dur_per_frame_ns: 3000000
+      mean_dur_per_frame_ms: 1
+      mean_dur_per_frame_ns: 1375000
+      max_cnt_per_frame: 2
+      mean_cnt_per_frame: 0.750000
+    }
+    blocking_calls {
+      name: "drawLayer"
+      max_dur_per_frame_ms: 0
+      max_dur_per_frame_ns: 100000
+      mean_dur_per_frame_ms: 0
+      mean_dur_per_frame_ns: 25000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.250000
+    }
+    blocking_calls {
+      name: "drawLayer [TestLayer]"
+      max_dur_per_frame_ms: 0
+      max_dur_per_frame_ns: 100000
+      mean_dur_per_frame_ms: 0
+      mean_dur_per_frame_ns: 25000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.250000
+    }
+    blocking_calls {
+      name: "flush commands"
+      max_dur_per_frame_ms: 0
+      max_dur_per_frame_ns: 100000
+      mean_dur_per_frame_ms: 0
+      mean_dur_per_frame_ns: 25000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.250000
+    }
+    blocking_calls {
+      name: "flush layers"
+      max_dur_per_frame_ms: 0
+      max_dur_per_frame_ns: 100000
+      mean_dur_per_frame_ms: 0
+      mean_dur_per_frame_ns: 25000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.250000
+    }
+    blocking_calls {
+      name: "hwuiTask"
+      max_dur_per_frame_ms: 0
+      max_dur_per_frame_ns: 200000
+      mean_dur_per_frame_ms: 0
+      mean_dur_per_frame_ns: 50000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.250000
+    }
+    blocking_calls {
+      name: "queueBuffer"
+      max_dur_per_frame_ms: 0
+      max_dur_per_frame_ns: 100000
+      mean_dur_per_frame_ms: 0
+      mean_dur_per_frame_ns: 25000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.250000
+    }
+  }
+  cuj {
+    name: "CUJ_NAME"
+    process {
+      name: "com.google.android.apps.nexuslauncher"
+      uid: 10002
+      android_user_id: 0
+      pid: 6000
+      is_kernel_task: false
+    }
+    blocking_calls {
+      name: "DrawFrames"
+      max_dur_per_frame_ms: 1
+      max_dur_per_frame_ns: 1000000
+      mean_dur_per_frame_ms: 0
+      mean_dur_per_frame_ns: 750000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 1.000000
+    }
+    blocking_calls {
+      name: "animation"
+      max_dur_per_frame_ms: 11
+      max_dur_per_frame_ns: 11000000
+      mean_dur_per_frame_ms: 5
+      mean_dur_per_frame_ns: 5500000
+      max_cnt_per_frame: 1
+      mean_cnt_per_frame: 0.500000
+    }
+  }
+}

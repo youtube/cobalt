@@ -1,0 +1,13 @@
+diff --git a/source/data/locales/en.txt b/source/data/locales/en.txt
+index 5d7c9d5a8..3748344f6 100644
+--- a/source/data/locales/en.txt
++++ b/source/data/locales/en.txt
+@@ -913,7 +913,7 @@ en{
+                 Hms{"HH:mm:ss"}
+                 Hmsv{"HH:mm:ss v"}
+                 Hmv{"HH:mm v"}
+-                Hv{"HH'h' v"}
++                Hv{"HH v"}
+                 M{"L"}
+                 MEd{"E, M/d"}
+                 MMM{"LLL"}
