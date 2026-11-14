@@ -119,7 +119,7 @@ GetPrivateAggregationHostPipeReportSuccessValue();
 PrivateAggregationHost::PipeResult
 GetPrivateAggregationHostPipeApiDisabledValue();
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 base::WeakPtr<TestSharedStorageHeaderObserver>
 CreateAndOverrideSharedStorageHeaderObserver(StoragePartition* partition);
 #endif

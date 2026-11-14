@@ -15,9 +15,9 @@
 #include "base/metrics/metrics_hashes.h"
 #include "base/task/single_thread_task_runner.h"
 #include "content/browser/accessibility/render_accessibility_host.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "content/browser/attribution_reporting/attribution_host.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/file_system/file_system_manager_impl.h"
@@ -217,7 +217,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
                     blink::mojom::LocalFrameHost::Name_));
           },
           base::Unretained(this)));
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI)) {
     associated_registry_->AddInterface<
@@ -260,7 +260,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
         },
         base::Unretained(this)));
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
   if (is_main_frame()) {
     associated_registry_->AddInterface<blink::mojom::LocalMainFrameHost>(
@@ -322,7 +322,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
           },
           base::Unretained(this)));
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
   associated_registry_->AddInterface<blink::mojom::AttributionHost>(
       base::BindRepeating(
           [](RenderFrameHostImpl* impl,
@@ -331,7 +331,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
             AttributionHost::BindReceiver(std::move(receiver), impl);
           },
           base::Unretained(this)));
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
   associated_registry_->AddInterface<device::mojom::ScreenOrientation>(
       base::BindRepeating(
