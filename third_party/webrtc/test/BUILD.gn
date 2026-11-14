@@ -1280,43 +1280,6 @@ if (rtc_include_tests) {
         "scenario:scenario_unittests",
         "time_controller:time_controller_unittests",
       ]
-<<<<<<< HEAD
-=======
-
-      if (is_cobalt && (is_starboard || use_starboard_media)) {
-        deps -= [
-          "../modules/video_coding:webrtc_vp8",
-          "../modules/video_coding:webrtc_vp9",
-        ]
-      }
-
-      sources = [
-        "call_config_utils_unittest.cc",
-        "create_test_field_trials_unittest.cc",
-        "direct_transport_unittest.cc",
-        "fake_vp8_encoder_unittest.cc",
-        "frame_generator_capturer_unittest.cc",
-        "frame_generator_unittest.cc",
-        "near_matcher_unittest.cc",
-        "rtp_file_reader_unittest.cc",
-        "rtp_file_writer_unittest.cc",
-        "run_loop_unittest.cc",
-        "testsupport/ivf_frame_reader_unittest.cc",
-        "testsupport/ivf_video_frame_generator_unittest.cc",
-        "testsupport/perf_test_unittest.cc",
-        "testsupport/test_artifacts_unittest.cc",
-        "testsupport/video_frame_writer_unittest.cc",
-        "testsupport/y4m_frame_generator_test.cc",
-        "testsupport/y4m_frame_reader_unittest.cc",
-        "testsupport/y4m_frame_writer_unittest.cc",
-        "testsupport/yuv_frame_reader_unittest.cc",
-        "testsupport/yuv_frame_writer_unittest.cc",
-        "video_codec_tester_unittest.cc",
-        "video_frame_matcher_unittest.cc",
-        "wait_until_unittest.cc",
-      ]
-
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       if (rtc_enable_protobuf) {
         tests += [ ":perf_test_histogram_writer_unittest" ]
       }

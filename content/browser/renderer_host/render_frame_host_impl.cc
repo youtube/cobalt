@@ -189,12 +189,8 @@
 #include "content/browser/web_exposed_isolation_info.h"
 #include "content/browser/web_package/prefetched_signed_exchange_cache.h"
 #include "content/browser/webauth/authenticator_impl.h"
-<<<<<<< HEAD
 #include "content/browser/webauth/webauth_request_security_checker_impl.h"
-=======
-#include "content/browser/webauth/webauth_request_security_checker.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/webid/flags.h"
 #include "content/browser/webid/request_service.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
