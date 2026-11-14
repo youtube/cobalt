@@ -20,6 +20,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/size.h"
+#include "starboard/common/span.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/avc_util.h"
@@ -32,16 +33,14 @@ namespace starboard {
 // The class only supports h264 and vp9 for now, which is checked in its ctor.
 class VideoConfig {
  public:
-  // |data| must point to the encoded data of a key frame.
+  // |data| must reference the encoded data of a key frame.
   static std::optional<VideoConfig> Create(SbMediaVideoCodec video_codec,
                                            const Size& size,
-                                           const uint8_t* data,
-                                           size_t data_size);
+                                           span<const uint8_t> data);
 
   static std::optional<VideoConfig> Create(
       const VideoStreamInfo& video_stream_info,
-      const uint8_t* data,
-      size_t data_size);
+      span<const uint8_t> data);
 
   const AvcParameterSets& avc_parameter_sets() const {
     SB_DCHECK_EQ(video_codec_, kSbMediaVideoCodecH264);
