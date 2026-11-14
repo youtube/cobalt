@@ -120,7 +120,7 @@ typedef FILE* FileHandle;
 #include "base/posix/safe_strerror.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "base/files/scoped_file.h"
 #endif
 
@@ -609,7 +609,7 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   // default log file will re-initialize to the new options.
   CloseLogFileUnlocked();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   if (settings.log_file) {
     DCHECK(!settings.log_file_path);
     g_log_file = settings.log_file;
@@ -1177,7 +1177,7 @@ void CloseLogFile() {
   CloseLogFileUnlocked();
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 FILE* DuplicateLogFILE() {
   if ((g_logging_destination & LOG_TO_FILE) == 0 || !InitializeLogFileHandle())
     return nullptr;
