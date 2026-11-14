@@ -2574,6 +2574,14 @@ _CONFIG = [
         'allowed': [
             'mojom::OriginTrialFeature',
         ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/modules/cobalt/h5vcc_system/',
+        ],
+        'allowed': [
+            'cobalt::IsCleanExitBeaconFlagged',
+        ],
     }
 ]
 

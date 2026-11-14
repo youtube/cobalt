@@ -39,6 +39,7 @@
 #include "base/threading/sequence_local_storage_slot.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
+#include "cobalt/common/clean_exit_beacon/clean_exit_beacon_state.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
@@ -328,6 +329,12 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
 
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
                                  kForwardSwitches);
+
+  if (command_line->GetSwitchValueASCII(switches::kProcessType) ==
+          switches::kRendererProcess &&
+      cobalt::IsCleanExitBeaconFlagged()) {
+    command_line->AppendSwitch(cobalt::kCleanExitBeaconFlaggedSwitch);
+  }
 
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(

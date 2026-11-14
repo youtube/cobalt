@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
 
 #include "base/time/time.h"
+#include "cobalt/common/clean_exit_beacon/clean_exit_beacon_state.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_details.h"
@@ -313,6 +314,10 @@ void H5vccSystem::OnGetLowMemoryKillDetails(
   // than omitted (undefined).
   details->setReason(result->reason.empty() ? String() : result->reason);
   resolver->Resolve(details);
+}
+
+bool H5vccSystem::isCleanExitBeaconFlagged() const {
+  return cobalt::IsCleanExitBeaconFlagged();
 }
 
 void H5vccSystem::EnsureReceiverIsBound() {

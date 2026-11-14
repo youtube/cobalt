@@ -26,6 +26,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
+#include "cobalt/common/clean_exit_beacon/clean_exit_beacon_state.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -34,6 +35,7 @@
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
+#include "components/metrics/clean_exit_beacon.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
@@ -217,6 +219,8 @@ void ShellContentBrowserTestClient::SetUpFieldTrials() {
                       switches::kEnableGpuBenchmarking),
           });
   metrics_state_manager->InstantiateFieldTrialList();
+  cobalt::SetCleanExitBeaconFlagged(
+      !metrics_state_manager->clean_exit_beacon()->exited_cleanly());
 
   std::vector<std::string> variation_ids;
   auto feature_list = std::make_unique<base::FeatureList>();

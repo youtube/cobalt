@@ -117,4 +117,8 @@ interface H5vccSystem {
   // details.
   [CallWith=ScriptState, RaisesException]
   Promise<LowMemoryKillDetails?> getLowMemoryKillDetails();
+
+  // Returns true if Cobalt's CleanExitBeacon detected at process cold start
+  // that the previous session did not exit cleanly, or false otherwise.
+  boolean isCleanExitBeaconFlagged();
 };
