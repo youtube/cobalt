@@ -85,14 +85,14 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     virtual size_t GetAllocated() const = 0;
 
     // Informs the strategy whether the application is currently suspended.
-    virtual void SetSuspended(bool is_suspended) {}
+    virtual void SetSuspended(bool is_suspended) = 0;
 
     // Decommits idle blocks. When |include_retained_blocks| is true, idle
     // blocks in the retain window are decommitted as well, regardless of the
     // strategy's suspend configuration. Blocks in use are never affected.
     virtual void DecommitAllDecommitableBlocks(
         bool include_retained_blocks) = 0;
-    virtual void TryToDecommitOneBlock() {}
+    virtual void TryToDecommitOneBlock() = 0;
   };
 
   using StrategyCreateCB =

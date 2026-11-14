@@ -24,29 +24,6 @@
 
 namespace starboard {
 
-ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
-                                       size_t max_capacity,
-                                       size_t retain_blocks,
-                                       size_t conservative_decommit_blocks,
-                                       bool aggressive_decommit_on_suspend,
-                                       bool memset_on_reclaim,
-                                       bool mark_as_cold_on_reclaim)
-    : fallback_allocator_(fallback_allocator),
-      max_capacity_(max_capacity),
-      retain_blocks_(retain_blocks),
-      conservative_decommit_blocks_(conservative_decommit_blocks),
-      aggressive_decommit_on_suspend_(aggressive_decommit_on_suspend),
-      memset_on_reclaim_(memset_on_reclaim),
-      mark_as_cold_on_reclaim_(mark_as_cold_on_reclaim) {
-  SB_DCHECK(fallback_allocator_);
-}
-
-ReuseAllocatorBase::~ReuseAllocatorBase() {
-  for (const auto& fallback_allocation : fallback_allocations_) {
-    fallback_allocator_->Free(fallback_allocation.address);
-  }
-}
-
 void ReuseAllocatorBase::SetSuspended(bool is_suspended) {
   if (is_suspended_ == is_suspended) {
     return;
@@ -99,6 +76,29 @@ void ReuseAllocatorBase::TryToDecommitOneBlock() {
     }
   }
   has_pending_decommits_ = false;
+}
+
+ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
+                                       size_t max_capacity,
+                                       size_t retain_blocks,
+                                       size_t conservative_decommit_blocks,
+                                       bool aggressive_decommit_on_suspend,
+                                       bool memset_on_reclaim,
+                                       bool mark_as_cold_on_reclaim)
+    : fallback_allocator_(fallback_allocator),
+      max_capacity_(max_capacity),
+      retain_blocks_(retain_blocks),
+      conservative_decommit_blocks_(conservative_decommit_blocks),
+      aggressive_decommit_on_suspend_(aggressive_decommit_on_suspend),
+      memset_on_reclaim_(memset_on_reclaim),
+      mark_as_cold_on_reclaim_(mark_as_cold_on_reclaim) {
+  SB_DCHECK(fallback_allocator_);
+}
+
+ReuseAllocatorBase::~ReuseAllocatorBase() {
+  for (const auto& fallback_allocation : fallback_allocations_) {
+    fallback_allocator_->Free(fallback_allocation.address);
+  }
 }
 
 std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
