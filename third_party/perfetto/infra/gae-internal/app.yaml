@@ -1,8 +1,0 @@
-runtime: python312
-
-entrypoint: gunicorn -b :$PORT main:app
-
-instance_class: F1
-
-automatic_scaling:
-  max_instances: 2

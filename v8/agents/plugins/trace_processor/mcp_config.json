@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "trace-processor": {
-      "command": "./agents/plugins/trace_processor/server.py",
-      "args": []
-    }
-  }
-}
