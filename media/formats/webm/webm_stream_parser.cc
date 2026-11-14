@@ -648,7 +648,7 @@ int WebMStreamParser::ParseInfoAndTracksSegmented(int offset, int size) {
     return -1;
   }
 
-  WebMTracksParser tracks_parser(media_log_);
+  WebMTracksParser tracks_parser(media_log_.get());
   result = tracks_parser.Parse(tracks_data->data(),
                                base::checked_cast<int>(tracks_data->size()));
 
@@ -702,7 +702,7 @@ int WebMStreamParser::ParseInfoAndTracksSegmented(int offset, int size) {
       tracks_parser.GetVideoDefaultDuration(timecode_scale_in_ns),
       tracks_parser.ignored_tracks(), tracks_parser.audio_encryption_key_id(),
       tracks_parser.video_encryption_key_id(), audio_config.codec(),
-      media_log_);
+      media_log_.get());
 
   if (init_cb_) {
     params.detected_audio_track_count =
