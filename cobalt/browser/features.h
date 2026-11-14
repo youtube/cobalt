@@ -261,7 +261,8 @@ BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
 // Gives each cache that shares Starboard's cache directory its own quota in
 // bytes, and fits the quotas to the platform's budget for that directory
 // (kSbMaxSystemPathCacheDirectorySize). See AllocateCacheQuotas() in
-// cobalt/browser/cache_quota_allocator.h for the rules.
+// cobalt/browser/cache_quota_allocator.h for the rules. Starboard only: the
+// feature has no effect on other platforms.
 //
 // The quotas are for the HTTP cache (default: 9437184 bytes / 9 MiB), the
 // JavaScript code cache (5242880 / 5 MiB), the WebAssembly code cache
@@ -275,7 +276,13 @@ BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
 // takes it from, the HTTP cache; "scale" multiplies every quota by
 // budget / sum; "none" leaves the quotas as configured.
 //
-// Nothing reads these params yet, so enabling the feature has no effect.
+// When enabled, this feature alone sizes these caches: the size params of
+// `kCobaltHttpCacheQuota` and `kCobaltCodeCacheOptimization` are ignored.
+//
+// Read the params with GetCacheQuotaConfigFromFeatureParams(), and the
+// resulting quotas with GetCacheQuotas() in cobalt/browser/cache_quotas.h, not
+// with Get(): Get() returns the default for a size that does not fit in an
+// int, which would hide a misconfiguration.
 // Locally:
 // --enable-features=CobaltCacheQuotas:CobaltCacheQuotas_http_cache_size_bytes/4194304/CobaltCacheQuotas_js_code_cache_size_bytes/10485760
 BASE_DECLARE_FEATURE(kCobaltCacheQuotas);

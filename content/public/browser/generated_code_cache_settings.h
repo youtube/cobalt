@@ -6,6 +6,13 @@
 #define CONTENT_PUBLIC_BROWSER_GENERATED_CODE_CACHE_SETTINGS_H_
 
 #include "base/files/file_path.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include <optional>
+
+#include "base/check_op.h"
+#endif
 
 namespace content {
 
@@ -28,10 +35,24 @@ class GeneratedCodeCacheSettings {
   // on the disk.
   base::FilePath path() const { return path_; }
 
+#if BUILDFLAG(IS_COBALT)
+  // Specifies the size of the WebAssembly code cache, which Cobalt does not
+  // take from size_in_bytes(). If this is not set, the size is
+  // kGeneratedWasmCodeCacheBytes.
+  void set_wasm_size_in_bytes(int size) {
+    DCHECK_GT(size, 0);
+    wasm_size_in_bytes_ = size;
+  }
+  std::optional<int> wasm_size_in_bytes() const { return wasm_size_in_bytes_; }
+#endif
+
  private:
   const bool enabled_;
   const int64_t size_in_bytes_;
   const base::FilePath path_;
+#if BUILDFLAG(IS_COBALT)
+  std::optional<int> wasm_size_in_bytes_;
+#endif
 };
 
 }  // namespace content

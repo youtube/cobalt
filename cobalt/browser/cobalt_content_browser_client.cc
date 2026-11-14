@@ -40,6 +40,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "cobalt/browser/cache_quotas.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -81,7 +82,9 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_finch_features.h"
+#include "gpu/config/gpu_preferences.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/network/public/cpp/features.h"
@@ -300,9 +303,13 @@ std::optional<storage::QuotaSettings> CalculateCobaltCacheQuotaSettings(
   // `pool_size == per_storage_key_quota`. Sizing `pool_size` to 2x the per-key
   // quota ensures `per_storage_key_quota` is the binding write limit and
   // single-origin usage never crosses the 70% pool eviction threshold.
-  int64_t storage_key_quota =
-      std::min(total, static_cast<int64_t>(
-                          CobaltContentBrowserClient::kCacheStorageQuotaBytes));
+  // With kCobaltCacheQuotas the CacheStorage quota is the per-origin quota.
+  const int64_t configured_storage_key_quota =
+      AreCacheQuotasEnabled()
+          ? GetCacheQuotas().sizes.cache_storage
+          : static_cast<int64_t>(
+                CobaltContentBrowserClient::kCacheStorageQuotaBytes);
+  int64_t storage_key_quota = std::min(total, configured_storage_key_quota);
   int64_t pool_size = storage_key_quota *
                       CobaltContentBrowserClient::kCacheStoragePoolToQuotaRatio;
 
@@ -452,6 +459,17 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   const size_t size = GetConfiguredGeneratedCodeCacheBytes();
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
+  if (AreCacheQuotasEnabled()) {
+    // kCobaltCacheQuotas sizes both code caches and ignores the size param of
+    // kCobaltCodeCacheOptimization.
+    const CacheQuotaSizes quotas = GetCacheQuotas().sizes;
+    content::GeneratedCodeCacheSettings settings(
+        /*enabled=*/true, base::checked_cast<int>(quotas.js_code_cache),
+        cache_path);
+    settings.set_wasm_size_in_bytes(
+        base::checked_cast<int>(quotas.wasm_code_cache));
+    return settings;
+  }
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
                                              cache_path);
 }
@@ -473,6 +491,28 @@ uint32_t CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
 
 // static
 void CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+    bool in_memory,
+    uint32_t total_dir_budget_bytes,
+    network::mojom::NetworkContextParams* network_context_params) {
+  if (!AreCacheQuotasEnabled()) {
+    ConfigureLegacyHttpCacheMaxSize(in_memory, total_dir_budget_bytes,
+                                    network_context_params);
+    return;
+  }
+
+  // kCobaltCacheQuotas sizes the HTTP cache from the platform's budget, which
+  // it reads itself, and ignores the size param of kCobaltHttpCacheQuota. The
+  // allocated quota already is the value of --max-http-cache-size if that
+  // switch is set, and the switch also applies to in-memory profiles.
+  if (!in_memory ||
+      GetMaxHttpCacheSizeSwitch(*base::CommandLine::ForCurrentProcess())) {
+    network_context_params->http_cache_max_size =
+        base::checked_cast<int>(GetCacheQuotas().sizes.http_cache);
+  }
+}
+
+// static
+void CobaltContentBrowserClient::ConfigureLegacyHttpCacheMaxSize(
     bool in_memory,
     [[maybe_unused]] uint32_t total_dir_budget_bytes,
     network::mojom::NetworkContextParams* network_context_params) {
@@ -520,6 +560,50 @@ void CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
     }
   }
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+// static
+CacheQuotaAllocation CobaltContentBrowserClient::ComputeLegacyCacheQuotas(
+    uint32_t total_dir_budget_bytes) {
+  // Ask the code that sizes the HTTP cache, so that this cannot drift from it.
+  auto network_context_params = network::mojom::NetworkContextParams::New();
+  ConfigureLegacyHttpCacheMaxSize(/*in_memory=*/false, total_dir_budget_bytes,
+                                  network_context_params.get());
+
+  CacheQuotaAllocation quotas;
+  quotas.sizes.http_cache = network_context_params->http_cache_max_size;
+  quotas.sizes.js_code_cache = GetConfiguredGeneratedCodeCacheBytes();
+  quotas.sizes.wasm_code_cache = content::kGeneratedWasmCodeCacheBytes;
+  quotas.sizes.cache_storage = kCacheStorageQuotaBytes;
+  // The GPU shader cache only counts while it is enabled, which is on preload
+  // launches (see CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache()).
+  quotas.sizes.gpu_shader_cache =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          ::switches::kDisableGpuShaderDiskCache)
+          ? 0
+          : base::saturated_cast<int64_t>(gpu::GetDefaultGpuDiskCacheSize());
+  quotas.sizes.other = kCacheDirectoryHeadroomBytes;
+
+  quotas.outcome = CacheQuotaOutcome::kFeatureDisabled;
+  quotas.budget_below_minimum =
+      total_dir_budget_bytes < kMinCacheQuotaBudgetBytes;
+  quotas.platform_budget_bytes = total_dir_budget_bytes;
+  quotas.budget_bytes =
+      std::clamp(int64_t{total_dir_budget_bytes}, kMinCacheQuotaBudgetBytes,
+                 kMaxCacheQuotaBudgetBytes);
+  quotas.configured_bytes = quotas.sizes.Total();
+  quotas.uncommitted_bytes =
+      std::max(quotas.budget_bytes - quotas.configured_bytes, int64_t{0});
+  return quotas;
+}
+
+// static
+CacheQuotaAllocation CobaltContentBrowserClient::GetCacheQuotasInEffect() {
+  return AreCacheQuotasEnabled()
+             ? GetCacheQuotas()
+             : ComputeLegacyCacheQuotas(kSbMaxSystemPathCacheDirectorySize);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);

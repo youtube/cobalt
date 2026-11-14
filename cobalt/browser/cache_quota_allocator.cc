@@ -173,9 +173,9 @@ CacheQuotaPolicy GetPolicyParam() {
   if (policy == "none") {
     return CacheQuotaPolicy::kNone;
   }
-  LOG(WARNING) << "Unknown "
+  LOG(WARNING) << "CobaltCacheQuotas: unknown "
                << features::kCobaltCacheQuotasUncommittedPolicy.name << " \""
-               << policy << "\", using \"http\".";
+               << policy << "\". Using \"http\" instead.";
   return CacheQuotaPolicy::kHttp;
 }
 
@@ -198,7 +198,7 @@ CacheQuotaAllocation AllocateCacheQuotas(const CacheQuotaSizes& configured,
     fallback = CacheQuotaOutcome::kFellBackToDefaultsInvalidParams;
   }
 
-  const int64_t uncommitted = std::max(budget - Sum(sizes), int64_t{0});
+  const int64_t configured_bytes = Sum(sizes);
 
   std::optional<CacheQuotaOutcome> policy_outcome =
       ApplyPolicy(policy, budget, defaults, sizes);
@@ -218,8 +218,15 @@ CacheQuotaAllocation AllocateCacheQuotas(const CacheQuotaSizes& configured,
   allocation.sizes = ToCacheQuotaSizes(sizes);
   allocation.budget_below_minimum =
       platform_budget_bytes < kMinCacheQuotaBudgetBytes;
+  allocation.invalid_params =
+      fallback == CacheQuotaOutcome::kFellBackToDefaultsInvalidParams;
+  allocation.unresolvable_over_commit =
+      fallback == CacheQuotaOutcome::kFellBackToDefaultsUnresolvableOverCommit;
+  allocation.platform_budget_bytes = platform_budget_bytes;
   allocation.budget_bytes = budget;
-  allocation.uncommitted_bytes = uncommitted;
+  allocation.configured_bytes = configured_bytes;
+  allocation.uncommitted_bytes =
+      std::max(budget - configured_bytes, int64_t{0});
   if (allocation.budget_below_minimum) {
     allocation.outcome = CacheQuotaOutcome::kBudgetBelowMinimum;
   } else if (fallback) {

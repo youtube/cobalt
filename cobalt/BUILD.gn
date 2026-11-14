@@ -359,6 +359,7 @@ test("cobalt_unittests") {
 
   sources = [
     "//cobalt/browser/cache_quota_allocator_unittest.cc",
+    "//cobalt/browser/cache_quotas_unittest.cc",
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",

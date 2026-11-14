@@ -27,6 +27,7 @@
 #include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/cache_quotas.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/common/cobalt_thread_checker.h"
@@ -125,6 +126,22 @@ void CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(
   command_line->RemoveSwitch(switches::kDisableGpuShaderDiskCache);
   // GrShaderCache only.
   command_line->AppendSwitch(switches::kGpuShaderDiskCacheGrOnly);
+  if (AreCacheQuotasEnabled()) {
+    // A size that the user passed stays. A value that is not a number is
+    // replaced: the GPU process would use its default size for it, and not the
+    // allocated quota.
+    if (!GetGpuDiskCacheSizeSwitch(*command_line)) {
+      // The quotas are computed here for the first time on a preload launch,
+      // which is before this switch is set, so that they do not take it for
+      // one that the user passed.
+      const int size_kb = GetGpuDiskCacheSizeKBForQuota(
+          GetCacheQuotas().sizes.gpu_shader_cache);
+      command_line->RemoveSwitch(switches::kGpuDiskCacheSizeKB);
+      command_line->AppendSwitchASCII(switches::kGpuDiskCacheSizeKB,
+                                      base::NumberToString(size_kb));
+    }
+    return;
+  }
   if (!command_line->HasSwitch(switches::kGpuDiskCacheSizeKB)) {
     command_line->AppendSwitchASCII(
         switches::kGpuDiskCacheSizeKB,

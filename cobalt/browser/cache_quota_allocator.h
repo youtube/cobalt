@@ -43,8 +43,10 @@ enum class CacheQuotaPolicy {
 // apply, the one listed last here wins, except that the two fallbacks cannot
 // both apply.
 //
-// The values will be recorded in a histogram, so they must not be renumbered
-// or reused.
+// These values are recorded in Cobalt.Storage.CacheQuota.AllocationOutcome, so
+// they must not be renumbered or reused. Keep them in sync with
+// CobaltCacheQuotaAllocationOutcome in
+// tools/metrics/histograms/metadata/cobalt/enums.xml.
 enum class CacheQuotaOutcome {
   // The quotas add up to the budget.
   kExact = 0,
@@ -85,6 +87,11 @@ struct CacheQuotaSizes {
   // Everything else in the cache directory.
   int64_t other = 0;
 
+  constexpr int64_t Total() const {
+    return http_cache + js_code_cache + wasm_code_cache + cache_storage +
+           gpu_shader_cache + other;
+  }
+
   friend bool operator==(const CacheQuotaSizes&,
                          const CacheQuotaSizes&) = default;
 };
@@ -106,20 +113,32 @@ struct CacheQuotaConfig {
 };
 
 struct CacheQuotaAllocation {
-  // The quotas to enforce. Each is at most the largest int32_t.
+  // The quotas to enforce. Each is at most the largest int32_t, unless a
+  // command line switch replaced it (see
+  // CacheQuotaOutcome::kDeveloperOverride).
   CacheQuotaSizes sizes;
   CacheQuotaOutcome outcome = CacheQuotaOutcome::kExact;
-  // Whether the platform budget was below kMinCacheQuotaBudgetBytes. `outcome`
-  // also says so, but this stays readable if `outcome` is later replaced by
-  // kDeveloperOverride.
+
+  // What `outcome` cannot say on its own, because it holds a single value.
+  //
+  // Whether the platform budget was below kMinCacheQuotaBudgetBytes.
   bool budget_below_minimum = false;
+  // Whether a configured quota was invalid, so that the defaults were used.
+  bool invalid_params = false;
+  // Whether the policy could not fit the configured quotas to the budget
+  // without shrinking one to below its default, so that the defaults were
+  // used.
+  bool unresolvable_over_commit = false;
+
+  // The platform budget as it was passed in.
+  int64_t platform_budget_bytes = 0;
   // The budget the quotas were fitted to: the platform budget, limited to
   // kMinCacheQuotaBudgetBytes..kMaxCacheQuotaBudgetBytes.
   int64_t budget_bytes = 0;
-  // How far the quotas were below `budget_bytes` before the policy was
-  // applied: `budget_bytes` minus the sum of the configured quotas, or of the
-  // defaults if a configured quota was invalid. It is 0 if they were above the
-  // budget.
+  // The sum of the quotas before the policy was applied: of the configured
+  // quotas, or of the defaults if a configured quota was invalid.
+  int64_t configured_bytes = 0;
+  // How far `configured_bytes` was below `budget_bytes`, or 0 if it was above.
   int64_t uncommitted_bytes = 0;
 };
 

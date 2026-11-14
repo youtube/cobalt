@@ -29,6 +29,23 @@ Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite
 
 # --- P0.2 Cache Quotas, Init Sizes & Hit Behavior ---
+# Quota of each cache in the cache directory and how much of it is in use.
+# Starboard only.
+Cobalt.Storage.CacheQuota.HttpCache.EffectiveMaxSizeKB
+Cobalt.Storage.CacheQuota.JsCodeCache.EffectiveMaxSizeKB
+Cobalt.Storage.CacheQuota.WasmCodeCache.EffectiveMaxSizeKB
+Cobalt.Storage.CacheQuota.ServiceWorker.EffectiveMaxSizeKB
+Cobalt.Storage.CacheQuota.GpuShaderCache.EffectiveMaxSizeKB
+Cobalt.Storage.CacheQuota.Other.EffectiveMaxSizeKB
+Cobalt.Storage.CacheQuota.HttpCache.StartupUtilizationPercent
+Cobalt.Storage.CacheQuota.JsCodeCache.StartupUtilizationPercent
+Cobalt.Storage.CacheQuota.WasmCodeCache.StartupUtilizationPercent
+Cobalt.Storage.CacheQuota.ServiceWorker.StartupUtilizationPercent
+Cobalt.Storage.CacheQuota.GpuShaderCache.StartupUtilizationPercent
+Cobalt.Storage.CacheQuota.Other.StartupUtilizationPercent
+Cobalt.Storage.CacheQuota.PlatformBudgetKB
+Cobalt.Storage.CacheQuota.AllocationOutcome
+Cobalt.Storage.CacheQuota.UncommittedKB
 SimpleCache.Http.CacheSizeOnInit
 SimpleCache.Http.MaxCacheSizeOnInit
 SimpleCache.Code.CacheSizeOnInit

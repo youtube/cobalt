@@ -23,6 +23,7 @@
 
 #include "base/files/file_path.h"
 #include "base/time/time.h"
+#include "cobalt/browser/cache_quota_allocator.h"
 
 namespace cobalt {
 
@@ -97,6 +98,14 @@ std::optional<CacheDirBucketSizes> RecordStartupStorageAndIoMetricsForPaths(
     const base::FilePath& cache_dir,
     const ProcessIoCounters* io_counters);
 
+// Emits the Cobalt.Storage.CacheQuota.* histograms for |quotas|, the cache
+// quotas in effect in this process: the quota of each CacheDirBucket, the
+// platform's budget, the allocation outcome and the uncommitted budget. If
+// |cache_dir_sizes| is not null, also emits how much of its quota each bucket
+// uses, except for a bucket without a quota.
+void RecordCacheQuotaMetrics(const CacheQuotaAllocation& quotas,
+                             const CacheDirBucketSizes* cache_dir_sizes);
+
 // Emits Cobalt.Storage.ProcessIo.WriteRateKBPerMin for a post-startup interval
 // [baseline_time, current_time]. Returns false without emitting if the
 // interval is empty or the write counter went backwards.
@@ -105,9 +114,9 @@ bool RecordSteadyStateWriteRateForInterval(int64_t baseline_write_bytes,
                                            int64_t current_write_bytes,
                                            base::TimeTicks current_time);
 
-// Schedules the deferred (+30s) post-startup storage footprint and block I/O
-// telemetry task and periodic (every 5 minutes) steady-state write-rate
-// sampling on a BEST_EFFORT background sequence.
+// Schedules the deferred (+10s) post-startup storage footprint, cache quota
+// (Starboard only) and block I/O telemetry task and periodic (every 5 minutes)
+// steady-state write-rate sampling on a BEST_EFFORT background sequence.
 void ScheduleCobaltStorageMetricsRecording();
 
 }  // namespace cobalt

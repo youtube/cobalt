@@ -304,6 +304,146 @@ TEST(CobaltStorageMetricsHelperTest, NoCacheDirHistogramsWithoutCacheDir) {
       histogram_tester.GetTotalCountsForPrefix("Cobalt.Storage.").empty());
 }
 
+namespace {
+
+std::string QuotaHistogramName(CacheDirBucket bucket) {
+  return base::StrCat({"Cobalt.Storage.CacheQuota.",
+                       GetCacheDirBucketName(bucket), ".EffectiveMaxSizeKB"});
+}
+
+std::string UtilizationHistogramName(CacheDirBucket bucket) {
+  return base::StrCat({"Cobalt.Storage.CacheQuota.",
+                       GetCacheDirBucketName(bucket),
+                       ".StartupUtilizationPercent"});
+}
+
+// The default quotas on a 32 MiB budget, of which HTTP took the extra 8 MiB.
+CacheQuotaAllocation TestCacheQuotas() {
+  constexpr int64_t kMiB = 1024 * 1024;
+  CacheQuotaAllocation quotas;
+  quotas.sizes = {.http_cache = 17 * kMiB,
+                  .js_code_cache = 5 * kMiB,
+                  .wasm_code_cache = 1 * kMiB,
+                  .cache_storage = 6 * kMiB,
+                  .gpu_shader_cache = 2 * kMiB,
+                  .other = 1 * kMiB};
+  quotas.outcome = CacheQuotaOutcome::kUnderCommittedResolvedByHttp;
+  quotas.platform_budget_bytes = 32 * kMiB;
+  quotas.budget_bytes = 32 * kMiB;
+  quotas.configured_bytes = 24 * kMiB;
+  quotas.uncommitted_bytes = 8 * kMiB;
+  return quotas;
+}
+
+}  // namespace
+
+TEST(CobaltStorageMetricsHelperTest, RecordsCacheQuotaHistograms) {
+  constexpr int64_t kMiB = 1024 * 1024;
+  CacheDirBucketSizes sizes;
+  sizes[CacheDirBucket::kHttpCache] = 17 * kMiB / 2;      // 50%
+  sizes[CacheDirBucket::kJsCodeCache] = 5 * kMiB;         // 100%
+  sizes[CacheDirBucket::kWasmCodeCache] = 0;              // 0%
+  sizes[CacheDirBucket::kServiceWorker] = 9 * kMiB;       // 150%
+  sizes[CacheDirBucket::kGpuShaderCache] = kMiB / 2 - 1;  // Just under 25%
+  sizes[CacheDirBucket::kOther] = 20 * kMiB;              // 2000%
+
+  base::HistogramTester histogram_tester;
+  RecordCacheQuotaMetrics(TestCacheQuotas(), &sizes);
+
+  histogram_tester.ExpectUniqueSample(
+      QuotaHistogramName(CacheDirBucket::kHttpCache), 17 * 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      QuotaHistogramName(CacheDirBucket::kJsCodeCache), 5 * 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      QuotaHistogramName(CacheDirBucket::kWasmCodeCache), 1 * 1024, 1);
+  // The CacheStorage quota belongs to the Service Worker directory.
+  histogram_tester.ExpectUniqueSample(
+      QuotaHistogramName(CacheDirBucket::kServiceWorker), 6 * 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      QuotaHistogramName(CacheDirBucket::kGpuShaderCache), 2 * 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      QuotaHistogramName(CacheDirBucket::kOther), 1 * 1024, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      UtilizationHistogramName(CacheDirBucket::kHttpCache), 50, 1);
+  histogram_tester.ExpectUniqueSample(
+      UtilizationHistogramName(CacheDirBucket::kJsCodeCache), 100, 1);
+  histogram_tester.ExpectUniqueSample(
+      UtilizationHistogramName(CacheDirBucket::kWasmCodeCache), 0, 1);
+  histogram_tester.ExpectUniqueSample(
+      UtilizationHistogramName(CacheDirBucket::kServiceWorker), 150, 1);
+  histogram_tester.ExpectUniqueSample(
+      UtilizationHistogramName(CacheDirBucket::kGpuShaderCache), 24, 1);
+  // Above the histogram's range, so it lands in the overflow bucket.
+  histogram_tester.ExpectUniqueSample(
+      UtilizationHistogramName(CacheDirBucket::kOther), 1000, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.CacheQuota.PlatformBudgetKB", 32 * 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.CacheQuota.AllocationOutcome",
+      CacheQuotaOutcome::kUnderCommittedResolvedByHttp, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Storage.CacheQuota.UncommittedKB",
+                                      8 * 1024, 1);
+}
+
+// The budget is reported as the platform declares it, and the outcome as it
+// is, also when the feature is disabled.
+TEST(CobaltStorageMetricsHelperTest, RecordsCacheQuotaBudgetAndOutcomeAsGiven) {
+  CacheQuotaAllocation quotas = TestCacheQuotas();
+  quotas.outcome = CacheQuotaOutcome::kFeatureDisabled;
+  quotas.platform_budget_bytes = 16 * 1024 * 1024;
+  quotas.budget_bytes = 24 * 1024 * 1024;
+  quotas.uncommitted_bytes = 0;
+
+  base::HistogramTester histogram_tester;
+  RecordCacheQuotaMetrics(quotas, nullptr);
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.CacheQuota.PlatformBudgetKB", 16 * 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.CacheQuota.AllocationOutcome",
+      CacheQuotaOutcome::kFeatureDisabled, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Storage.CacheQuota.UncommittedKB",
+                                      0, 1);
+}
+
+TEST(CobaltStorageMetricsHelperTest, NoCacheQuotaUtilizationWithoutSizes) {
+  base::HistogramTester histogram_tester;
+  RecordCacheQuotaMetrics(TestCacheQuotas(), nullptr);
+
+  for (CacheDirBucket bucket : kAllCacheDirBuckets) {
+    SCOPED_TRACE(GetCacheDirBucketName(bucket));
+    histogram_tester.ExpectTotalCount(QuotaHistogramName(bucket), 1);
+    histogram_tester.ExpectTotalCount(UtilizationHistogramName(bucket), 0);
+  }
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.CacheQuota.PlatformBudgetKB", 1);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.CacheQuota.AllocationOutcome", 1);
+  histogram_tester.ExpectTotalCount("Cobalt.Storage.CacheQuota.UncommittedKB",
+                                    1);
+}
+
+// A quota of 0 means that the cache has no quota, so there is nothing to
+// divide its size by.
+TEST(CobaltStorageMetricsHelperTest, NoCacheQuotaUtilizationWithoutQuota) {
+  CacheQuotaAllocation quotas = TestCacheQuotas();
+  quotas.sizes.gpu_shader_cache = 0;
+  CacheDirBucketSizes sizes;
+  sizes[CacheDirBucket::kGpuShaderCache] = 1024 * 1024;
+
+  base::HistogramTester histogram_tester;
+  RecordCacheQuotaMetrics(quotas, &sizes);
+
+  histogram_tester.ExpectUniqueSample(
+      QuotaHistogramName(CacheDirBucket::kGpuShaderCache), 0, 1);
+  histogram_tester.ExpectTotalCount(
+      UtilizationHistogramName(CacheDirBucket::kGpuShaderCache), 0);
+  histogram_tester.ExpectTotalCount(
+      UtilizationHistogramName(CacheDirBucket::kHttpCache), 1);
+}
+
 TEST(CobaltStorageMetricsHelperTest, RecordSteadyStateWriteRateForInterval) {
   base::HistogramTester histogram_tester;
   const base::TimeTicks t0 = base::TimeTicks::Now();

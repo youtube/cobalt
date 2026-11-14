@@ -35,8 +35,13 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
+#include "base/types/optional_util.h"
 #include "build/build_config.h"
 #include "cobalt/shell/common/shell_paths.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/browser/cobalt_content_browser_client.h"
+#endif
 
 namespace cobalt {
 
@@ -65,6 +70,13 @@ constexpr int kMaxStartupReadKB = 500000;
 constexpr int kMinStorageSizeKB = 1;
 constexpr int kMaxStorageSizeKB = 100000;
 constexpr int kStorageSizeBuckets = 100;
+// Cache quotas and the platform's cache budget: a quota is below 2 GiB and the
+// budget is below 4 GiB. 1 KB to 4 GiB gives ~17% bucket width.
+constexpr int kMaxCacheQuotaKB = 4 * 1024 * 1024;
+// Share of a cache quota in use. A cache can be above its quota, most of all
+// when the quota has just been lowered; 1000% and more land in the overflow
+// bucket.
+constexpr int kMaxCacheQuotaUtilizationPercent = 1000;
 
 // Directories under the cache directory (base::DIR_CACHE) that make up the
 // CacheDirBucket buckets. These must match where each cache is created:
@@ -204,6 +216,26 @@ class StorageIoWriteRateTracker {
   base::TimeTicks last_sample_time_ GUARDED_BY_CONTEXT(sequence_checker_);
 };
 
+// Returns the quota in |sizes| of the cache that |bucket| holds.
+int64_t GetCacheQuotaBytes(const CacheQuotaSizes& sizes,
+                           CacheDirBucket bucket) {
+  switch (bucket) {
+    case CacheDirBucket::kHttpCache:
+      return sizes.http_cache;
+    case CacheDirBucket::kJsCodeCache:
+      return sizes.js_code_cache;
+    case CacheDirBucket::kWasmCodeCache:
+      return sizes.wasm_code_cache;
+    case CacheDirBucket::kServiceWorker:
+      return sizes.cache_storage;
+    case CacheDirBucket::kGpuShaderCache:
+      return sizes.gpu_shader_cache;
+    case CacheDirBucket::kOther:
+      return sizes.other;
+  }
+  NOTREACHED();
+}
+
 void RunPeriodicWriteRateSample() {
   auto* tracker = StorageIoWriteRateTracker::GetInstance();
   tracker->MaybeRecordSampleOnTaskRunner();
@@ -229,8 +261,16 @@ void RunPostStartupStorageMetricsTask() {
   base::FilePath cache_dir;
   base::PathService::Get(base::DIR_CACHE, &cache_dir);
 
-  RecordStartupStorageAndIoMetricsForPaths(
-      user_data_dir, cache_dir, has_io_counters ? &io_counters : nullptr);
+  [[maybe_unused]] const std::optional<CacheDirBucketSizes> cache_dir_sizes =
+      RecordStartupStorageAndIoMetricsForPaths(
+          user_data_dir, cache_dir, has_io_counters ? &io_counters : nullptr);
+
+#if BUILDFLAG(IS_STARBOARD)
+  // The cache quotas, and how much of them the sizes above use. Only Starboard
+  // has a budget for the cache directory.
+  RecordCacheQuotaMetrics(CobaltContentBrowserClient::GetCacheQuotasInEffect(),
+                          base::OptionalToPtr(cache_dir_sizes));
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   // 3. Schedule periodic steady-state write-rate sampling.
   if (has_io_counters) {
@@ -383,6 +423,41 @@ std::optional<CacheDirBucketSizes> RecordStartupStorageAndIoMetricsForPaths(
         kMinStorageSizeKB, kMaxStorageSizeKB, kStorageSizeBuckets);
   }
   return cache_dir_sizes;
+}
+
+void RecordCacheQuotaMetrics(const CacheQuotaAllocation& quotas,
+                             const CacheDirBucketSizes* cache_dir_sizes) {
+  for (size_t i = 0; i < kCacheDirBucketCount; ++i) {
+    const CacheDirBucket bucket = static_cast<CacheDirBucket>(i);
+    const std::string_view name = GetCacheDirBucketName(bucket);
+    const int64_t quota_bytes = GetCacheQuotaBytes(quotas.sizes, bucket);
+    base::UmaHistogramCustomCounts(
+        base::StrCat(
+            {"Cobalt.Storage.CacheQuota.", name, ".EffectiveMaxSizeKB"}),
+        base::saturated_cast<int>(quota_bytes / 1024), kMinStorageSizeKB,
+        kMaxCacheQuotaKB, kStorageSizeBuckets);
+    // A quota of 0 is no quota: the GPU shader cache does not count, or the
+    // HTTP cache chooses its own size.
+    if (cache_dir_sizes && quota_bytes > 0) {
+      base::UmaHistogramCustomCounts(
+          base::StrCat({"Cobalt.Storage.CacheQuota.", name,
+                        ".StartupUtilizationPercent"}),
+          base::saturated_cast<int>((*cache_dir_sizes)[bucket] * 100 /
+                                    quota_bytes),
+          1, kMaxCacheQuotaUtilizationPercent, kStorageSizeBuckets);
+    }
+  }
+
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Storage.CacheQuota.PlatformBudgetKB",
+      base::saturated_cast<int>(quotas.platform_budget_bytes / 1024),
+      kMinStorageSizeKB, kMaxCacheQuotaKB, kStorageSizeBuckets);
+  base::UmaHistogramEnumeration("Cobalt.Storage.CacheQuota.AllocationOutcome",
+                                quotas.outcome);
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Storage.CacheQuota.UncommittedKB",
+      base::saturated_cast<int>(quotas.uncommitted_bytes / 1024),
+      kMinStorageSizeKB, kMaxCacheQuotaKB, kStorageSizeBuckets);
 }
 
 bool RecordSteadyStateWriteRateForInterval(int64_t baseline_write_bytes,

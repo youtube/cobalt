@@ -560,6 +560,76 @@ TEST(CacheQuotaAllocatorTest, InvalidQuotasOutrankPolicyOutcomes) {
   EXPECT_FALSE(allocation.budget_below_minimum);
 }
 
+// The outcome is a single value, so the allocation also says separately what
+// the outcome may hide.
+TEST(CacheQuotaAllocatorTest, ReportsWhatTheOutcomeMayHide) {
+  CacheQuotaAllocation allocation =
+      Allocate(kDefaults, 24 * kMiB, CacheQuotaPolicy::kHttp);
+  EXPECT_FALSE(allocation.invalid_params);
+  EXPECT_FALSE(allocation.unresolvable_over_commit);
+  EXPECT_EQ(allocation.platform_budget_bytes, 24 * kMiB);
+  EXPECT_EQ(allocation.configured_bytes, 24 * kMiB);
+
+  // An over-commit that the policy resolves is not a fallback.
+  allocation =
+      Allocate(MiB(12, 5, 1, 6, 2, 1), 24 * kMiB, CacheQuotaPolicy::kHttp);
+  EXPECT_FALSE(allocation.invalid_params);
+  EXPECT_FALSE(allocation.unresolvable_over_commit);
+  EXPECT_EQ(allocation.configured_bytes, 27 * kMiB);
+
+  // Invalid quotas on a budget below the minimum. The configured sum is that
+  // of the defaults, which replaced them.
+  allocation =
+      Allocate(MiB(12, 0, 1, 6, 2, 1), 16 * kMiB, CacheQuotaPolicy::kHttp);
+  EXPECT_EQ(allocation.outcome, CacheQuotaOutcome::kBudgetBelowMinimum);
+  EXPECT_TRUE(allocation.budget_below_minimum);
+  EXPECT_TRUE(allocation.invalid_params);
+  EXPECT_FALSE(allocation.unresolvable_over_commit);
+  EXPECT_EQ(allocation.platform_budget_bytes, 16 * kMiB);
+  EXPECT_EQ(allocation.budget_bytes, 24 * kMiB);
+  EXPECT_EQ(allocation.configured_bytes, 24 * kMiB);
+
+  // An unresolvable over-commit on a budget below the minimum. The configured
+  // sum is that of the quotas that could not be fitted.
+  allocation = Allocate(MiB(9, 10, 1, 6, 2, 1), 0, CacheQuotaPolicy::kHttp);
+  EXPECT_EQ(allocation.outcome, CacheQuotaOutcome::kBudgetBelowMinimum);
+  EXPECT_TRUE(allocation.budget_below_minimum);
+  EXPECT_FALSE(allocation.invalid_params);
+  EXPECT_TRUE(allocation.unresolvable_over_commit);
+  EXPECT_EQ(allocation.platform_budget_bytes, 0);
+  EXPECT_EQ(allocation.configured_bytes, 29 * kMiB);
+  EXPECT_EQ(allocation.uncommitted_bytes, 0);
+
+  // The same fallbacks on a large enough budget.
+  allocation =
+      Allocate(MiB(12, 0, 1, 6, 2, 1), 24 * kMiB, CacheQuotaPolicy::kHttp);
+  EXPECT_TRUE(allocation.invalid_params);
+  EXPECT_FALSE(allocation.unresolvable_over_commit);
+  allocation =
+      Allocate(MiB(9, 10, 1, 6, 2, 1), 24 * kMiB, CacheQuotaPolicy::kHttp);
+  EXPECT_FALSE(allocation.invalid_params);
+  EXPECT_TRUE(allocation.unresolvable_over_commit);
+
+  // A GPU shader cache that does not count is not in the configured sum.
+  allocation =
+      AllocateWithoutGpu(kDefaults, 24 * kMiB, CacheQuotaPolicy::kHttp);
+  EXPECT_EQ(allocation.configured_bytes, 22 * kMiB);
+
+  // The platform budget is reported as it was passed in.
+  allocation = Allocate(kDefaults, kUint32Max + 1, CacheQuotaPolicy::kNone);
+  EXPECT_EQ(allocation.platform_budget_bytes, kUint32Max + 1);
+  EXPECT_EQ(allocation.budget_bytes, kUint32Max);
+  allocation = Allocate(kDefaults, -1, CacheQuotaPolicy::kNone);
+  EXPECT_EQ(allocation.platform_budget_bytes, -1);
+  EXPECT_EQ(allocation.budget_bytes, 24 * kMiB);
+}
+
+TEST(CacheQuotaAllocatorTest, TotalAddsUpEveryQuota) {
+  EXPECT_EQ(kDefaults.Total(), 24 * kMiB);
+  EXPECT_EQ(MiB(1, 2, 3, 4, 5, 6).Total(), 21 * kMiB);
+  EXPECT_EQ(CacheQuotaSizes().Total(), 0);
+}
+
 TEST(CacheQuotaAllocatorTest, ScaleGivesBytesLostToRoundingToOther) {
   // 24 MiB of defaults on 24 MiB + 7 bytes. The quotas get 2.6, 1.5, 0.3, 1.8,
   // 0.6 and 0.3 of the 7 bytes, rounded down to 2, 1, 0, 1, 0 and 0, and

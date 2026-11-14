@@ -18,6 +18,8 @@
 #include <optional>
 #include <string_view>
 
+#include "build/build_config.h"
+#include "cobalt/browser/cache_quota_allocator.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -217,10 +219,31 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // Populates `network_context_params->http_cache_max_size` using the platform
   // default, `kCobaltHttpCacheQuota` Finch configuration, and any explicit
   // `--max-http-cache-size` command-line override.
+  //
+  // If AreCacheQuotasEnabled(), it is populated from GetCacheQuotas() instead,
+  // and `total_dir_budget_bytes` is not used.
   static void ConfigureHttpCacheMaxSize(
       bool in_memory,
       uint32_t total_dir_budget_bytes,
       network::mojom::NetworkContextParams* network_context_params);
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Returns the size that each cache in the cache directory has when
+  // `kCobaltCacheQuotas` is disabled, in the shape of an allocation so that
+  // metrics can report both states alike. The sizes are what the caches choose
+  // on their own for a budget of `total_dir_budget_bytes`, including the
+  // effect of `kCobaltHttpCacheQuota`, `kCobaltCodeCacheOptimization` and the
+  // command line of this process. The outcome is
+  // CacheQuotaOutcome::kFeatureDisabled.
+  static CacheQuotaAllocation ComputeLegacyCacheQuotas(
+      uint32_t total_dir_budget_bytes);
+
+  // Returns the size that each cache in the cache directory has in this
+  // process: GetCacheQuotas() if AreCacheQuotasEnabled(), or else
+  // ComputeLegacyCacheQuotas() for the platform's budget. Can be called on any
+  // thread.
+  static CacheQuotaAllocation GetCacheQuotasInEffect();
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   // Populates `network_context_params->initial_ssl_config` with Cobalt's
   // disabled TLS cipher suites.
@@ -238,6 +261,12 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
  private:
+  // ConfigureHttpCacheMaxSize() for when the cache quotas are not enabled.
+  static void ConfigureLegacyHttpCacheMaxSize(
+      bool in_memory,
+      uint32_t total_dir_budget_bytes,
+      network::mojom::NetworkContextParams* network_context_params);
+
   void DispatchEvent(const std::string&, base::OnceClosure);
   void OnSbWindowCreated(SbWindow window);
   void OnSbWindowDestroyed(SbWindow window);

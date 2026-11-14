@@ -9,8 +9,13 @@
 #include "base/memory/ref_counted.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
+#include "build/build_config.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/browser_thread.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "content/public/common/content_constants.h"
+#endif
 
 namespace content {
 
@@ -46,6 +51,15 @@ class CONTENT_EXPORT GeneratedCodeCacheContext
   // being setup.
   void Initialize(const base::FilePath& path, int max_bytes);
 
+#if BUILDFLAG(IS_COBALT)
+  // Sets the size of the WebAssembly code cache, which Cobalt does not take
+  // from the |max_bytes| passed to Initialize(). Call it on the UI thread
+  // before Initialize().
+  void set_max_bytes_wasm(int max_bytes_wasm) {
+    max_bytes_wasm_ = max_bytes_wasm;
+  }
+#endif
+
   void Shutdown();
 
   // Call on the code cache thread to get the code cache instances.
@@ -71,6 +85,12 @@ class CONTENT_EXPORT GeneratedCodeCacheContext
       generated_webui_js_code_cache_ GUARDED_BY_CONTEXT(sequence_checker_) = {
           nullptr, base::OnTaskRunnerDeleter(nullptr)};
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
+
+#if BUILDFLAG(IS_COBALT)
+  // Written on the UI thread before Initialize() posts InitializeOnThread(),
+  // which is the only reader.
+  int max_bytes_wasm_ = kGeneratedWasmCodeCacheBytes;
+#endif
 
   SEQUENCE_CHECKER(sequence_checker_);
 };
