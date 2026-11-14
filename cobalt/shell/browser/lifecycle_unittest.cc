@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
+#include "base/functional/callback_helpers.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/threading/hang_watcher.h"
+#include "base/threading/threading_features.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/test/test_web_contents.h"
@@ -25,6 +31,23 @@ namespace content {
 class LifecycleTest : public ShellTestBase {
  public:
   LifecycleTest() = default;
+
+  void SetUp() override {
+    ShellTestBase::SetUp();
+    // Mirror CobaltMainDelegate + ContentMainRunnerImpl startup: initialize and
+    // start HangWatcher in the enabled state before Shell::Initialize() runs.
+    // Disable ThreadPool registration (matching CobaltHangWatcherDelegate) so
+    // ShellTestBase's longer-lived ThreadPool workers do not outlive
+    // hang_watcher_ and UAF in UnregisterThread() during ~ShellTestBase().
+    hang_watcher_feature_list_.InitAndEnableFeatureWithParameters(
+        base::kEnableHangWatcher, {{"threadpool_log_level", "0"}});
+    base::HangWatcher::InitializeOnMainThread(
+        base::HangWatcher::ProcessType::kBrowserProcess,
+        /*emit_crashes=*/false);
+    hang_watcher_ = std::make_unique<base::HangWatcher>();
+    hang_watcher_->SetMonitoringPeriodForTesting(base::Hours(10));
+    hang_watcher_->Start();
+  }
 
   void CreateTestShell(bool is_visible) {
     InitializeShell(is_visible);
@@ -59,22 +82,30 @@ class LifecycleTest : public ShellTestBase {
       task_environment()->RunUntilIdle();
       shell_ = nullptr;
     }
+    hang_watcher_.reset();
+    base::HangWatcher::UninitializeOnMainThreadForTesting();
     ShellTestBase::TearDown();
   }
 
+  base::test::ScopedFeatureList hang_watcher_feature_list_;
+  std::unique_ptr<base::HangWatcher> hang_watcher_;
   Shell* shell_ = nullptr;
 };
 
 TEST_F(LifecycleTest, StartupVisible) {
+  ASSERT_TRUE(base::HangWatcher::IsEnabled());
   CreateTestShell(true /* is_visible */);
   EXPECT_TRUE(platform_->IsVisible());
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::VISIBLE);
+  EXPECT_TRUE(base::HangWatcher::IsEnabled());
 }
 
 TEST_F(LifecycleTest, StartupHidden) {
+  ASSERT_TRUE(base::HangWatcher::IsEnabled());
   CreateTestShell(false /* is_visible */);
   EXPECT_FALSE(platform_->IsVisible());
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
 }
 
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
@@ -99,6 +130,7 @@ TEST_F(LifecycleTest, Reveal) {
   CreateTestShell(false /* is_visible */);
   EXPECT_FALSE(platform_->IsVisible());
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
 
   // Simulate that the frame was visible before conceal, so OnReveal will
   // trigger WasShown().
@@ -117,6 +149,8 @@ TEST_F(LifecycleTest, Reveal) {
   // Visibility should now be VISIBLE because we called WasShown() in OnReveal
   // to unblock the renderer.
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::VISIBLE);
+  // HangWatcher must be resumed when revealed.
+  EXPECT_TRUE(base::HangWatcher::IsEnabled());
 
   // Simulate Reveal ACK.
   platform_->OnPageVisibilityVisible(shell_);
@@ -144,6 +178,7 @@ TEST_F(LifecycleTest, Conceal) {
   CreateTestShell(true /* is_visible */);
   EXPECT_TRUE(platform_->IsVisible());
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::VISIBLE);
+  EXPECT_TRUE(base::HangWatcher::IsEnabled());
 
   // Trigger conceal.
   EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
@@ -161,12 +196,15 @@ TEST_F(LifecycleTest, Conceal) {
 
   EXPECT_FALSE(platform_->IsVisible());
   EXPECT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
+  // HangWatcher must be suspended when concealed.
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
 }
 
 TEST_F(LifecycleTest, FreezeUnfreeze) {
   CreateTestShell(false /* is_visible */);
   TestWebContents* test_web_contents =
       static_cast<TestWebContents*>(shell_->web_contents());
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
 
   // Trigger freeze.
   EXPECT_CALL(*platform_, OnFreeze()).WillOnce([this]() {
@@ -174,6 +212,7 @@ TEST_F(LifecycleTest, FreezeUnfreeze) {
   });
   Shell::OnFreeze();
   EXPECT_TRUE(test_web_contents->IsPageFrozen());
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
 
   // Trigger unfreeze.
   EXPECT_CALL(*platform_, OnUnfreeze()).WillOnce([this]() {
@@ -181,18 +220,99 @@ TEST_F(LifecycleTest, FreezeUnfreeze) {
   });
   Shell::OnUnfreeze();
   EXPECT_FALSE(test_web_contents->IsPageFrozen());
+  // HangWatcher must NOT be prematurely resumed while still concealed.
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
+}
+
+TEST_F(LifecycleTest, HangWatcherLifecycleSymmetry) {
+  CreateTestShell(true /* is_visible */);
+  EXPECT_TRUE(platform_->IsVisible());
+
+  // 1. Initial foreground state: HangWatcher starts active.
+  EXPECT_TRUE(base::HangWatcher::IsEnabled());
+
+  // 2. Conceal (Home button pressed): HangWatcher suspends.
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  EXPECT_CALL(*platform_, ConcealShell(shell_));
+  Shell::OnConceal();
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_FALSE(platform_->IsVisible());
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
+
+  // 3. Freeze: HangWatcher remains suspended.
+  EXPECT_CALL(*platform_, OnFreeze()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnFreeze();
+  });
+  Shell::OnFreeze();
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
+
+  // 4. Unfreeze: HangWatcher remains suspended (no premature resume while
+  // concealed).
+  EXPECT_CALL(*platform_, OnUnfreeze()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnUnfreeze();
+  });
+  Shell::OnUnfreeze();
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
+
+  // 5. Reveal (App foregrounded): HangWatcher resumes.
+  platform_->AddWebContentsToRevealForTesting(shell_->web_contents());
+  EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  EXPECT_CALL(*platform_, RevealShell(shell_))
+      .WillOnce(
+          [](content::Shell* shell) { shell->web_contents()->WasShown(); });
+  Shell::OnReveal();
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesVisible(shell_->web_contents());
+
+  EXPECT_TRUE(platform_->IsVisible());
+  EXPECT_TRUE(base::HangWatcher::IsEnabled());
+}
+
+TEST_F(LifecycleTest, PreloadFreezeUnfreezeCyclesStaySuspendedUntilReveal) {
+  ASSERT_TRUE(base::HangWatcher::IsEnabled());
+  CreateTestShell(false /* is_visible */);
+  EXPECT_FALSE(platform_->IsVisible());
+  EXPECT_FALSE(base::HangWatcher::IsEnabled());
+
+  for (int i = 0; i < 2; ++i) {
+    Shell::OnFreeze();
+    EXPECT_FALSE(base::HangWatcher::IsEnabled());
+    Shell::OnUnfreeze();
+    EXPECT_FALSE(base::HangWatcher::IsEnabled());
+  }
+
+  platform_->AddWebContentsToRevealForTesting(shell_->web_contents());
+  EXPECT_CALL(*platform_, RevealShell(shell_))
+      .WillOnce(
+          [](content::Shell* shell) { shell->web_contents()->WasShown(); });
+  Shell::OnReveal();
+  platform_->OnPageVisibilityVisible(shell_);
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesVisible(shell_->web_contents());
+  EXPECT_TRUE(platform_->IsVisible());
+  EXPECT_TRUE(base::HangWatcher::IsEnabled());
 }
 
 TEST_F(LifecycleTest, BlurFocus) {
   CreateTestShell(true /* is_visible */);
+  EXPECT_TRUE(base::HangWatcher::IsEnabled());
 
   // Trigger blur.
   EXPECT_CALL(*platform_, OnBlur());
   Shell::OnBlur();
+  EXPECT_TRUE(base::HangWatcher::IsEnabled());
 
   // Trigger focus.
   EXPECT_CALL(*platform_, OnFocus());
   Shell::OnFocus();
+  EXPECT_TRUE(base::HangWatcher::IsEnabled());
 }
 
 }  // namespace content

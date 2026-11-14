@@ -266,6 +266,7 @@ test("cobalt_browsertests") {
       "//cobalt/browser/h5vcc_system_android_browsertest.cc",
       "//cobalt/browser/metrics/cobalt_process_state_summary_browsertest.cc",
       "browsertests_apk/content_browser_tests_jni_onload.cc",
+      "compositor_visibility_hang_watcher_browsertest.cc",
     ]
   }
 

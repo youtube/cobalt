@@ -146,6 +146,9 @@ void ShellPlatformDelegate::OnConceal() {
   }
   weak_factory_.InvalidateWeakPtrs();
 
+  // Suspend hang watching while concealed; GPU channels may be torn down.
+  base::HangWatcher::Suspend();
+
   // A reveal that couldn't create a platform window never gets its Reveal ACK.
   // Stop waiting for it.
   pending_reveal_web_contents_.clear();
@@ -208,7 +211,9 @@ void ShellPlatformDelegate::OnReveal() {
     return;
   }
   weak_factory_.InvalidateWeakPtrs();
+
   content::RestoreGpuProcessOnUI();
+  base::HangWatcher::Resume();
   // Clear the concealed state in StarboardRenderer so subsequent playback or
   // pipeline resume requests can create new SbPlayer instances.
   media::StarboardRenderer::ResumeActiveRenderers();
@@ -240,6 +245,7 @@ void ShellPlatformDelegate::OnFreeze() {
 
   // In frozen state the process may not be scheduled for execution, so we
   // tell the hang watcher to ignore this period of inactivity.
+  // Note: HangWatcher was already suspended in OnConceal().
   base::HangWatcher::Suspend();
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->SetPageFrozen(true);
@@ -249,8 +255,7 @@ void ShellPlatformDelegate::OnFreeze() {
 void ShellPlatformDelegate::OnUnfreeze() {
   CHECK(!IsVisible());
 
-  // Resume the hangwatcher.
-  base::HangWatcher::Resume();
+  // Stay suspended while hidden; resumes only if/when revealed.
 
   // Restore GPU process on UI early so that renderer IPCs (e.g.
   // EstablishGpuChannel) are no longer blocked by the backgrounded GPU service.

@@ -200,11 +200,11 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // before InitializeOnMainThread returns the default value which is false.
   static bool IsEnabled();
 #if BUILDFLAG(IS_COBALT)
-  // suspends hang watching when the application is frozen.
+  // Suspends hang watching when the application is frozen or concealed.
   static void Suspend();
 
-  // resumes hang watching after the application is unfrozen, ignoring
-  // pre-freeze deadlines.
+  // Resumes hang watching when the application is revealed, ignoring stale
+  // pre-suspend deadlines.
   static void Resume();
 #endif
   static bool IsThreadPoolHangWatchingEnabled();
@@ -665,6 +665,9 @@ class BASE_EXPORT HangWatchDeadline {
   THREAD_CHECKER(thread_checker_);
 
   FRIEND_TEST_ALL_PREFIXES(HangWatchDeadlineTest, BitsPreservedThroughExtract);
+#if BUILDFLAG(IS_COBALT)
+  friend class ::base::HangWatcher;
+#endif
 };
 
 // Contains the information necessary for hang watching a specific
