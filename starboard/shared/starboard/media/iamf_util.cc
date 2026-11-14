@@ -104,6 +104,22 @@ std::optional<uint32_t> ParseProfile(std::string_view input) {
   }
   return converted_val;
 }
+
+std::optional<IamfSubstreamCodec> ParseSubstreamCodec(std::string_view codec) {
+  if (codec == "Opus") {
+    return kIamfSubstreamCodecOpus;
+  }
+  if (codec == "mp4a.40.2") {
+    return kIamfSubstreamCodecMp4a;
+  }
+  if (codec == "fLaC") {
+    return kIamfSubstreamCodecFlac;
+  }
+  if (codec == "ipcm") {
+    return kIamfSubstreamCodecIpcm;
+  }
+  return std::nullopt;
+}
 }  // namespace
 
 // static
@@ -129,25 +145,13 @@ std::optional<IamfMimeUtil> IamfMimeUtil::Create(std::string_view mime_type) {
       ParseProfile(mime_type.substr(0, 3));
   std::optional<uint32_t> additional_profile =
       ParseProfile(mime_type.substr(4, 3));
-  if (!primary_profile || !additional_profile) {
+  std::optional<IamfSubstreamCodec> substream_codec =
+      ParseSubstreamCodec(mime_type.substr(8));
+  if (!primary_profile || !additional_profile || !substream_codec) {
     return std::nullopt;
   }
 
-  const std::string_view codec = mime_type.substr(8);
-  IamfSubstreamCodec substream_codec = kIamfSubstreamCodecUnknown;
-  if (codec == "Opus") {
-    substream_codec = kIamfSubstreamCodecOpus;
-  } else if (codec == "mp4a.40.2") {
-    substream_codec = kIamfSubstreamCodecMp4a;
-  } else if (codec == "fLaC") {
-    substream_codec = kIamfSubstreamCodecFlac;
-  } else if (codec == "ipcm") {
-    substream_codec = kIamfSubstreamCodecIpcm;
-  } else {
-    return std::nullopt;
-  }
-
-  return IamfMimeUtil(*primary_profile, *additional_profile, substream_codec);
+  return IamfMimeUtil(*primary_profile, *additional_profile, *substream_codec);
 }
 
 IamfMimeUtil::IamfMimeUtil(uint32_t primary_profile,
