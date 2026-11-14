@@ -149,9 +149,6 @@ class ReuseAllocatorBase : public Allocator {
         : address(init_address), size(init_size) {}
   };
 
-  void DecommitBlock(FallbackAllocation& block, DecommitMode mode);
-  bool TryDecommitPendingBlock(FallbackAllocation& block);
-
   // We will allocate from the given allocator whenever we can't find pre-used
   // memory to allocate.
   Allocator* const fallback_allocator_;

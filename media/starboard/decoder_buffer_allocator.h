@@ -62,8 +62,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
       // MADV_FREE if supported). Any blocks beyond these are aggressively
       // decommitted (e.g. using MADV_DONTNEED).
       size_t conservative_decommit_blocks = 0;
-      // Whether to immediately decommit idle blocks when the app is suspended.
-      bool enable_decommit_on_suspend = false;
       // Whether to aggressively decommit all idle blocks when app is suspended.
       bool aggressive_decommit_on_suspend = false;
       // Whether fallback allocations align to page boundary.
@@ -72,8 +70,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
       bool memset_on_reclaim = false;
       // Whether to advise MADV_COLD on reclamation.
       bool mark_as_cold_on_reclaim = false;
-      // Whether to track idle blocks when the pool becomes idle so they can be
-      // released only by an explicit decommit (e.g. on memory pressure).
+      // Whether to track idle blocks so they are released only by an explicit
+      // decommit (e.g. on memory pressure). Unlike |enable_decommit_on_idle|,
+      // idle blocks are not decommitted incrementally on later allocations.
       bool enable_decommit_only_on_memory_pressure = false;
     };
 
@@ -128,9 +127,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   static base::expected<void, std::string> SetSetting(const std::string& name,
                                                       int value);
-  base::expected<void, std::string> SetSettingForTesting(
-      const std::string& name,
-      int value);
 
  private:
   // Thread-safe state container for periodic decommit tasks running on
@@ -179,10 +175,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
-  base::expected<void, std::string> ApplySetting(const std::string& name,
-                                                 int value);
-  void EnableConfigurableDecommitStrategy(
-      Strategy::ExperimentConfig strategy_config);
+  static void EnableConfigurableDecommitStrategy(
+      Strategy::ExperimentConfig strategy_config,
+      bool enable_decommit_on_suspend);
 
   void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void EnablePeriodicDecommitLoop();

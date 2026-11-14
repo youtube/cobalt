@@ -20,7 +20,6 @@
 
 #include "base/functional/bind.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_switches.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
@@ -223,9 +222,7 @@ TEST(DecoderBufferAllocatorStrategyTest,
 }
 
 TEST(DecoderBufferAllocatorStrategyTest,
-     SetSuspendedReplaysOnStrategyCreationAndSkipsWhenDisabledOrOnPressure) {
-  base::test::TaskEnvironment task_environment;
-
+     SetSuspendedSkipsWhenSuspendDecommitNotEnabled) {
   // 1. When kCobaltDecoderBufferDecommitOnMemoryPressure is active without V3,
   // SetSuspended(true) must not decommit idle blocks.
   {
@@ -245,49 +242,29 @@ TEST(DecoderBufferAllocatorStrategyTest,
     EXPECT_EQ(pressure_allocator.GetCurrentMemoryCapacity(), full_cap);
   }
 
-  // 2. When V3 is configured WITHOUT suspend bits (0x02010000: page-aligned,
-  // 1 MB blocks, 0 retain), SetSuspended(true) is a no-op.
+  // 2. Even if the underlying strategy tracks idle blocks, SetSuspended(true)
+  // on DecoderBufferAllocator is a no-op when V3 suspend decommit was not
+  // enabled.
   {
-    DecoderBufferAllocator no_suspend_allocator(
+    DecoderBufferAllocator allocator(
         /*is_memory_pool_allocated_on_demand=*/false, 1024 * 1024, 1024 * 1024);
-    ASSERT_TRUE(no_suspend_allocator
-                    .SetSettingForTesting(
-                        "DecoderBuffer.EnableConfigurableDecommitStrategyV3",
-                        0x02010000)
-                    .has_value());
-    auto h = no_suspend_allocator.Allocate(DemuxerStream::VIDEO, 64 * 1024);
-    const size_t full_cap = no_suspend_allocator.GetCurrentMemoryCapacity();
+    allocator.UpdateAllocatorStrategy(base::BindRepeating(
+        [](int initial_capacity, int allocation_unit)
+            -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
+          DecoderBufferAllocator::Strategy::ExperimentConfig config;
+          config.initial_capacity = initial_capacity;
+          config.allocation_increment = allocation_unit;
+          config.enable_decommit_on_idle = true;
+          return std::make_unique<EmbeddedMetadataReuseAllocatorStrategy>(
+              config);
+        }));
+    auto h = allocator.Allocate(DemuxerStream::VIDEO, 64 * 1024);
+    const size_t full_cap = allocator.GetCurrentMemoryCapacity();
     EXPECT_GE(full_cap, 1024u * 1024u);
-    no_suspend_allocator.Free(DemuxerStream::VIDEO, h, 64 * 1024);
+    allocator.Free(DemuxerStream::VIDEO, h, 64 * 1024);
 
-    no_suspend_allocator.SetSuspended(true);
-    EXPECT_EQ(no_suspend_allocator.GetCurrentMemoryCapacity(), full_cap);
-  }
-
-  // 3. When SetSuspended(true) arrives BEFORE V3 strategy creation (e.g.
-  // hidden preload), EnsureStrategyIsCreated() replays SetSuspended(true) and
-  // freeing the active buffer immediately decommits non-retained blocks.
-  {
-    DecoderBufferAllocator preload_allocator(
-        /*is_memory_pool_allocated_on_demand=*/false, 1024 * 1024, 1024 * 1024);
-    preload_allocator.SetSuspended(true);
-    // 0x05010100: aggressive_decommit_on_suspend (implies suspend) |
-    //             enable_decommit_on_suspend, 1 MB block, 1 retain block.
-    ASSERT_TRUE(preload_allocator
-                    .SetSettingForTesting(
-                        "DecoderBuffer.EnableConfigurableDecommitStrategyV3",
-                        0x05010100)
-                    .has_value());
-
-    // Strategy was reset by SetSettingForTesting; Allocate() creates it and
-    // replays `is_suspended_ == true`.
-    auto h = preload_allocator.Allocate(DemuxerStream::VIDEO, 64 * 1024);
-    EXPECT_GE(preload_allocator.GetCurrentMemoryCapacity(), 1024u * 1024u);
-
-    // Freeing while suspended immediately decommits all blocks (including the
-    // retained block because aggressive_decommit_on_suspend is set).
-    preload_allocator.Free(DemuxerStream::VIDEO, h, 64 * 1024);
-    EXPECT_EQ(preload_allocator.GetCurrentMemoryCapacity(), 0u);
+    allocator.SetSuspended(true);
+    EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), full_cap);
   }
 }
 

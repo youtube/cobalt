@@ -355,9 +355,6 @@ void EmbeddedMetadataReuseAllocatorBase::PrintAllocations(
   }
 }
 
-// TODO(b/520141273): Move TryFree() below the protected constructors/destructor
-// to match the declaration order in the header. Tentatively kept in its
-// original order here so it is easier to review.
 bool EmbeddedMetadataReuseAllocatorBase::TryFree(void* memory) {
   if (!memory) {
     return true;

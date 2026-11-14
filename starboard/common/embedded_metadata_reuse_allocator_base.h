@@ -60,6 +60,8 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   void PrintAllocations(bool align_allocated_size,
                         int max_allocations_to_print) const override;
 
+  bool TryFree(void* memory);
+
  protected:
   class MemoryBlock {
    public:
@@ -165,7 +167,6 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
     BlockMetadata* next;
   };
 
-  bool TryFree(void* memory);
   FreeBlockSet::iterator ExpandToFit(size_t size, size_t alignment);
 
   void AddAllocatedBlock(const MemoryBlock& block);
@@ -187,8 +188,9 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   const bool enable_decommit_on_idle_;
 
   // When true, idle blocks are tracked (retained/pending) when the pool becomes
-  // idle, like |enable_decommit_on_idle_|, so they can be released by an
-  // explicit DecommitAllDecommitableBlocks() call (e.g. on memory pressure).
+  // idle, like |enable_decommit_on_idle_|, but are never decommitted
+  // incrementally on allocation. They are released only by an explicit
+  // DecommitAllDecommitableBlocks() call (e.g. on memory pressure).
   const bool enable_decommit_only_on_memory_pressure_;
 
   // How many bytes has been allocated from us.

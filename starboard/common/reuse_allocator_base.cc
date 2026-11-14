@@ -69,7 +69,12 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
     for (auto& fallback_block : fallback_allocations_) {
       if (fallback_block.state != kActiveInUse &&
           fallback_block.state != kIdleDecommitted) {
-        DecommitBlock(fallback_block, DecommitMode::kAggressive);
+        fallback_allocator_->Decommit(fallback_block.address,
+                                      fallback_block.size,
+                                      DecommitMode::kAggressive);
+        fallback_block.state = kIdleDecommitted;
+        decommitted_bytes_ += fallback_block.size;
+        SB_CHECK_LE(decommitted_bytes_, capacity_);
       }
     }
     has_pending_decommits_ = false;
@@ -79,7 +84,17 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
     }
     for (auto it = fallback_allocations_.rbegin();
          it != fallback_allocations_.rend(); ++it) {
-      TryDecommitPendingBlock(*it);
+      if (it->state == kIdlePendingDecommit) {
+        fallback_allocator_->Decommit(it->address, it->size,
+                                      DecommitMode::kAggressive);
+        it->state = kIdleDecommitted;
+        decommitted_bytes_ += it->size;
+        SB_CHECK_LE(decommitted_bytes_, capacity_);
+      } else if (it->state == kIdlePendingFree) {
+        fallback_allocator_->Decommit(it->address, it->size,
+                                      DecommitMode::kConservative);
+        it->state = kIdleFreed;
+      }
     }
     has_pending_decommits_ = false;
   }
@@ -177,35 +192,22 @@ void ReuseAllocatorBase::TryToDecommitOneBlock() {
   }
   for (auto it = fallback_allocations_.rbegin();
        it != fallback_allocations_.rend(); ++it) {
-    if (TryDecommitPendingBlock(*it)) {
+    if (it->state == kIdlePendingDecommit) {
+      fallback_allocator_->Decommit(it->address, it->size,
+                                    DecommitMode::kAggressive);
+      it->state = kIdleDecommitted;
+      decommitted_bytes_ += it->size;
+      SB_CHECK_LE(decommitted_bytes_, capacity_);
+      return;
+    }
+    if (it->state == kIdlePendingFree) {
+      fallback_allocator_->Decommit(it->address, it->size,
+                                    DecommitMode::kConservative);
+      it->state = kIdleFreed;
       return;
     }
   }
   has_pending_decommits_ = false;
-}
-
-void ReuseAllocatorBase::DecommitBlock(FallbackAllocation& block,
-                                       DecommitMode mode) {
-  fallback_allocator_->Decommit(block.address, block.size, mode);
-  if (mode == DecommitMode::kAggressive) {
-    block.state = kIdleDecommitted;
-    decommitted_bytes_ += block.size;
-    SB_CHECK_LE(decommitted_bytes_, capacity_);
-  } else {
-    block.state = kIdleFreed;
-  }
-}
-
-bool ReuseAllocatorBase::TryDecommitPendingBlock(FallbackAllocation& block) {
-  if (block.state == kIdlePendingDecommit) {
-    DecommitBlock(block, DecommitMode::kAggressive);
-    return true;
-  }
-  if (block.state == kIdlePendingFree) {
-    DecommitBlock(block, DecommitMode::kConservative);
-    return true;
-  }
-  return false;
 }
 
 }  // namespace starboard

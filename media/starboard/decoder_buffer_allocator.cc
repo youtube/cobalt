@@ -253,20 +253,6 @@ void DecoderBufferAllocator::UpdateAllocatorStrategy(
 base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     const std::string& name,
     int value) {
-  auto* allocator = Get();
-  CHECK(allocator);
-  return allocator->ApplySetting(name, value);
-}
-
-base::expected<void, std::string> DecoderBufferAllocator::SetSettingForTesting(
-    const std::string& name,
-    int value) {
-  return ApplySetting(name, value);
-}
-
-base::expected<void, std::string> DecoderBufferAllocator::ApplySetting(
-    const std::string& name,
-    int value) {
   if (name == "DecoderBuffer.EnableConfigurableDecommitStrategyV3") {
     if (value <= 0) {
       // Explicitly allow non-positive values as placebo.
@@ -331,21 +317,19 @@ base::expected<void, std::string> DecoderBufferAllocator::ApplySetting(
     strategy_config.retain_blocks = (unsigned_value >> 8) & 0xFF;
     strategy_config.conservative_decommit_blocks = unsigned_value & 0xFF;
     strategy_config.aggressive_decommit_on_suspend = (flags & 0x04) != 0;
-    strategy_config.enable_decommit_on_suspend =
-        ((flags & 0x01) != 0) || strategy_config.aggressive_decommit_on_suspend;
     strategy_config.allocate_with_page_alignment = (flags & 0x02) != 0;
     strategy_config.memset_on_reclaim = (flags & 0x08) != 0;
     strategy_config.mark_as_cold_on_reclaim = (flags & 0x10) != 0;
 
-    EnableConfigurableDecommitStrategy(strategy_config);
+    bool enable_decommit_on_suspend = (flags & 0x01) != 0;
+
+    EnableConfigurableDecommitStrategy(strategy_config,
+                                       enable_decommit_on_suspend);
     return base::ok();
   }
   return base::unexpected(name + " isn't a supported setting.");
 }
 
-// TODO(b/520141273): Move OnPeriodicDecommitTask() above ApplySetting() to
-// match the declaration order in the header. Tentatively kept in its original
-// order here so it is easier to review.
 // static
 void DecoderBufferAllocator::OnPeriodicDecommitTask(
     scoped_refptr<PeriodicDecommitState> state) {
@@ -358,8 +342,12 @@ void DecoderBufferAllocator::OnPeriodicDecommitTask(
   });
 }
 
+// static
 void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
-    Strategy::ExperimentConfig strategy_config) {
+    Strategy::ExperimentConfig strategy_config,
+    bool enable_decommit_on_suspend) {
+  auto* allocator = Get();
+  CHECK(allocator);
   // Checking MADV_COLD support directly here simplifies experimental setup
   // without adding extra platform abstraction layers.
 #if !defined(MADV_COLD)
@@ -369,18 +357,26 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
     strategy_config.mark_as_cold_on_reclaim = false;
   }
 #endif  // !defined(MADV_COLD)
-  if (strategy_config.enable_decommit_on_suspend) {
+  if (strategy_config.aggressive_decommit_on_suspend) {
+    enable_decommit_on_suspend = true;
+  }
+  if (enable_decommit_on_suspend) {
     // This optimization is enable only, and isn't expected to be disabled.
-    base::AutoLock scoped_lock(mutex_);
-    decommit_on_suspend_enabled_ = true;
+    base::AutoLock scoped_lock(allocator->mutex_);
+    allocator->decommit_on_suspend_enabled_ = true;
+    if (allocator->is_suspended_ && allocator->strategy_ &&
+        !allocator->is_decommit_on_pressure_strategy_) {
+      allocator->strategy_->SetSuspended(true);
+    }
   }
   if (strategy_config.enable_decommit_on_idle) {
     // This feature is enable only, and isn't expected to be disabled.
-    EnablePeriodicDecommitLoop();
+    allocator->EnablePeriodicDecommitLoop();
   }
-  UpdateAllocatorStrategy(base::BindRepeating(
+  allocator->UpdateAllocatorStrategy(base::BindRepeating(
       [](const Strategy::ExperimentConfig& strategy_config,
-         int initial_capacity, int allocation_unit)
+         bool enable_decommit_on_suspend, int initial_capacity,
+         int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         LOG(INFO)
             << "DecoderBufferAllocator is using "
@@ -395,7 +391,7 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
             << "conservative_decommit_blocks: "
             << strategy_config.conservative_decommit_blocks
             << ", enable_decommit_on_suspend: "
-            << ToString(strategy_config.enable_decommit_on_suspend)
+            << ToString(enable_decommit_on_suspend)
             << ", allocate_with_page_alignment: "
             << ToString(strategy_config.allocate_with_page_alignment)
             << ", aggressive_decommit_on_suspend: "
@@ -407,7 +403,7 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
 
         return std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
       },
-      strategy_config));
+      strategy_config, enable_decommit_on_suspend));
 }
 
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
