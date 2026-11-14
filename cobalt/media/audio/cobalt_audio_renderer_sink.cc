@@ -16,9 +16,12 @@
 
 #include <atomic>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -269,16 +272,19 @@ void CobaltAudioRendererSink::FillOutputAudioBuffer(int num_frames) {
     resampler_->Resample(num_frames, bus);
   }
 
+  const size_t sample_count =
+      base::checked_cast<size_t>(num_frames * params_.channels());
   if (output_sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     float* output_buffer = reinterpret_cast<float*>(output_frame_buffer_.get());
     output_buffer += channel_offset * params_.channels();
-    bus->ToInterleaved<Float32SampleTypeTraitsNoClip>(num_frames,
-                                                      output_buffer);
+    bus->ToInterleaved<Float32SampleTypeTraitsNoClip>(
+        UNSAFE_TODO(base::span(output_buffer, sample_count)));
   } else {
     int16_t* output_buffer =
         reinterpret_cast<int16_t*>(output_frame_buffer_.get());
     output_buffer += channel_offset * params_.channels();
-    bus->ToInterleaved<SignedInt16SampleTypeTraits>(num_frames, output_buffer);
+    bus->ToInterleaved<SignedInt16SampleTypeTraits>(
+        UNSAFE_TODO(base::span(output_buffer, sample_count)));
   }
 }
 
