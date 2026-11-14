@@ -553,7 +553,7 @@ ParseResult MP4StreamParser::ParseBox() {
     }
 
     result = BoxReader::ReadTopLevelBox(
-        contiguous_span, media_log_, &reader);
+        contiguous_span, media_log_.get(), &reader);
 
     if (result == ParseResult::kNeedMoreData) {
       const size_t available = base::checked_cast<size_t>(
@@ -570,7 +570,7 @@ ParseResult MP4StreamParser::ParseBox() {
 
       result = ReadTopLevelBoxHeaderAt(
           *segmented_queue_, segmented_queue_->head(), max_parse_offset_,
-          media_log_, &type, &box_size);
+          media_log_.get(), &type, &box_size);
       if (result != ParseResult::kOk) {
         // Not enough data for the box header.
         return result;
@@ -600,7 +600,7 @@ ParseResult MP4StreamParser::ParseBox() {
         return ParseResult::kError;
       }
 
-      result = BoxReader::ReadTopLevelBox(*box, media_log_, &reader);
+      result = BoxReader::ReadTopLevelBox(*box, media_log_.get(), &reader);
     }
   } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -611,10 +611,9 @@ ParseResult MP4StreamParser::ParseBox() {
       return ParseResult::kNeedMoreData;
     }
 
-    result = BoxReader::ReadTopLevelBox(buf, media_log_, &reader);
+    result = BoxReader::ReadTopLevelBox(buf, media_log_.get(), &reader);
   }
 
-An empty conflict block is the correct resolution here: the declarations of `reader` and `result` and the call to `BoxReader::ReadTopLevelBox` were already factored into the preceding `if (segmented_queue_) { ... } else { ... }` block by Cobalt. Leaving `HEAD`'s lines would cause duplicate definitions and reference out-of-scope variables.
   if (result != ParseResult::kOk)
     return result;
 
