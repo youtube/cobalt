@@ -51,7 +51,7 @@ std::optional<size_t> GetFirstAnnexBNaluSize(span<const uint8_t> annex_b_data) {
   }
 
   for (size_t offset = kAnnexBHeaderSizeInBytes;
-       offset + kAnnexBHeaderSizeInBytes <= annex_b_data.size(); ++offset) {
+       offset <= annex_b_data.size() - kAnnexBHeaderSizeInBytes; ++offset) {
     if (StartsWithAnnexBHeader(annex_b_data.subspan(offset))) {
       return offset;
     }
@@ -219,9 +219,8 @@ bool ConvertAnnexBToAvcc(span<const uint8_t> annex_b_source,
     avcc_destination[1] = static_cast<uint8_t>((payload_size & 0xff0000) >> 16);
     avcc_destination[2] = static_cast<uint8_t>((payload_size & 0xff00) >> 8);
     avcc_destination[3] = static_cast<uint8_t>(payload_size & 0xff);
-    std::copy(
-        payload.begin(), payload.end(),
-        avcc_destination.subspan(kAvccLengthInBytes, payload_size).begin());
+    std::copy(payload.begin(), payload.end(),
+              avcc_destination.begin() + kAvccLengthInBytes);
     annex_b_source = annex_b_source.subspan(*nalu_size);
     avcc_destination = avcc_destination.subspan(*nalu_size);
   }
