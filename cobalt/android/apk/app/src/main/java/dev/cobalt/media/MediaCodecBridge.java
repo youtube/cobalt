@@ -429,6 +429,7 @@ class MediaCodecBridge {
       int maxVideoInputSize,
       boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
+      boolean skipRedundantColorCodecReinit,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -489,18 +490,11 @@ class MediaCodecBridge {
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
 
-    boolean shouldConfigureHdr =
-        colorInfo != null && MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities);
-    if (shouldConfigureHdr) {
-      Log.d(TAG, "Setting HDR info.");
-      mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);
-      mediaFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, colorInfo.colorStandard);
-      // If color range is unspecified, don't set it.
-      if (colorInfo.colorRange != 0) {
-        mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
-      }
-      mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
-    }
+    maybeConfigureHdrColorInfo(
+        mediaFormat,
+        colorInfo,
+        MediaCodecUtil.isHdrCapableVideoDecoder(mime, codecCapabilities),
+        skipRedundantColorCodecReinit);
 
     if (tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE) {
       mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
@@ -641,6 +635,57 @@ class MediaCodecBridge {
         METRIC_DECODER_FRAMEWORK, getDecoderFramework(decoderName), DecoderFramework.NUM_ENTRIES);
 
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
+  }
+
+  /**
+   * Populates HDR color keys on {@code mediaFormat} when {@code colorInfo} describes an HDR stream
+   * and the selected decoder supports HDR.
+   *
+   * <p>Why we check {@code colorTransfer} explicitly: {@code ColorInfo.hdrStaticInfo} is always
+   * populated by {@link MediaCodecUtil#getHdrStaticInfo} using {@code defaultMaxCll = 1000} and
+   * {@code defaultMaxFall = 200} when metadata values are 0. Checking only {@code colorInfo !=
+   * null} on an HDR-capable TV would attach fabricated HDR10 static metadata to non-HDR {@code
+   * ColorInfo} instances (such as full-range BT.709 SDR with {@code COLOR_TRANSFER_SDR_VIDEO}), and
+   * would also attach SMPTE ST 2086 static metadata to scene-referred HLG streams.
+   */
+  @VisibleForTesting
+  static void maybeConfigureHdrColorInfo(
+      MediaFormat mediaFormat,
+      @Nullable ColorInfo colorInfo,
+      boolean isHdrCapableDecoder,
+      boolean restrictToTrueHdrTransfer) {
+    if (colorInfo == null || !isHdrCapableDecoder) {
+      return;
+    }
+    if (!restrictToTrueHdrTransfer) {
+      Log.d(TAG, "Setting HDR info.");
+      mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);
+      mediaFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, colorInfo.colorStandard);
+      // If color range is unspecified, don't set it.
+      if (colorInfo.colorRange != 0) {
+        mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
+      }
+      mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
+      return;
+    }
+    boolean isHdrTransfer =
+        colorInfo.colorTransfer == MediaFormat.COLOR_TRANSFER_ST2084
+            || colorInfo.colorTransfer == MediaFormat.COLOR_TRANSFER_HLG;
+    if (!isHdrTransfer) {
+      return;
+    }
+    Log.d(TAG, "Setting HDR info.");
+    mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);
+    mediaFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, colorInfo.colorStandard);
+    // If color range is unspecified (COLOR_RANGE_UNSPECIFIED = 0), don't set it.
+    if (colorInfo.colorRange != 0) {
+      mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
+    }
+    // SMPTE ST 2086 / CTA-861.3 static metadata applies to PQ (ST2084), not HLG.
+    if (colorInfo.colorTransfer == MediaFormat.COLOR_TRANSFER_ST2084
+        && colorInfo.hdrStaticInfo != null) {
+      mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
+    }
   }
 
   public boolean start() {
