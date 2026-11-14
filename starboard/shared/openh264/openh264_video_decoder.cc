@@ -202,8 +202,7 @@ void OpenH264VideoDecoder::DecodeOneBuffer(
 
   if (input_buffer->video_sample_info().is_key_frame) {
     auto new_config =
-        VideoConfig::Create(input_buffer->video_stream_info(),
-                            input_buffer->data(), input_buffer->size());
+        VideoConfig::Create(input_buffer->video_stream_info(), *input_buffer);
     if (!new_config) {
       ReportError("Failed to parse video config.");
       return;

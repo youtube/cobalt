@@ -29,15 +29,13 @@ namespace starboard {
 // static
 std::optional<VideoConfig> VideoConfig::Create(SbMediaVideoCodec video_codec,
                                                const Size& size,
-                                               const uint8_t* data,
-                                               size_t data_size) {
+                                               span<const uint8_t> data) {
   if (video_codec == kSbMediaVideoCodecVp9 ||
       video_codec == kSbMediaVideoCodecAv1) {
     return VideoConfig(video_codec, size,
                        /*avc_parameter_sets=*/std::nullopt);
   } else if (video_codec == kSbMediaVideoCodecH264) {
-    auto avc_parameter_sets =
-        AvcParameterSets::CreateFromAnnexB(/*data=*/data, /*size=*/data_size);
+    auto avc_parameter_sets = AvcParameterSets::CreateFromAnnexB(data);
     if (avc_parameter_sets) {
       return VideoConfig(video_codec, size, std::move(avc_parameter_sets));
     }
@@ -50,10 +48,8 @@ std::optional<VideoConfig> VideoConfig::Create(SbMediaVideoCodec video_codec,
 // static
 std::optional<VideoConfig> VideoConfig::Create(
     const VideoStreamInfo& video_stream_info,
-    const uint8_t* data,
-    size_t data_size) {
-  return Create(video_stream_info.codec, video_stream_info.frame_size, data,
-                data_size);
+    span<const uint8_t> data) {
+  return Create(video_stream_info.codec, video_stream_info.frame_size, data);
 }
 
 VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,

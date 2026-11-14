@@ -17,11 +17,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/span.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
 namespace starboard {
@@ -43,8 +45,8 @@ class AvcParameterSets {
     kHeadless,
   };
 
-  static std::optional<AvcParameterSets> CreateFromAnnexB(const uint8_t* data,
-                                                          size_t size);
+  static std::optional<AvcParameterSets> CreateFromAnnexB(
+      span<const uint8_t> annex_b_data);
 
   Format format() const { return format_; }
   bool has_sps_and_pps() const {
@@ -104,11 +106,10 @@ class AvcParameterSets {
   const size_t combined_size_with_optionals_in_bytes_;
 };
 
-// The function will fail only when the input doesn't start with an Annex B
-// nalu header.
-bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
-                         size_t size,
-                         uint8_t* avcc_destination);
+// Fails if |avcc_destination| is smaller than |annex_b_source| or when
+// non-empty |annex_b_source| doesn't start with an Annex B nalu header.
+bool ConvertAnnexBToAvcc(span<const uint8_t> annex_b_source,
+                         span<uint8_t> avcc_destination);
 
 }  // namespace starboard
 
