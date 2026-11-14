@@ -34,6 +34,30 @@ void ReuseAllocatorBase::SetSuspended(bool is_suspended) {
   }
 }
 
+ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
+                                       size_t max_capacity,
+                                       size_t retain_blocks,
+                                       size_t conservative_decommit_blocks,
+                                       bool aggressive_decommit_on_suspend,
+                                       bool memset_on_reclaim,
+                                       bool mark_as_cold_on_reclaim)
+    : fallback_allocator_(fallback_allocator),
+      max_capacity_(max_capacity),
+      retain_blocks_(retain_blocks),
+      conservative_decommit_blocks_(conservative_decommit_blocks),
+      aggressive_decommit_on_suspend_(aggressive_decommit_on_suspend),
+      memset_on_reclaim_(memset_on_reclaim),
+      mark_as_cold_on_reclaim_(mark_as_cold_on_reclaim) {
+  SB_DCHECK(fallback_allocator_);
+}
+
+ReuseAllocatorBase::~ReuseAllocatorBase() {
+  for (const auto& fallback_allocation : fallback_allocations_) {
+    fallback_allocator_->Free(fallback_allocation.address);
+  }
+}
+
+// TODO(b/454441375): Move this to be in sync with the declaration order.
 void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
     bool include_retained_blocks) {
   if ((is_suspended_ && aggressive_decommit_on_suspend_) ||
@@ -58,46 +82,6 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
       TryDecommitPendingBlock(*it);
     }
     has_pending_decommits_ = false;
-  }
-}
-
-void ReuseAllocatorBase::TryToDecommitOneBlock() {
-  if (!has_pending_decommits_) {
-    return;
-  }
-  if (decommit_grace_ticks_remaining_ > 0) {
-    --decommit_grace_ticks_remaining_;
-    return;
-  }
-  for (auto it = fallback_allocations_.rbegin();
-       it != fallback_allocations_.rend(); ++it) {
-    if (TryDecommitPendingBlock(*it)) {
-      return;
-    }
-  }
-  has_pending_decommits_ = false;
-}
-
-ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
-                                       size_t max_capacity,
-                                       size_t retain_blocks,
-                                       size_t conservative_decommit_blocks,
-                                       bool aggressive_decommit_on_suspend,
-                                       bool memset_on_reclaim,
-                                       bool mark_as_cold_on_reclaim)
-    : fallback_allocator_(fallback_allocator),
-      max_capacity_(max_capacity),
-      retain_blocks_(retain_blocks),
-      conservative_decommit_blocks_(conservative_decommit_blocks),
-      aggressive_decommit_on_suspend_(aggressive_decommit_on_suspend),
-      memset_on_reclaim_(memset_on_reclaim),
-      mark_as_cold_on_reclaim_(mark_as_cold_on_reclaim) {
-  SB_DCHECK(fallback_allocator_);
-}
-
-ReuseAllocatorBase::~ReuseAllocatorBase() {
-  for (const auto& fallback_allocation : fallback_allocations_) {
-    fallback_allocator_->Free(fallback_allocation.address);
   }
 }
 
@@ -180,6 +164,24 @@ void ReuseAllocatorBase::ReclaimFallbackBlocks() {
   if (is_suspended_) {
     DecommitAllDecommitableBlocks();
   }
+}
+
+// TODO(b/454441375): Move this to be in sync with the declaration order.
+void ReuseAllocatorBase::TryToDecommitOneBlock() {
+  if (!has_pending_decommits_) {
+    return;
+  }
+  if (decommit_grace_ticks_remaining_ > 0) {
+    --decommit_grace_ticks_remaining_;
+    return;
+  }
+  for (auto it = fallback_allocations_.rbegin();
+       it != fallback_allocations_.rend(); ++it) {
+    if (TryDecommitPendingBlock(*it)) {
+      return;
+    }
+  }
+  has_pending_decommits_ = false;
 }
 
 void ReuseAllocatorBase::DecommitBlock(FallbackAllocation& block,

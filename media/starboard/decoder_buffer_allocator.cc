@@ -264,18 +264,6 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSettingForTesting(
   return ApplySetting(name, value);
 }
 
-// static
-void DecoderBufferAllocator::OnPeriodicDecommitTask(
-    scoped_refptr<PeriodicDecommitState> state) {
-  state->RunIfValid([](DecoderBufferAllocator* allocator) {
-    base::AutoLock scoped_lock(allocator->mutex_);
-    if (allocator->strategy_) {
-      allocator->strategy_->TryToDecommitOneBlock();
-    }
-    allocator->SchedulePeriodicDecommitTask_Locked();
-  });
-}
-
 base::expected<void, std::string> DecoderBufferAllocator::ApplySetting(
     const std::string& name,
     int value) {
@@ -353,6 +341,21 @@ base::expected<void, std::string> DecoderBufferAllocator::ApplySetting(
     return base::ok();
   }
   return base::unexpected(name + " isn't a supported setting.");
+}
+
+// TODO(b/520141273): Move OnPeriodicDecommitTask() above ApplySetting() to
+// match the declaration order in the header. Tentatively kept in its original
+// order here so it is easier to review.
+// static
+void DecoderBufferAllocator::OnPeriodicDecommitTask(
+    scoped_refptr<PeriodicDecommitState> state) {
+  state->RunIfValid([](DecoderBufferAllocator* allocator) {
+    base::AutoLock scoped_lock(allocator->mutex_);
+    if (allocator->strategy_) {
+      allocator->strategy_->TryToDecommitOneBlock();
+    }
+    allocator->SchedulePeriodicDecommitTask_Locked();
+  });
 }
 
 void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
