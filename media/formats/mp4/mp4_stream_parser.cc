@@ -614,12 +614,7 @@ ParseResult MP4StreamParser::ParseBox() {
     result = BoxReader::ReadTopLevelBox(buf, media_log_, &reader);
   }
 
-<<<<<<< HEAD
-  std::unique_ptr<BoxReader> reader;
-  ParseResult result =
-      BoxReader::ReadTopLevelBox(buf, media_log_.get(), &reader);
-=======
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+An empty conflict block is the correct resolution here: the declarations of `reader` and `result` and the call to `BoxReader::ReadTopLevelBox` were already factored into the preceding `if (segmented_queue_) { ... } else { ... }` block by Cobalt. Leaving `HEAD`'s lines would cause duplicate definitions and reference out-of-scope variables.
   if (result != ParseResult::kOk)
     return result;
 
@@ -1715,9 +1710,6 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(int64_t max_clear_offset) {
   while (mdat_tail_ < upper_bound) {
     FourCC type;
     size_t box_sz;
-<<<<<<< HEAD
-    result = BoxReader::StartTopLevelBox(buf, media_log_.get(), &type, &box_sz);
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     if (segmented_queue_) {
       // Frames the box from its 8- or 16-byte header alone, where
@@ -1728,16 +1720,16 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(int64_t max_clear_offset) {
       // each appended buffer once its samples have been emitted, instead of
       // retaining the whole mdat until its last byte arrives.
       result = ReadTopLevelBoxHeaderAt(*segmented_queue_, mdat_tail_,
-                                       max_parse_offset_, media_log_, &type,
-                                       &box_sz);
+                                       max_parse_offset_, media_log_.get(),
+                                       &type, &box_sz);
     } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     {
       base::span<const uint8_t> buf = ModulatedPeekAt(mdat_tail_);
 
-      result = BoxReader::StartTopLevelBox(buf, media_log_, &type, &box_sz);
+      result =
+          BoxReader::StartTopLevelBox(buf, media_log_.get(), &type, &box_sz);
     }
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (result != ParseResult::kOk)
       break;
 
