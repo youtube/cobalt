@@ -28,11 +28,7 @@
 #include "ui/gfx/gpu_memory_buffer_handle.h"
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include <fcntl.h>
-#else
 #include <linux/memfd.h>
-#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
@@ -450,14 +446,9 @@ TestSharedImageInterface::CreateNativePixmapBackedSharedImage(
     // Placeholder plane fd.
     const uint64_t plane_size =
         base::CheckMul(height_in_pixels, stride).ValueOrDie<uint64_t>();
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-    // memfd_create is not available in hermetic builds.
-    base::ScopedFD fd(open("/dev/zero", O_RDWR));
-#else
     base::ScopedFD fd(memfd_create("test_shared_image", MFD_CLOEXEC));
     CHECK(fd.is_valid());
     CHECK_EQ(ftruncate(fd.get(), plane_size), 0);
-#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
     native_pixmap_handle.planes.emplace_back(
         base::checked_cast<uint32_t>(stride), 0, plane_size, std::move(fd));

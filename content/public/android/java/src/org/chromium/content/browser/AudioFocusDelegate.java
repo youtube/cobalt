@@ -8,7 +8,6 @@ import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
-import android.os.Build;
 import android.os.Handler;
 
 import androidx.annotation.IntDef;
@@ -103,14 +102,9 @@ public class AudioFocusDelegate implements AudioManager.OnAudioFocusChangeListen
                 (AudioManager)
                         ContextUtils.getApplicationContext()
                                 .getSystemService(Context.AUDIO_SERVICE);
-        // Cobalt modification to support Android N devices.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (mFocusRequest != null) {
-                am.abandonAudioFocusRequest(mFocusRequest);
-                mFocusRequest = null;
-            }
-        } else {
-            am.abandonAudioFocus(this);
+        if (mFocusRequest != null) {
+            am.abandonAudioFocusRequest(mFocusRequest);
+            mFocusRequest = null;
         }
     }
 
@@ -126,51 +120,46 @@ public class AudioFocusDelegate implements AudioManager.OnAudioFocusChangeListen
                                 .getSystemService(Context.AUDIO_SERVICE);
 
         int result;
-        // Cobalt modification to support Android N devices.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            AudioAttributes playbackAttributes =
-                    new AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_UNKNOWN)
-                            .build();
+        AudioAttributes playbackAttributes =
+                new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_UNKNOWN)
+                        .build();
 
-            boolean allowDelayedFocus =
-                    ContentFeatureMap.isEnabled(
-                            ContentFeatureList.ALLOW_DELAYED_AUDIO_FOCUS_GAIN_ANDROID);
+        boolean allowDelayedFocus =
+                ContentFeatureMap.isEnabled(
+                        ContentFeatureList.ALLOW_DELAYED_AUDIO_FOCUS_GAIN_ANDROID);
 
-            mFocusRequest =
-                    new AudioFocusRequest.Builder(mFocusType)
-                            .setAudioAttributes(playbackAttributes)
-                            .setAcceptsDelayedFocusGain(allowDelayedFocus)
-                            .setWillPauseWhenDucked(false)
-                            .setOnAudioFocusChangeListener(this, mHandler)
-                            .build();
-            try {
-                result = am.requestAudioFocus(mFocusRequest);
-            } catch (SecurityException e) {
-                // If we get a SecurityException, the platform has a bug and requestAudioFocus is broken
-                // (at least under our current running conditions). Pretend that everything worked,
-                // because the alternative is that media such as videos may refuse to ever play.
-                Log.w(TAG, "audio focus coordination is broken", e);
-                return true;
-            }
+        mFocusRequest =
+                new AudioFocusRequest.Builder(mFocusType)
+                        .setAudioAttributes(playbackAttributes)
+                        .setAcceptsDelayedFocusGain(allowDelayedFocus)
+                        .setWillPauseWhenDucked(false)
+                        .setOnAudioFocusChangeListener(this, mHandler)
+                        .build();
+        try {
+            result = am.requestAudioFocus(mFocusRequest);
+        } catch (SecurityException e) {
+            // If we get a SecurityException, the platform has a bug and requestAudioFocus is broken
+            // (at least under our current running conditions). Pretend that everything worked,
+            // because the alternative is that media such as videos may refuse to ever play.
+            Log.w(TAG, "audio focus coordination is broken", e);
+            return true;
+        }
 
-            RecordHistogram.recordEnumeratedHistogram(
-                    "Media.Android.AudioFocusRequestResult",
-                    getAudioFocusRequestResult(result),
-                    AudioFocusRequestResult.COUNT);
+        RecordHistogram.recordEnumeratedHistogram(
+                "Media.Android.AudioFocusRequestResult",
+                getAudioFocusRequestResult(result),
+                AudioFocusRequestResult.COUNT);
 
-            if (allowDelayedFocus) {
-                // If the request returns AUDIOFOCUS_REQUEST_DELAYED, the system has registered our
-                // request but hasn't granted focus yet (e.g. during a phone call). We return true
-                // to treat this as a successful acquisition, allowing playback to proceed immediately
-                // despite the delay. This differs from AudioFocusDelegate::AudioFocusResult::kDelayed
-                // which indicates the browser itself is deferring the request.
-                return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-                        || result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED;
-            }
-        } else {
-            result = am.requestAudioFocus(this, AudioManager.STREAM_MUSIC, mFocusType);
+        if (allowDelayedFocus) {
+            // If the request returns AUDIOFOCUS_REQUEST_DELAYED, the system has registered our
+            // request but hasn't granted focus yet (e.g. during a phone call). We return true
+            // to treat this as a successful acquisition, allowing playback to proceed immediately
+            // despite the delay. This differs from AudioFocusDelegate::AudioFocusResult::kDelayed
+            // which indicates the browser itself is deferring the request.
+            return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+                    || result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED;
         }
 
         return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;

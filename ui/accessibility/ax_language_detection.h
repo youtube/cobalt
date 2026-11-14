@@ -294,7 +294,6 @@ class AX_EXPORT AXLanguageDetectionManager {
   // Perform labelling for node. Will not descend into children.
   void LabelLanguagesForNode(AXNode* node);
 
-#if !BUILDFLAG(IS_COBALT)
   // Lazy accessor for `language_identifier_`. Constructs the CLD3 model on
   // first use to avoid the ~MB of matrix-weight allocations when the language-
   // detection APIs are never invoked (the common case: the feature is disabled
@@ -319,7 +318,6 @@ class AX_EXPORT AXLanguageDetectionManager {
   // of shorter text (e.g. one character).
   std::unique_ptr<chrome_lang_id::NNetLanguageIdentifier>
       short_text_language_identifier_;
-#endif  // !BUILDFLAG(IS_COBALT)
 
   // The observer to support dynamic content language detection.
   std::unique_ptr<AXLanguageDetectionObserver> language_detection_observer_;

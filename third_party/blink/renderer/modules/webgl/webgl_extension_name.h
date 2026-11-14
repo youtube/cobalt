@@ -5,8 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_EXTENSION_NAME_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_EXTENSION_NAME_H_
 
-#include "build/build_config.h"
-
 namespace blink {
 
 // Extension names are needed to properly wrap instances in JavaScript objects.
@@ -71,12 +69,6 @@ enum WebGLExtensionName {
   kWebGLShaderPixelLocalStorageName,
   kWebGLStencilTexturingName,
   kWebGLWebCodecsVideoFrameName,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  kOESEGLImageExternalName,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
-  kCobaltVideoTextureTransformName,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
   kWebGLExtensionNameCount,  // Must be the last entry
 };
 }  // namespace blink

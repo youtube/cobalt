@@ -11,7 +11,6 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "build/buildflag.h"
 #include "base/task/single_thread_task_runner.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-blink.h"
@@ -45,19 +44,15 @@
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/html_iframe_element.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_proxy.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/scoped_promise_resolver.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
 #include "third_party/blink/renderer/modules/payments/payment_address.h"
 #include "third_party/blink/renderer/modules/payments/payment_method_change_event.h"
 #include "third_party/blink/renderer/modules/payments/payment_request_update_event.h"
 #include "third_party/blink/renderer/modules/payments/payment_response.h"
 #include "third_party/blink/renderer/modules/payments/payments_validators.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/payments/secure_payment_confirmation_helper.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/payments/update_payment_details_function.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
@@ -478,7 +473,6 @@ void StringifyAndParseMethodSpecificData(ExecutionContext& execution_context,
   }
 
   // Parse method data to avoid parsing JSON in the browser.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (supported_method == kSecurePaymentConfirmationMethod &&
       RuntimeEnabledFeatures::SecurePaymentConfirmationEnabled(
           &execution_context)) {
@@ -488,7 +482,6 @@ void StringifyAndParseMethodSpecificData(ExecutionContext& execution_context,
         SecurePaymentConfirmationHelper::ParseSecurePaymentConfirmationData(
             input, execution_context, exception_state);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void ValidateAndConvertPaymentDetailsModifiers(
@@ -734,7 +727,6 @@ void ValidateAndConvertPaymentMethodData(
       return;
     }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     if (payment_method_data->supportedMethod() ==
             kSecurePaymentConfirmationMethod &&
         RuntimeEnabledFeatures::SecurePaymentConfirmationEnabled(
@@ -755,7 +747,6 @@ void ValidateAndConvertPaymentMethodData(
         return;
       }
     }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
     KURL url(payment_method_data->supportedMethod());
     if (url.IsValid() &&
@@ -835,7 +826,6 @@ void RecordActivationlessShow(ExecutionContext* execution_context,
   }
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 V8SecurePaymentConfirmationAvailability::Enum
 ToV8SecurePaymentConfirmationAvailabilityEnum(
     payments::mojom::blink::SecurePaymentConfirmationAvailabilityEnum value) {
@@ -892,7 +882,7 @@ void OnGetSecurePaymentConfirmationCapabilitiesComplete(
 
   resolver->Resolve(std::move(results));
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+
 }  // namespace
 
 // static
@@ -921,7 +911,6 @@ PaymentRequest::securePaymentConfirmationAvailability(
     return promise;
   }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   CredentialManagerProxy::From(script_state)
       ->SecurePaymentConfirmationService()
       ->SecurePaymentConfirmationAvailability(BindOnce(
@@ -929,11 +918,6 @@ PaymentRequest::securePaymentConfirmationAvailability(
           std::make_unique<ScopedPromiseResolver>(
               resolver,
               ScopedPromiseResolver::ConnectionType::kPaymentConfirmation)));
-#else
-  resolver->Resolve(V8SecurePaymentConfirmationAvailability(
-      V8SecurePaymentConfirmationAvailability::Enum::
-          kUnavailableFeatureNotEnabled));
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   return promise;
 }
@@ -942,13 +926,6 @@ PaymentRequest::securePaymentConfirmationAvailability(
 ScriptPromise<IDLRecord<IDLString, IDLBoolean>>
 PaymentRequest::getSecurePaymentConfirmationCapabilities(
     ScriptState* script_state) {
-#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  return ScriptPromise<IDLRecord<IDLString, IDLBoolean>>::
-      RejectWithDOMException(script_state,
-                             MakeGarbageCollected<DOMException>(
-                                 DOMExceptionCode::kNotSupportedError,
-                                 "The feature is not enabled."));
-#else
   auto* execution_context = ExecutionContext::From(script_state);
   auto* resolver = MakeGarbageCollected<
       ScriptPromiseResolver<IDLRecord<IDLString, IDLBoolean>>>(script_state);
@@ -988,7 +965,6 @@ PaymentRequest::getSecurePaymentConfirmationCapabilities(
               ScopedPromiseResolver::ConnectionType::kPaymentConfirmation)));
 
   return promise;
-#endif  // !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 PaymentRequest* PaymentRequest::Create(

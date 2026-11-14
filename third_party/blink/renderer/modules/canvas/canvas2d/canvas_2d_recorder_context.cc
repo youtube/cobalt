@@ -36,7 +36,6 @@
 #include "cc/paint/record_paint_canvas.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "media/base/video_frame.h"
-#include "build/buildflag.h"
 #include "media/base/video_frame_metadata.h"
 #include "media/base/video_transformation.h"
 #include "third_party/blink/public/common/features.h"
@@ -45,9 +44,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_object_objectarray_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_begin_layer_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_fill_rule.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_format.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_format.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_canvasfilter_string.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
@@ -93,12 +90,10 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/path_2d.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/v8_canvas_style.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_frame.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/modules/webgpu/dawn_conversions.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/gpu.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/gpu_device.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/webgpu/dawn_conversions.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu_device.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
@@ -110,9 +105,7 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/graphics/filters/paint_filter_builder.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_mailbox_texture.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_mailbox_texture.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"

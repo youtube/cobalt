@@ -102,10 +102,6 @@ source_set("filters") {
     "//ui/gfx/geometry",
   ]
 
-  if (use_starboard_media) {
-    deps += [ "//starboard:starboard_headers_only" ]
-  }
-
   libs = []
 
   if (proprietary_codecs) {
@@ -393,11 +389,11 @@ source_set("unit_tests") {
     }
   }
 
-  if (media_use_libvpx && media_use_ffmpeg) {
+  if (media_use_libvpx) {
     sources += [ "vpx_video_decoder_unittest.cc" ]
   }
 
-  if (enable_dav1d_decoder && media_use_ffmpeg) {
+  if (enable_dav1d_decoder) {
     sources += [ "dav1d_video_decoder_unittest.cc" ]
   }
 

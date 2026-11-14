@@ -20,11 +20,7 @@ declare_args() {
   # Independent of use_dawn, which controls whether Dawn is used in Chromium.
   build_dawn_tests = is_mac || is_win || is_linux || is_chromeos || is_android
 
-  # Restrict the validating command decoder to 64-bit Android builds
-  # (target_cpu == "arm64") to support Nvidia Shield, which requires the
-  # validating decoder as a fallback due to driver bugs, while optimizing
-  # binary size (saving ~320 KB) on all other 32-bit Android TV devices.
-  enable_validating_command_decoder = is_android && target_cpu == "arm64"
+  enable_validating_command_decoder = is_android
 }
 
 declare_args() {
