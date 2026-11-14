@@ -84,14 +84,9 @@ def init(ctx):
     step_config = rust.step_config(ctx, step_config)
     step_config = simple.step_config(ctx, step_config)
     step_config = typescript_all.step_config(ctx, step_config)
-<<<<<<< HEAD
+    step_config = cobalt.step_config(ctx, step_config)
     if reclient.enabled(ctx):
         step_config = reclient.step_config(ctx, step_config)
-=======
-    step_config = cobalt.step_config(ctx, step_config)
-    if reproxy.enabled(ctx):
-        step_config = reproxy.step_config(ctx, step_config)
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     step_config = denylist.step_config(ctx, step_config)
 
