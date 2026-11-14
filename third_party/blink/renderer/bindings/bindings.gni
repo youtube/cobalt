@@ -303,6 +303,8 @@ if (is_cobalt) {
   ]
 
   cobalt_ai_exclude_patterns = [
+    "*v8_create_monitor_callback*",
+    "*v8_semantic_embedder*",
     "*v8_rewriter*",
     "*v8_translator*",
     "*v8_writer*",
