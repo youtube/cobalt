@@ -54,8 +54,8 @@ class ReuseAllocatorBase : public Allocator {
   // `max_capacity_` enforcement deliberately uses the raw `capacity_` since the
   // virtual address range of decommitted blocks remains reserved and reusable.
   size_t GetCapacity() const override {
-    SB_DCHECK_LE(decommitted_bytes_, capacity_);
-    return capacity_ >= decommitted_bytes_ ? capacity_ - decommitted_bytes_ : 0;
+    SB_CHECK_LE(decommitted_bytes_, capacity_);
+    return capacity_ - decommitted_bytes_;
   }
 
   // Updates whether the application is currently suspended. When

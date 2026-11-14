@@ -97,7 +97,7 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
         fallback_block.size >= *size_to_try &&
         MemoryIsAligned(fallback_block.address, alignment)) {
       if (fallback_block.state == kIdleDecommitted) {
-        SB_DCHECK_GE(decommitted_bytes_, fallback_block.size);
+        SB_CHECK_GE(decommitted_bytes_, fallback_block.size);
         decommitted_bytes_ -= fallback_block.size;
       }
       fallback_block.state = kActiveInUse;
@@ -190,7 +190,7 @@ void ReuseAllocatorBase::DecommitBlock(FallbackAllocation& block,
   if (mode == DecommitMode::kAggressive) {
     block.state = kIdleDecommitted;
     decommitted_bytes_ += block.size;
-    SB_DCHECK_LE(decommitted_bytes_, capacity_);
+    SB_CHECK_LE(decommitted_bytes_, capacity_);
   } else {
     block.state = kIdleFreed;
   }
