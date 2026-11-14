@@ -101,7 +101,8 @@ void AvcAVVideoSampleBufferBuilder::WriteInputBuffer(
   }
 
   if (!ConvertAnnexBToAvcc(
-          source_data, {reinterpret_cast<uint8_t*>(block_data), data_size})) {
+          source_data,
+          make_span(reinterpret_cast<uint8_t*>(block_data), data_size))) {
     ReportError("Failed to convert input data into avcc format");
     CFRelease(block);
     return;
