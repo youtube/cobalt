@@ -17,6 +17,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "build/build_config.h"
 #include "cc/base/region.h"
 #include "cc/base/tiling_data.h"
 #include "cc/cc_export.h"
@@ -136,6 +137,23 @@ class CC_EXPORT PictureLayerTiling {
   bool can_require_tiles_for_activation() const {
     return can_require_tiles_for_activation_;
   }
+#if BUILDFLAG(IS_COBALT)
+  void set_skewport_is_animation_lookahead(bool is_lookahead) {
+    skewport_is_animation_lookahead_ = is_lookahead;
+  }
+  bool skewport_is_animation_lookahead() const {
+    return skewport_is_animation_lookahead_;
+  }
+  bool IsAnimationLookaheadTile(const Tile* tile) const {
+    if (!skewport_is_animation_lookahead_ || !has_skewport_rect_tiles_) {
+      return false;
+    }
+    gfx::Rect tile_bounds =
+        tiling_data_.TileBounds(tile->tiling_i_index(), tile->tiling_j_index());
+    return !tile_bounds.Intersects(current_visible_rect_) &&
+           tile_bounds.Intersects(current_skewport_rect_);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   gfx::Size raster_size() const { return raster_source()->size(); }
   const scoped_refptr<RasterSource>& raster_source() const {
@@ -464,6 +482,9 @@ class CC_EXPORT PictureLayerTiling {
   gfx::Rect live_tiles_rect_;
 
   bool can_require_tiles_for_activation_ = false;
+#if BUILDFLAG(IS_COBALT)
+  bool skewport_is_animation_lookahead_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   gfx::Rect tiling_rect_in_layer_space_;
 

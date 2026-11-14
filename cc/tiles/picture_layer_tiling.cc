@@ -17,6 +17,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
+#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/base/math_util.h"
 #include "cc/layers/picture_layer_impl.h"
@@ -144,6 +145,10 @@ void PictureLayerTiling::TakeTilesAndPropertiesFrom(
   RemoveTilesInRegion(layer_invalidation, false /* recreate tiles */);
 
   resolution_ = pending_twin->resolution_;
+#if BUILDFLAG(IS_COBALT)
+  skewport_is_animation_lookahead_ =
+      pending_twin->skewport_is_animation_lookahead_;
+#endif  // BUILDFLAG(IS_COBALT)
 
   while (!pending_twin->tiles_.empty()) {
     auto pending_iter = pending_twin->tiles_.begin();
@@ -453,6 +458,9 @@ void PictureLayerTiling::Reset() {
   live_tiles_rect_ = gfx::Rect();
   tiles_.clear();
   all_tiles_done_ = true;
+#if BUILDFLAG(IS_COBALT)
+  skewport_is_animation_lookahead_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void PictureLayerTiling::ComputeTilePriorityRects(
@@ -497,6 +505,16 @@ void PictureLayerTiling::ComputeTilePriorityRects(
   if (features::IsCCSlimmingEnabled()) {
     live_tiles_rect = current_visible_rect_;
     bool draws_tiles = has_visible_rect_tiles_;
+
+#if BUILDFLAG(IS_COBALT)
+    if (skewport_is_animation_lookahead_ &&
+        memory_limit_policy >= TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM) {
+      draws_tiles |= has_skewport_rect_tiles_;
+      if (has_skewport_rect_tiles_) {
+        live_tiles_rect.Union(current_skewport_rect_);
+      }
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
     if (memory_limit_policy >= TileMemoryLimitPolicy::ALLOW_PREPAINT_ONLY) {
       draws_tiles |= has_skewport_rect_tiles_;
@@ -788,6 +806,26 @@ TilePriority PictureLayerTiling::ComputePriorityForTile(
     case PENDING_VISIBLE_RECT:
       return TilePriority(resolution_, priority_bin, 0);
     case SKEWPORT_RECT:
+#if BUILDFLAG(IS_COBALT)
+      if (skewport_is_animation_lookahead_) {
+        // Lookahead tiles are predicted to become visible in the upcoming
+        // frames of an active compositor transform animation. Under Cobalt's
+        // CUTOFF_ALLOW_REQUIRED_ONLY (ALLOW_ABSOLUTE_MINIMUM) memory policy,
+        // pre-paint soft memory is 0 and SOON tiles violate policy. Assigning
+        // unoccluded lookahead tiles to TilePriority::NOW with distance > 0
+        // allows them to be scheduled against available hard memory while
+        // strictly ordering them behind visible tiles (distance == 0),
+        // preventing eviction of existing cached content, and ensuring they
+        // never block activation or draw.
+        if (client_->HasValidTilePriorities() && !is_tile_occluded) {
+          priority_bin = TilePriority::NOW;
+        } else if (priority_bin < TilePriority::SOON) {
+          priority_bin = TilePriority::SOON;
+        }
+        break;
+      }
+      [[fallthrough]];
+#endif  // BUILDFLAG(IS_COBALT)
     case SOON_BORDER_RECT:
       if (priority_bin < TilePriority::SOON)
         priority_bin = TilePriority::SOON;
@@ -803,6 +841,13 @@ TilePriority PictureLayerTiling::ComputePriorityForTile(
   float distance_to_visible =
       current_content_to_screen_scale_ *
       current_visible_rect_.ManhattanInternalDistance(tile_bounds);
+#if BUILDFLAG(IS_COBALT)
+  if (priority_rect_type == SKEWPORT_RECT && skewport_is_animation_lookahead_) {
+    if (distance_to_visible <= 0.f) {
+      distance_to_visible = 1.f;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   return TilePriority(resolution_, priority_bin, distance_to_visible);
 }

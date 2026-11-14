@@ -17,6 +17,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "build/build_config.h"
 #include "cc/cc_export.h"
 #include "cc/layers/layer.h"
 #include "cc/layers/layer_impl.h"
@@ -30,6 +31,10 @@
 #include "cc/tiles/tile_priority.h"
 #include "cc/tiles/tiling_set_eviction_queue.h"
 #include "cc/trees/image_animation_controller.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/time/time.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace cc {
 
@@ -224,7 +229,14 @@ class CC_EXPORT PictureLayerImpl
           used_tilings);
   float MinimumContentsScale() const;
   float MaximumContentsScale() const;
+#if BUILDFLAG(IS_COBALT)
+  bool ComputeAnimationLookaheadScreenDisplacement(
+      gfx::Vector2dF* displacement);
+  void UpdateViewportRectForTilePriorityInContentSpace(
+      const gfx::Vector2dF& screen_displacement = gfx::Vector2dF());
+#else
   void UpdateViewportRectForTilePriorityInContentSpace();
+#endif  // BUILDFLAG(IS_COBALT)
   PictureLayerImpl* GetRecycledTwinLayer() const;
   bool ShouldDirectlyCompositeImage(float raster_scale) const;
 
@@ -375,6 +387,13 @@ class CC_EXPORT PictureLayerImpl
   // Denotes an area that is damaged and needs redraw. This is in the layer's
   // space.
   gfx::Rect damage_rect_;
+
+#if BUILDFLAG(IS_COBALT)
+  bool has_prev_animating_screen_translation_ = false;
+  gfx::Vector2dF prev_animating_screen_translation_;
+  base::TimeTicks prev_animating_frame_time_;
+  gfx::Vector2dF last_animating_screen_displacement_;
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace cc

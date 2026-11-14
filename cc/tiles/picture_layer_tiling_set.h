@@ -13,6 +13,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "build/build_config.h"
 #include "cc/base/region.h"
 #include "cc/tiles/picture_layer_tiling.h"
 #include "cc/tiles/tiling_set_coverage_iterator.h"
@@ -138,11 +139,21 @@ class CC_EXPORT PictureLayerTilingSet {
 
   // Update the rects and priorities for tiles based on the given information.
   // Returns true if PrepareTiles is required.
+#if BUILDFLAG(IS_COBALT)
+  bool UpdateTilePriorities(
+      const gfx::Rect& required_rect_in_layer_space,
+      float ideal_contents_scale,
+      double current_frame_time_in_seconds,
+      const Occlusion& occlusion_in_layer_space,
+      bool can_require_tiles_for_activation,
+      const gfx::Rect& animation_lookahead_rect_in_layer_space = gfx::Rect());
+#else
   bool UpdateTilePriorities(const gfx::Rect& required_rect_in_layer_space,
                             float ideal_contents_scale,
                             double current_frame_time_in_seconds,
                             const Occlusion& occlusion_in_layer_space,
                             bool can_require_tiles_for_activation);
+#endif  // BUILDFLAG(IS_COBALT)
 
   void GetAllPrioritizedTilesForTracing(
       std::vector<PrioritizedTile>* prioritized_tiles) const;
@@ -204,20 +215,38 @@ class CC_EXPORT PictureLayerTilingSet {
 
   void VerifyTilings(const PictureLayerTilingSet* pending_twin_set) const;
 
+#if BUILDFLAG(IS_COBALT)
+  bool TilingsNeedUpdate(
+      const gfx::Rect& required_rect_in_layer_space,
+      double current_frame_time_in_seconds,
+      const gfx::Rect& animation_lookahead_rect_in_layer_space = gfx::Rect());
+#else
   bool TilingsNeedUpdate(const gfx::Rect& required_rect_in_layer_space,
                          double current_frame_time_in_Seconds);
+#endif  // BUILDFLAG(IS_COBALT)
   gfx::Rect ComputeSkewport(const gfx::Rect& visible_rect_in_layer_space,
                             double current_frame_time_in_seconds,
                             float ideal_contents_scale);
   gfx::Rect ComputeSoonBorderRect(const gfx::Rect& visible_rect_in_layer_space,
                                   float ideal_contents_scale);
+#if BUILDFLAG(IS_COBALT)
+  void UpdatePriorityRects(
+      const gfx::Rect& visible_rect_in_layer_space,
+      double current_frame_time_in_seconds,
+      float ideal_contents_scale,
+      const gfx::Rect& animation_lookahead_rect_in_layer_space = gfx::Rect());
+#else
   void UpdatePriorityRects(const gfx::Rect& visible_rect_in_layer_space,
                            double current_frame_time_in_seconds,
                            float ideal_contents_scale);
+#endif  // BUILDFLAG(IS_COBALT)
 
   std::vector<std::unique_ptr<PictureLayerTiling>> tilings_;
 
   bool all_tiles_done_ : 1 = true;
+#if BUILDFLAG(IS_COBALT)
+  bool skewport_is_animation_lookahead_ : 1 = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   const int tiling_interest_area_padding_;
   const float skewport_target_time_in_seconds_;
@@ -233,6 +262,9 @@ class CC_EXPORT PictureLayerTilingSet {
   scoped_refptr<RasterSource> raster_source_;
 
   gfx::Rect visible_rect_in_layer_space_;
+#if BUILDFLAG(IS_COBALT)
+  gfx::Rect last_animation_lookahead_rect_in_layer_space_;
+#endif  // BUILDFLAG(IS_COBALT)
   gfx::Rect skewport_rect_in_layer_space_;
   gfx::Rect soon_border_rect_in_layer_space_;
   gfx::Rect eventually_rect_in_layer_space_;
