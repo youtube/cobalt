@@ -314,6 +314,7 @@ if (is_cobalt) {
     "*v8_proofreader*",
     "*v8_create_monitor*",
     "*v8_language_detector*",
+    "*v8_semantic_embedder*",
   ]
 
   if (!enable_privacy_sandbox_apis) {
