@@ -1,0 +1,170 @@
+[
+  {
+    "name": "churn_av1_1080p_1k",
+    "iterations": 1000,
+    "video": "vertical_1080p_24_fps_399_av1.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "churn_av1_720p_1k",
+    "iterations": 1000,
+    "video": "vertical_720p_24_fps_398_av1.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "churn_av1_480p_1k",
+    "iterations": 1000,
+    "video": "vertical_480p_24_fps_397_av1.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "churn_vp9_1080p_1k",
+    "iterations": 1000,
+    "video": "vertical_1080p_24_fps_248_vp9.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "churn_vp9_720p_1k",
+    "iterations": 1000,
+    "video": "vertical_720p_24_fps_247_vp9.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "churn_vp9_480p_1k",
+    "iterations": 1000,
+    "video": "vertical_480p_24_fps_244_vp9.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "churn_avc_1080p_1k",
+    "iterations": 1000,
+    "video": "vertical_1080p_30_fps_137_avc.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "churn_avc_480p_1k",
+    "iterations": 1000,
+    "video": "beneath_the_canopy_135_avc.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "codec_switch_1080p_1k",
+    "iterations": 1000,
+    "video": "vertical_1080p_24_fps_399_av1.dmp,vertical_1080p_24_fps_248_vp9.dmp,vertical_1080p_30_fps_137_avc.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "seeks5_av1_1080p_1k",
+    "iterations": 1000,
+    "seeks": 5,
+    "runner_timeout": 3600,
+    "video": "vertical_1080p_24_fps_399_av1.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "soak_av1_1080p_10k",
+    "iterations": 10000,
+    "runner_timeout": 14400,
+    "video": "vertical_1080p_24_fps_399_av1.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp"
+  },
+  {
+    "name": "gap50_av1_1080p_1k",
+    "iterations": 1000,
+    "gap_ms": 50,
+    "video": "vertical_1080p_24_fps_399_av1.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp",
+    "run_if_any_failed": [
+      "churn_av1_1080p_1k",
+      "churn_av1_720p_1k",
+      "churn_av1_480p_1k",
+      "churn_vp9_1080p_1k",
+      "churn_vp9_720p_1k",
+      "churn_vp9_480p_1k",
+      "churn_avc_1080p_1k",
+      "churn_avc_480p_1k",
+      "codec_switch_1080p_1k",
+      "seeks5_av1_1080p_1k",
+      "soak_av1_1080p_10k"
+    ],
+    "run_if_any_stalled": [
+      "churn_av1_1080p_1k",
+      "churn_av1_720p_1k",
+      "churn_av1_480p_1k",
+      "churn_vp9_1080p_1k",
+      "churn_vp9_720p_1k",
+      "churn_vp9_480p_1k",
+      "churn_avc_1080p_1k",
+      "churn_avc_480p_1k",
+      "codec_switch_1080p_1k",
+      "seeks5_av1_1080p_1k",
+      "soak_av1_1080p_10k"
+    ]
+  },
+  {
+    "name": "gap200_av1_1080p_1k",
+    "iterations": 1000,
+    "gap_ms": 200,
+    "video": "vertical_1080p_24_fps_399_av1.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp",
+    "run_if_any_failed": [
+      "churn_av1_1080p_1k",
+      "churn_av1_720p_1k",
+      "churn_av1_480p_1k",
+      "churn_vp9_1080p_1k",
+      "churn_vp9_720p_1k",
+      "churn_vp9_480p_1k",
+      "churn_avc_1080p_1k",
+      "churn_avc_480p_1k",
+      "codec_switch_1080p_1k",
+      "seeks5_av1_1080p_1k",
+      "soak_av1_1080p_10k"
+    ],
+    "run_if_any_stalled": [
+      "churn_av1_1080p_1k",
+      "churn_av1_720p_1k",
+      "churn_av1_480p_1k",
+      "churn_vp9_1080p_1k",
+      "churn_vp9_720p_1k",
+      "churn_vp9_480p_1k",
+      "churn_avc_1080p_1k",
+      "churn_avc_480p_1k",
+      "codec_switch_1080p_1k",
+      "seeks5_av1_1080p_1k",
+      "soak_av1_1080p_10k"
+    ]
+  },
+  {
+    "name": "gap1000_av1_1080p_1k",
+    "iterations": 1000,
+    "gap_ms": 1000,
+    "video": "vertical_1080p_24_fps_399_av1.dmp",
+    "audio": "beneath_the_canopy_aac_stereo.dmp",
+    "run_if_any_failed": [
+      "churn_av1_1080p_1k",
+      "churn_av1_720p_1k",
+      "churn_av1_480p_1k",
+      "churn_vp9_1080p_1k",
+      "churn_vp9_720p_1k",
+      "churn_vp9_480p_1k",
+      "churn_avc_1080p_1k",
+      "churn_avc_480p_1k",
+      "codec_switch_1080p_1k",
+      "seeks5_av1_1080p_1k",
+      "soak_av1_1080p_10k"
+    ],
+    "run_if_any_stalled": [
+      "churn_av1_1080p_1k",
+      "churn_av1_720p_1k",
+      "churn_av1_480p_1k",
+      "churn_vp9_1080p_1k",
+      "churn_vp9_720p_1k",
+      "churn_vp9_480p_1k",
+      "churn_avc_1080p_1k",
+      "churn_avc_480p_1k",
+      "codec_switch_1080p_1k",
+      "seeks5_av1_1080p_1k",
+      "soak_av1_1080p_10k"
+    ]
+  }
+]
