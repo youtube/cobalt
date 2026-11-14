@@ -17,6 +17,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #include "cc/raster/raster_source.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
@@ -375,6 +376,10 @@ void PictureLayerTilingSet::ReleaseAllResources() {
 void PictureLayerTilingSet::RemoveAllTilings() {
   tilings_.clear();
   all_tiles_done_ = true;
+#if BUILDFLAG(IS_COBALT)
+  skewport_is_animation_lookahead_ = false;
+  last_animation_lookahead_rect_in_layer_space_ = gfx::Rect();
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void PictureLayerTilingSet::Remove(PictureLayerTiling* tiling) {
@@ -389,6 +394,10 @@ void PictureLayerTilingSet::RemoveAllTiles() {
   for (const auto& tiling : tilings_)
     tiling->Reset();
   all_tiles_done_ = true;
+#if BUILDFLAG(IS_COBALT)
+  skewport_is_animation_lookahead_ = false;
+  last_animation_lookahead_rect_in_layer_space_ = gfx::Rect();
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 float PictureLayerTilingSet::GetMaximumContentsScale() const {
@@ -398,9 +407,16 @@ float PictureLayerTilingSet::GetMaximumContentsScale() const {
   return tilings_[0]->contents_scale_key();
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool PictureLayerTilingSet::TilingsNeedUpdate(
+    const gfx::Rect& visible_rect_in_layer_space,
+    double current_frame_time_in_seconds,
+    const gfx::Rect& animation_lookahead_rect_in_layer_space) {
+#else
 bool PictureLayerTilingSet::TilingsNeedUpdate(
     const gfx::Rect& visible_rect_in_layer_space,
     double current_frame_time_in_seconds) {
+#endif  // BUILDFLAG(IS_COBALT)
   // If we don't have any tilings, we don't need an update.
   if (num_tilings() == 0)
     return false;
@@ -414,6 +430,13 @@ bool PictureLayerTilingSet::TilingsNeedUpdate(
   // least that one tiling.
   if (state_since_last_tile_priority_update_.added_tilings)
     return true;
+
+#if BUILDFLAG(IS_COBALT)
+  if (last_animation_lookahead_rect_in_layer_space_ !=
+      animation_lookahead_rect_in_layer_space) {
+    return true;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Finally, if some state changed (either frame time or visible rect), then we
   // need to inform the tilings of the change.
@@ -497,6 +520,20 @@ gfx::Rect PictureLayerTilingSet::ComputeSoonBorderRect(
   return soon_border_rect;
 }
 
+#if BUILDFLAG(IS_COBALT)
+void PictureLayerTilingSet::UpdatePriorityRects(
+    const gfx::Rect& visible_rect_in_layer_space,
+    double current_frame_time_in_seconds,
+    float ideal_contents_scale,
+    const gfx::Rect& animation_lookahead_rect_in_layer_space) {
+  bool has_visible_rects = false;
+  gfx::Rect priority_interest_rect = visible_rect_in_layer_space;
+  if (!animation_lookahead_rect_in_layer_space.IsEmpty()) {
+    priority_interest_rect.Union(animation_lookahead_rect_in_layer_space);
+  }
+  if (!priority_interest_rect.IsEmpty()) {
+    gfx::RectF eventually_rectf(priority_interest_rect);
+#else
 void PictureLayerTilingSet::UpdatePriorityRects(
     const gfx::Rect& visible_rect_in_layer_space,
     double current_frame_time_in_seconds,
@@ -504,6 +541,7 @@ void PictureLayerTilingSet::UpdatePriorityRects(
   bool has_visible_rects = false;
   if (!visible_rect_in_layer_space.IsEmpty()) {
     gfx::RectF eventually_rectf(visible_rect_in_layer_space);
+#endif  // BUILDFLAG(IS_COBALT)
     eventually_rectf.Inset(-tiling_interest_area_padding_ /
                            ideal_contents_scale);
     if (eventually_rectf.Intersects(
@@ -519,14 +557,33 @@ void PictureLayerTilingSet::UpdatePriorityRects(
     eventually_rect_in_layer_space_ = gfx::Rect();
     skewport_rect_in_layer_space_ = gfx::Rect();
     soon_border_rect_in_layer_space_ = gfx::Rect();
+#if BUILDFLAG(IS_COBALT)
+    skewport_is_animation_lookahead_ = false;
+    last_animation_lookahead_rect_in_layer_space_ = gfx::Rect();
+#endif  // BUILDFLAG(IS_COBALT)
     // If we have no visible rect, clear all interest rects.
     visible_rect_history_.clear();
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  skewport_is_animation_lookahead_ =
+      !animation_lookahead_rect_in_layer_space.IsEmpty();
+  if (skewport_is_animation_lookahead_) {
+    skewport_rect_in_layer_space_ = visible_rect_in_layer_space_;
+    skewport_rect_in_layer_space_.Union(
+        animation_lookahead_rect_in_layer_space);
+    eventually_rect_in_layer_space_.Union(skewport_rect_in_layer_space_);
+  } else {
+    skewport_rect_in_layer_space_ =
+        ComputeSkewport(visible_rect_in_layer_space_,
+                        current_frame_time_in_seconds, ideal_contents_scale);
+  }
+#else
   skewport_rect_in_layer_space_ =
       ComputeSkewport(visible_rect_in_layer_space_,
                       current_frame_time_in_seconds, ideal_contents_scale);
+#endif  // BUILDFLAG(IS_COBALT)
   DCHECK(skewport_rect_in_layer_space_.Contains(visible_rect_in_layer_space_));
   DCHECK(
       eventually_rect_in_layer_space_.Contains(skewport_rect_in_layer_space_));
@@ -538,6 +595,10 @@ void PictureLayerTilingSet::UpdatePriorityRects(
   DCHECK(eventually_rect_in_layer_space_.Contains(
       soon_border_rect_in_layer_space_));
 
+#if BUILDFLAG(IS_COBALT)
+  last_animation_lookahead_rect_in_layer_space_ =
+      animation_lookahead_rect_in_layer_space;
+#endif  // BUILDFLAG(IS_COBALT)
   // Finally, update our visible rect history. Note that we use the original
   // visible rect here, since we want as accurate of a history as possible for
   // stable skewports.
@@ -552,6 +613,27 @@ void PictureLayerTilingSet::UpdatePriorityRects(
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool PictureLayerTilingSet::UpdateTilePriorities(
+    const gfx::Rect& visible_rect_in_layer_space,
+    float ideal_contents_scale,
+    double current_frame_time_in_seconds,
+    const Occlusion& occlusion_in_layer_space,
+    bool can_require_tiles_for_activation,
+    const gfx::Rect& animation_lookahead_rect_in_layer_space) {
+  StateSinceLastTilePriorityUpdate::AutoClear auto_clear_state(
+      &state_since_last_tile_priority_update_);
+
+  if (!TilingsNeedUpdate(visible_rect_in_layer_space,
+                         current_frame_time_in_seconds,
+                         animation_lookahead_rect_in_layer_space)) {
+    return state_since_last_tile_priority_update_.invalidated;
+  }
+
+  UpdatePriorityRects(visible_rect_in_layer_space,
+                      current_frame_time_in_seconds, ideal_contents_scale,
+                      animation_lookahead_rect_in_layer_space);
+#else
 bool PictureLayerTilingSet::UpdateTilePriorities(
     const gfx::Rect& visible_rect_in_layer_space,
     float ideal_contents_scale,
@@ -568,11 +650,16 @@ bool PictureLayerTilingSet::UpdateTilePriorities(
 
   UpdatePriorityRects(visible_rect_in_layer_space,
                       current_frame_time_in_seconds, ideal_contents_scale);
+#endif  // BUILDFLAG(IS_COBALT)
 
   all_tiles_done_ = true;
   for (const auto& tiling : tilings_) {
     tiling->set_can_require_tiles_for_activation(
         can_require_tiles_for_activation);
+#if BUILDFLAG(IS_COBALT)
+    tiling->set_skewport_is_animation_lookahead(
+        skewport_is_animation_lookahead_);
+#endif  // BUILDFLAG(IS_COBALT)
     tiling->ComputeTilePriorityRects(
         visible_rect_in_layer_space_, skewport_rect_in_layer_space_,
         soon_border_rect_in_layer_space_, eventually_rect_in_layer_space_,

@@ -134,6 +134,17 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipCookieUpdateAccess);
 BASE_EXPORT BASE_DECLARE_FEATURE(
     kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
 
+// When enabled, extends tile priority lookahead along the observed motion
+// direction of an active compositor 2D translation animation so incoming tiles
+// rasterize before entering the viewport under CUTOFF_ALLOW_REQUIRED_ONLY.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltAnimationTileLookahead);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kCobaltAnimationTileLookaheadMaxViewportFraction);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kCobaltAnimationTileLookaheadMaxMemoryPercentage);
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type
 // on Android, matching multi-process Chromium renderer main thread priority.

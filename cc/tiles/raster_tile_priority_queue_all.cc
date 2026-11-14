@@ -8,6 +8,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/tiles/tiling_set_raster_queue_all.h"
 
@@ -172,12 +173,23 @@ RasterTilePriorityQueueAll::GetNextQueues() const {
   // pending for smoothness and new content modes.
   if (pending_priority.priority_bin == TilePriority::NOW &&
       active_priority.priority_bin == TilePriority::NOW) {
+#if BUILDFLAG(IS_COBALT)
+    if (tree_priority_ == SMOOTHNESS_TAKES_PRIORITY &&
+        active_priority.distance_to_visible == 0.f) {
+      return active_queues_;
+    }
+    if (tree_priority_ == NEW_CONTENT_TAKES_PRIORITY &&
+        pending_priority.distance_to_visible == 0.f) {
+      return pending_queues_;
+    }
+#else
     if (tree_priority_ == SMOOTHNESS_TAKES_PRIORITY) {
       return active_queues_;
     }
     if (tree_priority_ == NEW_CONTENT_TAKES_PRIORITY) {
       return pending_queues_;
     }
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
   // Then, use the IsHigherPriorityThan condition for

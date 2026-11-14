@@ -205,6 +205,26 @@ BASE_FEATURE(kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
              "CobaltLocalStorageReuseLogsAndSkipEmptyCommits",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltAnimationTileLookahead,
+             "CobaltAnimationTileLookahead",
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT);
+#else
+             FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
+BASE_FEATURE_PARAM(double,
+                   kCobaltAnimationTileLookaheadMaxViewportFraction,
+                   &kCobaltAnimationTileLookahead,
+                   "max_viewport_fraction",
+                   0.4);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltAnimationTileLookaheadMaxMemoryPercentage,
+                   &kCobaltAnimationTileLookahead,
+                   "max_memory_percentage",
+                   15);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
              "CobaltAndroidDisplayCriticalInProcessRenderer",

@@ -47,6 +47,10 @@
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace cc {
 namespace {
 // This must be > 1 as we multiply or divide by this to find a new raster
@@ -161,6 +165,19 @@ void PictureLayerImpl::PushPropertiesTo(LayerImpl* base_layer) {
   // into the tree at that point.
   twin_layer_ = layer_impl;
   layer_impl->twin_layer_ = this;
+
+#if BUILDFLAG(IS_COBALT)
+  if (has_prev_animating_screen_translation_ &&
+      (!layer_impl->has_prev_animating_screen_translation_ ||
+       prev_animating_frame_time_ >= layer_impl->prev_animating_frame_time_)) {
+    layer_impl->has_prev_animating_screen_translation_ = true;
+    layer_impl->prev_animating_screen_translation_ =
+        prev_animating_screen_translation_;
+    layer_impl->prev_animating_frame_time_ = prev_animating_frame_time_;
+    layer_impl->last_animating_screen_displacement_ =
+        last_animating_screen_displacement_;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (changed_other_props) {
     layer_impl->SetIsBackdropFilterMask(is_backdrop_filter_mask_);
@@ -635,7 +652,35 @@ bool PictureLayerImpl::UpdateTiles() {
   double current_frame_time_in_seconds =
       (layer_tree_impl()->CurrentBeginFrameArgs().frame_time -
        base::TimeTicks()).InSecondsF();
+
+#if BUILDFLAG(IS_COBALT)
+  gfx::Vector2dF screen_displacement;
+  bool has_screen_displacement =
+      ComputeAnimationLookaheadScreenDisplacement(&screen_displacement);
+
+  UpdateViewportRectForTilePriorityInContentSpace(screen_displacement);
+
+  gfx::Rect animation_lookahead_rect_in_layer_space;
+  if (has_screen_displacement && !ScreenSpaceTransform().HasPerspective() &&
+      ScreenSpaceTransform().Is2dTransform()) {
+    gfx::Transform view_to_layer;
+    if (ScreenSpaceTransform().GetInverse(&view_to_layer)) {
+      gfx::Rect displaced_viewport =
+          layer_tree_impl()->ViewportRectForTilePriority();
+      displaced_viewport.Offset(-base::ClampRound(screen_displacement.x()),
+                                -base::ClampRound(screen_displacement.y()));
+      gfx::Rect lookahead_rect = MathUtil::ProjectEnclosingClippedRect(
+          view_to_layer, displaced_viewport);
+      lookahead_rect.Intersect(gfx::Rect(bounds()));
+      if (!visible_layer_rect().IsEmpty()) {
+        lookahead_rect.Union(visible_layer_rect());
+      }
+      animation_lookahead_rect_in_layer_space = lookahead_rect;
+    }
+  }
+#else
   UpdateViewportRectForTilePriorityInContentSpace();
+#endif  // BUILDFLAG(IS_COBALT)
 
   // The tiling set can require tiles for activation any of the following
   // conditions are true:
@@ -665,16 +710,175 @@ bool PictureLayerImpl::UpdateTiles() {
 
   // Pass |occlusion_in_content_space| for |occlusion_in_layer_space| since
   // they are the same space in picture layer, as contents scale is always 1.
+#if BUILDFLAG(IS_COBALT)
+  bool updated = tilings_->UpdateTilePriorities(
+      viewport_rect_for_tile_priority_in_content_space_,
+      ideal_contents_scale_key(), current_frame_time_in_seconds,
+      occlusion_in_content_space, can_require_tiles_for_activation,
+      animation_lookahead_rect_in_layer_space);
+#else
   bool updated = tilings_->UpdateTilePriorities(
       viewport_rect_for_tile_priority_in_content_space_,
       ideal_contents_scale_key(), current_frame_time_in_seconds,
       occlusion_in_content_space, can_require_tiles_for_activation);
+#endif  // BUILDFLAG(IS_COBALT)
   DCHECK_GT(tilings_->num_tilings(), 0u);
   SanityCheckTilingState();
   return updated;
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool PictureLayerImpl::ComputeAnimationLookaheadScreenDisplacement(
+    gfx::Vector2dF* displacement) {
+  *displacement = gfx::Vector2dF();
+  if (!base::FeatureList::IsEnabled(
+          base::features::kCobaltAnimationTileLookahead)) {
+    has_prev_animating_screen_translation_ = false;
+    last_animating_screen_displacement_ = gfx::Vector2dF();
+    return false;
+  }
+
+  auto reset_tracking = [this]() {
+    has_prev_animating_screen_translation_ = false;
+    last_animating_screen_displacement_ = gfx::Vector2dF();
+    return false;
+  };
+
+  int current_id = transform_tree_index();
+  if (current_id == kInvalidPropertyNodeId ||
+      current_id == kRootPropertyNodeId) {
+    return reset_tracking();
+  }
+
+  const PropertyTrees* property_trees = layer_tree_impl()->property_trees();
+  if (!property_trees) {
+    return reset_tracking();
+  }
+
+  // Suppress speculative offscreen tile lookahead whenever a video layer is
+  // actively drawn (e.g. 1080p/4K Watch playback, Playback Recommendations
+  // Scroll, or Shorts), where MSE + hardware decoder + Watch UI buffers
+  // establish the process's global peak memory ceiling (VmHWM).
+  for (const LayerImpl* layer : *layer_tree_impl()) {
+    if (layer->may_contain_video() &&
+        layer->contributes_to_drawn_render_surface() &&
+        layer->draws_content() && !layer->visible_layer_rect().IsEmpty()) {
+      return reset_tracking();
+    }
+  }
+
+  const gfx::Transform& screen_transform = ScreenSpaceTransform();
+  if (!screen_transform.IsScaleOrTranslation() ||
+      !screen_transform.Is2dTransform()) {
+    return reset_tracking();
+  }
+
+  const TransformTree& transform_tree = property_trees->transform_tree();
+  bool found_animating_node = false;
+  for (int node_id = current_id; node_id > kRootPropertyNodeId;) {
+    const TransformNode* node = transform_tree.Node(node_id);
+    if (!node) {
+      break;
+    }
+    if (node->is_currently_animating) {
+      // Ignore scale/rotate animations (e.g. progress bars or card zoom) and
+      // only extrapolate pure 2D translation shelf/grid transitions.
+      if (!node->local.IsIdentityOr2dTranslation()) {
+        return reset_tracking();
+      }
+      found_animating_node = true;
+    }
+    if (node->parent_id == kInvalidPropertyNodeId) {
+      break;
+    }
+    node_id = node->parent_id;
+  }
+
+  if (!found_animating_node) {
+    return reset_tracking();
+  }
+
+  if (!layer_tree_impl()->IsActiveTree()) {
+    if (PictureLayerImpl* twin = GetPendingOrActiveTwinLayer();
+        twin && twin->has_prev_animating_screen_translation_ &&
+        (!has_prev_animating_screen_translation_ ||
+         twin->prev_animating_frame_time_ > prev_animating_frame_time_)) {
+      has_prev_animating_screen_translation_ = true;
+      prev_animating_screen_translation_ =
+          twin->prev_animating_screen_translation_;
+      prev_animating_frame_time_ = twin->prev_animating_frame_time_;
+      last_animating_screen_displacement_ =
+          twin->last_animating_screen_displacement_;
+    }
+  }
+
+  const base::TimeTicks now =
+      layer_tree_impl()->CurrentBeginFrameArgs().frame_time;
+  const gfx::Vector2dF current_translation = screen_transform.To2dTranslation();
+
+  if (!has_prev_animating_screen_translation_) {
+    has_prev_animating_screen_translation_ = true;
+    prev_animating_screen_translation_ = current_translation;
+    prev_animating_frame_time_ = now;
+    last_animating_screen_displacement_ = gfx::Vector2dF();
+    return false;
+  }
+
+  if (now <= prev_animating_frame_time_) {
+    *displacement = last_animating_screen_displacement_;
+    return !displacement->IsZero();
+  }
+
+  const double dt_sec = (now - prev_animating_frame_time_).InSecondsF();
+  const gfx::Vector2dF frame_delta =
+      current_translation - prev_animating_screen_translation_;
+  prev_animating_screen_translation_ = current_translation;
+  prev_animating_frame_time_ = now;
+
+  // Guard against stale tracking state across separate animations if no
+  // non-animating UpdateTiles() occurred in between.
+  if (dt_sec > 0.25) {
+    last_animating_screen_displacement_ = gfx::Vector2dF();
+    return false;
+  }
+
+  // Scale instantaneous velocity by a 0.3s taper window so fast transition
+  // frames saturate at max_viewport_fraction while slow ease-out settle tails
+  // (1-2 px/frame) taper down instead of pulling in an extra unseen row.
+  constexpr double kVelocityTaperSeconds = 0.3;
+  gfx::Vector2dF raw_displacement = gfx::ScaleVector2d(
+      frame_delta,
+      static_cast<float>(kVelocityTaperSeconds / std::max(dt_sec, 0.004)));
+
+  // Extend the viewport by at most X% (default 40%) along the observed motion
+  // direction without evaluating compositor animation curves.
+  const gfx::Rect viewport = layer_tree_impl()->ViewportRectForTilePriority();
+  const double max_viewport_fraction = std::clamp(
+      base::features::kCobaltAnimationTileLookaheadMaxViewportFraction.Get(),
+      0.0, 2.0);
+  const float max_x =
+      static_cast<float>(viewport.width() * max_viewport_fraction);
+  const float max_y =
+      static_cast<float>(viewport.height() * max_viewport_fraction);
+  raw_displacement.set_x(std::clamp(raw_displacement.x(), -max_x, max_x));
+  raw_displacement.set_y(std::clamp(raw_displacement.y(), -max_y, max_y));
+
+  if (std::abs(raw_displacement.x()) < 1.f &&
+      std::abs(raw_displacement.y()) < 1.f) {
+    last_animating_screen_displacement_ = gfx::Vector2dF();
+    return false;
+  }
+
+  last_animating_screen_displacement_ = raw_displacement;
+  *displacement = last_animating_screen_displacement_;
+  return true;
+}
+
+void PictureLayerImpl::UpdateViewportRectForTilePriorityInContentSpace(
+    const gfx::Vector2dF& screen_displacement) {
+#else
 void PictureLayerImpl::UpdateViewportRectForTilePriorityInContentSpace() {
+#endif  // BUILDFLAG(IS_COBALT)
   // If visible_layer_rect() is empty or viewport_rect_for_tile_priority is
   // set to be different from the device viewport, try to inverse project the
   // viewport into layer space and use that. Otherwise just use
@@ -703,6 +907,13 @@ void PictureLayerImpl::UpdateViewportRectForTilePriorityInContentSpace() {
                                ->settings()
                                .skewport_extrapolation_limit_in_screen_pixels *
                            MaximumTilingContentsScale();
+#if BUILDFLAG(IS_COBALT)
+      if (visible_layer_rect().IsEmpty() && !screen_displacement.IsZero()) {
+        float max_d = std::max(std::abs(screen_displacement.x()),
+                               std::abs(screen_displacement.y()));
+        padding_amount += std::ceil(max_d * MaximumTilingContentsScale());
+      }
+#endif  // BUILDFLAG(IS_COBALT)
       padded_bounds.Inset(-padding_amount);
       visible_rect_in_content_space =
           SafeIntersectRects(visible_rect_in_content_space, padded_bounds);
@@ -987,6 +1198,10 @@ void PictureLayerImpl::DidBeginTracing() {
 void PictureLayerImpl::ReleaseResources() {
   tilings_->ReleaseAllResources();
   ResetRasterScale();
+#if BUILDFLAG(IS_COBALT)
+  has_prev_animating_screen_translation_ = false;
+  last_animating_screen_displacement_ = gfx::Vector2dF();
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void PictureLayerImpl::ReleaseTileResources() {
