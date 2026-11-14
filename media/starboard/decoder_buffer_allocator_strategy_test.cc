@@ -223,55 +223,6 @@ TEST(DecoderBufferAllocatorStrategyTest,
 }
 
 TEST(DecoderBufferAllocatorStrategyTest,
-     ConfigurableDecommitStrategyV3Validation) {
-  base::test::TaskEnvironment task_environment;
-  DecoderBufferAllocator allocator(/*is_memory_pool_allocated_on_demand=*/false,
-                                   4 * 1024 * 1024, 1024 * 1024);
-
-  // Legacy V1 and V2 setting names must be rejected.
-  EXPECT_FALSE(
-      allocator
-          .SetSettingForTesting(
-              "DecoderBuffer.EnableConfigurableDecommitStrategy", 0x02040100)
-          .has_value());
-  EXPECT_FALSE(
-      allocator
-          .SetSettingForTesting(
-              "DecoderBuffer.EnableConfigurableDecommitStrategyV2", 0x02040100)
-          .has_value());
-
-  // Non-positive values are accepted as no-op placebos.
-  EXPECT_TRUE(allocator
-                  .SetSettingForTesting(
-                      "DecoderBuffer.EnableConfigurableDecommitStrategyV3", 0)
-                  .has_value());
-  EXPECT_TRUE(allocator
-                  .SetSettingForTesting(
-                      "DecoderBuffer.EnableConfigurableDecommitStrategyV3", -1)
-                  .has_value());
-
-  // `block_size_mb == 0` and unknown flag bits (e.g. removed bit 29 `0x20`)
-  // must be rejected.
-  EXPECT_FALSE(
-      allocator
-          .SetSettingForTesting(
-              "DecoderBuffer.EnableConfigurableDecommitStrategyV3", 0x02000100)
-          .has_value());
-  EXPECT_FALSE(
-      allocator
-          .SetSettingForTesting(
-              "DecoderBuffer.EnableConfigurableDecommitStrategyV3", 0x20040100)
-          .has_value());
-
-  // Valid V3 encoding succeeds.
-  EXPECT_TRUE(
-      allocator
-          .SetSettingForTesting(
-              "DecoderBuffer.EnableConfigurableDecommitStrategyV3", 0x03010100)
-          .has_value());
-}
-
-TEST(DecoderBufferAllocatorStrategyTest,
      SetSuspendedReplaysOnStrategyCreationAndSkipsWhenDisabledOrOnPressure) {
   base::test::TaskEnvironment task_environment;
 

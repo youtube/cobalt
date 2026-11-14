@@ -294,7 +294,7 @@ base::expected<void, std::string> DecoderBufferAllocator::ApplySetting(
     // Passing multiple parameters encoded within a single integer is not
     // ideal, but it simplifies experiment setup in the current framework.
     //
-    // - flags (8 bits; bits 29-31 must be 0):
+    // - flags (8 bits):
     //   - enable_decommit_on_suspend (bit 24): When set (bit 24 is non-zero),
     //     informs the allocator of app suspend/resume so idle blocks are
     //     decommitted immediately while suspended instead of waiting for
@@ -309,8 +309,8 @@ base::expected<void, std::string> DecoderBufferAllocator::ApplySetting(
     //     memsets reclaimed blocks to 0.
     //   - mark_as_cold_on_reclaim (bit 28): When set (bit 28 is non-zero),
     //     uses MADV_COLD on reclaimed blocks.
-    // - block_size (8 bits, must be >= 1): Specifies both the initial pool
-    //   capacity and the fallback allocation increment in MB.
+    // - block_size (8 bits): Specifies both the initial pool capacity and the
+    //   fallback allocation increment in MB.
     // - retain_blocks (8 bits): Specifies the first `retain_blocks` blocks of
     //   the pool are kept fully committed.
     // - conservative_decommit_blocks (8 bits): Specifies the next
@@ -331,18 +331,10 @@ base::expected<void, std::string> DecoderBufferAllocator::ApplySetting(
     //
     // Note: A value of 0 or less will not enable this feature (handled as a
     // placebo).
-    constexpr uint32_t kKnownFlagMask = 0x1Fu;
     uint32_t unsigned_value = static_cast<uint32_t>(value);
     uint32_t flags = unsigned_value >> 24;
-    if ((flags & ~kKnownFlagMask) != 0) {
-      return base::unexpected("Unsupported flag bits in " + name + ".");
-    }
 
     size_t block_size_mb = (unsigned_value >> 16) & 0xFF;
-    if (block_size_mb == 0) {
-      return base::unexpected("block_size_mb must be non-zero in " + name +
-                              ".");
-    }
 
     Strategy::ExperimentConfig strategy_config;
     strategy_config.initial_capacity = block_size_mb * 1024 * 1024;
