@@ -58,8 +58,10 @@ export class OmniboxAimAppElement extends CrLitElement {
       },
       disableVoiceSearchAnimation_: {type: Boolean},
       usePecApi_: {type: Boolean},
+      smartTabSharingVisible_: {type: Boolean},
       isOblongShape_: {type: Boolean},
       webuiOmniboxSimplificationEnabled_: {type: Boolean},
+      smartComposeEnabled_: {type: Boolean},
     };
   }
 
@@ -85,10 +87,14 @@ export class OmniboxAimAppElement extends CrLitElement {
       loadTimeData.getBoolean('energyEffectEnabled');
   protected accessor usePecApi_: boolean =
       loadTimeData.getBoolean('contextualMenuUsePecApi');
+  protected accessor smartTabSharingVisible_: boolean =
+      loadTimeData.getBoolean('composeboxSmartTabSharingVisible');
   protected accessor isOblongShape_: boolean =
       loadTimeData.getBoolean('contextButtonShapeIsOblong');
   protected accessor webuiOmniboxSimplificationEnabled_: boolean =
       loadTimeData.getBoolean('webuiOmniboxSimplificationEnabled');
+  protected accessor smartComposeEnabled_: boolean =
+      loadTimeData.getBoolean('composeboxSmartComposeEnabled');
 
   private eventTracker_ = new EventTracker();
   private browserProxy_: BrowserProxy;
@@ -174,7 +180,9 @@ export class OmniboxAimAppElement extends CrLitElement {
     }
   }
 
-  // Fired from voice search component in cr-composebox.
+  // Fired from voice search component in cr-composebox if minimum height
+  // and width are non zero when permission prompt is displayed, or any time
+  // when permission prompt hides.
   protected onEmbeddedVoicePermissionPromptChanged(
       e: CustomEvent<VoicePermissionPromptState>) {
     if (e.detail.isOpened) {  // Permission prompt opened.

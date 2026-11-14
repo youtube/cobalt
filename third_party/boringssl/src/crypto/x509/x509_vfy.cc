@@ -84,8 +84,8 @@ static int internal_verify(X509_STORE_CTX *ctx);
 
 static int null_callback(int ok, X509_STORE_CTX *e) { return ok; }
 
-// cert_self_signed checks if |x| is self-signed. If |x| is valid, it returns
-// one and sets |*out_is_self_signed| to the result. If |x| is invalid, it
+// cert_self_signed checks if `x` is self-signed. If `x` is valid, it returns
+// one and sets `*out_is_self_signed` to the result. If `x` is invalid, it
 // returns zero.
 static int cert_self_signed(X509 *x, int *out_is_self_signed) {
   if (!x509v3_cache_extensions(x)) {
@@ -102,7 +102,7 @@ static int call_verify_cb(int ok, X509_STORE_CTX *ctx) {
   // of success or failure. Insert that callers check correctly.
   //
   // TODO(davidben): Also use this wrapper to constrain which errors may be
-  // suppressed, and ensure all |verify_cb| calls remember to fill in an error.
+  // suppressed, and ensure all `verify_cb` calls remember to fill in an error.
   BSSL_CHECK(ok == 0 || ok == 1);
   return ok;
 }
@@ -185,7 +185,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx) {
 
     int num = (int)sk_X509_num(ctx->chain);
     X509 *x = sk_X509_value(ctx->chain, num - 1);
-    // |param->depth| does not include the leaf certificate or the trust anchor,
+    // `param->depth` does not include the leaf certificate or the trust anchor,
     // so the maximum size is 2 more.
     int max_chain = param->depth >= INT_MAX - 2 ? INT_MAX : param->depth + 2;
 
@@ -391,7 +391,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx) {
         !check_revocation(ctx) ||  //
         !internal_verify(ctx) ||   //
         !check_name_constraints(ctx) ||
-        // TODO(davidben): Does |check_policy| still need to be conditioned on
+        // TODO(davidben): Does `check_policy` still need to be conditioned on
         // |!bad_chain|? DoS concerns have been resolved.
         (!bad_chain && !check_policy(ctx))) {
       goto end;
@@ -535,7 +535,7 @@ static int reject_dns_name_in_common_name(X509 *x509) {
       return X509_V_ERR_OUT_OF_MEM;
     }
     // Only process attributes that look like host names. Note it is
-    // important that this check be mirrored in |X509_check_host|.
+    // important that this check be mirrored in `X509_check_host`.
     int looks_like_dns = x509v3_looks_like_dns_name(idval, (size_t)idlen);
     OPENSSL_free(idval);
     if (looks_like_dns) {
@@ -583,7 +583,7 @@ static int check_name_constraints(X509_STORE_CTX *ctx) {
   }
 
   // Name constraints do not match against the common name, but
-  // |X509_check_host| still implements the legacy behavior where, on
+  // `X509_check_host` still implements the legacy behavior where, on
   // certificates lacking a SAN list, DNS-like names in the common name are
   // checked instead.
   //
@@ -603,7 +603,7 @@ static int check_name_constraints(X509_STORE_CTX *ctx) {
         return 0;
       default:
         ctx->error = rv;
-        ctx->error_depth = i;
+        ctx->error_depth = 0;
         ctx->current_cert = leaf;
         if (!call_verify_cb(0, ctx)) {
           return 0;
@@ -732,8 +732,8 @@ static int check_cert(X509_STORE_CTX *ctx) {
   ctx->current_crl_issuer = nullptr;
   ctx->current_crl_score = 0;
 
-  // Try to retrieve the relevant CRL. Note that |get_crl| sets
-  // |current_crl_issuer| and |current_crl_score|, which |check_crl| then reads.
+  // Try to retrieve the relevant CRL. Note that `get_crl` sets
+  // `current_crl_issuer` and `current_crl_score`, which `check_crl` then reads.
   //
   // TODO(davidben): The awkward internal calling convention is a historical
   // artifact of when these functions were user-overridable callbacks, even
@@ -846,8 +846,8 @@ static int get_crl_sk(X509_STORE_CTX *ctx, X509_CRL **pcrl, X509 **pissuer,
                          X509_CRL_get0_lastUpdate(crl)) == 0) {
         continue;
       }
-      // ASN1_TIME_diff never returns inconsistent signs for |day|
-      // and |sec|.
+      // ASN1_TIME_diff never returns inconsistent signs for `day`
+      // and `sec`.
       if (day <= 0 && sec <= 0) {
         continue;
       }
@@ -1270,7 +1270,7 @@ static int internal_verify(X509_STORE_CTX *ctx) {
   // First, don't allow the verify callback to suppress
   // X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY, which will simplify the
   // signature check. Then replace jumping into the middle of the loop. It's
-  // trying to ensure that all certificates see |check_cert_time|, then checking
+  // trying to ensure that all certificates see `check_cert_time`, then checking
   // the root's self signature when requested, but not breaking partial chains
   // in the process.
   int n = (int)sk_X509_num(ctx->chain);
@@ -1428,7 +1428,7 @@ X509_CRL *X509_STORE_CTX_get0_current_crl(const X509_STORE_CTX *ctx) {
 }
 
 X509_STORE_CTX *X509_STORE_CTX_get0_parent_ctx(const X509_STORE_CTX *ctx) {
-  // In OpenSSL, an |X509_STORE_CTX| sometimes has a parent context during CRL
+  // In OpenSSL, an `X509_STORE_CTX` sometimes has a parent context during CRL
   // path validation for indirect CRLs. We require the CRL to be issued
   // somewhere along the certificate path, so this is always NULL.
   return nullptr;
@@ -1447,7 +1447,7 @@ void X509_STORE_CTX_set0_crls(X509_STORE_CTX *ctx, STACK_OF(X509_CRL) *sk) {
 }
 
 int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose) {
-  // If |purpose| is zero, this function historically silently did nothing.
+  // If `purpose` is zero, this function historically silently did nothing.
   if (purpose == 0) {
     return 1;
   }
@@ -1470,7 +1470,7 @@ int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose) {
 }
 
 int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust) {
-  // If |trust| is zero, this function historically silently did nothing.
+  // If `trust` is zero, this function historically silently did nothing.
   if (trust == 0) {
     return 1;
   }

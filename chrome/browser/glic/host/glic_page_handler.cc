@@ -40,7 +40,6 @@
 #include "chrome/browser/glic/actor/glic_actor_task_manager.h"
 #include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/glic/common/glic_navigation.h"
-#include "chrome/browser/glic/fre/fre_util.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -53,6 +52,7 @@
 #include "chrome/browser/glic/host/context/glic_tab_favicon_observer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_annotation_manager.h"
+#include "chrome/browser/glic/host/glic_cookie_synchronizer.h"
 #include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/host/glic_skills_manager.h"
 #include "chrome/browser/glic/host/glic_synthetic_trial_manager.h"
@@ -266,7 +266,13 @@ class ActiveStateCalculator : public PanelStateObserver {
   // GlicInstanceCoordinator::StateObserver implementation.
   void PanelStateChanged(const glic::mojom::PanelState& panel_state) override {
     panel_state_kind_ = panel_state.kind;
-    PostRecalcAndNotify();
+    if (panel_state_kind_ != glic::mojom::PanelStateKind::kHidden) {
+      RecalculateAndNotify();
+    } else {
+      // Only delay hidden state. This ensures visible state is applied
+      // immediately.
+      PostRecalcAndNotify();
+    }
   }
 
  private:
@@ -1235,7 +1241,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   }
 
   void SyncCookies(SyncCookiesCallback callback) override {
-    glic_service_->GetAuthController().ForceSyncCookies(std::move(callback));
+    glic_service_->GetAuthController().ForceSyncCookies(
+        GlicCookieSyncTrigger::kGlicClient, std::move(callback));
   }
 
   void ClientErrorDialogStateChanged(
@@ -1261,9 +1268,15 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       return;
     }
     if (!verdict || !verdict->sb_verdict_result) {
+      base::UmaHistogramEnumeration(
+          "Glic.Api.ProcessCounterAbuseVerdict.Result",
+          GlicProcessCounterAbuseVerdictResult::kInvalidVerdict);
       return;
     }
     if (!verdict->sb_verdict_result->show_interstitial) {
+      base::UmaHistogramEnumeration(
+          "Glic.Api.ProcessCounterAbuseVerdict.Result",
+          GlicProcessCounterAbuseVerdictResult::kNoInterstitialRequested);
       return;
     }
 
@@ -1277,6 +1290,9 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     }
     GURL active_url = contents->GetVisibleURL();
     if (GURL(verdict->sb_verdict_result->url) != active_url) {
+      base::UmaHistogramEnumeration(
+          "Glic.Api.ProcessCounterAbuseVerdict.Result",
+          GlicProcessCounterAbuseVerdictResult::kUrlMismatch);
       return;
     }
     if (!g_browser_process->safe_browsing_service()) {
@@ -1304,7 +1320,9 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
               safe_browsing::SBThreatType::SB_THREAT_TYPE_URL_UNWANTED;
           break;
         default:
-          // Avoid showing a blocking page with a safe threat type.
+          base::UmaHistogramEnumeration(
+              "Glic.Api.ProcessCounterAbuseVerdict.Result",
+              GlicProcessCounterAbuseVerdictResult::kUnsupportedThreatType);
           return;
       }
 
@@ -1319,7 +1337,22 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                 primary_main_frame->GetFrameToken().value());
       }
 
-      ui_manager->DisplayBlockingPage(resource);
+      if (ui_manager->IsAllowlisted(
+              resource.url, resource.rfh_locator, resource.navigation_id,
+              resource.threat_type, resource.threat_source)) {
+        base::UmaHistogramEnumeration(
+            "Glic.Api.ProcessCounterAbuseVerdict.Result",
+            GlicProcessCounterAbuseVerdictResult::
+                kInterstitialSkippedAllowlist);
+      } else {
+        base::UmaHistogramEnumeration(
+            "Glic.Api.ProcessCounterAbuseVerdict.Result",
+            GlicProcessCounterAbuseVerdictResult::kSuccess);
+        base::UmaHistogramEnumeration(
+            "Glic.Api.ProcessCounterAbuseVerdict.ThreatType",
+            verdict->sb_verdict_result->threat_type);
+        ui_manager->DisplayBlockingPage(resource);
+      }
     }
   }
 
@@ -1899,6 +1932,9 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     const auto& first_party_skills_list = skills_service_->Get1PSkills();
     std::vector<mojom::SkillPreviewPtr> first_party_skills;
     for (const auto& skill : first_party_skills_list) {
+      if (skill.category() == "Internal") {
+        continue;
+      }
       first_party_skills.push_back(ToMojomSkillPreview(skill));
     }
 

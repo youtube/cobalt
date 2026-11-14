@@ -22,6 +22,7 @@
 #include "absl/algorithm/container.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
@@ -78,14 +79,28 @@ RtpParameters CreateRtpParametersWithEncodings(StreamParams sp) {
   return parameters;
 }
 
+std::vector<RtpHeaderExtensionCapability>
+GetDefaultEnabledRtpHeaderCapabilities(
+    const RtpHeaderExtensionQueryInterface& query_interface,
+    const FieldTrialsView* field_trials) {
+  std::vector<RtpHeaderExtensionCapability> extensions;
+  for (const RtpHeaderExtensionCapability& entry :
+       query_interface.GetRtpHeaderExtensions(field_trials)) {
+    if (entry.direction != RtpTransceiverDirection::kStopped) {
+      extensions.push_back(entry);
+    }
+  }
+  return extensions;
+}
+
 std::vector<RtpExtension> GetDefaultEnabledRtpHeaderExtensions(
     const RtpHeaderExtensionQueryInterface& query_interface,
     const FieldTrialsView* field_trials) {
   std::vector<RtpExtension> extensions;
-  for (const auto& entry :
-       query_interface.GetRtpHeaderExtensions(field_trials)) {
-    if (entry.direction != RtpTransceiverDirection::kStopped)
-      extensions.emplace_back(entry.uri, *entry.preferred_id);
+  for (const RtpHeaderExtensionCapability& entry :
+       GetDefaultEnabledRtpHeaderCapabilities(query_interface, field_trials)) {
+    extensions.emplace_back(
+        entry.uri, entry.preferred_id.value_or(RtpHeaderExtensionId::NotSet()));
   }
   return extensions;
 }

@@ -30,6 +30,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_timeouts.h"
@@ -505,7 +506,7 @@ TabDragController* GetTabDragController(TabStrip* tab_strip) {
 void ResizeUsingMouseEmulation(Browser* browser,
                                const gfx::Rect& target_bounds) {
 #if BUILDFLAG(IS_LINUX)
-  auto* window = browser->window()->GetNativeWindow();
+  auto* window = browser->GetWindow()->GetNativeWindow();
   auto width_difference = window->bounds().width() - target_bounds.width();
   auto height_difference = window->bounds().height() - target_bounds.height();
 
@@ -620,7 +621,7 @@ Browser* TabDragControllerTest::CreateAnotherBrowserAndResize() {
   // the first browser before creating the second one, else the second browser
   // might occlude the first browser's bottom right corner or tab strip grab
   // handle space, preventing us from resizing or moving it.
-  const gfx::NativeWindow window = browser()->window()->GetNativeWindow();
+  const gfx::NativeWindow window = browser()->GetWindow()->GetNativeWindow();
   gfx::Rect work_area =
       display::Screen::Get()->GetDisplayNearestWindow(window).work_area();
   const gfx::Size size(work_area.width() / 3, work_area.height() / 2);
@@ -844,7 +845,7 @@ class DetachToBrowserTabDragControllerTest
   void SetUpOnMainThread() override {
     TabDragControllerTest::SetUpOnMainThread();
 #if BUILDFLAG(IS_CHROMEOS)
-    root_ = browser()->window()->GetNativeWindow()->GetRootWindow();
+    root_ = browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
 
     // Disable flings which might otherwise inadvertently be generated from
     // tests' touch events.
@@ -1919,7 +1920,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        DragWithMaskedWindows) {
   AddTabsAndResetBrowser(browser(), 1);
 
-  aura::Window* browser_window = browser()->window()->GetNativeWindow();
+  aura::Window* browser_window = browser()->GetWindow()->GetNativeWindow();
   const gfx::Rect bounds = browser_window->GetBoundsInScreen();
   aura::test::TestWindowDelegate masked_window_delegate;
   masked_window_delegate.set_can_focus(false);
@@ -2933,7 +2934,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   // Resize the browser window so that it is as big as the work area.
   gfx::Rect work_area =
       display::Screen::Get()
-          ->GetDisplayNearestWindow(browser()->window()->GetNativeWindow())
+          ->GetDisplayNearestWindow(browser()->GetWindow()->GetNativeWindow())
           .work_area();
   ui_test_utils::SetAndWaitForBounds(*browser(), work_area);
   const gfx::Rect initial_bounds(browser()->window()->GetBounds());
@@ -2992,8 +2993,9 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   // InitialWebUI defers window visibility. If we Maximize() before the window
   // is visible, the OS may silently cache or drop the request, causing tests to
   // hang on Wayland. Wait for visibility.
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return browser()->window()->GetNativeWindow()->IsVisible(); }));
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return browser()->GetWindow()->GetNativeWindow()->IsVisible();
+  }));
 
   // Maximize the initial browser window.
   {
@@ -3338,6 +3340,71 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest, DragInSameWindow) {
   // The tab strip should no longer have capture because the drag was ended and
   // mouse/touch was released.
   EXPECT_FALSE(tab_strip->GetWidget()->HasCapture());
+}
+
+// Tests that the TabDragPinnedness UMA metric is correctly logged for same
+// window drags.
+IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
+                       DragInSameWindowPinnedness) {
+  // Case 1: Drag an unpinned tab.
+  {
+    AddTabsAndResetBrowser(browser(), 2);
+    TabStrip* tab_strip = GetTabStripForBrowser(browser());
+    StopAnimating(tab_strip);
+
+    base::HistogramTester histogram_tester;
+    ASSERT_TRUE(PressInputAtCenter(tab_strip->tab_at(2)));
+    // Drag enough to ensure it starts.
+    ASSERT_TRUE(DragInputToCenter(tab_strip->tab_at(0)));
+    ASSERT_TRUE(ReleaseInput());
+    StopAnimating(tab_strip);
+    histogram_tester.ExpectUniqueSample(
+        "TabStrip.HorizontalTabStrip.TabDragPinnedness", 0 /* kAllUnpinned */,
+        1);
+  }
+
+  // Case 2: Drag a pinned tab.
+  {
+    Browser* browser2 = CreateBrowser(browser()->profile());
+    AddTabsAndResetBrowser(browser2, 2);
+    TabStripModel* model2 = browser2->tab_strip_model();
+    TabStrip* tab_strip2 = GetTabStripForBrowser(browser2);
+    model2->SetTabPinned(0, true);
+    model2->ActivateTabAt(0);
+    StopAnimating(tab_strip2);
+
+    base::HistogramTester histogram_tester;
+    ASSERT_TRUE(PressInputAtCenter(tab_strip2->tab_at(0)));
+    // Drag further to the right.
+    ASSERT_TRUE(DragInputToCenter(tab_strip2->tab_at(2)));
+    ASSERT_TRUE(ReleaseInput());
+    StopAnimating(tab_strip2);
+    histogram_tester.ExpectUniqueSample(
+        "TabStrip.HorizontalTabStrip.TabDragPinnedness", 1 /* kAllPinned */, 1);
+  }
+
+  // Case 3: Drag a mix of pinned and unpinned tabs.
+  {
+    Browser* browser3 = CreateBrowser(browser()->profile());
+    AddTabsAndResetBrowser(browser3, 2);
+    TabStripModel* model3 = browser3->tab_strip_model();
+    TabStrip* tab_strip3 = GetTabStripForBrowser(browser3);
+    model3->SetTabPinned(0, true);
+    ui::ListSelectionModel selection;
+    selection.AddIndexToSelection(0);
+    selection.AddIndexToSelection(1);
+    selection.set_active(0);
+    model3->SetSelectionFromModel(selection);
+    StopAnimating(tab_strip3);
+
+    base::HistogramTester histogram_tester;
+    ASSERT_TRUE(PressInputAtCenter(tab_strip3->tab_at(0)));
+    ASSERT_TRUE(DragInputToCenter(tab_strip3->tab_at(2)));
+    ASSERT_TRUE(ReleaseInput());
+    StopAnimating(tab_strip3);
+    histogram_tester.ExpectUniqueSample(
+        "TabStrip.HorizontalTabStrip.TabDragPinnedness", 2 /* kMixed */, 1);
+  }
 }
 
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
@@ -4070,7 +4137,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   ASSERT_TRUE(group_header->dragging());
 
   ASSERT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
-      browser()->window()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
+      browser()->GetWindow()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
       false, false));
   StopAnimating(tab_strip);
 
@@ -4101,7 +4168,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   ASSERT_TRUE(DragInputToCenter(tab_strip->tab_at(2)));
 
   ASSERT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
-      browser()->window()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
+      browser()->GetWindow()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
       false, false));
   StopAnimating(tab_strip);
 
@@ -4128,7 +4195,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   ASSERT_TRUE(DragInputToCenter(tab_strip->tab_at(3)));
 
   ASSERT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
-      browser()->window()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
+      browser()->GetWindow()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
       false, false));
   StopAnimating(tab_strip);
 
@@ -4161,7 +4228,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   ASSERT_TRUE(DragInputToCenter(tab_strip->tab_at(3)));
 
   ASSERT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
-      browser()->window()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
+      browser()->GetWindow()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
       false, false));
   StopAnimating(tab_strip);
 
@@ -4189,7 +4256,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   ASSERT_TRUE(group_header->dragging());
 
   ASSERT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
-      browser()->window()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
+      browser()->GetWindow()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
       false, false));
 
   StopAnimating(tab_strip);
@@ -4974,9 +5041,10 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   EXPECT_EQ("1", IDString(browser()->tab_strip_model()));
 
   // Make sure that the window is still managed and not user moved.
-  EXPECT_TRUE(IsWindowPositionManaged(browser2->window()->GetNativeWindow()));
+  EXPECT_TRUE(
+      IsWindowPositionManaged(browser2->GetWindow()->GetNativeWindow()));
   EXPECT_FALSE(HasUserChangedWindowPositionOrSize(
-      browser2->window()->GetNativeWindow()));
+      browser2->GetWindow()->GetNativeWindow()));
 
   // Also make sure that the drag to window position has not changed.
   EXPECT_EQ(initial_bounds.ToString(),
@@ -5281,7 +5349,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 
   // Maximize the browser window.
   browser->window()->Maximize();
-  EXPECT_EQ(browser->window()->GetNativeWindow()->GetProperty(
+  EXPECT_EQ(browser->GetWindow()->GetNativeWindow()->GetProperty(
                 aura::client::kShowStateKey),
             ui::mojom::WindowShowState::kMaximized);
 
@@ -5556,10 +5624,10 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTestWithTabbedSystemApp,
   ASSERT_EQ(3u, GlobalBrowserCollection::GetInstance()->GetSize());
   ResetIDs(app_browser2->tab_strip_model(), 100);
 
-  gfx::Rect work_area =
-      display::Screen::Get()
-          ->GetDisplayNearestWindow(app_browser1->window()->GetNativeWindow())
-          .work_area();
+  gfx::Rect work_area = display::Screen::Get()
+                            ->GetDisplayNearestWindow(
+                                app_browser1->GetWindow()->GetNativeWindow())
+                            .work_area();
   const gfx::Size size(work_area.width() / 3, work_area.height() / 2);
   gfx::Rect browser_rect(work_area.origin(), size);
   app_browser1->window()->SetBounds(browser_rect);
@@ -5731,7 +5799,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserInSeparateDisplayTabDragControllerTest,
   ui_test_utils::SetAndWaitForBounds(*browser2, second_display.work_area());
   EXPECT_EQ(
       second_display.id(),
-      screen->GetDisplayNearestWindow(browser2->window()->GetNativeWindow())
+      screen->GetDisplayNearestWindow(browser2->GetWindow()->GetNativeWindow())
           .id());
 
   // Move to the first tab and drag it enough so that it detaches, but not
@@ -5785,8 +5853,9 @@ IN_PROC_BROWSER_TEST_P(
                        target_point, GetWindowHint(tab_strip)));
     StopAnimating(tab_strip);
   }
-  EXPECT_EQ(displays.first.id(),
-            browser()->window()->GetNativeWindow()->GetHost()->GetDisplayId());
+  EXPECT_EQ(
+      displays.first.id(),
+      browser()->GetWindow()->GetNativeWindow()->GetHost()->GetDisplayId());
 
   // Start dragging the window by the tab strip, and move it only to the edge
   // of the first display. Expect at that point mouse would warp and the window
@@ -5864,11 +5933,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserInSeparateDisplayTabDragControllerTest,
   ui_test_utils::SetAndWaitForBounds(*browser2, work_area);
   EXPECT_EQ(
       second_display.id(),
-      screen->GetDisplayNearestWindow(browser()->window()->GetNativeWindow())
+      screen->GetDisplayNearestWindow(browser()->GetWindow()->GetNativeWindow())
           .id());
   EXPECT_EQ(
       second_display.id(),
-      screen->GetDisplayNearestWindow(browser2->window()->GetNativeWindow())
+      screen->GetDisplayNearestWindow(browser2->GetWindow()->GetNativeWindow())
           .id());
 
   // Sanity check: make sure the target position is also within in the screen
@@ -5933,11 +6002,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserInSeparateDisplayTabDragControllerTest,
 
   EXPECT_EQ(
       displays.second.id(),
-      screen->GetDisplayNearestWindow(browser2->window()->GetNativeWindow())
+      screen->GetDisplayNearestWindow(browser2->GetWindow()->GetNativeWindow())
           .id());
   EXPECT_EQ(
       displays.first.id(),
-      screen->GetDisplayNearestWindow(browser()->window()->GetNativeWindow())
+      screen->GetDisplayNearestWindow(browser()->GetWindow()->GetNativeWindow())
           .id());
   EXPECT_EQ(2, tab_strip->GetTabCount());
   EXPECT_EQ(1, tab_strip2->GetTabCount());
@@ -5990,7 +6059,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserInSeparateDisplayTabDragControllerTest,
   ui_test_utils::SetAndWaitForBounds(*browser2, displays.second.work_area());
   EXPECT_EQ(
       displays.second.id(),
-      screen->GetDisplayNearestWindow(browser2->window()->GetNativeWindow())
+      screen->GetDisplayNearestWindow(browser2->GetWindow()->GetNativeWindow())
           .id());
 
   // Put the second browser into immersive fullscreen.
@@ -6064,7 +6133,7 @@ class DifferentDeviceScaleFactorDisplayTabDragControllerTest
 
   float GetCursorDeviceScaleFactor() const {
     auto* cursor_client = aura::client::GetCursorClient(
-        browser()->window()->GetNativeWindow()->GetRootWindow());
+        browser()->GetWindow()->GetNativeWindow()->GetRootWindow());
     const auto& cursor_shape_client = aura::client::GetCursorShapeClient();
     return cursor_shape_client.GetCursorData(cursor_client->GetCursor())
         ->scale_factor;
@@ -6270,13 +6339,13 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ("0 1", IDString(browser()->tab_strip_model()));
   EXPECT_EQ(
       displays.first.id(),
-      screen->GetDisplayNearestWindow(browser()->window()->GetNativeWindow())
+      screen->GetDisplayNearestWindow(browser()->GetWindow()->GetNativeWindow())
           .id());
 
   browser()->window()->SetBounds(displays.second.work_area());
   EXPECT_EQ(
       displays.second.id(),
-      screen->GetDisplayNearestWindow(browser()->window()->GetNativeWindow())
+      screen->GetDisplayNearestWindow(browser()->GetWindow()->GetNativeWindow())
           .id());
 
   // Move the second browser to the display.
@@ -6721,7 +6790,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTestWithOnTaskLocked,
   ash::boca::OnTaskLockedController::From(browser())->set_locked_for_on_task(
       true);
   const gfx::Rect& initial_bounds =
-      browser()->window()->GetNativeWindow()->bounds();
+      browser()->GetWindow()->GetNativeWindow()->bounds();
 
   // Drag tab away from tab strip and verify the window bounds remain unchanged.
   TabStrip* const tab_strip = GetTabStripForBrowser(browser());
@@ -6731,7 +6800,8 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTestWithOnTaskLocked,
   ASSERT_TRUE(ReleaseInput());
   StopAnimating(tab_strip);
   EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
-  EXPECT_EQ(browser()->window()->GetNativeWindow()->bounds(), initial_bounds);
+  EXPECT_EQ(browser()->GetWindow()->GetNativeWindow()->bounds(),
+            initial_bounds);
 }
 
 INSTANTIATE_TEST_SUITE_P(

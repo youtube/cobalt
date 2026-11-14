@@ -920,6 +920,9 @@
   'tfc-cq-tast': {
     'skylab': {
       'timeout_sec': 5400,
+      'cros_test_tags': [
+        'dep:chrome',
+      ],
       'cros_test_names_from_file': [
         'chromeos/tast_control_cq_tests.txt',
       ],
@@ -1151,12 +1154,12 @@
   'xcode_26_main': {
     'args': [
       '--xcode-build-version',
-      '17a400',
+      '17f42',
     ],
     'swarming': {
       'named_caches': [
         {
-          'name': 'xcode_ios_17a400',
+          'name': 'xcode_ios_17f42',
           'path': 'Xcode.app',
         },
       ],

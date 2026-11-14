@@ -93,24 +93,25 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
     // toolbar.
     private View mHolder;
     private @FuseboxLayoutMode int mLayoutMode;
+    private boolean mIsReparentedToPopover;
     private @BrandedColorScheme int mBrandedColorScheme = BrandedColorScheme.APP_DEFAULT;
 
     /** Constructor used to inflate from XML. */
     public LocationBarTablet(Context context, AttributeSet attrs) {
         super(context, attrs);
 
+        Resources resources = context.getResources();
         mToolbarButtonsWidth =
-                getResources().getDimensionPixelOffset(R.dimen.toolbar_button_width)
+                resources.getDimensionPixelOffset(R.dimen.toolbar_button_width)
                         * HIDEABLE_BUTTON_COUNT;
         int locationBarIconWidth =
-                getResources().getDimensionPixelOffset(R.dimen.location_bar_icon_width);
+                resources.getDimensionPixelOffset(R.dimen.location_bar_icon_width);
         mMicButtonWidth = locationBarIconWidth;
         mLensButtonWidth = locationBarIconWidth;
-        Resources resources = context.getResources();
         mFocusedPopupDrawable =
                 (LayerDrawable)
                         assumeNonNull(
-                                resources.getDrawable(
+                                context.getDrawable(
                                         R.drawable
                                                 .modern_toolbar_tablet_text_box_background_focused_popup));
         mFocusedPopupDrawable.mutate();
@@ -446,8 +447,11 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
         mBrandedColorScheme = brandedColorScheme;
         Context context = getContext();
         mOuterRect.setColor(
-                OmniboxResourceProvider.getSuggestionsDropdownBackgroundColor(
-                        context, mBrandedColorScheme));
+                mLayoutMode == FuseboxLayoutMode.SUGGESTIONS_POPOVER
+                        ? OmniboxResourceProvider.getStandardSuggestionBackgroundColor(
+                                context, mBrandedColorScheme)
+                        : OmniboxResourceProvider.getSuggestionsDropdownBackgroundColor(
+                                context, mBrandedColorScheme));
         mInnerRect.setColor(
                 OmniboxResourceProvider.getStandardSuggestionBackgroundColor(
                         context, mBrandedColorScheme));
@@ -520,12 +524,25 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
     public void onFuseboxStateChanged(@FuseboxState int state) {
         super.onFuseboxStateChanged(state);
         mFuseboxState = state;
-        adjustVerticalTranslationForFuseboxState(state);
+        updateLayoutAndBackground();
+    }
+
+    @Override
+    /* package */ void setReparentedToPopover(boolean isReparented) {
+        mIsReparentedToPopover = isReparented;
+        updateLayoutAndBackground();
+    }
+
+    private void updateLayoutAndBackground() {
+        adjustVerticalTranslationForFuseboxState(mFuseboxState);
         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) getLayoutParams();
         Resources resources = getResources();
         LinearLayout.LayoutParams parentParams =
                 (LinearLayout.LayoutParams) mHolder.getLayoutParams();
-        if (state == FuseboxState.COMPACT || state == FuseboxState.EXPANDED) {
+        if (mFuseboxState == FuseboxState.COMPACT
+                || mFuseboxState == FuseboxState.EXPANDED
+                || (mLayoutMode == FuseboxLayoutMode.SUGGESTIONS_POPOVER
+                        && mIsReparentedToPopover)) {
             parentParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
             int expansionPx =
                     resources.getDimensionPixelSize(

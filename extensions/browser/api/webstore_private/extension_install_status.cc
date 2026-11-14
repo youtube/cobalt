@@ -145,13 +145,6 @@ ExtensionInstallStatus PerformSynchronousChecks(
     return kBlocklisted;
   }
 
-  // When manifest version is not allowed, the extension is blocked and can't be
-  // requested.
-  if (!extension_management_client->IsAllowedManifestVersion(
-          manifest_version, extension_id, manifest_type)) {
-    return kBlockedByPolicy;
-  }
-
   bool is_blocked_by_policy = IsExtensionInstallBlockedByPolicy(
       extension_management_client, mode, extension_id, update_url.spec(),
       manifest_type, required_permission_set);
@@ -182,8 +175,7 @@ ExtensionInstallStatus PerformSynchronousChecks(
   constexpr mojom::ManifestLocation kManifestLocation =
       mojom::ManifestLocation::kInternal;
   if (mv2_experiment_manager->ShouldBlockExtensionInstallation(
-          extension_id, manifest_version, manifest_type, kManifestLocation,
-          HashedExtensionId(extension_id))) {
+          manifest_version, manifest_type, kManifestLocation)) {
     // The extension is using a deprecated manifest version and should not
     // be installable.
     return kDeprecatedManifestVersion;

@@ -59,6 +59,7 @@ import org.chromium.url.Origin;
 
 @RunWith(BaseRobolectricTestRunner.class)
 @DisableFeatures(ChromeFeatureList.PDF_REUSE_FRAGMENT)
+@Config(sdk = 35)
 public class PdfCoordinatorUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -467,6 +468,14 @@ public class PdfCoordinatorUnitTest {
 
         // Verify container is now VISIBLE.
         assertEquals(android.view.View.VISIBLE, container.getVisibility());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.INLINE_PDF_V2)
+    public void testPrint() {
+        createPdfCoordinator();
+        mPdfCoordinator.print();
+        verify(mNativePageHost).print();
     }
 
     @Implements(PdfView.class)

@@ -807,6 +807,7 @@ std::pair<Tagged<Code>, int> StackFrame::LookupCodeAndOffset() const {
 
 void StackFrame::IteratePc(RootVisitor* v, Address* constant_pool_address,
                            Tagged<GcSafeCode> holder) const {
+  DisallowGarbageCollection no_gc;
 #if DEBUG
   const Address old_pc = maybe_unauthenticated_pc();
   DCHECK_GE(old_pc, holder->InstructionStart(isolate(), old_pc));
@@ -817,8 +818,11 @@ void StackFrame::IteratePc(RootVisitor* v, Address* constant_pool_address,
   Tagged<GcSafeCode> visited_holder = holder;
   const Tagged<Object> old_istream = holder->raw_instruction_stream();
   Tagged<Object> visited_istream = old_istream;
-  v->VisitRunningCode(FullObjectSlot{&visited_holder},
-                      FullObjectSlot{&visited_istream});
+  {
+    DisableGCMole no_gcmole;
+    v->VisitRunningCode(FullObjectSlot{&visited_holder},
+                        FullObjectSlot{&visited_istream});
+  }
   // Note this covers two important cases:
   // 1. the associated InstructionStream object did not move, and
   // 2. `holder` is an embedded builtin and has no InstructionStream.
@@ -1603,6 +1607,7 @@ FrameSummaries CommonFrame::Summarize(AllowAllocation allow_allocation) const {
 namespace {
 void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
                     FullObjectSlot spill_slot) {
+  DisallowGarbageCollection no_gc;
 #ifdef V8_COMPRESS_POINTERS
   // Spill slots may contain compressed values in which case the upper
   // 32-bits will contain zeros. In order to simplify handling of such
@@ -1629,7 +1634,10 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     Address decompressed =
         V8HeapCompressionScheme::DecompressTagged(compressed_value);
     FullObjectSlot local_slot(&decompressed);
-    v->VisitRootPointer(Root::kStackRoots, nullptr, local_slot);
+    {
+      DisableGCMole no_gcmole;
+      v->VisitRootPointer(Root::kStackRoots, nullptr, local_slot);
+    }
     // Restore compression. Generated code should be able to trust that
     // compressed spill slots remain compressed.
     *spill_slot.location() =
@@ -1637,7 +1645,10 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     return;
   }
 #endif
-  v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
+  {
+    DisableGCMole no_gcmole;
+    v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
+  }
 }
 
 void VisitSpillSlots(Isolate* isolate, RootVisitor* v,
@@ -4261,8 +4272,7 @@ uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
 InnerPointerToCodeCache::Entry* InnerPointerToCodeCache::GetCacheEntry(
     Address inner_pointer) {
   DCHECK(base::bits::IsPowerOfTwo(kInnerPointerToCodeCacheSize));
-  uint32_t hash =
-      ComputeUnseededHash(PcAddressForHashing(isolate_, inner_pointer));
+  uint32_t hash = base::hash32(PcAddressForHashing(isolate_, inner_pointer));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   Entry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {

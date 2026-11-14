@@ -289,7 +289,7 @@ void VerticalTabStripController::ToggleTabGroupCollapsedState(
   bool should_toggle_group = true;
 
   tabs::TabInterface* active_tab = model_->GetActiveTab();
-  if (!is_currently_collapsed && active_tab) {
+  if (!is_currently_collapsed && active_tab && !drag_handler_->IsDragging()) {
     if (active_tab->GetGroup() == group->id()) {
       // If the active tab is in the group that is toggling to collapse, the
       // active tab should switch to the next available tab. If there are no
@@ -432,9 +432,10 @@ bool VerticalTabStripController::GetContextMenuAccelerator(
     ui::Accelerator* accelerator) {
 #if BUILDFLAG(IS_CHROMEOS)
   auto* browser = browser_view_->browser();
-  auto* system_app = browser->app_controller()
-                         ? browser->app_controller()->system_app()
-                         : nullptr;
+  auto* system_app =
+      web_app::AppBrowserController::From(browser)
+          ? web_app::AppBrowserController::From(browser)->system_app()
+          : nullptr;
   if (system_app && !system_app->ShouldShowTabContextMenuShortcut(
                         browser->profile(), command_id)) {
     return false;

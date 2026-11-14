@@ -143,9 +143,9 @@ TEST(ReconstructSeqnumTest, Halfway) {
 }
 
 TEST(DTLSMessageBitmapTest, Basic) {
-  // expect_bitmap checks that |b|'s unmarked bits are those listed in |ranges|.
-  // Each element of |ranges| must be non-empty and non-overlapping, and
-  // |ranges| must be sorted.
+  // expect_bitmap checks that `b`'s unmarked bits are those listed in `ranges`.
+  // Each element of `ranges` must be non-empty and non-overlapping, and
+  // `ranges` must be sorted.
   auto expect_bitmap = [](const DTLSMessageBitmap &b,
                           const std::vector<DTLSMessageBitmap::Range> &ranges) {
     EXPECT_EQ(ranges.empty(), b.IsComplete());
@@ -337,8 +337,8 @@ TEST(MRUQueueTest, Basic) {
 
 TEST(SSLAEADContextTest, Lengths) {
   struct LengthTest {
-    // All plaintext lengths from |min_plaintext_len| to |max_plaintext_len|
-    // should return in |cipertext_len|.
+    // All plaintext lengths from `min_plaintext_len` to `max_plaintext_len`
+    // should return in `cipertext_len`.
     size_t min_plaintext_len;
     size_t max_plaintext_len;
     size_t ciphertext_len;
@@ -572,7 +572,7 @@ TEST(SSLTest, ECHPublicName) {
   EXPECT_FALSE(ssl_is_valid_ech_public_name(StringAsBytes("example.01")));
   EXPECT_FALSE(ssl_is_valid_ech_public_name(StringAsBytes("example.0x01")));
   EXPECT_FALSE(ssl_is_valid_ech_public_name(StringAsBytes("example.0X01")));
-  // Leading zeros and values that overflow |uint32_t| are still rejected.
+  // Leading zeros and values that overflow `uint32_t` are still rejected.
   EXPECT_FALSE(ssl_is_valid_ech_public_name(
       StringAsBytes("example.123456789000000000000000")));
   EXPECT_FALSE(ssl_is_valid_ech_public_name(

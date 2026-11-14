@@ -157,14 +157,7 @@ bool MaglevInliner::Run() {
   }
 
   // Clear conversion, identities and ReturnedValues uses from deopt frames.
-  for (DeoptFrame* top_frame : graph_->eager_deopt_top_frames()) {
-    EagerDeoptInfo(zone(), top_frame, {}).Unwrap();
-  }
-  for (auto [top_frame, result_location] : graph_->lazy_deopt_top_frames()) {
-    LazyDeoptInfo(zone(), top_frame, result_location.first,
-                  result_location.second, {})
-        .Unwrap();
-  }
+  graph_->UnwrapDeoptFrames();
   return true;
 }
 
@@ -310,11 +303,11 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
                    << graph_->total_inlined_bytecode_size());
   }
 
-  if (result.IsDoneWithAbort()) {
-    if (inner_graph_builder.should_abort_compilation()) {
-      return InliningResult::kAbort;
-    }
+  if (inner_graph_builder.should_abort_compilation()) {
+    return InliningResult::kAbort;
+  }
 
+  if (result.IsDoneWithAbort()) {
     // Since the rest of the block is dead, these nodes don't belong
     // to any basic block anymore.
     for (auto node : rem_nodes_in_call_block) {

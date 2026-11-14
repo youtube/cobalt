@@ -382,7 +382,7 @@ bool String::MakeExternal(Isolate* isolate,
     resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
     isolate = isolate->shared_space_isolate();
   }
-  bool is_internalized = IsInternalizedString(this);
+  bool is_internalized = Is<InternalizedString>(this);
   bool has_pointers = StringShape(this).IsIndirect();
 
   base::MutexGuardIf mutex_guard(isolate->internalized_string_access(),
@@ -478,7 +478,7 @@ bool String::MakeExternal(Isolate* isolate,
     resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
     isolate = isolate->shared_space_isolate();
   }
-  bool is_internalized = IsInternalizedString(this);
+  bool is_internalized = Is<InternalizedString>(this);
   bool has_pointers = StringShape(this).IsIndirect();
 
   base::MutexGuardIf mutex_guard(isolate->internalized_string_access(),
@@ -533,9 +533,8 @@ bool String::MakeExternal(Isolate* isolate,
 }
 
 bool String::SupportsExternalization(v8::String::Encoding encoding) {
-  if (IsThinString(this)) {
-    return i::Cast<i::ThinString>(this)->actual()->SupportsExternalization(
-        encoding);
+  if (Is<ThinString>(this)) {
+    return Cast<ThinString>(this)->actual()->SupportsExternalization(encoding);
   }
 
   // RO_SPACE strings cannot be externalized.
@@ -1300,9 +1299,9 @@ bool String::SlowEquals(
 
   // Fast check: if at least one ThinString is involved, dereference it/them
   // and restart.
-  if (IsThinString(this) || IsThinString(other)) {
-    if (IsThinString(other)) other = Cast<ThinString>(other)->actual();
-    if (IsThinString(this)) {
+  if (Is<ThinString>(this) || Is<ThinString>(other)) {
+    if (Is<ThinString>(other)) other = Cast<ThinString>(other)->actual();
+    if (Is<ThinString>(this)) {
       return Cast<ThinString>(this)->actual()->Equals(other);
     } else {
       return this->Equals(other);
@@ -1354,7 +1353,7 @@ bool String::SlowEqualsNonThinSameLength(
   // before we try to flatten the strings.
   if (this->Get(0, access_guard) != other->Get(0, access_guard)) return false;
 
-  if (IsSeqOneByteString(this) && IsSeqOneByteString(other)) {
+  if (Is<SeqOneByteString>(this) && Is<SeqOneByteString>(other)) {
     const uint8_t* str1 =
         Cast<SeqOneByteString>(this)->GetChars(no_gc, access_guard);
     const uint8_t* str2 =
@@ -1918,6 +1917,23 @@ uint32_t String::ComputeAndSetRawHash(bool* out_one_byte_content) {
                               out_one_byte_content);
 }
 
+// This looks like the kind of function we'd put into header files, but it's
+// only used right below, so putting it here keeps headers leaner and still
+// allows the compiler to inline it.
+void Name::set_raw_hash_field_if_empty(uint32_t hash) {
+  uint32_t field_value = kEmptyHashField;
+  bool result = raw_hash_field_.compare_exchange_strong(field_value, hash);
+  USE(result);
+  // CAS can only fail if the string is shared or we use the forwarding table
+  // for all strings and the hash was already set (by another thread) or it is
+  // a forwarding index (that overwrites the previous hash).
+  // In all cases we don't want overwrite the old value, so we don't handle the
+  // failure case.
+  DCHECK_IMPLIES(!result, (Cast<String>(this)->IsShared() ||
+                           v8_flags.always_use_string_forwarding_table) &&
+                              (field_value == hash || IsForwardingIndex(hash)));
+}
+
 uint32_t String::ComputeAndSetRawHash(
     const SharedStringAccessGuardIfNeeded& access_guard,
     bool* out_one_byte_content) {
@@ -2057,7 +2073,7 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
 }
 
 SeqString::DataAndPaddingSizes SeqString::GetDataAndPaddingSizes() const {
-  if (IsSeqOneByteString(this)) {
+  if (Is<SeqOneByteString>(this)) {
     return Cast<SeqOneByteString>(this)->GetDataAndPaddingSizes();
   }
   return Cast<SeqTwoByteString>(this)->GetDataAndPaddingSizes();
@@ -2080,7 +2096,7 @@ SeqString::DataAndPaddingSizes SeqTwoByteString::GetDataAndPaddingSizes()
 #ifdef VERIFY_HEAP
 V8_EXPORT_PRIVATE void SeqString::SeqStringVerify(Isolate* isolate) {
   StringVerify(isolate);
-  CHECK(IsSeqString(this));
+  CHECK(Is<SeqString>(this));
   DataAndPaddingSizes sz = GetDataAndPaddingSizes();
   auto padding = reinterpret_cast<char*>(address() + sz.data_size);
   CHECK(sz.padding_size <= kTaggedSize);

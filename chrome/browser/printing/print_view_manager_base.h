@@ -17,9 +17,6 @@
 #include "base/observer_list_types.h"
 #include "build/build_config.h"
 #include "chrome/browser/printing/print_job.h"
-// Causes circular dependencies with //chrome/browser/ui. The nogncheck can be
-// removed when printer_handler.h is modularized.
-#include "chrome/browser/ui/webui/print_preview/printer_handler.h"  // nogncheck
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/prefs/pref_member.h"
 #include "components/printing/browser/print_manager.h"
@@ -28,6 +25,12 @@
 #include "components/services/print_compositor/public/mojom/print_compositor.mojom.h"
 #include "printing/buildflags/buildflags.h"
 #include "ui/accessibility/ax_tree_update_forward.h"
+
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+// Causes circular dependencies with //chrome/browser/ui. The nogncheck can be
+// removed when printer_handler.h is modularized.
+#include "chrome/browser/ui/webui/print_preview/printer_handler.h"  // nogncheck crbug.com/40147906
+#endif
 
 #if BUILDFLAG(ENABLE_OOP_PRINTING)
 #include <optional>
@@ -122,11 +125,6 @@ class PrintViewManagerBase : public PrintManager, public PrintJob::Observer {
                         DidPrintDocumentCallback callback) override;
   void GetDefaultPrintSettings(
       GetDefaultPrintSettingsCallback callback) override;
-#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
-  void SetAccessibilityTree(
-      int32_t cookie,
-      const ui::AXTreeUpdate& accessibility_tree) override;
-#endif
   void IsPrintingEnabled(IsPrintingEnabledCallback callback) override;
   void ScriptedPrint(mojom::ScriptedPrintParamsPtr params,
                      ScriptedPrintCallback callback) override;

@@ -28,6 +28,7 @@ class ThreadLocalTop;
 namespace v8::internal::wasm {
 
 class StackMemory;
+class WasmCode;
 
 struct JumpBuffer {
   Address sp;
@@ -224,6 +225,11 @@ class StackMemory {
   }
   CanonicalTypeIndex signature_id() { return signature_id_; }
   void set_signature_id(CanonicalTypeIndex id) { signature_id_ = id; }
+  constexpr static uint32_t wasm_code_offset() {
+    return OFFSET_OF(StackMemory, wasm_code_);
+  }
+  WasmCode* wasm_code() const { return wasm_code_; }
+  void set_wasm_code(WasmCode* code) { wasm_code_ = code; }
   constexpr static uint32_t arg_buffer_offset() {
     return OFFSET_OF(StackMemory, arg_buffer_);
   }
@@ -291,6 +297,14 @@ class StackMemory {
   // continuation objects are corrupted inside the sandbox. Continuations are
   // not castable so the canonical signature index must match exactly.
   CanonicalTypeIndex signature_id_{kInvalidCanonicalIndex};
+  // Pointer to the WasmCode that executed the resume instruction that switched
+  // out of this stack. Used to quickly find the effect handler table during
+  // suspend.
+  // The GC keeps this code alive via the stack's top Wasm frame, so we don't
+  // need to track it explicitly here.
+  // The pointer is cleared when we return/suspend back to this stack to avoid
+  // keeping a dangling pointer if the frame is popped.
+  WasmCode* wasm_code_ = nullptr;
   // When adding fields here, also check if it needs to be cleared in
   // StackMemory::Reset() when the stack is moved to the stack pool after
   // retiring.

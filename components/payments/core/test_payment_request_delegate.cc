@@ -51,13 +51,6 @@ TestPaymentRequestDelegate::GetAddressNormalizer() {
   return &address_normalizer_;
 }
 
-autofill::RegionDataLoader* TestPaymentRequestDelegate::GetRegionDataLoader() {
-  return nullptr;
-}
-
-ukm::UkmRecorder* TestPaymentRequestDelegate::GetUkmRecorder() {
-  return nullptr;
-}
 
 autofill::TestAddressNormalizer*
 TestPaymentRequestDelegate::test_address_normalizer() {
@@ -72,10 +65,6 @@ void TestPaymentRequestDelegate::CompleteFullCardRequest() {
   DCHECK(instantaneous_full_card_request_result_ == false);
   full_card_result_delegate_->OnFullCardRequestSucceeded(
       full_card_request_, full_card_request_card_, u"123");
-}
-
-std::string TestPaymentRequestDelegate::GetAuthenticatedEmail() const {
-  return "";
 }
 
 PrefService* TestPaymentRequestDelegate::GetPrefService() {

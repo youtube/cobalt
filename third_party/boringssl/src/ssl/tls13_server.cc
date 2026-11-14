@@ -288,9 +288,9 @@ bool ssl_check_tls13_credential_ignoring_issuer(
       return false;
   }
 
-  // If we reach here then the credential requires a signature. If |cred| is a
+  // If we reach here then the credential requires a signature. If `cred` is a
   // delegated credential, this also checks that the peer supports delegated
-  // credentials and matched |dc_cert_verify_algorithm|.
+  // credentials and matched `dc_cert_verify_algorithm`.
   return tls1_choose_signature_algorithm(hs, cred, out_sigalg);
 }
 
@@ -308,7 +308,7 @@ static bool check_signature_credential(SSL_HANDSHAKE *hs,
 static bool check_pake_credential(SSL_HANDSHAKE *hs,
                                   const SSLCredential *cred) {
   assert(cred->type == SSLCredentialType::kSPAKE2PlusV1Server);
-  // Look for a client PAKE share that matches |cred|.
+  // Look for a client PAKE share that matches `cred`.
   if (hs->pake_share == nullptr ||
       hs->pake_share->named_pake != SSL_PAKE_SPAKE2PLUSV1 ||
       hs->pake_share->client_identity != Span(cred->client_identity) ||
@@ -559,7 +559,7 @@ static enum ssl_ticket_aead_result_t select_session(
   assert(now.tv_sec >= session->time);
   uint64_t server_ticket_age = now.tv_sec - session->time;
 
-  // To avoid overflowing |hs->ticket_age_skew|, we will not resume
+  // To avoid overflowing `hs->ticket_age_skew`, we will not resume
   // 68-year-old sessions.
   if (server_ticket_age > INT32_MAX) {
     return ssl_ticket_aead_ignore_ticket;
@@ -645,7 +645,7 @@ static enum ssl_hs_wait_t do_select_session(SSL_HANDSHAKE *hs) {
 
   hs->can_release_private_key = !using_certificate(hs);
 
-  // Negotiate ALPS now, after ALPN is negotiated and |hs->new_session| is
+  // Negotiate ALPS now, after ALPN is negotiated and `hs->new_session` is
   // initialized.
   if (!ssl_negotiate_alps(hs, &alert, &client_hello)) {
     ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
@@ -719,7 +719,7 @@ static enum ssl_hs_wait_t do_select_session(SSL_HANDSHAKE *hs) {
   } else if (need_hrr) {
     ssl->s3->early_data_reason = ssl_early_data_hello_retry_request;
   } else {
-    // |ssl_session_is_resumable| forbids cross-cipher resumptions even if the
+    // `ssl_session_is_resumable` forbids cross-cipher resumptions even if the
     // PRF hashes match.
     assert(hs->new_cipher == session->cipher);
 
@@ -737,7 +737,7 @@ static enum ssl_hs_wait_t do_select_session(SSL_HANDSHAKE *hs) {
 
   // The peer applications settings are usually received later, in
   // EncryptedExtensions. But, in 0-RTT handshakes, we carry over the
-  // values from |session|. Do this now, before |session| is discarded.
+  // values from `session`. Do this now, before `session` is discarded.
   if (ssl->s3->early_data_accepted &&
       hs->new_session->has_application_settings &&
       !hs->new_session->peer_application_settings.CopyFrom(
@@ -947,7 +947,7 @@ static enum ssl_hs_wait_t do_read_second_client_hello(SSL_HANDSHAKE *hs) {
       return ssl_hs_error;
     }
 
-    // Reparse |client_hello| from the buffer owned by |hs|.
+    // Reparse `client_hello` from the buffer owned by `hs`.
     if (!hs->GetClientHello(&msg, &client_hello)) {
       OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
       return ssl_hs_error;
@@ -955,7 +955,7 @@ static enum ssl_hs_wait_t do_read_second_client_hello(SSL_HANDSHAKE *hs) {
   }
 
   // We perform all our negotiation based on the first ClientHello (for
-  // consistency with what |select_certificate_cb| observed), which is in the
+  // consistency with what `select_certificate_cb` observed), which is in the
   // transcript, so we can ignore most of this second one.
   //
   // We do, however, check the second PSK binder. This covers the client key
@@ -1046,7 +1046,7 @@ static enum ssl_hs_wait_t do_send_server_hello(SSL_HANDSHAKE *hs) {
       return ssl_hs_error;
     }
 
-    // Update |server_hello|.
+    // Update `server_hello`.
     auto server_hello_out =
         Span(server_hello).subspan(offset).first<ECH_CONFIRMATION_SIGNAL_LEN>();
     OPENSSL_memcpy(server_hello_out.data(), random_suffix.data(),
@@ -1171,7 +1171,7 @@ static enum ssl_hs_wait_t do_send_half_rtt_ticket(SSL_HANDSHAKE *hs) {
 
   if (ssl->s3->early_data_accepted) {
     // If accepting 0-RTT, we send tickets half-RTT. This gets the tickets on
-    // the wire sooner and also avoids triggering a write on |SSL_read| when
+    // the wire sooner and also avoids triggering a write on `SSL_read` when
     // processing the client Finished. This requires computing the client
     // Finished early. See RFC 8446, section 4.6.1.
     static const uint8_t kEndOfEarlyData[4] = {SSL3_MT_END_OF_EARLY_DATA, 0, 0,
@@ -1348,7 +1348,7 @@ static enum ssl_hs_wait_t do_read_client_certificate(SSL_HANDSHAKE *hs) {
       // OpenSSL returns X509_V_OK when no certificates are requested. This is
       // classed by them as a bug, but it's assumed by at least NGINX. (Only do
       // this in full handshakes as resumptions should carry over the previous
-      // |verify_result|, though this is a no-op because servers do not
+      // `verify_result`, though this is a no-op because servers do not
       // implement the client's odd soft-fail mode.)
       hs->new_session->verify_result = X509_V_OK;
     }

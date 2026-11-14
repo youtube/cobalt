@@ -60,7 +60,7 @@ static bool get_key_block_lengths(const SSL *ssl, size_t *out_mac_secret_len,
   *out_key_len = EVP_AEAD_key_length(aead);
   if (*out_mac_secret_len > 0) {
     // For "stateful" AEADs (i.e. compatibility with pre-AEAD cipher suites) the
-    // key length reported by |EVP_AEAD_key_length| will include the MAC key
+    // key length reported by `EVP_AEAD_key_length` will include the MAC key
     // bytes and initial implicit IV.
     if (*out_key_len < *out_mac_secret_len + *out_iv_len) {
       OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
@@ -75,8 +75,8 @@ static bool get_key_block_lengths(const SSL *ssl, size_t *out_mac_secret_len,
 static bool generate_key_block(const SSL *ssl, Span<uint8_t> out,
                                const SSL_SESSION *session) {
   const EVP_MD *digest = ssl_session_get_digest(session);
-  // Note this function assumes that |session|'s key material corresponds to
-  // |ssl->s3->client_random| and |ssl->s3->server_random|.
+  // Note this function assumes that `session`'s key material corresponds to
+  // `ssl->s3->client_random` and `ssl->s3->server_random`.
   return tls1_prf(digest, out, session->secret, "key expansion",
                   ssl->s3->server_random, ssl->s3->client_random);
 }
@@ -91,7 +91,7 @@ bool tls1_configure_aead(SSL *ssl, evp_aead_direction_t direction,
     return false;
   }
 
-  // Ensure that |key_block_cache| is set up.
+  // Ensure that `key_block_cache` is set up.
   const size_t key_block_size = 2 * (mac_secret_len + key_len + iv_len);
   if (key_block_cache->empty()) {
     if (!key_block_cache->InitForOverwrite(key_block_size) ||
@@ -173,7 +173,7 @@ BSSL_NAMESPACE_END
 using namespace bssl;
 
 size_t SSL_get_key_block_len(const SSL *ssl) {
-  // See |SSL_generate_key_block|.
+  // See `SSL_generate_key_block`.
   if (SSL_in_init(ssl) || ssl_protocol_version(ssl) > TLS1_2_VERSION) {
     return 0;
   }

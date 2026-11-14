@@ -19,6 +19,7 @@
 
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "modules/include/module_fec_types.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -220,7 +221,7 @@ TEST(FlexfecSenderTest, RegisterAbsoluteSendTimeRtpHeaderExtension) {
   SimulatedClock clock(kInitialSimulatedClockTime);
   const Environment env = CreateEnvironment(&clock);
   const std::vector<RtpExtension> kRtpHeaderExtensions{
-      {RtpExtension::kAbsSendTimeUri, 1}};
+      {RtpExtension::kAbsSendTimeUri, RtpHeaderExtensionId(1)}};
   FlexfecSender sender(env, kFlexfecPayloadType, kFlexfecSsrc, kMediaSsrc,
                        kNoMid, kRtpHeaderExtensions, kNoRtpHeaderExtensionSizes,
                        nullptr /* rtp_state */);
@@ -235,7 +236,7 @@ TEST(FlexfecSenderTest, RegisterTransmissionOffsetRtpHeaderExtension) {
   SimulatedClock clock(kInitialSimulatedClockTime);
   const Environment env = CreateEnvironment(&clock);
   const std::vector<RtpExtension> kRtpHeaderExtensions{
-      {RtpExtension::kTimestampOffsetUri, 1}};
+      {RtpExtension::kTimestampOffsetUri, RtpHeaderExtensionId(1)}};
   FlexfecSender sender(env, kFlexfecPayloadType, kFlexfecSsrc, kMediaSsrc,
                        kNoMid, kRtpHeaderExtensions, kNoRtpHeaderExtensionSizes,
                        nullptr /* rtp_state */);
@@ -250,7 +251,7 @@ TEST(FlexfecSenderTest, RegisterTransportSequenceNumberRtpHeaderExtension) {
   SimulatedClock clock(kInitialSimulatedClockTime);
   const Environment env = CreateEnvironment(&clock);
   const std::vector<RtpExtension> kRtpHeaderExtensions{
-      {RtpExtension::kTransportSequenceNumberUri, 1}};
+      {RtpExtension::kTransportSequenceNumberUri, RtpHeaderExtensionId(1)}};
   FlexfecSender sender(env, kFlexfecPayloadType, kFlexfecSsrc, kMediaSsrc,
                        kNoMid, kRtpHeaderExtensions, kNoRtpHeaderExtensionSizes,
                        nullptr /* rtp_state */);
@@ -265,9 +266,9 @@ TEST(FlexfecSenderTest, RegisterAllRtpHeaderExtensionsForBwe) {
   SimulatedClock clock(kInitialSimulatedClockTime);
   const Environment env = CreateEnvironment(&clock);
   const std::vector<RtpExtension> kRtpHeaderExtensions{
-      {RtpExtension::kAbsSendTimeUri, 1},
-      {RtpExtension::kTimestampOffsetUri, 2},
-      {RtpExtension::kTransportSequenceNumberUri, 3}};
+      {RtpExtension::kAbsSendTimeUri, RtpHeaderExtensionId(1)},
+      {RtpExtension::kTimestampOffsetUri, RtpHeaderExtensionId(2)},
+      {RtpExtension::kTransportSequenceNumberUri, RtpHeaderExtensionId(3)}};
   FlexfecSender sender(env, kFlexfecPayloadType, kFlexfecSsrc, kMediaSsrc,
                        kNoMid, kRtpHeaderExtensions, kNoRtpHeaderExtensionSizes,
                        nullptr /* rtp_state */);
@@ -292,9 +293,9 @@ TEST(FlexfecSenderTest, MaxPacketOverheadWithExtensions) {
   SimulatedClock clock(kInitialSimulatedClockTime);
   const Environment env = CreateEnvironment(&clock);
   const std::vector<RtpExtension> kRtpHeaderExtensions{
-      {RtpExtension::kAbsSendTimeUri, 1},
-      {RtpExtension::kTimestampOffsetUri, 2},
-      {RtpExtension::kTransportSequenceNumberUri, 3}};
+      {RtpExtension::kAbsSendTimeUri, RtpHeaderExtensionId(1)},
+      {RtpExtension::kTimestampOffsetUri, RtpHeaderExtensionId(2)},
+      {RtpExtension::kTransportSequenceNumberUri, RtpHeaderExtensionId(3)}};
   const size_t kExtensionHeaderLength = 1;
   const size_t kRtpOneByteHeaderLength = 4;
   const size_t kExtensionsTotalSize =
@@ -314,7 +315,7 @@ TEST(FlexfecSenderTest, MidIncludedInPacketsWhenSet) {
   SimulatedClock clock(kInitialSimulatedClockTime);
   const Environment env = CreateEnvironment(&clock);
   const std::vector<RtpExtension> kRtpHeaderExtensions{
-      {RtpExtension::kMidUri, 1}};
+      {RtpExtension::kMidUri, RtpHeaderExtensionId(1)}};
   const char kMid[] = "mid";
   FlexfecSender sender(env, kFlexfecPayloadType, kFlexfecSsrc, kMediaSsrc, kMid,
                        kRtpHeaderExtensions, RTPSender::FecExtensionSizes(),

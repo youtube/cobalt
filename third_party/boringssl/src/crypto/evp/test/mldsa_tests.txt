@@ -1,8 +1,8 @@
 # EVP ML-DSA tests
 
-# Sample keys from draft-ietf-lamps-dilithium-certificates-13, Appendix C, in
-# the various forms. (The sample public and private keys correspond to the same
-# key.) We do not support the "expanded or "both".
+# Sample keys from RFC 9881, Appendix C, in the various forms. (The sample
+# public and private keys correspond to the same key.) We do not support the
+# "expanded" or "both" forms.
 
 # ML-DSA keys are very long. It is recommended to disable line wrapping in your
 # editor to page through it more easily.

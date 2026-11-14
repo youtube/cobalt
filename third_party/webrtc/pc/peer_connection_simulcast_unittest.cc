@@ -50,6 +50,7 @@
 #include "pc/test/simulcast_layer_util.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -91,7 +92,9 @@ class PeerConnectionSimulcastTests : public ::testing::Test {
                                             OpenH264DecoderTemplateAdapter,
                                             Dav1dDecoderTemplateAdapter>>(),
             nullptr,
-            nullptr)) {}
+            nullptr,
+            nullptr,
+            CreateTestFieldTrialsPtr())) {}
 
   scoped_refptr<PeerConnectionInterface> CreatePeerConnection(
       MockPeerConnectionObserver* observer) {

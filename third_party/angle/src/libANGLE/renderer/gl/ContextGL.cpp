@@ -195,7 +195,7 @@ FenceNVImpl *ContextGL::createFenceNV()
 
 SyncImpl *ContextGL::createSync(const gl::Context *context)
 {
-    SyncImpl *sync = new SyncGL(getFunctions());
+    SyncImpl *sync = new SyncGL(mRenderer);
     if (context)
     {
         static_cast<void>(applyRecreateFboWorkaroundIfNeeded(context));
@@ -1087,11 +1087,6 @@ angle::Result ContextGL::endTiling(const gl::Context *context, GLbitfield preser
 void ContextGL::setMaxShaderCompilerThreads(GLuint count)
 {
     mRenderer->setMaxShaderCompilerThreads(count);
-}
-
-void ContextGL::invalidateTexture(gl::TextureType target)
-{
-    mRenderer->getStateManager()->invalidateTexture(target);
 }
 
 void ContextGL::validateState() const

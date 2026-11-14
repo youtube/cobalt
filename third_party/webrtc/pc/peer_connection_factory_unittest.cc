@@ -19,8 +19,10 @@
 #include <vector>
 
 #include "api/audio/audio_device.h"
+#include "api/audio/audio_processing.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
+#include "api/audio_options.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/data_channel_interface.h"
@@ -68,6 +70,7 @@
 #include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
 #include "test/create_test_environment.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -166,7 +169,8 @@ class PeerConnectionFactoryTest : public ::testing::Test {
         std::make_unique<VideoDecoderFactoryTemplate<
             LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter,
             OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>(),
-        nullptr /* audio_mixer */, nullptr /* audio_processing */);
+        nullptr /* audio_mixer */, nullptr /* audio_processing */,
+        nullptr /* audio_frame_processor */, CreateTestFieldTrialsPtr());
 
     ASSERT_TRUE(factory_.get() != nullptr);
     port_allocator_ = std::make_unique<FakePortAllocator>(
@@ -324,7 +328,8 @@ TEST(PeerConnectionFactoryTestInternal, DISABLED_CreatePCUsingInternalModules) {
           CreateBuiltinAudioDecoderFactory(),
           nullptr /* video_encoder_factory */,
           nullptr /* video_decoder_factory */, nullptr /* audio_mixer */,
-          nullptr /* audio_processing */));
+          nullptr /* audio_processing */, nullptr /* audio_frame_processor */,
+          CreateTestFieldTrialsPtr()));
 
   NullPeerConnectionObserver observer;
   PeerConnectionInterface::RTCConfiguration config;
@@ -798,6 +803,59 @@ TEST(PeerConnectionFactoryDependenciesTest, RepeatMediaEngineInitialization) {
   }
   EXPECT_FALSE(adm->Initialized());
 }
+
+#if !defined(WEBRTC_CHROMIUM_BUILD) && !defined(WEBRTC_WEBKIT_BUILD)
+TEST(PeerConnectionFactoryDependenciesTest,
+     CreateAudioSourceAppliesOptionsToAudioProcessing) {
+  auto ap_factory = std::make_unique<MockAudioProcessingBuilder>();
+  auto audio_processing = make_ref_counted<NiceMock<MockAudioProcessing>>();
+
+  // Capture the sequence of applied configurations to verify value-toggling
+  // and options persistence.
+  std::vector<bool> aec_enabled_sequence;
+  EXPECT_CALL(*audio_processing, ApplyConfig(_))
+      .WillRepeatedly([&](const AudioProcessing::Config& config) {
+        aec_enabled_sequence.push_back(config.echo_canceller.enabled);
+      });
+  EXPECT_CALL(*ap_factory, Build).WillOnce(Return(audio_processing));
+
+  PeerConnectionFactoryDependencies pcf_dependencies;
+  pcf_dependencies.adm = FakeAudioCaptureModule::Create();
+  pcf_dependencies.audio_processing_builder = std::move(ap_factory);
+  pcf_dependencies.signaling_thread = Thread::Current();
+  pcf_dependencies.worker_thread = Thread::Current();
+  pcf_dependencies.network_thread = Thread::Current();
+  EnableMediaWithDefaults(pcf_dependencies);
+
+  scoped_refptr<PeerConnectionFactoryInterface> pcf =
+      CreateModularPeerConnectionFactory(std::move(pcf_dependencies));
+
+  // 1. Create AudioSource with custom options (AEC disabled).
+  AudioOptions options;
+  options.echo_cancellation = false;
+  auto source = pcf->CreateAudioSource(options);
+
+  // Verify no Init/ApplyConfig has been called yet (lazy initialization).
+  EXPECT_TRUE(aec_enabled_sequence.empty());
+
+  // 2. Create PeerConnection to trigger media engine initialization.
+  PeerConnectionInterface::RTCConfiguration config;
+  NullPeerConnectionObserver observer;
+  auto pc_or_error = pcf->CreatePeerConnectionOrError(
+      config, PeerConnectionDependencies(&observer));
+  ASSERT_TRUE(pc_or_error.ok());
+
+  // Verify the exact sequence of applied configurations:
+  // - 1st Init (defaults): true (default option is applied)
+  // - 2nd Applied Custom: false (custom options from CreateAudioSource are
+  // applied)
+  ASSERT_EQ(aec_enabled_sequence.size(), 2u);
+  EXPECT_EQ(aec_enabled_sequence[0], true);
+  EXPECT_EQ(aec_enabled_sequence[1], false);
+
+  pcf = nullptr;
+}
+#endif
 
 }  // namespace
 }  // namespace webrtc

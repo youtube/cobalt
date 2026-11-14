@@ -209,7 +209,7 @@ int X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md) {
                          nullptr);
 }
 
-// X509_ALGOR_cmp returns 0 if |a| and |b| are equal and non-zero otherwise.
+// X509_ALGOR_cmp returns 0 if `a` and `b` are equal and non-zero otherwise.
 int X509_ALGOR_cmp(const X509_ALGOR *a, const X509_ALGOR *b) {
   int rv;
   rv = OBJ_cmp(a->algorithm, b->algorithm);

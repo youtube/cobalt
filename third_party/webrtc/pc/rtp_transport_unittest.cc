@@ -15,6 +15,7 @@
 #include <optional>
 
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/ecn_marking.h"
@@ -292,12 +293,13 @@ TEST(RtpTransportTest, ChangingReadyToSendStateOnlySignalsWhenChanged) {
 TEST(RtpTransportTest, RegisterAndUnregisterRtpHeaderExtensionMap) {
   test::RunLoop thread;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
-  RtpHeaderExtensions extensions1 = {
-      RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level", 1)};
+  RtpHeaderExtensions extensions1 = {RtpExtension(
+      "urn:ietf:params:rtp-hdrext:ssrc-audio-level", RtpHeaderExtensionId(1))};
   RtpHeaderExtensions extensions2 = {
-      RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level", 1),
+      RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level",
+                   RtpHeaderExtensionId(1)),
       RtpExtension("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
-                   2)};
+                   RtpHeaderExtensionId(2))};
 
   // Register the first map.
   transport.RegisterRtpHeaderExtensionMap("audio", extensions1);
@@ -369,10 +371,11 @@ TEST(RtpTransportTest, RegisterAndUnregisterRtpHeaderExtensionMap) {
 TEST(RtpTransportTest, VerifyRtpHeaderExtensionMapRejectsIdReassignment) {
   test::RunLoop loop;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
-  RtpHeaderExtensions extensions1 = {
-      RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level", 1)};
-  RtpHeaderExtensions extensions2 = {RtpExtension(
-      "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", 1)};
+  RtpHeaderExtensions extensions1 = {RtpExtension(
+      "urn:ietf:params:rtp-hdrext:ssrc-audio-level", RtpHeaderExtensionId(1))};
+  RtpHeaderExtensions extensions2 = {
+      RtpExtension("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
+                   RtpHeaderExtensionId(1))};
 
   // Registering the first map should succeed.
   EXPECT_TRUE(
@@ -394,10 +397,11 @@ TEST(RtpTransportTest,
      VerifyRtpHeaderExtensionMapAllowsIdReuseAfterUnregister) {
   test::RunLoop loop;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
-  RtpHeaderExtensions extensions1 = {
-      RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level", 1)};
-  RtpHeaderExtensions extensions2 = {RtpExtension(
-      "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", 1)};
+  RtpHeaderExtensions extensions1 = {RtpExtension(
+      "urn:ietf:params:rtp-hdrext:ssrc-audio-level", RtpHeaderExtensionId(1))};
+  RtpHeaderExtensions extensions2 = {
+      RtpExtension("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
+                   RtpHeaderExtensionId(1))};
 
   // Registering the first map should succeed.
   EXPECT_TRUE(

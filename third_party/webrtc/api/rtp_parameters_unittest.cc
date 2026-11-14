@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "api/rtp_header_extension_id.h"
 #include "rtc_base/checks.h"
 #include "test/gtest.h"
 
@@ -35,14 +36,15 @@ RtpParameters CreateRtpParametersWithCodecs(
   }
   return parameters;
 }
-}  // namespace
 
-static const char kExtensionUri1[] = "extension-uri1";
-static const char kExtensionUri2[] = "extension-uri2";
+const char kExtensionUri1[] = "extension-uri1";
+const char kExtensionUri2[] = "extension-uri2";
 
-static const RtpExtension kExtension1(kExtensionUri1, 1);
-static const RtpExtension kExtension1Encrypted(kExtensionUri1, 10, true);
-static const RtpExtension kExtension2(kExtensionUri2, 2);
+const RtpExtension kExtension1(kExtensionUri1, RtpHeaderExtensionId(1));
+const RtpExtension kExtension1Encrypted(kExtensionUri1,
+                                        RtpHeaderExtensionId(10),
+                                        true);
+const RtpExtension kExtension2(kExtensionUri2, RtpHeaderExtensionId(2));
 
 TEST(RtpExtensionTest, DeduplicateHeaderExtensions) {
   std::vector<RtpExtension> extensions;
@@ -135,30 +137,42 @@ TEST(RtpExtensionTest, DeduplicateHeaderExtensions) {
 // comparison).
 TEST(RtpExtensionTest, DeduplicateHeaderExtensionsSorted) {
   const std::vector<RtpExtension> extensions = {
-      RtpExtension("cde1", 11, false), RtpExtension("cde2", 12, true),
-      RtpExtension("abc1", 3, false),  RtpExtension("abc2", 4, true),
-      RtpExtension("cde3", 9, true),   RtpExtension("cde4", 10, false),
-      RtpExtension("abc3", 1, true),   RtpExtension("abc4", 2, false),
-      RtpExtension("bcd3", 7, false),  RtpExtension("bcd1", 8, true),
-      RtpExtension("bcd2", 5, true),   RtpExtension("bcd4", 6, false),
+      RtpExtension("cde1", RtpHeaderExtensionId(11), false),
+      RtpExtension("cde2", RtpHeaderExtensionId(12), true),
+      RtpExtension("abc1", RtpHeaderExtensionId(3), false),
+      RtpExtension("abc2", RtpHeaderExtensionId(4), true),
+      RtpExtension("cde3", RtpHeaderExtensionId(9), true),
+      RtpExtension("cde4", RtpHeaderExtensionId(10), false),
+      RtpExtension("abc3", RtpHeaderExtensionId(1), true),
+      RtpExtension("abc4", RtpHeaderExtensionId(2), false),
+      RtpExtension("bcd3", RtpHeaderExtensionId(7), false),
+      RtpExtension("bcd1", RtpHeaderExtensionId(8), true),
+      RtpExtension("bcd2", RtpHeaderExtensionId(5), true),
+      RtpExtension("bcd4", RtpHeaderExtensionId(6), false),
   };
 
   auto encrypted = RtpExtension::DeduplicateHeaderExtensions(
       extensions, RtpExtension::Filter::kRequireEncryptedExtension);
 
   const std::vector<RtpExtension> expected_sorted_encrypted = {
-      RtpExtension("abc2", 4, true),  RtpExtension("abc3", 1, true),
-      RtpExtension("bcd1", 8, true),  RtpExtension("bcd2", 5, true),
-      RtpExtension("cde2", 12, true), RtpExtension("cde3", 9, true)};
+      RtpExtension("abc2", RtpHeaderExtensionId(4), true),
+      RtpExtension("abc3", RtpHeaderExtensionId(1), true),
+      RtpExtension("bcd1", RtpHeaderExtensionId(8), true),
+      RtpExtension("bcd2", RtpHeaderExtensionId(5), true),
+      RtpExtension("cde2", RtpHeaderExtensionId(12), true),
+      RtpExtension("cde3", RtpHeaderExtensionId(9), true)};
   EXPECT_EQ(expected_sorted_encrypted, encrypted);
 
   auto unencypted = RtpExtension::DeduplicateHeaderExtensions(
       extensions, RtpExtension::Filter::kDiscardEncryptedExtension);
 
   const std::vector<RtpExtension> expected_sorted_unencrypted = {
-      RtpExtension("abc1", 3, false),  RtpExtension("abc4", 2, false),
-      RtpExtension("bcd3", 7, false),  RtpExtension("bcd4", 6, false),
-      RtpExtension("cde1", 11, false), RtpExtension("cde4", 10, false)};
+      RtpExtension("abc1", RtpHeaderExtensionId(3), false),
+      RtpExtension("abc4", RtpHeaderExtensionId(2), false),
+      RtpExtension("bcd3", RtpHeaderExtensionId(7), false),
+      RtpExtension("bcd4", RtpHeaderExtensionId(6), false),
+      RtpExtension("cde1", RtpHeaderExtensionId(11), false),
+      RtpExtension("cde4", RtpHeaderExtensionId(10), false)};
   EXPECT_EQ(expected_sorted_unencrypted, unencypted);
 }
 
@@ -376,4 +390,5 @@ TEST(RtpParametersTest, IsMixedCodec) {
   EXPECT_TRUE(parameters.IsMixedCodec());
 }
 
+}  // namespace
 }  // namespace webrtc

@@ -41,7 +41,14 @@ class D8Console;
 class Message;
 class TryCatch;
 
-enum class ModuleType { kJavaScript, kJSON, kWebAssembly, kText, kInvalid };
+enum class ModuleType {
+  kJavaScript,
+  kJSON,
+  kWebAssembly,
+  kText,
+  kBytes,
+  kInvalid
+};
 
 namespace internal {
 class CancelableTaskManager;
@@ -840,6 +847,7 @@ class Shell : public i::AllStatic {
   static const char* kPrompt;
   static ShellOptions options;
   static ArrayBuffer::Allocator* array_buffer_allocator;
+  static bool fuzzilli_reprl_failed_;
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
 
@@ -946,6 +954,8 @@ class Shell : public i::AllStatic {
                                                      Local<Module> module);
   static MaybeLocal<Value> TextModuleEvaluationSteps(Local<Context> context,
                                                      Local<Module> module);
+  static MaybeLocal<Value> BytesModuleEvaluationSteps(Local<Context> context,
+                                                      Local<Module> module);
 
   template <class T>
   static MaybeLocal<T> CompileSource(Isolate* isolate, Local<Context> context,

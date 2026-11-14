@@ -1,0 +1,26 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("desktop_tab_drag_impl") {
+  sources = [
+    "tab_drag_session_desktop_injector.cc",
+    "tab_drag_session_desktop_injector.h",
+    "tab_drag_session_input_adapter_impl.cc",
+    "tab_drag_session_input_adapter_impl.h",
+    "tab_drag_window_adapter_impl.cc",
+    "tab_drag_window_adapter_impl.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/ui/browser_window",
+    "//components/browser_apis/tab_drag",
+    "//components/browser_apis/tab_drag/adapters",
+    "//components/browser_apis/tab_strip/types",
+    "//components/tabs:impl",
+    "//ui/base",
+    "//ui/events",
+    "//ui/views",
+  ]
+}

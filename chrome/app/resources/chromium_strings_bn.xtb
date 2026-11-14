@@ -20,6 +20,7 @@
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="1184145431117212167">আপনার Windows-এর ভার্সনে কাজ করছে না তাই ইনস্টল করা যায়নি।</translation>
 <translation id="1185134272377778587">Chromium সম্পর্কে</translation>
+<translation id="1186645291482254714">আপনার ফোনে Chromium-এর মাধ্যমে দাম ট্র্যাক করা সংক্রান্ত সতর্কতা পান</translation>
 <translation id="1203500561924088507">ইনস্টল করার জন্য ধন্যবাদ। <ph name="BUNDLE_NAME" /> ব্যবহার করার আগে আপনাকে অবশ্যই ব্রাউজার রিস্টার্ট করতে হবে।</translation>
 <translation id="1232234696885483911">আপনি 'ছবি সার্চ করা' ফিচার খুললে, পৃষ্ঠার টাইটেল, URL এবং পিডিএফ সহ কন্টেন্ট অটোমেটিক সার্ভারে পাঠানো হবে। <ph name="LEARN_MORE" /></translation>
 <translation id="123265588161106468">আপনি সাইন-ইন করার সময়, Chromium-এ আপনার Google অ্যাকাউন্ট থেকে পাসওয়ার্ড এবং আরও অনেক কিছু ব্যবহার করতে পারবেন। এটি পরিবর্তন করতে, “Chromium-এ আপনার অ্যাকাউন্ট” বিকল্পে যান।</translation>
@@ -34,6 +35,7 @@
 <translation id="1324107359134968521">ব্লুটুথ ডিভাইসগুলি এক্সপ্লোর করতে 
  Chromium-কে ব্লুটুথের অ্যাক্সেস দিতে হবে। <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ভাষা শনাক্ত করুন</translation>
+<translation id="1330742950061766891">Chromium-এর সাজেস্ট করা ব্রাউজার সেটিংস ব্যবহার করুন</translation>
 <translation id="1342274909142618978">এছাড়া, Chromium থেকেও ডেটা মুছে দিন (<ph name="URL" />)</translation>
 <translation id="1345251407431278948">পিন করা আছে! টুলবারে থাকা নতুন বোতাম থেকে আবার আপনি 'ছবি সার্চ করা' ফিচার অ্যাক্সেস করতে পারবেন</translation>
 <translation id="1356661055722410047">নতুন! আপনি স্ক্রিনে টেক্সট ও ছবি দুটিই অনুবাদ করতে পারবেন</translation>
@@ -49,7 +51,6 @@
 <translation id="154404805518949443">Chromium-এ সাইন-ইন করুন</translation>
 <translation id="1547469039832541117">হাইলাইট করা টাস্ক শেষ করে।</translation>
 <translation id="1553461853655228091">আপনার আশেপাশের 3D ম্যাপ তৈরি করতে এই সাইটটির জন্য Chromium-কে আপনার ক্যামেরা অ্যাক্সেস করার অনুমতি দিতে হবে</translation>
-<translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{এই এক্সটেনশন আর কাজ করবে না। Chromium আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়।}one{এইসব এক্সটেনশন আর কাজ করবে না। Chromium আপনাকে এগুলি সরিয়ে দেওয়ার সাজেশন দেয়।}other{এইসব এক্সটেনশন আর কাজ করবে না। Chromium আপনাকে এগুলি সরিয়ে দেওয়ার সাজেশন দেয়।}}</translation>
 <translation id="1562320819937089394">Chromium পিন করুন</translation>
 <translation id="1574377791422810894">Chromium-এর নিরাপত্তা টুল</translation>
 <translation id="1594928384848033697">Chromium আপনার Password Manager সম্পর্কিত ডেটা মুছতে চায়। এটি করার অনুমতি দিতে, আপনার Windows-এর পাসওয়ার্ড টাইপ করুন।</translation>
@@ -67,6 +68,7 @@
 <translation id="1749104137266986751">HTTPS উপলভ্য না থাকলে, Chromium আপনাকে সতর্ক না করেই অসুরক্ষিত কানেকশন ব্যবহার করবে</translation>
 <translation id="1774152462503052664">Chromium-কে ব্যাকগ্রাউন্ডে চলতে দিন</translation>
 <translation id="1779356040007214683">Chromium কে আরও নিরাপদ করতে, আমরা কিছু এক্সটেনশান অক্ষম করেছি যা <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> এ তালিকাবদ্ধ করা হয়নি এবং হয়ত আপনাকে না জানিয়ে যোগ করা হয়েছে৷</translation>
+<translation id="1793486931176048546">দ্রুত অ্যাক্সেসের জন্য আপনার টাস্কবারে Chromium পিন করতে, Windows বিজ্ঞপ্তিতে <ph name="BEGIN_BOLD" />হ্যাঁ<ph name="END_BOLD" /> বিকল্পে ক্লিক করুন</translation>
 <translation id="1808667845054772817">Chromium আবার ইন্সটল করুন</translation>
 <translation id="1820835682567584003">Chromium <ph name="AUTHENTICATION_PURPOSE" />-এর চেষ্টা করছে</translation>
 <translation id="183031085822326697">পরেরবার আপনার <ph name="DEVICE_TYPE" />-এ Chromium খোলার সময়, Google Password Manager ব্যবহার করার জন্য আপনাকে প্রম্পট দেখানো হবে।</translation>
@@ -380,8 +382,10 @@
 <translation id="5294316920224716406">ছদ্মবেশী মোডে ব্রাউজ করার সময়, Chromium অসুরক্ষিত কানেকশন ব্যবহার করে কোনও সাইট লোড করার আগে আপনাকে সতর্ক করবে</translation>
 <translation id="5313228254328109263">Chromium আপডেটার ইন্টার্নাল পরিষেবা</translation>
 <translation id="5346389065299425353">একাধিক ট্যাব, ফাইল ও টুল যোগ করে আরও গভীরে গিয়ে সার্চ করুন</translation>
+<translation id="5348677704241861105">এই ডকুমেন্টের দ্রুত ওভারভিউ পান এবং Chromium-এ Gemini-এর মাধ্যমে প্রশ্ন জিজ্ঞাসা করুন</translation>
 <translation id="5352264705793813212">আপনার পর্যালোচনার জন্য Chromium কিছু সুরক্ষা সম্পর্কিত সাজেশন খুঁজে পেয়েছে</translation>
 <translation id="5352361688875342522">Chromium-এর অন্যান্য প্রোফাইল</translation>
+<translation id="535243042947607642">আপনার অ্যাকাউন্টের সাইন-ইন করার বিবরণ পুরানো হয়ে যাওয়ার কারণে ChromiumOS আপনার Google অ্যাকাউন্টে Chromium ডেটা সেভ করতে পারেনি</translation>
 <translation id="5358375970380395591">আপনি একটি পরিচালিত অ্যাকাউন্টের মাধ্যমে সাইন-ইন  করছেন এবং এর অ্যাডমিনিস্ট্রেটরকে আপনার Chromium প্রোফাইলের উপরে নিয়ন্ত্রণ দিচ্ছেন৷ আপনার Chromium ডেটা, যেমন অ্যাপ, বুকমার্ক, ইতিহাস, পাসওয়ার্ড এবং অন্যান্য সেটিংস <ph name="USER_NAME" /> এতে স্থায়ীভাবে সম্পৃক্ত হবে৷ আপনি Google অ্যাকাউন্টগুলির ড্যাশবোর্ডের মাধ্যমে এই ডেটাগুলি মুছতে চালু হবেন, কিন্তু অন্য অ্যাকাউন্টের সাথে এই ডেটা সংশ্লিষ্ট করতে পারবেন না৷ <ph name="LEARN_MORE" /></translation>
 <translation id="5368118228313795342">অতিরিক্ত কোড: <ph name="EXTRA_CODE" />।</translation>
 <translation id="5377622451696208284">পছন্দমতো সুবিধা পেতে ওয়েব ও অ্যাপ অ্যাক্টিভিটিতে Chromium যোগ করে নিন</translation>
@@ -487,6 +491,7 @@
 <translation id="6390800440335263989">চালিয়ে যেতে, <ph name="EMAIL" /> হিসেবে Chromium-এ সাইন-ইন করুন। এটি নিশ্চিত করে যে আপনি, নিজের সংস্থার নীতি মেনে চলেন।</translation>
 <translation id="6400112897226594999">কম্পিউটার স্ক্রিনের মধ্যে Chromium লোগো।</translation>
 <translation id="6403826409255603130">Chromium হল একটি ওয়েব ব্রাউজার যা ওয়েব পৃষ্ঠার গতি এবং অ্যাপগুলিকে বিদ্যুৎ গতিতে সঞ্চালিত করে৷ এটা দ্রুত, স্থিতিশীল এবং সহজে ব্যবহারের যোগ্য৷ Chromium নির্মিত ম্যালওয়ার এবং ফিশিং সুরক্ষার সাহায্যে আরও সুরক্ষিত ভাবে ওয়েব ব্রাউজ করুন৷</translation>
+<translation id="6414624068245092115">আপনার Google অ্যাকাউন্টে সবসময় Chromium ডেটা ব্যবহার ও সেভ করতে পারবেন তা নিশ্চিত করার জন্য, নিজের পরিচয় যাচাই করে নিন</translation>
 <translation id="642132557830635295">Chromium আরও দ্রুত কাজ করে এবং যেসব ফিচার জাভাস্ক্রিপ্ট ব্যবহার করে, সেগুলি ডিজাইন করা অনুযায়ী কাজ করতে হবে</translation>
 <translation id="6436260184216827876">'ছবি সার্চ করা' ফিচার উপলভ্য নেই। পরে আবার চেষ্টা করুন।</translation>
 <translation id="6442900851116057561">ChromiumOS রিস্টার্ট করুন</translation>
@@ -579,7 +584,6 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="7368826207863345663">ভবিষ্যতে Chromium আপডেট পেতে আপনার macOS 13 বা তার পরের ভার্সন দরকার হবে। এই কম্পিউটার macOS 12 ব্যবহার করছে।</translation>
 <translation id="7376384068949534168">আপনি সম্প্রতি ভিজিট করেননি। Chromium <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> সম্পর্কিত অনুমতি সরিয়ে দিয়েছে।</translation>
 <translation id="73786666777299047">Chrome ওয়েব স্টোর খুলুন</translation>
-<translation id="7384121030444253939">এই এক্সটেনশন আর কাজ করবে না। পরিবর্তে, Chromium আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়।</translation>
 <translation id="7407655596887111931">Chromium এখন আপনার ডিফল্ট ব্রাউজার</translation>
 <translation id="7413153308467572558">আপনি যেখান থেকে শেষ করেছিলেন সেখান থেকেই চালিয়ে যান: আপনি প্রত্যেকবার রিস্টার্ট করার সময় Chromium আপনার ট্যাব ফিরিয়ে আনে। এটি বন্ধ করতে, এখানে যান</translation>
 <translation id="7427879960656355200">Chromium-এ পাসওয়ার্ড ইমপোর্ট করুন</translation>
@@ -713,6 +717,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="8852026904190808918">Chromium-এ মেনু, সেটিংস, অ্যালার্ট ও অন্যান্য টেক্সট দেখানোর জন্য এই ভাষা ব্যবহার করা হবে</translation>
 <translation id="8862326446509486874">সিস্টেম-স্তরীয় ইনস্টলের জন্য আপনার কাছে যথাযথ অধিকারগুলি নেই৷ অ্যাডমিনিস্ট্রেটর হিসেবে আবার ইনস্টলারটি চালানোর চেষ্টা করুন৷</translation>
 <translation id="8876044221123442390">Chromium প্রোফাইল যোগ করুন</translation>
+<translation id="8890569919834781711">সাইন-ইন করার সময় কোনও সমস্যা হওয়ার কারণে ChromiumOS আপনার Google অ্যাকাউন্টে Chromium ডেটা সেভ করতে পারেনি</translation>
 <translation id="8891709362986793894">আপনার সংস্থার প্রয়োজন অনুযায়ী আপনাকে Chromium-এ সাইন-ইন করতে হবে</translation>
 <translation id="8907580949721785412">Chromium পাসওয়ার্ডগুলি দেখানোর চেষ্টা করছে। এটির অনুমতি দিতে আপনার Windows পাসওয়ার্ড টাইপ করুন।</translation>
 <translation id="8932992523185907506">Chromium আর আপনার ডিফল্ট ব্রাউজার নেই। Chromium-কে ডিফল্ট ব্রাউজার করবেন?</translation>

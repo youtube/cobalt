@@ -78,6 +78,8 @@
 #include "third_party/blink/public/mojom/loader/referrer.mojom.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "ui/base/page_transition_types.h"
+#include "ui/display/display.h"
+#include "ui/display/screen.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -336,7 +338,7 @@ void LogPhishingDetectionResult(ClientSideDetectionType request_type,
 
 }  // namespace
 
-typedef base::OnceCallback<void(bool, bool, std::optional<bool>)>
+typedef base::OnceCallback<void(bool, bool, std::optional<bool>, bool)>
     ShouldClassifyUrlCallback;
 
 // This class is instantiated each time a new toplevel URL loads, and
@@ -395,10 +397,17 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
           PreClassificationCheckResult::NO_CLASSIFY_CHROME_UI_PAGE);
     }
 
-    if (csd_service_ &&
-        csd_service_->IsLocalResource(remote_endpoint_.address())) {
-      DontClassifyForPhishing(
-          PreClassificationCheckResult::NO_CLASSIFY_LOCAL_RESOURCE);
+    if (base::FeatureList::IsEnabled(
+            kClientSideDetectionLocalResourceCheckFix)) {
+      if (url_.SchemeIsFile()) {
+        DontClassifyForPhishing(
+            PreClassificationCheckResult::NO_CLASSIFY_LOCAL_RESOURCE);
+      }
+    } else {
+      if (csd_service_ && !remote_endpoint_.address().IsValid()) {
+        DontClassifyForPhishing(
+            PreClassificationCheckResult::NO_CLASSIFY_LOCAL_RESOURCE);
+      }
     }
 
     bool is_mime_type_unsupported =
@@ -528,7 +537,8 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
         }
       }
       std::move(start_phishing_classification_cb_)
-          .Run(false, send_sample_ping_, std::nullopt);
+          .Run(false, send_sample_ping_, std::nullopt,
+               !remote_endpoint_.address().IsValid());
     }
     start_phishing_classification_cb_.Reset();
   }
@@ -721,7 +731,8 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
                 PreClassificationCheckResult::CLASSIFY);
       }
       std::move(start_phishing_classification_cb_)
-          .Run(true, send_sample_ping_, did_match_high_confidence_allowlist_);
+          .Run(true, send_sample_ping_, did_match_high_confidence_allowlist_,
+               !remote_endpoint_.address().IsValid());
       // Reset the callback to make sure ShouldClassifyForPhishing()
       // returns false.
       start_phishing_classification_cb_.Reset();
@@ -1469,7 +1480,8 @@ void ClientSideDetectionHost::OnPhishingPreClassificationDone(
     ClientSideDetectionType request_type,
     bool should_classify,
     bool is_sample_ping,
-    std::optional<bool> did_match_high_confidence_allowlist) {
+    std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   LogClientSideDetectionEvent(
       ClientSideDetectionEvent::kPreClassificationCheckComplete, request_type);
@@ -1530,7 +1542,7 @@ void ClientSideDetectionHost::OnPhishingPreClassificationDone(
                        weak_factory_.GetWeakPtr(),
                        ClientSideDetectionType::IMAGE_EMBEDDING_MATCH,
                        is_sample_ping, did_match_high_confidence_allowlist,
-                       tick_clock_->NowTicks()));
+                       is_invalid_ip, tick_clock_->NowTicks()));
     return;
   }
 
@@ -1541,7 +1553,7 @@ void ClientSideDetectionHost::OnPhishingPreClassificationDone(
     verdict.set_url(current_url_.spec());
     verdict.set_client_score(0.0);
     PhishingDetectionDone(request_type, is_sample_ping,
-                          did_match_high_confidence_allowlist,
+                          did_match_high_confidence_allowlist, is_invalid_ip,
                           tick_clock_->NowTicks(),
                           mojom::PhishingDetectorResult::CLASSIFICATION_SKIPPED,
                           mojo_base::ProtoWrapper(verdict));
@@ -1555,7 +1567,7 @@ void ClientSideDetectionHost::OnPhishingPreClassificationDone(
       current_url_, GetClientSideDetectionMojomType(request_type),
       base::BindOnce(&ClientSideDetectionHost::PhishingDetectionDone,
                      weak_factory_.GetWeakPtr(), request_type, is_sample_ping,
-                     did_match_high_confidence_allowlist,
+                     did_match_high_confidence_allowlist, is_invalid_ip,
                      tick_clock_->NowTicks()));
 }
 
@@ -1563,6 +1575,7 @@ void ClientSideDetectionHost::PhishingDetectionDone(
     ClientSideDetectionType request_type,
     bool is_sample_ping,
     std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip,
     base::TimeTicks start_time,
     mojom::PhishingDetectorResult result,
     std::optional<mojo_base::ProtoWrapper> wrapped_verdict) {
@@ -1658,7 +1671,7 @@ void ClientSideDetectionHost::PhishingDetectionDone(
 
     MaybeSendClientPhishingRequest(
         std::make_unique<ClientPhishingRequest>(verdict.value()),
-        did_match_high_confidence_allowlist, result);
+        did_match_high_confidence_allowlist, is_invalid_ip, result);
   } else {
     is_csd_running_ = false;
     if (request_type == ClientSideDetectionType::USER_REPORT) {
@@ -1685,10 +1698,10 @@ ClientSideDetectionHost::DetermineVisualFeaturesExtraction() {
   int viewport_height = -1;
   visual_utils::CanExtractVisualFeaturesResult
       can_extract_visual_features_result;
-#if BUILDFLAG(IS_ANDROID)
-  gfx::Size size;
   content::RenderWidgetHostView* view =
       web_contents()->GetRenderWidgetHostView();
+#if BUILDFLAG(IS_ANDROID)
+  gfx::Size size;
   // native view can be null in tests.
   if (view && view->GetNativeView()) {
     gfx::SizeF viewport = view->GetNativeView()->viewport_size();
@@ -1701,8 +1714,6 @@ ClientSideDetectionHost::DetermineVisualFeaturesExtraction() {
       web_contents()->GetBrowserContext()->IsOffTheRecord(), size);
 #else
   gfx::Size size;
-  content::RenderWidgetHostView* view =
-      web_contents()->GetRenderWidgetHostView();
   if (view) {
     size = view->GetVisibleViewportSize();
     viewport_width = size.width();
@@ -1715,6 +1726,16 @@ ClientSideDetectionHost::DetermineVisualFeaturesExtraction() {
 #endif
   base::UmaHistogramSparse("SBClientPhishing.Viewport.Width", viewport_width);
   base::UmaHistogramSparse("SBClientPhishing.Viewport.Height", viewport_height);
+
+  float ppi = 0;
+  if (view && view->GetNativeView() && display::Screen::Get()) {
+    ppi = display::Screen::Get()
+              ->GetDisplayNearestView(view->GetNativeView())
+              .GetPixelsPerInchX();
+  }
+  base::UmaHistogramSparse("SBClientPhishing.Viewport.PixelsPerInch",
+                           static_cast<int>(ppi));
+
   if (viewport_width <= 0xFFFF && viewport_width >= 0 &&
       viewport_height <= 0xFFFF && viewport_height >= 0) {
     int32_t encoded_resolution = (viewport_width << 16) | viewport_height;
@@ -1778,6 +1799,7 @@ void ClientSideDetectionHost::CheckRedirectChainForLlamaForcedTriggerInfo(
 void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip,
     mojom::PhishingDetectorResult result) {
   std::string_view request_type_name =
       GetRequestTypeName(verdict->client_side_detection_type());
@@ -1894,19 +1916,20 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
           current_url_, can_extract_visual_features,
           base::BindOnce(&ClientSideDetectionHost::PhishingImageEmbeddingDone,
                          weak_factory_.GetWeakPtr(), std::move(verdict),
-                         did_match_high_confidence_allowlist));
+                         did_match_high_confidence_allowlist, is_invalid_ip));
     }
 
     return;
   }
 
   MaybeStartIntelligentScanForScamDetection(
-      std::move(verdict), did_match_high_confidence_allowlist);
+      std::move(verdict), did_match_high_confidence_allowlist, is_invalid_ip);
 }
 
 void ClientSideDetectionHost::PhishingImageEmbeddingDone(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip,
     mojom::PhishingImageEmbeddingResult result,
     std::optional<mojo_base::ProtoWrapper> image_feature_embedding_wrapper,
     std::optional<mojo_base::ProtoWrapper> visual_features_wrapper) {
@@ -1982,12 +2005,13 @@ void ClientSideDetectionHost::PhishingImageEmbeddingDone(
   }
 
   MaybeStartIntelligentScanForScamDetection(
-      std::move(verdict), did_match_high_confidence_allowlist);
+      std::move(verdict), did_match_high_confidence_allowlist, is_invalid_ip);
 }
 
 void ClientSideDetectionHost::MaybeStartIntelligentScanForScamDetection(
     std::unique_ptr<ClientPhishingRequest> verdict,
-    std::optional<bool> did_match_high_confidence_allowlist) {
+    std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip) {
   // Use the address of the verdict object as the unique track_id.
   TRACE_EVENT_BEGIN(/*category=*/"safe_browsing",
                     /*name=*/"IntelligentScanScamDetection",
@@ -2014,7 +2038,7 @@ void ClientSideDetectionHost::MaybeStartIntelligentScanForScamDetection(
       *verdict->mutable_intelligent_scan_info() =
           std::move(intelligent_scan_info);
       MaybeGetAccessToken(std::move(verdict),
-                          did_match_high_confidence_allowlist,
+                          did_match_high_confidence_allowlist, is_invalid_ip,
                           /*is_intelligent_scan_invoked=*/false);
       return;
     }
@@ -2052,7 +2076,7 @@ void ClientSideDetectionHost::MaybeStartIntelligentScanForScamDetection(
       *verdict->mutable_intelligent_scan_info() =
           std::move(intelligent_scan_info);
       MaybeGetAccessToken(std::move(verdict),
-                          did_match_high_confidence_allowlist,
+                          did_match_high_confidence_allowlist, is_invalid_ip,
                           /*is_intelligent_scan_invoked=*/false);
       return;
     }
@@ -2060,17 +2084,19 @@ void ClientSideDetectionHost::MaybeStartIntelligentScanForScamDetection(
     delegate_->GetInnerText(
         base::BindOnce(&ClientSideDetectionHost::OnInnerTextComplete,
                        weak_factory_.GetWeakPtr(), std::move(verdict),
-                       did_match_high_confidence_allowlist));
+                       did_match_high_confidence_allowlist, is_invalid_ip));
     return;
   }
 
   MaybeGetAccessToken(std::move(verdict), did_match_high_confidence_allowlist,
+                      is_invalid_ip,
                       /*is_intelligent_scan_invoked=*/false);
 }
 
 void ClientSideDetectionHost::OnInnerTextComplete(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip,
     std::string inner_text) {
   base::UmaHistogramCounts100000(
       "SBClientPhishing.IntelligentScanInnerTextSize", inner_text.size());
@@ -2090,6 +2116,7 @@ void ClientSideDetectionHost::OnInnerTextComplete(
     *verdict->mutable_intelligent_scan_info() =
         std::move(intelligent_scan_info);
     MaybeGetAccessToken(std::move(verdict), did_match_high_confidence_allowlist,
+                        is_invalid_ip,
                         /*is_intelligent_scan_invoked=*/false);
     return;
   }
@@ -2100,12 +2127,13 @@ void ClientSideDetectionHost::OnInnerTextComplete(
       inner_text,
       base::BindOnce(&ClientSideDetectionHost::OnIntelligentScanDone,
                      weak_factory_.GetWeakPtr(), std::move(verdict),
-                     did_match_high_confidence_allowlist));
+                     did_match_high_confidence_allowlist, is_invalid_ip));
 }
 
 void ClientSideDetectionHost::OnIntelligentScanDone(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip,
     IntelligentScanDelegate::IntelligentScanResult response) {
   LogClientSideDetectionEvent(
       ClientSideDetectionEvent::kIntelligentScanComplete,
@@ -2147,27 +2175,30 @@ void ClientSideDetectionHost::OnIntelligentScanDone(
   *verdict->mutable_intelligent_scan_info() = std::move(intelligent_scan_info);
 
   MaybeGetAccessToken(std::move(verdict), did_match_high_confidence_allowlist,
+                      is_invalid_ip,
                       /*is_intelligent_scan_invoked=*/true);
 }
 
 void ClientSideDetectionHost::MaybeGetAccessToken(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip,
     bool is_intelligent_scan_invoked) {
   TRACE_EVENT_END(
       /*category=*/"safe_browsing", perfetto::Track::FromPointer(verdict.get()),
       /*arg=*/"inquired_intelligent_scan",
       /*value=*/is_intelligent_scan_invoked);
   if (CanGetAccessToken()) {
-    token_fetcher_->Start(base::BindOnce(
-        &ClientSideDetectionHost::OnGotAccessToken, weak_factory_.GetWeakPtr(),
-        std::move(verdict), did_match_high_confidence_allowlist));
+    token_fetcher_->Start(
+        base::BindOnce(&ClientSideDetectionHost::OnGotAccessToken,
+                       weak_factory_.GetWeakPtr(), std::move(verdict),
+                       did_match_high_confidence_allowlist, is_invalid_ip));
     return;
   }
 
   std::string empty_access_token;
   SendRequest(std::move(verdict), empty_access_token,
-              did_match_high_confidence_allowlist);
+              did_match_high_confidence_allowlist, is_invalid_ip);
 }
 
 void ClientSideDetectionHost::MaybeShowPhishingWarning(
@@ -2352,9 +2383,9 @@ ClipboardExtractedData ClientSideDetectionHost::ExtractClipboardData(
     has_runner = true;
   }
 
-  // Replace shell delimiters with space to simplify tokenization.
-  std::vector<std::u16string> delimiters = {u"&&", u"||", u"$(", u"|",
-                                            u";",  u")",  u"`"};
+  // Replace shell and scripting delimiters with space to simplify tokenization.
+  std::vector<std::u16string> delimiters = {
+      u"&&", u"||", u"$(", u"|", u";", u")", u"`", u"(", u"{", u"}", u"::"};
   for (const auto& delimiter : delimiters) {
     base::ReplaceSubstringsAfterOffset(&processed_payload, 0, delimiter, u" ");
   }
@@ -2465,9 +2496,11 @@ ClipboardExtractedData ClientSideDetectionHost::ExtractClipboardData(
 void ClientSideDetectionHost::OnGotAccessToken(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip,
     const std::string& access_token) {
   ClientSideDetectionHost::SendRequest(std::move(verdict), access_token,
-                                       did_match_high_confidence_allowlist);
+                                       did_match_high_confidence_allowlist,
+                                       is_invalid_ip);
 }
 
 bool ClientSideDetectionHost::CanGetAccessToken() {
@@ -2482,7 +2515,8 @@ bool ClientSideDetectionHost::CanGetAccessToken() {
 }
 
 void ClientSideDetectionHost::AddMiscellaneousMetadataToClientPhishingRequest(
-    ClientPhishingRequest* verdict) {
+    ClientPhishingRequest* verdict,
+    bool is_invalid_ip) {
   // Fill in metadata about which model we used.
   *verdict->mutable_population() = delegate_->GetUserPopulation();
   verdict->mutable_population()->add_finch_active_groups(
@@ -2497,6 +2531,16 @@ void ClientSideDetectionHost::AddMiscellaneousMetadataToClientPhishingRequest(
   } else {
     verdict->mutable_population()->add_finch_active_groups(
         "ClientSideDetectionNewObservers.Control");
+  }
+
+  if (base::FeatureList::IsEnabled(kClientSideDetectionLocalResourceCheckFix)) {
+    if (is_invalid_ip) {
+      verdict->mutable_population()->add_finch_active_groups(
+          "ClientSideDetectionLocalResourceCheckFix.Enabled");
+    }
+  } else {
+    verdict->mutable_population()->add_finch_active_groups(
+        "ClientSideDetectionLocalResourceCheckFix.Control");
   }
 
   raw_ptr<VerdictCacheManager> cache_manager = delegate_->GetCacheManager();
@@ -2554,10 +2598,11 @@ void ClientSideDetectionHost::AddMiscellaneousMetadataToClientPhishingRequest(
 void ClientSideDetectionHost::SendRequest(
     std::unique_ptr<ClientPhishingRequest> verdict,
     const std::string& access_token,
-    std::optional<bool> did_match_high_confidence_allowlist) {
+    std::optional<bool> did_match_high_confidence_allowlist,
+    bool is_invalid_ip) {
   // Add any final miscellaneous metadata information to the ping before sending
   // it.
-  AddMiscellaneousMetadataToClientPhishingRequest(verdict.get());
+  AddMiscellaneousMetadataToClientPhishingRequest(verdict.get(), is_invalid_ip);
   LogClientSideDetectionEvent(
       ClientSideDetectionEvent::kMiscellaneousFieldsAdded,
       verdict->client_side_detection_type());

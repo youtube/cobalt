@@ -261,10 +261,11 @@ class WebTransport::DatagramUnderlyingSink final : public UnderlyingSinkBase {
       datagram.append_range(data);
       pending_datagrams_.push_back(std::move(datagram));
     }
-    int high_water_mark = datagrams_->outgoingHighWaterMark();
-    DCHECK_GT(high_water_mark, 0);
+    uint32_t max_buffered_datagrams =
+        datagrams_->outgoingMaxBufferedDatagrams();
+    DCHECK_GT(max_buffered_datagrams, 0u);
     if (pending_datagrams_resolvers_.size() <
-        static_cast<wtf_size_t>(high_water_mark)) {
+        static_cast<wtf_size_t>(max_buffered_datagrams)) {
       // In this case we pretend that the datagram is processed immediately, to
       // get more requests from the stream.
       return ToResolvedUndefinedPromise(web_transport_->script_state_.Get());
@@ -457,17 +458,17 @@ class WebTransport::DatagramUnderlyingSource final
 
     DiscardExcessDatagrams();
 
-    auto high_water_mark = HighWaterMark();
+    auto max_buffered_datagrams = MaxBufferedDatagrams();
 
-    // A high water mark of 0 has the semantics that all datagrams are discarded
-    // unless there is read pending. This might be useful to someone, so support
-    // it.
-    if (high_water_mark == 0) {
+    // A max buffered datagram count of 0 has the semantics that all datagrams
+    // are discarded unless there is read pending. This might be useful to
+    // someone, so support it.
+    if (max_buffered_datagrams == 0) {
       DCHECK(queue_.empty());
       return;
     }
 
-    if (queue_.size() == high_water_mark) {
+    if (queue_.size() == max_buffered_datagrams) {
       // Need to get rid of an entry for the new one to replace.
       queue_.pop_front();
       ++dropped_datagram_count_;
@@ -505,11 +506,11 @@ class WebTransport::DatagramUnderlyingSource final
         << "DatagramUnderlyingSource::DiscardExcessDatagrams() queue_.size="
         << queue_.size();
 
-    wtf_size_t high_water_mark = HighWaterMark();
+    wtf_size_t max_buffered_datagrams = MaxBufferedDatagrams();
 
-    // The high water mark may have been set to a lower value, so the size can
-    // be greater.
-    while (queue_.size() > high_water_mark) {
+    // The max buffered datagram count may have been set to a lower value, so
+    // the size can be greater.
+    while (queue_.size() > max_buffered_datagrams) {
       // TODO(ricea): Maybe free the memory associated with the array
       // buffer?
       queue_.pop_front();
@@ -598,9 +599,9 @@ class WebTransport::DatagramUnderlyingSource final
     expiry_timer_.StartOneShot(time_until_next_expiry, FROM_HERE);
   }
 
-  wtf_size_t HighWaterMark() const {
+  wtf_size_t MaxBufferedDatagrams() const {
     return base::checked_cast<wtf_size_t>(
-        datagram_duplex_stream_->incomingHighWaterMark());
+        datagram_duplex_stream_->incomingMaxBufferedDatagrams());
   }
 
   const Member<ScriptState> script_state_;
@@ -910,8 +911,13 @@ ScriptPromise<WritableStream> WebTransport::createUnidirectionalStream(
   // strong reference the group could be garbage-collected if JS drops all
   // references before the callback fires. nullptr is safe — Persistent<T>
   // accepts null.
+  // Build a Mojo priority struct only when there is a non-default send_group
+  // or send_order.  Passing nullptr avoids a redundant SetPriority() call in
+  // the network service.
+  auto mojo_priority = BuildMojoPriority(*stream_options);
   transport_remote_->CreateStream(
       std::move(data_pipe_consumer), mojo::ScopedDataPipeProducerHandle(),
+      std::move(mojo_priority),
       BindOnce(&WebTransport::OnCreateSendStreamResponse,
                WrapWeakPersistent(this), WrapWeakPersistent(resolver),
                std::move(data_pipe_producer),
@@ -968,8 +974,10 @@ ScriptPromise<BidirectionalStream> WebTransport::createBidirectionalStream(
   create_stream_resolvers_.insert(resolver);
   // See createUnidirectionalStream — send_group captured via WrapPersistent
   // to survive the Mojo round-trip; the registry uses WeakMember.
+  auto mojo_priority = BuildMojoPriority(*stream_options);
   transport_remote_->CreateStream(
       std::move(outgoing_consumer), std::move(incoming_producer),
+      std::move(mojo_priority),
       BindOnce(&WebTransport::OnCreateBidirectionalStreamResponse,
                WrapWeakPersistent(this), WrapWeakPersistent(resolver),
                std::move(outgoing_producer), std::move(incoming_consumer),
@@ -1550,6 +1558,9 @@ void WebTransport::Init(const String& url_for_diagnostics,
         url_, std::move(fingerprints),
         options.hasProtocols() ? options.protocols() : Vector<String>(),
         BlinkCongestionControlToMojo(congestion_control_),
+        // TODO(crbug.com/487117768): Wire to IDL options in follow-up CL.
+        /*anticipated_concurrent_incoming_unidirectional_streams=*/std::nullopt,
+        /*anticipated_concurrent_incoming_bidirectional_streams=*/std::nullopt,
         handshake_client_receiver_.BindNewPipeAndPassRemote(
             execution_context->GetTaskRunner(TaskType::kNetworking)));
 
@@ -1559,9 +1570,9 @@ void WebTransport::Init(const String& url_for_diagnostics,
 
   probe::WebTransportCreated(execution_context, inspector_transport_id_, url_);
 
-  int outgoing_datagrams_high_water_mark = 1;
+  uint32_t outgoing_max_buffered_datagrams = 1;
   datagrams_ = MakeGarbageCollected<DatagramDuplexStream>(
-      this, outgoing_datagrams_high_water_mark);
+      this, outgoing_max_buffered_datagrams);
 
   datagram_underlying_source_ =
       MakeGarbageCollected<DatagramUnderlyingSource>(script_state_, datagrams_);
@@ -1571,13 +1582,12 @@ void WebTransport::Init(const String& url_for_diagnostics,
       To<ReadableByteStreamController>(received_datagrams_->GetController());
 
   // We create a WritableStream with high water mark 1 and try to mimic the
-  // given high water mark in the Sink, from two reasons:
+  // given max buffered datagram count in the Sink, for two reasons:
   // 1. This is better because we can hide the RTT between the renderer and the
   //    network service.
   // 2. Keeping datagrams in the renderer would be confusing for the timer for
-  // the datagram
-  //    queue in the network service, because the timestamp is taken when the
-  //    datagram is added to the queue.
+  //    the datagram queue in the network service, because the timestamp is
+  //    taken when the datagram is added to the queue.
   datagram_underlying_sink_ =
       MakeGarbageCollected<DatagramUnderlyingSink>(this, datagrams_);
   outgoing_datagrams_ = WritableStream::CreateWithCountQueueingStrategy(
@@ -1900,8 +1910,8 @@ V8WebTransportCongestionControl WebTransport::congestionControl() const {
 WebTransportSendGroup* WebTransport::createSendGroup(
     ExceptionState& exception_state) {
   if (next_send_group_id_ == std::numeric_limits<uint32_t>::max()) {
-    exception_state.ThrowRangeError(
-        "Cannot create more send groups: group ID limit reached.");
+    exception_state.ThrowDOMException(DOMExceptionCode::kOperationError,
+                                      "Too many send groups.");
     return nullptr;
   }
   uint32_t group_id = next_send_group_id_;
@@ -1909,6 +1919,19 @@ WebTransportSendGroup* WebTransport::createSendGroup(
   auto* group = MakeGarbageCollected<WebTransportSendGroup>(this, group_id);
   send_groups_.insert(group);
   return group;
+}
+
+// static
+network::mojom::blink::WebTransportStreamPriorityPtr
+WebTransport::BuildMojoPriority(const SendStreamOptions& options) {
+  if (!options.send_group && options.send_order == 0) {
+    return nullptr;
+  }
+  return network::mojom::blink::WebTransportStreamPriority::New(
+      options.send_group
+          ? std::make_optional<uint32_t>(options.send_group->group_id())
+          : std::nullopt,
+      options.send_order);
 }
 
 std::optional<WebTransport::SendStreamOptions>

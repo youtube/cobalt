@@ -11,6 +11,7 @@
 #ifndef API_RTP_HEADER_EXTENSION_ID_H_
 #define API_RTP_HEADER_EXTENSION_ID_H_
 
+#include "absl/base/macros.h"
 #include "absl/strings/str_format.h"
 #include "rtc_base/strong_alias.h"
 
@@ -48,7 +49,11 @@ class RtpHeaderExtensionId
     // RTC_DCHECK_LE(id, kMaxId.value());
   }
   // TODO: bugs.webrtc.org/514817938 - RTC_DCHECK(id is valid).
-  constexpr operator int() const& { return value(); }  // NOLINT: explicit
+  [[deprecated]] ABSL_REFACTOR_INLINE  //
+      constexpr
+      operator int() const& {  // NOLINT: explicit
+    return value();
+  }
 
   // Returns true for an extension id that is set and is in the legal range.
   constexpr bool Valid() const {

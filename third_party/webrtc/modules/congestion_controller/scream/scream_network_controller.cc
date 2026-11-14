@@ -200,8 +200,11 @@ NetworkControlUpdate ScreamNetworkController::OnTransportPacketsFeedback(
 
 NetworkControlUpdate ScreamNetworkController::CreateUpdate(Timestamp now) {
   NetworkControlUpdate update;
-  if (scream_->target_rate() != reported_target_rate_) {
+  bool is_bandwidth_limited = !scream_->is_application_limited();
+  if (scream_->target_rate() != reported_target_rate_ ||
+      is_bandwidth_limited != reported_is_bandwidth_limited_) {
     reported_target_rate_ = scream_->target_rate();
+    reported_is_bandwidth_limited_ = is_bandwidth_limited;
     TargetTransferRate target_rate_msg;
     target_rate_msg.at_time = now;
     target_rate_msg.target_rate = scream_->target_rate();
@@ -210,6 +213,7 @@ NetworkControlUpdate ScreamNetworkController::CreateUpdate(Timestamp now) {
     // TODO: bugs.webrtc.org/447037083 - bwe_period must currently be set but
     // it seems like it is not used for anything sensible. Try to remove it.
     target_rate_msg.network_estimate.bwe_period = TimeDelta::Millis(25);
+    target_rate_msg.is_bandwidth_limited = is_bandwidth_limited;
     update.target_rate = target_rate_msg;
   }
   update.pacer_config = MaybeCreatePacerConfig(now);

@@ -15,6 +15,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/property-details.h"
+#include "src/objects/shared-function-info.h"
 #include "src/utils/boxed-float.h"
 #include "src/zone/zone-compact-set.h"
 
@@ -981,8 +982,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_abandoned_prototype_map() const;
   bool IsOneByteStringMap() const;
   bool IsTwoByteStringMap() const;
-  bool IsSeqStringMap() const;
-  bool IsThinStringMap() const;
   bool IsStringWrapperMap() const;
 
   OddballType oddball_type(JSHeapBroker* broker) const;

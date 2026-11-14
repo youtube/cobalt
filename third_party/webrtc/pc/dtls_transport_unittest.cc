@@ -117,9 +117,7 @@ TEST_F(DtlsTransportTest, CreateClearDelete) {
 TEST_F(DtlsTransportTest, EventsObservedWhenConnecting) {
   CreateTransport();
   CompleteDtlsHandshake();
-  ASSERT_THAT(WaitUntil([&] { return observer_.state_change_called_; },
-                        ::testing::IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return observer_.state_change_called_; }));
   EXPECT_THAT(
       observer_.states_,
       ElementsAre(  // FakeDtlsTransport doesn't signal the "connecting" state.

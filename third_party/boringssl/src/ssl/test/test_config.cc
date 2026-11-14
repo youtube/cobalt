@@ -93,7 +93,7 @@ template <typename T>
 bool StringToInt(T *out, const char *str) {
   static_assert(std::is_integral_v<T>, "not an integral type");
 
-  // |strtoull| allows leading '-' with wraparound. Additionally, both
+  // `strtoull` allows leading '-' with wraparound. Additionally, both
   // functions accept empty strings and leading whitespace.
   if (!OPENSSL_isdigit(static_cast<unsigned char>(*str)) &&
       (!std::is_signed_v<T> || *str != '-')) {
@@ -667,9 +667,9 @@ const Flag<TestConfig> *FindFlag(const char *name) {
   return &*iter;
 }
 
-// RemovePrefix checks if |*str| begins with |prefix| + "-". If so, it advances
-// |*str| past |prefix| (but not past the "-") and returns true. Otherwise, it
-// returns false and leaves |*str| unmodified.
+// RemovePrefix checks if `*str` begins with `prefix` + "-". If so, it advances
+// `*str` past `prefix` (but not past the "-") and returns true. Otherwise, it
+// returns false and leaves `*str` unmodified.
 bool RemovePrefix(const char **str, const char *prefix) {
   size_t prefix_len = strlen(prefix);
   if (strncmp(*str, prefix, strlen(prefix)) == 0 && (*str)[prefix_len] == '-') {
@@ -828,7 +828,7 @@ static bool SetCredentialInfo(SSL_CREDENTIAL *cred,
                                   info.get())) {
     return false;
   }
-  info.release();  // |cred| takes ownership on success.
+  info.release();  // `cred` takes ownership on success.
   return true;
 }
 
@@ -1035,8 +1035,8 @@ static int TicketKeyCallback(SSL *ssl, uint8_t *key_name, uint8_t *iv,
 }
 
 static int NewSessionCallback(SSL *ssl, SSL_SESSION *session) {
-  // This callback is called as the handshake completes. |SSL_get_session|
-  // must continue to work and, historically, |SSL_in_init| returned false at
+  // This callback is called as the handshake completes. `SSL_get_session`
+  // must continue to work and, historically, `SSL_in_init` returned false at
   // this point.
   if (SSL_in_init(ssl) || SSL_get_session(ssl) == nullptr) {
     fprintf(stderr, "Invalid state for NewSessionCallback.\n");
@@ -1057,8 +1057,8 @@ static void InfoCallback(const SSL *ssl, int type, int val) {
       abort();
     }
 
-    // This callback is called when the handshake completes. |SSL_get_session|
-    // must continue to work and |SSL_in_init| must return false.
+    // This callback is called when the handshake completes. `SSL_get_session`
+    // must continue to work and `SSL_in_init` must return false.
     if (SSL_in_init(ssl) || SSL_get_session(ssl) == nullptr) {
       fprintf(stderr, "Invalid state for SSL_CB_HANDSHAKE_DONE.\n");
       abort();
@@ -1314,7 +1314,7 @@ static ssl_private_key_result_t AsyncPrivateKeySign(
     }
   }
 
-  // Write the signature into |test_state|.
+  // Write the signature into `test_state`.
   size_t len = 0;
   if (!EVP_DigestSign(ctx.get(), nullptr, &len, in, in_len)) {
     return ssl_private_key_failure;
@@ -1370,7 +1370,7 @@ static ssl_private_key_result_t AsyncPrivateKeyComplete(SSL *ssl, uint8_t *out,
 
   if (GetTestConfig(ssl)->async && test_state->private_key_retries < 2) {
     // Only return the decryption on the second attempt, to test both incomplete
-    // |sign|/|decrypt| and |complete|.
+    // `sign`/`decrypt` and `complete`.
     return ssl_private_key_retry;
   }
 
@@ -2174,7 +2174,7 @@ bssl::UniquePtr<SSL_CTX> TestConfig::SetupCtx(SSL_CTX *old_ctx) const {
   }
 
   // These mock compression algorithms match the corresponding ones in
-  // |addCertCompressionTests|.
+  // `addCertCompressionTests`.
   if (!MaybeInstallCertCompressionAlg(
           this, ssl_ctx.get(), 0xff02,
           [](SSL *ssl, CBB *out, const uint8_t *in, size_t in_len) -> int {
@@ -2571,7 +2571,7 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
     SSL_set_renegotiate_mode(ssl.get(), ssl_renegotiate_once);
   }
   if (renegotiate_freely || forbid_renegotiation_after_handshake) {
-    // |forbid_renegotiation_after_handshake| will disable renegotiation later.
+    // `forbid_renegotiation_after_handshake` will disable renegotiation later.
     SSL_set_renegotiate_mode(ssl.get(), ssl_renegotiate_freely);
   }
   if (renegotiate_ignore) {

@@ -108,13 +108,7 @@ export function convertRotatedCoordinates(
 export class Ink2Manager extends EventTarget {
   private brush_: AnnotationBrush = {type: AnnotationBrushType.PEN};
   private stack_ = new UndoRedoStack(this);
-
-  constructor() {
-    super();
-    this.pluginController_.getEventTarget().addEventListener(
-        PluginControllerEventType.FINISH_INK_STROKE,
-        this.handleFinishInkStroke_.bind(this));
-  }
+  private listener_: EventListener;
 
   // Map from page numbers to annotations on that page.
   // The annotations on each page are stored in a map from id to TextAnnotation.
@@ -138,6 +132,7 @@ export class Ink2Manager extends EventTarget {
   private pageIndex_: number = -1;
   private pluginController_: PluginController = PluginController.getInstance();
   private textResolver_: PromiseResolver<void>|null = null;
+  private textboxActiveResolver_: PromiseResolver<void>|null = null;
   private viewport_: Viewport|null = null;
   private viewportParams_: ViewportParams = {
     clockwiseRotations: 0,
@@ -149,21 +144,24 @@ export class Ink2Manager extends EventTarget {
   // is only serialized and loaded once.
   private knownFontIds_: number[] = [];
 
+  constructor() {
+    super();
+    this.listener_ = this.handleFinishInkStroke_.bind(this);
+    this.pluginController_.getEventTarget().addEventListener(
+        PluginControllerEventType.FINISH_INK_STROKE, this.listener_);
+  }
+
+  destroy() {
+    this.pluginController_.getEventTarget().removeEventListener(
+        PluginControllerEventType.FINISH_INK_STROKE, this.listener_);
+  }
+
   setViewport(viewport: Viewport) {
     this.viewport_ = viewport;
   }
 
-  clearAnnotationsForTesting() {
-    this.annotations_.clear();
-    this.nextAnnotationId_ = 0;
-  }
-
   getAnnotationsForTesting(): Map<number, Map<number, TextAnnotation>> {
     return this.annotations_;
-  }
-
-  resetTextResolverForTesting() {
-    this.textResolver_ = null;
   }
 
   resetStackForTesting() {
@@ -171,13 +169,24 @@ export class Ink2Manager extends EventTarget {
   }
 
   // Initialize a text annotation at `location` in screen coordinates.
-  // No-op if there is no PDF page at `location`.
-  // If location is not provided, creates the annotation at the center of
+  // No-op if there is no PDF page at `location`. If a text annotation already
+  // exists at `location`, activates it for editing.
+  // If `location` is not provided, creates the annotation at the center of
   // the visible portion of the most visible page.
-  // Returns true if an annotation was initialized, and false otherwise.
-  initializeTextAnnotation(location?: Point): boolean {
+  // If an annotation is already actively being edited, fires a
+  // deactivate-text-box event and waits for the active text box to deactivate
+  // before creating or activating another annotation.
+  // Returns a promise that resolves to true if an annotation was initialized
+  // or reactivated for editing, and false otherwise.
+  async initializeTextAnnotation(location?: Point): Promise<boolean> {
     assert(this.isTextInitializationComplete());
     assert(this.viewport_);
+
+    if (this.textboxActiveResolver_) {
+      const resolver = this.textboxActiveResolver_;
+      this.dispatchEvent(new CustomEvent('deactivate-text-box'));
+      await resolver.promise;
+    }
 
     const isMouse = !!location;
     const page = location ? this.viewport_.getPageAtPoint(location) :
@@ -268,6 +277,7 @@ export class Ink2Manager extends EventTarget {
       id: this.nextAnnotationId_,
       mojoTextInfo: new ArrayBuffer(0),
       pageIndex: page,
+      pdfZoom: this.viewport_.getZoom(),
       text: '',
       textAttributes: structuredClone(this.attributes_),
       textBoxRect: {
@@ -380,9 +390,8 @@ export class Ink2Manager extends EventTarget {
           this.annotations_.set(annotation.pageIndex, pageMap);
         }
         pageMap.set(annotation.id, annotation);
-        if (annotation.id > this.nextAnnotationId_) {
-          this.nextAnnotationId_ = annotation.id + 1;
-        }
+        this.nextAnnotationId_ =
+            Math.max(this.nextAnnotationId_, annotation.id + 1);
       });
       this.textResolver_!.resolve();
     });
@@ -589,7 +598,6 @@ export class Ink2Manager extends EventTarget {
       ...annotation,
       isEdited,
       newTypefaces,
-      pdfZoom: this.viewport_.getZoom(),
       source: TextAnnotationSource.USER,
     };
     this.pluginController_.finishTextAnnotation(messageData);
@@ -710,7 +718,6 @@ export class Ink2Manager extends EventTarget {
       ...annotation,
       isEdited: true,
       newTypefaces: [],
-      pdfZoom: this.viewport_.getZoom(),
       source,
     };
     if (isDeletion) {
@@ -731,11 +738,25 @@ export class Ink2Manager extends EventTarget {
     this.stack_.setSaved();
   }
 
+  setTextBoxActive(active: boolean) {
+    if (active && !this.textboxActiveResolver_) {
+      this.textboxActiveResolver_ = new PromiseResolver();
+      return;
+    }
+    if (!active && this.textboxActiveResolver_) {
+      this.textboxActiveResolver_.resolve();
+      this.textboxActiveResolver_ = null;
+    }
+  }
+
   static getInstance(): Ink2Manager {
     return instance || (instance = new Ink2Manager());
   }
 
-  static setInstance(obj: Ink2Manager) {
+  static setInstance(obj: Ink2Manager|null) {
+    if (instance) {
+      instance.destroy();
+    }
     instance = obj;
   }
 }

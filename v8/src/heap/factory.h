@@ -239,9 +239,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kOld);
 
   // Create a new Tuple2 struct.
-  DirectHandle<Tuple2> NewTuple2Uninitialized(AllocationType allocation);
   DirectHandle<Tuple2> NewTuple2(DirectHandle<Object> value1,
                                  DirectHandle<Object> value2,
+                                 AllocationType allocation);
+  DirectHandle<Tuple2> NewTuple2(DirectHandle<Object> value1,
+                                 DirectHandle<Object> value2,
+                                 RelaxedStoreTag tag,
                                  AllocationType allocation);
 
   // Create a new PropertyDescriptorObject struct.
@@ -691,6 +694,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<FixedArray> CopyFixedArrayAndGrow(
       DirectHandle<FixedArray> array, uint32_t grow_by,
       AllocationType allocation = AllocationType::kYoung);
+
+  Handle<TrustedFixedArray> CopyTrustedFixedArrayAndGrow(
+      DirectHandle<TrustedFixedArray> array, uint32_t grow_by,
+      AllocationType allocation = AllocationType::kTrusted);
 
   DirectHandle<WeakArrayList> NewWeakArrayList(
       uint32_t capacity, AllocationType allocation = AllocationType::kYoung);

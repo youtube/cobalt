@@ -7,8 +7,6 @@
 #include "third_party/icu/fuzzers/fuzzer_utils.h"
 #include "third_party/icu/source/common/unicode/appendable.h"
 
-static IcuEnvironment* env = new IcuEnvironment;
-
 constexpr size_t kMaxInitialSize = 64;
 constexpr size_t kMaxReserveSize = 4096;
 constexpr size_t kMaxAppendLength = 64;
@@ -28,6 +26,7 @@ enum class AppendableApi {
 
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  static IcuEnvironment env;
   FuzzedDataProvider provider(data, size);
   auto str(icu::UnicodeString::fromUTF8(
       provider.ConsumeRandomLengthString(kMaxInitialSize)));

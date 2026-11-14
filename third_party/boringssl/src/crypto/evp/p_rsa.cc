@@ -90,7 +90,7 @@ static bssl::evp_decode_result_t rsa_pub_decode(const EVP_PKEY_ALG *alg,
 }
 
 static bool rsa_pub_equal(const EvpPkey *a, const EvpPkey *b) {
-  // We currently assume that all |EVP_PKEY_RSA_PSS| keys have the same
+  // We currently assume that all `EVP_PKEY_RSA_PSS` keys have the same
   // parameters, so this vacuously compares parameters. If we ever support
   // multiple PSS parameter sets, we probably should compare them too. Note,
   // however, that OpenSSL does not compare parameters here.
@@ -418,8 +418,8 @@ struct RSA_PKEY_CTX {
   // PSS salt length
   int saltlen = RSA_PSS_SALTLEN_DIGEST;
   // restrict_pss_params, if true, indicates that the PSS signing/verifying
-  // parameters are restricted by the key's parameters. |md| and |mgf1md| may
-  // not change, and |saltlen| must be at least |md|'s hash length.
+  // parameters are restricted by the key's parameters. `md` and `mgf1md` may
+  // not change, and `saltlen` must be at least `md`'s hash length.
   bool restrict_pss_params = false;
   Array<uint8_t> oaep_label;
 };
@@ -755,7 +755,7 @@ static int pkey_rsa_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
             return 0;
           }
           // All our PSS restrictions accept saltlen == hashlen, so allow
-          // |RSA_PSS_SALTLEN_DIGEST|. Reject |RSA_PSS_SALTLEN_AUTO| for
+          // `RSA_PSS_SALTLEN_DIGEST`. Reject `RSA_PSS_SALTLEN_AUTO` for
           // simplicity.
           if (rctx->restrict_pss_params && p1 != RSA_PSS_SALTLEN_DIGEST) {
             OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_PSS_SALTLEN);
@@ -845,8 +845,8 @@ static int pkey_rsa_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
         OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_PADDING_MODE);
         return 0;
       }
-      // |EVP_PKEY_CTRL_RSA_OAEP_LABEL| takes ownership of |label|'s underlying
-      // buffer (via |Reset|), but only on success.
+      // `EVP_PKEY_CTRL_RSA_OAEP_LABEL` takes ownership of `label`'s underlying
+      // buffer (via `Reset`), but only on success.
       auto *label = reinterpret_cast<Span<uint8_t> *>(p2);
       rctx->oaep_label.Reset(label->data(), label->size());
       return 1;
@@ -913,11 +913,11 @@ const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth = {
     pkey_rsa_init,
     pkey_rsa_copy,
     pkey_rsa_cleanup,
-    // In OpenSSL, |EVP_PKEY_RSA_PSS| supports key generation and fills in PSS
+    // In OpenSSL, `EVP_PKEY_RSA_PSS` supports key generation and fills in PSS
     // parameters based on a separate set of keygen-targetted setters:
-    // |EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen|,
-    // |EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md|, and
-    // |EVP_PKEY_CTX_rsa_pss_key_digest|. We do not currently implement this
+    // `EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen`,
+    // `EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md`, and
+    // `EVP_PKEY_CTX_rsa_pss_key_digest`. We do not currently implement this
     // because we only support one parameter set.
     /*keygen=*/nullptr,
     pkey_rsa_sign,
@@ -1032,18 +1032,18 @@ int EVP_PKEY_CTX_get_rsa_padding(EVP_PKEY_CTX *ctx, int *out_padding) {
 }
 
 int EVP_PKEY_CTX_set_rsa_pss_keygen_md(EVP_PKEY_CTX *ctx, const EVP_MD *md) {
-  // We currently do not support keygen with |EVP_PKEY_RSA_PSS|.
+  // We currently do not support keygen with `EVP_PKEY_RSA_PSS`.
   return 0;
 }
 
 int EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(EVP_PKEY_CTX *ctx, int salt_len) {
-  // We currently do not support keygen with |EVP_PKEY_RSA_PSS|.
+  // We currently do not support keygen with `EVP_PKEY_RSA_PSS`.
   return 0;
 }
 
 int EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(EVP_PKEY_CTX *ctx,
                                             const EVP_MD *md) {
-  // We currently do not support keygen with |EVP_PKEY_RSA_PSS|.
+  // We currently do not support keygen with `EVP_PKEY_RSA_PSS`.
   return 0;
 }
 

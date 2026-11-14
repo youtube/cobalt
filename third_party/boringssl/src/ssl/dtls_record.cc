@@ -78,7 +78,7 @@ static uint64_t dtls_aead_sequence(const SSL *ssl, DTLSRecordNumber num) {
 }
 
 // reconstruct_epoch finds the largest epoch that ends with the epoch bits from
-// |wire_epoch| that is less than or equal to |current_epoch|, to match the
+// `wire_epoch` that is less than or equal to `current_epoch`, to match the
 // epoch reconstruction algorithm described in RFC 9147 section 4.2.2.
 static uint16_t reconstruct_epoch(uint8_t wire_epoch, uint16_t current_epoch) {
   uint16_t current_epoch_high = current_epoch & 0xfffc;
@@ -152,7 +152,7 @@ static Span<uint8_t> cbs_to_writable_bytes(CBS cbs) {
 
 struct ParsedDTLSRecord {
   // read_epoch will be null if the record is for an unrecognized epoch. In that
-  // case, |number| may be unset.
+  // case, `number` may be unset.
   DTLSReadEpoch *read_epoch = nullptr;
   DTLSRecordNumber number;
   CBS header, body;
@@ -190,7 +190,7 @@ static bool parse_dtls13_record(SSL *ssl, CBS *in, ParsedDTLSRecord *out) {
     }
   } else {
     // No length present - the remaining contents are the whole packet.
-    // CBS_get_bytes is used here to advance |in| to the end so that future
+    // CBS_get_bytes is used here to advance `in` to the end so that future
     // code that computes the number of consumed bytes functions correctly.
     BSSL_CHECK(CBS_get_bytes(in, &out->body, CBS_len(in)));
   }
@@ -565,7 +565,7 @@ bool dtls_seal_record(SSL *ssl, DTLSRecordNumber *out_number, uint8_t *out,
     // Record number encryption uses bytes from the ciphertext as a sample to
     // generate the mask used for encryption. For simplicity, pass in the whole
     // ciphertext as the sample - GenerateRecordNumberMask will read only what
-    // it needs (and error if |sample| is too short).
+    // it needs (and error if `sample` is too short).
     Span<const uint8_t> sample(out + record_header_len, ciphertext_len);
     uint8_t mask[2];
     if (!write_epoch->rn_encrypter->GenerateMask(mask, sample)) {

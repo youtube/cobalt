@@ -202,9 +202,7 @@ class PeerConnectionWrapperForUsageHistogramTest
     if (!set_local_offer) {
       return false;
     }
-    EXPECT_THAT(WaitUntil([&] { return observer()->ice_gathering_complete_; },
-                          ::testing::IsTrue()),
-                IsRtcOk());
+    EXPECT_TRUE(WaitUntil([&] { return observer()->ice_gathering_complete_; }));
     return true;
   }
 
@@ -480,9 +478,7 @@ TEST_F(PeerConnectionUsageHistogramTest, FingerprintDataOnly) {
   auto callee = CreatePeerConnection();
   caller->CreateDataChannel("foodata");
   ASSERT_TRUE(caller->ConnectTo(callee.get()));
-  ASSERT_THAT(
-      WaitUntil([&] { return callee->HaveDataChannel(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return callee->HaveDataChannel(); }));
   caller->pc()->Close();
   callee->pc()->Close();
   int expected_fingerprint = MakeUsageFingerprint(
@@ -703,18 +699,11 @@ TEST_F(PeerConnectionUsageHistogramTest,
   std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   callee->SetLocalDescription(answer->Clone());
   caller->SetRemoteDescription(std::move(answer));
-  EXPECT_THAT(
-      WaitUntil([&] { return caller->IsConnected(); }, ::testing::IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee->IsConnected(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller->IsConnected(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee->IsConnected(); }));
   // The callee needs to process the open message to have the data channel open.
-  EXPECT_THAT(
-      WaitUntil(
-          [&] { return callee->observer()->last_datachannel_ != nullptr; },
-          ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil(
+      [&] { return callee->observer()->last_datachannel_ != nullptr; }));
   caller->pc()->Close();
   callee->pc()->Close();
 

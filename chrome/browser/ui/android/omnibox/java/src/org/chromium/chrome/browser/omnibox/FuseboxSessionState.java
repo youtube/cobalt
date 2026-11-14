@@ -25,6 +25,8 @@ import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxCapabilities;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.omnibox.OmniboxFocusReason;
+import org.chromium.components.omnibox.TextSelection;
 import org.chromium.components.omnibox.ToolModeUtils;
 import org.chromium.content_public.browser.WebContents;
 
@@ -67,7 +69,8 @@ public class FuseboxSessionState implements UserData {
      * Details about the user input in the Omnibox. Retained to allow session reconstruction, for
      * example when the user switches tabs.
      */
-    private final AutocompleteInput mAutocompleteInput = new AutocompleteInput();
+    private final AutocompleteInput mAutocompleteInput =
+            new AutocompleteInput(OmniboxFocusReason.OMNIBOX_TAP);
 
     private @Nullable FuseboxMetrics mMetrics;
     protected @Nullable Profile mProfile;
@@ -154,9 +157,13 @@ public class FuseboxSessionState implements UserData {
         // On eligible LFF devices the Omnibox should, by default, present the
         // current page URL (if the URL is eligible for display).
         if (OmniboxCapabilities.hasDesktopExperience(context)
-                && UrlBarData.shouldShowUrl(mAutocompleteInput.getPageUrl(), false)) {
-            var editUrl = UrlUtilities.stripScheme(mAutocompleteInput.getPageUrl().getSpec());
-            mAutocompleteInput.setInitialUserText(editUrl);
+                && UrlBarData.shouldShowUrl(
+                        mAutocompleteInput.getPageUrl(), /* isOffTheRecord= */ false)) {
+            String initialUserText = mAutocompleteInput.getPageUrl().getSpec();
+            // Roughly mirror UrlFormatter#formatUrlForDisplayOmitScheme().
+            initialUserText = UrlUtilities.stripScheme(initialUserText);
+            initialUserText = UrlUtilities.stripTrailingSlash(initialUserText);
+            mAutocompleteInput.setInitialUserText(initialUserText);
         } else {
             mAutocompleteInput.setInitialUserText("");
         }
@@ -171,9 +178,8 @@ public class FuseboxSessionState implements UserData {
                     .setUserText(mAutocompleteInput.getInitialUserText())
                     .setSelection(
                             OmniboxCapabilities.hasDesktopExperience(context)
-                                    ? 0
-                                    : Integer.MAX_VALUE,
-                            Integer.MAX_VALUE);
+                                    ? TextSelection.SELECT_ALL
+                                    : TextSelection.SELECT_END);
         }
 
         // Stop here if we're already waiting for profile.

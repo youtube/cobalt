@@ -23,10 +23,12 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.animation.Animator;
+import android.app.Activity;
 import android.content.Context;
 import android.os.Handler;
 import android.view.ContextThemeWrapper;
@@ -73,6 +75,7 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxLayoutMode;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
+import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties.RoundSides;
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionInSuggest;
 import org.chromium.chrome.browser.omnibox.suggestions.header.HeaderProcessor;
@@ -98,6 +101,7 @@ import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
 import org.chromium.components.omnibox.suggestions.OmniboxSuggestionUiType;
 import org.chromium.components.prefs.PrefService;
+import org.chromium.components.search_engines.StarterPackId;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -111,6 +115,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
+import java.lang.ref.WeakReference;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -143,6 +148,7 @@ public class AutocompleteMediatorUnitTest {
     private @Mock NavigationHandle mNavigationHandle;
     private @Mock ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private @Mock WindowAndroid mWindowAndroid;
+    private @Mock Activity mActivity;
     private @Mock Window mWindow;
     private @Mock View mDecorView;
     private @Mock OmniboxSuggestionsDropdownEmbedder mEmbedder;
@@ -153,6 +159,7 @@ public class AutocompleteMediatorUnitTest {
     private @Mock FuseboxCoordinator mFuseboxCoordinator;
     private @Mock PreloadingFeatureMap mPreloadingFeatureMap;
     private @Mock ComposeboxQueryControllerBridge mComposeboxQueryControllerBridge;
+    private @Mock Callback<GURL> mGurlCallback;
     private @Captor ArgumentCaptor<OmniboxLoadUrlParams> mOmniboxLoadUrlParamsCaptor;
     private @Captor ArgumentCaptor<Consumer<SiteSearchData>> mKeywordModeEnteredCaptor;
     private @Captor ArgumentCaptor<Callback<GURL>> mUrlCallbackCaptor;
@@ -198,6 +205,8 @@ public class AutocompleteMediatorUnitTest {
                         .build();
 
         lenient().doReturn(mInsetObserver).when(mWindowAndroid).getInsetObserver();
+        lenient().doReturn(new WeakReference<>(mActivity)).when(mWindowAndroid).getActivity();
+        lenient().doReturn(true).when(mActivity).hasWindowFocus();
         lenient().doReturn(mWindow).when(mWindowAndroid).getWindow();
         lenient().doReturn(mDecorView).when(mWindow).getDecorView();
         lenient()
@@ -357,6 +366,19 @@ public class AutocompleteMediatorUnitTest {
     private void verifyLoadUrl(GURL expectedUrl) {
         verify(mAutocompleteDelegate).loadUrl(mOmniboxLoadUrlParamsCaptor.capture());
         assertEquals(expectedUrl.getSpec(), mOmniboxLoadUrlParamsCaptor.getValue().url);
+    }
+
+    private void verifySuggestionModelsRoundSides(@RoundSides int roundSides) {
+        assertTrue(mSuggestionModels.size() > 0);
+        for (int i = 0; i < mSuggestionModels.size(); i++) {
+            PropertyModel model = mSuggestionModels.get(i).model;
+            if (model.containsKey(SuggestionCommonProperties.BG_ROUND_SIDES)) {
+                assertEquals(
+                        "Unexpected round sides for suggestion at position " + i,
+                        roundSides,
+                        model.get(SuggestionCommonProperties.BG_ROUND_SIDES));
+            }
+        }
     }
 
     /**
@@ -860,18 +882,175 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    public void onSuggestionClicked_starterPack_extractsHintFromTemplateUrlService() {
+        mMediator.onNativeInitialized();
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+
+        doReturn(true).when(mTemplateUrlService).isLoaded();
+        doReturn("Chat with Gemini")
+                .when(mTemplateUrlService)
+                .getFullNameFromTemplateUrl("@gemini");
+
+        AutocompleteMatch match =
+                new AutocompleteMatchBuilder()
+                        .setType(OmniboxSuggestionType.STARTER_PACK)
+                        .setAssociatedKeyword("@gemini")
+                        .setDescription("Search @gemini Chat with Gemini")
+                        .setStarterPackId(StarterPackId.NONE)
+                        .build();
+
+        mMediator.onSuggestionClicked(match, 0, JUnitTestGURLs.BLUE_1);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        SiteSearchData siteSearchData = session.getAutocompleteInput().getSiteSearchData();
+        assertNotNull(siteSearchData);
+        assertEquals("@gemini", siteSearchData.keyword);
+        assertEquals("Chat with Gemini", siteSearchData.fullName);
+        verify(mAutocompleteDelegate, never()).loadUrl(any());
+    }
+
+    @Test
+    @SmallTest
+    public void onSuggestionFocused_starterPack_entersKeywordMode() {
+        mMediator.onNativeInitialized();
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+        assertTrue("Session should be active", mMediator.isInInputSession());
+        mMediator.allowPendingItemSelection();
+
+        doReturn(true).when(mTemplateUrlService).isLoaded();
+        doReturn("Chat with Gemini")
+                .when(mTemplateUrlService)
+                .getFullNameFromTemplateUrl("@gemini");
+
+        AutocompleteMatch match =
+                new AutocompleteMatchBuilder()
+                        .setType(OmniboxSuggestionType.STARTER_PACK)
+                        .setAssociatedKeyword("@gemini")
+                        .setFillIntoEdit("@gemini")
+                        .setStarterPackId(StarterPackId.NONE)
+                        .build();
+
+        mMediator.onSuggestionFocused(match);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        SiteSearchData siteSearchData = session.getAutocompleteInput().getSiteSearchData();
+        assertNotNull(siteSearchData);
+        assertEquals("@gemini", siteSearchData.keyword);
+        assertEquals("Chat with Gemini", siteSearchData.fullName);
+        verify(mAutocompleteDelegate).setOmniboxEditingText("");
+    }
+
+    @Test
+    @SmallTest
+    public void onSuggestionFocused_nonStarterPack_doesNotEnterKeywordMode() {
+        mMediator.onNativeInitialized();
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+        assertTrue("Session should be active", mMediator.isInInputSession());
+        mMediator.allowPendingItemSelection();
+
+        AutocompleteMatch match =
+                new AutocompleteMatchBuilder()
+                        .setType(OmniboxSuggestionType.SEARCH_WHAT_YOU_TYPED)
+                        .setFillIntoEdit("something")
+                        .build();
+
+        mMediator.onSuggestionFocused(match);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        assertTrue(session.getAutocompleteInput().getSiteSearchData() == null);
+        verify(mAutocompleteDelegate).setOmniboxEditingText("something");
+    }
+
+    @Test
+    @SmallTest
+    public void onSuggestionFocused_nonStarterPack_clearsPreview() {
+        mMediator.onNativeInitialized();
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+        assertTrue("Session should be active", mMediator.isInInputSession());
+        mMediator.allowPendingItemSelection();
+
+        session.getAutocompleteInput().setPreviewText("preview");
+        session.getAutocompleteInput().setSiteSearchData(
+                new SiteSearchData("kw", "name", false, StarterPackId.NONE));
+
+        AutocompleteMatch match =
+                new AutocompleteMatchBuilder()
+                        .setType(OmniboxSuggestionType.SEARCH_WHAT_YOU_TYPED)
+                        .setFillIntoEdit("something")
+                        .build();
+
+        mMediator.onSuggestionFocused(match);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        assertTrue(session.getAutocompleteInput().getSiteSearchData() == null);
+        verify(mAutocompleteDelegate).setOmniboxEditingText("something");
+    }
+
+    @Test
+    @SmallTest
     public void onSuggestionClicked_TabsStarterPack() {
         mMediator.onNativeInitialized();
         mMediator.beginInput(createEmptySession());
         mMediator
                 .getAutocompleteInputForTesting()
-                .setSiteSearchData(new SiteSearchData(TABS_STARTER_PACK_KEYWORD, "Tabs"));
+                .setSiteSearchData(
+                        new SiteSearchData(
+                                TABS_STARTER_PACK_KEYWORD,
+                                "Tabs",
+                                /* enteredViaSpace= */ false,
+                                StarterPackId.TABS));
         doReturn(true).when(mOmniboxActionDelegate).switchToTab(anyInt(), any());
         GURL url = new GURL("https://example.com");
         AutocompleteMatch match =
                 new AutocompleteMatchBuilder()
                         .setHasTabMatch(true)
                         .setType(OmniboxSuggestionType.OPEN_TAB)
+                        .setAndroidTabId(123)
+                        .setActions(
+                                List.of(
+                                        new OmniboxActionInSuggest(
+                                                /* nativeInstance= */ 0,
+                                                "hint",
+                                                "acc",
+                                                /* actionType= */ 1002,
+                                                "",
+                                                /* tabId= */ 123,
+                                                /* presentationMode= */ 1)))
+                        .build();
+
+        mMediator.onSuggestionClicked(match, 0, url);
+
+        verify(mOmniboxActionDelegate).switchToTab(eq(123), eq(url));
+        verify(mAutocompleteDelegate, never()).loadUrl(any());
+    }
+
+    @Test
+    @SmallTest
+    public void onSuggestionClicked_TabsStarterPack_NonOpenTabMatch() {
+        mMediator.onNativeInitialized();
+        mMediator.beginInput(createEmptySession());
+        mMediator
+                .getAutocompleteInputForTesting()
+                .setSiteSearchData(
+                        new SiteSearchData(
+                                TABS_STARTER_PACK_KEYWORD,
+                                "Tabs",
+                                /* enteredViaSpace= */ false,
+                                StarterPackId.TABS));
+        doReturn(true).when(mOmniboxActionDelegate).switchToTab(anyInt(), any());
+        GURL url = new GURL("https://example.com");
+        AutocompleteMatch match =
+                new AutocompleteMatchBuilder()
+                        .setHasTabMatch(true)
+                        .setType(OmniboxSuggestionType.SEARCH_SUGGEST)
                         .setAndroidTabId(123)
                         .setActions(
                                 List.of(
@@ -939,7 +1118,6 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void onSuggestionClicked_aimIsSentSuggestionText() {
         String suggestionText = "test suggestion";
         AutocompleteMatch match =
@@ -950,8 +1128,7 @@ public class AutocompleteMediatorUnitTest {
 
         mMediator.onSuggestionClicked(match, /* matchIndex= */ 0, JUnitTestGURLs.RED_1);
 
-        verify(mComposeboxQueryControllerBridge)
-                .getAimUrlFromInputState(eq(JUnitTestGURLs.RED_1), eq(suggestionText), any());
+        verify(mComposeboxQueryControllerBridge).getAimUrl(any(), eq(suggestionText), any());
         verifyNoMoreInteractions(mAutocompleteDelegate);
     }
 
@@ -1661,7 +1838,6 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void loadTypedOmniboxText_aimUrl() {
         var session = createEmptySession();
         var autocompleteInput = session.getAutocompleteInput();
@@ -1680,7 +1856,7 @@ public class AutocompleteMediatorUnitTest {
                             return null;
                         })
                 .when(mComposeboxQueryControllerBridge)
-                .getAimUrlFromInputState(any(), any(), any());
+                .getAimUrl(any(), any(), any());
 
         AutocompleteMatch defaultMatch =
                 AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_SUGGEST)
@@ -1701,7 +1877,6 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void loadTypedOmniboxText_imageGenerationUrl() {
         var session = createEmptySession();
         var autocompleteInput = session.getAutocompleteInput();
@@ -1724,7 +1899,7 @@ public class AutocompleteMediatorUnitTest {
                             return null;
                         })
                 .when(mComposeboxQueryControllerBridge)
-                .getAimUrlFromInputState(any(), any(), any());
+                .getImageGenerationUrl(any(), any(), any());
 
         AutocompleteMatch defaultMatch =
                 AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_SUGGEST)
@@ -1741,6 +1916,18 @@ public class AutocompleteMediatorUnitTest {
 
         verify(mAutocompleteDelegate).loadUrl(mOmniboxLoadUrlParamsCaptor.capture());
         assertEquals(mOmniboxLoadUrlParamsCaptor.getValue().url, url2.getSpec());
+    }
+
+    @Test
+    @SmallTest
+    public void loadUrlFromVoice_conventionalRequest_loadsUrl() {
+        mMediator.beginInput(createSession(AutocompleteRequestType.SEARCH));
+        doReturn(JUnitTestGURLs.BLUE_1).when(mTemplateUrlService).getUrlForVoiceSearchQuery(any());
+
+        mMediator.loadUrlFromVoice("sample voice query");
+
+        verify(mAutocompleteDelegate).loadUrl(mOmniboxLoadUrlParamsCaptor.capture());
+        assertEquals(JUnitTestGURLs.BLUE_1.getSpec(), mOmniboxLoadUrlParamsCaptor.getValue().url);
     }
 
     @Test
@@ -1805,6 +1992,37 @@ public class AutocompleteMediatorUnitTest {
 
         assertTrue(mListModel.get(SuggestionListProperties.ROUND_TOP_CORNERS));
         assertTrue(mListModel.get(SuggestionListProperties.DRAW_OVER_ANCHOR));
+    }
+
+    @Test
+    @SmallTest
+    public void roundSidesPropagatedToModels_popoverLayoutModeTransitions() {
+        mFuseboxLayoutModeSupplier.set(FuseboxLayoutMode.SUGGESTIONS_POPOVER);
+        mFuseboxStateSupplier.set(FuseboxState.COMPACT);
+        mMediator.beginInput(createEmptySession());
+        mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(mSuggestionsList, null), true);
+
+        verifySuggestionModelsRoundSides(RoundSides.BOTTOM_ONLY);
+
+        mFuseboxStateSupplier.set(FuseboxState.EXPANDED);
+        verifySuggestionModelsRoundSides(RoundSides.NONE);
+
+        mFuseboxStateSupplier.set(FuseboxState.COMPACT);
+        verifySuggestionModelsRoundSides(RoundSides.BOTTOM_ONLY);
+    }
+
+    @Test
+    @SmallTest
+    public void roundSidesPropagatedToModels_toolbarLayoutModeTransitions() {
+        mFuseboxLayoutModeSupplier.set(FuseboxLayoutMode.TOOLBAR);
+        mFuseboxStateSupplier.set(FuseboxState.COMPACT);
+        mMediator.beginInput(createEmptySession());
+        mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(mSuggestionsList, null), true);
+
+        verifySuggestionModelsRoundSides(RoundSides.TOP_AND_BOTTOM);
+
+        mFuseboxStateSupplier.set(FuseboxState.EXPANDED);
+        verifySuggestionModelsRoundSides(RoundSides.TOP_AND_BOTTOM);
     }
 
     @Test
@@ -2012,6 +2230,36 @@ public class AutocompleteMediatorUnitTest {
     }
 
     @Test
+    @SmallTest
+    public void testUnsyncedAnimation_doesNotShowKeyboardInStandbyNoFocus() {
+        doReturn(false).when(mEmbedder).isTablet();
+        var session = createSession(AutocompleteRequestType.SEARCH);
+        session.getAutocompleteInput()
+                .setAutocompleteState(AutocompleteInput.AutocompleteState.STANDBY_NO_FOCUS);
+        mMediator.beginInput(session);
+
+        reset(mAutocompleteDelegate);
+        mMediator.setupSuggestionsListShowAnimation();
+
+        verify(mAutocompleteDelegate, never()).setKeyboardVisibility(eq(true), anyBoolean());
+    }
+
+    @Test
+    @SmallTest
+    public void testUnsyncedAnimation_showsKeyboardInEnabledState() {
+        doReturn(false).when(mEmbedder).isTablet();
+        var session = createSession(AutocompleteRequestType.SEARCH);
+        session.getAutocompleteInput()
+                .setAutocompleteState(AutocompleteInput.AutocompleteState.ENABLED);
+        mMediator.beginInput(session);
+
+        reset(mAutocompleteDelegate);
+        mMediator.setupSuggestionsListShowAnimation();
+
+        verify(mAutocompleteDelegate, times(1)).setKeyboardVisibility(eq(true), anyBoolean());
+    }
+
+    @Test
     public void onTopResumedActivityChanged_managesObservers() {
         var session = createEmptySession();
         mMediator.beginInput(session);
@@ -2138,6 +2386,22 @@ public class AutocompleteMediatorUnitTest {
 
         assertTrue(mMediator.triggerSiteSearch(SiteSearchActivationSource.SPACE));
         assertNotNull(session.getAutocompleteInput().getSiteSearchData());
+    }
+
+    @Test
+    @SmallTest
+    public void triggerSiteSearch_NoOpsInAiMode() {
+        FuseboxSessionState session = createEmptySession();
+        mMediator.beginInput(session);
+        session.getAutocompleteInput().setRequestType(AutocompleteRequestType.AI_MODE);
+
+        setUpSiteSearchSpaceTrigger(
+                /* keyword= */ "test",
+                /* shortName= */ "Test",
+                /* fullName= */ "Test Site",
+                /* userQuery= */ "abc");
+
+        assertFalse(mMediator.triggerSiteSearch(SiteSearchActivationSource.SPACE));
     }
 
     @Test
@@ -2282,5 +2546,145 @@ public class AutocompleteMediatorUnitTest {
         RobolectricUtil.runAllBackgroundAndUi();
 
         verify(mAutocompleteDelegate).setOmniboxEditingText("");
+    }
+
+    @Test
+    public void installAutocompleteObservers_failsWhenActivityNotFocused() {
+        // Create a new mediator with activity focus set to false.
+        doReturn(false).when(mActivity).hasWindowFocus();
+        AutocompleteMediator mediator =
+                new AutocompleteMediator(
+                        mContext,
+                        mAutocompleteDelegate,
+                        mTextStateProvider,
+                        mListModel,
+                        new Handler(),
+                        () -> mModalDialogManager,
+                        null,
+                        null,
+                        mLocationBarDataProvider,
+                        tabGroupId -> {},
+                        url -> false,
+                        mOmniboxActionDelegate,
+                        mActivityLifecycleDispatcher,
+                        mEmbedder,
+                        mWindowAndroid,
+                        mDeferredImeCallback,
+                        mFuseboxCoordinator,
+                        false);
+        mediator.getDropdownItemViewInfoListBuilderForTest()
+                .registerSuggestionProcessor(mMockProcessor);
+        mediator.getDropdownItemViewInfoListBuilderForTest()
+                .setHeaderProcessorForTest(mMockHeaderProcessor);
+
+        var session = createEmptySession();
+        mediator.beginInput(session);
+
+        // Verify that observers are NOT installed because activity is not focused.
+        verify(mAutocompleteController, never()).addOnSuggestionsReceivedListener(any());
+    }
+
+    @Test
+    @SmallTest
+    public void adjustGurlForRequestType_noInputSession_noUrlAdjustment() {
+        mMediator.adjustGurlForRequestType(JUnitTestGURLs.BLUE_1, "query", mGurlCallback);
+
+        verify(mGurlCallback).onResult(JUnitTestGURLs.BLUE_1);
+        verifyNoInteractions(mComposeboxQueryControllerBridge);
+    }
+
+    @Test
+    @SmallTest
+    public void adjustGurlForRequestType_conventionalRequest_noUrlAdjustment() {
+        mMediator.beginInput(createSession(AutocompleteRequestType.SEARCH));
+
+        mMediator.adjustGurlForRequestType(JUnitTestGURLs.BLUE_1, "query", mGurlCallback);
+
+        verify(mGurlCallback).onResult(JUnitTestGURLs.BLUE_1);
+        verifyNoInteractions(mComposeboxQueryControllerBridge);
+    }
+
+    @Test
+    @SmallTest
+    public void adjustGurlForRequestType_modelPickerAIM_getAimUrlFromInputState() {
+        OmniboxFeatures.sShowModelPicker.setForTesting(true);
+        mMediator.beginInput(createSession(AutocompleteRequestType.AI_MODE));
+
+        mMediator.adjustGurlForRequestType(JUnitTestGURLs.BLUE_1, "query", mGurlCallback);
+
+        verify(mComposeboxQueryControllerBridge)
+                .getAimUrlFromInputState(eq(JUnitTestGURLs.BLUE_1), eq("query"), eq(mGurlCallback));
+    }
+
+    @Test
+    @SmallTest
+    public void adjustGurlForRequestType_modelPickerImageGen_getAimUrlFromInputState() {
+        OmniboxFeatures.sShowModelPicker.setForTesting(true);
+        mMediator.beginInput(createSession(AutocompleteRequestType.IMAGE_GENERATION));
+
+        mMediator.adjustGurlForRequestType(JUnitTestGURLs.BLUE_1, "query", mGurlCallback);
+
+        verify(mComposeboxQueryControllerBridge)
+                .getAimUrlFromInputState(eq(JUnitTestGURLs.BLUE_1), eq("query"), eq(mGurlCallback));
+    }
+
+    @Test
+    @SmallTest
+    public void adjustGurlForRequestType_modelPickerCanvas_getAimUrlFromInputState() {
+        OmniboxFeatures.sShowModelPicker.setForTesting(true);
+        mMediator.beginInput(createSession(AutocompleteRequestType.CANVAS));
+
+        mMediator.adjustGurlForRequestType(JUnitTestGURLs.BLUE_1, "query", mGurlCallback);
+
+        verify(mComposeboxQueryControllerBridge)
+                .getAimUrlFromInputState(eq(JUnitTestGURLs.BLUE_1), eq("query"), eq(mGurlCallback));
+    }
+
+    @Test
+    @SmallTest
+    public void adjustGurlForRequestType_modelPickerDeepSearch_getAimUrlFromInputState() {
+        OmniboxFeatures.sShowModelPicker.setForTesting(true);
+        mMediator.beginInput(createSession(AutocompleteRequestType.DEEP_SEARCH));
+
+        mMediator.adjustGurlForRequestType(JUnitTestGURLs.BLUE_1, "query", mGurlCallback);
+
+        verify(mComposeboxQueryControllerBridge)
+                .getAimUrlFromInputState(eq(JUnitTestGURLs.BLUE_1), eq("query"), eq(mGurlCallback));
+    }
+
+    @Test
+    @SmallTest
+    public void adjustGurlForRequestType_noModelPicker_getAimUrl() {
+        OmniboxFeatures.sShowModelPicker.setForTesting(false);
+        mMediator.beginInput(createSession(AutocompleteRequestType.AI_MODE));
+
+        mMediator.adjustGurlForRequestType(JUnitTestGURLs.BLUE_1, "query", mGurlCallback);
+
+        verify(mComposeboxQueryControllerBridge)
+                .getAimUrl(eq(JUnitTestGURLs.BLUE_1), eq("query"), eq(mGurlCallback));
+    }
+
+    @Test
+    @SmallTest
+    public void adjustGurlForRequestType_noModelPicker_getImageGenerationUrl() {
+        OmniboxFeatures.sShowModelPicker.setForTesting(false);
+        mMediator.beginInput(createSession(AutocompleteRequestType.IMAGE_GENERATION));
+
+        mMediator.adjustGurlForRequestType(JUnitTestGURLs.BLUE_1, "query", mGurlCallback);
+
+        verify(mComposeboxQueryControllerBridge)
+                .getImageGenerationUrl(eq(JUnitTestGURLs.BLUE_1), eq("query"), eq(mGurlCallback));
+    }
+
+    @Test
+    @SmallTest
+    public void adjustGurlForRequestType_noModelPickerDeepSearch_noUrlAdjustment() {
+        OmniboxFeatures.sShowModelPicker.setForTesting(false);
+        mMediator.beginInput(createSession(AutocompleteRequestType.DEEP_SEARCH));
+
+        mMediator.adjustGurlForRequestType(JUnitTestGURLs.BLUE_1, "query", mGurlCallback);
+
+        verify(mGurlCallback).onResult(JUnitTestGURLs.BLUE_1);
+        verifyNoInteractions(mComposeboxQueryControllerBridge);
     }
 }

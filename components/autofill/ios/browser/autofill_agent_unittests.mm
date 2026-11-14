@@ -194,7 +194,7 @@ class AutofillAgentTests : public web::WebTest {
   // frames.
   std::unique_ptr<autofill::TestAutofillClientIOS> client_;
   web::FakeWebState fake_web_state_;
-  raw_ptr<web::FakeWebFrame, DanglingUntriaged> fake_main_frame_ = nullptr;
+  raw_ptr<web::FakeWebFrame> fake_main_frame_ = nullptr;
   raw_ptr<web::FakeWebFramesManager> fake_web_frames_manager_ = nullptr;
   AutofillAgent* autofill_agent_;
   autofill::MockPasswordAutofillAgentDelegate delegate_mock_;
@@ -659,7 +659,7 @@ TEST_F(AutofillAgentTests, onSuggestionsReady_ClearForm) {
       autofill::Suggestion(u"", u"", autofill::Suggestion::Icon::kNoIcon,
                            autofill::SuggestionType::kAddressEntry));
   autofillSuggestions.push_back(
-      autofill::Suggestion(u"", u"", autofill::Suggestion::Icon::kNoIcon,
+      autofill::Suggestion(u"", u"", autofill::Suggestion::Icon::kClear,
                            SuggestionType::kUndoOrClear));
   [autofill_agent_
        showAutofillPopup:autofillSuggestions
@@ -718,7 +718,7 @@ TEST_F(AutofillAgentTests, onSuggestionsReady_ClearFormWithGPay) {
       autofill::Suggestion(u"", u"", autofill::Suggestion::Icon::kNoIcon,
                            autofill::SuggestionType::kCreditCardEntry));
   autofillSuggestions.push_back(
-      autofill::Suggestion(u"", u"", autofill::Suggestion::Icon::kNoIcon,
+      autofill::Suggestion(u"", u"", autofill::Suggestion::Icon::kClear,
                            SuggestionType::kUndoOrClear));
   [autofill_agent_
        showAutofillPopup:autofillSuggestions
@@ -775,7 +775,9 @@ class AutofillAgentTestFrameInitializationOrderFrames
 
   void SetUp() override {
     AutofillAgentTests::SetUp();
-    RemoveWebFrame(fake_main_frame_->GetFrameId());
+    std::string frame_id = fake_main_frame_->GetFrameId();
+    fake_main_frame_ = nullptr;
+    RemoveWebFrame(frame_id);
   }
 };
 
@@ -1026,6 +1028,9 @@ TEST_F(AutofillAgentTests, DidSelectSuggestion_AutocompleteEntry) {
 }
 
 TEST_F(AutofillAgentTests, DidSelectSuggestion_ClearFormEntry) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(kAutofillUndoIos);
+
   FormRendererId form_id(1);
   FieldRendererId field1_id(2);
   FieldRendererId field2_id(3);

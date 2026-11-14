@@ -1259,26 +1259,28 @@ void AudioRtpSender::SetSend() {
   if (stopped_) {
     return;
   }
-  AudioOptions options;
-#if !defined(WEBRTC_CHROMIUM_BUILD) && !defined(WEBRTC_WEBKIT_BUILD)
-  // TODO(tommi): Remove this hack when we move CreateAudioSource out of
-  // PeerConnection.  This is a bit of a strange way to apply local audio
-  // options since it is also applied to all streams/channels, local or remote.
-  if (track_->enabled() && audio_track()->GetSource() &&
-      !audio_track()->GetSource()->remote()) {
-    options = audio_track()->GetSource()->options();
-  }
-#endif
-
   // `track_->enabled()` hops to the signaling thread, so call it before we hop
   // to the worker thread or else it will deadlock.
   bool track_enabled = track_->enabled();
+  const AudioOptions* options_ptr = nullptr;
+#if !defined(WEBRTC_CHROMIUM_BUILD) && !defined(WEBRTC_WEBKIT_BUILD)
+  // Stored source options (AEC, AGC, etc.) are already applied at the engine
+  // level during CreateAudioSource. However, deferred stream-level options
+  // (e.g., audio_network_adaptor, init_recording_on_send) are ignored by global
+  // engine initialization and must be explicitly applied to the channel here.
+  AudioOptions options;
+  if (track_enabled && audio_track()->GetSource() &&
+      !audio_track()->GetSource()->remote()) {
+    options = audio_track()->GetSource()->options();
+    options_ptr = &options;
+  }
+#endif
   InvalidateCache();
   bool success = worker_thread_->BlockingCall([&, ssrc = ssrc_] {
     RTC_DCHECK_RUN_ON(worker_thread_);
     return media_channel_
                ? voice_media_channel()->SetAudioSend(
-                     ssrc, track_enabled, &options, sink_adapter_.get())
+                     ssrc, track_enabled, options_ptr, sink_adapter_.get())
                : false;
   });
   if (!success) {
@@ -1298,8 +1300,7 @@ void AudioRtpSender::ClearSend() {
 
 void AudioRtpSender::ClearSend_w(uint32_t ssrc) {
   if (media_channel_) {
-    AudioOptions options;
-    voice_media_channel()->SetAudioSend(ssrc, false, &options, nullptr);
+    voice_media_channel()->SetAudioSend(ssrc, false, nullptr, nullptr);
   }
 }
 

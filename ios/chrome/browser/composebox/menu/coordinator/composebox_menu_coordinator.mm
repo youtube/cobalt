@@ -22,6 +22,7 @@
 #import "ios/chrome/browser/composebox/public/composebox_attachment_selection.h"
 #import "ios/chrome/browser/composebox/public/composebox_focus_params.h"
 #import "ios/chrome/browser/composebox/shared/coordinator/composebox_attachment_diff.h"
+#import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_drive_result.h"
 #import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_presenter.h"
 #import "ios/chrome/browser/composebox/shared/metrics/composebox_metrics_recorder.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_input_state.h"
@@ -364,6 +365,11 @@ CGFloat const kSheetTopPadding = 40.0f;
   [_pickerPresenter presentTabPicker];
 }
 
+- (void)composeboxMenuMediatorDidRequestDriveFileSelection:
+    (ComposeboxMenuMediator*)mediator {
+  [_pickerPresenter presentDriveFilePicker];
+}
+
 #pragma mark - ComposeboxPickerPresenterDelegate
 
 - (void)composeboxPickerPresenter:(ComposeboxPickerPresenter*)presenter
@@ -402,6 +408,13 @@ CGFloat const kSheetTopPadding = 40.0f;
 
   [_mediator processWebStateIDs:selectedWebStateIDs
               cachedWebStateIDs:cachedWebStateIDs];
+}
+
+- (void)composeboxPickerPresenter:(ComposeboxPickerPresenter*)presenter
+                didPickDriveItems:
+                    (NSArray<ComposeboxPickerDriveResult*>*)results {
+  // TODO(crbug.com/515377633): Record metrics for Drive files.
+  [_mediator processDriveItems:results];
 }
 
 #pragma mark - ComposeboxPickerPresenterDataSource

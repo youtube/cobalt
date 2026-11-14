@@ -19,25 +19,21 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
   - **Ensure Non-Interactive Behavior**: When committing, amending, or uploading
     (e.g., `git cl upload`), prefix the command with `EDITOR=cat` (e.g.,
     `EDITOR=cat git cl upload`) if there is a risk of an editor opening.
-  - Provide a descriptive patch message:
-    `git cl upload -t "Brief description of what changed"`.
-  - **Initial Upload**: On the first upload of a new CL, use
-    `git cl upload --commit-description=+` to set the description from the
-    commit message.
-  - **Subsequent Uploads**: On subsequent uploads (new patchsets), always use
-    `-t` to provide a patchset message that very briefly summarizes the
-    differences since the last patchset (e.g.,
-    `git cl upload -t "Address review comments"`). **NEVER** use
-    `--commit-description=+` or `git cl desc -n` by default, as it will blindly
-    overwrite the user's manual Gerrit Web UI description edits and severely
-    annoy them. Omit description-modifying flags entirely on subsequent uploads
-    unless intentionally updating a stale description.
+  - **Upload Script**: All uploads MUST be performed using
+    `agents/scripts/upload_cl.sh <new|cur> <check|nocheck> [patchset_message]`.
+    This script helps to manage the upload.
+  - **Initial Upload**: For a new CL without an existing issue association,
+    execute `agents/scripts/upload_cl.sh new check`.
+  - **Subsequent Uploads**: For updating an existing patchset, run
+    `agents/scripts/upload_cl.sh cur check "Brief patchset description"`.
+  - **Checks**: The "check" flag runs all mjsunit tests. When no code was
+    updated, or tests were already successfully ran, "nocheck" can be passed.
   - **Updating Description**: If the changes in a new patchset make the existing
     CL description **out-of-date** or inaccurate, you **MUST** explicitly update
     it by passing `--commit-description="New cohesive description content"`.
     **⚠️ CRITICAL SAFETY CONSTRAINT**: Before passing `--commit-description` or
     updating it on a subsequent upload, you must first inspect the live remote
-    description on Gerrit (using either `git cl desc` or the
+    description on Gerrit (using either `git cl desc -d` or the
     `gerrit_get_change_details` MCP tool) to verify whether the user has
     manually edited it. If manual user edits or refinements are detected, you
     must carefully evaluate them: preserve any human-authored background
@@ -45,11 +41,16 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
     outdated technical statements resulting from the new patchset.
   - Verify `git diff` is not empty before uploading.
 - **Safeguards & Code Quality**:
+  - **Mandatory Reproducer Rule**: Before running `git cl upload`, you MUST
+    verify that the diff contains a valid, working regression test (typically
+    under `test/mjsunit/` or its component-specific subfolders like `compiler/`,
+    `turboshaft/`, `maglev/`, etc.). Uploading code-modifying CLs without an
+    accompanying regression test is strictly forbidden (unless explicitly waived
+    by the user or if it's a process-only/documentation change).
   - **No Trailing Whitespace**: NEVER add trailing whitespace in any file you
     create or modify.
   - **Always Test Before Upload**: Always run tests (at least in release mode)
-    before uploading, unless conditional testing (e.g., via `gm.py` or
-    `check_and_test.sh`) indicates that it is unnecessary.
+    before uploading.
   - **ALWAYS keep CLs separate**: If you are working on more than one task at
     the same time always use `agents/scripts/create_worktree.sh <task_id>` to
     create an isolated workspace for each independent task or CL. Worktrees are
@@ -111,4 +112,5 @@ When working on a chain of dependent changes (stacked CLs):
 - Use `git cl patch <CL_NUMBER>` to fetch and checkout the latest patchset of a
   CL.
 - Use `git cl land` to land the CL after approval.
-- Use `git cl desc` to view or edit the CL description.
+- Use `git cl desc -d` to view the CL description.
+- Use `git cl desc -n` to write a new CL description.

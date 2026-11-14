@@ -19,7 +19,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/webid/identity_request_account.h"
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/client_security_state.mojom-forward.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
@@ -320,7 +319,6 @@ class CONTENT_EXPORT IdpNetworkRequestManager : public NetworkRequestManager {
   // whether a network request is sent to fetch accounts.
   virtual bool SendAccountsRequest(const url::Origin& idp_origin,
                                    const GURL& accounts_url,
-                                   const std::string& client_id,
                                    AccountsRequestCallback callback);
 
   // Request a new token for this user account and RP from the IDP.

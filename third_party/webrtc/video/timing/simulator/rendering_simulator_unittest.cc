@@ -90,8 +90,8 @@ TEST(RenderingSimulatorFrameTest, BufferDurationsAndMarginsForDelayedFrame) {
   EXPECT_THAT(frame.AssembledMarginExcess(), Eq(std::nullopt));
   EXPECT_THAT(frame.AssembledMarginDeficit(), Optional(TimeDelta::Millis(-2)));
   EXPECT_THAT(frame.RenderedMargin(), Eq(TimeDelta::Millis(-2)));
-  EXPECT_THAT(frame.AssembledInTime(), Optional(false));
-  EXPECT_THAT(frame.AssembledLate(), Optional(true));
+  EXPECT_THAT(frame.RenderedInTime(), Optional(false));
+  EXPECT_THAT(frame.RenderedLate(), Optional(true));
   EXPECT_THAT(frame.RenderedMarginExcess(), Eq(std::nullopt));
   EXPECT_THAT(frame.RenderedMarginDeficit(), Optional(TimeDelta::Millis(-2)));
 }
@@ -109,9 +109,9 @@ TEST(RenderingSimulatorFrameTest,
             Timestamp::Millis(10) + RenderingSimulator::kRenderDelay);
 
   // Margins.
-  EXPECT_EQ(frame.AssembledMargin(), TimeDelta::Micros(-499));
+  EXPECT_EQ(frame.AssembledMargin(), TimeDelta::Zero());
   EXPECT_TRUE(frame.AssembledInTime());
-  EXPECT_EQ(frame.RenderedMargin(), TimeDelta::Micros(-499));
+  EXPECT_EQ(frame.RenderedMargin(), TimeDelta::Zero());
   EXPECT_TRUE(frame.RenderedInTime());
 }
 
@@ -128,9 +128,9 @@ TEST(RenderingSimulatorFrameTest,
             Timestamp::Millis(11) + RenderingSimulator::kRenderDelay);
 
   // Margins.
-  EXPECT_EQ(frame.AssembledMargin(), TimeDelta::Micros(500));
+  EXPECT_EQ(frame.AssembledMargin(), TimeDelta::Zero());
   EXPECT_TRUE(frame.AssembledInTime());
-  EXPECT_EQ(frame.RenderedMargin(), TimeDelta::Micros(500));
+  EXPECT_EQ(frame.RenderedMargin(), TimeDelta::Zero());
   EXPECT_TRUE(frame.RenderedInTime());
 }
 

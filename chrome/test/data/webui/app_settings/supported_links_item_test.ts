@@ -8,9 +8,9 @@ import 'chrome://app-settings/supported_links_item.js';
 import type {SupportedLinksItemElement} from 'chrome://app-settings/supported_links_item.js';
 import type {App} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
 import {AppType, WindowMode} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
-import {BrowserProxy} from 'chrome://resources/cr_components/app_management/browser_proxy.js';
 import type {AppMap} from 'chrome://resources/cr_components/app_management/constants.js';
 import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrRadioButtonElement} from 'chrome://resources/cr_elements/cr_radio_button/cr_radio_button.js';
 import type {CrRadioGroupElement} from 'chrome://resources/cr_elements/cr_radio_group/cr_radio_group.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -18,18 +18,16 @@ import {assertEquals, assertFalse, assertNull, assertTrue} from 'chrome://webui-
 import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import type {AppConfig} from './app_management_test_support.js';
-import {createTestApp, TestAppManagementBrowserProxy} from './app_management_test_support.js';
+import {createTestApp, setupMockHandler} from './app_management_test_support.js';
 
 suite('SupportedLinksItemElement', function() {
   let supportedLinksItem: SupportedLinksItemElement;
-  let testProxy: TestAppManagementBrowserProxy;
   let apps: AppMap;
 
   setup(function() {
     apps = {};
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    testProxy = new TestAppManagementBrowserProxy();
-    BrowserProxy.setInstance(testProxy);
+    setupMockHandler();
 
     loadTimeData.resetForTesting({
       cancel: 'Cancel',
@@ -39,9 +37,10 @@ suite('SupportedLinksItemElement', function() {
       appManagementIntentOverlapDialogTitle: 'Change as preferred app',
       appManagementIntentOverlapChangeButton: 'Change',
       appManagementIntentSharingOpenBrowserLabel: 'Open in Chrome browser',
-      appManagementIntentSharingOpenAppLabel: 'Open in App',
+      appManagementIntentSharingOpenAppLabel: 'Open in $1 App',
       appManagementIntentSharingTabExplanation:
           'App is set to open in a new browser tab, supported links will also open in the browser.',
+      updateAppStringsOnSettingsEnabled: false,
     });
   });
 
@@ -133,5 +132,63 @@ suite('SupportedLinksItemElement', function() {
     supportedLinksDialog =
         supportedLinksItem.shadowRoot.querySelector<CrLitElement>('#dialog');
     assertNull(supportedLinksDialog);
+  });
+
+  test(
+      'supports focus-existing / navigate-existing custom labels when feature enabled',
+      async () => {
+        loadTimeData.overrideValues({
+          updateAppStringsOnSettingsEnabled: true,
+          appManagementIntentSharingOpenExistingTabLabel:
+              'Open in an existing $1 tab',
+          appManagementIntentSharingOpenNewTabLabel:
+              'Open in a new browser tab',
+        });
+
+        const appOptions = {
+          type: AppType.kWeb,
+          isPreferredApp: true,
+          windowMode: WindowMode.kBrowser,
+          disableUserChoiceNavigationCapturing: false,
+          supportedLinks: ['google.com'],
+          title: 'MyApp',
+        };
+
+        await setUpSupportedLinksComponent('app1', appOptions);
+
+        const preferredRadio =
+            supportedLinksItem.shadowRoot.querySelector<CrRadioButtonElement>(
+                '#preferredRadioButton');
+        assertTrue(!!preferredRadio);
+        assertEquals('Open in an existing MyApp tab', preferredRadio.label);
+
+        const browserRadio =
+            supportedLinksItem.shadowRoot.querySelector<CrRadioButtonElement>(
+                '#browserRadioButton');
+        assertTrue(!!browserRadio);
+        assertEquals('Open in a new browser tab', browserRadio.label);
+      });
+
+  test('fallback to default labels when feature disabled', async () => {
+    loadTimeData.overrideValues({
+      updateAppStringsOnSettingsEnabled: false,
+    });
+
+    const appOptions = {
+      type: AppType.kWeb,
+      isPreferredApp: true,
+      windowMode: WindowMode.kBrowser,
+      disableUserChoiceNavigationCapturing: false,
+      supportedLinks: ['google.com'],
+      title: 'MyApp',
+    };
+
+    await setUpSupportedLinksComponent('app1', appOptions);
+
+    const preferredRadio =
+        supportedLinksItem.shadowRoot.querySelector<CrRadioButtonElement>(
+            '#preferredRadioButton');
+    assertTrue(!!preferredRadio);
+    assertEquals('Open in MyApp App', preferredRadio.label);
   });
 });

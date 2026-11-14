@@ -11,22 +11,25 @@ import {TestPdfViewerPrivateProxy} from './test_pdf_viewer_private_proxy.js';
 import {assertDeepEquals, setUpInkTestContext} from './test_util.js';
 import type {MockPdfPluginElement} from './test_util.js';
 
-export function setupTextBoxTest() {
+export async function setupTextBoxTest() {
+  Ink2Manager.setInstance(null);
   const {viewport, mockPlugin} = setUpInkTestContext();
   const privateProxy = new TestPdfViewerPrivateProxy();
   PdfViewerPrivateProxyImpl.setInstance(privateProxy);
   const manager = Ink2Manager.getInstance();
-  manager.initializeTextAnnotations();
+  await manager.initializeTextAnnotations();
   const textbox = document.createElement('ink-text-box');
   document.body.appendChild(textbox);
   return {viewport, mockPlugin, privateProxy, manager, textbox};
 }
 
-export function getTestAnnotation(textBoxRect: TextBoxRect): TextAnnotation {
+export function getTestAnnotation(
+    textBoxRect: TextBoxRect, pdfZoom: number = 1.0): TextAnnotation {
   return {
     id: 0,
     mojoTextInfo: new ArrayBuffer(0),
     pageIndex: 0,
+    pdfZoom,
     text: 'Hello World',
     textAttributes: {
       alignment: TextAlignment.LEFT,
@@ -133,7 +136,7 @@ export async function dragHandleWithKeyboard(
 
 export function verifyFinishTextAnnotationMessage(
     mockPlugin: MockPdfPluginElement, expectedAnnotation: TextAnnotation,
-    expectedIsEdited: boolean, expectedPdfZoom: number = 1.0) {
+    expectedIsEdited: boolean) {
   const message =
       mockPlugin.findMessage<{type: string, data: TextAnnotationMessageData}>(
           'finishTextAnnotation');
@@ -143,7 +146,6 @@ export function verifyFinishTextAnnotationMessage(
     ...expectedAnnotation,
     isEdited: expectedIsEdited,
     newTypefaces: [],
-    pdfZoom: expectedPdfZoom,
     source: TextAnnotationSource.USER,
   };
   assertDeepEquals(expectedMessageData, message.data);

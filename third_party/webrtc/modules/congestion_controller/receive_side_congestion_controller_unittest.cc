@@ -17,6 +17,7 @@
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/media_types.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/test/network_emulation/create_cross_traffic.h"
 #include "api/test/network_emulation/cross_traffic.h"
@@ -63,7 +64,7 @@ TEST(ReceiveSideCongestionControllerTest, SendsRembWithAbsSendTime) {
                                              remb_sender.AsStdFunction());
 
   RtpHeaderExtensionMap extensions;
-  extensions.Register<AbsoluteSendTime>(1);
+  extensions.Register<AbsoluteSendTime>(RtpHeaderExtensionId(1));
   RtpPacketReceived packet(&extensions);
   packet.SetSsrc(0x11eb21c);
   packet.ReserveExtension<AbsoluteSendTime>();
@@ -191,7 +192,7 @@ TEST(ReceiveSideCongestionControllerTest,
   EXPECT_CALL(remb_sender, Call).Times(0);
 
   RtpHeaderExtensionMap extensions;
-  extensions.Register<TransportSequenceNumber>(1);
+  extensions.Register<TransportSequenceNumber>(RtpHeaderExtensionId(1));
   RtpPacketReceived packet(&extensions);
   packet.set_arrival_time(clock.CurrentTime());
   packet.SetExtension<TransportSequenceNumber>(123);

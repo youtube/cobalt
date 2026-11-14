@@ -85,7 +85,6 @@ RenderingTracker::RenderingTracker(const Environment& env,
   RTC_DCHECK(config.render_delay.IsFinite());
   // Setup.
   ResetVideoStreamBufferControllerObserverStats();
-  video_timing_->set_render_delay(config_.render_delay);
   video_stream_buffer_controller_.StartNextDecode(/*keyframe_required=*/true);
 }
 

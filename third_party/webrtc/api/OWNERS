@@ -18,6 +18,16 @@ per-file webrtc_sdp.cc = set noparent
 per-file webrtc_sdp.cc = hta@webrtc.org
 per-file webrtc_sdp.cc = hbos@webrtc.org
 per-file webrtc_sdp.cc = eshr@webrtc.org
-# If none of the above are present, may also try one of these
-per-file webrtc_sdp.cc = tommi@webrtc.org
-per-file webrtc_sdp.cc = guidou@webrtc.org
+# If none of the above are present
+per-file webrtc_sdp.cc = file:/OWNERS
+
+# Note: specs for stats are in https://w3c.github.io/webrtc-stats/ and
+# https://w3c.github.io/webrtc-provisional-stats/. Any change to stats
+# should land there first, before being proposed here. Review by one of
+# the listed owners is strongly recommended.
+per-file stats/rtcstats_objects.h = set noparent
+per-file stats/rtcstats_objects.h = hta@webrtc.org
+per-file stats/rtcstats_objects.h = hbos@webrtc.org
+per-file stats/rtcstats_objects.h = eshr@webrtc.org
+# If none of the above are present
+per-file stats/rtcstats_objects.h = file:/OWNERS

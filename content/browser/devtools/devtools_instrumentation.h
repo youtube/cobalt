@@ -30,6 +30,10 @@
 #include "net/cookies/cookie_setting_override.h"
 #include "net/filter/source_stream_type.h"
 #include "net/http/http_request_headers.h"
+<<<<<<< HEAD
+#include "services/network/public/cpp/headers_matcher.h"
+=======
+>>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/cookie_manager.mojom-forward.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
@@ -96,7 +100,6 @@ class SignedExchangeEnvelope;
 class StoragePartition;
 class WebContents;
 struct DropData;
-struct PrerenderMismatchedHeaders;
 struct SignedExchangeError;
 
 namespace protocol::Audits {
@@ -361,7 +364,8 @@ void DidUpdatePrerenderStatus(
     PreloadingTriggeringOutcome status,
     std::optional<PrerenderFinalStatus> prerender_status,
     std::optional<std::string> disallowed_mojo_interface,
-    const std::vector<PrerenderMismatchedHeaders>* mismatched_headers);
+    const std::vector<network::MismatchedHttpRequestHeader>*
+        mismatched_headers);
 
 void OnSignedExchangeReceived(
     FrameTreeNode* frame_tree_node,

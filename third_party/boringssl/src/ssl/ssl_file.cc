@@ -35,16 +35,16 @@ static int xname_cmp(const X509_NAME *const *a, const X509_NAME *const *b) {
 
 static int add_bio_cert_subjects_to_stack(STACK_OF(X509_NAME) *out, BIO *bio,
                                           bool allow_empty) {
-  // This function historically sorted |out| after every addition and skipped
+  // This function historically sorted `out` after every addition and skipped
   // duplicates. This implementation preserves that behavior, but only sorts at
-  // the end, to avoid a quadratic running time. Existing duplicates in |out|
+  // the end, to avoid a quadratic running time. Existing duplicates in `out`
   // are preserved, but do not introduce new duplicates.
   UniquePtr<STACK_OF(X509_NAME)> to_append(sk_X509_NAME_new(xname_cmp));
   if (to_append == nullptr) {
     return 0;
   }
 
-  // Temporarily switch the comparison function for |out|.
+  // Temporarily switch the comparison function for `out`.
   struct RestoreCmpFunc {
     ~RestoreCmpFunc() { sk_X509_NAME_set_cmp_func(stack, old_cmp); }
     STACK_OF(X509_NAME) *stack;
@@ -61,14 +61,14 @@ static int add_bio_cert_subjects_to_stack(STACK_OF(X509_NAME) *out, BIO *bio,
         return 0;
       }
       // TODO(davidben): This ignores PEM syntax errors. It should only succeed
-      // on |PEM_R_NO_START_LINE|.
+      // on `PEM_R_NO_START_LINE`.
       ERR_clear_error();
       break;
     }
     first = false;
 
     X509_NAME *subject = X509_get_subject_name(x509.get());
-    // Skip if already present in |out|. Duplicates in |to_append| will be
+    // Skip if already present in `out`. Duplicates in `to_append` will be
     // handled separately.
     if (sk_X509_NAME_find(out, /*out_index=*/nullptr, subject)) {
       continue;
@@ -80,7 +80,7 @@ static int add_bio_cert_subjects_to_stack(STACK_OF(X509_NAME) *out, BIO *bio,
     }
   }
 
-  // Append |to_append| to |stack|, skipping any duplicates.
+  // Append `to_append` to `stack`, skipping any duplicates.
   sk_X509_NAME_sort(to_append.get());
   size_t num = sk_X509_NAME_num(to_append.get());
   for (size_t i = 0; i < num; i++) {
@@ -96,7 +96,7 @@ static int add_bio_cert_subjects_to_stack(STACK_OF(X509_NAME) *out, BIO *bio,
     }
   }
 
-  // Sort |out| one last time, to preserve the historical behavior of
+  // Sort `out` one last time, to preserve the historical behavior of
   // maintaining the sorted list.
   sk_X509_NAME_sort(out);
   return 1;

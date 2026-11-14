@@ -37,7 +37,7 @@
 
 using namespace bssl;
 
-// X509_NAME_MAX is the length of the maximum encoded |X509_NAME| we accept.
+// X509_NAME_MAX is the length of the maximum encoded `X509_NAME` we accept.
 #define X509_NAME_MAX (1024 * 1024)
 
 static int asn1_marshal_string_canon(CBB *cbb, const ASN1_STRING *in);
@@ -239,7 +239,7 @@ const X509_NAME_CACHE *bssl::x509_name_get_cache(const X509_NAME *name) {
 
   X509_NAME_CACHE *expected = nullptr;
   if (impl->cache.compare_exchange_strong(expected, new_cache.get())) {
-    // We won the race. |impl| now owns |new_cache|.
+    // We won the race. `impl` now owns `new_cache`.
     return new_cache.release();
   }
 
@@ -268,7 +268,7 @@ int bssl::x509_name_copy(X509_NAME *dst, const X509_NAME *src) {
     return 0;
   }
   // Callers sometimes try to set a name back to itself. We check this after
-  // |x509_name_get_cache| because, if |src| was so broken that it could not be
+  // `x509_name_get_cache` because, if `src` was so broken that it could not be
   // serialized, we used to return an error. (It's not clear if this codepath is
   // even possible.)
   if (dst == src) {

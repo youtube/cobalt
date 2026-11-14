@@ -199,7 +199,8 @@ class DedicatedWebTransportHttp3ClientSession
                                     supported_versions,
                                     connection,
                                     server_id,
-                                    crypto_config),
+                                    crypto_config,
+                                    quic::QuicPriorityType::kWebTransport),
         client_(client) {}
 
   bool OnSettingsFrame(const quic::SettingsFrame& frame) override {
@@ -394,6 +395,10 @@ DedicatedWebTransportHttp3Client::DedicatedWebTransportHttp3Client(
       target_network_(target_network),
       application_protocols_(parameters.application_protocols),
       congestion_control_hint_(parameters.congestion_control_hint),
+      anticipated_concurrent_incoming_unidirectional_streams_(
+          parameters.anticipated_concurrent_incoming_unidirectional_streams),
+      anticipated_concurrent_incoming_bidirectional_streams_(
+          parameters.anticipated_concurrent_incoming_bidirectional_streams),
       context_(context),
       visitor_(visitor),
       quic_context_(context->quic_context()),
@@ -597,7 +602,8 @@ int DedicatedWebTransportHttp3Client::DoResolveHost() {
   next_connect_state_ = CONNECT_STATE_RESOLVE_HOST_COMPLETE;
   HostResolver::ResolveHostParameters parameters;
   resolve_host_request_ = context_->host_resolver()->CreateRequest(
-      url::SchemeHostPort(url_), anonymization_key_, net_log_, std::nullopt);
+      url::SchemeHostPort(url_), anonymization_key_, target_network_, net_log_,
+      std::nullopt);
   return resolve_host_request_->Start(base::BindOnce(
       &DedicatedWebTransportHttp3Client::DoLoop, base::Unretained(this)));
 }
@@ -695,6 +701,15 @@ void DedicatedWebTransportHttp3Client::CreateConnection() {
   connection_->set_debug_visitor(event_logger_.get());
   connection_->set_creator_debug_delegate(event_logger_.get());
   AdjustSendAlgorithm(*connection_, congestion_control_hint_);
+
+  if (anticipated_concurrent_incoming_unidirectional_streams_.has_value()) {
+    session_->config()->SetMaxUnidirectionalStreamsToSend(
+        *anticipated_concurrent_incoming_unidirectional_streams_);
+  }
+  if (anticipated_concurrent_incoming_bidirectional_streams_.has_value()) {
+    session_->config()->SetMaxBidirectionalStreamsToSend(
+        *anticipated_concurrent_incoming_bidirectional_streams_);
+  }
 
   session_->Initialize();
   packet_reader_->StartReading();

@@ -677,6 +677,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
 
   void SmiUntag(Register reg) { SmiUntag(reg, reg); }
+
+  void SmiUntagUnsigned(Register dst, const MemOperand& src);
+
+  void SmiUntagUnsigned(Register dst, Register src) {
+    if (SmiValuesAre32Bits()) {
+      srli_d(dst, src, kSmiShift);
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      srli_w(dst, src, kSmiShift);
+    }
+  }
+  void SmiUntagUnsigned(Register reg) { SmiUntagUnsigned(reg, reg); }
+
   // Convert smi to 32-bit value.
   void SmiToInt32(Register smi);
   void SmiToInt32(Register dst, Register smi);
@@ -1407,6 +1420,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);
+  void SmiUntagFieldUnsigned(Register dst, const MemOperand& src);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
@@ -1453,21 +1467,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                  Trapper&& trapper = [](int){});
 
 #ifdef V8_ENABLE_SANDBOX
-  // Retrieve the heap object referenced by the given indirect pointer handle,
-  // which can either be a trusted pointer handle or a code pointer handle.
+  // Retrieve the heap object referenced by the given indirect pointer handle.
   void ResolveIndirectPointerHandle(Register destination, Register handle,
                                     IndirectPointerTagRange tag_range);
-
-  // Retrieve the heap object referenced by the given trusted pointer handle.
-  void ResolveTrustedPointerHandle(Register destination, Register handle,
-                                   IndirectPointerTagRange tag_range);
-  // Retrieve the Code object referenced by the given code pointer handle.
-  void ResolveCodePointerHandle(Register destination, Register handle);
-
-  // Load the value of Code pointer table corresponding to
-  // IsolateGroup::current()->code_pointer_table_.
-  // Only available when the sandbox is enabled.
-  void LoadCodePointerTableBase(Register destination);
 #endif
 
   void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src,

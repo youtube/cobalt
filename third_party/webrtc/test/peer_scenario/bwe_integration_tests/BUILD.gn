@@ -9,7 +9,7 @@
 import("../../../webrtc.gni")
 
 if (rtc_include_tests) {
-  rtc_library("bwe_integration_tests") {
+  rtc_cc_test("bwe_integration_tests") {
     testonly = true
     sources = []
 

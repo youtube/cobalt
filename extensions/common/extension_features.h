@@ -81,6 +81,8 @@ BASE_DECLARE_FEATURE(kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered);
 
 // Controls the availability of Glic access from Google webpages.
 BASE_DECLARE_FEATURE(kApiGlicAccessFromGoogleWebpage);
+// Controls the availability of Glic access from Chrome promotion pages.
+BASE_DECLARE_FEATURE(kApiGlicAccessFromPromotionPage);
 extern const base::FeatureParam<std::string> kProdPromptEndpointUrlParam;
 extern const base::FeatureParam<std::string> kGlicInvokeApiOAuth2ScopeParam;
 extern const base::FeatureParam<bool> kGlicRequireConsentForInvokeParam;
@@ -155,22 +157,11 @@ BASE_DECLARE_FEATURE(kExtensionLocalizationGuid);
 // A replacement key for declaring icons, in addition to supporting dark mode.
 BASE_DECLARE_FEATURE(kExtensionIconVariants);
 
-// Controls fully removing support for user-installed MV2 extensions.
-// Users may no longer re-enable these extensions. Enterprises may still
-// override this.
-BASE_DECLARE_FEATURE(kExtensionManifestV2Unsupported);
-
-// Allows server-side configuration of a temporary exception list.
-BASE_DECLARE_FEATURE(kExtensionManifestV2ExceptionList);
-extern const base::FeatureParam<std::string>
-    kExtensionManifestV2ExceptionListParam;
-
 // A feature to allow legacy MV2 extensions, even if they are not supported by
 // the browser or experiment configuration. This is important to allow
 // developers of MV2 extensions to continue loading, running, and testing their
 // extensions for as long as MV2 is supported in any variant.
-// This will be removed once the ExtensionManifestV2Availability enterprise
-// policy is no longer supported.
+// TODO(https://crbug.com/431097630): Remove this feature.
 BASE_DECLARE_FEATURE(kAllowLegacyMV2Extensions);
 
 // If enabled, allows an extension to specify protocol_handlers keys in the
@@ -184,13 +175,6 @@ BASE_DECLARE_FEATURE(kExtensionProtocolHandlers);
 // Enables extension support for the "tab" context menu, allowing extensions
 // to add custom items when right-clicking a tab.
 BASE_DECLARE_FEATURE(kExtensionTabContextMenu);
-
-// If enabled, only manifest v3 extensions is allowed while v2 will be disabled.
-// Note that this feature is now only checked by `ExtensionManagement` which
-// represents enterprise extension configurations. Flip the feature will block
-// mv2 extension by default but the error messages will improperly mention
-// enterprise policy.
-BASE_DECLARE_FEATURE(kExtensionsManifestV3Only);
 
 // Enables enhanced site control for extensions and allowing the user to control
 // site permissions.

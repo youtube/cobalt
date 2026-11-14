@@ -98,7 +98,7 @@ class ECKeyShare : public SSLKeyShare {
       return false;
     }
 
-    // Compute the x-coordinate of |peer_key| * |private_key_|.
+    // Compute the x-coordinate of `peer_key` * `private_key_`.
     if (!EC_POINT_mul(group_, result.get(), nullptr, peer_point.get(),
                       private_key_.get(), /*ctx=*/nullptr) ||
         !EC_POINT_get_affine_coordinates_GFp(group_, result.get(), x.get(),

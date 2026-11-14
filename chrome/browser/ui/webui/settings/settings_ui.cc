@@ -623,6 +623,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
        base::FeatureList::IsEnabled(contextual_cueing::kContextualCueingV2)},
       {"showSkillsSettingPage",
        base::FeatureList::IsEnabled(features::kSkillsEnabled)},
+      {"showIndigoControl", base::FeatureList::IsEnabled(features::kIndigo)},
   };
 
   html_source->AddString("aiSuggestionsHelpCenterArticleLink",
@@ -656,11 +657,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   html_source->AddBoolean("showAiPageAiFeatureSection",
                           show_ai_features_section);
 
-  html_source->AddBoolean(
-      "enableSupportForHomeAndWork",
-      base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableSupportForHomeAndWork));
-
   html_source->AddBoolean("replaceSyncPromosWithSignInPromos",
                           syncer::IsReplaceSyncPromosWithSignInPromosEnabled());
 
@@ -690,10 +686,10 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
           enablement_service->GetEnablementState() ==
               personal_context::PersonalContextEnablementState::kEnabled);
   html_source->AddLocalizedString("personalContextSettingsTitle",
-                                  IDS_ACCESSIBILITY_ANNOTATOR_SETTINGS_TITLE);
+                                  IDS_PERSONAL_CONTEXT_SETTINGS_TITLE);
   html_source->AddLocalizedString(
       "personalContextSettingsDescription",
-      IDS_ACCESSIBILITY_ANNOTATOR_SETTINGS_DESCRIPTION_DESKTOP);
+      IDS_PERSONAL_CONTEXT_SETTINGS_DESCRIPTION_DESKTOP);
 
   html_source->AddString(
       "webuiRefresh2026",

@@ -73,11 +73,6 @@
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
 #include "chrome/browser/ui/webui/personal_context/personal_context_notice.mojom.h"
 #include "chrome/browser/ui/webui/personal_context/personal_context_notice_ui.h"
-#include "chrome/browser/ui/webui/privacy_sandbox/privacy_sandbox_internals_ui.h"
-#include "chrome/browser/ui/webui/privacy_sandbox/private_state_tokens/private_state_tokens.mojom.h"
-#include "chrome/browser/ui/webui/privacy_sandbox/related_website_sets/related_website_sets.mojom.h"
-#include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals.mojom.h"
-#include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals_ui.h"
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice.mojom.h"  // nogncheck crbug.com/40147906
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
 #include "chrome/browser/ui/webui/settings/settings_ui.h"
@@ -123,7 +118,6 @@
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
-#include "components/private_ai/features.h"
 #include "components/search/ntp_features.h"
 #include "components/surface_embed/browser/surface_embed_host.h"
 #include "components/surface_embed/common/features.h"
@@ -156,6 +150,7 @@
 #include "chrome/browser/ui/webui/app_home/app_home.mojom.h"
 #include "chrome/browser/ui/webui/app_home/app_home_ui.h"
 #include "chrome/browser/ui/webui/app_settings/web_app_settings_ui.h"
+#include "chrome/browser/ui/webui/intro/intro.mojom.h"
 #include "chrome/browser/ui/webui/intro/intro_ui.h"
 #include "chrome/browser/ui/webui/intro/sign_in_celebration.mojom.h"
 #include "chrome/browser/ui/webui/on_device_translation_internals/on_device_translation_internals_ui.h"
@@ -399,7 +394,7 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
       help_bubble::mojom::HelpBubbleHandlerFactory, UserEducationInternalsUI,
       ReadingListUI, NewTabPageUI, CustomizeChromeUI, PasswordManagerUI,
       HistoryUI, lens::LensOverlayUntrustedUI, lens::LensSidePanelUntrustedUI,
-      ContextualTasksUI, ReadAnythingUntrustedUI
+      ContextualTasksUI
 #if !BUILDFLAG(IS_CHROMEOS)
       ,
       ProfilePickerUI
@@ -510,7 +505,8 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
       AppServiceInternalsUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
-      ::autofill_ml_internals::mojom::PageHandler, AutofillMlInternalsUI>(map);
+      ::autofill_ml_internals::mojom::PageHandlerFactory,
+      AutofillMlInternalsUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       access_code_cast::mojom::PageHandlerFactory,
@@ -548,6 +544,8 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
         on_device_internals::mojom::PageHandlerFactory,
         on_device_internals::OnDeviceInternalsUI>(map);
   }
+<<<<<<< HEAD
+=======
 #endif  // !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(privacy_sandbox::kRelatedWebsiteSetsDevUI)) {
     RegisterWebUIControllerInterfaceBinder<
@@ -561,6 +559,7 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
         privacy_sandbox_internals::PrivacySandboxInternalsUI>(map);
   }
 
+>>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   RegisterWebUIControllerInterfaceBinder<
       guest_contents::mojom::GuestContentsHost, WebUIBrowserUI>(map);
 
@@ -618,15 +617,11 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   }
   RegisterWebUIControllerInterfaceBinder<
       intro::mojom::SignInCelebrationPageHandlerFactory, IntroUI>(map);
+  RegisterWebUIControllerInterfaceBinder<intro::mojom::IntroPageHandlerFactory,
+                                         IntroUI>(map);
   RegisterWebUIControllerInterfaceBinder<::app_home::mojom::PageHandlerFactory,
                                          webapps::AppHomeUI>(map);
 #endif
-
-  if (base::FeatureList::IsEnabled(private_ai::kPrivateAi)) {
-    RegisterWebUIControllerInterfaceBinder<
-        private_ai_internals::mojom::PrivateAiInternalsPageHandler,
-        private_ai::PrivateAiInternalsUI>(map);
-  }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   RegisterWebUIControllerInterfaceBinder<updater_ui::mojom::PageHandlerFactory,

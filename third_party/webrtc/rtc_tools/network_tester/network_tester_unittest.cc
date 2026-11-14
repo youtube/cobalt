@@ -13,12 +13,10 @@
 #include <string>
 
 #include "api/environment/environment.h"
-#include "api/test/rtc_error_matchers.h"
 #include "rtc_base/random.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_tools/network_tester/test_controller.h"
 #include "test/create_test_environment.h"
-#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
 #include "test/testsupport/file_utils.h"
@@ -44,10 +42,8 @@ TEST(NetworkTesterTest, ServerClient) {
       test::ResourcePath("network_tester/server_config", "dat"),
       test::OutputPath() + "server_packet_log.dat");
   client.SendConnectTo("127.0.0.1", port);
-  EXPECT_THAT(
-      WaitUntil([&] { return server.IsTestDone() && client.IsTestDone(); },
-                ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(
+      WaitUntil([&] { return server.IsTestDone() && client.IsTestDone(); }));
 }
 
 }  // namespace webrtc

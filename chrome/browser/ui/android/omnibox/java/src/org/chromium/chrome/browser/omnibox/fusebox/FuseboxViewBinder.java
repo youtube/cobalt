@@ -41,6 +41,7 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButton
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonType;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
+import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.IconResourceIdsProto.IconResourceIds;
 import org.chromium.components.omnibox.ToolModeUtils;
@@ -55,6 +56,13 @@ import java.util.List;
 /** Binds the Fusebox properties to the view and component. */
 @NullMarked
 class FuseboxViewBinder {
+
+    private static final int[][] HOVER_STATES =
+            new int[][] {
+                new int[] {android.R.attr.state_hovered}, new int[] {} // Default, must be last
+            };
+    ;
+
     /**
      * @see PropertyModelChangeProcessor.ViewBinder#bind(Object, Object, Object)
      */
@@ -62,19 +70,13 @@ class FuseboxViewBinder {
         if (propertyKey == FuseboxProperties.ACTIVATION_CHIP_CLICKED) {
             view.activationChip.setOnClickListener(
                     v -> model.get(FuseboxProperties.ACTIVATION_CHIP_CLICKED).run());
+        } else if (propertyKey == FuseboxProperties.ACTIVATION_CHIP_SELECTED) {
+            view.activationChip.setSelected(model.get(FuseboxProperties.ACTIVATION_CHIP_SELECTED));
         } else if (propertyKey == FuseboxProperties.ACTIVATION_CHIP_VISIBLE) {
             updateButtonVisibility(
                     model, FuseboxProperties.ACTIVATION_CHIP_VISIBLE, view.activationChip);
         } else if (propertyKey == FuseboxProperties.ADAPTER) {
             view.attachmentsView.setAdapter(model.get(FuseboxProperties.ADAPTER));
-        } else if (propertyKey == FuseboxProperties.ADD_BUTTON_VISIBLE) {
-            updateAddButton(model, view);
-        } else if (propertyKey == FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE) {
-            updateRequestTypeButton(model, view);
-            updateButtonsA11yAnnouncements(model, view);
-        } else if (propertyKey == FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED) {
-            view.requestType.setOnClickListener(
-                    v -> model.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED).run());
         } else if (propertyKey == FuseboxProperties.ATTACHMENTS_VISIBLE) {
             boolean visible = model.get(FuseboxProperties.ATTACHMENTS_VISIBLE);
             view.attachmentsView.setVisibility(visible ? View.VISIBLE : View.GONE);
@@ -98,14 +100,19 @@ class FuseboxViewBinder {
                     layoutManager.removeAllViews();
                 }
             }
-        } else if (propertyKey == FuseboxProperties.BUTTON_ADD_CLICKED) {
-            view.addButton.setOnClickListener(
-                    v -> model.get(FuseboxProperties.BUTTON_ADD_CLICKED).run());
         } else if (propertyKey == FuseboxProperties.COLOR_SCHEME) {
             updateButtonsVisibilityAndStyling(model, view);
-        } else if (propertyKey == FuseboxProperties.FUSEBOX_STATE
-                || propertyKey == FuseboxProperties.FUSEBOX_LAYOUT_MODE) {
+        } else if (propertyKey == FuseboxProperties.FUSEBOX_STATE) {
             reanchorViewsForCompactFusebox(model, view);
+        } else if (propertyKey == FuseboxProperties.FUSEBOX_LAYOUT_MODE) {
+            reanchorViewsForCompactFusebox(model, view);
+            updatePlusButtonVisuals(model, view);
+        } else if (propertyKey == FuseboxProperties.PLUS_BUTTON_CLICKED) {
+            view.plusButton.setOnClickListener(
+                    v -> model.get(FuseboxProperties.PLUS_BUTTON_CLICKED).run());
+        } else if (propertyKey == FuseboxProperties.PLUS_BUTTON_VISIBLE) {
+            boolean showPlusButton = model.get(FuseboxProperties.PLUS_BUTTON_VISIBLE);
+            view.plusButton.setVisibility(showPlusButton ? View.VISIBLE : View.GONE);
         } else if (propertyKey == FuseboxProperties.POPUP_ATTACH_CAMERA_CLICKED) {
             view.popup.mCameraButton.setOnClickListener(
                     v -> model.get(FuseboxProperties.POPUP_ATTACH_CAMERA_CLICKED).run());
@@ -115,17 +122,6 @@ class FuseboxViewBinder {
         } else if (propertyKey == FuseboxProperties.POPUP_ATTACH_CAMERA_VISIBLE) {
             updateButtonVisibility(
                     model, FuseboxProperties.POPUP_ATTACH_CAMERA_VISIBLE, view.popup.mCameraButton);
-        } else if (propertyKey == FuseboxProperties.POPUP_ATTACH_CLIPBOARD_CLICKED) {
-            view.popup.mClipboardButton.setOnClickListener(
-                    v -> model.get(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_CLICKED).run());
-        } else if (propertyKey == FuseboxProperties.POPUP_ATTACH_CLIPBOARD_ENABLED) {
-            view.popup.mClipboardButton.setEnabled(
-                    model.get(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_ENABLED));
-        } else if (propertyKey == FuseboxProperties.POPUP_ATTACH_CLIPBOARD_VISIBLE) {
-            updateButtonVisibility(
-                    model,
-                    FuseboxProperties.POPUP_ATTACH_CLIPBOARD_VISIBLE,
-                    view.popup.mClipboardButton);
         } else if (propertyKey == FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_CLICKED) {
             view.popup.mAddCurrentTab.setOnClickListener(
                     v -> model.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_CLICKED).run());
@@ -203,13 +199,6 @@ class FuseboxViewBinder {
                                 ? View.VISIBLE
                                 : View.GONE);
             }
-        } else if (propertyKey == FuseboxProperties.POPUP_RECENT_TABS_HEADER_VISIBLE) {
-            if (view.popup.mRecentTabsHeader != null) {
-                view.popup.mRecentTabsHeader.setVisibility(
-                        model.get(FuseboxProperties.POPUP_RECENT_TABS_HEADER_VISIBLE)
-                                ? View.VISIBLE
-                                : View.GONE);
-            }
         } else if (propertyKey == FuseboxProperties.POPUP_RECENT_TABS_ENABLED) {
             ViewGroup container = view.popup.mRecentTabsContainer;
             if (container != null) {
@@ -217,6 +206,13 @@ class FuseboxViewBinder {
                 for (int i = 0; i < container.getChildCount(); i++) {
                     container.getChildAt(i).setEnabled(enabled);
                 }
+            }
+        } else if (propertyKey == FuseboxProperties.POPUP_RECENT_TABS_HEADER_VISIBLE) {
+            if (view.popup.mRecentTabsHeader != null) {
+                view.popup.mRecentTabsHeader.setVisibility(
+                        model.get(FuseboxProperties.POPUP_RECENT_TABS_HEADER_VISIBLE)
+                                ? View.VISIBLE
+                                : View.GONE);
             }
         } else if (propertyKey == FuseboxProperties.POPUP_STATE) {
             view.popup.setPopupState(model.get(FuseboxProperties.POPUP_STATE));
@@ -234,7 +230,19 @@ class FuseboxViewBinder {
                     model.get(FuseboxProperties.POPUP_TOOL_HEADER_VISIBLE)
                             ? View.VISIBLE
                             : View.GONE);
-        } else if (propertyKey == FuseboxProperties.SHOW_REQUEST_TYPE_BUTTON) {
+        } else if (propertyKey == FuseboxProperties.REQUEST_TYPE) {
+            updateRequestTypeButton(model, view);
+            updateButtonsA11yAnnouncements(model, view);
+        } else if (propertyKey == FuseboxProperties.REQUEST_TYPE_BUTTON_CLICKED) {
+            view.requestType.setOnClickListener(
+                    v -> model.get(FuseboxProperties.REQUEST_TYPE_BUTTON_CLICKED).run());
+        } else if (propertyKey == FuseboxProperties.REQUEST_TYPE_BUTTON_TEXT) {
+            String text = model.get(FuseboxProperties.REQUEST_TYPE_BUTTON_TEXT);
+            Resources res = view.requestType.getResources();
+            view.requestType.setText(text);
+            view.requestType.setContentDescription(
+                    res.getString(R.string.accessibility_omnibox_reset_mode, text));
+        } else if (propertyKey == FuseboxProperties.REQUEST_TYPE_BUTTON_VISIBLE) {
             updateRequestTypeButton(model, view);
         }
     }
@@ -502,7 +510,7 @@ class FuseboxViewBinder {
             PropertyModel model, FuseboxViewHolder view) {
         @StringRes
         int navButtonAccessibilityStringRes = R.string.acc_send_button_search_or_navigate;
-        switch (model.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE)) {
+        switch (model.get(FuseboxProperties.REQUEST_TYPE)) {
             case AutocompleteRequestType.AI_MODE:
                 navButtonAccessibilityStringRes = R.string.acc_send_button_send_to_ai;
                 break;
@@ -528,7 +536,7 @@ class FuseboxViewBinder {
 
     private static void updateButtonsVisibilityAndStyling(
             PropertyModel model, FuseboxViewHolder view) {
-        updateAddButton(model, view);
+        updatePlusButtonVisuals(model, view);
         updateNavigateButton(model, view);
         updateRequestTypeButton(model, view);
         updatePopupTheme(model, view);
@@ -540,18 +548,32 @@ class FuseboxViewBinder {
         view.popup.mPopupWindow.setBackgroundDrawable(background);
     }
 
-    private static void updateAddButton(PropertyModel model, FuseboxViewHolder view) {
-        boolean showAddButton = model.get(FuseboxProperties.ADD_BUTTON_VISIBLE);
-        ChromeImageView addButton = view.addButton;
-        addButton.setVisibility(showAddButton ? View.VISIBLE : View.GONE);
-        if (showAddButton) {
-            @BrandedColorScheme int brandedColorScheme = model.get(FuseboxProperties.COLOR_SCHEME);
-            Context context = view.parentView.getContext();
-            addButton.setBackground(
+    private static void updatePlusButtonVisuals(PropertyModel model, FuseboxViewHolder view) {
+        Context context = view.parentView.getContext();
+        ChromeImageView plusButton = view.plusButton;
+        @BrandedColorScheme int brandedColorScheme = model.get(FuseboxProperties.COLOR_SCHEME);
+        plusButton.setImageTintList(
+                OmniboxResourceProvider.getPrimaryIconTintList(context, brandedColorScheme));
+
+        if (model.get(FuseboxProperties.FUSEBOX_LAYOUT_MODE)
+                == FuseboxLayoutMode.SUGGESTIONS_POPOVER) {
+            plusButton.setBackground(
+                    OmniboxResourceProvider.getPopoverPlusButtonBackground(
+                            context, brandedColorScheme));
+            // Null the outline provider in case we were previously in FuseboxLayoutMode.TOOLBAR.
+            // The SUGGESTIONS_POPOVER's drawable implicitly handles corner rounding, while the
+            // TOOLBAR's drawable needs to use the outline provider.
+            plusButton.setOutlineProvider(null);
+        } else {
+            Resources resources = context.getResources();
+            plusButton.setBackground(
                     OmniboxResourceProvider.getSearchBoxIconBackground(
                             context, brandedColorScheme));
-            addButton.setImageTintList(
-                    OmniboxResourceProvider.getPrimaryIconTintList(context, brandedColorScheme));
+            RoundedCornerOutlineProvider outline =
+                    new RoundedCornerOutlineProvider(
+                            resources.getDimensionPixelSize(R.dimen.fusebox_button_corner_radius));
+            outline.setClipPaddedArea(true);
+            plusButton.setOutlineProvider(outline);
         }
     }
 
@@ -569,13 +591,12 @@ class FuseboxViewBinder {
     }
 
     private static void updateRequestTypeButton(PropertyModel model, FuseboxViewHolder view) {
-        if (!model.get(FuseboxProperties.SHOW_REQUEST_TYPE_BUTTON)) {
+        if (!model.get(FuseboxProperties.REQUEST_TYPE_BUTTON_VISIBLE)) {
             view.requestType.setVisibility(View.GONE);
             return;
         }
 
-        @AutocompleteRequestType
-        int requestType = model.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE);
+        @AutocompleteRequestType int requestType = model.get(FuseboxProperties.REQUEST_TYPE);
         if (!ToolModeUtils.isAimRequest(requestType)) {
             // The model is in an inconsistent state, wait for the next event.
             return;
@@ -588,7 +609,6 @@ class FuseboxViewBinder {
         @ColorInt
         int colorOnSurface = OmniboxResourceProvider.getColorOnSurface(context, brandedColorScheme);
 
-        String text = res.getString(getTextResForTool(requestType));
         Drawable startDrawable = context.getDrawable(getIconResForTool(requestType));
         Drawable endDrawable = assumeNonNull(context.getDrawable(R.drawable.btn_close)).mutate();
         @ColorInt
@@ -605,9 +625,6 @@ class FuseboxViewBinder {
 
         ButtonCompat button = view.requestType;
         button.setVisibility(View.VISIBLE);
-        button.setText(text);
-        button.setContentDescription(
-                res.getString(R.string.accessibility_omnibox_reset_mode, text));
         button.setButtonColor(ColorStateList.valueOf(buttonColor));
         button.setTextAppearance(
                 OmniboxResourceProvider.getRequestTypeButtonTextRes(brandedColorScheme));
@@ -622,27 +639,20 @@ class FuseboxViewBinder {
         @ColorInt
         int buttonColor =
                 OmniboxResourceProvider.getColorSurfaceContainerHigh(context, brandedColorScheme);
+        @ColorInt
+        int buttonColorHovered =
+                OmniboxResourceProvider.getColorSurfaceContainerHighest(
+                        context, brandedColorScheme);
+        int[] backgroundColors = new int[] {buttonColorHovered, buttonColor};
+
         ButtonCompat button = viewHolder.activationChip;
-        button.setButtonColor(ColorStateList.valueOf(buttonColor));
+        button.setButtonColor(new ColorStateList(HOVER_STATES, backgroundColors));
 
         @ColorInt
         int colorOnSurface = OmniboxResourceProvider.getColorOnSurface(context, brandedColorScheme);
-        // TODO(pnoland): handle text color, selection, and hover states.
         button.setCompoundDrawableTintList(ColorStateList.valueOf(colorOnSurface));
-    }
-
-    @SuppressLint("SwitchIntDef")
-    private static @StringRes int getTextResForTool(@AutocompleteRequestType int requestType) {
-        return switch (requestType) {
-            case AutocompleteRequestType.AI_MODE -> R.string.ai_mode_entrypoint_label;
-            case AutocompleteRequestType.IMAGE_GENERATION -> R.string.omnibox_create_image;
-            case AutocompleteRequestType.DEEP_SEARCH -> R.string.ntp_compose_deep_search;
-            case AutocompleteRequestType.CANVAS -> R.string.ntp_compose_canvas;
-            default -> {
-                assert false : "AutocompleteRequestType was not a valid tool type.";
-                yield Resources.ID_NULL;
-            }
-        };
+        button.setForegroundTintList(ColorStateList.valueOf(colorOnSurface));
+        button.setTextColor(colorOnSurface);
     }
 
     @SuppressLint("SwitchIntDef")
@@ -724,7 +734,7 @@ class FuseboxViewBinder {
         var cs = new ConstraintSet();
         cs.clone(view.parentView);
 
-        int id = view.addButton.getId();
+        int id = view.plusButton.getId();
         cs.clear(id, ConstraintSet.TOP);
         cs.clear(id, ConstraintSet.BOTTOM);
         cs.clear(id, ConstraintSet.BASELINE);
@@ -742,7 +752,7 @@ class FuseboxViewBinder {
         cs.connect(
                 R.id.url_bar,
                 ConstraintSet.END,
-                singleLine ? R.id.action_buttons_segment : R.id.delete_button,
+                singleLine ? R.id.action_buttons_segment : R.id.action_buttons_segment_multimodal,
                 ConstraintSet.START);
 
         cs.applyTo(view.parentView);

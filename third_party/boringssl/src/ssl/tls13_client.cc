@@ -54,13 +54,13 @@ enum client_hs_state_t {
 
 static const uint8_t kZeroes[EVP_MAX_MD_SIZE] = {0};
 
-// end_of_early_data closes the early data stream for |hs| and switches the
-// encryption level to |level|. It returns true on success and false on error.
+// end_of_early_data closes the early data stream for `hs` and switches the
+// encryption level to `level`. It returns true on success and false on error.
 static bool close_early_data(SSL_HANDSHAKE *hs, ssl_encryption_level_t level) {
   SSL *const ssl = hs->ssl;
   assert(hs->in_early_data);
 
-  // Note |can_early_write| may already be false if |SSL_write| exceeded the
+  // Note `can_early_write` may already be false if `SSL_write` exceeded the
   // early data write limit.
   hs->can_early_write = false;
 
@@ -234,7 +234,7 @@ static enum ssl_hs_wait_t do_read_hello_retry_request(SSL_HANDSHAKE *hs) {
   }
 
   // Determine which ClientHello the server is responding to. Run
-  // |check_ech_confirmation| unconditionally, so we validate the extension
+  // `check_ech_confirmation` unconditionally, so we validate the extension
   // contents.
   bool ech_accepted;
   if (!check_ech_confirmation(hs, &ech_accepted, &alert, server_hello)) {
@@ -251,7 +251,7 @@ static enum ssl_hs_wait_t do_read_hello_retry_request(SSL_HANDSHAKE *hs) {
   }
 
   // The ECH extension, if present, was already parsed by
-  // |check_ech_confirmation|.
+  // `check_ech_confirmation`.
   SSLExtension cookie(TLSEXT_TYPE_cookie),
       // If offering PAKE, we won't send key_share extensions and we should
       // reject key_share from the peer. Otherwise, it is valid to have sent an
@@ -325,7 +325,7 @@ static enum ssl_hs_wait_t do_read_hello_retry_request(SSL_HANDSHAKE *hs) {
 
   // Although we now know whether ClientHelloInner was used, we currently
   // maintain both transcripts up to ServerHello. We could swap transcripts
-  // early, but then ClientHello construction and |check_ech_confirmation|
+  // early, but then ClientHello construction and `check_ech_confirmation`
   // become more complex.
   if (!ssl_hash_message(hs, msg)) {
     return ssl_hs_error;
@@ -366,7 +366,7 @@ static enum ssl_hs_wait_t do_read_hello_retry_request(SSL_HANDSHAKE *hs) {
 
 static enum ssl_hs_wait_t do_send_second_client_hello(SSL_HANDSHAKE *hs) {
   // Build the second ClientHelloInner, if applicable. The second ClientHello
-  // uses an empty string for |enc|.
+  // uses an empty string for `enc`.
   if (hs->ssl->s3->ech_status == ssl_ech_accepted &&
       !ssl_encrypt_client_hello(hs, {})) {
     return ssl_hs_error;
@@ -475,7 +475,7 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
 
     hs->transcript = std::move(hs->inner_transcript);
     hs->extensions.sent = hs->inner_extensions_sent;
-    // Report the inner random value through |SSL_get_client_random|.
+    // Report the inner random value through `SSL_get_client_random`.
     OPENSSL_memcpy(ssl->s3->client_random, hs->inner_client_random,
                    SSL3_RANDOM_SIZE);
   }
@@ -641,8 +641,8 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
 
   // If currently sending early data over TCP, we defer installing client
   // traffic keys to when the early data stream is closed. See
-  // |close_early_data|. Note if the server has already rejected 0-RTT via
-  // HelloRetryRequest, |in_early_data| is already false.
+  // `close_early_data`. Note if the server has already rejected 0-RTT via
+  // HelloRetryRequest, `in_early_data` is already false.
   if (!hs->in_early_data || SSL_is_quic(ssl)) {
     if (!tls13_set_traffic_key(ssl, ssl_encryption_handshake, evp_aead_seal,
                                hs->new_session.get(),
@@ -690,7 +690,7 @@ static enum ssl_hs_wait_t do_read_encrypted_extensions(SSL_HANDSHAKE *hs) {
     assert(ssl->s3->session_reused);
     // If offering ECH, the server may not accept early data with
     // ClientHelloOuter. We do not offer sessions with ClientHelloOuter, so this
-    // this should be implied by checking |session_reused|.
+    // this should be implied by checking `session_reused`.
     assert(ssl->s3->ech_status != ssl_ech_rejected);
 
     if (hs->early_session->cipher != hs->new_session->cipher) {
@@ -1218,7 +1218,7 @@ const char *tls13_client_handshake_state(SSL_HANDSHAKE *hs) {
 bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
   if (ssl->s3->write_shutdown != ssl_shutdown_none) {
     // Ignore tickets on shutdown. Callers tend to indiscriminately call
-    // |SSL_shutdown| before destroying an |SSL|, at which point calling the new
+    // `SSL_shutdown` before destroying an `SSL`, at which point calling the new
     // session callback may be confusing.
     return true;
   }
@@ -1232,7 +1232,7 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg) {
   if ((ssl->session_ctx->session_cache_mode & SSL_SESS_CACHE_CLIENT) &&
       ssl->session_ctx->new_session_cb != nullptr &&
       ssl->session_ctx->new_session_cb(ssl, session.get())) {
-    // |new_session_cb|'s return value signals that it took ownership.
+    // `new_session_cb`'s return value signals that it took ownership.
     session.release();
   }
 

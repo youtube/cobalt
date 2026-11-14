@@ -70,6 +70,19 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//content/browser/preloading/prefetch/prefetch_params.cc:GetMetricsSuffixTriggerTypeAndEagerness) -->
 
+<variants name="ValidateResourceRequestHeaders">
+  <variant name="CorsExemptHeaders"
+      summary="ResourceRequest::cors_exempt_headers"/>
+  <variant name="Headers" summary="ResourceRequest::headers"/>
+</variants>
+
+<variants name="ValidateResourceRequestMode">
+  <variant name="AfterWillCreateURLLoaderFactory"
+      summary="after WillCreateURLLoaderFactory"/>
+  <variant name="OnRequestConstruction"
+      summary="upon PrefetchContainer request construction"/>
+</variants>
+
 <variants name="WasServed">
   <variant name="NotServed" summary="not served"/>
   <variant name="Served" summary="served"/>
@@ -77,7 +90,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.{PrerenderOrNonPrerender}.{WasServed}.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-08-30">
+    units="ms" expires_after="2026-11-29">
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
@@ -276,7 +289,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.InitialEligibilityToPrefetchStarted.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-09-20">
+    units="ms" expires_after="2026-11-29">
   <owner>taiyo@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
@@ -362,7 +375,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.PrefetchStartedToHeaderDeterminedSuccessfully.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-09-20">
+    units="ms" expires_after="2026-11-29">
   <owner>taiyo@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
@@ -381,7 +394,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.PrefetchStartedToPrefetchCompletedSuccessfully.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-09-20">
+    units="ms" expires_after="2026-11-29">
   <owner>taiyo@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
@@ -400,7 +413,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.PrefetchStartedToURLRequestStarted.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-09-20">
+    units="ms" expires_after="2026-11-29">
   <owner>taiyo@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
@@ -420,7 +433,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.ServedCount.{TriggerTypeAndEagerness}"
-    units="count" expires_after="2026-09-20">
+    units="count" expires_after="2026-11-29">
   <owner>taiyo@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -439,7 +452,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.{PrerenderOrNonPrerender}.{TriggerTypeAndEagerness}"
-    enum="Boolean" expires_after="2026-08-30">
+    enum="Boolean" expires_after="2026-11-29">
   <owner>kouhei@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
@@ -466,7 +479,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.{TriggerTypeAndEagerness}"
-    enum="Boolean" expires_after="2026-08-30">
+    enum="Boolean" expires_after="2026-11-29">
   <owner>kouhei@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>taiyo@chromium.org</owner>
@@ -533,7 +546,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchPotentialCandidateServingResult.PerMatchingCandidate.{TriggerTypeAndEagerness}"
-    enum="PrefetchPotentialCandidateServingResult" expires_after="2026-09-20">
+    enum="PrefetchPotentialCandidateServingResult" expires_after="2026-11-29">
   <owner>taiyo@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -553,6 +566,40 @@ chromium-metrics-reviews@google.com.
     TriggerType and Eagerness as {TriggerTypeAndEagerness}.
   </summary>
   <token key="TriggerTypeAndEagerness" variants="TriggerTypeAndEagerness"/>
+</histogram>
+
+<histogram
+    name="Prefetch.PrePrefetchRequestValidation.{ValidateResourceRequestMode}.{ValidateResourceRequestHeaders}.HasMismatch"
+    enum="Boolean" expires_after="2026-12-31">
+  <owner>taiyo@chromium.org</owner>
+  <owner>hiroshige@chromium.org</owner>
+  <summary>
+    Records if there are any mismatched headers in
+    {ValidateResourceRequestHeaders} in ValidateResourceRequestForPrePrefetch.
+    Logged for every PrePrefetch-initiated prefetch
+    {ValidateResourceRequestMode}.
+  </summary>
+  <token key="ValidateResourceRequestHeaders"
+      variants="ValidateResourceRequestHeaders"/>
+  <token key="ValidateResourceRequestMode"
+      variants="ValidateResourceRequestMode"/>
+</histogram>
+
+<histogram
+    name="Prefetch.PrePrefetchRequestValidation.{ValidateResourceRequestMode}.{ValidateResourceRequestHeaders}.Mismatched"
+    enum="RequestHeader" expires_after="2026-12-31">
+  <owner>taiyo@chromium.org</owner>
+  <owner>hiroshige@chromium.org</owner>
+  <summary>
+    Records the header name of every mismatched header in
+    {ValidateResourceRequestHeaders} in ValidateResourceRequestForPrePrefetch.
+    Logged for every mismatched header for every PrePrefetch-initiated
+    prefetches {ValidateResourceRequestMode}.
+  </summary>
+  <token key="ValidateResourceRequestHeaders"
+      variants="ValidateResourceRequestHeaders"/>
+  <token key="ValidateResourceRequestMode"
+      variants="ValidateResourceRequestMode"/>
 </histogram>
 
 <histogram
@@ -860,7 +907,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.TotalTime" units="ms"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -880,7 +927,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.StreamingURLLoaderFinalStatus"
-    enum="PrefetchStreamingURLLoaderStatus" expires_after="2026-09-27">
+    enum="PrefetchStreamingURLLoaderStatus" expires_after="2026-11-29">
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -934,7 +981,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Redirect.Result" enum="PrefetchRedirectResult"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>

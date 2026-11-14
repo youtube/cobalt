@@ -111,6 +111,7 @@ rtc_library("audio") {
     "../rtc_base:safe_conversions",
     "../rtc_base:stringutils",
     "../rtc_base:timeutils",
+    "../rtc_base/containers:flat_map",
     "../rtc_base/containers:flat_set",
     "../rtc_base/experiments:field_trial_parser",
     "../rtc_base/synchronization:mutex",

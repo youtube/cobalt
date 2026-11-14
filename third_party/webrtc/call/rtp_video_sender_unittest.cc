@@ -27,6 +27,7 @@
 #include "api/field_trials.h"
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/test/mock_frame_transformer.h"
@@ -97,8 +98,8 @@ constexpr int16_t kInitialPictureId2 = 44;
 constexpr int16_t kInitialTl0PicIdx1 = 99;
 constexpr int16_t kInitialTl0PicIdx2 = 199;
 constexpr int64_t kRetransmitWindowSizeMs = 500;
-constexpr int kTransportsSequenceExtensionId = 7;
-constexpr int kDependencyDescriptorExtensionId = 8;
+constexpr RtpHeaderExtensionId kTransportsSequenceExtensionId(7);
+constexpr RtpHeaderExtensionId kDependencyDescriptorExtensionId(8);
 
 class MockRtcpIntraFrameObserver : public RtcpIntraFrameObserver {
  public:
@@ -189,8 +190,10 @@ class RtpVideoSenderTestFixture {
                                             payload_type,
                                             payload_types)),
         bitrate_config_(GetBitrateConfig()),
-        transport_controller_(
-            RtpTransportConfig{.env = env_, .bitrate_config = bitrate_config_}),
+        transport_controller_(RtpTransportConfig{
+            .env = env_,
+            .bitrate_config = bitrate_config_,
+            .worker_thread = time_controller_.GetMainThread()}),
         stats_proxy_(time_controller_.GetClock(),
                      config_,
                      VideoEncoderConfig::ContentType::kRealtimeVideo,
@@ -1624,8 +1627,10 @@ TEST(RtpVideoSenderTest, PostTaskRaceDoesNotLeadToDanglingPointer) {
       VideoEncoderConfig::ContentType::kRealtimeVideo, env.field_trials());
 
   BitrateConstraints bitrate_config = GetBitrateConfig();
-  RtpTransportConfig transport_config{.env = env,
-                                      .bitrate_config = bitrate_config};
+  RtpTransportConfig transport_config{
+      .env = env,
+      .bitrate_config = bitrate_config,
+      .worker_thread = time_controller.GetMainThread()};
   RtpTransportControllerSend transport_controller(transport_config);
   transport_controller.EnsureStarted();
 

@@ -653,11 +653,14 @@ clang::SourceRange GetExprRange(const clang::Expr& expr,
   }
 
   if (const auto* decl_ref = clang::dyn_cast<clang::DeclRefExpr>(&expr)) {
-    assert(decl_ref->getBeginLoc() == decl_ref->getEndLoc() &&
-           "DeclRefExpr doesn't have the expected end loc.");
+    // The range [beginLoc, EndLoc] encompasses the qualified namespace before
+    // the decl name. Therefore if there are no namespaces, they will be equal
+    // to each other.
+    // <namespace qualifiers>::<decl_name>
     clang::SourceLocation begin_loc = ToSpellingLoc(decl_ref->getBeginLoc());
+    clang::SourceLocation end_loc = ToSpellingLoc(decl_ref->getEndLoc());
     auto name = decl_ref->getNameInfo().getName().getAsString();
-    return {begin_loc, begin_loc.getLocWithOffset(name.size())};
+    return {begin_loc, end_loc.getLocWithOffset(name.size())};
   }
 
   if (const auto* call_expr = clang::dyn_cast<clang::CallExpr>(&expr)) {
@@ -935,7 +938,7 @@ std::string getNodeFromFunctionArrayParameter(
   const std::string& array_size_as_string =
       GetArraySize(array_type_loc, source_manager, ast_context);
   std::string span_type;
-  if (array_size_as_string.empty()) {
+  if (array_size_as_string.empty() || !GetProject()->SupportsStaticExtent()) {
     span_type = llvm::formatv("{0}<{1}> ",
                               GetProject()->GetSpanRelativePath(result), type)
                     .str();
@@ -3183,7 +3186,8 @@ class Spanifier {
         hasType(pointer_type),
         allOf(hasType(raw_ptr_type),
               hasDescendant(raw_ptr_type_loc.bind("rhs_raw_ptr_type_loc"))),
-        hasTypeLoc(loc(qualType(arrayType())).bind("rhs_array_type_loc")));
+        hasTypeLoc(loc(qualType(arrayType().bind("rhs_array_type")))
+                       .bind("rhs_array_type_loc")));
 
     auto lhs_field =
         fieldDecl(raw_ptr_plugin::hasExplicitFieldDecl(lhs_type_loc),
@@ -3530,18 +3534,27 @@ class Spanifier {
     // `.data()` to frontier calls" logic in our test harness. This
     // might imply that the exclude logic is broken or works differently
     // from prod. If we could figure this out, we could test it.
+
+    auto is_excluded_frontier = namedDecl(
+        frontier_exclusions,
+        unless(
+            matchesName("std::(size|c?r?begin|c?r?end|empty|swap|ranges::)")));
+
     auto buffer_to_external_func = traverse(
         clang::TK_IgnoreUnlessSpelledInSource,
         expr(anyOf(
-            callExpr(
-                callee(functionDecl(
-                    frontier_exclusions,
-                    unless(matchesName(
-                        "std::(size|c?r?begin|c?r?end|empty|swap|ranges::)")))),
-                forEachArgumentWithParam(expr(rhs_exprs_without_size_nodes),
-                                         parmVarDecl())),
+            // 1. Direct function call to excluded function:
+            callExpr(callee(functionDecl(is_excluded_frontier)),
+                     forEachArgumentWithParam(
+                         expr(rhs_exprs_without_size_nodes), parmVarDecl())),
+            // 2. Call to excluded function pointer (variable or parameter):
+            callExpr(callee(expr(ignoringParenImpCasts(declRefExpr(
+                         to(anyOf(varDecl(is_excluded_frontier),
+                                  parmVarDecl(is_excluded_frontier))))))),
+                     hasAnyArgument(expr(rhs_exprs_without_size_nodes))),
+            // 3. Constructor call:
             cxxConstructExpr(
-                hasDeclaration(cxxConstructorDecl(frontier_exclusions)),
+                hasDeclaration(cxxConstructorDecl(is_excluded_frontier)),
                 forEachArgumentWithParam(expr(rhs_exprs_without_size_nodes),
                                          parmVarDecl())))));
     Match(buffer_to_external_func, AppendDataCall);

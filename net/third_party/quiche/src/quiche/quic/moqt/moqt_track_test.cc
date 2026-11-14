@@ -20,6 +20,8 @@
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/mock_clock.h"
+#include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -45,6 +47,9 @@ class SubscribeRemoteTrackPeer {
   static MoqtFetchTask* GetFetchTask(SubscribeRemoteTrack* track) {
     return track->fetch_task_.get();
   }
+  static quic::QuicAlarm* GetPublishDoneAlarm(SubscribeRemoteTrack* track) {
+    return track->publish_done_alarm_.get();
+  }
 };
 
 class SubscribeRemoteTrackTest : public quic::test::QuicTest {
@@ -66,6 +71,8 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
   SubscribeRemoteTrack track_;
   bool alias_registered_ = false;
   bool deleted_ = false;
+  quic::MockClock clock_;
+  quic::test::MockAlarmFactory alarm_factory_;
 };
 
 TEST_F(SubscribeRemoteTrackTest, Queries) {
@@ -87,6 +94,40 @@ TEST_F(SubscribeRemoteTrackTest, AllowError) {
 TEST_F(SubscribeRemoteTrackTest, Windows) {
   EXPECT_TRUE(track_.InWindow(Location(2, 0)));
   EXPECT_FALSE(track_.InWindow(Location(1, 25)));
+}
+
+TEST_F(SubscribeRemoteTrackTest, OnPublishDoneReadyToClose) {
+  track_.OnStreamOpened();
+  track_.OnStreamClosed(true, std::nullopt);
+  EXPECT_CALL(visitor_, OnPublishDone);
+  track_.OnPublishDone(1, &clock_, &alarm_factory_);
+  EXPECT_TRUE(deleted_);
+}
+
+TEST_F(SubscribeRemoteTrackTest, OnPublishDoneAllStreamsCloseLater) {
+  track_.OnStreamOpened();
+  EXPECT_CALL(visitor_, OnPublishDone).Times(0);
+  track_.OnPublishDone(2, &clock_, &alarm_factory_);
+  track_.OnStreamClosed(true, std::nullopt);
+  track_.OnStreamOpened();
+  EXPECT_CALL(visitor_, OnPublishDone);
+  track_.OnStreamClosed(true, std::nullopt);
+  EXPECT_TRUE(deleted_);
+}
+
+TEST_F(SubscribeRemoteTrackTest, OnPublishDoneTimesOut) {
+  track_.OnStreamOpened();
+  EXPECT_CALL(visitor_, OnPublishDone).Times(0);
+  track_.OnPublishDone(2, &clock_, &alarm_factory_);
+  EXPECT_FALSE(deleted_);
+  track_.OnStreamClosed(true, std::nullopt);  // No streams are open; timer set.
+  quic::QuicAlarm* alarm =
+      SubscribeRemoteTrackPeer::GetPublishDoneAlarm(&track_);
+  EXPECT_NE(alarm, nullptr);
+  EXPECT_TRUE(alarm->IsSet());
+  EXPECT_CALL(visitor_, OnPublishDone);
+  alarm_factory_.FireAlarm(alarm);
+  EXPECT_TRUE(deleted_);
 }
 
 TEST_F(SubscribeRemoteTrackTest, JoiningFetchMultiObject) {
@@ -265,7 +306,8 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
   PublishedObject object;
   EXPECT_EQ(fetch_task_->GetNextObject(object),
             MoqtFetchTask::GetNextObjectResult::kPending);
-  MoqtObject new_object = {1, 3, 0, 128, "", MoqtObjectStatus::kNormal, 0, 6};
+  MoqtObject new_object = {1, 3,    0, 128, "", MoqtObjectStatus::kNormal,
+                           0, true, 6};
   bool got_object = false;
   fetch_task_->SetObjectAvailableCallback([&]() {
     got_object = true;
@@ -300,7 +342,8 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
 
 TEST_F(UpstreamFetchTest, ObjectRetrievalEmptyPayload) {
   fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  MoqtObject moqt_obj = {1, 3, 0, 128, "", MoqtObjectStatus::kEndOfGroup, 0, 0};
+  MoqtObject moqt_obj = {1, 3,    0, 128, "", MoqtObjectStatus::kEndOfGroup,
+                         0, true, 0};
   fetch_.task()->NewObject(moqt_obj);
   fetch_.task()->NotifyNewObject();
   fetch_.OnStreamOpened([]() {});
@@ -329,7 +372,7 @@ TEST_F(UpstreamFetchTest, GetNextObjectEofAtLargestLocation) {
   fetch_.OnFetchResult(largest, absl::OkStatus(), nullptr);
   fetch_.OnStreamOpened([]() {});
 
-  MoqtObject obj1 = {1, 3, 49, 128, "", MoqtObjectStatus::kNormal, 0, 1};
+  MoqtObject obj1 = {1, 3, 49, 128, "", MoqtObjectStatus::kNormal, 0, false, 1};
   fetch_.task()->NewObject(obj1);
   fetch_.task()->AppendPayloadToObject("a");
   fetch_.task()->NotifyNewObject();
@@ -341,7 +384,7 @@ TEST_F(UpstreamFetchTest, GetNextObjectEofAtLargestLocation) {
   EXPECT_EQ(fetch_task_->GetNextObject(out),
             MoqtFetchTask::GetNextObjectResult::kPending);
 
-  MoqtObject obj2 = {1, 3, 50, 128, "", MoqtObjectStatus::kNormal, 0, 1};
+  MoqtObject obj2 = {1, 3, 50, 128, "", MoqtObjectStatus::kNormal, 0, false, 1};
   fetch_.task()->NewObject(obj2);
   fetch_.task()->AppendPayloadToObject("b");
   fetch_.task()->NotifyNewObject();
@@ -361,91 +404,6 @@ TEST_F(UpstreamFetchTest, CloseWithError) {
   EXPECT_EQ(fetch_task_->GetNextObject(out),
             MoqtFetchTask::GetNextObjectResult::kError);
   EXPECT_FALSE(fetch_task_->GetStatus().ok());
-}
-
-TEST_F(UpstreamFetchTest, LocationIsValidOkFirstObjectIdDeclining) {
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(1, 1), MoqtObjectStatus::kNormal, true));
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, true));
-  EXPECT_FALSE(
-      fetch_.LocationIsValid(Location(1, 0), MoqtObjectStatus::kNormal, true));
-}
-
-TEST_F(UpstreamFetchTest, LocationIsValidPartialObject) {
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(1, 1), MoqtObjectStatus::kNormal, true));
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, false));
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, false));
-}
-
-TEST_F(UpstreamFetchTest, LocationIsValidOkGroupDescendingIncorrectly) {
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(3, 1), MoqtObjectStatus::kNormal, true));
-  EXPECT_FALSE(
-      fetch_.LocationIsValid(Location(1, 1), MoqtObjectStatus::kNormal, true));
-}
-
-TEST_F(UpstreamFetchTest, LocationIsValidOkGroupAscendingIncorrectly) {
-  fetch_message_.parameters.group_order = MoqtDeliveryOrder::kDescending;
-  UpstreamFetch fetch(
-      fetch_message_, std::get<StandaloneFetch>(fetch_message_.fetch),
-      [&](std::unique_ptr<MoqtFetchTask> task) {
-        fetch_task_ = std::move(task);
-      },
-      []() {});
-  fetch.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  EXPECT_TRUE(
-      fetch.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
-  EXPECT_FALSE(
-      fetch.LocationIsValid(Location(3, 1), MoqtObjectStatus::kNormal, true));
-}
-
-TEST_F(UpstreamFetchTest, LocationIsValidLearnOrderThenOkSuccess) {
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(1, 1), MoqtObjectStatus::kNormal, true));
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  //  Groups arrived in ascending order, but the FETCH_OK reported descending.
-  EXPECT_TRUE(fetch_task_->GetStatus().ok());
-}
-
-TEST_F(UpstreamFetchTest, LocationIsValidObjectBeyondEndOfGroup) {
-  EXPECT_TRUE(fetch_.LocationIsValid(Location(1, 1),
-                                     MoqtObjectStatus::kEndOfGroup, true));
-  EXPECT_FALSE(
-      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, true));
-}
-
-TEST_F(UpstreamFetchTest, LocationIsValidObjectBeyondEndOfTrack) {
-  EXPECT_TRUE(fetch_.LocationIsValid(Location(1, 1),
-                                     MoqtObjectStatus::kEndOfTrack, true));
-  EXPECT_FALSE(
-      fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
-}
-
-TEST_F(UpstreamFetchTest, LocationIsValidTwoEndsOfTrack) {
-  EXPECT_TRUE(fetch_.LocationIsValid(Location(1, 1),
-                                     MoqtObjectStatus::kEndOfTrack, true));
-  EXPECT_FALSE(fetch_.LocationIsValid(Location(1, 2),
-                                      MoqtObjectStatus::kEndOfTrack, true));
-}
-
-TEST_F(UpstreamFetchTest, LocationIsValidEndOfTrackTooLow) {
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, true));
-  EXPECT_TRUE(
-      fetch_.LocationIsValid(Location(3, 0), MoqtObjectStatus::kNormal, true));
-  EXPECT_FALSE(fetch_.LocationIsValid(Location(2, 1),
-                                      MoqtObjectStatus::kEndOfTrack, true));
 }
 
 TEST_F(UpstreamFetchTest, RelativeJoiningFetch) {

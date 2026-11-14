@@ -210,10 +210,9 @@ ActiveNavigationCondition* CSSSelectorParser::ParseActiveNavigationCondition(
   // <navigation-relation> = at | with | from | to
   NavigationPreposition preposition = NavigationPreposition::kWith;
   if (stream.Peek().GetType() == kIdentToken) {
-    AtomicString ident(stream.Peek().Value().ToString());
     // <navigation-relation>?
     if (std::optional<NavigationPreposition> parsed_preposition =
-            NavigationParser::ParsePrepositionIdent(ident)) {
+            NavigationParser::ParsePrepositionIdent(stream.Peek())) {
       preposition = *parsed_preposition;
       stream.ConsumeIncludingWhitespace();
     }
@@ -1763,7 +1762,25 @@ bool CSSSelectorParser::ConsumePseudo(CSSParserTokenStream& stream,
       output_.push_back(std::move(selector));
       return true;
     }
-    case CSSSelector::kPseudoPicker:
+    case CSSSelector::kPseudoPicker: {
+      const CSSParserToken& ident = stream.Peek();
+      if (ident.GetType() != kIdentToken) {
+        return false;
+      }
+      // If we add more valid arguments to ::picker() in the future, then we
+      // would probably have to turn this into a list instead of just checking
+      // for "select".
+      if (!EqualIgnoringAsciiCase(ident.Value(), "select")) {
+        return false;
+      }
+      selector.SetArgument(AtomicString("select"));
+      stream.ConsumeIncludingWhitespace();
+      if (!stream.AtEnd()) {
+        return false;
+      }
+      output_.push_back(std::move(selector));
+      return true;
+    }
     case CSSSelector::kPseudoDir:
     case CSSSelector::kPseudoState: {
       const CSSParserToken& ident = stream.Peek();
@@ -2567,8 +2584,8 @@ WebFeature FeatureForWebKitCustomPseudoElement(const AtomicString& name) {
   for (const auto& entry : feature_table) {
     // SAFETY: The PseudoElementFeatureMapEntry constructor guarantees `key` and
     // `key_length` are safe.
-    if (name == StringView(base::as_bytes(
-                    UNSAFE_BUFFERS(base::span(entry.key, entry.key_length))))) {
+    if (name == StringView(base::as_bytes(UNSAFE_BUFFERS(base::span(
+                    base::unchecked, entry.key, entry.key_length))))) {
       return static_cast<WebFeature>(entry.feature);
     }
   }

@@ -51,7 +51,7 @@ class RenderedFrameCollector : public AssemblerEvents,
       : env_(env), ssrc_(ssrc) {
     RTC_DCHECK_NE(ssrc_, 0);
   }
-  ~RenderedFrameCollector() override = default;
+  ~RenderedFrameCollector() override { RTC_DCHECK_RUN_ON(&sequence_checker_); }
 
   RenderedFrameCollector(const RenderedFrameCollector&) = delete;
   RenderedFrameCollector& operator=(const RenderedFrameCollector&) = delete;
@@ -183,19 +183,22 @@ class RenderingSimulatorStream : public RtcEventLogDriver::StreamInterface {
                            uint32_t rtx_ssrc,
                            RenderingSimulator::Results* absl_nonnull results)
       : collector_(env, ssrc),
-        tracker_(env,
-                 RenderingTracker::Config{
-                     .ssrc = ssrc,
-                     .render_delay = RenderingSimulator::kRenderDelay},
-                 config.video_timing_factory(env),
-                 &collector_),
+        tracker_(
+            env,
+            RenderingTracker::Config{
+                .ssrc = ssrc,
+                .render_delay = RenderingSimulator::kRenderDelay},
+            config.video_timing_factory(env, RenderingSimulator::kRenderDelay),
+            &collector_),
         assembler_(env, ssrc, &collector_, &tracker_),
         receiver_(env, ssrc, rtx_ssrc, &assembler_),
         results_(*results) {
     RTC_DCHECK_RUN_ON(&sequence_checker_);
     tracker_.SetDecodedFrameIdCallback(&assembler_);
   }
-  ~RenderingSimulatorStream() override = default;
+  ~RenderingSimulatorStream() override {
+    RTC_DCHECK_RUN_ON(&sequence_checker_);
+  }
 
   // Implements `RtcEventLogDriver::StreamInterface`.
   void InsertSimulatedPacket(

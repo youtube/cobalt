@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
@@ -831,9 +832,10 @@ TEST_F(RenderViewContextMenuPrefsTest, LoadBrokenImage) {
   ASSERT_TRUE(menu->IsItemPresent(IDC_CONTENT_CONTEXT_LOAD_IMAGE));
 }
 
-TEST_F(RenderViewContextMenuPrefsTest, ContextMenu2026VideoOrderDisabled) {
+TEST_F(RenderViewContextMenuPrefsTest,
+       ContextMenuMenuSimplificationVideoOrderDisabled) {
   base::test::ScopedFeatureList features;
-  features.InitAndDisableFeature(media::kContextMenu2026);
+  features.InitAndDisableFeature(features::kMenuSimplification);
 
   content::ContextMenuParams params = CreateParams(MenuItem::VIDEO);
   params.media_flags |= blink::ContextMenuData::kMediaCanPictureInPicture;
@@ -852,10 +854,11 @@ TEST_F(RenderViewContextMenuPrefsTest, ContextMenu2026VideoOrderDisabled) {
   EXPECT_GT(pip_item->second, loop_item->second);
 }
 
-// Verify that the 2026 video context menu are ordered properly.
-TEST_F(RenderViewContextMenuPrefsTest, ContextMenu2026VideoOrder) {
+// Verify that the MenuSimplification video context menu are ordered properly.
+TEST_F(RenderViewContextMenuPrefsTest,
+       ContextMenuMenuSimplificationVideoOrder) {
   base::test::ScopedFeatureList features;
-  features.InitAndEnableFeature(media::kContextMenu2026);
+  features.InitAndEnableFeature(features::kMenuSimplification);
 
   content::ContextMenuParams params = CreateParams(MenuItem::VIDEO);
   params.media_flags |= blink::ContextMenuData::kMediaCanPictureInPicture;
@@ -1796,10 +1799,15 @@ TEST_F(RenderViewContextMenuPrefsTest, GetIsNewFeatureAtValue) {
                              kTestUnregisteredFeature},
                             {});
 
-  UserEducationServiceFactory::GetForBrowserContext(profile())
-      ->new_badge_registry()
-      ->RegisterFeature({user_education::features::kNewBadgeTestFeature,
-                         user_education::Metadata()});
+  auto* new_badge_registry =
+      UserEducationServiceFactory::GetForBrowserContext(profile())
+          ->new_badge_registry();
+  if (!new_badge_registry->IsFeatureRegistered(
+          user_education::features::kNewBadgeTestFeature)) {
+    new_badge_registry->RegisterFeature(
+        {user_education::features::kNewBadgeTestFeature,
+         user_education::Metadata()});
+  }
 
   // Initialize the New Badge controller, so that the new badge data for this
   // profile is set.
@@ -1887,6 +1895,35 @@ TEST_F(RenderViewContextMenuPrefsTest,
 }
 
 #endif  // BUILDFLAG(ENABLE_LENS_DESKTOP_GOOGLE_BRANDED_FEATURES)
+
+#if !BUILDFLAG(IS_CHROMEOS)
+TEST_F(RenderViewContextMenuPrefsTest,
+       TextSelectionShowsPartialTranslateWhenMenuSimplificationDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kMenuSimplification);
+  translate::TranslateManager::SetIgnoreMissingKeyForTesting(true);
+  base::ScopedClosureRunner reset_ignore_missing_key(base::BindOnce(
+      &translate::TranslateManager::SetIgnoreMissingKeyForTesting, false));
+
+  NavigateAndCommit(GURL("https://www.example.com"));
+  SetUserSelectedDefaultSearchProvider("https://www.google.com", true);
+  ChromeTranslateClient::CreateForWebContents(web_contents());
+  ChromeTranslateClient* chrome_translate_client =
+      ChromeTranslateClient::FromWebContents(web_contents());
+  ASSERT_TRUE(chrome_translate_client);
+  chrome_translate_client->GetTranslateManager()
+      ->GetLanguageState()
+      ->LanguageDetermined("fr", true);
+
+  content::ContextMenuParams params = CreateParams(MenuItem::SELECTION);
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  EXPECT_TRUE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_PARTIAL_TRANSLATE));
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(ENABLE_PRINTING)
 TEST_F(RenderViewContextMenuPrefsTest, PrintSelectionLabel) {
@@ -2098,6 +2135,9 @@ TEST_P(RenderViewContextMenuReadAnythingTest, MAYBE_AppendPageItems) {
   if (enable_region_search) {
     SetUserSelectedDefaultSearchProvider("https://www.google.com",
                                          /*supports_image_search=*/true);
+  } else {
+    SetUserSelectedDefaultSearchProvider("https://www.example.com",
+                                         /*supports_image_search=*/false);
   }
   menu.SetBrowser(GetBrowser());
   menu.Init();
@@ -2255,7 +2295,7 @@ TEST_F(RenderViewContextMenuMenuSimplificationTest, CopySelectionTruncated) {
   size_t index =
       menu.menu_model().GetIndexOfCommandId(IDC_CONTENT_CONTEXT_COPY).value();
   std::u16string label = menu.menu_model().GetLabelAt(index);
-  EXPECT_EQ(label, u"&Copy \"Long text exceeding twen\x2026\"");
+  EXPECT_EQ(label, u"&Copy \x201CLong text exceeding twen\x2026\x201D");
 }
 
 TEST_F(RenderViewContextMenuMenuSimplificationTest, PasswordFieldRestricted) {

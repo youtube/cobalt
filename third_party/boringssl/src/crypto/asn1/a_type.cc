@@ -52,8 +52,8 @@ const void *bssl::asn1_type_value_as_pointer(const ASN1_TYPE *a) {
 }
 
 void bssl::asn1_type_set0_string(ASN1_TYPE *a, ASN1_STRING *str) {
-  // |ASN1_STRING| types are almost the same as |ASN1_TYPE| types, except that
-  // the negative flag is not reflected into |ASN1_TYPE|.
+  // `ASN1_STRING` types are almost the same as `ASN1_TYPE` types, except that
+  // the negative flag is not reflected into `ASN1_TYPE`.
   int type = str->type;
   if (type == V_ASN1_NEG_INTEGER) {
     type = V_ASN1_INTEGER;
@@ -61,8 +61,8 @@ void bssl::asn1_type_set0_string(ASN1_TYPE *a, ASN1_STRING *str) {
     type = V_ASN1_ENUMERATED;
   }
 
-  // These types are not |ASN1_STRING| types and use a different
-  // representation when stored in |ASN1_TYPE|.
+  // These types are not `ASN1_STRING` types and use a different
+  // representation when stored in `ASN1_TYPE`.
   assert(type != V_ASN1_NULL && type != V_ASN1_OBJECT &&
          type != V_ASN1_BOOLEAN);
   ASN1_TYPE_set(a, type, str);
@@ -231,7 +231,7 @@ int bssl::asn1_parse_any_as_string(CBS *cbs, ASN1_STRING *out) {
   }
 
   // Reject unexpectedly constructed or primitive universal types, rather than
-  // encoding them as an opaque |V_ASN1_OTHER|. As of X.680 (02/2021), tag
+  // encoding them as an opaque `V_ASN1_OTHER`. As of X.680 (02/2021), tag
   // numbers 0-36 have been allocated, except 15. Of these, only 8 (EXTERNAL),
   // 11 (EMBEDDED PDV), 16 (SEQUENCE), 17 (SET), and 29 (CHARACTER STRING) are
   // constructed.
@@ -255,15 +255,15 @@ int bssl::asn1_parse_any_as_string(CBS *cbs, ASN1_STRING *out) {
   }
 
   // Historically, parsing high universal tag numbers made OpenSSL's
-  // |ASN1_STRING| representation ambiguous. We've since fixed this with
-  // |V_ASN1_OTHER| but, for now, continue to enforce the limit.
+  // `ASN1_STRING` representation ambiguous. We've since fixed this with
+  // `V_ASN1_OTHER` but, for now, continue to enforce the limit.
   if (tag_class == CBS_ASN1_UNIVERSAL && number > V_ASN1_MAX_UNIVERSAL) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
     return 0;
   }
 
-  // These types are just parsed as |V_ASN1_OTHER| here. Check the contents
-  // before the generic |V_ASN1_OTHER| path.
+  // These types are just parsed as `V_ASN1_OTHER` here. Check the contents
+  // before the generic `V_ASN1_OTHER` path.
   CBS body = elem;
   BSSL_CHECK(CBS_skip(&body, header_len));
   switch (tag) {
@@ -333,7 +333,7 @@ int bssl::asn1_parse_any_as_string(CBS *cbs, ASN1_STRING *out) {
       return 1;
     default:
       // All unrecognized types, or types that cannot be represented as
-      // |ASN1_STRING|, are represented as the whole element.
+      // `ASN1_STRING`, are represented as the whole element.
       if (!ASN1_STRING_set(out, CBS_data(&elem), CBS_len(&elem))) {
         return 0;
       }
@@ -379,12 +379,12 @@ int bssl::asn1_marshal_any(CBB *out, const ASN1_TYPE *in) {
     case V_ASN1_SEQUENCE:
     case V_ASN1_SET:
     case V_ASN1_OTHER:
-      // If |in->type| and the underlying |ASN1_STRING| type don't match, use
-      // |in->type|. See b/446993031.
+      // If `in->type` and the underlying `ASN1_STRING` type don't match, use
+      // `in->type`. See b/446993031.
       return asn1_marshal_string_with_type(out, in->value.asn1_string,
                                            in->type);
     default:
-      // |ASN1_TYPE|s can have type -1 when default-constructed.
+      // `ASN1_TYPE`s can have type -1 when default-constructed.
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_TYPE);
       return 0;
   }
@@ -424,7 +424,7 @@ static int asn1_marshal_string_with_type(CBB *out, const ASN1_STRING *in,
       return CBB_add_bytes(out, ASN1_STRING_get0_data(in),
                            ASN1_STRING_length(in));
     default:
-      // |ASN1_TYPE|s can have type -1 when default-constructed.
+      // `ASN1_TYPE`s can have type -1 when default-constructed.
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_TYPE);
       return 0;
   }

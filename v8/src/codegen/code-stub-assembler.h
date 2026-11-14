@@ -29,6 +29,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/hole.h"
+#include "src/objects/js-collection.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-promise.h"
@@ -1030,12 +1031,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<TrustedObject> LoadIndirectPointerFromObject(
       TNode<HeapObject> object, int offset, IndirectPointerTagRange tag_range);
 
-  // Determines whether the given indirect pointer handle is a trusted pointer
-  // handle or a code pointer handle.
-  TNode<BoolT> IsTrustedPointerHandle(TNode<IndirectPointerHandleT> handle);
-
-  // Retrieve the heap object referenced by the given indirect pointer handle,
-  // which can either be a trusted pointer handle or a code pointer handle.
+  // Retrieve the heap object referenced by the given indirect pointer handle.
   TNode<TrustedObject> ResolveIndirectPointerHandle(
       TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
 
@@ -1044,24 +1040,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TVariable<Uint16T>* type_out, Label* if_default,
       const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
       IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
-
-  // Retrieve the Code object referenced by the given trusted pointer handle.
-  TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
-
-  // Retrieve the heap object referenced by the given trusted pointer handle.
-  TNode<TrustedObject> ResolveTrustedPointerHandle(
-      TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
-
-  // Helper function to compute the offset into the code pointer table from a
-  // code pointer handle.
-  TNode<UintPtrT> ComputeCodePointerTableEntryOffset(
-      TNode<IndirectPointerHandleT> handle);
-
-  // Load the value of Code pointer table corresponding to
-  // IsolateGroup::current()->code_pointer_table_.
-  // Only available when the sandbox is enabled.
-  TNode<RawPtrT> LoadCodePointerTableBase();
-
 #endif
 
   TNode<JSDispatchHandleT> InvalidDispatchHandleConstant();
@@ -1735,17 +1713,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Uint32T> LoadFunctionKind(TNode<JSFunction> function);
   TNode<BoolT> IsGeneratorFunction(TNode<JSFunction> function);
-  void GotoIfPrototypeRequiresRuntimeLookup(TNode<JSFunction> function,
+  void GotoIfPrototypeRequiresRuntimeLookup(TNode<HeapObject> function,
                                             TNode<Map> map, Label* runtime);
 
-  TNode<Union<JSReceiver, Map, TheHole>> LoadJSFunctionPrototypeOrInitialMap(
-      TNode<JSFunction> function);
+  TNode<UnionOf<JSReceiver, Map, Tuple2, TheHole>>
+  LoadJSFunctionPrototypeOrInitialMap(TNode<JSFunction> function);
   void StoreJSFunctionPrototypeOrInitialMap(
-      TNode<JSFunction> function, TNode<Union<JSReceiver, Map, TheHole>> value);
+      TNode<JSFunction> function,
+      TNode<UnionOf<JSReceiver, Map, Tuple2, TheHole>> value);
 
-  // Load the "prototype" property of a JSFunction.
-  TNode<JSPrototype> LoadJSFunctionPrototype(TNode<JSFunction> function,
-                                             Label* if_bailout);
+  // Load the initial map of a JSFunctionWithPrototype.
+  TNode<Map> LoadJSFunctionInitialMap(TNode<JSFunction> function,
+                                      Label* if_bailout);
+
+  // Load the "prototype" property of a JSFunctionWithPrototype.
+  // If |if_non_instance_prototype| label is provided then the non-instance
+  // prototype value will be read to |var_non_instance_prototype|.
+  TNode<JSAny> LoadJSFunctionPrototype(
+      TNode<JSFunction> function, Label* if_bailout,
+      Label* if_non_instance_prototype = nullptr,
+      TVariable<JSAny>* var_non_instance_prototype = nullptr);
 
   TNode<Object> LoadSharedFunctionInfoUntrustedData(
       TNode<SharedFunctionInfo> sfi);
@@ -2972,6 +2959,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSSharedStruct(TNode<HeapObject> object);
   TNode<BoolT> IsJSSharedStruct(TNode<Object> object);
   TNode<BoolT> IsJSWrappedFunction(TNode<HeapObject> object);
+  TNode<BoolT> IsMapMap(TNode<Map> map);
   TNode<BoolT> IsMap(TNode<HeapObject> object);
   TNode<BoolT> IsMapInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsName(TNode<HeapObject> object);
@@ -5235,7 +5223,9 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   TNode<BoolT> IsOneByte();
 
   TNode<String> string() { return var_string_.value(); }
-  TNode<IntPtrT> offset() { return var_offset_.value(); }
+  TNode<IntPtrT> offset() {
+    return Signed(ChangeUint32ToWord(Unsigned(var_offset_.value())));
+  }
   TNode<Word32T> is_external() { return var_is_external_.value(); }
 
  private:
@@ -5247,8 +5237,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 #else
   TVariable<Int32T> var_instance_type_;
 #endif
-  // TODO(v8:9880): Use UintPtrT here.
-  TVariable<IntPtrT> var_offset_;
+  TVariable<Int32T> var_offset_;
   TVariable<Word32T> var_is_external_;
 
   const Flags flags_;

@@ -30,6 +30,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
+#include "chrome/browser/indigo/resources/grit/indigo_strings.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/obsolete_system/obsolete_system.h"
 #include "chrome/browser/performance_manager/public/user_tuning/battery_saver_mode_manager.h"
@@ -65,7 +66,6 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/accessibility_annotator/core/url_constants.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
@@ -94,6 +94,7 @@
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/performance_manager/public/features.h"
 #include "components/permissions/features.h"
+#include "components/personal_context/core/url_constants.h"
 #include "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #include "components/plus_addresses/core/browser/plus_address_service.h"
 #include "components/plus_addresses/core/common/features.h"
@@ -103,6 +104,7 @@
 #include "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/saved_tab_groups/public/features.h"
+#include "components/search/ntp_features.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
@@ -463,6 +465,16 @@ void AddAiStrings(content::WebUIDataSource* html_source) {
       {"skillsSettingLabel", IDS_SETTINGS_SKILLS_SETTING_LABEL},
       {"skillsSettingSublabel", IDS_SETTINGS_SKILLS_SETTING_SUBLABEL},
       {"skillsToggleLabel", IDS_SETTINGS_SKILLS_TOGGLE_LABEL},
+      {"skillsWhenOnBulletOne", IDS_SETTINGS_SKILLS_WHEN_ON_BULLET_ONE},
+      {"skillsWhenOnBulletTwo", IDS_SETTINGS_SKILLS_WHEN_ON_BULLET_TWO},
+      {"skillsThingsToConsiderBulletOne",
+       IDS_SETTINGS_SKILLS_THINGS_TO_CONSIDER_BULLET_ONE},
+      {"skillsThingsToConsiderBulletTwo",
+       IDS_SETTINGS_SKILLS_THINGS_TO_CONSIDER_BULLET_TWO},
+
+      // Indigo strings.
+      {"indigoLabel", IDS_INDIGO_SETTINGS_LABEL},
+      {"indigoSublabel", IDS_INDIGO_SETTINGS_SUB_LABEL},
 
       // AI Mode Search Settings strings for Smart Tab Sharing (STS)
       {"stsSettingsEntrypointGoogleSearchAiMode",
@@ -523,6 +535,7 @@ void AddAiStrings(content::WebUIDataSource* html_source) {
                          chrome::kComposeLearnMorePageManagedURL);
   html_source->AddString("passwordChangeSettingsUrl",
                          chrome::kChromeUiPasswordChangeUrl);
+  html_source->AddString("indigoSavedUrl", features::kIndigoSavedUrl.Get());
 }
 
 void AddAppearanceStrings(content::WebUIDataSource* html_source,
@@ -542,6 +555,11 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       {"systemMode", IDS_NTP_CUSTOMIZE_CHROME_COLOR_SCHEME_MODE_SYSTEM_LABEL},
       {"showHomeButton", IDS_SETTINGS_SHOW_HOME_BUTTON},
       {"showBookmarksBar", IDS_SETTINGS_SHOW_BOOKMARKS_BAR},
+      {"bookmarksBar", IDS_SETTINGS_BOOKMARKS_BAR},
+      {"bookmarksBarAlwaysShow", IDS_SETTINGS_BOOKMARKS_BAR_ALWAYS_SHOW},
+      {"bookmarksBarOnlyShowOnNtp",
+       IDS_SETTINGS_BOOKMARKS_BAR_ONLY_SHOW_ON_NTP},
+      {"bookmarksBarAlwaysHide", IDS_SETTINGS_BOOKMARKS_BAR_ALWAYS_HIDE},
       {"showTabSearchButton", IDS_SETTINGS_SHOW_TAB_SEARCH_BUTTON},
       {"showProjectsPanelButton", IDS_SETTINGS_SHOW_PROJECTS_PANEL_BUTTON},
       {"showEverythingMenuButton", IDS_SETTINGS_SHOW_EVERYTHING_MENU_BUTTON},
@@ -603,6 +621,10 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       {"themeManagedDialogBody", IDS_NTP_THEME_MANAGED_DIALOG_BODY},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
+
+  html_source->AddBoolean("ntpSimplificationBookmarksBarEnabled",
+                          base::FeatureList::IsEnabled(
+                              ntp_features::kNtpSimplificationBookmarkBar));
 
   html_source->AddString("presetZoomFactors",
                          zoom::GetPresetZoomFactorsAsJSON());
@@ -905,8 +927,6 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
       {"glicExtensionsButton", IDS_SETTINGS_GLIC_EXTENSIONS_BUTTON},
       {"glicExtensionsButtonSublabel",
        IDS_SETTINGS_GLIC_EXTENSIONS_BUTTON_SUBLABEL},
-      {"glicActivityButtonUrl",
-       IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON_URL},
       {"glicTabAccessWhenOn1",
        IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_WHEN_ON_1},
       {"glicTabAccessConsider1",
@@ -945,6 +965,8 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
        IDS_SETTINGS_GLIC_EXPERIMENTAL_TRIGGERING_CONSIDER_2},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
+
+  html_source->AddString("glicActivityButtonUrl", chrome::kGlicActivityUrl);
 
   html_source->AddLocalizedString("glicOsWidgetToggle",
                                   IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE);
@@ -1932,10 +1954,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                           base::FeatureList::IsEnabled(
                               autofill::features::kAutofillAiReauthRequired));
 
-  // TODO(b/511147685): Rename URL constant.
-  html_source->AddString(
-      "personalContextSettingsUrl",
-      accessibility_annotator::kAccessibilityAnnotatorSettingsURL);
+  html_source->AddString("personalContextSettingsUrl",
+                         personal_context::kPersonalContextSettingsURL);
 }
 
 void AddSignOutDialogStrings(content::WebUIDataSource* html_source,

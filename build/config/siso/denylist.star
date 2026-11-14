@@ -30,8 +30,6 @@ def __step_config(ctx, step_config):
         # Reads .gclient_entries which is outside of the source tree.
         "build/private_code_test/list_gclient_deps.py",
         "build/private_code_test/ninja_parser.py",
-        "build/rust/gni_impl/rustc_print_cfg.py",
-        "build/rust/gni_impl/write_rustflags.py",
         "chrome/installer/linux/debian/build.py",
         "chrome/installer/linux/debian/calculate_package_deps.py",
         "chrome/installer/linux/debian/merge_package_versions.py",
@@ -94,7 +92,6 @@ def __step_config(ctx, step_config):
         "tools/grit/grit.py",
         "tools/grit/pak_util.py",
         "tools/grit/preprocess_if_expr.py",
-        "tools/json_schema_compiler/compiler.py",
         "tools/licenses/licenses.py",
 
         # merge_xml.py relies on expand_owners.py, which

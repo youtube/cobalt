@@ -28,7 +28,6 @@
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_report.h"
 #include "api/stats/rtcstats_objects.h"
-#include "api/test/rtc_error_matchers.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h"
@@ -323,9 +322,7 @@ TEST_P(PeerConnectionBundleTest,
   ASSERT_TRUE(caller->SetRemoteDescription(std::move(answer)));
 
   // Check that caller has separate RTP and RTCP candidates for each media.
-  EXPECT_THAT(WaitUntil([&] { return caller->IsIceGatheringDone(); },
-                        ::testing::IsTrue()),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller->IsIceGatheringDone(); }));
   EXPECT_THAT(
       GetCandidateComponents(caller->observer()->GetCandidatesByMline(0)),
       UnorderedElementsAre(ICE_CANDIDATE_COMPONENT_RTP,
@@ -336,9 +333,7 @@ TEST_P(PeerConnectionBundleTest,
                            ICE_CANDIDATE_COMPONENT_RTCP));
 
   // Check that callee has separate RTP and RTCP candidates for each media.
-  EXPECT_THAT(WaitUntil([&] { return callee->IsIceGatheringDone(); },
-                        ::testing::IsTrue()),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return callee->IsIceGatheringDone(); }));
   EXPECT_THAT(
       GetCandidateComponents(callee->observer()->GetCandidatesByMline(0)),
       UnorderedElementsAre(ICE_CANDIDATE_COMPONENT_RTP,
@@ -365,9 +360,7 @@ TEST_P(PeerConnectionBundleTest,
   ASSERT_TRUE(
       caller->SetRemoteDescription(callee->CreateAnswer(options_no_bundle)));
 
-  EXPECT_THAT(WaitUntil([&] { return caller->IsIceGatheringDone(); },
-                        ::testing::IsTrue()),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller->IsIceGatheringDone(); }));
 
   EXPECT_EQ(1u, caller->observer()->GetCandidatesByMline(0).size());
   EXPECT_EQ(1u, caller->observer()->GetCandidatesByMline(1).size());
@@ -388,9 +381,7 @@ TEST_P(PeerConnectionBundleTest,
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
   ASSERT_TRUE(caller->SetRemoteDescription(callee->CreateAnswer()));
 
-  EXPECT_THAT(WaitUntil([&] { return caller->IsIceGatheringDone(); },
-                        ::testing::IsTrue()),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller->IsIceGatheringDone(); }));
 
   EXPECT_EQ(1u, caller->observer()->GetCandidatesByMline(0).size());
   EXPECT_EQ(0u, caller->observer()->GetCandidatesByMline(1).size());
@@ -667,20 +658,10 @@ TEST_P(PeerConnectionBundleTest,
   ASSERT_TRUE(
       caller->AddIceCandidateToMedia(&audio_candidate2, MediaType::AUDIO));
 
-  EXPECT_THAT(
-      WaitUntil(
-          [&] {
-            return caller->HasConnectionWithRemoteAddress(kAudioAddress1);
-          },
-          ::testing::IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil(
-          [&] {
-            return caller->HasConnectionWithRemoteAddress(kAudioAddress2);
-          },
-          ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil(
+      [&] { return caller->HasConnectionWithRemoteAddress(kAudioAddress1); }));
+  EXPECT_TRUE(WaitUntil(
+      [&] { return caller->HasConnectionWithRemoteAddress(kAudioAddress2); }));
   EXPECT_FALSE(caller->HasConnectionWithRemoteAddress(kVideoAddress));
 }
 

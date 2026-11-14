@@ -78,21 +78,21 @@ int bssl::ASN1_item_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
   return ret;
 }
 
-// asn1_item_ex_i2d_opt behaves like |ASN1_item_ex_i2d| but, if |optional| is
-// non-zero and |*pval| is omitted, it returns zero and writes no bytes.
+// asn1_item_ex_i2d_opt behaves like `ASN1_item_ex_i2d` but, if `optional` is
+// non-zero and `*pval` is omitted, it returns zero and writes no bytes.
 int asn1_item_ex_i2d_opt(ASN1_VALUE **pval, unsigned char **out,
                          const ASN1_ITEM *it, int tag, int aclass,
                          int optional) {
   const ASN1_TEMPLATE *tt = nullptr;
   int i, seqcontlen, seqlen;
 
-  // Historically, |aclass| was repurposed to pass additional flags into the
+  // Historically, `aclass` was repurposed to pass additional flags into the
   // encoding process.
   assert((aclass & ASN1_TFLG_TAG_CLASS) == aclass);
-  // If not overriding the tag, |aclass| is ignored and should be zero.
+  // If not overriding the tag, `aclass` is ignored and should be zero.
   assert(tag != -1 || aclass == 0);
 
-  // All fields are pointers, except for boolean |ASN1_ITYPE_PRIMITIVE|s.
+  // All fields are pointers, except for boolean `ASN1_ITYPE_PRIMITIVE`s.
   // Optional primitives are handled later.
   if ((it->itype != ASN1_ITYPE_PRIMITIVE) && !*pval) {
     if (optional) {
@@ -105,7 +105,7 @@ int asn1_item_ex_i2d_opt(ASN1_VALUE **pval, unsigned char **out,
   switch (it->itype) {
     case ASN1_ITYPE_PRIMITIVE:
       if (it->templates) {
-        // This is an |ASN1_ITEM_TEMPLATE|.
+        // This is an `ASN1_ITEM_TEMPLATE`.
         if (it->templates->flags & ASN1_TFLG_OPTIONAL) {
           OPENSSL_PUT_ERROR(ASN1, ASN1_R_BAD_TEMPLATE);
           return -1;
@@ -155,8 +155,8 @@ int asn1_item_ex_i2d_opt(ASN1_VALUE **pval, unsigned char **out,
           reinterpret_cast<const ASN1_EXTERN_FUNCS *>(it->funcs);
       int ret = ef->asn1_ex_i2d(pval, out, it);
       if (ret == 0) {
-        // |asn1_ex_i2d| should never return zero. We have already checked
-        // for optional values generically, and |ASN1_ITYPE_EXTERN| fields
+        // `asn1_ex_i2d` should never return zero. We have already checked
+        // for optional values generically, and `ASN1_ITYPE_EXTERN` fields
         // must be pointers.
         OPENSSL_PUT_ERROR(ASN1, ERR_R_INTERNAL_ERROR);
         return -1;
@@ -227,9 +227,9 @@ int asn1_item_ex_i2d_opt(ASN1_VALUE **pval, unsigned char **out,
   }
 }
 
-// asn1_template_ex_i2d behaves like |asn1_item_ex_i2d_opt| but uses an
-// |ASN1_TEMPLATE| instead of an |ASN1_ITEM|. An |ASN1_TEMPLATE| wraps an
-// |ASN1_ITEM| with modifiers such as tagging, SEQUENCE or SET, etc.
+// asn1_template_ex_i2d behaves like `asn1_item_ex_i2d_opt` but uses an
+// `ASN1_TEMPLATE` instead of an `ASN1_ITEM`. An `ASN1_TEMPLATE` wraps an
+// `ASN1_ITEM` with modifiers such as tagging, SEQUENCE or SET, etc.
 static int asn1_template_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
                                 const ASN1_TEMPLATE *tt, int tag, int iclass,
                                 int optional) {
@@ -237,10 +237,10 @@ static int asn1_template_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
   size_t j;
   uint32_t flags = tt->flags;
 
-  // Historically, |iclass| was repurposed to pass additional flags into the
+  // Historically, `iclass` was repurposed to pass additional flags into the
   // encoding process.
   assert((iclass & ASN1_TFLG_TAG_CLASS) == iclass);
-  // If not overriding the tag, |iclass| is ignored and should be zero.
+  // If not overriding the tag, `iclass` is ignored and should be zero.
   assert(tag != -1 || iclass == 0);
 
   // Work out tag and class to use: tagging may come either from the
@@ -265,9 +265,9 @@ static int asn1_template_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
   }
 
   // The template may itself by marked as optional, or this may be the template
-  // of an |ASN1_ITEM_TEMPLATE| type which was contained inside an outer
+  // of an `ASN1_ITEM_TEMPLATE` type which was contained inside an outer
   // optional template. (They cannot both be true because the
-  // |ASN1_ITEM_TEMPLATE| codepath rejects optional templates.)
+  // `ASN1_ITEM_TEMPLATE` codepath rejects optional templates.)
   assert(!optional || (flags & ASN1_TFLG_OPTIONAL) == 0);
   optional = optional || (flags & ASN1_TFLG_OPTIONAL) != 0;
 
@@ -397,11 +397,11 @@ static int der_cmp(const void *a, const void *b) {
   return d1->length - d2->length;
 }
 
-// asn1_set_seq_out writes |sk| to |out| under the i2d output convention,
+// asn1_set_seq_out writes `sk` to `out` under the i2d output convention,
 // excluding the tag and length. It returns one on success and zero on error.
-// |skcontlen| must be the total encoded size. If |do_sort| is non-zero, the
-// elements are sorted for a SET OF type. Each element of |sk| has type
-// |item|.
+// `skcontlen` must be the total encoded size. If `do_sort` is non-zero, the
+// elements are sorted for a SET OF type. Each element of `sk` has type
+// `item`.
 static int asn1_set_seq_out(STACK_OF(ASN1_VALUE) *sk, unsigned char **out,
                             int skcontlen, const ASN1_ITEM *item, int do_sort) {
   // No need to sort if there are fewer than two items.
@@ -424,7 +424,7 @@ static int asn1_set_seq_out(STACK_OF(ASN1_VALUE) *sk, unsigned char **out,
     goto err;
   }
 
-  // Encode all the elements into |buf| and populate |encoded|.
+  // Encode all the elements into `buf` and populate `encoded`.
   for (size_t i = 0; i < sk_ASN1_VALUE_num(sk); i++) {
     ASN1_VALUE *skitem = sk_ASN1_VALUE_value(sk, i);
     encoded[i].data = p;
@@ -453,8 +453,8 @@ err:
   return ret;
 }
 
-// asn1_i2d_ex_primitive behaves like |ASN1_item_ex_i2d| but |item| must be a
-// a PRIMITIVE or MSTRING type that is not an |ASN1_ITEM_TEMPLATE|.
+// asn1_i2d_ex_primitive behaves like `ASN1_item_ex_i2d` but `item` must be a
+// a PRIMITIVE or MSTRING type that is not an `ASN1_ITEM_TEMPLATE`.
 static int asn1_i2d_ex_primitive(ASN1_VALUE **pval, unsigned char **out,
                                  const ASN1_ITEM *it, int tag, int aclass,
                                  int optional) {
@@ -504,21 +504,21 @@ static int asn1_i2d_ex_primitive(ASN1_VALUE **pval, unsigned char **out,
   return len;
 }
 
-// asn1_ex_i2c writes the |*pval| to |cout| under the i2d output convention,
+// asn1_ex_i2c writes the `*pval` to `cout` under the i2d output convention,
 // excluding the tag and length. It returns the number of bytes written,
-// possibly zero, on success or -1 on error. If |*pval| should be omitted, it
-// returns zero and sets |*out_omit| to true.
+// possibly zero, on success or -1 on error. If `*pval` should be omitted, it
+// returns zero and sets `*out_omit` to true.
 //
-// If |it| is an MSTRING or ANY type, it gets the underlying type from |*pval|,
-// which must be an |ASN1_STRING| or |ASN1_TYPE|, respectively. It then updates
-// |*putype| with the tag number of type used, or |V_ASN1_OTHER| if it was not a
-// universal type. If |*putype| is set to |V_ASN1_SEQUENCE|, |V_ASN1_SET|, or
-// |V_ASN1_OTHER|, it additionally outputs the tag and length, so the caller
+// If `it` is an MSTRING or ANY type, it gets the underlying type from `*pval`,
+// which must be an `ASN1_STRING` or `ASN1_TYPE`, respectively. It then updates
+// `*putype` with the tag number of type used, or `V_ASN1_OTHER` if it was not a
+// universal type. If `*putype` is set to `V_ASN1_SEQUENCE`, `V_ASN1_SET`, or
+// `V_ASN1_OTHER`, it additionally outputs the tag and length, so the caller
 // must not do so.
 //
-// Otherwise, |*putype| must contain |it->utype|.
+// Otherwise, `*putype` must contain `it->utype`.
 //
-// WARNING: Unlike most functions in this file, |asn1_ex_i2c| can return zero
+// WARNING: Unlike most functions in this file, `asn1_ex_i2c` can return zero
 // without omitting the element. ASN.1 values may have empty contents.
 static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *out_omit,
                        int *putype, const ASN1_ITEM *it) {
@@ -531,8 +531,8 @@ static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *out_omit,
   int len;
 
   assert(it->itype == ASN1_ITYPE_PRIMITIVE || it->itype == ASN1_ITYPE_MSTRING);
-  // Historically, |it->funcs| for primitive types contained an
-  // |ASN1_PRIMITIVE_FUNCS| table of callbacks.
+  // Historically, `it->funcs` for primitive types contained an
+  // `ASN1_PRIMITIVE_FUNCS` table of callbacks.
   assert(it->funcs == nullptr);
 
   *out_omit = 0;
@@ -555,7 +555,7 @@ static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *out_omit,
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_TYPE);
       return -1;
     }
-    // Negative INTEGER and ENUMERATED values use |ASN1_STRING| type values that
+    // Negative INTEGER and ENUMERATED values use `ASN1_STRING` type values that
     // do not match their corresponding utype values.
     if (utype == V_ASN1_NEG_INTEGER) {
       utype = V_ASN1_INTEGER;
@@ -569,7 +569,7 @@ static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *out_omit,
     typ = (ASN1_TYPE *)*pval;
     utype = typ->type;
     if (utype < 0 && utype != V_ASN1_OTHER) {
-      // |ASN1_TYPE|s can have type -1 when default-constructed.
+      // `ASN1_TYPE`s can have type -1 when default-constructed.
       OPENSSL_PUT_ERROR(ASN1, ASN1_R_WRONG_TYPE);
       return -1;
     }
@@ -585,7 +585,7 @@ static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *out_omit,
       cont = otmp->data;
       len = otmp->length;
       if (len == 0) {
-        // Some |ASN1_OBJECT|s do not have OIDs and cannot be serialized.
+        // Some `ASN1_OBJECT`s do not have OIDs and cannot be serialized.
         OPENSSL_PUT_ERROR(ASN1, ASN1_R_ILLEGAL_OBJECT);
         return -1;
       }
@@ -617,15 +617,15 @@ static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *out_omit,
     case V_ASN1_BIT_STRING: {
       int ret =
           i2c_ASN1_BIT_STRING((ASN1_BIT_STRING *)*pval, cout ? &cout : nullptr);
-      // |i2c_ASN1_BIT_STRING| returns zero on error instead of -1.
+      // `i2c_ASN1_BIT_STRING` returns zero on error instead of -1.
       return ret <= 0 ? -1 : ret;
     }
 
     case V_ASN1_INTEGER:
     case V_ASN1_ENUMERATED: {
-      // |i2c_ASN1_INTEGER| also handles ENUMERATED.
+      // `i2c_ASN1_INTEGER` also handles ENUMERATED.
       int ret = i2c_ASN1_INTEGER((ASN1_INTEGER *)*pval, cout ? &cout : nullptr);
-      // |i2c_ASN1_INTEGER| returns zero on error instead of -1.
+      // `i2c_ASN1_INTEGER` returns zero on error instead of -1.
       return ret <= 0 ? -1 : ret;
     }
 
@@ -645,7 +645,7 @@ static int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *out_omit,
     case V_ASN1_UTF8STRING:
     case V_ASN1_SEQUENCE:
     case V_ASN1_SET:
-    // This is not a valid |ASN1_ITEM| type, but it appears in |ASN1_TYPE|.
+    // This is not a valid `ASN1_ITEM` type, but it appears in `ASN1_TYPE`.
     case V_ASN1_OTHER:
       // All based on ASN1_STRING and handled the same
       strtmp = (ASN1_STRING *)*pval;

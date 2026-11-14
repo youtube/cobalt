@@ -337,6 +337,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
   V(js_joint_iteration, "joint iteration")             \
   V(js_import_text, "import text")                     \
+  V(js_import_bytes, "import bytes")                   \
   V(js_defer_import_eval, "defer import eval")         \
   V(js_iterator_includes, "Iterator.prototype.includes")
 
@@ -414,6 +415,8 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 JAVASCRIPT_SHIPPING_FEATURES(FLAG_SHIPPING_FEATURES)
 DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, js_shipping)
 #undef FLAG_SHIPPING_FEATURES
+
+DEFINE_IMPLICATION(js_import_bytes, js_immutable_arraybuffer)
 
 DEFINE_BOOL(builtin_subclassing, true,
             "subclassing support in built-in methods")
@@ -758,14 +761,13 @@ DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier,
 
 DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
-DEFINE_BOOL(maglev_untagged_phis, false,
+DEFINE_BOOL(maglev_untagged_phis, true,
             "enable phi untagging in the maglev optimizing compiler")
 DEFINE_INT(maglev_untagged_phis_bisect_limit, -1,
            "limit the number of Phis we untag in Maglev phi untagging (-1 for "
            "unbounded)")
-DEFINE_BOOL(turbolev_untagged_phis, false,
+DEFINE_BOOL(turbolev_untagged_phis, true,
             "enable phi untagging in the Turbolev optimizing compiler")
-DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_untagged_phis)
 
 DEFINE_BOOL(maglev_hoist_osr_value_phi_untagging, true,
             "enable phi untagging to hoist untagging of osr values")
@@ -1164,8 +1166,8 @@ DEFINE_WEAK_IMPLICATION(always_osr_from_maglev, osr_from_maglev)
 DEFINE_INT(invocation_count_for_turbofan, 3000,
            "invocation count required for optimizing with TurboFan")
 DEFINE_INT(invocation_count_for_osr, 500, "invocation count required for OSR")
-DEFINE_INT(osr_to_tierup, 1,
-           "number to decrease the invocation budget by when we follow OSR")
+DEFINE_UINT(osr_to_tierup, 1,
+            "number to decrease the invocation budget by when we follow OSR")
 DEFINE_INT(minimum_invocations_after_ic_update, 500,
            "How long to minimally wait after IC update before tier up")
 DEFINE_INT(minimum_invocations_before_optimization, 2,
@@ -1778,11 +1780,9 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_random_rescheduling,
 DEFINE_BOOL(turboshaft_string_concat_escape_analysis, true,
             "enable Turboshaft's escape analysis for string concatenation")
 
-DEFINE_BOOL(turboshaft_trusted_load_elimination, false,
+DEFINE_BOOL(turboshaft_trusted_load_elimination, true,
             "enable Turboshaft's low level load elimination for trusted loads "
             "(JS and Wasm)")
-// For now this is staged behind future.
-DEFINE_IMPLICATION(future, turboshaft_trusted_load_elimination)
 DEFINE_IMPLICATION(turboshaft_trusted_load_elimination,
                    turboshaft_load_elimination)
 
@@ -2931,6 +2931,8 @@ DEFINE_BOOL(partial_constant_pool, true,
 DEFINE_STRING(sim_arm64_optional_features, "none",
               "enable optional features on the simulator for testing: none or "
               "all")
+DEFINE_BOOL(sim_arm64_tbi, true,
+            "simulate arm64 Top Byte Ignore (TBI) for data accesses")
 DEFINE_BOOL(intel_jcc_erratum_mitigation, true,
             "enable mitigation for Intel JCC erratum on affected CPUs")
 
@@ -3735,7 +3737,7 @@ DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 //
 DEFINE_DEVELOPER_FLAG(trace_minor_ms_parallel_marking,
                       "trace parallel marking for the young generation")
-DEFINE_BOOL(minor_ms, false, "perform young generation mark sweep GCs")
+DEFINE_EXPERIMENTAL_FEATURE(minor_ms, "perform young generation mark sweep GCs")
 DEFINE_IMPLICATION(minor_ms, page_promotion)
 
 DEFINE_BOOL(concurrent_minor_ms_marking, true,
@@ -4232,7 +4234,7 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Allow arbitrary length spread arguments on supported builtins")
 
 DEFINE_EXPERIMENTAL_FEATURE(fast_proxy_ic, "Support proxy traps in ICs")
-DEFINE_WEAK_IMPLICATION(experimental, fast_proxy_ic)
+DEFINE_WEAK_IMPLICATION(experimental_fuzzing, fast_proxy_ic)
 
 DEFINE_BOOL(is_standalone_d8_shell, false,
             "Tells V8 it's running as part of the d8. This flag should not be "

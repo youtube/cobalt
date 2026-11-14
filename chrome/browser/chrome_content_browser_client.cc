@@ -77,6 +77,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_url_loader_factory_interceptor.h"
+#include "chrome/browser/contextual_tasks/guest_opener_user_data.h"
 #include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/data_saver/data_saver.h"
 #include "chrome/browser/defaults.h"
@@ -339,6 +340,7 @@
 #include "content/public/browser/client_certificate_delegate.h"
 #include "content/public/browser/digital_identity_provider.h"
 #include "content/public/browser/file_url_loader.h"
+#include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/internal_webui_config.h"
 #include "content/public/browser/isolated_web_apps_policy.h"
 #include "content/public/browser/legacy_tech_cookie_issue_details.h"
@@ -530,7 +532,6 @@
 #include "components/crash/content/browser/child_exit_observer_android.h"
 #include "components/crash/content/browser/crash_memory_metrics_collector_android.h"
 #include "components/viz/common/features.h"
-#include "components/viz/common/viz_utils.h"
 #include "content/public/browser/android/java_interfaces.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "ui/base/resource/resource_bundle_android.h"
@@ -849,7 +850,7 @@ bool HandleNewTabPageLocationOverride(
     GURL* url,
     content::BrowserContext* browser_context) {
   if (!url->SchemeIs(content::kChromeUIScheme) ||
-      url->GetHost() != chrome::kChromeUINewTabHost) {
+      url->host() != chrome::kChromeUINewTabHost) {
     return false;
   }
 
@@ -1339,33 +1340,6 @@ void NotifyMultiCaptureStopped(const std::string& label,
   CHECK_DEREF(multi_capture::MultiCaptureUsageIndicatorServiceFactory::
                   GetForBrowserContext(browser_context))
       .MultiCaptureStopped(label);
-}
-
-bool IsSubAppsPermissionGrantedByAdmins(content::WebContents* contents) {
-  if (!contents) {
-    return false;
-  }
-
-  Profile* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
-  if (!profile) {
-    return false;
-  }
-
-  PrefService* prefs = profile->GetPrefs();
-  if (!prefs) {
-    return false;
-  }
-
-  return policy::IsOriginInAllowlist(
-      contents->GetURL(), prefs,
-      prefs::kSubAppsAPIsAllowedWithoutGestureAndAuthorizationForOrigins);
-}
-
-// Checks if installation and removal of subapps require a user gesture and
-// authorization. Both requirements can be overridden via admin policy.
-bool SubAppsAPIsRequireUserGestureAndAuthorization(
-    content::WebContents* web_contents) {
-  return !IsSubAppsPermissionGrantedByAdmins(web_contents);
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -2118,7 +2092,7 @@ bool ChromeContentBrowserClient::DoesWebUIUrlRequireProcessLock(
   // embeds those tiles, should be locked.  This allows most visited tiles to
   // stay in their parent (i.e., third-party NTP's) process.
   if (url.SchemeIs(chrome::kChromeSearchScheme) &&
-      url.GetHost() == chrome::kChromeSearchMostVisitedHost) {
+      url.host() == chrome::kChromeSearchMostVisitedHost) {
     return false;
   }
 
@@ -2365,7 +2339,7 @@ bool ChromeContentBrowserClient::ShouldStayInParentProcessForNTP(
   //
   // TODO(crbug.com/41261582): clean up the logic for detecting NTP.
   return url.SchemeIs(chrome::kChromeSearchScheme) &&
-         url.GetHost() == chrome::kChromeSearchMostVisitedHost &&
+         url.host() == chrome::kChromeSearchMostVisitedHost &&
          search::IsNTPURL(parent_site_url);
 }
 
@@ -4529,6 +4503,7 @@ bool ChromeContentBrowserClient::CanCreateWindow(
     content::OpenURLParams url_params(
         target_url, referrer, disposition,
         ui::PageTransition::PAGE_TRANSITION_AUTO_TOPLEVEL, true);
+    url_params.user_gesture = user_gesture;
     content::WebContents* responsible_web_contents =
         web_contents->GetResponsibleWebContents();
     bool is_from_embedded_page =
@@ -4541,7 +4516,10 @@ bool ChromeContentBrowserClient::CanCreateWindow(
             std::move(url_params), responsible_web_contents,
             is_from_embedded_page,
             /*from_can_create_window=*/true, is_same_site_or_from_ui,
-            /*is_mobile_ua=*/false)) {
+            /*is_mobile_ua=*/false,
+            /*initiator_origin=*/opener->GetLastCommittedOrigin(),
+            /*initiator_frame_token=*/opener->GetGlobalFrameToken(),
+            features)) {
       return false;
     }
   }
@@ -4961,10 +4939,6 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
       IsFileOrDirectoryPickerWithoutGestureAllowed(web_contents);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_CHROMEOS)
-  web_prefs->subapps_apis_require_user_gesture_and_authorization =
-      SubAppsAPIsRequireUserGestureAndAuthorization(web_contents);
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
   web_prefs->preferred_contrast = GetPreferredContrast();
 
@@ -5112,13 +5086,6 @@ bool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(
   }
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS)
-  const bool subapps_apis_require_user_gesture_and_authorization =
-      SubAppsAPIsRequireUserGestureAndAuthorization(web_contents);
-  prefs_changed |=
-      (web_prefs->subapps_apis_require_user_gesture_and_authorization !=
-       subapps_apis_require_user_gesture_and_authorization);
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
   return prefs_changed;
 }
@@ -7371,7 +7338,7 @@ bool ChromeContentBrowserClient::HandleWebUI(
 
   // Rewrite chrome://help to chrome://settings/help.
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->GetHost() == chrome::kChromeUIHelpHost) {
+      url->host() == chrome::kChromeUIHelpHost) {
     *url = ReplaceURLHostAndPath(*url, chrome::kChromeUISettingsHost,
                                  chrome::kChromeUIHelpHost);
   }
@@ -7381,8 +7348,8 @@ bool ChromeContentBrowserClient::HandleWebUI(
 
   // Rewrite chrome://settings/enhancedAutofill to chrome://settings/autofill.
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->GetHost() == chrome::kChromeUISettingsHost &&
-      url->GetPath() == chrome::kChromeUIAutofillAiPath &&
+      url->host() == chrome::kChromeUISettingsHost &&
+      url->path() == chrome::kChromeUIAutofillAiPath &&
       base::FeatureList::IsEnabled(
           autofill::features::kYourSavedInfoSettingsPage)) {
     GURL::Replacements replacements;
@@ -7392,8 +7359,8 @@ bool ChromeContentBrowserClient::HandleWebUI(
 
   // Rewrite chrome://settings/addresses to chrome://settings/contactInfo.
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->GetHost() == chrome::kChromeUISettingsHost &&
-      (url->GetPath() == chrome::kChromeUIAddressesPath) &&
+      url->host() == chrome::kChromeUISettingsHost &&
+      (url->path() == chrome::kChromeUIAddressesPath) &&
       base::FeatureList::IsEnabled(
           autofill::features::kYourSavedInfoSettingsPage)) {
     GURL::Replacements replacements;
@@ -7403,8 +7370,8 @@ bool ChromeContentBrowserClient::HandleWebUI(
 
   // Rewrite chrome://settings/searchEngines to chrome://settings/search.
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->GetHost() == chrome::kChromeUISettingsHost &&
-      (url->GetPath() == chrome::kChromeUISearchEngineSettingsPath) &&
+      url->host() == chrome::kChromeUISettingsHost &&
+      (url->path() == chrome::kChromeUISearchEngineSettingsPath) &&
       base::FeatureList::IsEnabled(switches::kSearchSettingsUpdate)) {
     GURL::Replacements replacements;
     replacements.SetPathStr(chrome::kChromeUISearchSettingsPath);
@@ -7415,8 +7382,8 @@ bool ChromeContentBrowserClient::HandleWebUI(
 
 #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->GetHost() == chrome::kChromeUISettingsHost &&
-      url->GetPath() == chrome::kChromeUICertificateRedirectPath) {
+      url->host() == chrome::kChromeUISettingsHost &&
+      url->path() == chrome::kChromeUICertificateRedirectPath) {
     *url = GURL(chrome::kChromeUICertificateManagerDialogURL);
     return true;
   }
@@ -7491,7 +7458,7 @@ bool ChromeContentBrowserClient::HandleWebUIReverse(
   // displayed URL when rewriting chrome://settings/certificates to
   // chrome://certificate-manager
   if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->GetHost() == chrome::kChromeUICertificateManagerHost) {
+      url->host() == chrome::kChromeUICertificateManagerHost) {
     return true;
   }
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
@@ -7499,7 +7466,7 @@ bool ChromeContentBrowserClient::HandleWebUIReverse(
   // No need to actually reverse-rewrite the URL, but return true to update the
   // displayed URL when rewriting chrome://help to chrome://settings/help.
   return url->SchemeIs(content::kChromeUIScheme) &&
-         url->GetHost() == chrome::kChromeUISettingsHost;
+         url->host() == chrome::kChromeUISettingsHost;
 }
 
 void ChromeContentBrowserClient::AddExtraPart(
@@ -7787,9 +7754,6 @@ bool ChromeContentBrowserClient::ShouldBlockRendererDebugURL(
 #if BUILDFLAG(IS_ANDROID)
 content::ContentBrowserClient::WideColorGamutHeuristic
 ChromeContentBrowserClient::GetWideColorGamutHeuristic() {
-  if (viz::AlwaysUseWideColorGamut()) {
-    return WideColorGamutHeuristic::kUseDisplay;
-  }
 
   if (display::HasForceDisplayColorProfile() &&
       display::GetForcedDisplayColorProfile() ==
@@ -8786,6 +8750,43 @@ ChromeContentBrowserClient::GetEffectiveTopFrameForPartitioning(
 #else
   return nullptr;
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+}
+
+content::RenderFrameHost*
+ChromeContentBrowserClient::GetPostMessageTargetOverride(
+    content::RenderFrameHost* target_rfh,
+    const std::optional<blink::LocalFrameToken>& source_frame_token,
+    const url::Origin& source_origin,
+    const std::optional<url::Origin>& target_origin) {
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(target_rfh);
+  if (!web_contents) {
+    return nullptr;
+  }
+
+  // Don't proceed to looking up the ContextualTasksUiService if the WebContents
+  // is not marked as a guest opener. In other words, this post message is
+  // unrelated to Contextual Tasks.
+  if (!contextual_tasks::GuestOpenerUserData::IsGuestOpener(web_contents)) {
+    return nullptr;
+  }
+
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
+  if (!profile) {
+    return nullptr;
+  }
+
+  // The ContextualTasks feature manually tracks window opens to be able to
+  // route messages back to the appropriate RenderFrameHost. If that feature
+  // returns a frame, use that instead.
+  contextual_tasks::ContextualTasksUiService* service = contextual_tasks::
+      ContextualTasksUiServiceFactory::GetForBrowserContextIfExists(profile);
+  if (service) {
+    return service->GetGuestForMessage(target_rfh, source_origin);
+  }
+
+  return nullptr;
 }
 
 bool ChromeContentBrowserClient::IsCrossOriginSubframeAllowedToShowFilePicker(

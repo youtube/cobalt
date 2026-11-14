@@ -5549,6 +5549,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_buffer_boundaries)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_modifiers)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_duplicate_named_groups)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_decorators)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_import_bytes)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
@@ -7067,7 +7068,6 @@ DirectHandle<Map> Genesis::CreateInitialMapForArraySubclass(
   initial_map->SetConstructor(*array_constructor);
 
   // Set prototype on map.
-  initial_map->set_has_non_instance_prototype(false);
   Map::SetPrototype(isolate(), initial_map, array_prototype);
 
   // Update map with length accessor from Array.

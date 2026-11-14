@@ -50,7 +50,7 @@ using QuicStreamOffset = uint64_t;
 using DiversificationNonce = std::array<char, 32>;
 using PacketTimeVector = std::vector<std::pair<QuicPacketNumber, QuicTime>>;
 
-enum : size_t { kStatelessResetTokenLength = 16 };
+inline constexpr size_t kStatelessResetTokenLength = 16;
 using StatelessResetToken = std::array<char, kStatelessResetTokenLength>;
 
 // WebTransport session IDs are stream IDs.
@@ -60,7 +60,7 @@ using WebTransportStreamError = ::webtransport::StreamErrorCode;
 // WebTransport session error codes are 32-bit.
 using WebTransportSessionError = ::webtransport::SessionErrorCode;
 
-enum : size_t { kQuicPathFrameBufferSize = 8 };
+inline constexpr size_t kQuicPathFrameBufferSize = 8;
 using QuicPathFrameBuffer = std::array<uint8_t, kQuicPathFrameBufferSize>;
 
 // The connection id sequence number specifies the order that connection
@@ -216,6 +216,11 @@ enum HasRetransmittableData : uint8_t {
 enum IsHandshake : uint8_t { NOT_HANDSHAKE, IS_HANDSHAKE };
 
 enum class Perspective : uint8_t { IS_SERVER, IS_CLIENT };
+
+constexpr Perspective FlipPerspective(Perspective perspective) {
+  return perspective == Perspective::IS_CLIENT ? Perspective::IS_SERVER
+                                               : Perspective::IS_CLIENT;
+}
 
 QUICHE_EXPORT std::string PerspectiveToString(Perspective perspective);
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
@@ -870,9 +875,8 @@ using QuicSignatureAlgorithmVector = absl::InlinedVector<uint16_t, 8>;
 struct QUICHE_EXPORT QuicSSLConfig {
   // Whether TLS early data should be enabled. If not set, default to enabled.
   std::optional<bool> early_data_enabled;
-  // Whether TLS session tickets are supported. If not set, default to
-  // supported.
-  std::optional<bool> disable_ticket_support;
+  // Whether TLS session tickets are disabled. Defaults to false (supported).
+  bool disable_ticket_support = false;
   // If set, used to configure the SSL object with
   // SSL_set_signing_algorithm_prefs.
   std::optional<QuicSignatureAlgorithmVector> signing_algorithm_prefs;
@@ -896,6 +900,12 @@ struct QUICHE_EXPORT QuicSSLConfig {
   // Only used by the client.
   // This is experimental, and will be removed once the experiment is complete.
   std::optional<uint16_t> server_padding_to_request = std::nullopt;
+
+  // Only used by the server. If true, the server will add padding to the
+  // server's TLS handshake when the client requests it via
+  // server_padding_to_request.
+  // This is experimental, and will be removed once the experiment is complete.
+  bool server_padding_enabled = false;
 };
 
 QUICHE_EXPORT bool operator==(const QuicSSLConfig& lhs,

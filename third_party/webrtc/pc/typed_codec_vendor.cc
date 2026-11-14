@@ -10,6 +10,7 @@
 
 #include "pc/typed_codec_vendor.h"
 
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <string>
@@ -30,7 +31,9 @@
 #include "media/base/media_engine.h"
 #include "pc/codec_configuration.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/containers/flat_set.h"
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 
@@ -125,12 +128,17 @@ std::vector<CodecConfiguration> CollectVideoCodecConfigurations(
   if (formats.empty()) {
     return {};
   }
+  if (absl::EqualsIgnoreCase(formats[0].name, kRtxCodecName)) {
+    RTC_LOG(LS_ERROR) << "RTX codec at index 0 is invalid.";
+    return {};
+  }
 
   bool has_red = false;
   bool has_ulpfec = false;
   bool has_flexfec = false;
-  bool has_rtx = false;
 
+  // Note whether the resiliency methods that apply to all
+  // media codecs are present.
   for (const SdpVideoFormat& format : formats) {
     if (absl::EqualsIgnoreCase(format.name, kRedCodecName)) {
       has_red = true;
@@ -138,37 +146,54 @@ std::vector<CodecConfiguration> CollectVideoCodecConfigurations(
       has_ulpfec = true;
     } else if (absl::EqualsIgnoreCase(format.name, kFlexfecCodecName)) {
       has_flexfec = true;
-    } else if (absl::EqualsIgnoreCase(format.name, kRtxCodecName)) {
-      has_rtx = true;
     }
   }
 
+  // Convert list to CodecConfiguration format.
+  // An Rtx codec in the list indicates that the previous codec should
+  // have a resiliency mechanism of Rtx.
   std::vector<CodecConfiguration> out;
-  for (const SdpVideoFormat& format : formats) {
-    Codec codec = CreateVideoCodec(format);
-    if (codec.IsResiliencyCodec()) {
+  bool previous_was_media_codec = false;
+  for (size_t i = 0; i < formats.size(); ++i) {
+    const SdpVideoFormat& format = formats[i];
+    if (absl::EqualsIgnoreCase(format.name, kRtxCodecName)) {
+      if (add_auxiliary_codecs) {
+        // If we add auxiliary codecs, we will enable RTX for all primary codecs
+        // anyway, so we don't need to associate this RTX format.
+        continue;
+      }
+      if (!previous_was_media_codec) {
+        RTC_LOG(LS_ERROR) << "RTX codec preceded by non-media codec is invalid";
+        return {};
+      }
+      if (rtx_enabled) {
+        if (!out.empty()) {
+          out.back().resiliency.rtx = true;
+        } else {
+          RTC_DCHECK(false) << "Preceding codec was not added to out?";
+        }
+      }
       continue;
     }
-
+    Codec codec = CreateVideoCodec(format);
+    if (codec.IsResiliencyCodec()) {
+      previous_was_media_codec = false;
+      continue;
+    }
+    previous_was_media_codec = true;
     AddDefaultFeedbackParams(&codec, trials);
 
     CodecConfiguration config;
     config.codec = codec;
-    if (rtx_enabled && (has_rtx || add_auxiliary_codecs)) {
-      Codec::ResiliencyType resiliency_type = codec.GetResiliencyType();
-      if (resiliency_type != Codec::ResiliencyType::kFlexfec &&
-          resiliency_type != Codec::ResiliencyType::kUlpfec) {
-        config.resiliency.rtx = true;
-      }
-    }
     config.resiliency.red = has_red;
     config.resiliency.ulpfec = has_ulpfec;
-    if (trials.IsEnabled("WebRTC-FlexFEC-03-Advertised") ||
-        trials.IsEnabled("WebRTC-FlexFEC-03")) {
-      config.resiliency.flexfec = has_flexfec;
+    config.resiliency.flexfec = has_flexfec;
+    if (rtx_enabled && add_auxiliary_codecs) {
+      config.resiliency.rtx = true;
     }
     out.push_back(config);
   }
+
   return out;
 }
 

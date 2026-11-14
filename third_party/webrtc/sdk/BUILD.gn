@@ -65,8 +65,8 @@ if (is_ios || is_mac) {
     }
   }
 
-  # TODO(bugs.webrtc.org/9627): Remove this when unused. Targets should depend on base_objc
-  # or helpers_objc directly instead.
+  # TODO(bugs.webrtc.org/9627): Remove this when unused. Targets should depend
+  # on base_objc or helpers_objc directly instead.
   rtc_library("common_objc") {
     visibility = [ "*" ]
 
@@ -1171,7 +1171,6 @@ if (is_ios || is_mac) {
         "../rtc_base:threading",
         "../rtc_base:timeutils",
         "../rtc_base/system:plan_b_only",
-        "../stats:rtc_stats",
         "../system_wrappers:metrics",
       ]
 

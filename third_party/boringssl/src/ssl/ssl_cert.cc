@@ -51,14 +51,14 @@ UniquePtr<CERT> ssl_cert_dup(CERT *cert) {
     return nullptr;
   }
 
-  // TODO(crbug.com/boringssl/431): This should just be |CopyFrom|.
+  // TODO(crbug.com/boringssl/431): This should just be `CopyFrom`.
   for (const auto &cred : cert->credentials) {
     if (!ret->credentials.Push(UpRef(cred))) {
       return nullptr;
     }
   }
 
-  // |legacy_credential| is mutable, so it must be copied. We cannot simply
+  // `legacy_credential` is mutable, so it must be copied. We cannot simply
   // bump the reference count.
   ret->legacy_credential = cert->legacy_credential->Dup();
   if (ret->legacy_credential == nullptr ||
@@ -220,8 +220,8 @@ bool ssl_parse_rpk_cert(uint8_t *out_alert,
   return true;
 }
 
-// ssl_cert_skip_to_spki parses a DER-encoded, X.509 certificate from |in| and
-// positions |*out_tbs_cert| to cover the TBSCertificate, starting at the
+// ssl_cert_skip_to_spki parses a DER-encoded, X.509 certificate from `in` and
+// positions `*out_tbs_cert` to cover the TBSCertificate, starting at the
 // subjectPublicKeyInfo.
 static bool ssl_cert_skip_to_spki(const CBS *in, CBS *out_tbs_cert) {
   /* From RFC 5280, section 4.1
@@ -673,7 +673,7 @@ void SSL_CTX_set0_client_CAs(SSL_CTX *ctx, STACK_OF(CRYPTO_BUFFER) *name_list) {
 
 void SSL_set0_client_CAs(SSL *ssl, STACK_OF(CRYPTO_BUFFER) *name_list) {
   if (!ssl->config) {
-    // |SSL_set0_client_CAs| is expected to take ownership of |name_list|.
+    // `SSL_set0_client_CAs` is expected to take ownership of `name_list`.
     sk_CRYPTO_BUFFER_pop_free(name_list, CRYPTO_BUFFER_free);
     return;
   }

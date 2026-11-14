@@ -182,7 +182,7 @@ int DTLSv1_get_timeout(const SSL *ssl, struct timeval *out) {
   uint64_t remaining_sec = remaining_usec / 1000000;
   remaining_usec %= 1000000;
 
-  // |timeval| uses |time_t|, which may be 32-bit.
+  // `timeval` uses `time_t`, which may be 32-bit.
   const auto kTvSecMax = std::numeric_limits<decltype(out->tv_sec)>::max();
   if (remaining_sec > static_cast<uint64_t>(kTvSecMax)) {
     out->tv_sec = kTvSecMax;  // Saturate the output.

@@ -157,8 +157,7 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
   EXPECT_CALL(*mock_network_manager,
               DownloadAndParseUncredentialedUrl(kJwksUri, _))
       .WillOnce(WithArgs<1>([&](ParseJsonCallback callback) {
-        std::move(callback).Run({ParseStatus::kSuccess},
-                                base::Value(std::move(jwks)));
+        std::move(callback).Run({ParseStatus::kSuccess}, std::move(jwks));
       }));
 
   const GURL kAccountsEndpoint = GURL("https://issuer.example.com/accounts");
@@ -173,8 +172,8 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
           }));
 
   EXPECT_CALL(*mock_idp_network_manager_,
-              SendAccountsRequest(_, kAccountsEndpoint, _, _))
-      .WillOnce(WithArgs<3>(
+              SendAccountsRequest(_, kAccountsEndpoint, _))
+      .WillOnce(WithArgs<2>(
           [&](IdpNetworkRequestManager::AccountsRequestCallback callback) {
             IdpNetworkRequestManager::AccountsResponse response;
             auto account = base::MakeRefCounted<IdentityRequestAccount>(
@@ -218,7 +217,7 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
                 jwt->payload.value(), base::JSON_PARSE_CHROMIUM_EXTENSIONS));
             EXPECT_TRUE(payload);
             EXPECT_EQ(payload->aud,
-                      main_rfh()->GetLastCommittedOrigin().Serialize());
+                      url::Origin::Create(kIssuerUrl).Serialize());
             EXPECT_EQ(payload->email, kEmail);
 
             sdjwt::SdJwt token;
@@ -347,7 +346,7 @@ TEST_F(EmailVerificationRequestTest, CaseInsensitiveEmailMatch) {
               DownloadAndParseUncredentialedUrl(kJwksUri, _))
       .WillOnce(WithArgs<1>([&](ParseJsonCallback callback) {
         std::move(callback).Run(FetchStatus{ParseStatus::kSuccess},
-                                base::Value(std::move(jwks)));
+                                std::move(jwks));
       }));
   EXPECT_CALL(*mock_dns_request,
               SendRequest("_email-verification.issuer.example.com", _))
@@ -380,8 +379,8 @@ TEST_F(EmailVerificationRequestTest, CaseInsensitiveEmailMatch) {
           }));
 
   EXPECT_CALL(*mock_idp_network_manager_,
-              SendAccountsRequest(_, kAccountsEndpoint, _, _))
-      .WillOnce(WithArgs<3>(
+              SendAccountsRequest(_, kAccountsEndpoint, _))
+      .WillOnce(WithArgs<2>(
           [&](IdpNetworkRequestManager::AccountsRequestCallback callback) {
             IdpNetworkRequestManager::AccountsResponse response;
             auto account = base::MakeRefCounted<IdentityRequestAccount>(
@@ -424,7 +423,7 @@ TEST_F(EmailVerificationRequestTest, CaseInsensitiveEmailMatch) {
                 jwt->payload.value(), base::JSON_PARSE_CHROMIUM_EXTENSIONS));
             EXPECT_TRUE(payload);
             EXPECT_EQ(payload->aud,
-                      main_rfh()->GetLastCommittedOrigin().Serialize());
+                      url::Origin::Create(kIssuerUrl).Serialize());
             EXPECT_EQ(payload->email, kEmail);
 
             sdjwt::SdJwt token;
@@ -522,8 +521,8 @@ TEST_F(EmailVerificationRequestTest, CrossOriginIssuanceEndpointRejected) {
           }));
 
   EXPECT_CALL(*mock_idp_network_manager_,
-              SendAccountsRequest(_, kAccountsEndpoint, _, _))
-      .WillOnce(WithArgs<3>(
+              SendAccountsRequest(_, kAccountsEndpoint, _))
+      .WillOnce(WithArgs<2>(
           [&](IdpNetworkRequestManager::AccountsRequestCallback callback) {
             IdpNetworkRequestManager::AccountsResponse response;
             auto account = base::MakeRefCounted<IdentityRequestAccount>(
@@ -605,8 +604,8 @@ TEST_F(EmailVerificationRequestTest, UserLoggedOut) {
           }));
 
   EXPECT_CALL(*mock_idp_network_manager_,
-              SendAccountsRequest(_, kAccountsEndpoint, _, _))
-      .WillOnce(WithArgs<3>(
+              SendAccountsRequest(_, kAccountsEndpoint, _))
+      .WillOnce(WithArgs<2>(
           [&](IdpNetworkRequestManager::AccountsRequestCallback callback) {
             IdpNetworkRequestManager::AccountsResponse response;
             auto account = base::MakeRefCounted<IdentityRequestAccount>(
@@ -686,8 +685,8 @@ TEST_F(EmailVerificationRequestTest, AccountsListEmpty) {
           }));
 
   EXPECT_CALL(*mock_idp_network_manager_,
-              SendAccountsRequest(_, kAccountsEndpoint, _, _))
-      .WillOnce(WithArgs<3>(
+              SendAccountsRequest(_, kAccountsEndpoint, _))
+      .WillOnce(WithArgs<2>(
           [&](IdpNetworkRequestManager::AccountsRequestCallback callback) {
             IdpNetworkRequestManager::AccountsResponse response;
             std::move(callback).Run(FetchStatus{ParseStatus::kEmptyListError},
@@ -763,8 +762,8 @@ TEST_F(EmailVerificationRequestTest, UnsupportedSigningAlgorithm) {
           }));
 
   EXPECT_CALL(*mock_idp_network_manager_,
-              SendAccountsRequest(_, kAccountsEndpoint, _, _))
-      .WillOnce(WithArgs<3>(
+              SendAccountsRequest(_, kAccountsEndpoint, _))
+      .WillOnce(WithArgs<2>(
           [&](IdpNetworkRequestManager::AccountsRequestCallback callback) {
             IdpNetworkRequestManager::AccountsResponse response;
             auto account = base::MakeRefCounted<IdentityRequestAccount>(
@@ -935,9 +934,8 @@ TEST_F(EmailVerificationRequestTest, DnsFetchFailed) {
   histogram_tester.ExpectUniqueSample(
       "Blink.Evp.Status.IsVerifiable",
       EmailVerificationRequestResult::kDnsFetchFailed, 1);
-  EXPECT_EQ(1, static_cast<TestRenderFrameHost*>(main_rfh())
-                   ->GetEmailVerificationRequestIssueCount(
-                       EmailVerificationRequestResult::kDnsFetchFailed));
+  EXPECT_EQ(0, static_cast<TestRenderFrameHost*>(main_rfh())
+                   ->GetEmailVerificationRequestIssueCount(std::nullopt));
 }
 
 TEST_F(EmailVerificationRequestTest, WellKnownHttpNotFound) {
@@ -991,8 +989,8 @@ TEST_F(EmailVerificationRequestTest, WellKnownHttpNotFound) {
           }));
 
   EXPECT_CALL(*mock_idp_network_manager_,
-              SendAccountsRequest(_, kAccountsEndpoint, _, _))
-      .WillOnce(WithArgs<3>(
+              SendAccountsRequest(_, kAccountsEndpoint, _))
+      .WillOnce(WithArgs<2>(
           [&](IdpNetworkRequestManager::AccountsRequestCallback callback) {
             IdpNetworkRequestManager::AccountsResponse response;
             auto account = base::MakeRefCounted<IdentityRequestAccount>(
@@ -1048,7 +1046,7 @@ TEST_F(EmailVerificationRequestTest, TokenInvalidResponse) {
       .WillOnce(WithArgs<1>([&](ParseJsonCallback callback) {
         base::DictValue empty_dict;
         std::move(callback).Run(FetchStatus{ParseStatus::kSuccess},
-                                base::Value(std::move(empty_dict)));
+                                std::move(empty_dict));
       }));
   EXPECT_CALL(*mock_dns_request,
               SendRequest("_email-verification.issuer.example.com", _))
@@ -1081,8 +1079,8 @@ TEST_F(EmailVerificationRequestTest, TokenInvalidResponse) {
           }));
 
   EXPECT_CALL(*mock_idp_network_manager_,
-              SendAccountsRequest(_, kAccountsEndpoint, _, _))
-      .WillOnce(WithArgs<3>(
+              SendAccountsRequest(_, kAccountsEndpoint, _))
+      .WillOnce(WithArgs<2>(
           [&](IdpNetworkRequestManager::AccountsRequestCallback callback) {
             IdpNetworkRequestManager::AccountsResponse response;
             auto account = base::MakeRefCounted<IdentityRequestAccount>(

@@ -64,7 +64,7 @@ int X509_REQ_print_ex(BIO *bio, const X509_REQ *x, unsigned long nmflags,
   }
   if (!(cflag & X509_FLAG_NO_VERSION)) {
     l = X509_REQ_get_version(x);
-    // Only zero, |X509_REQ_VERSION_1|, is valid but our parser accepts some
+    // Only zero, `X509_REQ_VERSION_1`, is valid but our parser accepts some
     // invalid values for compatibility.
     assert(0 <= l && l <= 2);
     if (BIO_printf(bio, "%8sVersion: %ld (0x%lx)\n", "", l + 1,
@@ -108,7 +108,7 @@ int X509_REQ_print_ex(BIO *bio, const X509_REQ *x, unsigned long nmflags,
       }
     } else {
       for (size_t i = 0; i < sk_X509_ATTRIBUTE_num(sk); i++) {
-        // TODO(crbug.com/442860745): |X509_ATTRIBUTE| accessors are not
+        // TODO(crbug.com/442860745): `X509_ATTRIBUTE` accessors are not
         // const-correct.
         X509_ATTRIBUTE *a = sk_X509_ATTRIBUTE_value(sk, i);
         const ASN1_OBJECT *aobj = X509_ATTRIBUTE_get0_object(a);

@@ -10,12 +10,12 @@
 
 #include "sdk/android/src/jni/android_network_monitor.h"
 
-#include <asm-generic/errno.h>
 #include <dlfcn.h>
 #include <jni.h>
 #include <linux/in6.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>

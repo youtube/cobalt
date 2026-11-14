@@ -42,6 +42,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_version_rfcv2, false, false
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enforce_immediate_goaway, false, true, "If true, QUIC will support sending immediate GOAWAYS and will refuse streams above the limit.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enobufs_blocked, true, true, "If true, ENOBUFS socket errors are reported as socket blocked instead of socket failure.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fin_before_completed_http_headers, false, true, "If true, close the connection with error if FIN is received before finish receiving the whole HTTP headers.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_mtu_discovery, false, true, "If true, fix a externally reported bug in QUIC MTU discovery.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true, postpone setting handshake timeout to infinite to handshake complete.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_include_datagrams_in_willing_to_write, false, false, "If true, checks for queued datagrams when determining if a connection is willing to write.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_maybe_copy_datagram_frames, false, true, "If true, maybe copy datagram frames in QuicUnackedPacketMap.")
@@ -72,6 +73,7 @@ QUICHE_FLAG(bool, quiche_restart_flag_quic_shed_tls_handshake_config, true, true
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_release_time_for_gso, false, false, "If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_false, false, false, "A testonly restart flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_true, true, true, "A testonly restart flag that will always default to true.")
+QUICHE_FLAG(bool, quiche_restart_flag_tls_server_padding_support, false, false, "If enabled, GFE supports the server padding TLS extension for TLS connections in both HTTP and QUIC")
 
 #endif
 // clang-format on

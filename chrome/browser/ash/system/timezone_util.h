@@ -34,12 +34,6 @@ bool HasSystemTimezonePolicy();
 // Apply TimeZone update from TimeZoneProvider.
 void ApplyTimeZone(const TimeZoneResponseData* timezone);
 
-// Returns true if given timezone preference is enterprise-managed.
-// Works for:
-// - kSystemTimezone
-// - ash::prefs::kUserTimezone
-// - ash::prefs::kResolveTimezoneByGeolocationMethod
-bool IsTimezonePrefsManaged(const std::string& pref_name);
 
 // Updates system timezone from user profile data if needed.
 // This is called from `Preferences` after updating profile

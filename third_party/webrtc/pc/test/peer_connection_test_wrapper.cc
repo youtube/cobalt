@@ -37,7 +37,6 @@
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
-#include "api/test/rtc_error_matchers.h"
 #include "api/units/time_delta.h"
 #include "api/video/resolution.h"
 #include "api/video_codecs/sdp_video_format.h"
@@ -66,7 +65,6 @@
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/socket_server.h"
 #include "system_wrappers/include/clock.h"
-#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
 
@@ -263,19 +261,15 @@ PeerConnectionTestWrapper::FindFirstSendCodecWithName(
 }
 
 void PeerConnectionTestWrapper::WaitForNegotiation() {
-  EXPECT_THAT(
-      WaitUntil([&] { return !pending_negotiation_; }, ::testing::IsTrue(),
-                {.timeout = TimeDelta::Millis(kMaxWait)}),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return !pending_negotiation_; },
+                        {.timeout = TimeDelta::Millis(kMaxWait)}));
 }
 
 std::unique_ptr<SessionDescriptionInterface>
 PeerConnectionTestWrapper::AwaitCreateOffer() {
   auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>();
   peer_connection_->CreateOffer(observer.get(), {});
-  EXPECT_THAT(
-      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
   return observer->MoveDescription();
 }
 
@@ -283,9 +277,7 @@ std::unique_ptr<SessionDescriptionInterface>
 PeerConnectionTestWrapper::AwaitCreateAnswer() {
   auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>();
   peer_connection_->CreateAnswer(observer.get(), {});
-  EXPECT_THAT(
-      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
   return observer->MoveDescription();
 }
 
@@ -293,9 +285,7 @@ void PeerConnectionTestWrapper::AwaitSetLocalDescription(
     webrtc::SessionDescriptionInterface* sdp) {
   auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
   peer_connection_->SetLocalDescription(observer.get(), sdp->Clone().release());
-  EXPECT_THAT(
-      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
 }
 
 void PeerConnectionTestWrapper::AwaitSetRemoteDescription(
@@ -303,9 +293,7 @@ void PeerConnectionTestWrapper::AwaitSetRemoteDescription(
   auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
   peer_connection_->SetRemoteDescription(observer.get(),
                                          sdp->Clone().release());
-  EXPECT_THAT(
-      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
 }
 
 void PeerConnectionTestWrapper::ListenForRemoteIceCandidates(
@@ -320,14 +308,12 @@ void PeerConnectionTestWrapper::ListenForRemoteIceCandidates(
 
 void PeerConnectionTestWrapper::AwaitAddRemoteIceCandidates() {
   EXPECT_TRUE(remote_wrapper_);
-  EXPECT_THAT(
-      WaitUntil(
-          [&] {
-            return remote_wrapper_->pc()->ice_gathering_state() ==
-                   PeerConnectionInterface::kIceGatheringComplete;
-          },
-          ::testing::IsTrue(), {.timeout = TimeDelta::Millis(kMaxWait)}),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil(
+      [&] {
+        return remote_wrapper_->pc()->ice_gathering_state() ==
+               PeerConnectionInterface::kIceGatheringComplete;
+      },
+      {.timeout = TimeDelta::Millis(kMaxWait)}));
   for (const auto& remote_ice_candidate : remote_ice_candidates_) {
     peer_connection_->AddIceCandidate(remote_ice_candidate.get());
   }
@@ -449,10 +435,8 @@ bool PeerConnectionTestWrapper::WaitForCallEstablished() {
 }
 
 bool PeerConnectionTestWrapper::WaitForConnection() {
-  EXPECT_THAT(
-      WaitUntil([&] { return CheckForConnection(); }, ::testing::IsTrue(),
-                {.timeout = TimeDelta::Millis(kMaxWait)}),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return CheckForConnection(); },
+                        {.timeout = TimeDelta::Millis(kMaxWait)}));
   if (testing::Test::HasFailure()) {
     return false;
   }
@@ -468,9 +452,8 @@ bool PeerConnectionTestWrapper::CheckForConnection() {
 }
 
 bool PeerConnectionTestWrapper::WaitForAudio() {
-  EXPECT_THAT(WaitUntil([&] { return CheckForAudio(); }, ::testing::IsTrue(),
-                        {.timeout = TimeDelta::Millis(kMaxWait)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return CheckForAudio(); },
+                        {.timeout = TimeDelta::Millis(kMaxWait)}));
   if (testing::Test::HasFailure()) {
     return false;
   }
@@ -485,9 +468,8 @@ bool PeerConnectionTestWrapper::CheckForAudio() {
 }
 
 bool PeerConnectionTestWrapper::WaitForVideo() {
-  EXPECT_THAT(WaitUntil([&] { return CheckForVideo(); }, ::testing::IsTrue(),
-                        {.timeout = TimeDelta::Millis(kMaxWait)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return CheckForVideo(); },
+                        {.timeout = TimeDelta::Millis(kMaxWait)}));
   if (testing::Test::HasFailure()) {
     return false;
   }

@@ -158,8 +158,6 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       base::OnceCallback<void(const base::FilePath&)>) override;
   void RegisterMojoBinderPoliciesForSameOriginPrerendering(
       MojoBinderPolicyMap& policy_map) override;
-  void RegisterMojoBinderPoliciesForPreview(
-      MojoBinderPolicyMap& policy_map) override;
 
  private:
   // ShellContentBrowserClient overrides.

@@ -297,8 +297,6 @@ VideoReceiveStream2::VideoReceiveStream2(
     decoder_payload_types.insert(decoder.payload_type);
   }
 
-  timing_->set_render_delay(TimeDelta::Millis(config_.render_delay_ms));
-
   if (!config_.rtp.rtx_associated_payload_types.empty()) {
     rtx_receive_stream_ = std::make_unique<RtxReceiveStream>(
         env_, &rtp_video_stream_receiver_,

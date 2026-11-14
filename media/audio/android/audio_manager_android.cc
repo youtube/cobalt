@@ -1458,8 +1458,7 @@ ChannelLayoutConfig AudioManagerAndroid::GetLayoutWithMaxChannels() {
   CHECK_GT(value, 0);
   CHECK_LE(value, CHANNEL_LAYOUT_MAX);
   ChannelLayout channel_layout = static_cast<ChannelLayout>(value);
-  int channel_count = ChannelLayoutToChannelCount(channel_layout);
-  return ChannelLayoutConfig(channel_layout, channel_count);
+  return ChannelLayoutConfig::FromLayout(channel_layout);
 }
 
 void AudioManagerAndroid::SetJniDelegateForTesting(

@@ -5,7 +5,9 @@
 #ifndef COMPONENTS_SEND_TAB_TO_SELF_SEND_TAB_TO_SELF_MODEL_H_
 #define COMPONENTS_SEND_TAB_TO_SELF_SEND_TAB_TO_SELF_MODEL_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -14,14 +16,14 @@
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model_observer.h"
+#include "components/send_tab_to_self/target_device_info.h"
 #include "url/gurl.h"
 
 namespace send_tab_to_self {
 
-struct TargetDeviceInfo;
-
 // GENERATED_JAVA_ENUM_PACKAGE: (
 //   org.chromium.chrome.browser.share.send_tab_to_self)
+// LINT.IfChange(SendTabToSelfResult)
 enum class SendTabToSelfResult {
   kSuccess = 0,
   kSuccessThrottled = 1,
@@ -36,6 +38,7 @@ enum class SendTabToSelfResult {
   kFailureNoInternetConnection = 10,
   kMaxValue = kFailureNoInternetConnection,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/sharing/enums.xml:SendTabToSelfResult)
 
 // The send tab to self model contains a list of entries of shared urls.
 // This object should only be accessed from one thread, which is usually the
@@ -54,7 +57,7 @@ class SendTabToSelfModel {
 
   // Returns a specific entry. Returns null if the entry does not exist.
   virtual const SendTabToSelfEntry* GetEntryByGUID(
-      const std::string& guid) const = 0;
+      std::string_view guid) const = 0;
 
   // Returns unopened entries targeted to the local device.
   virtual std::vector<const SendTabToSelfEntry*>
@@ -79,7 +82,7 @@ class SendTabToSelfModel {
 
   // Dismiss entry with key |guid|. Allows clients to modify the state
   // of the model as driven by user behaviors.
-  virtual void DismissEntry(const std::string& guid) = 0;
+  virtual void DismissEntry(std::string_view guid) = 0;
 
   // If an entry with `guid` exists, marks it as opened.
   // Otherwise, the guid is queued in-memory, and if an entry with
@@ -87,7 +90,7 @@ class SendTabToSelfModel {
   // marked as opened. This can be used for platforms where
   // the tab can be additionally received/displayed by layers other than
   // SendTabToSelfModel, to avoid showing the same notification twice.
-  virtual void MarkEntryOpened(const std::string& guid) = 0;
+  virtual void MarkEntryOpened(std::string_view guid) = 0;
 
   // Guarantee that the model is operational and syncing, i.e., the local
   // database is started and the initial data has been downloaded.
@@ -110,6 +113,11 @@ class SendTabToSelfModel {
   // the last updated time stamp of the device with the most recently used
   // device listed first. This is a thin layer on top of DeviceInfoTracker.
   virtual std::vector<TargetDeviceInfo> GetTargetDeviceInfoSortedList() = 0;
+
+  // Returns information about a specific target device by its cache GUID, or
+  // std::nullopt if the device is not found or is expired.
+  virtual std::optional<TargetDeviceInfo> GetTargetDeviceInfo(
+      std::string_view cache_guid) = 0;
 
  protected:
   // The observers.

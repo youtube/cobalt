@@ -131,14 +131,18 @@ void AudioToolboxAudioDecoder::Initialize(const AudioDecoderConfig& config,
   decoder_.reset();
 
   output_cb_ = output_cb;
+  const bool success = CreateDecoder(config);
+  if (!success) {
+    decoder_.reset();
+  }
   base::BindPostTaskToCurrentDefault(std::move(init_cb))
-      .Run(CreateDecoder(config)
-               ? DecoderStatus::Codes::kOk
-               : DecoderStatus::Codes::kFailedToCreateDecoder);
+      .Run(success ? DecoderStatus::Codes::kOk
+                   : DecoderStatus::Codes::kFailedToCreateDecoder);
 }
 
 void AudioToolboxAudioDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
                                       DecodeCB decode_cb) {
+  CHECK(decoder_);
   DecodeCB decode_cb_bound =
       base::BindPostTaskToCurrentDefault(std::move(decode_cb));
 
@@ -159,8 +163,16 @@ void AudioToolboxAudioDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
 
   InputData input_data;
   input_data.buffer = buffer.get();
-  if (!buffer->end_of_stream())
+
+  if (!buffer->end_of_stream()) {
+    if (buffer->size() == 0) {
+      OnOutputReady(AudioDiscardHelper::TimeInfo::FromBuffer(*buffer), nullptr);
+      std::move(decode_cb_bound).Run(OkStatus());
+      return;
+    }
+    last_input_timestamp_ = buffer->timestamp();
     input_data.packet.mDataByteSize = buffer->size();
+  }
 
   // Must be filled in each time in case AudioConverterFillComplexBuffer()
   // modified it during a previous call.
@@ -216,16 +228,27 @@ void AudioToolboxAudioDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
     return;
   }
 
-  limiter_queue_->Push(
-      *output_bus_, num_frames, buffer->timestamp(),
-      base::BindOnce(&AudioToolboxAudioDecoder::OnOutputReady,
-                     base::Unretained(this),
-                     AudioDiscardHelper::TimeInfo::FromBuffer(*buffer)));
+  base::TimeDelta timestamp;
+  AudioDiscardHelper::TimeInfo time_info;
+  if (buffer->end_of_stream()) {
+    timestamp = last_input_timestamp_ == kNoTimestamp ? base::TimeDelta()
+                                                      : last_input_timestamp_;
+    time_info = AudioDiscardHelper::TimeInfo{timestamp, base::TimeDelta(),
+                                             std::nullopt};
+  } else {
+    timestamp = buffer->timestamp();
+    time_info = AudioDiscardHelper::TimeInfo::FromBuffer(*buffer);
+  }
+
+  limiter_queue_->Push(*output_bus_, num_frames, timestamp,
+                       base::BindOnce(&AudioToolboxAudioDecoder::OnOutputReady,
+                                      base::Unretained(this), time_info));
 
   std::move(decode_cb_bound).Run(OkStatus());
 }
 
 void AudioToolboxAudioDecoder::Reset(base::OnceClosure reset_cb) {
+  CHECK(decoder_);
   // This could fail, but ResetCB has no error reporting mechanism, so just let
   // a subsequent decode call fail.
   const auto result = AudioConverterReset(decoder_.get());
@@ -233,6 +256,7 @@ void AudioToolboxAudioDecoder::Reset(base::OnceClosure reset_cb) {
       << "AudioConverterReset() failed";
   discard_helper_->Reset(discard_helper_->decoder_delay());
   limiter_queue_->Clear();
+  last_input_timestamp_ = kNoTimestamp;
   base::BindPostTaskToCurrentDefault(std::move(reset_cb)).Run();
 }
 

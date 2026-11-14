@@ -622,6 +622,7 @@ class PeerConnectionFactoryForTest : public PeerConnectionFactory {
     // Use fake audio device module since we're only testing the interface
     // level, and using a real one could make tests flaky when run in parallel.
     dependencies.adm = FakeAudioCaptureModule::Create();
+    dependencies.env = CreateTestEnvironment();
     EnableMediaWithDefaults(dependencies);
     dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>();
 
@@ -888,9 +889,8 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
       pc_->CreateAnswer(observer.get(),
                         options ? *options : RTCOfferAnswerOptions());
     }
-    EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue(),
-                          {.timeout = TimeDelta::Millis(kTimeout)}),
-                IsRtcOk());
+    EXPECT_TRUE(WaitUntil([&] { return observer->called(); },
+                          {.timeout = TimeDelta::Millis(kTimeout)}));
     *desc = observer->MoveDescription();
     return observer->result();
   }
@@ -915,9 +915,8 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
       pc_->SetRemoteDescription(observer.get(), desc.release());
     }
     if (pc_->signaling_state() != PeerConnectionInterface::kClosed) {
-      EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue(),
-                            {.timeout = TimeDelta::Millis(kTimeout)}),
-                  IsRtcOk());
+      EXPECT_TRUE(WaitUntil([&] { return observer->called(); },
+                            {.timeout = TimeDelta::Millis(kTimeout)}));
     }
     return observer->result();
   }
@@ -944,9 +943,8 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     RTC_ALLOW_PLAN_B_DEPRECATION_END();
     if (!result)
       return false;
-    EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue(),
-                          {.timeout = TimeDelta::Millis(kTimeout)}),
-                IsRtcOk());
+    EXPECT_TRUE(WaitUntil([&] { return observer->called(); },
+                          {.timeout = TimeDelta::Millis(kTimeout)}));
     return observer->called();
   }
 
@@ -954,9 +952,8 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
   bool DoGetRTCStats() {
     auto callback = make_ref_counted<MockRTCStatsCollectorCallback>();
     pc_->GetStats(callback.get());
-    EXPECT_THAT(WaitUntil([&] { return callback->called(); }, IsTrue(),
-                          {.timeout = TimeDelta::Millis(kTimeout)}),
-                IsRtcOk());
+    EXPECT_TRUE(WaitUntil([&] { return callback->called(); },
+                          {.timeout = TimeDelta::Millis(kTimeout)}));
     return callback->called();
   }
 
@@ -1071,9 +1068,8 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     EXPECT_TRUE(DoSetLocalDescription(std::move(new_offer)));
     EXPECT_EQ(PeerConnectionInterface::kHaveLocalOffer, observer_.state_);
     // Wait for the ice_complete message, so that SDP will have candidates.
-    EXPECT_THAT(WaitUntil([&] { return observer_.ice_gathering_complete_; },
-                          IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-                IsRtcOk());
+    EXPECT_TRUE(WaitUntil([&] { return observer_.ice_gathering_complete_; },
+                          {.timeout = TimeDelta::Millis(kTimeout)}));
   }
 
   void CreateAnswerAsRemoteDescription(const std::string& sdp) {
@@ -1228,9 +1224,8 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     RTC_DCHECK(pc_);
     auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>();
     pc_->CreateOffer(observer.get(), offer_answer_options);
-    EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue(),
-                          {.timeout = TimeDelta::Millis(kTimeout)}),
-                IsRtcOk());
+    EXPECT_TRUE(WaitUntil([&] { return observer->called(); },
+                          {.timeout = TimeDelta::Millis(kTimeout)}));
     return observer->MoveDescription();
   }
 
@@ -1830,9 +1825,8 @@ TEST_P(PeerConnectionInterfaceTest, IceCandidates) {
                         ::testing::Ne(nullptr),
                         {.timeout = TimeDelta::Millis(kTimeout)}),
               IsRtcOk());
-  EXPECT_THAT(WaitUntil([&] { return observer_.ice_gathering_complete_; },
-                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer_.ice_gathering_complete_; },
+                        {.timeout = TimeDelta::Millis(kTimeout)}));
 
   EXPECT_TRUE(pc_->AddIceCandidate(observer_.last_candidate()));
 }
@@ -3871,30 +3865,26 @@ TEST_F(PeerConnectionInterfaceTestPlanB,
   scoped_refptr<VideoTrackInterface> video_track(
       CreateVideoTrack("video_track"));
   stream->AddTrack(audio_track);
-  EXPECT_THAT(WaitUntil([&] { return observer_.renegotiation_needed_; },
-                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer_.renegotiation_needed_; },
+                        {.timeout = TimeDelta::Millis(kTimeout)}));
   observer_.renegotiation_needed_ = false;
 
   CreateOfferReceiveAnswer();
   stream->AddTrack(video_track);
-  EXPECT_THAT(WaitUntil([&] { return observer_.renegotiation_needed_; },
-                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer_.renegotiation_needed_; },
+                        {.timeout = TimeDelta::Millis(kTimeout)}));
   observer_.renegotiation_needed_ = false;
 
   CreateOfferReceiveAnswer();
   stream->RemoveTrack(audio_track);
-  EXPECT_THAT(WaitUntil([&] { return observer_.renegotiation_needed_; },
-                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer_.renegotiation_needed_; },
+                        {.timeout = TimeDelta::Millis(kTimeout)}));
   observer_.renegotiation_needed_ = false;
 
   CreateOfferReceiveAnswer();
   stream->RemoveTrack(video_track);
-  EXPECT_THAT(WaitUntil([&] { return observer_.renegotiation_needed_; },
-                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer_.renegotiation_needed_; },
+                        {.timeout = TimeDelta::Millis(kTimeout)}));
   observer_.renegotiation_needed_ = false;
 }
 RTC_ALLOW_PLAN_B_DEPRECATION_END()

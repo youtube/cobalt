@@ -45,7 +45,7 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
-#include "chrome/browser/ui/passwords/settings/password_manager_porter_interface.h"
+#include "chrome/browser/ui/passwords/settings/password_import_controller_interface.h"
 #include "chrome/browser/ui/safety_hub/password_status_check_service_factory.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
@@ -141,17 +141,8 @@ using MockPlaintextPasswordCallback =
 using MockRequestCredentialsDetailsCallback =
     base::MockCallback<PasswordsPrivateDelegate::UiEntriesCallback>;
 
-class MockPasswordManagerPorter : public PasswordManagerPorterInterface {
+class MockPasswordImportController : public PasswordImportControllerInterface {
  public:
-  MOCK_METHOD(bool,
-              Export,
-              (base::WeakPtr<content::WebContents> web_contents),
-              (override));
-  MOCK_METHOD(void, CancelExport, (), (override));
-  MOCK_METHOD(password_manager::ExportProgressStatus,
-              GetExportProgressStatus,
-              (),
-              (override));
   MOCK_METHOD(void,
               Import,
               (content::WebContents * web_contents,
@@ -185,18 +176,8 @@ class TestEnclaveManager : public MockEnclaveManager {
   EnclaveManager* GetEnclaveManager() override { return nullptr; }
 };
 
-class FakePasswordManagerPorter : public PasswordManagerPorterInterface {
+class FakePasswordImportController : public PasswordImportControllerInterface {
  public:
-  bool Export(base::WeakPtr<content::WebContents> web_contents) override {
-    return true;
-  }
-
-  void CancelExport() override {}
-
-  password_manager::ExportProgressStatus GetExportProgressStatus() override {
-    return password_manager::ExportProgressStatus::kSucceeded;
-  }
-
   void Import(content::WebContents* web_contents,
               PasswordForm::Store to_store,
               ImportResultsCallback results_callback) override {
@@ -325,8 +306,6 @@ class PasswordsPrivateDelegateImplTest : public InProcessBrowserTest {
   PasswordsPrivateDelegateImplTest& operator=(
       const PasswordsPrivateDelegateImplTest&) = delete;
 
-  ~PasswordsPrivateDelegateImplTest() override;
-
   void SetUpBrowserContextKeyedServices(
       content::BrowserContext* context) override;
 
@@ -365,7 +344,6 @@ class PasswordsPrivateDelegateImplTest : public InProcessBrowserTest {
   raw_ptr<extensions::EventRouter> event_router_ = nullptr;
   scoped_refptr<TestPasswordStore> profile_store_;
   scoped_refptr<TestPasswordStore> account_store_;
-  raw_ptr<ui::TestClipboard, DanglingUntriaged> test_clipboard_;
   MockChangePinController change_pin_controller_;
 
   void TearDownOnMainThread() override;
@@ -374,12 +352,9 @@ class PasswordsPrivateDelegateImplTest : public InProcessBrowserTest {
   base::HistogramTester histogram_tester_;
 };
 
-PasswordsPrivateDelegateImplTest::~PasswordsPrivateDelegateImplTest() {
-  ui::Clipboard::DestroyClipboardForCurrentThread();
-}
-
 void PasswordsPrivateDelegateImplTest::TearDownOnMainThread() {
   event_router_ = nullptr;
+  ui::Clipboard::DestroyClipboardForCurrentThread();
   InProcessBrowserTest::TearDownOnMainThread();
 }
 
@@ -460,7 +435,7 @@ void PasswordsPrivateDelegateImplTest::SetUpOnMainThread() {
       AccountPasswordStoreFactory::GetForProfile(
           GetProfile(), ServiceAccessType::IMPLICIT_ACCESS)
           .get());
-  test_clipboard_ = ui::TestClipboard::CreateForCurrentThread();
+  ui::TestClipboard::CreateForCurrentThread();
   SetUpRouters();
   sync_service()->SetSignedIn(signin::ConsentLevel::kSignin);
   ChangePinController::set_instance_for_testing(&change_pin_controller_);
@@ -706,16 +681,16 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
       MockPasswordManagerClient::CreateForWebContentsAndGet(web_contents.get());
   auto delegate = CreateDelegate();
 
-  auto fake_porter = std::make_unique<FakePasswordManagerPorter>();
-  auto* fake_porter_ptr = fake_porter.get();
-  delegate->SetPorterForTesting(std::move(fake_porter));
+  auto fake_controller = std::make_unique<FakePasswordImportController>();
+  auto* fake_controller_ptr = fake_controller.get();
+  delegate->SetImportControllerForTesting(std::move(fake_controller));
 
   ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageActive)
       .WillByDefault(Return(false));
 
   const auto kExpectedStatus =
       password_manager::ImportResults::Status::BAD_FORMAT;
-  fake_porter_ptr->set_import_result_status(kExpectedStatus);
+  fake_controller_ptr->set_import_result_status(kExpectedStatus);
 
   base::MockCallback<PasswordsPrivateDelegate::ImportResultsCallback> callback;
   EXPECT_CALL(callback,
@@ -739,15 +714,15 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
 
   scoped_refptr<PasswordsPrivateDelegateImpl> delegate = CreateDelegate();
 
-  auto fake_porter = std::make_unique<FakePasswordManagerPorter>();
-  auto* fake_porter_ptr = fake_porter.get();
-  delegate->SetPorterForTesting(std::move(fake_porter));
+  auto fake_controller = std::make_unique<FakePasswordImportController>();
+  auto* fake_controller_ptr = fake_controller.get();
+  delegate->SetImportControllerForTesting(std::move(fake_controller));
   ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageActive)
       .WillByDefault(Return(false));
 
   const auto kExpectedStatus =
       password_manager::ImportResults::Status::DISMISSED;
-  fake_porter_ptr->set_import_result_status(kExpectedStatus);
+  fake_controller_ptr->set_import_result_status(kExpectedStatus);
 
   ExpectAuthentication(delegate, /*successful=*/false);
 
@@ -774,16 +749,16 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
       MockPasswordManagerClient::CreateForWebContentsAndGet(web_contents.get());
   scoped_refptr<PasswordsPrivateDelegateImpl> delegate = CreateDelegate();
 
-  auto fake_porter = std::make_unique<FakePasswordManagerPorter>();
-  auto* fake_porter_ptr = fake_porter.get();
-  delegate->SetPorterForTesting(std::move(fake_porter));
+  auto fake_controller = std::make_unique<FakePasswordImportController>();
+  auto* fake_controller_ptr = fake_controller.get();
+  delegate->SetImportControllerForTesting(std::move(fake_controller));
 
   ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageActive)
       .WillByDefault(Return(false));
 
   const auto kExpectedStatus =
       password_manager::ImportResults::Status::BAD_FORMAT;
-  fake_porter_ptr->set_import_result_status(kExpectedStatus);
+  fake_controller_ptr->set_import_result_status(kExpectedStatus);
 
   base::MockCallback<PasswordsPrivateDelegate::ImportResultsCallback> callback;
   EXPECT_CALL(callback,
@@ -802,11 +777,11 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest, ResetImporter) {
   auto delegate = CreateDelegate();
 
-  auto mock_porter = std::make_unique<MockPasswordManagerPorter>();
-  auto* mock_porter_ptr = mock_porter.get();
-  delegate->SetPorterForTesting(std::move(mock_porter));
+  auto mock_controller = std::make_unique<MockPasswordImportController>();
+  auto* mock_controller_ptr = mock_controller.get();
+  delegate->SetImportControllerForTesting(std::move(mock_controller));
 
-  EXPECT_CALL(*mock_porter_ptr, ResetImporter).Times(1);
+  EXPECT_CALL(*mock_controller_ptr, ResetImporter).Times(1);
   delegate->ResetImporter(/*delete_file=*/false);
 }
 
@@ -997,9 +972,9 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
       password_callback.Get(), web_contents.get());
 
   std::u16string result;
-  result = ui::clipboard_test_util::ReadText(test_clipboard_,
-                                             ui::ClipboardBuffer::kCopyPaste,
-                                             /* data_dst = */ nullptr);
+  result = ui::clipboard_test_util::ReadText(
+      ui::Clipboard::GetForCurrentThread(), ui::ClipboardBuffer::kCopyPaste,
+      /*data_dst=*/nullptr);
   EXPECT_EQ(form.password_value, result);
 
   histogram_tester().ExpectUniqueSample(
@@ -1026,9 +1001,9 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
                                         result_callback.Get());
 
   std::u16string result;
-  result = ui::clipboard_test_util::ReadText(test_clipboard_,
-                                             ui::ClipboardBuffer::kCopyPaste,
-                                             /* data_dst = */ nullptr);
+  result = ui::clipboard_test_util::ReadText(
+      ui::Clipboard::GetForCurrentThread(), ui::ClipboardBuffer::kCopyPaste,
+      /*data_dst=*/nullptr);
   EXPECT_EQ(result, form.GetPasswordBackup());
 }
 
@@ -1079,7 +1054,8 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
 
   ExpectAuthentication(delegate, /*successful=*/false);
 
-  base::Time before_call = test_clipboard_->GetLastModifiedTime();
+  base::Time before_call =
+      ui::Clipboard::GetForCurrentThread()->GetLastModifiedTime();
 
   MockPlaintextPasswordCallback password_callback;
   EXPECT_CALL(password_callback, Run(Eq(std::nullopt)));
@@ -1088,11 +1064,12 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
       password_callback.Get(), web_contents.get());
   // Clipboard should not be modified in case Reauth failed
   std::u16string result;
-  result = ui::clipboard_test_util::ReadText(test_clipboard_,
-                                             ui::ClipboardBuffer::kCopyPaste,
-                                             /* data_dst = */ nullptr);
+  result = ui::clipboard_test_util::ReadText(
+      ui::Clipboard::GetForCurrentThread(), ui::ClipboardBuffer::kCopyPaste,
+      /*data_dst=*/nullptr);
   EXPECT_EQ(std::u16string(), result);
-  EXPECT_EQ(before_call, test_clipboard_->GetLastModifiedTime());
+  EXPECT_EQ(before_call,
+            ui::Clipboard::GetForCurrentThread()->GetLastModifiedTime());
 
   // Since Reauth had failed password was not copied and metric wasn't recorded
   histogram_tester().ExpectTotalCount(kHistogramName, 0);
@@ -1117,9 +1094,9 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
                                         result_callback.Get());
 
   std::u16string result;
-  result = ui::clipboard_test_util::ReadText(test_clipboard_,
-                                             ui::ClipboardBuffer::kCopyPaste,
-                                             /* data_dst = */ nullptr);
+  result = ui::clipboard_test_util::ReadText(
+      ui::Clipboard::GetForCurrentThread(), ui::ClipboardBuffer::kCopyPaste,
+      /*data_dst=*/nullptr);
   EXPECT_EQ(result, std::u16string());
 }
 

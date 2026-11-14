@@ -84,7 +84,7 @@ bool tls13_get_cert_verify_signature_input(
     return false;
   }
 
-  // Note |context| includes the NUL byte separator.
+  // Note `context` includes the NUL byte separator.
   if (!CBB_add_bytes(cbb.get(),
                      reinterpret_cast<const uint8_t *>(context.data()),
                      context.size())) {

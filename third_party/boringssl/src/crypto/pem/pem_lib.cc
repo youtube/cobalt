@@ -45,7 +45,7 @@ using namespace bssl;
 static int load_iv(const char **fromp, unsigned char *to, size_t num);
 static int check_pem(const std::string_view nm, const std::string_view name);
 
-// PEM_proc_type appends a Proc-Type header to |buf|, determined by |type|.
+// PEM_proc_type appends a Proc-Type header to `buf`, determined by `type`.
 static void PEM_proc_type(char buf[PEM_BUFSIZE], int type) {
   const char *str;
 
@@ -64,8 +64,8 @@ static void PEM_proc_type(char buf[PEM_BUFSIZE], int type) {
   OPENSSL_strlcat(buf, "\n", PEM_BUFSIZE);
 }
 
-// PEM_dek_info appends a DEK-Info header to |buf|, with an algorithm of |type|
-// and a single parameter, specified by hex-encoding |len| bytes from |str|.
+// PEM_dek_info appends a DEK-Info header to `buf`, with an algorithm of `type`
+// and a single parameter, specified by hex-encoding `len` bytes from `str`.
 static void PEM_dek_info(char buf[PEM_BUFSIZE], const char *type, size_t len,
                          char *str) {
   static const unsigned char map[17] = "0123456789ABCDEF";
@@ -155,7 +155,7 @@ static int check_pem(const std::string_view nm, const std::string_view name) {
 }
 
 static const EVP_CIPHER *cipher_by_name(const std::string_view name) {
-  // This is similar to the (deprecated) function |EVP_get_cipherbyname|. Note
+  // This is similar to the (deprecated) function `EVP_get_cipherbyname`. Note
   // the PEM code assumes that ciphers have at least 8 bytes of IV, at most 20
   // bytes of overhead and generally behave like CBC mode.
   if (name == SN_des_cbc) {
@@ -207,9 +207,9 @@ int PEM_bytes_read_bio(unsigned char **pdata, long *plen, char **pnm,
   }
 
   // Release the buffer to the caller.
-  // Note that |PEM_do_header| may have reduced the length after decrypting
+  // Note that `PEM_do_header` may have reduced the length after decrypting
   // in-place.
-  // This will not overflow because |data.size()| was checked to fit in |long|
+  // This will not overflow because `data.size()` was checked to fit in `long`
   // above.
   data.Release(pdata, &unused);
   *plen = static_cast<long>(ulen);
@@ -360,7 +360,7 @@ int bssl::PEM_do_header(const EVP_CIPHER_INFO *cipher, unsigned char *data,
     return 0;
   }
 
-  // Safety: we have checked |*len| before narrowing so that |EVP_DecryptUpdate|
+  // Safety: we have checked `*len` before narrowing so that `EVP_DecryptUpdate`
   // can safely work with it.
   size_t out_len1 = 0;
   size_t out_len2 = 0;
@@ -425,7 +425,7 @@ int bssl::PEM_get_EVP_CIPHER_INFO(const char *header, EVP_CIPHER_INFO *cipher) {
     return 0;
   }
   // The IV parameter must be at least 8 bytes long to be used as the salt in
-  // the KDF. (This should not happen given |cipher_by_name|.)
+  // the KDF. (This should not happen given `cipher_by_name`.)
   if (EVP_CIPHER_iv_length(cipher->cipher) < 8) {
     assert(0);
     OPENSSL_PUT_ERROR(PEM, PEM_R_UNSUPPORTED_ENCRYPTION);
@@ -721,7 +721,7 @@ int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
   *name = owned_name.release();
   *header = owned_header.release();
   owned_data.Release(data, &ulen);
-  // Safety: we checked that |ulen| <= |LONG_MAX|.
+  // Safety: we checked that `ulen` <= `LONG_MAX`.
   *len = static_cast<long>(ulen);
   return 1;
 }

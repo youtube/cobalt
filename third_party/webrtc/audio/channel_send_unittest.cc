@@ -33,6 +33,7 @@
 #include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/scoped_refptr.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/test/mock_frame_transformer.h"
 #include "api/test/mock_transformable_audio_frame.h"
 #include "api/test/rtc_error_matchers.h"
@@ -85,7 +86,8 @@ class ChannelSendTest : public ::testing::Test {
             {.field_trials = &field_trials_, .time = &time_controller_})),
         transport_controller_(
             RtpTransportConfig{.env = env_,
-                               .bitrate_config = GetBitrateConfig()}) {
+                               .bitrate_config = GetBitrateConfig(),
+                               .worker_thread = TaskQueueBase::Current()}) {
     channel_ = voe::CreateChannelSend(env_, &transport_, nullptr, nullptr,
                                       crypto_options_, false, kRtcpIntervalMs,
                                       kSsrc, nullptr, &transport_controller_);
@@ -220,7 +222,7 @@ TEST_F(ChannelSendTest, FrameTransformerGetsCorrectTimestamp) {
       WaitUntil([&] { return 0 + channel_->GetRtpRtcp()->StartTimestamp(); },
                 Eq(transformable_frame_timestamp)),
       IsRtcOk());
-  EXPECT_THAT(WaitUntil([&] { return sent_timestamp; }, IsTrue()), IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return sent_timestamp.has_value(); }));
   EXPECT_EQ(*sent_timestamp, transformable_frame_timestamp);
 }
 
@@ -229,7 +231,8 @@ TEST_F(ChannelSendTest, FrameTransformerGetsCorrectTimestamp) {
 TEST_F(ChannelSendTest, AudioLevelsAttachedToCorrectTransformedFrame) {
   channel_->SetSendAudioLevelIndicationStatus(RtpHeaderExtensionId(1));
   RtpPacketReceived::ExtensionManager extension_manager;
-  extension_manager.RegisterByType(1, kRtpExtensionAudioLevel);
+  extension_manager.RegisterByType(RtpHeaderExtensionId(1),
+                                   kRtpExtensionAudioLevel);
 
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<MockFrameTransformer>();
@@ -293,7 +296,8 @@ TEST_F(ChannelSendTest, AudioLevelsAttachedToCorrectTransformedFrame) {
 TEST_F(ChannelSendTest, AudioLevelsAttachedToInsertedTransformedFrame) {
   channel_->SetSendAudioLevelIndicationStatus(RtpHeaderExtensionId(1));
   RtpPacketReceived::ExtensionManager extension_manager;
-  extension_manager.RegisterByType(1, kRtpExtensionAudioLevel);
+  extension_manager.RegisterByType(RtpHeaderExtensionId(1),
+                                   kRtpExtensionAudioLevel);
 
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<MockFrameTransformer>();
@@ -325,14 +329,14 @@ TEST_F(ChannelSendTest, AudioLevelsAttachedToInsertedTransformedFrame) {
   uint8_t payload[10];
   ON_CALL(*mock_frame, GetData())
       .WillByDefault(Return(std::span<uint8_t>(&payload[0], 10)));
-  EXPECT_THAT(WaitUntil([&] { return callback; }, IsTrue()), IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return callback != nullptr; }));
   callback->OnTransformedFrame(std::move(mock_frame));
 
   // Allow things posted back to the encoder queue to run.
   time_controller_.AdvanceTime(TimeDelta::Millis(10));
 
   // Ensure the audio levels is set on the sent packet.
-  EXPECT_THAT(WaitUntil([&] { return sent_audio_level; }, IsTrue()), IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return sent_audio_level.has_value(); }));
   EXPECT_EQ(*sent_audio_level, audio_level);
 }
 

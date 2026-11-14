@@ -403,7 +403,7 @@ class TLSFuzzer {
   }
 
  private:
-  // Init initializes |ctx_| with settings common to all inputs.
+  // Init initializes `ctx_` with settings common to all inputs.
   bool Init() {
     ctx_.reset(SSL_CTX_new(protocol_ == kDTLS ? DTLS_method() : TLS_method()));
     bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
@@ -488,7 +488,7 @@ class TLSFuzzer {
       if (!keys ||
           !EVP_HPKE_KEY_init(key.get(), EVP_hpke_x25519_hkdf_sha256(), kECHKey,
                              sizeof(kECHKey)) ||
-          // Match |echConfig| in |addEncryptedClientHelloTests| from runner.go.
+          // Match `echConfig` in `addEncryptedClientHelloTests` from runner.go.
           !SSL_marshal_ech_config(&ech_config, &ech_config_len,
                                   /*config_id=*/42, key.get(), "public.example",
                                   /*max_name_len=*/64)) {
@@ -505,11 +505,11 @@ class TLSFuzzer {
     return true;
   }
 
-  // SetupTest parses parameters from |cbs| and returns a newly-configured |SSL|
+  // SetupTest parses parameters from `cbs` and returns a newly-configured `SSL`
   // object or nullptr on error. On success, the caller should feed the
-  // remaining input in |cbs| to the SSL stack.
+  // remaining input in `cbs` to the SSL stack.
   bssl::UniquePtr<SSL> SetupTest(CBS *cbs) {
-    // |ctx| is shared between runs, so we must clear any modifications to it
+    // `ctx` is shared between runs, so we must clear any modifications to it
     // made later on in this function.
     SSL_CTX_flush_sessions(ctx_.get(), 0);
     handoff_ = {};

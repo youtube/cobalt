@@ -22,6 +22,7 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -116,6 +117,9 @@ class RtcEventLogDriver {
   // RtcEventProcessor callbacks (running on main thread).
   void OnLoggedVideoRecvConfig(const LoggedVideoRecvConfig& config);
   void OnLoggedRtpPacketIncoming(const LoggedRtpPacketIncoming& packet);
+
+  // Destroy owned objects on `simulator_queue_`.
+  void TeardownOnQueue() RTC_RUN_ON(simulator_queue_);
 
   // Environment.
   const Config config_;

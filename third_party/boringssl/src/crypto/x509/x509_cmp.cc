@@ -101,7 +101,7 @@ uint32_t X509_subject_name_hash_old(const X509 *x) {
 int X509_cmp(const X509 *a, const X509 *b) {
   const auto *a_impl = FromOpaque(a);
   const auto *b_impl = FromOpaque(b);
-  // Fill in the |cert_hash| fields.
+  // Fill in the `cert_hash` fields.
   //
   // TODO(davidben): This may fail, in which case the the hash will be all
   // zeros. This produces a consistent comparison (failures are sticky), but

@@ -315,28 +315,46 @@ void LocalTabGroupListener::MatchLocalTabToSavedTab(
     tabs::TabInterface* local_tab,
     TabStripModel* tab_strip_model,
     int target_index_in_tab_strip) {
-  if (saved_tab.local_tab_id().has_value()) {
-    CHECK(local_tab);
-    // Reorder if needed. This approach corresponds to selection sort.
-    // N.B.: this approach will do N reorders for a tab that was moved N spots
-    // to the left.
-    const int current_index = tab_strip_model->GetIndexOfTab(local_tab);
-    CHECK_EQ(local_id_,
-             tab_strip_model->GetTabGroupForTab(current_index).value());
-    tab_strip_model->MoveWebContentsAt(current_index, target_index_in_tab_strip,
-                                       false);
+  int current_index = local_tab ? tab_strip_model->GetIndexOfTab(local_tab)
+                                : TabStripModel::kNoTab;
 
-    // Navigate if needed.
-    if (saved_tab.url() != local_tab->GetContents()->GetURL()) {
-      SavedTabGroupWebContentsListener* listener =
-          local_tab->GetTabFeatures()->saved_tab_group_web_contents_listener();
-      listener->NavigateToUrl(base::PassKey<LocalTabGroupListener>(),
-                              saved_tab.url());
-    }
-  } else {
+  const std::optional<tab_groups::TabGroupId> current_group =
+      current_index != TabStripModel::kNoTab
+          ? tab_strip_model->GetTabGroupForTab(current_index)
+          : std::nullopt;
+
+  // The tab is valid if it exists in the tab strip and is either ungrouped or
+  // already in our group. If it is in a different group, we treat it as invalid
+  // to trigger duplication/opening from sync.
+  const bool is_local_tab_valid =
+      current_index != TabStripModel::kNoTab &&
+      (!current_group.has_value() || current_group.value() == local_id_);
+
+  if (!is_local_tab_valid) {
     OpenWebContentsFromSync(
         saved_tab, SavedTabGroupUtils::GetBrowserWithTabGroupId(local_id_),
         target_index_in_tab_strip);
+    return;
+  }
+
+  if (!current_group.has_value()) {
+    tab_strip_model->AddToExistingGroup({current_index}, local_id_,
+                                        /*add_to_end=*/false);
+    current_index = tab_strip_model->GetIndexOfTab(local_tab);
+  }
+
+  // Reorder if needed. This approach corresponds to selection sort.
+  // N.B.: this approach will do N reorders for a tab that was moved N spots
+  // to the left.
+  tab_strip_model->MoveWebContentsAt(current_index, target_index_in_tab_strip,
+                                     false);
+
+  // Navigate if needed.
+  if (saved_tab.url() != local_tab->GetContents()->GetURL()) {
+    SavedTabGroupWebContentsListener* listener =
+        local_tab->GetTabFeatures()->saved_tab_group_web_contents_listener();
+    listener->NavigateToUrl(base::PassKey<LocalTabGroupListener>(),
+                            saved_tab.url());
   }
 }
 

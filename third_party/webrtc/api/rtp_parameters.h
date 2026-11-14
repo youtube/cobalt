@@ -305,6 +305,11 @@ struct RTC_EXPORT RtpHeaderExtensionCapability {
   RtpHeaderExtensionCapability();
   explicit RtpHeaderExtensionCapability(absl::string_view uri);
   RtpHeaderExtensionCapability(absl::string_view uri,
+                               RtpTransceiverDirection direction);
+  RtpHeaderExtensionCapability(absl::string_view uri,
+                               bool preferred_encrypt,
+                               RtpTransceiverDirection direction);
+  RtpHeaderExtensionCapability(absl::string_view uri,
                                RtpHeaderExtensionId preferred_id);
   RtpHeaderExtensionCapability(absl::string_view uri,
                                RtpHeaderExtensionId preferred_id,
@@ -315,21 +320,18 @@ struct RTC_EXPORT RtpHeaderExtensionCapability {
                                RtpTransceiverDirection direction);
   // Backwards compatibility overloads.
   // TODO: bugs.webrtc.org/514817938 - Remove when downstream is updated.
-  ABSL_DEPRECATE_AND_INLINE()
-  RtpHeaderExtensionCapability(absl::string_view uri, int preferred_id)
+  // Note: the "uri, preferred id(int), direction" cannot be overloaded
+  // because compilers can't tell the difference between that one
+  // and "uri, preferred_encrypt(bool), direction".
+  [[deprecated]] ABSL_REFACTOR_INLINE RtpHeaderExtensionCapability(
+      absl::string_view uri,
+      int preferred_id)
       : RtpHeaderExtensionCapability(uri, RtpHeaderExtensionId(preferred_id)) {}
-  ABSL_DEPRECATE_AND_INLINE()
-  RtpHeaderExtensionCapability(absl::string_view uri,
-                               int preferred_id,
-                               RtpTransceiverDirection direction)
-      : RtpHeaderExtensionCapability(uri,
-                                     RtpHeaderExtensionId(preferred_id),
-                                     direction) {}
-  ABSL_DEPRECATE_AND_INLINE()
-  RtpHeaderExtensionCapability(absl::string_view uri,
-                               int preferred_id,
-                               bool preferred_encrypt,
-                               RtpTransceiverDirection direction)
+  [[deprecated]] ABSL_REFACTOR_INLINE RtpHeaderExtensionCapability(
+      absl::string_view uri,
+      int preferred_id,
+      bool preferred_encrypt,
+      RtpTransceiverDirection direction)
       : RtpHeaderExtensionCapability(uri,
                                      RtpHeaderExtensionId(preferred_id),
                                      preferred_encrypt,
@@ -375,11 +377,12 @@ struct RTC_EXPORT RtpExtension {
   RtpExtension(absl::string_view uri, RtpHeaderExtensionId id, bool encrypt);
   // Backwards compatibility overloads.
   // TODO: bugs.webrtc.org/514817938 - Remove when downstream is updated.
-  ABSL_DEPRECATE_AND_INLINE()
-  RtpExtension(absl::string_view uri, int id)
+  [[deprecated]] ABSL_REFACTOR_INLINE RtpExtension(absl::string_view uri,
+                                                   int id)
       : RtpExtension(uri, RtpHeaderExtensionId(id)) {}
-  ABSL_DEPRECATE_AND_INLINE()
-  RtpExtension(absl::string_view uri, int id, bool encrypt)
+  [[deprecated]] ABSL_REFACTOR_INLINE RtpExtension(absl::string_view uri,
+                                                   int id,
+                                                   bool encrypt)
       : RtpExtension(uri, RtpHeaderExtensionId(id), encrypt) {}
   ~RtpExtension();
 
@@ -509,14 +512,14 @@ struct RTC_EXPORT RtpExtension {
 
   // Inclusive min and max IDs for two-byte header extensions and one-byte
   // header extensions, per RFC8285 Section 4.2-4.3.
-  ABSL_DEPRECATE_AND_INLINE()
-  static constexpr RtpHeaderExtensionId kMinId = RtpHeaderExtensionId::kMinId;
-  ABSL_DEPRECATE_AND_INLINE()
-  static constexpr RtpHeaderExtensionId kMaxId = RtpHeaderExtensionId::kMaxId;
+  [[deprecated]] ABSL_REFACTOR_INLINE static constexpr RtpHeaderExtensionId
+      kMinId = RtpHeaderExtensionId::kMinId;
+  [[deprecated]] ABSL_REFACTOR_INLINE static constexpr RtpHeaderExtensionId
+      kMaxId = RtpHeaderExtensionId::kMaxId;
   static constexpr int kMaxValueSize = 255;
-  ABSL_DEPRECATE_AND_INLINE()
-  static constexpr RtpHeaderExtensionId kOneByteHeaderExtensionMaxId =
-      RtpHeaderExtensionId::kOneByteHeaderExtensionMaxId;
+  [[deprecated]] ABSL_REFACTOR_INLINE static constexpr RtpHeaderExtensionId
+      kOneByteHeaderExtensionMaxId =
+          RtpHeaderExtensionId::kOneByteHeaderExtensionMaxId;
   static constexpr int kOneByteHeaderExtensionMaxValueSize = 16;
 
   std::string uri;

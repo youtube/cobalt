@@ -1990,7 +1990,7 @@ static bool ECDH(const Span<const uint8_t> args[], ReplyCallback write_reply) {
     return false;
   }
 
-  // The output buffer is one larger than |EC_MAX_BYTES| so that truncation
+  // The output buffer is one larger than `EC_MAX_BYTES` so that truncation
   // can be detected.
   std::vector<uint8_t> output(EC_MAX_BYTES + 1);
   const int out_len =

@@ -33,7 +33,6 @@
 #include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/set_remote_description_observer_interface.h"
-#include "api/test/rtc_error_matchers.h"
 #include "api/units/data_rate.h"
 #include "api/video/render_resolution.h"
 #include "api/video_codecs/sdp_video_format.h"
@@ -62,6 +61,7 @@
 #include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -115,7 +115,9 @@ class PeerConnectionRtpBaseTest : public ::testing::Test {
                                             OpenH264DecoderTemplateAdapter,
                                             Dav1dDecoderTemplateAdapter>>(),
             nullptr /* audio_mixer */,
-            nullptr /* audio_processing */)) {
+            nullptr /* audio_processing */,
+            nullptr /* audio_frame_processor */,
+            CreateTestFieldTrialsPtr())) {
     metrics::Reset();
   }
 
@@ -770,12 +772,8 @@ TEST_F(PeerConnectionRtpTestPlanB,
       std::move(srd2_sdp),
       make_ref_counted<OnSuccessObserver<decltype(srd2_callback)>>(
           srd2_callback));
-  EXPECT_THAT(
-      WaitUntil([&] { return srd1_callback_called; }, ::testing::IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return srd2_callback_called; }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return srd1_callback_called; }));
+  EXPECT_TRUE(WaitUntil([&] { return srd2_callback_called; }));
 }
 RTC_ALLOW_PLAN_B_DEPRECATION_END()
 

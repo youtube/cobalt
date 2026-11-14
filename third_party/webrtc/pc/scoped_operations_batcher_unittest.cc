@@ -150,5 +150,19 @@ TEST(ScopedOperationsBatcherTest, StopsExecutionOnError) {
   EXPECT_FALSE(finalizer3_executed);
 }
 
+TEST(ScopedOperationsBatcherTest, IsEmptyReflectsTaskCount) {
+  auto target_thread = Thread::Create();
+  target_thread->Start();
+
+  ScopedOperationsBatcher batcher(target_thread.get());
+  EXPECT_TRUE(batcher.IsEmpty());
+
+  batcher.Add([] {});
+  EXPECT_FALSE(batcher.IsEmpty());
+
+  EXPECT_TRUE(batcher.Run().ok());
+  EXPECT_TRUE(batcher.IsEmpty());
+}
+
 }  // namespace
 }  // namespace webrtc

@@ -29,6 +29,7 @@
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
@@ -149,6 +150,10 @@ void OutgoingSubgroupStream::SendObjects() {
           << "Received non-empty object with no payload";
       return;
     }
+    QUICHE_BUG_IF(OutgoingSubgroupStream_SendObjects_no_first_object,
+                  !object->metadata.first_object_in_subgroup.has_value())
+        << "first_object_in_subgroup has to be set on all objects set via "
+           "subscription";
     QUICHE_DCHECK_EQ(object->metadata.location.group, index_.group);
     QUICHE_DCHECK(object->metadata.subgroup == index_.subgroup);
     if (!visitor->InWindow(object->metadata.location)) {
@@ -175,7 +180,8 @@ void OutgoingSubgroupStream::SendObjects() {
       type_ = MoqtDataStreamType::Subgroup(
           index_.subgroup, next_object_, false,
           object->metadata.publisher_priority ==
-              publisher_->extensions().default_publisher_priority());
+              publisher_->extensions().default_publisher_priority(),
+          object->metadata.first_object_in_subgroup.value_or(true));
     }
     uint64_t start_offset = already_delivered_;
     already_delivered_ +=
@@ -446,6 +452,7 @@ void IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       metadata.extensions = message.extension_headers;
       metadata.status = message.object_status;
       metadata.publisher_priority = message.publisher_priority;
+      metadata.first_object_in_subgroup = message.first_object_in_subgroup;
       metadata.payload_length = message.payload_length;
       metadata.arrival_time = clock_->Now();
       visitor_->OnObjectFragment(track->full_track_name(), metadata, payload,
@@ -454,16 +461,6 @@ void IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   } else {  // FETCH
     track->OnObjectOrOk();
     UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
-    if (!fetch->LocationIsValid(Location(message.group_id, message.object_id),
-                                message.object_status, end_of_message)) {
-      // TODO(martinduke): in https://github.com/moq-wg/moq-transport/pull/1409
-      // I make the case that this should be a protocol violation. Update if
-      // that proposal is accepted (at which point
-      // QuicSession::OnMalformedTrack can be removed, since all the
-      // remaining conditions are at the application layer).
-      session_->OnMalformedTrack(track);
-      return;
-    }
     UpstreamFetch::UpstreamFetchTask* task = fetch->task();
     if (task == nullptr) {
       // The application killed the FETCH.

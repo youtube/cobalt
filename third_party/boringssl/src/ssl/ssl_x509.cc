@@ -32,21 +32,21 @@
 
 BSSL_NAMESPACE_BEGIN
 
-// check_ssl_x509_method asserts that |ssl| has the X509-based method
-// installed. Calling an X509-based method on an |ssl| with a different method
+// check_ssl_x509_method asserts that `ssl` has the X509-based method
+// installed. Calling an X509-based method on an `ssl` with a different method
 // will likely misbehave and possibly crash or leak memory.
 static void check_ssl_x509_method(const SSL *ssl) {
   assert(ssl == nullptr || ssl->ctx->x509_method == &ssl_crypto_x509_method);
 }
 
-// check_ssl_ctx_x509_method acts like |check_ssl_x509_method|, but for an
-// |SSL_CTX|.
+// check_ssl_ctx_x509_method acts like `check_ssl_x509_method`, but for an
+// `SSL_CTX`.
 static void check_ssl_ctx_x509_method(const SSLContext *ctx) {
   assert(ctx == nullptr || ctx->x509_method == &ssl_crypto_x509_method);
 }
 
-// x509_to_buffer returns a |CRYPTO_BUFFER| that contains the serialised
-// contents of |x509|.
+// x509_to_buffer returns a `CRYPTO_BUFFER` that contains the serialised
+// contents of `x509`.
 static UniquePtr<CRYPTO_BUFFER> x509_to_buffer(X509 *x509) {
   uint8_t *buf = nullptr;
   int cert_len = i2d_X509(x509, &buf);
@@ -70,10 +70,10 @@ static void ssl_crypto_x509_cert_flush_cached_chain(CERT *cert) {
   cert->x509_chain = nullptr;
 }
 
-// ssl_cert_set1_chain sets elements 1.. of |cert->chain| to the serialised
-// forms of elements of |chain|. It returns one on success or zero on error, in
-// which case no change to |cert->chain| is made. It preserves the existing
-// leaf from |cert->chain|, if any.
+// ssl_cert_set1_chain sets elements 1.. of `cert->chain` to the serialised
+// forms of elements of `chain`. It returns one on success or zero on error, in
+// which case no change to `cert->chain` is made. It preserves the existing
+// leaf from `cert->chain`, if any.
 static bool ssl_cert_set1_chain(CERT *cert, STACK_OF(X509) *chain) {
   cert->legacy_credential->ClearIntermediateCerts();
   for (X509 *x509 : chain) {
@@ -132,7 +132,7 @@ static bool ssl_crypto_x509_session_cache_objects(SSL_SESSION *sess) {
     }
     if (sess->is_server) {
       // chain_without_leaf is only needed for server sessions. See
-      // |SSL_get_peer_cert_chain|.
+      // `SSL_get_peer_cert_chain`.
       chain_without_leaf.reset(sk_X509_new_null());
       if (!chain_without_leaf) {
         return false;
@@ -257,7 +257,7 @@ static bool ssl_crypto_x509_session_verify_cert_chain(SSL_SESSION *session,
 
   session->verify_result = X509_STORE_CTX_get_error(ctx.get());
 
-  // If |SSL_VERIFY_NONE|, the error is non-fatal, but we keep the result.
+  // If `SSL_VERIFY_NONE`, the error is non-fatal, but we keep the result.
   if (verify_ret <= 0 && hs->config->verify_mode != SSL_VERIFY_NONE) {
     *out_alert = SSL_alert_from_verify_result(session->verify_result);
     return false;
@@ -609,8 +609,8 @@ int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x) {
   return ssl_use_certificate(ctx_impl->cert.get(), x);
 }
 
-// ssl_cert_cache_leaf_cert sets |cert->x509_leaf|, if currently NULL, from the
-// first element of |cert->chain|.
+// ssl_cert_cache_leaf_cert sets `cert->x509_leaf`, if currently NULL, from the
+// first element of `cert->chain`.
 static int ssl_cert_cache_leaf_cert(CERT *cert) {
   assert(cert->x509_method);
 
@@ -763,8 +763,8 @@ int SSL_clear_chain_certs(SSL *ssl) {
   return SSL_set0_chain(ssl, nullptr);
 }
 
-// ssl_cert_cache_chain_certs fills in |cert->x509_chain| from elements 1.. of
-// |cert->chain|.
+// ssl_cert_cache_chain_certs fills in `cert->x509_chain` from elements 1.. of
+// `cert->chain`.
 static int ssl_cert_cache_chain_certs(CERT *cert) {
   assert(cert->x509_method);
 
@@ -940,9 +940,9 @@ STACK_OF(X509_NAME) *SSL_get_client_CA_list(const SSL *ssl) {
   }
   // For historical reasons, this function is used both to query configuration
   // state on a server as well as handshake state on a client. However, whether
-  // |ssl| is a client or server is not known until explicitly configured with
-  // |SSL_set_connect_state|. If |do_handshake| is NULL, |ssl| is in an
-  // indeterminate mode and |ssl->server| is unset.
+  // `ssl` is a client or server is not known until explicitly configured with
+  // `SSL_set_connect_state`. If `do_handshake` is NULL, `ssl` is in an
+  // indeterminate mode and `ssl->server` is unset.
   if (ssl->do_handshake != nullptr && !ssl->server) {
     if (ssl->s3->hs != nullptr) {
       return buffer_names_to_x509(ssl->s3->hs->ca_names.get(),
@@ -964,7 +964,7 @@ STACK_OF(X509_NAME) *SSL_CTX_get_client_CA_list(const SSL_CTX *ctx) {
   auto *ctx_impl = FromOpaque(ctx);
   check_ssl_ctx_x509_method(ctx_impl);
   // This is a logically const operation that may be called on multiple threads,
-  // so it needs to lock around updating |cached_x509_client_CA|.
+  // so it needs to lock around updating `cached_x509_client_CA`.
   MutexWriteLock lock(&ctx_impl->lock);
   return buffer_names_to_x509(
       ctx_impl->client_CA.get(),
@@ -1084,9 +1084,9 @@ static int set_cert_store(X509_STORE **store_ptr, X509_STORE *new_store,
 }
 
 int SSL_get_ex_data_X509_STORE_CTX_idx() {
-  // The ex_data index to go from |X509_STORE_CTX| to |SSL| always uses the
+  // The ex_data index to go from `X509_STORE_CTX` to `SSL` always uses the
   // reserved app_data slot. Before ex_data was introduced, app_data was used.
-  // Avoid breaking any software which assumes |X509_STORE_CTX_get_app_data|
+  // Avoid breaking any software which assumes `X509_STORE_CTX_get_app_data`
   // works.
   return 0;
 }

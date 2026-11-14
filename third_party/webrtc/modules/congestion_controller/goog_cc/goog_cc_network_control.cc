@@ -573,6 +573,8 @@ NetworkControlUpdate GoogCcNetworkController::GetNetworkState(
 
   update.target_rate->at_time = at_time;
   update.target_rate->target_rate = last_pushback_target_rate_;
+  update.target_rate->is_bandwidth_limited =
+      !alr_detector_.GetApplicationLimitedRegionStartTime().has_value();
   update.pacer_config = GetPacingRates(at_time);
   update.congestion_window = current_data_window_;
   return update;
@@ -602,16 +604,21 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
     }
   }
 
+  bool is_bandwidth_limited =
+      !alr_detector_.GetApplicationLimitedRegionStartTime().has_value();
+
   if ((loss_based_target_rate != last_loss_based_target_rate_) ||
       (loss_based_state != last_loss_base_state_) ||
       (fraction_loss != last_estimated_fraction_loss_) ||
       (round_trip_time != last_estimated_round_trip_time_) ||
-      (pushback_target_rate != last_pushback_target_rate_)) {
+      (pushback_target_rate != last_pushback_target_rate_) ||
+      (is_bandwidth_limited != last_is_bandwidth_limited_)) {
     last_loss_based_target_rate_ = loss_based_target_rate;
     last_pushback_target_rate_ = pushback_target_rate;
     last_estimated_fraction_loss_ = fraction_loss;
     last_estimated_round_trip_time_ = round_trip_time;
     last_loss_base_state_ = loss_based_state;
+    last_is_bandwidth_limited_ = is_bandwidth_limited;
 
     alr_detector_.SetEstimatedBitrate(loss_based_target_rate);
 
@@ -629,6 +636,7 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
     target_rate_msg.network_estimate.round_trip_time = round_trip_time;
     target_rate_msg.network_estimate.loss_rate_ratio = fraction_loss / 255.0f;
     target_rate_msg.network_estimate.bwe_period = bwe_period;
+    target_rate_msg.is_bandwidth_limited = is_bandwidth_limited;
 
     update->target_rate = target_rate_msg;
 

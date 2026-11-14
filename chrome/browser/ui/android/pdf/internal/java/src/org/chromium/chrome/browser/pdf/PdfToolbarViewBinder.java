@@ -51,6 +51,7 @@ class PdfToolbarViewBinder {
             view.findViewById(R.id.more_menu_button).setOnClickListener(listener);
             view.findViewById(R.id.download_button).setOnClickListener(listener);
             view.findViewById(R.id.rotate_button).setOnClickListener(listener);
+            view.findViewById(R.id.print_button).setOnClickListener(listener);
         } else if (PdfToolbarProperties.TITLE == key) {
             TextView title = view.findViewById(R.id.pdf_title);
             title.setText(model.get(PdfToolbarProperties.TITLE));
@@ -98,6 +99,17 @@ class PdfToolbarViewBinder {
             } else {
                 fitToPageButton.setImageResource(R.drawable.ic_fit_page_width_24dp);
             }
+        } else if (PdfToolbarProperties.DOWNLOAD_BUTTON_VISIBLE == key) {
+            view.setDownloadButtonVisible(model.get(PdfToolbarProperties.DOWNLOAD_BUTTON_VISIBLE));
+        } else if (PdfToolbarProperties.ROTATE_BUTTON_VISIBLE == key) {
+            view.setRotateButtonVisible(model.get(PdfToolbarProperties.ROTATE_BUTTON_VISIBLE));
+        } else if (PdfToolbarProperties.FIT_TO_PAGE_BUTTON_VISIBLE == key) {
+            view.setFitToPageButtonVisible(
+                    model.get(PdfToolbarProperties.FIT_TO_PAGE_BUTTON_VISIBLE));
+        } else if (PdfToolbarProperties.ZOOM_CONTROLS_VISIBLE == key) {
+            view.setZoomControlsVisible(model.get(PdfToolbarProperties.ZOOM_CONTROLS_VISIBLE));
+        } else if (PdfToolbarProperties.PAGE_NAV_AND_EDIT_VISIBLE == key) {
+            view.setPageNavAndEditVisible(model.get(PdfToolbarProperties.PAGE_NAV_AND_EDIT_VISIBLE));
         }
     }
 }

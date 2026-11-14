@@ -39,6 +39,7 @@
 #include "chrome/browser/autofill/autofill_field_classification_model_service_factory.h"
 #include "chrome/browser/autofill/autofill_optimization_guide_decider_factory.h"
 #include "chrome/browser/autofill/one_time_token_service_factory.h"
+#include "chrome/browser/autofill/personal_context_access_manager_factory.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/ui/ui_util.h"
 #include "chrome/browser/autofill/valuables_data_manager_factory.h"
@@ -59,6 +60,7 @@
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/factories/password_manager_settings_service_factory.h"
 #include "chrome/browser/password_manager/password_field_classification_model_handler_factory.h"
+#include "chrome/browser/personal_context/first_run/personal_context_first_run_service_factory.h"
 #include "chrome/browser/personal_context/personal_context_enablement_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -145,6 +147,7 @@
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_requirements_service.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
+#include "components/personal_context/first_run/personal_context_first_run_service.h"
 #include "components/prefs/pref_service.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/security_state/content/security_state_tab_helper.h"
@@ -294,7 +297,6 @@ bool CanTriggerAutofillAiSavePromptSurveyForEntityType(EntityType type) {
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-
 }  // namespace
 
 // static
@@ -442,6 +444,13 @@ WalletPassAccessManager* ChromeAutofillClient::GetWalletPassAccessManager() {
   return WalletPassAccessManagerFactory::GetForProfile(profile);
 }
 
+bool ChromeAutofillClient::ShouldShowPersonalContextAutofillNotice() const {
+  Profile* profile = GetProfile();
+  personal_context::PersonalContextFirstRunService* service =
+      PersonalContextFirstRunServiceFactory::GetForProfile(profile);
+  return service && service->ShouldShowPersonalContextAutofillNotice();
+}
+
 SingleFieldFillRouter& ChromeAutofillClient::GetSingleFieldFillRouter() {
   return single_field_fill_router_;
 }
@@ -506,6 +515,14 @@ void ChromeAutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {
 
 AutofillAiManager* ChromeAutofillClient::GetAutofillAiManager() {
   return autofill_ai_manager_.get();
+}
+
+PersonalContextAccessManager*
+ChromeAutofillClient::GetPersonalContextAccessManager() {
+  if (!base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill)) {
+    return nullptr;
+  }
+  return PersonalContextAccessManagerFactory::GetForProfile(GetProfile());
 }
 
 AutofillAiModelCache* ChromeAutofillClient::GetAutofillAiModelCache() {
@@ -1367,7 +1384,6 @@ PasswordFormClassification ChromeAutofillClient::ClassifyAsPasswordForm(
   return password_manager::ClassifyAsPasswordForm(manager, form_id, field_id);
 }
 
-
 optimization_guide::ModelQualityLogsUploaderService*
 ChromeAutofillClient::GetMqlsUploadService() {
 #if !BUILDFLAG(IS_ANDROID)
@@ -1519,7 +1535,7 @@ void ChromeAutofillClient::OpenGeminiInSidebar(const std::u16string& prompt) {
   if (!tab) {
     return;
   }
-  glic::Target target(tab);
+  glic::Target target(*tab);
   glic::GlicInvokeOptions options(std::move(target),
                                   glic::mojom::InvocationSource::kAutofill);
   options.prompts.push_back(base::UTF16ToUTF8(prompt));

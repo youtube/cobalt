@@ -17,6 +17,8 @@
 #include "chrome/browser/indigo/indigo_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/extensions/api/indigo_private.h"
+#include "components/page_content_annotations/core/tracked_element_feature.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/page.h"
@@ -24,13 +26,20 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "extensions/browser/event_router.h"
+#include "extensions/browser/extension_event_histogram_value.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/mojom/event_dispatcher.mojom.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace indigo {
+
+namespace {
+InvocationId::Generator g_invocation_id_generator;
+}
 
 IndigoImageReplacementManager::IndigoImageReplacementManager(
     content::Page& page)
@@ -50,15 +59,15 @@ void IndigoImageReplacementManager::RegisterImageReplacement(
     mojo::PendingRemote<blink::mojom::ImageReplacement> image_replacement,
     bool is_primary) {
   if (is_primary) {
-    if (primary_registered_) {
+    if (primary_receiver_id_.has_value()) {
       // Registering a new primary replacement (when one was previously
       // registered) triggers a reset of all existing replacements.
       // Note: We don't want to reset the content script here as we're reacting
       // to it registering a new primary replacement.
       Reset(ResetType::kResetReplacementsOnly);
     }
-    primary_registered_ = true;
-  } else if (!primary_registered_) {
+    active_invocation_id_ = g_invocation_id_generator.GenerateNextId();
+  } else if (!primary_receiver_id_.has_value()) {
     // We ignore all non primary replacements until a primary replacement is
     // registered.
     return;
@@ -68,9 +77,20 @@ void IndigoImageReplacementManager::RegisterImageReplacement(
       std::move(image_replacement));
   mojo::PendingRemote<blink::mojom::ImageReplacementHost> host_remote;
   auto host_receiver = host_remote.InitWithNewPipeAndPassReceiver();
-  remote->StartReplacement(std::move(host_remote));
-  receivers_.Add(this, std::move(host_receiver),
-                 IndigoImageReplacement(this, std::move(remote), is_primary));
+  std::optional<int32_t> feature_id;
+  if (is_primary) {
+    feature_id =
+        static_cast<int32_t>(page_content_annotations::TrackedElementFeature::
+                                 kIndigoImageReplacement);
+  }
+  remote->StartReplacement(std::move(host_remote), feature_id);
+
+  auto receiver_id = receivers_.Add(
+      this, std::move(host_receiver),
+      IndigoImageReplacement(this, std::move(remote), is_primary));
+  if (is_primary) {
+    primary_receiver_id_ = receiver_id;
+  }
 }
 
 IndigoImageReplacement*
@@ -88,15 +108,65 @@ IndigoImageReplacementManager::GetImageReplacementForFrame(
 void IndigoImageReplacementManager::ResetAllReplacements(
     base::PassKey<IndigoPageActionController>) {
   receivers_.Clear();
-  primary_registered_ = false;
+  primary_receiver_id_ = std::nullopt;
+  primary_original_image_webp_bytes_.clear();
   generated_image_url_ = GURL();
-  primary_bounds_ = gfx::Rect();
+  active_invocation_id_ = std::nullopt;
+  CancelActiveRequest();
+}
+
+bool IndigoImageReplacementManager::RegenerateImage() {
+  if (!primary_receiver_id_.has_value() ||
+      !receivers_.HasReceiver(*primary_receiver_id_)) {
+    return false;
+  }
+
+  CHECK(!primary_original_image_webp_bytes_.empty());
+
+  // Reset generated image URL so subsequent getReplacementImage() requests
+  // wait.
+  generated_image_url_ = GURL();
+
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(&page().GetMainDocument());
+  content::BrowserContext* browser_context = web_contents->GetBrowserContext();
+  auto event = std::make_unique<extensions::Event>(
+      extensions::events::INDIGO_PRIVATE_ON_REGENERATE_STARTED,
+      extensions::api::indigo_private::OnRegenerateStarted::kEventName,
+      extensions::api::indigo_private::OnRegenerateStarted::Create());
+
+  // Enable browser-side filtering by populating EventFilteringInfo with
+  // instance_id (set to invocation_id).
+  auto filter_info = extensions::mojom::EventFilteringInfo::New();
+  filter_info->instance_id = active_invocation_id_->GetUnsafeValue();
+  event->filter_info = std::move(filter_info);
+
+  extensions::EventRouter::Get(browser_context)
+      ->DispatchEventToExtension(extension_misc::kIndigoExtensionId,
+                                 std::move(event));
+
+  GenerateReplacementImage();
+  return true;
+}
+
+std::optional<base::Token>
+IndigoImageReplacementManager::GetPrimaryTrackedElementId() const {
+  if (!primary_receiver_id_) {
+    return std::nullopt;
+  }
+  const IndigoImageReplacement* image_replacement =
+      receivers_.GetContext(*primary_receiver_id_);
+  if (!image_replacement) {
+    return std::nullopt;
+  }
+  CHECK(image_replacement->is_primary());
+  return image_replacement->tracked_element_id();
 }
 
 void IndigoImageReplacementManager::ReplacementFrameAttached(
     const blink::LocalFrameToken& replacement_frame_token,
-    const gfx::QuadF& quad,
-    blink::mojom::ImageDataPtr original_image) {
+    blink::mojom::ImageDataPtr original_image,
+    const std::optional<base::Token>& tracked_element_id) {
   content::RenderFrameHost* image_replacement_subframe =
       content::RenderFrameHost::FromFrameToken(
           content::GlobalRenderFrameHostToken(
@@ -105,7 +175,6 @@ void IndigoImageReplacementManager::ReplacementFrameAttached(
   if (!image_replacement_subframe) {
     // TODO(b/489445294): We should wait for this subframe to be attached,
     // rather than returning early.
-    LOG(ERROR) << "Subframe not found! " << replacement_frame_token.ToString();
     return;
   }
 
@@ -127,8 +196,8 @@ void IndigoImageReplacementManager::ReplacementFrameAttached(
   if (original_image) {
     image_bytes_copy.assign_range(original_image->webp_bytes);
   }
-  image_replacement.ReplacementFrameAttached(frame_tree_node_id,
-                                             std::move(image_bytes_copy));
+  image_replacement.ReplacementFrameAttached(
+      frame_tree_node_id, std::move(image_bytes_copy), tracked_element_id);
 
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(&page().GetMainDocument());
@@ -142,55 +211,72 @@ void IndigoImageReplacementManager::ReplacementFrameAttached(
   params.should_replace_current_entry = true;
   web_contents->GetController().LoadURLWithParams(std::move(params));
 
-  // We only use the primary image for positioning the toolbar and generating
-  // the replacement image. The generated image is then shared with the other
-  // replacements.
+  // We only use the primary image for generating the replacement image.
+  // The generated image is then shared with the other replacements.
   if (!image_replacement.is_primary()) {
     return;
   }
 
-  gfx::QuadF scaled_quad = quad;
-  if (content::RenderWidgetHostView* view =
-          page().GetMainDocument().GetView()) {
-    scaled_quad.Scale(1.0f / view->GetDeviceScaleFactor());
+  // Cache a copy of the primary replacement's original image bytes to use for
+  // regeneration.
+  if (original_image) {
+    primary_original_image_webp_bytes_.assign_range(original_image->webp_bytes);
   }
 
-  gfx::Rect bounds_rect = gfx::ToEnclosingRect(scaled_quad.BoundingBox());
-  if (bounds_rect.IsEmpty()) {
-    return;
+  GenerateReplacementImage();
+}
+
+IndigoPageActionController*
+IndigoImageReplacementManager::GetIndigoPageActionController() {
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(&page().GetMainDocument());
+  auto* tab = tabs::TabInterface::GetFromContents(web_contents);
+  if (!tab) {
+    return nullptr;
   }
+  auto* controller = indigo::IndigoPageActionController::From(tab);
+  CHECK(controller);
+  return controller;
+}
 
-  primary_bounds_ = bounds_rect;
+void IndigoImageReplacementManager::GenerateReplacementImage() {
+  CHECK(primary_receiver_id_.has_value());
+  CHECK(!primary_original_image_webp_bytes_.empty());
 
-  // Generate a new image based on the original image bytes.
+  CancelActiveRequest();
+
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(&page().GetMainDocument());
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
   IndigoService* service = IndigoServiceFactory::GetForProfile(profile);
   if (service) {
-    service->GetApiClient().Generate(
-        original_image->webp_bytes,
+    // Generate a new image based on the primary replacement's original image
+    // bytes.
+    cancel_active_request_ = service->GetApiClient().Generate(
+        primary_original_image_webp_bytes_,
         base::BindOnce(
             &IndigoImageReplacementManager::OnReplacementImageGenerated,
-            weak_ptr_factory_.GetWeakPtr(), receivers_.current_receiver()));
+            generate_weak_ptr_factory_.GetWeakPtr()));
   }
 }
 
 void IndigoImageReplacementManager::OnReplacementImageGenerated(
-    mojo::ReceiverId receiver_id,
     base::expected<GeneratedImage, GenerateImageError> result) {
-  if (!receivers_.HasReceiver(receiver_id)) {
-    return;
-  }
-  CHECK(receivers_.GetContext(receiver_id)->is_primary());
+  CHECK(primary_receiver_id_.has_value());
+  CHECK(receivers_.HasReceiver(*primary_receiver_id_));
+
+  cancel_active_request_.Reset();
 
   if (!result.has_value()) {
-    LOG(ERROR) << "Generate image failed: " << result.error().message;
+    DVLOG(1) << "Generate image failed: " << result.error().message;
     base::UmaHistogramEnumeration(
         "Indigo.Transformation.Result",
         IndigoTransformationResult::kGenerateImageError);
     base::RecordAction(
         base::UserMetricsAction("Indigo.Transformation.Failure"));
     Reset(ResetType::kResetReplacementsAndContentScript);
+    ShowErrorToast();
     return;
   }
 
@@ -205,14 +291,15 @@ void IndigoImageReplacementManager::OnReplacementImageGenerated(
     image_replacement->ReplacementImageURLReady();
   }
 
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(&page().GetMainDocument());
-  if (auto* tab = tabs::TabInterface::GetFromContents(web_contents)) {
-    auto* controller = indigo::IndigoPageActionController::From(tab);
-    CHECK(controller);
-    if (!primary_bounds_.IsEmpty()) {
-      controller->ShowToolbarInside(primary_bounds_);
-    }
+  if (auto* controller = GetIndigoPageActionController()) {
+    controller->ShowToolbar();
+  }
+}
+
+void IndigoImageReplacementManager::CancelActiveRequest() {
+  generate_weak_ptr_factory_.InvalidateWeakPtrs();
+  if (cancel_active_request_) {
+    std::move(cancel_active_request_).Run();
   }
 }
 
@@ -221,19 +308,22 @@ void IndigoImageReplacementManager::OnReceiverDisconnected() {
   // If the primary replacement is disconnected prior to receiving the generated
   // image, we reset all replacements.
   if (replacement.is_primary() && generated_image_url_.is_empty()) {
-    LOG(ERROR) << "Primary image replacement disconnected before receiving "
-                  "generated image";
+    DVLOG(1) << "Primary image replacement disconnected before receiving "
+                "generated image";
     Reset(ResetType::kResetReplacementsAndContentScript);
+    ShowErrorToast();
   }
 }
 
 void IndigoImageReplacementManager::Reset(ResetType reset_type) {
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(&page().GetMainDocument());
-  if (auto* tab = tabs::TabInterface::GetFromContents(web_contents)) {
-    auto* controller = indigo::IndigoPageActionController::From(tab);
-    CHECK(controller);
+  if (auto* controller = GetIndigoPageActionController()) {
     controller->Reset(reset_type);
+  }
+}
+
+void IndigoImageReplacementManager::ShowErrorToast() {
+  if (auto* controller = GetIndigoPageActionController()) {
+    controller->ShowInvocationErrorToast();
   }
 }
 

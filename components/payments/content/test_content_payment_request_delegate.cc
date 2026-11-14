@@ -101,18 +101,6 @@ TestContentPaymentRequestDelegate::GetAddressNormalizer() {
   return core_delegate_.GetAddressNormalizer();
 }
 
-autofill::RegionDataLoader*
-TestContentPaymentRequestDelegate::GetRegionDataLoader() {
-  return core_delegate_.GetRegionDataLoader();
-}
-
-ukm::UkmRecorder* TestContentPaymentRequestDelegate::GetUkmRecorder() {
-  return core_delegate_.GetUkmRecorder();
-}
-
-std::string TestContentPaymentRequestDelegate::GetAuthenticatedEmail() const {
-  return core_delegate_.GetAuthenticatedEmail();
-}
 
 PrefService* TestContentPaymentRequestDelegate::GetPrefService() {
   return core_delegate_.GetPrefService();
@@ -147,11 +135,6 @@ void TestContentPaymentRequestDelegate::CompleteFullCardRequest() {
 const base::WeakPtr<PaymentUIObserver>
 TestContentPaymentRequestDelegate::GetPaymentUIObserver() const {
   return nullptr;
-}
-
-std::optional<base::UnguessableToken>
-TestContentPaymentRequestDelegate::GetChromeOSTWAInstanceId() const {
-  return std::nullopt;
 }
 
 std::string TestContentPaymentRequestDelegate::

@@ -37,6 +37,10 @@
 
 namespace {
 
+perfetto::NamedTrack GetTracingTrack(const media::ChunkDemuxer* demuxer) {
+  return perfetto::NamedTrack::FromPointer("media::ChunkDemuxer", demuxer);
+}
+
 // Helper to attempt construction of a StreamParser specific to |content_type|
 // and |codecs|.
 // TODO(wolenetz): Consider relocating this to StreamParserFactory in
@@ -512,7 +516,7 @@ ChunkDemuxer::ChunkDemuxer(
     : open_cb_(std::move(open_cb)),
       progress_cb_(std::move(progress_cb)),
       encrypted_media_init_data_cb_(std::move(encrypted_media_init_data_cb)),
-      media_log_(media_log) {
+      media_log_(MediaLog::CloneSafely(media_log)) {
   DCHECK(open_cb_);
   DCHECK(encrypted_media_init_data_cb_);
   MEDIA_LOG(INFO, media_log_) << GetDisplayName();
@@ -529,8 +533,7 @@ DemuxerType ChunkDemuxer::GetDemuxerType() const {
 void ChunkDemuxer::Initialize(DemuxerHost* host,
                               PipelineStatusCallback init_cb) {
   DVLOG(1) << "Initialize()";
-  TRACE_EVENT_BEGIN("media", "ChunkDemuxer::Initialize",
-                    perfetto::Track::FromPointer(this));
+  TRACE_EVENT_BEGIN("media", "ChunkDemuxer::Initialize", GetTracingTrack(this));
 
   base::OnceClosure open_cb;
 
@@ -567,8 +570,7 @@ void ChunkDemuxer::Stop() {
 void ChunkDemuxer::Seek(base::TimeDelta time, PipelineStatusCallback cb) {
   DVLOG(1) << "Seek(" << time.InSecondsF() << ")";
   DCHECK(time >= base::TimeDelta());
-  TRACE_EVENT_BEGIN("media", "ChunkDemuxer::Seek",
-                    perfetto::Track::FromPointer(this));
+  TRACE_EVENT_BEGIN("media", "ChunkDemuxer::Seek", GetTracingTrack(this));
 
   base::AutoLock auto_lock(lock_);
   DCHECK(!seek_cb_);
@@ -769,7 +771,7 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   CHECK(init_cb_);
 
   std::unique_ptr<media::StreamParser> stream_parser(
-      CreateParserForTypeAndCodecs(content_type, codecs, media_log_));
+      CreateParserForTypeAndCodecs(content_type, codecs, media_log_.get()));
   if (!stream_parser) {
     DVLOG(1) << __func__ << " failed: unsupported content_type=" << content_type
              << " codecs=" << codecs;
@@ -842,14 +844,14 @@ ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
       std::make_unique<FrameProcessor>(
           base::BindRepeating(&ChunkDemuxer::IncreaseDurationIfNecessary,
                               base::Unretained(this)),
-          media_log_);
+          media_log_.get());
 
   std::unique_ptr<SourceBufferState> source_state =
       std::make_unique<SourceBufferState>(
           std::move(stream_parser), std::move(frame_processor),
           base::BindRepeating(&ChunkDemuxer::CreateDemuxerStream,
                               base::Unretained(this), id),
-          media_log_);
+          media_log_.get());
 
   // TODO(wolenetz): Change these to DCHECKs or switch to returning
   // kReachedIdLimit once less verification in release build is needed. See
@@ -1281,7 +1283,7 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
   // initialization segment for the source buffer corresponding to |id|.
 
   std::unique_ptr<media::StreamParser> stream_parser(
-      CreateParserForTypeAndCodecs(content_type, codecs, media_log_));
+      CreateParserForTypeAndCodecs(content_type, codecs, media_log_.get()));
   return !!stream_parser;
 }
 
@@ -1297,7 +1299,7 @@ void ChunkDemuxer::ChangeType(const std::string& id,
   DCHECK(IsValidId_Locked(id));
 
   std::unique_ptr<media::StreamParser> stream_parser(
-      CreateParserForTypeAndCodecs(content_type, codecs, media_log_));
+      CreateParserForTypeAndCodecs(content_type, codecs, media_log_.get()));
   // Caller should query CanChangeType() first to protect from failing this.
   DCHECK(stream_parser);
   source_state_map_[id]->ChangeType(std::move(stream_parser),
@@ -1809,7 +1811,7 @@ void ChunkDemuxer::ShutdownAllStreams() {
 void ChunkDemuxer::RunInitCB_Locked(PipelineStatus status) {
   lock_.AssertAcquired();
   DCHECK(init_cb_);
-  TRACE_EVENT_END("media", perfetto::Track::FromPointer(this), "status",
+  TRACE_EVENT_END("media", GetTracingTrack(this), "status",
                   PipelineStatusToString(status));
   std::move(init_cb_).Run(status);
 }
@@ -1817,7 +1819,7 @@ void ChunkDemuxer::RunInitCB_Locked(PipelineStatus status) {
 void ChunkDemuxer::RunSeekCB_Locked(PipelineStatus status) {
   lock_.AssertAcquired();
   DCHECK(seek_cb_);
-  TRACE_EVENT_END("media", perfetto::Track::FromPointer(this), "status",
+  TRACE_EVENT_END("media", GetTracingTrack(this), "status",
                   PipelineStatusToString(status));
   std::move(seek_cb_).Run(status);
 }

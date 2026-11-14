@@ -13,6 +13,7 @@
 #include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
 #include "src/base/memcopy.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/feedback-source.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -23,6 +24,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-node-type.h"
 #include "src/maglev/maglev-tracer.h"
+#include "src/objects/js-objects.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -37,6 +39,50 @@ class Subgraph;
 template <typename DerivedT, typename BaseT>
 class SubgraphBase;
 class ReduceResult;
+
+enum class CpuOperation {
+  kFloat64Round,
+  kMathClz32,
+};
+
+// TODO(leszeks): Add a generic mechanism for marking nodes as optionally
+// supported.
+inline bool IsSupported(CpuOperation op) {
+  switch (op) {
+    case CpuOperation::kFloat64Round:
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
+      return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
+#elif defined(V8_TARGET_ARCH_ARM)
+      return CpuFeatures::IsSupported(ARMv8);
+#elif defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_RISCV64) ||   \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_MIPS64)
+      return true;
+#else
+#error "V8 does not support this architecture."
+#endif
+
+    case CpuOperation::kMathClz32:
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_S390X) || \
+    defined(V8_TARGET_ARCH_PPC64)
+      return true;
+#elif defined(V8_TARGET_ARCH_ARM)
+      return CpuFeatures::IsSupported(ARMv8);
+#elif defined(V8_TARGET_ARCH_X64)
+      return CpuFeatures::IsSupported(LZCNT);
+#elif defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+      return CpuFeatures::IsSupported(ZBB);
+#elif defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_PPC64) || \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
+      return false;
+#else
+#error "V8 does not support this architecture."
+#endif
+  }
+  UNREACHABLE();
+}
+
 class V8_NODISCARD MaybeReduceResult {
  public:
   enum Kind {
@@ -232,10 +278,18 @@ concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
   b->AttachExceptionHandlerInfo(std::declval<Node*>());
 };
 
+template <typename BaseT>
+concept ReducerBaseWithLazyDeoptScope =
+    requires { typename BaseT::LazyDeoptFrameScope; };
+
 template <typename NodeT, typename BaseT>
 concept ReducerBaseWithEffectTracking = requires(BaseT* b) {
   b->template MarkPossibleSideEffect<NodeT>(std::declval<NodeT*>());
 };
+
+template <typename BaseT>
+concept ReducerBaseWithLoopEffectTracking =
+    requires(BaseT* b) { b->loop_effects(); };
 
 template <typename BaseT>
 concept ReducerBaseCanBuildCall = requires(BaseT* b) {
@@ -248,6 +302,17 @@ concept ReducerBaseCanBuildCall = requires(BaseT* b) {
 
 template <typename BaseT>
 concept ReducerBaseHasTracing = requires(BaseT* b) { b->is_tracing(); };
+
+template <typename BaseT>
+concept ReducerBaseWithAllocationTracking = requires(BaseT* b) {
+  b->TryBuildStoreTaggedFieldToAllocation(std::declval<ValueNode*>(),
+                                          std::declval<ValueNode*>(),
+                                          std::declval<int>());
+  b->TryBuildLoadTaggedFieldFromAllocation(std::declval<ValueNode*>(),
+                                           std::declval<int>());
+  b->TryElideWriteBarrierForAllocation(std::declval<ValueNode*>(),
+                                       std::declval<ValueNode*>());
+};
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
 
@@ -679,6 +744,7 @@ class MaglevReducer {
       compiler::FeedbackSource feedback_source);
 
   ReduceResult BuildSmiUntag(ValueNode* node);
+  ReduceResult BuildCheckSmi(ValueNode* object);
 
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
@@ -748,6 +814,79 @@ class MaglevReducer {
   ReduceResult GetTaggedValue(ValueNode* value,
                               UseReprHintRecording record_use_repr_hint =
                                   UseReprHintRecording::kRecord);
+
+  ReduceResult GetSmiValue(ValueNode* value,
+                           UseReprHintRecording record_use_repr_hint =
+                               UseReprHintRecording::kRecord);
+
+  uint32_t NewObjectId() { return graph()->NewObjectId(); }
+
+  VirtualObject* CreateHeapNumber(ValueNode* value);
+  VirtualObject* CreateJSObject(compiler::MapRef map);
+  VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
+                                  ValueNode* first, ValueNode* second);
+  ReduceResult CreateJSArray(compiler::MapRef map, int instance_size,
+                             ValueNode* length);
+  VirtualObject* CreateJSArrayIterator(compiler::MapRef map,
+                                       ValueNode* iterated_object,
+                                       IterationKind kind);
+  VirtualObject* CreateJSConstructor(compiler::JSFunctionRef constructor);
+  VirtualObject* CreateFixedArray(base::Vector<ValueNode* const> values);
+  VirtualObject* CreateFixedDoubleArray(base::Vector<ValueNode* const> values);
+  VirtualObject* CreateContext(compiler::MapRef map, int length,
+                               compiler::ScopeInfoRef scope_info,
+                               ValueNode* previous_context,
+                               std::optional<ValueNode*> extension = {});
+  VirtualObject* CreateArgumentsObject(compiler::MapRef map, ValueNode* length,
+                                       ValueNode* elements,
+                                       std::optional<ValueNode*> callee = {});
+  VirtualObject* CreateMappedArgumentsElements(compiler::MapRef map,
+                                               int mapped_count,
+                                               ValueNode* context,
+                                               ValueNode* unmapped_elements);
+  VirtualObject* CreateRegExpLiteralObject(
+      compiler::MapRef map, compiler::RegExpBoilerplateDescriptionRef literal);
+  VirtualObject* CreateJSGeneratorObject(compiler::MapRef map,
+                                         int instance_size, ValueNode* context,
+                                         ValueNode* closure,
+                                         ValueNode* receiver,
+                                         ValueNode* register_file);
+  VirtualObject* CreateJSAsyncFunctionObject(ValueNode* context,
+                                             ValueNode* closure,
+                                             ValueNode* receiver,
+                                             ValueNode* register_file,
+                                             ValueNode* promise);
+  VirtualObject* CreateJSIteratorResult(compiler::MapRef map, ValueNode* value,
+                                        ValueNode* done);
+  VirtualObject* CreateJSStringIterator(compiler::MapRef map,
+                                        ValueNode* string);
+  VirtualObject* CreateJSStringWrapper(ValueNode* value);
+  VirtualObject* CreateJSPromiseObject();
+  VirtualObject* CreateAsyncResumeTask(ValueNode* generator, ValueNode* value,
+                                       ValueNode* kind);
+
+  ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
+                                    LoadType type = LoadType::kUnknown,
+                                    bool is_const = false,
+                                    PropertyKey key = PropertyKey::None());
+
+  ReduceResult BuildStoreTaggedField(
+      ValueNode* object, ValueNode* value, int offset,
+      StoreTaggedMode store_mode,
+      PropertyKey property_key = PropertyKey::None(),
+      MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
+
+  ReduceResult BuildStoreTaggedFieldNoWriteBarrier(
+      ValueNode* object, ValueNode* value, int offset,
+      StoreTaggedMode store_mode,
+      PropertyKey property_key = PropertyKey::None());
+
+  ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
+                                             ValueNode* value, int offset,
+                                             IndirectPointerTag tag,
+                                             StoreTaggedMode store_mode);
+
+  bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
   // Get an Int32 representation node whose value is equivalent to the given
   // node.
@@ -874,12 +1013,62 @@ class MaglevReducer {
                      current_speculation_mode_) != supported_modes.end();
   }
 
-  MaybeReduceResult TryReduceMathSqrt(compiler::JSFunctionRef target,
-                                      CallArguments& args);
-  MaybeReduceResult TryReduceMathMax(compiler::JSFunctionRef target,
-                                     CallArguments& args);
-  MaybeReduceResult TryReduceMathMin(compiler::JSFunctionRef target,
-                                     CallArguments& args);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+#define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
+  V(GetContinuationPreservedEmbedderData)            \
+  V(SetContinuationPreservedEmbedderData)
+#else
+#define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
+#define MAGLEV_REDUCER_BUILTIN(V)              \
+  V(DataViewPrototypeGetFloat64)               \
+  V(DataViewPrototypeGetInt16)                 \
+  V(DataViewPrototypeGetInt32)                 \
+  V(DataViewPrototypeGetInt8)                  \
+  V(DataViewPrototypeSetFloat64)               \
+  V(DataViewPrototypeSetInt16)                 \
+  V(DataViewPrototypeSetInt32)                 \
+  V(DataViewPrototypeSetInt8)                  \
+  V(DatePrototypeGetDate)                      \
+  V(DatePrototypeGetDay)                       \
+  V(DatePrototypeGetFullYear)                  \
+  V(DatePrototypeGetHours)                     \
+  V(DatePrototypeGetMinutes)                   \
+  V(DatePrototypeGetMonth)                     \
+  V(DatePrototypeGetSeconds)                   \
+  V(DatePrototypeGetTime)                      \
+  V(MathAbs)                                   \
+  V(MathCeil)                                  \
+  V(MathClz32)                                 \
+  V(MathFloor)                                 \
+  V(MathFround)                                \
+  V(MathImul)                                  \
+  V(MathMax)                                   \
+  V(MathMin)                                   \
+  V(MathRound)                                 \
+  V(MathSqrt)                                  \
+  V(MathTrunc)                                 \
+  IEEE_754_UNARY_LIST(V)                       \
+  IEEE_754_BINARY_LIST(V)                      \
+  IF_INTL(V, StringPrototypeLocaleCompareIntl) \
+  CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
+
+#define DECLARE_BUILTIN_REDUCER(Name, ...)                          \
+  MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
+                                    CallArguments& args);
+  MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
+#undef DECLARE_BUILTIN_REDUCER
+
+  // Returns kDoneWithoutPayload if checks passed successfully.
+  MaybeReduceResult TryReduceDatePrototypeGetFieldPrologue(
+      compiler::JSFunctionRef target, CallArguments& args);
+  MaybeReduceResult TryReduceDatePrototypeGetField(
+      compiler::JSFunctionRef target, CallArguments& args,
+      JSDate::FieldIndex field);
+
+  MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
+                                         Float64Round::Kind kind);
   template <typename Int32Binop, typename Float64Binop>
   MaybeReduceResult TryReduceMathMinMax(CallArguments& args,
                                         Int32Binop&& int32_case,
@@ -887,6 +1076,29 @@ class MaglevReducer {
   MaybeReduceResult TryReduceBuiltin(
       Builtin builtin_id, compiler::JSFunctionRef target, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
+
+  template <typename LoadNode>
+  MaybeReduceResult TryBuildLoadDataView(const CallArguments& args,
+                                         ExternalArrayType type);
+  template <typename StoreNode, typename Function>
+  MaybeReduceResult TryBuildStoreDataView(const CallArguments& args,
+                                          ExternalArrayType type,
+                                          Function&& getValue);
+  ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
+  ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
+
+  ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
+                                      InstanceType first, InstanceType last);
+  ReduceResult GetInt32ElementIndex(ValueNode* index_object);
+  void RecordKnownProperty(ValueNode* lookup_start_object, PropertyKey key,
+                           ValueNode* value, bool is_const,
+                           compiler::AccessMode access_mode);
+  ValueNode* GetValueOrUndefined(ValueNode* maybe_value) {
+    if (maybe_value == nullptr) {
+      return GetRootConstant(RootIndex::kUndefinedValue);
+    }
+    return maybe_value;
+  }
 
   ReduceResult BuildInt32Max(ValueNode* a, ValueNode* b);
   ReduceResult BuildInt32Min(ValueNode* a, ValueNode* b);
@@ -1094,6 +1306,12 @@ class MaglevReducer {
   }
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
     return known_node_aspects().EnsureType(broker(), node, type, old);
+  }
+  bool IsEmptyNodeType(NodeType type) {
+    return v8::internal::maglev::IsEmptyNodeType(type);
+  }
+  bool IsEmptyNodeType(ValueNode* node) {
+    return known_node_aspects().IsEmptyNodeType(broker(), node);
   }
   NodeType GetType(ValueNode* node) {
     NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);

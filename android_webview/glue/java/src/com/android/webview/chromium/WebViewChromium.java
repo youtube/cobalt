@@ -1323,25 +1323,16 @@ class WebViewChromium
             } else {
                 mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE_INIT);
             }
-            if (mAppTargetSdkVersion >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-                // Check that the current thread is the UI thread, which will throw if it was
-                // already started using a different thread as the UI thread.
-                checkThread();
-            }
+            // Check that the current thread is the UI thread, which will throw if it was
+            // already started using a different thread as the UI thread.
+            checkThread();
             mContentsClientAdapter =
                     mFactory.createWebViewContentsClientAdapter(mWebView, mContext);
             mSharedWebViewChromium.init(mContentsClientAdapter);
 
-            // In the normal case where we are currently on the UI thread, this will run initForReal
-            // synchronously. For pre-JBMR2 apps we might not be on the UI thread, in which case it
-            // will be posted and we do not wait for it.
-            mFactory.addTask(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            initForReal();
-                        }
-                    });
+            // This will run initForReal synchronously except when the experiment to defer running
+            // Chromium startup is enabled.
+            mFactory.addTask(this::initForReal);
         }
 
         long elapsedTime = SystemClock.uptimeMillis() - startTime;
@@ -1456,7 +1447,7 @@ class WebViewChromium
             if (mAppTargetSdkVersion >= Build.VERSION_CODES.KITKAT) {
                 // On KK and above, favicons are automatically downloaded as the method
                 // old apps use to enable that behavior is deprecated.
-                AwContents.setShouldDownloadFavicons();
+                AwSettings.setShouldDownloadFaviconsGlobal();
             }
 
             if (mAppTargetSdkVersion < Build.VERSION_CODES.LOLLIPOP) {
@@ -2930,19 +2921,13 @@ class WebViewChromium
     @Override
     public void setWebViewClient(WebViewClient client) {
         forbidBuilderConfiguration();
-        mSharedWebViewChromium.setWebViewClient(client);
-        if (checkNeedsPost()) {
-            mFactory.addTask(
-                    () -> {
-                        setWebViewClient(client);
-                    });
-            return;
-        }
+        mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE_SET_WEBVIEW_CLIENT);
         try (TraceEvent event = TraceEvent.scoped("WebView.APICall.Framework.SET_WEBVIEW_CLIENT")) {
             recordWebViewApiCall(
                     ApiCall.SET_WEBVIEW_CLIENT,
                     ApiCallUserAction.WEBVIEW_INSTANCE_SET_WEBVIEW_CLIENT);
             mAwContents.cancelAllPrerendering();
+            mSharedWebViewChromium.setWebViewClient(client);
             mContentsClientAdapter.setWebViewClient(mSharedWebViewChromium.getWebViewClient());
             mAwContents.onWebViewClientUpdated(client);
             if (client != null) {
@@ -3029,14 +3014,7 @@ class WebViewChromium
     @Override
     public void setWebChromeClient(WebChromeClient client) {
         forbidBuilderConfiguration();
-        mSharedWebViewChromium.setWebChromeClient(client);
-        if (checkNeedsPost()) {
-            mFactory.addTask(
-                    () -> {
-                        setWebChromeClient(client);
-                    });
-            return;
-        }
+        mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE_SET_WEBCHROME_CLIENT);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.SET_WEBCHROME_CLIENT")) {
             recordWebViewApiCall(
@@ -3044,6 +3022,7 @@ class WebViewChromium
                     ApiCallUserAction.WEBVIEW_INSTANCE_SET_WEBCHROME_CLIENT);
             mAwContents.cancelAllPrerendering();
             mWebSettings.getAwSettings().setFullscreenSupported(doesSupportFullscreen(client));
+            mSharedWebViewChromium.setWebChromeClient(client);
             mContentsClientAdapter.setWebChromeClient(mSharedWebViewChromium.getWebChromeClient());
             if (client != null) {
                 ApiImplementationLogger.logWebChromeClientImplementation(client);

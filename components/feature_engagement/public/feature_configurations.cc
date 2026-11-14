@@ -715,6 +715,11 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     // IPH will not show if the user has interacted with the GLIC button.
     config.used = EventConfig("android_bottom_bar_glic_used",
                               Comparator(EQUAL, 0), 360, 360);
+
+    // Require that the promo dialog IPH has been shown at least once.
+    config.event_configs.insert(
+        EventConfig("android_bottom_bar_promo_dialog_trigger",
+                    Comparator(GREATER_THAN_OR_EQUAL, 1), 360, 360));
     return config;
   }
 
@@ -740,6 +745,22 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     config.event_configs.insert(
         EventConfig("android_bottom_bar_glic_trigger",
                     Comparator(GREATER_THAN_OR_EQUAL, 1), 360, 360));
+    return config;
+  }
+
+  if (kIPHAndroidBottomBarPromoDialog.name == feature->name) {
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(EQUAL, 0);
+    config.session_rate_impact.type = SessionRateImpact::Type::NONE;
+    // IPH only shows once per 360 days.
+    config.trigger = EventConfig("android_bottom_bar_promo_dialog_trigger",
+                                 Comparator(EQUAL, 0), 360, 360);
+
+    // IPH will not show if the user has interacted with the Promo Dialog.
+    config.used = EventConfig("android_bottom_bar_promo_dialog_used",
+                              Comparator(EQUAL, 0), 360, 360);
     return config;
   }
 
@@ -837,6 +858,29 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
         EventConfig("android_tab_declutter_iph_triggered",
                     Comparator(LESS_THAN, 3), 360, 360));
     config.used = EventConfig("android_tab_declutter_button_clicked",
+                              Comparator(EQUAL, 0), 360, 360);
+    return config;
+  }
+
+  if (kIPHIncognitoIndicatorCloseAllWindows.name == feature->name) {
+    // Allows an IPH to inform users they can close all Incognito windows:
+    // - Only once per week.
+    // - Up to 3 times per year.
+    // - Only as long as the user has not manually clicked the Incognito
+    // indicator in the last year.
+    // - session_rate is set to EQUAL, 0 to ensure we don't show this if another
+    //   IPH was already shown in the same session.
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(EQUAL, 0);
+    config.trigger =
+        EventConfig("incognito_indicator_close_all_windows_trigger",
+                    Comparator(EQUAL, 0), 7, 360);
+    config.event_configs.insert(
+        EventConfig("incognito_indicator_close_all_windows_trigger",
+                    Comparator(LESS_THAN, 3), 360, 360));
+    config.used = EventConfig("incognito_indicator_close_all_windows_used",
                               Comparator(EQUAL, 0), 360, 360);
     return config;
   }
@@ -1165,6 +1209,8 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     config.valid = true;
     config.availability = Comparator(ANY, 0);
     config.session_rate = Comparator(ANY, 0);
+    config.blocked_by.type = BlockedBy::Type::NONE;
+    config.blocking.type = Blocking::Type::NONE;
     config.trigger =
         EventConfig("adaptive_toolbar_glic_iph_trigger", Comparator(EQUAL, 0),
                     k10YearsInDays, k10YearsInDays);
@@ -3227,6 +3273,8 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     config.event_configs.insert(
         EventConfig("gemini_external_app_store_event_trigger",
                     Comparator(EQUAL, 0), 3, 365));
+    config.event_configs.insert(
+        EventConfig("new_ia_promo_trigger", Comparator(EQUAL, 0), 3, 365));
     return config;
   }
 

@@ -37,11 +37,11 @@ namespace {
 // becomes a performance bottleneck, some possible optimizations by
 // specializing it to the curve:
 //
-// - Rather than using a generic |ec_felem_exp|, specialize the exponentiation
+// - Rather than using a generic `ec_felem_exp`, specialize the exponentiation
 //   to c2 with a faster addition chain.
 //
-// - |ec_felem_mul| and |ec_felem_sqr| are generic Montgomery code. Given the
-//   few curves, we could specialize |map_to_curve_simple_swu|. But doing this
+// - `ec_felem_mul` and `ec_felem_sqr` are generic Montgomery code. Given the
+//   few curves, we could specialize `map_to_curve_simple_swu`. But doing this
 //   reasonably without duplicating code in C is difficult. (C++ templates
 //   would be useful here.)
 //
@@ -83,7 +83,7 @@ int expand_message_xmd(const EVP_MD *md, uint8_t *out, size_t out_len,
 
   // Compute b_0.
   static const uint8_t kZeros[EVP_MAX_MD_BLOCK_SIZE] = {0};
-  // If |out_len| exceeds 16 bits then |i| will wrap below causing an error to
+  // If `out_len` exceeds 16 bits then `i` will wrap below causing an error to
   // be returned. This depends on the static assert above.
   uint8_t l_i_b_str_zero[3] = {static_cast<uint8_t>(out_len >> 8),
                                static_cast<uint8_t>(out_len), 0};
@@ -134,15 +134,15 @@ int expand_message_xmd(const EVP_MD *md, uint8_t *out, size_t out_len,
 }
 
 // num_bytes_to_derive determines the number of bytes to derive when hashing to
-// a number modulo |modulus|. See the hash_to_field operation defined in
+// a number modulo `modulus`. See the hash_to_field operation defined in
 // section 5.2 of RFC 9380.
 int num_bytes_to_derive(size_t *out, const BIGNUM *modulus, unsigned k) {
   size_t bits = BN_num_bits(modulus);
   size_t L = (bits + k + 7) / 8;
   // We require 2^(8*L) < 2^(2*bits - 2) <= n^2 so to fit in bounds for
-  // |felem_reduce| and |ec_scalar_reduce|. All defined hash-to-curve suites
-  // define |k| to be well under this bound. (|k| is usually around half of
-  // |p_bits|.)
+  // `felem_reduce` and `ec_scalar_reduce`. All defined hash-to-curve suites
+  // define `k` to be well under this bound. (`k` is usually around half of
+  // `p_bits`.)
   if (L * 8 >= 2 * bits - 2 || L > 2 * EC_MAX_BYTES) {
     assert(0);
     OPENSSL_PUT_ERROR(EC, ERR_R_INTERNAL_ERROR);
@@ -153,8 +153,8 @@ int num_bytes_to_derive(size_t *out, const BIGNUM *modulus, unsigned k) {
   return 1;
 }
 
-// big_endian_to_words decodes |in| as a big-endian integer and writes the
-// result to |out|. |num_words| must be large enough to contain the output.
+// big_endian_to_words decodes `in` as a big-endian integer and writes the
+// result to `out`. `num_words` must be large enough to contain the output.
 void big_endian_to_words(BN_ULONG *out, size_t num_words, const uint8_t *in,
                          size_t len) {
   assert(len <= num_words * sizeof(BN_ULONG));
@@ -167,7 +167,7 @@ void big_endian_to_words(BN_ULONG *out, size_t num_words, const uint8_t *in,
 }
 
 // hash_to_field implements the operation described in section 5.2
-// of RFC 9380, with count = 2. |k| is the security factor.
+// of RFC 9380, with count = 2. `k` is the security factor.
 int hash_to_field2(const EC_GROUP *group, const EVP_MD *md, EC_FELEM *out1,
                    EC_FELEM *out2, const uint8_t *dst, size_t dst_len,
                    unsigned k, const uint8_t *msg, size_t msg_len) {
@@ -187,7 +187,7 @@ int hash_to_field2(const EC_GROUP *group, const EVP_MD *md, EC_FELEM *out1,
 }
 
 // hash_to_field1 implements the operation described in section 5.2
-// of RFC 9380, with count = 1. |k| is the security factor.
+// of RFC 9380, with count = 1. `k` is the security factor.
 int hash_to_field1(const EC_GROUP *group, const EVP_MD *md, EC_FELEM *out,
                    const uint8_t *dst, size_t dst_len, unsigned k,
                    const uint8_t *msg, size_t msg_len) {
@@ -204,8 +204,8 @@ int hash_to_field1(const EC_GROUP *group, const EVP_MD *md, EC_FELEM *out,
   return 1;
 }
 
-// hash_to_scalar behaves like |hash_to_field2| but returns a value modulo the
-// group order rather than a field element. |k| is the security factor.
+// hash_to_scalar behaves like `hash_to_field2` but returns a value modulo the
+// group order rather than a field element. `k` is the security factor.
 int hash_to_scalar(const EC_GROUP *group, const EVP_MD *md, EC_SCALAR *out,
                    const uint8_t *dst, size_t dst_len, unsigned k,
                    const uint8_t *msg, size_t msg_len) {
@@ -266,7 +266,7 @@ BN_ULONG sqrt_ratio_3mod4(const EC_GROUP *group, const EC_FELEM *Z,
   // 10. y = CMOV(y2, y1, isQR)
   // 11. return (isQR, y)
   //
-  // Note the specification's CMOV function and our |ec_felem_select| have the
+  // Note the specification's CMOV function and our `ec_felem_select` have the
   // opposite argument order.
   ec_felem_sub(group, &tv1, &tv3, u);
   const BN_ULONG isQR = ~ec_felem_non_zero_mask(group, &tv1);
@@ -332,7 +332,7 @@ void map_to_curve_simple_swu(const EC_GROUP *group, const EC_FELEM *Z,
 
   // 25. x = x / tv4
   //
-  // Our output is in projective coordinates, so rather than inverting |tv4|
+  // Our output is in projective coordinates, so rather than inverting `tv4`
   // now, represent (x / tv4, y) as (x * tv4, y * tv4^3, tv4). This is much more
   // efficient if the caller will do further computation on the output. (If the
   // caller will immediately convert to affine coordinates, it is slightly less
@@ -351,7 +351,7 @@ int hash_to_curve(const EC_GROUP *group, const EVP_MD *md, const EC_FELEM *Z,
     return 0;
   }
 
-  // Compute |c1| = (p - 3) / 4.
+  // Compute `c1` = (p - 3) / 4.
   BN_ULONG c1[EC_MAX_WORDS];
   size_t num_c1 = group->field.N.width;
   if (!bn_copy_words(c1, num_c1, &group->field.N)) {
@@ -364,7 +364,7 @@ int hash_to_curve(const EC_GROUP *group, const EVP_MD *md, const EC_FELEM *Z,
   map_to_curve_simple_swu(group, Z, c1, num_c1, c2, &Q1, &u1);
 
   group->meth->add(group, out, &Q0, &Q1);  // R = Q0 + Q1
-  // All our curves have cofactor one, so |clear_cofactor| is a no-op.
+  // All our curves have cofactor one, so `clear_cofactor` is a no-op.
   return 1;
 }
 
@@ -377,7 +377,7 @@ int encode_to_curve(const EC_GROUP *group, const EVP_MD *md, const EC_FELEM *Z,
     return 0;
   }
 
-  // Compute |c1| = (p - 3) / 4.
+  // Compute `c1` = (p - 3) / 4.
   BN_ULONG c1[EC_MAX_WORDS];
   size_t num_c1 = group->field.N.width;
   if (!bn_copy_words(c1, num_c1, &group->field.N)) {
@@ -386,7 +386,7 @@ int encode_to_curve(const EC_GROUP *group, const EVP_MD *md, const EC_FELEM *Z,
   bn_rshift_words(c1, c1, /*shift=*/2, /*num=*/num_c1);
 
   map_to_curve_simple_swu(group, Z, c1, num_c1, c2, out, &u);
-  // All our curves have cofactor one, so |clear_cofactor| is a no-op.
+  // All our curves have cofactor one, so `clear_cofactor` is a no-op.
   return 1;
 }
 

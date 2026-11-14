@@ -7,8 +7,6 @@
 
 #include "components/personal_context/core/personal_context_types.h"
 
-class PrefService;
-
 namespace personal_context {
 class PersonalContextEnablementService;
 }
@@ -20,9 +18,9 @@ namespace autofill {
 bool ShouldShowPersonalContextAutofillSetting(
     personal_context::PersonalContextEnablementService* enablement_service);
 
-// Called when the Personal Context setting is flipped to "on" in the
-// Autofill settings page. Updates notice-related preferences.
-void PersonalContextInAutofillSettingFlippedOn(PrefService* pref_service);
+// Returns true if either Autofill Ambient Autofill or Autofill AtMemory is
+// enabled.
+bool AreAutofillPersonalContextFeaturesSupported();
 
 }  // namespace autofill
 

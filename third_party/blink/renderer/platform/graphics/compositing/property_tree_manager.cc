@@ -454,12 +454,13 @@ int PropertyTreeManager::EnsureCompositorTransformNode(
       EnsureCompositorTransformNode(transform_node.Parent()->Unalias());
   id = transform_tree_.Insert(cc::TransformNode(), parent_id);
 
-  if (auto* scroll_translation_for_fixed =
-          transform_node.ScrollTranslationForFixed()) {
-    // Fixed-position can cause different topologies of the transform tree and
-    // the scroll tree. This ensures the ancestor scroll nodes of the scroll
-    // node for a descendant transform node below is created.
-    EnsureCompositorTransformNode(*scroll_translation_for_fixed);
+  if (auto* scroll_parent_scroll_translation =
+          transform_node.ScrollParentScrollTranslation()) {
+    // Fixed-position or overscroll-backdrop can cause different topologies of
+    // the transform tree and the scroll tree. This ensures the ancestor scroll
+    // nodes of the scroll node for a descendant transform node below is
+    // created.
+    EnsureCompositorTransformNode(*scroll_parent_scroll_translation);
   }
 
   cc::TransformNode& compositor_node = transform_tree_.MutableNode(id);
@@ -681,6 +682,8 @@ int PropertyTreeManager::EnsureCompositorScrollNodeInternal(
       scroll_node.MaxScrollOffsetAffectedByPageScale();
   compositor_node.overscroll_behavior = scroll_node.OverscrollBehavior();
   compositor_node.snap_container_data = scroll_node.GetSnapContainerData();
+  compositor_node.prevent_scroll_axis_locking =
+      scroll_node.PreventScrollAxisLocking();
 
   auto compositor_element_id = scroll_node.GetCompositorElementId();
   if (compositor_element_id) {

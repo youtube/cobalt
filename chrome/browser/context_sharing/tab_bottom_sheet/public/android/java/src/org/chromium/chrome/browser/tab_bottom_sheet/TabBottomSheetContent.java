@@ -29,6 +29,8 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
     private final @ColorInt int mBackgroundColor;
     private final @Px int mPeekViewHeight;
     private final @IdRes int mEmptyPlaceholderContainerId;
+    private final boolean mUsePlaceholder;
+    private final Runnable mOnBackPressed;
 
     /**
      * Constructor.
@@ -39,6 +41,7 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
      * @param peekViewHeight The height of the peek view in pixels.
      * @param peekViewContainerId The resource ID for the peek view container.
      * @param emptyPlaceholderContainerId The resource ID for the empty placeholder container.
+     * @param onBackPressed Callback run when the back button/swipe is triggered.
      */
     public TabBottomSheetContent(
             View contentView,
@@ -46,12 +49,14 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
             @ColorInt int backgroundColor,
             @Px int peekViewHeight,
             @IdRes int peekViewContainerId,
-            @IdRes int emptyPlaceholderContainerId) {
+            @IdRes int emptyPlaceholderContainerId,
+            Runnable onBackPressed) {
         mContentView = contentView;
         mFullHeightRatio = fullHeightRatio;
         mBackgroundColor = backgroundColor;
         mPeekViewHeight = peekViewHeight;
         mEmptyPlaceholderContainerId = emptyPlaceholderContainerId;
+        mOnBackPressed = onBackPressed;
 
         View view = mContentView.findViewById(peekViewContainerId);
         View peekContainer = NullUtil.assertNonNull(view);
@@ -59,9 +64,7 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
 
         TextViewWithCompoundDrawables placeholder =
                 NullUtil.assertNonNull(mContentView.findViewById(mEmptyPlaceholderContainerId));
-        if (setupPlaceholder(placeholder)) {
-            placeholder.setVisibility(View.VISIBLE);
-        }
+        mUsePlaceholder = setupPlaceholder(placeholder);
     }
 
     /**
@@ -72,6 +75,11 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
      */
     protected boolean setupPlaceholder(TextViewWithCompoundDrawables placeholder) {
         return false;
+    }
+
+    /** Returns whether the content uses an empty placeholder. */
+    public boolean usePlaceholder() {
+        return mUsePlaceholder;
     }
 
     @Override
@@ -120,6 +128,12 @@ public abstract class TabBottomSheetContent implements BottomSheetContent {
     @Override
     public void onBackPressed() {
         handleBackPress();
+    }
+
+    @Override
+    public boolean handleBackPress() {
+        mOnBackPressed.run();
+        return true;
     }
 
     @Override

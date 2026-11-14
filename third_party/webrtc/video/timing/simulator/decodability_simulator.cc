@@ -47,7 +47,7 @@ class DecodableFrameCollector : public AssemblerEvents,
       : env_(env), ssrc_(ssrc) {
     RTC_DCHECK_NE(ssrc_, 0);
   }
-  ~DecodableFrameCollector() override = default;
+  ~DecodableFrameCollector() override { RTC_DCHECK_RUN_ON(&sequence_checker_); }
 
   DecodableFrameCollector(const DecodableFrameCollector&) = delete;
   DecodableFrameCollector& operator=(const DecodableFrameCollector&) = delete;
@@ -139,7 +139,9 @@ class DecodabilitySimulatorStream : public RtcEventLogDriver::StreamInterface {
     RTC_DCHECK_RUN_ON(&sequence_checker_);
     tracker_.SetDecodedFrameIdCallback(&assembler_);
   }
-  ~DecodabilitySimulatorStream() override = default;
+  ~DecodabilitySimulatorStream() override {
+    RTC_DCHECK_RUN_ON(&sequence_checker_);
+  }
 
   // Implements `RtcEventLogDriver::StreamInterface`.
   void InsertSimulatedPacket(

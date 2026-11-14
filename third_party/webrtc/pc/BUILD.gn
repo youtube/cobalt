@@ -19,7 +19,6 @@
 # - sdp_utils
 # - media_stream_observer
 # - video_track_source
-# - libjingle_peerconnection
 #
 # Some targets are depended on by external users for historical reasons,
 # and are therefore marked with visibility "*". This is in the process
@@ -466,6 +465,8 @@ rtc_library("typed_codec_vendor") {
     "../media:media_constants",
     "../media:media_engine",
     "../rtc_base:checks",
+    "../rtc_base:logging",
+    "../rtc_base/containers:flat_map",
     "../rtc_base/containers:flat_set",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings",
@@ -918,6 +919,7 @@ rtc_library("connection_context") {
   ]
   deps = [
     ":media_factory",
+    "../api:audio_options_api",
     "../api:packet_socket_factory",
     "../api:peer_connection_interface",
     "../api:refcountedbase",
@@ -2169,22 +2171,6 @@ rtc_source_set("legacy_stats_collector_interface") {
   ]
 }
 
-# This target contains the libraries that are required in order to get an
-# usable peerconnection-using binary.
-rtc_source_set("libjingle_peerconnection") {
-  # TODO(bugs.webrtc.org/13661): Reduce visibility if possible
-  visibility = [ "*" ]  # Used by Chrome and others
-  allow_poison = [ "environment_construction" ]
-
-  deps = [
-    ":jsep_session_description",
-    ":peer_connection_factory",
-    ":rtc_stats_collector",
-    ":webrtc_sdp",
-    "../stats",
-  ]
-}
-
 rtc_library("datagram_connection_internal") {
   sources = [
     "datagram_connection_internal.cc",
@@ -2357,6 +2343,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../media:rtc_media_tests_utils",
       "../media:stream_params",
       "../modules/rtp_rtcp:rtp_rtcp_format",
+      "../p2p:basic_packet_socket_factory",
       "../p2p:candidate_pair_interface",
       "../p2p:dtls_transport",
       "../p2p:dtls_transport_factory",
@@ -2793,6 +2780,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:ssl",
       "../rtc_base:threading",
       "../test:create_test_environment",
+      "../test:create_test_field_trials",
       "../test:run_loop",
       "../test:test_support",
       "../test:wait_until",
@@ -2866,6 +2854,7 @@ if (rtc_include_tests && !build_with_chromium) {
       ":connection_context",
       ":pc_test_utils",
       ":peer_connection_factory",
+      "../api:audio_options_api",
       "../api:create_modular_peer_connection_factory",
       "../api:create_peerconnection_factory",
       "../api:data_channel_interface",
@@ -2881,6 +2870,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:rtp_parameters",
       "../api:scoped_refptr",
       "../api/audio:audio_device",
+      "../api/audio:audio_processing",
       "../api/audio_codecs:builtin_audio_decoder_factory",
       "../api/audio_codecs:builtin_audio_encoder_factory",
       "../api/environment",
@@ -2911,6 +2901,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:socket_server",
       "../rtc_base:threading",
       "../test:create_test_environment",
+      "../test:create_test_field_trials",
       "../test:fileutils",
       "../test:run_loop",
       "../test:test_support",
@@ -3034,6 +3025,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:threading",
       "../system_wrappers:metrics",
       "../test:create_test_environment",
+      "../test:create_test_field_trials",
       "../test:run_loop",
       "../test:test_support",
     ]
@@ -3144,6 +3136,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../p2p:p2p_constants",
       "../p2p:transport_info",
       "../rtc_base:threading",
+      "../test:create_test_environment",
       "../test:run_loop",
       "../test:test_support",
       "../test/pc/sctp:fake_sctp_transport",
@@ -3242,6 +3235,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:threading",
       "../rtc_base/system:plan_b_only",
       "../system_wrappers:metrics",
+      "../test:create_test_field_trials",
       "../test:run_loop",
       "../test:test_support",
       "../test:wait_until",
@@ -3288,6 +3282,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:rtc_base_tests_utils",
       "../rtc_base:stringutils",
       "../rtc_base:threading",
+      "../test:create_test_field_trials",
       "../test:run_loop",
       "../test:test_support",
       "../test:wait_until",
@@ -3328,6 +3323,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../media:stream_params",
       "../rtc_base:checks",
       "../rtc_base:threading",
+      "../test:create_test_field_trials",
       "../test:test_support",
       "//third_party/abseil-cpp/absl/algorithm:container",
     ]
@@ -3530,6 +3526,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:peer_connection_interface",
       "../api:rtc_error",
       "../api:rtc_error_matchers",
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api:rtp_transceiver_direction",
       "../api:scoped_refptr",
@@ -4101,6 +4098,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:enable_media_with_defaults",
       "../api:jsep",
       "../api:peer_connection_interface",
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api:scoped_refptr",
       "../api/environment:environment_factory",

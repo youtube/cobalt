@@ -238,7 +238,7 @@ void MP4StreamParser::Init(
   encrypted_media_init_data_cb_ = std::move(encrypted_media_init_data_cb);
   new_segment_cb_ = std::move(new_segment_cb);
   end_of_segment_cb_ = std::move(end_of_segment_cb);
-  media_log_ = media_log;
+  media_log_ = MediaLog::CloneSafely(media_log);
 }
 
 void MP4StreamParser::Reset() {
@@ -614,6 +614,12 @@ ParseResult MP4StreamParser::ParseBox() {
     result = BoxReader::ReadTopLevelBox(buf, media_log_, &reader);
   }
 
+<<<<<<< HEAD
+  std::unique_ptr<BoxReader> reader;
+  ParseResult result =
+      BoxReader::ReadTopLevelBox(buf, media_log_.get(), &reader);
+=======
+>>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (result != ParseResult::kOk)
     return result;
 
@@ -1208,7 +1214,7 @@ bool MP4StreamParser::ParseMoof(BoxReader* reader) {
   MovieFragment moof;
   RCHECK(moof.Parse(reader));
   if (!runs_)
-    runs_ = std::make_unique<TrackRunIterator>(moov_.get(), media_log_);
+    runs_ = std::make_unique<TrackRunIterator>(moov_.get(), media_log_.get());
   RCHECK(runs_->Init(moof));
   RCHECK(ComputeHighestEndOffset(moof));
 
@@ -1709,6 +1715,9 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(int64_t max_clear_offset) {
   while (mdat_tail_ < upper_bound) {
     FourCC type;
     size_t box_sz;
+<<<<<<< HEAD
+    result = BoxReader::StartTopLevelBox(buf, media_log_.get(), &type, &box_sz);
+=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     if (segmented_queue_) {
       // Frames the box from its 8- or 16-byte header alone, where
@@ -1728,6 +1737,7 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(int64_t max_clear_offset) {
 
       result = BoxReader::StartTopLevelBox(buf, media_log_, &type, &box_sz);
     }
+>>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (result != ParseResult::kOk)
       break;
 
@@ -1781,7 +1791,7 @@ bool MP4StreamParser::HaveEnoughDataToEnqueueSamples() {
 bool MP4StreamParser::ComputeHighestEndOffset(const MovieFragment& moof) {
   highest_end_offset_ = 0;
 
-  TrackRunIterator runs(moov_.get(), media_log_);
+  TrackRunIterator runs(moov_.get(), media_log_.get());
   RCHECK(runs.Init(moof));
 
   while (runs.IsRunValid()) {

@@ -854,8 +854,9 @@ OPENSSL_EXPORT int i2d_DISPLAYTEXT(const ASN1_STRING *in, uint8_t **outp);
 // AlgorithmIdentifier. While some unknown algorithm could choose to store
 // arbitrary bit strings, all supported algorithms use a byte string, with bit
 // order matching the DER encoding. Callers interpreting a BIT STRING as a byte
-// string should use `ASN1_BIT_STRING_num_bytes` instead of `ASN1_STRING_length`
-// and reject bit strings that are not a whole number of bytes.
+// string should reject bit strings that are not a whole number of bytes by
+// requiring that `ASN1_BIT_STRING_unused_bits` returns zero; the byte length is
+// returned by `ASN1_STRING_length`.
 //
 // This library represents BIT STRINGs as `ASN1_STRING`s with type
 // `V_ASN1_BIT_STRING`. The data contains the encoded form of the BIT STRING,

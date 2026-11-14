@@ -57,6 +57,10 @@
 namespace cc {
 namespace {
 
+perfetto::NamedTrack GetTracingTrack(const TileManager* tile_manager) {
+  return perfetto::NamedTrack::FromPointer("cc::TileManager", tile_manager);
+}
+
 // Flag to indicate whether we should try and detect that
 // a tile is of solid color.
 const bool kUseColorEstimator = true;
@@ -614,9 +618,8 @@ void TileManager::Release(Tile* tile) {
 void TileManager::DidFinishRunningTileTasksRequiredForActivation() {
   TRACE_EVENT0("cc",
                "TileManager::DidFinishRunningTileTasksRequiredForActivation");
-  TRACE_EVENT_INSTANT("cc", "ScheduledTasksState",
-                      perfetto::Track::FromPointer(this), "state",
-                      ScheduledTasksStateAsValue());
+  TRACE_EVENT_INSTANT("cc", "ScheduledTasksState", GetTracingTrack(this),
+                      "state", ScheduledTasksStateAsValue());
   // TODO(vmpstr): Temporary check to debug crbug.com/642927.
   CHECK(tile_task_manager_);
   signals_.activate_tile_tasks_completed = true;
@@ -625,9 +628,8 @@ void TileManager::DidFinishRunningTileTasksRequiredForActivation() {
 
 void TileManager::DidFinishRunningTileTasksRequiredForDraw() {
   TRACE_EVENT0("cc", "TileManager::DidFinishRunningTileTasksRequiredForDraw");
-  TRACE_EVENT_INSTANT("cc", "ScheduledTasksState",
-                      perfetto::Track::FromPointer(this), "state",
-                      ScheduledTasksStateAsValue());
+  TRACE_EVENT_INSTANT("cc", "ScheduledTasksState", GetTracingTrack(this),
+                      "state", ScheduledTasksStateAsValue());
   // TODO(vmpstr): Temporary check to debug crbug.com/642927.
   CHECK(tile_task_manager_);
   signals_.draw_tile_tasks_completed = true;
@@ -637,8 +639,7 @@ void TileManager::DidFinishRunningTileTasksRequiredForDraw() {
 void TileManager::DidFinishRunningAllTileTasks(base::TimeTicks start_time,
                                                bool has_pending_queries) {
   TRACE_EVENT0("cc", "TileManager::DidFinishRunningAllTileTasks");
-  TRACE_EVENT_END("cc",
-                  /*"ScheduledTasks"*/ perfetto::Track::FromPointer(this));
+  TRACE_EVENT_END("cc", /*"ScheduledTasks"*/ GetTracingTrack(this));
   DCHECK(resource_pool_);
   DCHECK(tile_task_manager_);
 
@@ -1198,7 +1199,7 @@ void TileManager::PartitionImagesForCheckering(
     std::vector<DrawImage>* sync_decoded_images,
     std::vector<PaintImage>* checkered_images,
     const gfx::Rect* invalidated_rect,
-    base::flat_map<PaintImage::Id, size_t>* image_to_frame_index) {
+    scoped_refptr<AnimatedImageFrameIndexMap> image_to_frame_index) {
   Tile* tile = prioritized_tile.tile();
   gfx::Rect enclosing_rect = tile->enclosing_layer_rect();
   if (invalidated_rect) {
@@ -1259,8 +1260,7 @@ void TileManager::ScheduleTasks(PrioritizedWorkToSchedule work_to_schedule) {
   DCHECK(did_check_for_completed_tasks_since_last_schedule_tasks_);
 
   if (!has_scheduled_tile_tasks_) {
-    TRACE_EVENT_BEGIN("cc", "ScheduledTasks",
-                      perfetto::Track::FromPointer(this));
+    TRACE_EVENT_BEGIN("cc", "ScheduledTasks", GetTracingTrack(this));
   }
 
   // Cancel existing OnTaskSetFinished callbacks.
@@ -1454,9 +1454,8 @@ void TileManager::ScheduleTasks(PrioritizedWorkToSchedule work_to_schedule) {
 
   did_check_for_completed_tasks_since_last_schedule_tasks_ = false;
 
-  TRACE_EVENT_INSTANT("cc", "ScheduledTasksState",
-                      perfetto::Track::FromPointer(this), "state",
-                      ScheduledTasksStateAsValue());
+  TRACE_EVENT_INSTANT("cc", "ScheduledTasksState", GetTracingTrack(this),
+                      "state", ScheduledTasksStateAsValue());
 }
 
 scoped_refptr<TileTask> TileManager::CreateRasterTask(
@@ -1539,11 +1538,12 @@ scoped_refptr<TileTask> TileManager::CreateRasterTask(
       scheduled_draw_images_[tile->id()];
   sync_decoded_images.clear();
   std::vector<PaintImage> checkered_images;
-  base::flat_map<PaintImage::Id, size_t> image_id_to_current_frame_index;
+  scoped_refptr<AnimatedImageFrameIndexMap> image_id_to_current_frame_index =
+      base::MakeRefCounted<AnimatedImageFrameIndexMap>();
   PartitionImagesForCheckering(
       prioritized_tile, target_color_params, &sync_decoded_images,
       &checkered_images, partial_tile_decode ? &invalidated_rect : nullptr,
-      &image_id_to_current_frame_index);
+      image_id_to_current_frame_index);
 
   // Get the tasks for the required images.
   ImageDecodeCache::TracingInfo tracing_info(

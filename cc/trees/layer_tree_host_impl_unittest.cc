@@ -36,6 +36,7 @@
 #include "cc/input/main_thread_scrolling_reason.h"
 #include "cc/input/page_scale_animation.h"
 #include "cc/input/scroll_elasticity_helper.h"
+#include "cc/input/scroll_timing_info.h"
 #include "cc/input/scroll_utils.h"
 #include "cc/input/scrollbar_controller.h"
 #include "cc/layers/append_quads_context.h"
@@ -437,6 +438,31 @@ TEST_P(CompositorFrameProducingLayerTreeHostImplTest,
   ASSERT_EQ(fake_layer_tree_frame_sink->num_sent_frames(), 1u);
 }
 
+TEST_P(CompositorFrameProducingLayerTreeHostImplTest,
+       ResourcelessDrawNoLayers) {
+  CreateHostImpl(DefaultSettings(), FakeLayerTreeFrameSink::CreateSoftware());
+
+  // No layers.
+  EXPECT_TRUE(host_impl_->active_tree()->LayerListIsEmpty());
+  // CanDraw should return false because there are no layers and we are not in
+  // resourceless draw mode yet.
+  EXPECT_FALSE(host_impl_->CanDraw());
+
+  auto* fake_layer_tree_frame_sink =
+      static_cast<FakeLayerTreeFrameSink*>(host_impl_->layer_tree_frame_sink());
+  EXPECT_EQ(fake_layer_tree_frame_sink->num_sent_frames(), 0u);
+
+  gfx::Transform identity;
+  gfx::Rect viewport(100, 100);
+  const bool resourceless_software_draw = true;
+
+  // This should work now and send a frame because we support drawing without
+  // layers specifically for resourceless software draws.
+  host_impl_->OnDraw(identity, viewport, resourceless_software_draw, false);
+
+  EXPECT_EQ(fake_layer_tree_frame_sink->num_sent_frames(), 1u);
+}
+
 TEST_P(LayerTreeHostImplTest, ScrollDeltaNoLayers) {
   host_impl_->active_tree()->SetRootLayerForTesting(nullptr);
 
@@ -605,6 +631,76 @@ TEST_P(LayerTreeHostImplTest, ScrollUpdateAndEndNoOpWithoutBegin) {
 
     GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
   }
+}
+
+namespace {
+
+// Builds a touchscreen ScrollBegin ScrollState with the hardware event
+// timestamp set, the way the InputHandlerProxy populates it from the
+// originating WebGestureEvent.
+std::unique_ptr<ScrollState> BeginStateWithTimestamp(
+    base::TimeTicks event_timestamp) {
+  ScrollStateData data;
+  data.is_beginning = true;
+  data.delta_y_hint = 10;
+  data.is_direct_manipulation = true;
+  data.event_timestamp = event_timestamp;
+  return std::make_unique<ScrollState>(data);
+}
+
+}  // namespace
+
+// Performance Scroll Timing API: with the LayerTreeSettings flag enabled,
+// a touchscreen gesture that latches a scroller emits a ScrollTimingInfo
+// whose start_time reflects the hardware event timestamp.
+TEST_F(CommitToActiveTreeLayerTreeHostImplTest,
+       ScrollPerformanceTimingEmitsRecordWithHardwareTimestampWhenEnabled) {
+  LayerTreeSettings settings = DefaultSettings();
+  settings.enable_scroll_performance_timing = true;
+  CreateHostImpl(settings, CreateLayerTreeFrameSink());
+  SetupViewportLayersOuterScrolls(gfx::Size(100, 100), gfx::Size(1000, 1000));
+
+  const base::TimeTicks event_timestamp =
+      base::TimeTicks::Now() - base::Milliseconds(5);
+
+  GetInputHandler().ScrollBegin(BeginStateWithTimestamp(event_timestamp).get(),
+                                ui::ScrollInputType::kTouchscreen);
+  GetInputHandler().ScrollUpdate(UpdateState(
+      gfx::Point(), gfx::Vector2d(0, 10), ui::ScrollInputType::kTouchscreen));
+  GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
+
+  std::unique_ptr<CompositorCommitData> commit_data =
+      host_impl_->ProcessCompositorDeltas(
+          /* main_thread_mutator_host */ nullptr);
+  ASSERT_EQ(1u, commit_data->scroll_timing_infos.size());
+  const ScrollTimingInfo& info = commit_data->scroll_timing_infos.front();
+  EXPECT_EQ(event_timestamp, info.start_time);
+  ASSERT_TRUE(info.input_type.has_value());
+  EXPECT_EQ(ui::ScrollInputType::kTouchscreen, *info.input_type);
+  EXPECT_TRUE(info.element_id);
+}
+
+// Performance Scroll Timing API: with the LayerTreeSettings flag disabled,
+// the same gesture produces no ScrollTimingInfo. Guards against the cc
+// wiring firing when the runtime feature is off.
+TEST_F(CommitToActiveTreeLayerTreeHostImplTest,
+       ScrollPerformanceTimingNoRecordWhenDisabled) {
+  LayerTreeSettings settings = DefaultSettings();
+  settings.enable_scroll_performance_timing = false;
+  CreateHostImpl(settings, CreateLayerTreeFrameSink());
+  SetupViewportLayersOuterScrolls(gfx::Size(100, 100), gfx::Size(1000, 1000));
+
+  GetInputHandler().ScrollBegin(
+      BeginStateWithTimestamp(base::TimeTicks::Now()).get(),
+      ui::ScrollInputType::kTouchscreen);
+  GetInputHandler().ScrollUpdate(UpdateState(
+      gfx::Point(), gfx::Vector2d(0, 10), ui::ScrollInputType::kTouchscreen));
+  GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
+
+  std::unique_ptr<CompositorCommitData> commit_data =
+      host_impl_->ProcessCompositorDeltas(
+          /* main_thread_mutator_host */ nullptr);
+  EXPECT_TRUE(commit_data->scroll_timing_infos.empty());
 }
 
 // Test that specifying a scroller to ScrollBegin (i.e. avoid hit testing)
@@ -12482,16 +12578,25 @@ TEST_P(LayerTreeHostImplTest, RemoveUnreferencedRenderPass) {
                 gfx::Transform());
 
   // Add a quad to each pass so they aren't empty.
+  auto* sqs1 = pass1->CreateAndAppendSharedQuadState();
   auto* color_quad = pass1->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
+  color_quad->shared_quad_state = sqs1;
   color_quad->material = viz::DrawQuad::Material::kSolidColor;
+
+  auto* sqs2 = pass2->CreateAndAppendSharedQuadState();
   color_quad = pass2->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
+  color_quad->shared_quad_state = sqs2;
   color_quad->material = viz::DrawQuad::Material::kSolidColor;
+
+  auto* sqs3 = pass3->CreateAndAppendSharedQuadState();
   color_quad = pass3->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
+  color_quad->shared_quad_state = sqs3;
   color_quad->material = viz::DrawQuad::Material::kSolidColor;
 
   // pass3 is referenced by pass2.
   auto* rpdq =
       pass2->CreateAndAppendDrawQuad<viz::CompositorRenderPassDrawQuad>();
+  rpdq->shared_quad_state = sqs2;
   rpdq->material = viz::DrawQuad::Material::kCompositorRenderPass;
   rpdq->render_pass_id = pass3->id;
 
@@ -12524,17 +12629,22 @@ TEST_P(LayerTreeHostImplTest, RemoveEmptyRenderPass) {
                 gfx::Transform());
 
   // pass1 is not empty, but pass2 and pass3 are.
+  auto* sqs1 = pass1->CreateAndAppendSharedQuadState();
   auto* color_quad = pass1->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
+  color_quad->shared_quad_state = sqs1;
   color_quad->material = viz::DrawQuad::Material::kSolidColor;
 
   // pass3 is referenced by pass2.
+  auto* sqs2 = pass2->CreateAndAppendSharedQuadState();
   auto* rpdq =
       pass2->CreateAndAppendDrawQuad<viz::CompositorRenderPassDrawQuad>();
+  rpdq->shared_quad_state = sqs2;
   rpdq->material = viz::DrawQuad::Material::kCompositorRenderPass;
   rpdq->render_pass_id = pass3->id;
 
   // pass2 is referenced by pass1.
   rpdq = pass1->CreateAndAppendDrawQuad<viz::CompositorRenderPassDrawQuad>();
+  rpdq->shared_quad_state = sqs1;
   rpdq->material = viz::DrawQuad::Material::kCompositorRenderPass;
   rpdq->render_pass_id = pass2->id;
 

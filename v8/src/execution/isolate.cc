@@ -682,6 +682,8 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
                       FullObjectSlot(&thread->pending_message_));
   v->VisitRootPointer(Root::kStackRoots, nullptr,
                       FullObjectSlot(&thread->context_));
+  v->VisitRootPointer(Root::kStackRoots, nullptr,
+                      FullObjectSlot(&thread->last_entered_context_));
 
   for (v8::TryCatch* block = thread->try_catch_handler_; block != nullptr;
        block = block->next_) {
@@ -4857,6 +4859,9 @@ void Isolate::CheckIsolateLayout() {
   static_assert(
       static_cast<int>(OFFSET_OF(Isolate, isolate_data_.handle_scope_data_)) ==
       Internals::kIsolateHandleScopeDataOffset);
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.handle_scope_implementer_)) ==
+                Internals::kIsolateHandleScopeImplementerOffset);
   static_assert(
       static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)) ==
       Internals::kIsolateEmbedderDataOffset);
@@ -4881,10 +4886,6 @@ void Isolate::CheckIsolateLayout() {
   static_assert(static_cast<int>(OFFSET_OF(
                     Isolate, isolate_data_.shared_trusted_pointer_table_)) ==
                 Internals::kIsolateSharedTrustedPointerTableAddressOffset);
-
-  static_assert(static_cast<int>(OFFSET_OF(
-                    Isolate, isolate_data_.code_pointer_table_base_address_)) ==
-                Internals::kIsolateCodePointerTableBaseAddressOffset);
 #endif
 
   static_assert(
@@ -5226,6 +5227,10 @@ void Isolate::Deinit() {
 
 #ifdef V8_ENABLE_SANDBOX
   trusted_pointer_table().TearDownSpace(heap()->trusted_pointer_space());
+  trusted_pointer_table().DetachSpaceFromReadOnlySegments(
+      heap()->read_only_trusted_pointer_space());
+  trusted_pointer_table().TearDownSpace(
+      heap()->read_only_trusted_pointer_space());
   trusted_pointer_table().TearDown();
   if (owns_shareable_data()) {
     shared_trusted_pointer_table().TearDownSpace(
@@ -5236,9 +5241,6 @@ void Isolate::Deinit() {
     delete shared_trusted_pointer_space_;
     shared_trusted_pointer_space_ = nullptr;
   }
-
-  IsolateGroup::current()->code_pointer_table()->TearDownSpace(
-      heap()->code_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
   js_dispatch_table().TearDownSpace(heap()->js_dispatch_table_space());
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
@@ -5319,9 +5321,6 @@ Isolate::~Isolate() {
 
   delete v8_file_logger_;
   v8_file_logger_ = nullptr;
-
-  delete handle_scope_implementer_;
-  handle_scope_implementer_ = nullptr;
 
   delete code_tracer();
   set_code_tracer(nullptr);
@@ -6121,7 +6120,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   global_handles_ = new GlobalHandles(this);
   eternal_handles_ = new EternalHandles();
   bootstrapper_ = new Bootstrapper(this);
-  handle_scope_implementer_ = new HandleScopeImplementer(this);
   load_stub_cache_ = new StubCache(this);
   store_stub_cache_ = new StubCache(this);
   define_own_stub_cache_ = new StubCache(this);
@@ -6237,6 +6235,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #ifdef V8_ENABLE_SANDBOX
     trusted_pointer_table().Initialize();
+    trusted_pointer_table().InitializeSpace(
+        heap()->read_only_trusted_pointer_space());
+    trusted_pointer_table().AttachSpaceToReadOnlySegments(
+        heap()->read_only_trusted_pointer_space());
     trusted_pointer_table().InitializeSpace(heap()->trusted_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
   }
@@ -6323,8 +6325,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-  IsolateGroup::current()->code_pointer_table()->InitializeSpace(
-      heap()->code_pointer_space());
   if (owns_shareable_data()) {
     isolate_data_.shared_trusted_pointer_table_ = new TrustedPointerTable();
     shared_trusted_pointer_space_ = new TrustedPointerTable::Space();

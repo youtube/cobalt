@@ -28,7 +28,7 @@
   self = [super init];
   if (self) {
     _uri = [NSString stringForStdString:nativeParameters.uri];
-    _id = nativeParameters.id;
+    _id = nativeParameters.id.value();
     _encrypted = nativeParameters.encrypt;
   }
   return self;

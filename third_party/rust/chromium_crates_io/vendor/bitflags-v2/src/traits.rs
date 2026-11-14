@@ -152,6 +152,18 @@ pub trait Flags: Sized + 'static {
         Self::from_bits_retain(truncated)
     }
 
+    /// Get a flags value with all bits from named flags set.
+    ///
+    /// This method is equivalent to [`Flags::all`] unless [`Flags::FLAGS`] contains unnamed flags.
+    fn all_named() -> Self {
+        Self::from_bits_retain(
+            Self::FLAGS
+                .iter()
+                .filter(|f| !f.name().is_empty())
+                .fold(Self::empty().bits(), |acc, f| acc | f.value().bits()),
+        )
+    }
+
     /// Get the known bits from a flags value.
     fn known_bits(&self) -> Self::Bits {
         self.bits() & Self::all().bits()
@@ -231,6 +243,14 @@ pub trait Flags: Sized + 'static {
     /// Yield a set of all named flags defined by [`Self::FLAGS`].
     fn iter_defined_names() -> iter::IterDefinedNames<Self> {
         iter::IterDefinedNames::new()
+    }
+
+    /// Get an iterator over all defined names for this flags value.
+    ///
+    /// This iterator will yield all defined names for the flags value, including
+    /// any convenience flags.
+    fn iter_equal_names(&self) -> iter::IterEqualNames<Self> {
+        iter::IterEqualNames::new(self)
     }
 
     /// Whether all bits in this flags value are unset.

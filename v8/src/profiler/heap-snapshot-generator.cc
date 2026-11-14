@@ -30,6 +30,7 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -1607,16 +1608,30 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
   } else if (IsJSFunction(obj)) {
     Tagged<JSFunction> js_fun = Cast<JSFunction>(js_obj);
     if (js_fun->has_prototype_slot()) {
-      Tagged<UnionOf<JSPrototype, Map, TheHole>> proto_or_map =
+      Tagged<HeapObject> proto_or_map =
           js_fun->prototype_or_initial_map(kAcquireLoad);
-      if (!IsTheHole(proto_or_map)) {
-        if (!IsMap(proto_or_map)) {
-          SetPropertyReference(
-              entry, roots.prototype_string(), proto_or_map, nullptr,
+
+      if (IsJSReceiver(proto_or_map)) {
+        // The field contains the "prototype" property value.
+        SetPropertyReference(
+            entry, roots.prototype_string(), js_fun->prototype(), nullptr,
+            offsetof(JSFunctionWithPrototype, prototype_or_initial_map_));
+
+      } else if (!IsTheHole(proto_or_map)) {
+        // The function's "prototype" property value is stored indirectly
+        // (either in initial map or in Tuple2).
+        SetPropertyReference(entry, roots.prototype_string(),
+                             js_fun->prototype());
+
+        if (IsTuple2(proto_or_map)) {
+          Tagged<Tuple2> tuple = Cast<Tuple2>(proto_or_map);
+          TagObject(tuple, "(non-instance prototype tuple)");
+          SetInternalReference(
+              entry, "non_instance_prototype_tuple", tuple,
               offsetof(JSFunctionWithPrototype, prototype_or_initial_map_));
+
         } else {
-          SetPropertyReference(entry, roots.prototype_string(),
-                               js_fun->prototype());
+          DCHECK(IsMap(proto_or_map));
           SetInternalReference(
               entry, "initial_map", proto_or_map,
               offsetof(JSFunctionWithPrototype, prototype_or_initial_map_));
@@ -2052,8 +2067,39 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
     SetInternalReference(entry, "wasm_weak_instance_list",
                          script->wasm_weak_instance_list(),
                          offsetof(Script, infos_));
+  } else {
+#endif
+    SetInternalReference(
+        entry, "eval_from_shared_or_wrapped_arguments",
+        script->eval_from_shared_or_wrapped_arguments(),
+        offsetof(Script, eval_from_shared_or_wrapped_arguments_));
+    SetInternalReference(entry, "infos", script->infos(),
+                         offsetof(Script, infos_));
+#if V8_ENABLE_WEBASSEMBLY
   }
 #endif
+  SetInternalReference(entry, "eval_from_scope_info",
+                       script->eval_from_scope_info(),
+                       offsetof(Script, eval_from_scope_info_));
+  SetInternalReference(entry, "compiled_lazy_function_positions",
+                       script->compiled_lazy_function_positions(),
+                       offsetof(Script, compiled_lazy_function_positions_));
+  SetInternalReference(entry, "source_url", script->source_url(),
+                       offsetof(Script, source_url_));
+  SetInternalReference(entry, "source_mapping_url",
+                       script->source_mapping_url(),
+                       offsetof(Script, source_mapping_url_));
+  SetInternalReference(entry, "debug_id", script->debug_id(),
+                       offsetof(Script, debug_id_));
+  SetInternalReference(entry, "host_defined_options",
+                       script->host_defined_options(),
+                       offsetof(Script, host_defined_options_));
+#if V8_SCRIPTORMODULE_LEGACY_LIFETIME
+  SetInternalReference(entry, "script_or_modules", script->script_or_modules(),
+                       offsetof(Script, script_or_modules_));
+#endif
+  SetInternalReference(entry, "source_hash", script->source_hash(),
+                       offsetof(Script, source_hash_));
 }
 
 void V8HeapExplorer::ExtractAccessorInfoReferences(

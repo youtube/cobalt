@@ -117,6 +117,7 @@ class PacingController {
     // a packet "debt" that correspond to approximately the send rate during the
     // burst interval.
     TimeDelta send_burst_interval = PacerConfig::kDefaultTimeInterval;
+    std::optional<PacerConfig> initial_pacer_config;
   };
 
   static Configuration DefaultConfiguration() { return Configuration{}; }

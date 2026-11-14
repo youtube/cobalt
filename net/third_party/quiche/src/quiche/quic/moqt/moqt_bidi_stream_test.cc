@@ -5,27 +5,18 @@
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 
 #include <memory>
-#include <optional>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_framer.h"
-#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
-#include "quiche/web_transport/web_transport.h"
-
-using ::testing::_;
-using ::testing::Return;
 
 namespace moqt::test {
 
@@ -41,7 +32,8 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
   void OnStreamBound() override {}
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override {
-    return DispatchControlMessage<TestMoqtBidiStream>(message, "test");
+    return ControlMessageDispatcher::DispatchControlMessage(
+        *this, message_parser(), message, "test");
   }
   int ok_received() const { return ok_received_; }
 
@@ -52,11 +44,12 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
 class MoqtBidiStreamTest : public quiche::test::QuicheTest {
  public:
   MoqtBidiStreamTest()
-      : framer_(true),
+      : framer_(true, quic::Perspective::IS_CLIENT),
         stream_(std::make_unique<TestMoqtBidiStream>(
             &framer_,
             MoqtControlMessageParser(kDefaultMoqtVersion,
-                                     /*webtransport=*/true),
+                                     /*webtransport=*/true,
+                                     quic::Perspective::IS_CLIENT),
             deleted_callback_.AsStdFunction(),
             error_callback_.AsStdFunction())) {}
 
@@ -67,44 +60,6 @@ class MoqtBidiStreamTest : public quiche::test::QuicheTest {
   std::unique_ptr<TestMoqtBidiStream> stream_;
   webtransport::test::MockStream mock_stream_;
 };
-
-TEST_F(MoqtBidiStreamTest, MessageBufferedThenSent) {
-  stream_->BindStream(&mock_stream_);
-  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(false));
-  EXPECT_CALL(mock_stream_, Writev).Times(0);
-  QUICHE_EXPECT_OK(stream_->SendRequestOk(0, MessageParameters()));
-  QUICHE_EXPECT_OK(stream_->SendRequestError(2, RequestErrorCode::kUnauthorized,
-                                             std::nullopt,
-
-                                             "bad request"));
-  stream_->Fin();
-  {
-    testing::InSequence seq;
-    EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
-    EXPECT_CALL(mock_stream_,
-                Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
-    EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
-    EXPECT_CALL(mock_stream_,
-                Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
-        .WillOnce([](absl::Span<quiche::QuicheMemSlice>,
-                     const webtransport::StreamWriteOptions& options) {
-          EXPECT_TRUE(options.send_fin());
-          return absl::OkStatus();
-        });
-  }
-  stream_->OnCanWrite();
-}
-
-TEST_F(MoqtBidiStreamTest, FinSentWhenDrained) {
-  stream_->BindStream(&mock_stream_);
-  EXPECT_CALL(mock_stream_, Writev)
-      .WillOnce([](absl::Span<quiche::QuicheMemSlice>,
-                   const webtransport::StreamWriteOptions& options) {
-        EXPECT_TRUE(options.send_fin());
-        return absl::OkStatus();
-      });
-  stream_->Fin();
-}
 
 TEST_F(MoqtBidiStreamTest, Reset) {
   stream_->BindStream(&mock_stream_);
@@ -117,26 +72,10 @@ TEST_F(MoqtBidiStreamTest, DeletedCallback) {
   stream_.reset();
 }
 
-TEST_F(MoqtBidiStreamTest, PendingQueueFull) {
-  stream_->BindStream(&mock_stream_);
-  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(false));
-  for (int i = 0; i < MoqtBidiStreamBase::kMaxPendingMessages; ++i) {
-    EXPECT_FALSE(stream_->QueueIsFull());
-    QUICHE_EXPECT_OK(stream_->SendOrBufferMessage(
-        framer_.SerializeRequestUpdate(MoqtRequestUpdate{})));
-  }
-  EXPECT_TRUE(stream_->QueueIsFull());
-  EXPECT_EQ(stream_
-                ->SendOrBufferMessage(
-                    framer_.SerializeRequestUpdate(MoqtRequestUpdate{}))
-                .code(),
-            absl::StatusCode::kResourceExhausted);
-}
-
 TEST_F(MoqtBidiStreamTest, DispatchControlMessage) {
   webtransport::test::InMemoryStream stream(0);
   stream_->BindStream(&stream);
-  MoqtFramer framer(/*using_webtrans=*/true);
+  MoqtFramer framer(/*using_webtrans=*/true, quic::Perspective::IS_SERVER);
   stream.Receive(framer.SerializeRequestOk(MoqtRequestOk()).AsStringView());
   stream_->OnCanRead();
   EXPECT_EQ(stream_->ok_received(), 1u);

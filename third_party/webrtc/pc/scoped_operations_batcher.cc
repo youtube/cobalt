@@ -106,6 +106,11 @@ RTCError ScopedOperationsBatcher::Run() {
   return error;
 }
 
+bool ScopedOperationsBatcher::IsEmpty() const {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  return tasks_.empty();
+}
+
 void ScopedOperationsBatcher::Add(SimpleBatchTask task) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   if (task) {

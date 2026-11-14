@@ -30,6 +30,7 @@
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -138,14 +139,12 @@ class VideoSendStreamPeer {
 }  // namespace test
 
 namespace {
-enum : int {  // The first valid value is 1.
-  kAbsSendTimeExtensionId = 1,
-  kTimestampOffsetExtensionId,
-  kTransportSequenceNumberExtensionId,
-  kVideoContentTypeExtensionId,
-  kVideoRotationExtensionId,
-  kVideoTimingExtensionId,
-};
+constexpr RtpHeaderExtensionId kAbsSendTimeExtensionId(1);
+constexpr RtpHeaderExtensionId kTimestampOffsetExtensionId(2);
+constexpr RtpHeaderExtensionId kTransportSequenceNumberExtensionId(3);
+constexpr RtpHeaderExtensionId kVideoContentTypeExtensionId(4);
+constexpr RtpHeaderExtensionId kVideoRotationExtensionId(5);
+constexpr RtpHeaderExtensionId kVideoTimingExtensionId(6);
 
 // Readability convenience enum for `WaitBitrateChanged()`.
 enum class WaitUntil : bool { kZero = false, kNonZero = true };
@@ -178,7 +177,6 @@ std::string ParamInfoToStr(
   return sb.str();
 }
 
-}  // namespace
 
 class VideoSendStreamTest : public test::CallTest {
  public:
@@ -366,7 +364,8 @@ TEST_F(VideoSendStreamTest, SupportsTransmissionTimeOffset) {
 }
 
 TEST_F(VideoSendStreamTest, SupportsTransportWideSequenceNumbers) {
-  static const uint8_t kExtensionId = kTransportSequenceNumberExtensionId;
+  static constexpr RtpHeaderExtensionId kExtensionId =
+      kTransportSequenceNumberExtensionId;
   class TransportWideSequenceNumberObserver : public test::SendTest {
    public:
     TransportWideSequenceNumberObserver()
@@ -1658,7 +1657,8 @@ TEST_F(VideoSendStreamTest, MinTransmitBitrateRespectsRemb) {
 TEST_F(VideoSendStreamTest, ChangingNetworkRoute) {
   static const int kStartBitrateBps = 300000;
   static const int kNewMaxBitrateBps = 1234567;
-  static const uint8_t kExtensionId = kTransportSequenceNumberExtensionId;
+  static constexpr RtpHeaderExtensionId kExtensionId =
+      kTransportSequenceNumberExtensionId;
   class ChangingNetworkRouteTest : public test::EndToEndTest {
    public:
     explicit ChangingNetworkRouteTest(TaskQueueBase* task_queue)
@@ -2104,7 +2104,7 @@ TEST_F(VideoSendStreamTest, CanReconfigureToUseStartBitrateAbovePreviousMax) {
     int start_bitrate_kbps_ RTC_GUARDED_BY(mutex_);
   };
 
-  CreateSenderCall();
+  CreateSenderCall(TaskQueueBase::Current());
 
   test::NullTransport transport;
   CreateSendConfig(1, 0, 0, &transport);
@@ -3584,14 +3584,14 @@ TEST_F(VideoSendStreamTest, MAYBE_Vp9FlexModeRefCount) {
 
 void VideoSendStreamTest::TestRequestSourceRotateVideo(
     bool support_orientation_ext) {
-  CreateSenderCall();
+  CreateSenderCall(TaskQueueBase::Current());
 
   test::NullTransport transport;
   CreateSendConfig(1, 0, 0, &transport);
   GetVideoSendConfig()->rtp.extensions.clear();
   if (support_orientation_ext) {
     GetVideoSendConfig()->rtp.extensions.push_back(
-        RtpExtension(RtpExtension::kVideoRotationUri, 1));
+        RtpExtension(RtpExtension::kVideoRotationUri, RtpHeaderExtensionId(1)));
   }
 
   CreateVideoStreams();
@@ -3768,7 +3768,7 @@ class PacingFactorObserver : public test::SendTest {
       // Want send side, not present by default, so add it.
       send_config->rtp.extensions.emplace_back(
           RtpExtension::kTransportSequenceNumberUri,
-          unique_id_generator.GenerateNumber());
+          RtpHeaderExtensionId(unique_id_generator.GenerateNumber()));
     }
 
     // ALR only enabled for screenshare.
@@ -4271,4 +4271,5 @@ TEST_F(VideoSendStreamTest, TestTemporalLayersVp9) {
                      /*scalability_mode=*/{});
 }
 
+}  // namespace
 }  // namespace webrtc

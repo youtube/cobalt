@@ -42,6 +42,9 @@ BASE_FEATURE(kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered,
 
 BASE_FEATURE(kApiGlicAccessFromGoogleWebpage,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kApiGlicAccessFromPromotionPage,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<std::string> kProdPromptEndpointUrlParam(
     &kApiGlicAccessFromGoogleWebpage,
     /*name=*/"prod_prompt_endpoint_url",
@@ -113,11 +116,6 @@ BASE_FEATURE(kExtensionLocalizationGuid, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionIconVariants, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kExtensionManifestV2Unsupported, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kExtensionManifestV2ExceptionList,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kExtensionsBackgroundCompilation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -139,18 +137,11 @@ BASE_FEATURE_PARAM(size_t,
                    "max_script_size",
                    0);
 
-const base::FeatureParam<std::string> kExtensionManifestV2ExceptionListParam(
-    &kExtensionManifestV2ExceptionList,
-    /*name=*/"mv2_exception_list",
-    /*default_value=*/"");
-
 BASE_FEATURE(kAllowLegacyMV2Extensions, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionProtocolHandlers, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionTabContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kExtensionsManifestV3Only, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionsMenuAccessControl,
 #if BUILDFLAG(IS_ANDROID)

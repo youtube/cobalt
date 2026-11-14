@@ -5,6 +5,7 @@
 #include "services/on_device_model/on_device_model_service.h"
 
 #include "base/files/scoped_temp_file.h"
+#include "base/json/json_reader.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -13,6 +14,7 @@
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/test_support/test_utils.h"
 #include "services/on_device_model/fake/fake_chrome_ml_api.h"
 #include "services/on_device_model/fake/on_device_model_fake.h"
 #include "services/on_device_model/ml/chrome_ml_types.h"
@@ -25,6 +27,7 @@
 #include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace on_device_model {
 namespace {
@@ -39,6 +42,83 @@ ml::ToolDeclaration MakeToolDeclaration() {
   decl.input_schema_json =
       R"({"type":"object","properties":{"input":{"type":"string"}}})";
   return decl;
+}
+
+mojom::InputPiecePtr MakeMojomInputPiece(ml::InputPiece piece) {
+  return std::visit(
+      absl::Overload{
+          [](ml::Token token) { return mojom::InputPiece::NewToken(token); },
+          [](std::string text) {
+            return mojom::InputPiece::NewText(std::move(text));
+          },
+          [](SkBitmap bitmap) {
+            return mojom::InputPiece::NewBitmap(std::move(bitmap));
+          },
+          [](ml::AudioBuffer audio) {
+            return mojom::InputPiece::NewAudio(
+                mojom::AudioData::New(audio.sample_rate_hz, audio.num_channels,
+                                      audio.num_frames, std::move(audio.data)));
+          },
+          [](ml::ToolDeclaration decl) {
+            auto parsed_schema = base::JSONReader::ReadDict(
+                decl.input_schema_json, base::JSON_PARSE_RFC);
+            CHECK(parsed_schema.has_value());
+            return mojom::InputPiece::NewToolDeclaration(
+                mojom::ToolDeclaration::New(std::move(decl.name),
+                                            std::move(decl.description),
+                                            std::move(*parsed_schema)));
+          },
+          [](ml::ToolResponse response) {
+            std::optional<base::Value> result;
+            if (!response.result_json.empty()) {
+              result = base::JSONReader::Read(response.result_json,
+                                              base::JSON_PARSE_RFC);
+              CHECK(result.has_value());
+            }
+            std::optional<std::string> error_message;
+            if (!response.error_message.empty()) {
+              error_message = std::move(response.error_message);
+            }
+            return mojom::InputPiece::NewToolResponse(mojom::ToolResponse::New(
+                std::move(response.call_id), std::move(response.name),
+                std::move(result), std::move(error_message)));
+          },
+          [](bool unknown_type) {
+            return mojom::InputPiece::NewUnknownType(unknown_type);
+          },
+      },
+      std::move(piece));
+}
+
+mojom::InputPtr MakeMojomInput(std::vector<ml::InputPiece> input) {
+  auto mojom_input = mojom::Input::New();
+  mojom_input->pieces.reserve(input.size());
+  for (auto& piece : input) {
+    mojom_input->pieces.push_back(MakeMojomInputPiece(std::move(piece)));
+  }
+  return mojom_input;
+}
+
+mojom::InputPtr MakeMojomInput(mojom::InputPiecePtr piece) {
+  auto mojom_input = mojom::Input::New();
+  mojom_input->pieces.push_back(std::move(piece));
+  return mojom_input;
+}
+
+mojom::AppendOptionsPtr MakeAppendOptions(mojom::InputPiecePtr piece) {
+  auto options = mojom::AppendOptions::New();
+  options->input = MakeMojomInput(std::move(piece));
+  return options;
+}
+
+mojom::InputPiecePtr MakeInvalidToolResponseInputPiece() {
+  base::DictValue result_dict;
+  result_dict.Set("output", "42");
+  std::optional<base::Value> result;
+  result.emplace(std::move(result_dict));
+  return mojom::InputPiece::NewToolResponse(mojom::ToolResponse::New(
+      fake_ml::kFakeToolCallId, fake_ml::kFakeToolName, std::move(result),
+      std::make_optional<std::string>("tool failed")));
 }
 
 class ContextClientWaiter : public mojom::ContextClient {
@@ -150,7 +230,7 @@ class OnDeviceModelServiceTest : public testing::Test {
 
   mojom::AppendOptionsPtr MakeInput(std::vector<ml::InputPiece> input) {
     auto options = mojom::AppendOptions::New();
-    options->input = mojom::Input::New(std::move(input));
+    options->input = MakeMojomInput(std::move(input));
     return options;
   }
 
@@ -161,7 +241,7 @@ class OnDeviceModelServiceTest : public testing::Test {
     model.StartSession(session.BindNewPipeAndPassReceiver(), nullptr);
     auto options = mojom::AppendOptions::New();
     options->input =
-        mojom::Input::New(std::vector<ml::InputPiece>{ml::InputPiece(input)});
+        MakeMojomInput(std::vector<ml::InputPiece>{ml::InputPiece(input)});
     session->Append(std::move(options), {});
     session->Generate(mojom::GenerateOptions::New(), response.BindRemote());
     response.WaitForCompletion();
@@ -1021,6 +1101,34 @@ TEST_F(OnDeviceModelServiceTest, ToolResponseProcessing) {
   EXPECT_THAT(response2.responses(),
               testing::Contains(testing::HasSubstr(base::StrCat(
                   {fake_ml::kToolRespPrefix, fake_ml::kFakeToolName, "="}))));
+}
+
+TEST_F(OnDeviceModelServiceTest, InvalidToolResponseReportsBadMessageOnAppend) {
+  auto model = LoadModel();
+
+  mojo::Remote<mojom::Session> session;
+  model->StartSession(session.BindNewPipeAndPassReceiver(), nullptr);
+
+  mojo::test::BadMessageObserver observer;
+  session->Append(MakeAppendOptions(MakeInvalidToolResponseInputPiece()), {});
+
+  EXPECT_EQ(observer.WaitForBadMessage(),
+            "SessionAccessor::AppendInternal: failed to convert input");
+}
+
+TEST_F(OnDeviceModelServiceTest,
+       InvalidToolResponseReportsBadMessageOnSizeInTokens) {
+  auto model = LoadModel();
+
+  mojo::Remote<mojom::Session> session;
+  model->StartSession(session.BindNewPipeAndPassReceiver(), nullptr);
+
+  mojo::test::BadMessageObserver observer;
+  session->GetSizeInTokens(MakeMojomInput(MakeInvalidToolResponseInputPiece()),
+                           base::DoNothing());
+
+  EXPECT_EQ(observer.WaitForBadMessage(),
+            "SessionAccessor::SizeInTokensInternal: failed to convert input");
 }
 
 TEST_F(OnDeviceModelServiceTest, ToolDeclarationsIgnoredOutsideSystemPrompt) {

@@ -130,7 +130,7 @@ static const SSL_SIGNATURE_ALGORITHM *get_signature_algorithm(uint16_t sigalg) {
 
 bssl::UniquePtr<EVP_PKEY> ssl_parse_peer_subject_public_key_info(
     Span<const uint8_t> spki) {
-  // Ideally the set of reachable algorithms would flow from |SSL_CTX| for dead
+  // Ideally the set of reachable algorithms would flow from `SSL_CTX` for dead
   // code elimination, but for now we just specify every algorithm that might be
   // reachable from libssl.
   const EVP_PKEY_ALG *const algs[] = {
@@ -167,7 +167,7 @@ bool ssl_pkey_supports_algorithm(const SSL *ssl, EVP_PKEY *pkey,
            sigalg == SSL_SIGN_ECDSA_SHA1;
   }
 
-  // |SSL_SIGN_RSA_PKCS1_MD5_SHA1| is not a real SignatureScheme for TLS 1.2 and
+  // `SSL_SIGN_RSA_PKCS1_MD5_SHA1` is not a real SignatureScheme for TLS 1.2 and
   // higher. It is an internal value we use to represent TLS 1.0/1.1's MD5/SHA1
   // concatenation.
   if (sigalg == SSL_SIGN_RSA_PKCS1_MD5_SHA1) {
@@ -532,7 +532,7 @@ const char *SSL_get_signature_algorithm_name(uint16_t sigalg,
       case SSL_SIGN_ECDSA_SECP521R1_SHA512:
         return "ecdsa_sha512";
         // If adding more here, also update
-        // |SSL_get_all_signature_algorithm_names|.
+        // `SSL_get_all_signature_algorithm_names`.
     }
   }
 
@@ -597,7 +597,7 @@ static bool set_sigalg_prefs(Array<uint16_t> *out, Span<const uint16_t> prefs) {
     return false;
   }
 
-  // Check for invalid algorithms, and filter out |SSL_SIGN_RSA_PKCS1_MD5_SHA1|.
+  // Check for invalid algorithms, and filter out `SSL_SIGN_RSA_PKCS1_MD5_SHA1`.
   Array<uint16_t> filtered;
   if (!filtered.InitForOverwrite(prefs.size())) {
     return false;
@@ -606,8 +606,8 @@ static bool set_sigalg_prefs(Array<uint16_t> *out, Span<const uint16_t> prefs) {
   for (uint16_t pref : prefs) {
     if (pref == SSL_SIGN_RSA_PKCS1_MD5_SHA1) {
       // Though not intended to be used with this API, we treat
-      // |SSL_SIGN_RSA_PKCS1_MD5_SHA1| as a real signature algorithm in
-      // |SSL_PRIVATE_KEY_METHOD|. Not accepting it here makes for a confusing
+      // `SSL_SIGN_RSA_PKCS1_MD5_SHA1` as a real signature algorithm in
+      // `SSL_PRIVATE_KEY_METHOD`. Not accepting it here makes for a confusing
       // abstraction.
       continue;
     }
@@ -620,7 +620,7 @@ static bool set_sigalg_prefs(Array<uint16_t> *out, Span<const uint16_t> prefs) {
   }
   filtered.Shrink(added);
 
-  // This can happen if |prefs| contained only |SSL_SIGN_RSA_PKCS1_MD5_SHA1|.
+  // This can happen if `prefs` contained only `SSL_SIGN_RSA_PKCS1_MD5_SHA1`.
   // Leaving it empty would revert to the default, so treat this as an error
   // condition.
   if (!prefs.empty() && filtered.empty()) {

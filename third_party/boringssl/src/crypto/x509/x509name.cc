@@ -255,7 +255,7 @@ int X509_NAME_add_entry(X509_NAME *name, const X509_NAME_ENTRY *entry, int loc,
   if (!sk_X509_NAME_ENTRY_insert(sk, new_entry.get(), loc)) {
     return 0;
   }
-  new_entry.release(); // |sk| took ownership.
+  new_entry.release(); // `sk` took ownership.
   if (inc) {
     n = (int)sk_X509_NAME_ENTRY_num(sk);
     for (int i = loc + 1; i < n; i++) {

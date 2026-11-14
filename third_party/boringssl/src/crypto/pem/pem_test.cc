@@ -139,7 +139,7 @@ wr6JtaX2G+pOmwcSPymZC4u2TncAP7KHgS8UGcMw8CE=
     }
   }
 
-  // |d2i_PKCS8PrivateKey_bio| should also be able to manage the password
+  // `d2i_PKCS8PrivateKey_bio` should also be able to manage the password
   // callback correctly.
   std::vector<uint8_t> bytes = DecodePEMBytes(kEncryptedPEM);
   ASSERT_FALSE(bytes.empty());
@@ -211,7 +211,7 @@ XjgdgSEeixwKhDOuHKFdlFGP/7sw5GHlK3jPSpqi2gI=
     }
   }
 
-  // |d2i_PKCS8PrivateKey_bio| should also be able to manage the password
+  // `d2i_PKCS8PrivateKey_bio` should also be able to manage the password
   // callback correctly.
   bytes = DecodePEMBytes(kEncryptedPEMEmpty);
   {

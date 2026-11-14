@@ -677,5 +677,121 @@ TEST(ScreamControllerTest, IgnoreFeedbackWithoutReceivedPackets) {
   EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(300));
 }
 
+TEST(ScreamControllerTest, ReportsIsBandwidthLimited) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  config.constraints.starting_rate = DataRate::KilobitsPerSec(100);
+  config.constraints.max_data_rate = DataRate::KilobitsPerSec(5000);
+  ScreamNetworkController scream_controller(config);
+
+  // Initially, is_bandwidth_limited should be true because
+  // is_application_limited starts as false.
+  NetworkControlUpdate update = scream_controller.OnNetworkAvailability(
+      {.at_time = clock.CurrentTime(), .network_available = true});
+  ASSERT_TRUE(update.target_rate.has_value());
+  EXPECT_TRUE(update.target_rate->is_bandwidth_limited);
+
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.queue_delay_ms = 10,
+                          .link_capacity = DataRate::KilobitsPerSec(2000)}});
+
+  DataRate target_rate = DataRate::KilobitsPerSec(100);
+  // Send at full BWE rate so we are not application limited.
+  for (int i = 0; i < 20; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            target_rate, clock,
+            [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
+    update = scream_controller.OnTransportPacketsFeedback(feedback);
+    if (update.target_rate.has_value()) {
+      target_rate = update.target_rate->target_rate;
+      EXPECT_TRUE(update.target_rate->is_bandwidth_limited);
+    }
+  }
+
+  // Now send at a very low rate (e.g. 50kbps) while BWE remains high.
+  // This should trigger application limited state.
+  bool alr_detected = false;
+  for (int i = 0; i < 50; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            DataRate::KilobitsPerSec(50), clock,
+            [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
+    update = scream_controller.OnTransportPacketsFeedback(feedback);
+    if (update.target_rate.has_value()) {
+      if (!update.target_rate->is_bandwidth_limited) {
+        alr_detected = true;
+        break;
+      }
+    }
+  }
+  EXPECT_TRUE(alr_detected);
+}
+
+TEST(ScreamControllerTest, ReportsIsBandwidthLimitedEvenIfTargetRateClamped) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  config.constraints.starting_rate = DataRate::KilobitsPerSec(500);
+  config.constraints.min_data_rate = DataRate::KilobitsPerSec(500);
+  config.constraints.max_data_rate = DataRate::KilobitsPerSec(500);
+  ScreamNetworkController scream_controller(config);
+
+  NetworkControlUpdate update = scream_controller.OnNetworkAvailability(
+      {.at_time = clock.CurrentTime(), .network_available = true});
+  ASSERT_TRUE(update.target_rate.has_value());
+  EXPECT_TRUE(update.target_rate->is_bandwidth_limited);
+  EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(500));
+
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.queue_delay_ms = 150,
+                          .link_capacity = DataRate::KilobitsPerSec(2000)}});
+
+  // Warm up to build up data in flight so that we are not application limited.
+  for (int i = 0; i < 5; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            DataRate::KilobitsPerSec(500), clock,
+            [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
+    scream_controller.OnTransportPacketsFeedback(feedback);
+  }
+
+  // Now we should be actively sending near capacity (is_bandwidth_limited =
+  // true).
+  for (int i = 0; i < 15; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            DataRate::KilobitsPerSec(500), clock,
+            [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
+    update = scream_controller.OnTransportPacketsFeedback(feedback);
+    if (update.target_rate.has_value()) {
+      EXPECT_TRUE(update.target_rate->is_bandwidth_limited);
+      EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(500));
+    }
+  }
+
+  // Now send at a very low rate (50kbps).
+  // The target rate is clamped at 500kbps so it cannot change.
+  // We expect an update.target_rate to be generated anyway because
+  // is_bandwidth_limited changes to false.
+  bool alr_detected = false;
+  for (int i = 0; i < 50; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            DataRate::KilobitsPerSec(50), clock,
+            [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
+    update = scream_controller.OnTransportPacketsFeedback(feedback);
+    if (update.target_rate.has_value()) {
+      EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(500));
+      if (!update.target_rate->is_bandwidth_limited) {
+        alr_detected = true;
+        break;
+      }
+    }
+  }
+  EXPECT_TRUE(alr_detected);
+}
+
 }  // namespace
 }  // namespace webrtc

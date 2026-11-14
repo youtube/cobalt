@@ -123,7 +123,8 @@ class SdpMungingTest : public ::testing::Test {
                                             Dav1dDecoderTemplateAdapter>>(),
             nullptr /* audio_mixer */,
             nullptr /* audio_processing */,
-            nullptr /* audio_frame_processor */)) {
+            nullptr /* audio_frame_processor */,
+            CreateTestFieldTrialsPtr())) {
     metrics::Reset();
   }
 
@@ -172,12 +173,10 @@ TEST_F(SdpMungingTest, DISABLED_ReportUMAMetricsWithNoMunging) {
       metrics::Samples("WebRTC.PeerConnection.SdpMunging.Answer.Initial"),
       ElementsAre(Pair(SdpMungingType::kNoModification, 1)));
 
-  EXPECT_THAT(WaitUntil([&] { return caller->IsIceGatheringDone(); }, IsTrue(),
-                        {.timeout = kDefaultTimeout}),
-              IsRtcOk());
-  EXPECT_THAT(WaitUntil([&] { return callee->IsIceGatheringDone(); }, IsTrue(),
-                        {.timeout = kDefaultTimeout}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller->IsIceGatheringDone(); },
+                        {.timeout = kDefaultTimeout}));
+  EXPECT_TRUE(WaitUntil([&] { return callee->IsIceGatheringDone(); },
+                        {.timeout = kDefaultTimeout}));
   for (const auto& candidate : caller->observer()->GetAllCandidates()) {
     callee->pc()->AddIceCandidate(candidate);
   }
@@ -1183,8 +1182,8 @@ TEST_F(SdpMungingTest, HeaderExtensionAdded) {
   auto* media_description = contents[0].media_description();
   ASSERT_THAT(media_description, Not(IsNull()));
   // VLA is off by default, id=42 should be unused.
-  media_description->AddRtpHeaderExtension(
-      {RtpExtension::kVideoLayersAllocationUri, 42});
+  media_description->AddRtpHeaderExtension(RtpExtension(
+      RtpExtension::kVideoLayersAllocationUri, RtpHeaderExtensionId(42)));
 
   RTCError error;
   EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
