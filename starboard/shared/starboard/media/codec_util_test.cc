@@ -48,34 +48,31 @@ TEST(VideoConfigTest, CtorWithVideoStreamInfo) {
   std::vector<uint8_t> nalus_in_annex_b =
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
 
-  auto config_1 =
-      VideoConfig::Create(video_stream_info.codec, video_stream_info.frame_size,
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto config_1 = VideoConfig::Create(
+      video_stream_info.codec, video_stream_info.frame_size, nalus_in_annex_b);
   ASSERT_TRUE(config_1.has_value());
-  auto config_2 = VideoConfig::Create(
-      video_stream_info, nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto config_2 = VideoConfig::Create(video_stream_info, nalus_in_annex_b);
   ASSERT_TRUE(config_2.has_value());
   EXPECT_EQ(*config_1, *config_2);
 }
 
 TEST(VideoConfigTest, IsValidH264PpsOnly) {
   auto config = VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
-                                    kPpsInAnnexB.data(), kPpsInAnnexB.size());
+                                    kPpsInAnnexB);
   ASSERT_TRUE(config.has_value());
 }
 
 TEST(VideoConfigTest, IsValidH264IdrOnly) {
   auto config = VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
-                                    kIdrInAnnexB.data(), kIdrInAnnexB.size());
+                                    kIdrInAnnexB);
   ASSERT_TRUE(config.has_value());
 }
 
 TEST(VideoConfigTest, IsValidH264FullAnnexB) {
   std::vector<uint8_t> nalus_in_annex_b =
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
-  auto config =
-      VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto config = VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
+                                    nalus_in_annex_b);
   ASSERT_TRUE(config.has_value());
 }
 
@@ -85,14 +82,13 @@ TEST(VideoConfigTest, IsValidH264InvalidHeader) {
   // The implementation only fails when the format is avc and the input isn't
   // empty and doesn't start with a nalu header.
   auto config = VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
-                                    nalus_in_annex_b.data() + 1,
-                                    nalus_in_annex_b.size() - 1);
+                                    make_span(nalus_in_annex_b).subspan(1));
   ASSERT_FALSE(config.has_value());
 }
 
 TEST(VideoConfigTest, IsValidVp9) {
-  auto config = VideoConfig::Create(kSbMediaVideoCodecVp9, Resolution::k1080p,
-                                    /*data=*/nullptr, /*data_size=*/0);
+  auto config =
+      VideoConfig::Create(kSbMediaVideoCodecVp9, Resolution::k1080p, {});
   ASSERT_TRUE(config.has_value());
 }
 
@@ -101,8 +97,7 @@ TEST(VideoConfigTest, EqualityOperatorsH264) {
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
 
   auto config1 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config1.has_value());
 
   // Self comparison
@@ -111,25 +106,21 @@ TEST(VideoConfigTest, EqualityOperatorsH264) {
 
   // Different instances, same values
   auto config2 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config2.has_value());
   EXPECT_TRUE(*config1 == *config2);
   EXPECT_FALSE(*config1 != *config2);
 
   // Different values (resolution)
-  auto config3 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto config3 = VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
+                                     nalus_in_annex_b);
   ASSERT_TRUE(config3.has_value());
   EXPECT_FALSE(*config1 == *config3);
   EXPECT_TRUE(*config1 != *config3);
 }
 
 TEST(VideoConfigTest, EqualityOperatorsVp9) {
-  auto config1 =
-      VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, /*data=*/nullptr,
-                          /*data_size=*/0);
+  auto config1 = VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, {});
   ASSERT_TRUE(config1.has_value());
 
   // Self comparison
@@ -137,17 +128,14 @@ TEST(VideoConfigTest, EqualityOperatorsVp9) {
   EXPECT_FALSE(*config1 != *config1);
 
   // Different instances, same values
-  auto config2 =
-      VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, /*data=*/nullptr,
-                          /*data_size=*/0);
+  auto config2 = VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, {});
   ASSERT_TRUE(config2.has_value());
   EXPECT_TRUE(*config1 == *config2);
   EXPECT_FALSE(*config1 != *config2);
 
   // Different values (resolution)
-  auto config3 = VideoConfig::Create(kSbMediaVideoCodecVp9, Resolution::k1080p,
-                                     /*data=*/nullptr,
-                                     /*data_size=*/0);
+  auto config3 =
+      VideoConfig::Create(kSbMediaVideoCodecVp9, Resolution::k1080p, {});
   ASSERT_TRUE(config3.has_value());
   EXPECT_FALSE(*config1 == *config3);
   EXPECT_TRUE(*config1 != *config3);
@@ -158,14 +146,12 @@ TEST(VideoConfigTest, H264) {
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
 
   auto config =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config.has_value());
 
   // Different resolution, same parameter sets.
-  auto config_1 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, Resolution::k1080p,
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto config_1 = VideoConfig::Create(kSbMediaVideoCodecH264,
+                                      Resolution::k1080p, nalus_in_annex_b);
   ASSERT_TRUE(config_1.has_value());
   EXPECT_NE(*config, *config_1);
   EXPECT_EQ(config->avc_parameter_sets(), config_1->avc_parameter_sets());
@@ -174,8 +160,7 @@ TEST(VideoConfigTest, H264) {
   nalus_in_annex_b =
       kSpsInAnnexB + kPpsInAnnexB + std::vector<uint8_t>({99}) + kIdrInAnnexB;
   auto config_2 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config_2.has_value());
   EXPECT_NE(*config, *config_2);
 
@@ -184,8 +169,7 @@ TEST(VideoConfigTest, H264) {
   nalus_in_annex_b.push_back(99);
 
   auto config_3 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config_3.has_value());
   EXPECT_EQ(*config, *config_3);
 }
@@ -196,8 +180,7 @@ TEST(VideoConfigTest, H264MultiSpsPps) {
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
 
   auto config_single_sps_pps =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config_single_sps_pps.has_value());
 
   // Same resolution, multiple parameter sets.
@@ -205,20 +188,17 @@ TEST(VideoConfigTest, H264MultiSpsPps) {
       kSpsInAnnexB + kSpsInAnnexB + kPpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
 
   auto config_dual_sps_pps =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config_dual_sps_pps.has_value());
   EXPECT_NE(*config_single_sps_pps, *config_dual_sps_pps);
   EXPECT_EQ(config_dual_sps_pps->avc_parameter_sets(),
-            *AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b.data(),
-                                                nalus_in_annex_b.size()));
+            *AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b));
 
   // Same resolution, different parameter sets.
   nalus_in_annex_b =
       kSpsInAnnexB + kPpsInAnnexB + std::vector<uint8_t>({99}) + kIdrInAnnexB;
   auto config_1 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config_1.has_value());
   EXPECT_NE(*config_single_sps_pps, *config_1);
 
@@ -227,8 +207,7 @@ TEST(VideoConfigTest, H264MultiSpsPps) {
   nalus_in_annex_b.push_back(99);
 
   auto config_2 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config_2.has_value());
   EXPECT_EQ(*config_single_sps_pps, *config_2);
 }
@@ -237,21 +216,20 @@ TEST(VideoConfigTest, Vp9) {
   // The class shouldn't look into vp9 bitstreams.
   const uint8_t kInvalidData[] = {1, 7, 25};
 
-  auto config = VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480},
-                                    kInvalidData, SB_ARRAY_SIZE(kInvalidData));
+  auto config =
+      VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, kInvalidData);
   ASSERT_TRUE(config.has_value());
 
   // Different resolution, same data.
-  auto config_1 =
-      VideoConfig::Create(kSbMediaVideoCodecVp9, Resolution::k1080p,
-                          kInvalidData, SB_ARRAY_SIZE(kInvalidData));
+  auto config_1 = VideoConfig::Create(kSbMediaVideoCodecVp9, Resolution::k1080p,
+                                      kInvalidData);
   ASSERT_TRUE(config_1.has_value());
   EXPECT_NE(*config, *config_1);
 
   // Same resolution, different data (one less byte).
-  auto config_2 =
-      VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, kInvalidData,
-                          SB_ARRAY_SIZE(kInvalidData) - 1);
+  auto config_2 = VideoConfig::Create(
+      kSbMediaVideoCodecVp9, {640, 480},
+      make_span(kInvalidData).first(SB_ARRAY_SIZE(kInvalidData) - 1));
   ASSERT_TRUE(config_2.has_value());
   EXPECT_EQ(*config, *config_2);
 }
@@ -261,12 +239,10 @@ TEST(VideoConfigTest, H264VsVp9) {
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
 
   auto config_h264 =
-      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecH264, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config_h264.has_value());
   auto config_vp9 =
-      VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480},
-                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+      VideoConfig::Create(kSbMediaVideoCodecVp9, {640, 480}, nalus_in_annex_b);
   ASSERT_TRUE(config_vp9.has_value());
 
   EXPECT_NE(*config_h264, *config_vp9);

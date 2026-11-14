@@ -14,9 +14,9 @@
 
 #include "starboard/shared/starboard/media/avc_util.h"
 
-#include <string.h>
-
-#include <type_traits>
+#include <algorithm>
+#include <iterator>
+#include <utility>
 
 #include "starboard/common/check_op.h"
 
@@ -31,69 +31,43 @@ constexpr uint8_t kSpsStartCode = 0x67;
 constexpr uint8_t kPpsStartCode = 0x68;
 constexpr uint8_t kAudStartCode = 0x09;
 
-bool StartsWithAnnexBHeader(const uint8_t* annex_b_data,
-                            size_t annex_b_data_size) {
+bool StartsWithAnnexBHeader(span<const uint8_t> annex_b_data) {
   static_assert(sizeof(kAnnexBHeader) == kAnnexBHeaderSizeInBytes,
                 "sizeof(kAnnexBHeader) doesn't match kAnnexBHeaderSizeInBytes");
 
-  if (annex_b_data_size < sizeof(kAnnexBHeader)) {
+  if (annex_b_data.size() < kAnnexBHeaderSizeInBytes) {
     return false;
   }
-  return memcmp(annex_b_data, kAnnexBHeader, sizeof(kAnnexBHeader)) == 0;
+  return std::equal(std::begin(kAnnexBHeader), std::end(kAnnexBHeader),
+                    annex_b_data.begin());
 }
 
-// UInt8Type can be "uint8_t", or "const uint8_t".
-template <typename UInt8Type>
-bool AdvanceToNextAnnexBHeader(UInt8Type** annex_b_data,
-                               size_t* annex_b_data_size) {
-  SB_CHECK(annex_b_data);
-  SB_CHECK(annex_b_data_size);
-
-  if (!StartsWithAnnexBHeader(*annex_b_data, *annex_b_data_size)) {
-    return false;
+// Returns the byte length (including the 4-byte Annex B start code) of the
+// first NALU in |annex_b_data|, or std::nullopt if |annex_b_data| does not
+// begin with an Annex B header.
+std::optional<size_t> GetFirstAnnexBNaluSize(span<const uint8_t> annex_b_data) {
+  if (!StartsWithAnnexBHeader(annex_b_data)) {
+    return std::nullopt;
   }
 
-  *annex_b_data += kAnnexBHeaderSizeInBytes;
-  *annex_b_data_size -= kAnnexBHeaderSizeInBytes;
-
-  while (*annex_b_data_size > 0) {
-    if (StartsWithAnnexBHeader(*annex_b_data, *annex_b_data_size)) {
-      return true;
+  for (size_t offset = kAnnexBHeaderSizeInBytes;
+       offset + kAnnexBHeaderSizeInBytes <= annex_b_data.size(); ++offset) {
+    if (StartsWithAnnexBHeader(annex_b_data.subspan(offset))) {
+      return offset;
     }
-    ++*annex_b_data;
-    --*annex_b_data_size;
   }
-  return true;
-}
-
-bool ExtractAnnexBNalu(const uint8_t** annex_b_data,
-                       size_t* annex_b_data_size,
-                       std::vector<uint8_t>* annex_b_nalu) {
-  SB_CHECK(annex_b_data);
-  SB_CHECK(annex_b_data_size);
-  SB_DCHECK(annex_b_nalu);
-
-  const uint8_t* saved_data = *annex_b_data;
-
-  if (!AdvanceToNextAnnexBHeader(annex_b_data, annex_b_data_size)) {
-    return false;
-  }
-
-  annex_b_nalu->assign(saved_data, *annex_b_data);
-  return true;
+  return annex_b_data.size();
 }
 
 }  // namespace
 
 // static
-// static
 std::optional<AvcParameterSets> AvcParameterSets::CreateFromAnnexB(
-    const uint8_t* data,
-    size_t size) {
-  if (size > 0 && !StartsWithAnnexBHeader(data, size)) {
+    span<const uint8_t> annex_b_data) {
+  if (!annex_b_data.empty() && !StartsWithAnnexBHeader(annex_b_data)) {
     return std::nullopt;
   }
-  if (size == 0) {
+  if (annex_b_data.empty()) {
     return AvcParameterSets(
         kAnnexB, /*parameter_sets=*/{}, /*first_sps_index=*/-1,
         /*first_pps_index=*/-1, /*combined_size_in_bytes=*/0,
@@ -106,24 +80,32 @@ std::optional<AvcParameterSets> AvcParameterSets::CreateFromAnnexB(
   size_t combined_size_in_bytes = 0;
   size_t combined_size_with_optionals_in_bytes = 0;
 
-  std::vector<uint8_t> nalu;
-  while (size > kAnnexBHeaderSizeInBytes &&
-         ExtractAnnexBNalu(&data, &size, &nalu)) {
-    if (nalu[kAnnexBHeaderSizeInBytes] == kSpsStartCode) {
+  while (annex_b_data.size() > kAnnexBHeaderSizeInBytes) {
+    std::optional<size_t> nalu_size = GetFirstAnnexBNaluSize(annex_b_data);
+    if (!nalu_size) {
+      break;
+    }
+    span<const uint8_t> nalu = annex_b_data.first(*nalu_size);
+    annex_b_data = annex_b_data.subspan(*nalu_size);
+    if (nalu.size() <= kAnnexBHeaderSizeInBytes) {
+      continue;
+    }
+    const uint8_t nalu_type = nalu[kAnnexBHeaderSizeInBytes];
+    if (nalu_type == kSpsStartCode) {
       if (first_sps_index == -1) {
         first_sps_index = static_cast<int>(parameter_sets.size());
       }
       combined_size_in_bytes += nalu.size();
-      parameter_sets.push_back(std::move(nalu));
-    } else if (nalu[kAnnexBHeaderSizeInBytes] == kPpsStartCode) {
+      parameter_sets.emplace_back(nalu.begin(), nalu.end());
+    } else if (nalu_type == kPpsStartCode) {
       if (first_pps_index == -1) {
         first_pps_index = static_cast<int>(parameter_sets.size());
       }
       combined_size_in_bytes += nalu.size();
-      parameter_sets.push_back(std::move(nalu));
-    } else if (nalu[kAnnexBHeaderSizeInBytes] == kIdrStartCode) {
+      parameter_sets.emplace_back(nalu.begin(), nalu.end());
+    } else if (nalu_type == kIdrStartCode) {
       break;
-    } else if (nalu[kAnnexBHeaderSizeInBytes] == kAudStartCode) {
+    } else if (nalu_type == kAudStartCode) {
       combined_size_with_optionals_in_bytes += nalu.size();
     }
   }
@@ -209,48 +191,40 @@ bool AvcParameterSets::operator!=(const AvcParameterSets& that) const {
   return !(*this == that);
 }
 
-bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
-                         size_t size,
-                         uint8_t* avcc_destination) {
-  if (size == 0) {
+bool ConvertAnnexBToAvcc(span<const uint8_t> annex_b_source,
+                         span<uint8_t> avcc_destination) {
+  if (avcc_destination.size() < annex_b_source.size()) {
+    return false;
+  }
+  if (annex_b_source.empty()) {
     return true;
   }
-
-  SB_DCHECK(annex_b_source);
-  SB_DCHECK(avcc_destination);
-
-  if (!StartsWithAnnexBHeader(annex_b_source, size)) {
+  if (!StartsWithAnnexBHeader(annex_b_source)) {
     return false;
   }
 
-  auto annex_b_source_size = size;
-  // |avcc_destination_end| exists only for the purpose of validation.
-  [[maybe_unused]] const auto avcc_destination_end = avcc_destination + size;
+  constexpr size_t kAvccLengthInBytes = kAnnexBHeaderSizeInBytes;
 
-  const uint8_t* last_source = annex_b_source;
+  while (!annex_b_source.empty()) {
+    std::optional<size_t> nalu_size = GetFirstAnnexBNaluSize(annex_b_source);
+    if (!nalu_size) {
+      return false;
+    }
 
-  const auto kAvccLengthInBytes = kAnnexBHeaderSizeInBytes;
-
-  while (AdvanceToNextAnnexBHeader(&annex_b_source, &annex_b_source_size)) {
-    SB_DCHECK_GE(static_cast<size_t>(annex_b_source - last_source),
-                 kAnnexBHeaderSizeInBytes);
-    SB_DCHECK_LT(avcc_destination, avcc_destination_end);
-
-    size_t payload_size =
-        annex_b_source - last_source - kAnnexBHeaderSizeInBytes;
+    span<const uint8_t> payload = annex_b_source.subspan(
+        kAnnexBHeaderSizeInBytes, *nalu_size - kAnnexBHeaderSizeInBytes);
+    const size_t payload_size = payload.size();
     avcc_destination[0] =
         static_cast<uint8_t>((payload_size & 0xff000000) >> 24);
     avcc_destination[1] = static_cast<uint8_t>((payload_size & 0xff0000) >> 16);
     avcc_destination[2] = static_cast<uint8_t>((payload_size & 0xff00) >> 8);
     avcc_destination[3] = static_cast<uint8_t>(payload_size & 0xff);
-    memcpy(avcc_destination + kAvccLengthInBytes,
-           last_source + kAnnexBHeaderSizeInBytes, payload_size);
-    avcc_destination += annex_b_source - last_source;
-    last_source = annex_b_source;
+    std::copy(
+        payload.begin(), payload.end(),
+        avcc_destination.subspan(kAvccLengthInBytes, payload_size).begin());
+    annex_b_source = annex_b_source.subspan(*nalu_size);
+    avcc_destination = avcc_destination.subspan(*nalu_size);
   }
-
-  SB_DCHECK_EQ(annex_b_source_size, 0U);
-  SB_DCHECK_EQ(avcc_destination, avcc_destination_end);
 
   return true;
 }
