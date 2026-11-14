@@ -4,7 +4,6 @@
 
 import("//copied_base/base/allocator/partition_allocator/partition_alloc.gni")
 import("//build/buildflag_header.gni")
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/logging.gni")
 
