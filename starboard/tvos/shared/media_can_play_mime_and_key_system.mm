@@ -15,6 +15,7 @@
 #import <AVFoundation/AVFoundation.h>
 
 #include <optional>
+#include <string_view>
 
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -34,9 +35,9 @@ const size_t kUrlPlayerMimeTypeLength = strlen(kUrlPlayerMimeType);
 const int64_t kDefaultAudioChannels = 2;
 
 bool IsAudioCodecSupportedByUrlPlayer(const starboard::MimeType& mime_type,
-                                      const std::string& codec) {
-  SbMediaAudioCodec audio_codec = starboard::GetAudioCodecFromString(
-      codec.c_str(), mime_type.subtype().c_str());
+                                      std::string_view codec) {
+  SbMediaAudioCodec audio_codec =
+      starboard::GetAudioCodecFromString(codec, mime_type.subtype());
   if (audio_codec != kSbMediaAudioCodecAac &&
       audio_codec != kSbMediaAudioCodecAc3 &&
       audio_codec != kSbMediaAudioCodecEac3) {

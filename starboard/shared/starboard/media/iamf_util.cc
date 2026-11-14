@@ -14,10 +14,7 @@
 
 #include "starboard/shared/starboard/media/iamf_util.h"
 
-#include <cctype>
-#include <cstdlib>
 #include <optional>
-#include <string>
 #include <string_view>
 #include <vector>
 
@@ -87,105 +84,74 @@ class BufferReader {
   std::string_view view_;
 };
 
-// Checks if |input| is a valid IAMF profile value, and stores the converted
-// value in |*profile| if so.
-bool StringToProfile(const std::string& input, uint32_t* profile) {
-  SB_DCHECK(profile);
-
+// Parses |input| as a 3-digit ASCII IAMF profile value (000..255).
+std::optional<uint32_t> ParseProfile(std::string_view input) {
   if (input.size() != 3) {
-    return false;
+    return std::nullopt;
   }
 
-  if (!std::isdigit(input[0]) || !std::isdigit(input[1]) ||
-      !std::isdigit(input[2])) {
-    return false;
+  const auto is_ascii_digit = [](char c) { return c >= '0' && c <= '9'; };
+  if (!is_ascii_digit(input[0]) || !is_ascii_digit(input[1]) ||
+      !is_ascii_digit(input[2])) {
+    return std::nullopt;
   }
 
-  uint32_t converted_val = static_cast<uint32_t>(std::atoi(input.c_str()));
+  uint32_t converted_val = static_cast<uint32_t>(input[0] - '0') * 100 +
+                           static_cast<uint32_t>(input[1] - '0') * 10 +
+                           static_cast<uint32_t>(input[2] - '0');
   if (converted_val > kIamfProfileMax) {
-    return false;
+    return std::nullopt;
   }
-  *profile = converted_val;
-  return true;
+  return converted_val;
+}
+
+std::optional<IamfSubstreamCodec> ParseSubstreamCodec(std::string_view codec) {
+  if (codec == "Opus") {
+    return kIamfSubstreamCodecOpus;
+  }
+  if (codec == "mp4a.40.2") {
+    return kIamfSubstreamCodecMp4a;
+  }
+  if (codec == "fLaC") {
+    return kIamfSubstreamCodecFlac;
+  }
+  if (codec == "ipcm") {
+    return kIamfSubstreamCodecIpcm;
+  }
+  return std::nullopt;
 }
 }  // namespace
 
 // static
-std::optional<IamfMimeUtil> IamfMimeUtil::Create(const std::string& mime_type) {
+std::optional<IamfMimeUtil> IamfMimeUtil::Create(std::string_view mime_type) {
   // Reference: Immersive Audio Model and Formats;
   //            v1.0.0
   //            6.3. Codecs Parameter String
   // (https://aomediacodec.github.io/iamf/v1.0.0-errata.html#codecsparameter)
-  if (mime_type.find("iamf") != 0) {
+  // Format: "iamf.<3-digit primary>.<3-digit additional>.<substream_codec>"
+  // where substream_codec is one of "Opus", "mp4a.40.2", "fLaC", or "ipcm".
+  constexpr std::string_view kIamfPrefix = "iamf.";
+  if (!StartsWith(mime_type, kIamfPrefix)) {
+    return std::nullopt;
+  }
+  mime_type.remove_prefix(kIamfPrefix.size());
+
+  // Need "<3-digit primary>.<3-digit additional>.<codec>" (at least 9 chars).
+  if (mime_type.size() < 9 || mime_type[3] != '.' || mime_type[7] != '.') {
     return std::nullopt;
   }
 
-  // 4   FOURCC string "iamf".
-  // +1  delimiting period.
-  // +3  primary_profile as 3 digit string.
-  // +1  delimiting period.
-  // +3  additional_profile as 3 digit string.
-  // +1  delimiting period.
-  // +9  The remaining string is one of "Opus", "mp4a.40.2", "fLaC", or "ipcm".
-  constexpr int kMaxIamfCodecIdLength = 22;
-  if (mime_type.size() > kMaxIamfCodecIdLength) {
+  std::optional<uint32_t> primary_profile =
+      ParseProfile(mime_type.substr(0, 3));
+  std::optional<uint32_t> additional_profile =
+      ParseProfile(mime_type.substr(4, 3));
+  std::optional<IamfSubstreamCodec> substream_codec =
+      ParseSubstreamCodec(mime_type.substr(8));
+  if (!primary_profile || !additional_profile || !substream_codec) {
     return std::nullopt;
   }
 
-  const std::vector<std::string> vec = SplitString(mime_type, '.');
-  // The mime type must be in 4 parts for all substreams other than AAC, which
-  // is 6 parts.
-  if (vec.size() != 4 && vec.size() != 6) {
-    return std::nullopt;
-  }
-
-  // The primary profile must be between 0 and 255 inclusive.
-  uint32_t primary_profile = 0;
-  if (!StringToProfile(vec[1], &primary_profile)) {
-    return std::nullopt;
-  }
-
-  // The additional profile must be between 0 and 255 inclusive.
-  uint32_t additional_profile = 0;
-  if (!StringToProfile(vec[2], &additional_profile)) {
-    return std::nullopt;
-  }
-
-  // The codec string should be one of "Opus", "mp4a", "fLaC", or "ipcm".
-  std::string codec = vec[3];
-  if ((codec != "Opus") && (codec != "mp4a") && (codec != "fLaC") &&
-      (codec != "ipcm")) {
-    return std::nullopt;
-  }
-
-  IamfSubstreamCodec substream_codec = kIamfSubstreamCodecUnknown;
-
-  // Only IAMF codec parameter strings with "mp4a" should be greater than 4
-  // elements.
-  if (codec == "mp4a") {
-    if (vec.size() != 6) {
-      return std::nullopt;
-    }
-
-    // The fields following "mp4a" should be "40" and "2" to signal AAC-LC.
-    if (vec[4] != "40" || vec[5] != "2") {
-      return std::nullopt;
-    }
-    substream_codec = kIamfSubstreamCodecMp4a;
-  } else {
-    if (vec.size() > 4) {
-      return std::nullopt;
-    }
-    if (codec == "Opus") {
-      substream_codec = kIamfSubstreamCodecOpus;
-    } else if (codec == "fLaC") {
-      substream_codec = kIamfSubstreamCodecFlac;
-    } else {
-      substream_codec = kIamfSubstreamCodecIpcm;
-    }
-  }
-
-  return IamfMimeUtil(primary_profile, additional_profile, substream_codec);
+  return IamfMimeUtil(*primary_profile, *additional_profile, *substream_codec);
 }
 
 IamfMimeUtil::IamfMimeUtil(uint32_t primary_profile,

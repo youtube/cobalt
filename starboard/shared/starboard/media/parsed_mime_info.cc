@@ -17,6 +17,7 @@
 #include <cmath>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -45,7 +46,7 @@ SbMediaTransferId GetTransferIdFromString(const std::string& transfer_id) {
 }
 
 bool ParseAudioInfo(const MimeType& mime_type,
-                    const std::string& codec,
+                    std::string_view codec,
                     ParsedMimeInfo::AudioCodecInfo* audio_info);
 
 std::optional<ParsedMimeInfo::VideoCodecInfo> ParseVideoInfo(
@@ -115,13 +116,13 @@ ParsedMimeInfo::ParsedMimeInfo(MimeType mime_type,
 namespace {
 
 bool ParseAudioInfo(const MimeType& mime_type,
-                    const std::string& codec,
+                    std::string_view codec,
                     ParsedMimeInfo::AudioCodecInfo* audio_info) {
   SB_CHECK(audio_info);
   SB_CHECK_EQ(audio_info->codec, kSbMediaAudioCodecNone);
 
   SbMediaAudioCodec audio_codec =
-      GetAudioCodecFromString(codec.c_str(), mime_type.subtype().c_str());
+      GetAudioCodecFromString(codec, mime_type.subtype());
   if (audio_codec == kSbMediaAudioCodecNone) {
     return false;
   }
