@@ -243,6 +243,7 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltPreserveTrivial3DTransform);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kCobaltSkipHiddenMediaControlsCreation);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipMediaProgressLayoutUpdate);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltStopMseIdleProgressTimer);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kEvictMemoryCacheOnCriticalMemoryPressure);
 #endif  // BUILDFLAG(IS_COBALT)

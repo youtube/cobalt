@@ -47,8 +47,10 @@
 #if BUILDFLAG(IS_COBALT)
 #include "base/test/scoped_feature_list.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/platform/web_media_source.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/html/html_body_element.h"
+#include "third_party/blink/renderer/core/html/media/media_source_attachment.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #endif  // BUILDFLAG(IS_COBALT)
@@ -484,6 +486,17 @@ class HTMLMediaElementTest : public testing::TestWithParam<MediaTestParam> {
 #if BUILDFLAG(IS_COBALT)
   void ProgressEventTimerFired() { Media()->ProgressEventTimerFired(); }
   void NoneSupported() { Media()->NoneSupported(String()); }
+  bool IsProgressEventTimerActive() const {
+    return Media()->progress_event_timer_.IsActive();
+  }
+  void StartProgressEventTimer() { Media()->StartProgressEventTimer(); }
+  void DidLoadingProgressFromPipeline() {
+    Media()->DidLoadingProgressFromPipeline();
+  }
+  void SetMediaSourceAttachmentForTest(
+      scoped_refptr<MediaSourceAttachment> attachment) {
+    Media()->media_source_attachment_ = std::move(attachment);
+  }
 #endif  // BUILDFLAG(IS_COBALT)
 
  protected:
@@ -2888,6 +2901,80 @@ TEST_P(HTMLMediaElementTest,
 
   ProgressEventTimerFired();
   EXPECT_TRUE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
+}
+
+namespace {
+
+class StubMediaSourceAttachment final : public MediaSourceAttachment {
+ public:
+  StubMediaSourceAttachment() = default;
+
+  void Unregister() override {}
+  MediaSourceTracer* StartAttachingToMediaElement(HTMLMediaElement*,
+                                                  bool* success) override {
+    *success = true;
+    return nullptr;
+  }
+  void CompleteAttachingToMediaElement(
+      MediaSourceTracer*,
+      std::unique_ptr<WebMediaSource>) override {}
+  void Close(MediaSourceTracer*) override {}
+  WebTimeRanges BufferedInternal(MediaSourceTracer*) const override {
+    return WebTimeRanges();
+  }
+  WebTimeRanges SeekableInternal(MediaSourceTracer*) const override {
+    return WebTimeRanges();
+  }
+  void OnTrackChanged(MediaSourceTracer*, TrackBase*) override {}
+  void OnElementTimeUpdate(double) override {}
+  void OnElementError() override {}
+  void OnElementContextDestroyed() override {}
+
+ private:
+  ~StubMediaSourceAttachment() override = default;
+};
+
+}  // namespace
+
+TEST_P(HTMLMediaElementTest,
+       CobaltStopMseIdleProgressTimerStopsAndRestartsMseOnly) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kCobaltStopMseIdleProgressTimer);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  test::RunPendingTasks();
+  SetReadyState(HTMLMediaElement::kHaveEnoughData);
+  SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
+
+  // 1. MSE attachment: active while DidLoadingProgress() is true, stops when
+  // DidLoadingProgress() is false, and restarts on
+  // DidLoadingProgressFromPipeline().
+  auto mse_attachment = base::MakeRefCounted<StubMediaSourceAttachment>();
+  SetMediaSourceAttachmentForTest(mse_attachment);
+  StartProgressEventTimer();
+  ASSERT_TRUE(IsProgressEventTimerActive());
+
+  EXPECT_CALL(*MockMediaPlayer(), DidLoadingProgress()).WillOnce(Return(true));
+  ProgressEventTimerFired();
+  EXPECT_TRUE(IsProgressEventTimerActive());
+
+  EXPECT_CALL(*MockMediaPlayer(), DidLoadingProgress()).WillOnce(Return(false));
+  ProgressEventTimerFired();
+  EXPECT_FALSE(IsProgressEventTimerActive());
+
+  DidLoadingProgressFromPipeline();
+  EXPECT_TRUE(IsProgressEventTimerActive());
+
+  // 2. Non-MSE element: keeps progress_event_timer_ running when
+  // DidLoadingProgress() is false so 'stalled' events still fire after 3s.
+  SetMediaSourceAttachmentForTest(nullptr);
+  ASSERT_TRUE(IsProgressEventTimerActive());
+
+  EXPECT_CALL(*MockMediaPlayer(), DidLoadingProgress()).WillOnce(Return(false));
+  ProgressEventTimerFired();
+  EXPECT_TRUE(IsProgressEventTimerActive());
 }
 #endif  // BUILDFLAG(IS_COBALT)
 

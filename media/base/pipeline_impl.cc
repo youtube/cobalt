@@ -5,6 +5,7 @@
 #include "media/base/pipeline_impl.h"
 
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <utility>
 
@@ -98,6 +99,9 @@ class PipelineImpl::RendererWrapper final : public DemuxerHost,
   base::TimeDelta GetMediaTime() const;
   Ranges<base::TimeDelta> GetBufferedTimeRanges() const;
   bool DidLoadingProgress();
+  void SetLoadingProgressNotificationsEnabled(bool enabled) {
+    notify_loading_progress_enabled_.store(enabled, std::memory_order_relaxed);
+  }
   PipelineStatistics GetStatistics() const;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb);
 
@@ -241,6 +245,7 @@ class PipelineImpl::RendererWrapper final : public DemuxerHost,
 
   // State shared between main and media thread.
   SharedState shared_state_;
+  std::atomic<bool> notify_loading_progress_enabled_{false};
 
   // Current state of the pipeline.
   State state_;
@@ -696,9 +701,21 @@ void PipelineImpl::RendererWrapper::OnBufferedTimeRangesChanged(
     const Ranges<base::TimeDelta>& ranges) {
   // TODO(alokp): Add thread DCHECK after ensuring that all Demuxer
   // implementations call DemuxerHost on the media thread.
-  base::AutoLock auto_lock(shared_state_lock_);
-  shared_state_.did_loading_progress = true;
-  shared_state_.buffered_time_ranges = ranges;
+  bool notify_loading_progress = false;
+  const bool notifications_enabled =
+      notify_loading_progress_enabled_.load(std::memory_order_relaxed);
+  {
+    base::AutoLock auto_lock(shared_state_lock_);
+    notify_loading_progress =
+        notifications_enabled && !shared_state_.did_loading_progress;
+    shared_state_.did_loading_progress = true;
+    shared_state_.buffered_time_ranges = ranges;
+  }
+  if (notify_loading_progress) {
+    main_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&PipelineImpl::OnLoadingProgress, weak_pipeline_));
+  }
 }
 
 void PipelineImpl::RendererWrapper::SetDuration(base::TimeDelta duration) {
@@ -1575,6 +1592,11 @@ bool PipelineImpl::DidLoadingProgress() {
   return renderer_wrapper_->DidLoadingProgress();
 }
 
+void PipelineImpl::SetLoadingProgressNotificationsEnabled(bool enabled) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  renderer_wrapper_->SetLoadingProgressNotificationsEnabled(enabled);
+}
+
 PipelineStatistics PipelineImpl::GetStatistics() const {
   DCHECK(thread_checker_.CalledOnValidThread());
   return renderer_wrapper_->GetStatistics();
@@ -1706,6 +1728,14 @@ void PipelineImpl::OnVideoFrameRateChange(std::optional<int> fps) {
 
   DCHECK(client_);
   client_->OnVideoFrameRateChange(fps);
+}
+
+void PipelineImpl::OnLoadingProgress() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (!IsRunning() || !client_) {
+    return;
+  }
+  client_->OnLoadingProgress();
 }
 
 void PipelineImpl::OnAudioConfigChange(const AudioDecoderConfig& config) {

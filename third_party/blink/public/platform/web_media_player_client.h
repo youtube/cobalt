@@ -61,6 +61,8 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   virtual std::string GetMaxVideoResolution() const {return "";}
 #endif //BUILDFLAG(USE_STARBOARD_MEDIA)
 
+  virtual void DidLoadingProgressFromPipeline() {}
+
  protected:
   ~WebMediaPlayerClient() = default;
 

@@ -118,6 +118,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline {
   Ranges<base::TimeDelta> GetBufferedTimeRanges() const override;
   base::TimeDelta GetMediaDuration() const override;
   bool DidLoadingProgress() override;
+  void SetLoadingProgressNotificationsEnabled(bool enabled) override;
   PipelineStatistics GetStatistics() const override;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
 
@@ -161,6 +162,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline {
   void OnVideoPipelineInfoChange(const VideoPipelineInfo& info);
   void OnRemotePlayStateChange(MediaStatus::State state);
   void OnVideoFrameRateChange(std::optional<int> fps);
+  void OnLoadingProgress();
 
   // Task completion callbacks from RendererWrapper.
   void OnSeekDone(bool is_suspended);

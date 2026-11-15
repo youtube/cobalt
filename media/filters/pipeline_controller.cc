@@ -464,6 +464,11 @@ void PipelineController::SetRenderMutedAudio(bool render_muted_audio) {
   pipeline_->SetRenderMutedAudio(render_muted_audio);
 }
 
+void PipelineController::SetLoadingProgressNotificationsEnabled(bool enabled) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  pipeline_->SetLoadingProgressNotificationsEnabled(enabled);
+}
+
 void PipelineController::OnTrackChangeComplete() {
   DCHECK(thread_checker_.CalledOnValidThread());
 
