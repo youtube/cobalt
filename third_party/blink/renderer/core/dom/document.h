@@ -2735,6 +2735,9 @@ class CORE_EXPORT Document : public ContainerNode,
   Member<DocumentMarkerController> markers_;
 
   bool should_update_selection_after_layout_ = false;
+#if BUILDFLAG(IS_COBALT)
+  bool last_notified_focus_was_editable_ = false;
+#endif
 
   WeakMember<Element> css_target_;
   bool css_target_is_selector_fragment_ = false;

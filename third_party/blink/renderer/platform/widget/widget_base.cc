@@ -1275,6 +1275,10 @@ void WidgetBase::UpdateTextInputStateInternal(bool show_virtual_keyboard,
 }
 
 void WidgetBase::ClearTextInputState() {
+#if BUILDFLAG(IS_COBALT)
+  had_non_none_text_input_ =
+      (text_input_type_ != ui::TextInputType::TEXT_INPUT_TYPE_NONE);
+#endif
   text_input_info_ = blink::WebTextInputInfo();
   text_input_type_ = ui::TextInputType::TEXT_INPUT_TYPE_NONE;
   text_input_mode_ = ui::TextInputMode::TEXT_INPUT_MODE_DEFAULT;
@@ -1292,6 +1296,16 @@ void WidgetBase::ShowVirtualKeyboardOnElementFocus() {
   // it only when an input field is explicitly tapped rather than when an
   // element is focused.
   UpdateTextInputState();
+#elif BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltLightweightNonEditableFocus) &&
+      !had_non_none_text_input_ &&
+      GetTextInputType() == ui::TextInputType::TEXT_INPUT_TYPE_NONE) {
+    UpdateTextInputState();
+  } else {
+    had_non_none_text_input_ = false;
+    ShowVirtualKeyboard();
+  }
 #else
   ShowVirtualKeyboard();
 #endif
