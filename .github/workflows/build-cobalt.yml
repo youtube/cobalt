@@ -39,8 +39,9 @@ jobs:
       - name: Install depot_tools
         run: |
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
+          # Creates python3_bin_reldir.txt so the gn/autoninja wrappers can run.
+          /opt/depot_tools/ensure_bootstrap
           echo "/opt/depot_tools" >> "$GITHUB_PATH"
-          echo "DEPOT_TOOLS_UPDATE=0" >> "$GITHUB_ENV"
 
       - name: Clone Cobalt 27.lts.10
         run: |
