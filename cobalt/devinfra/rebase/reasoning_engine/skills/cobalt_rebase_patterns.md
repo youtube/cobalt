@@ -274,7 +274,49 @@ Chromium milestones frequently introduce Java classes annotated with `@NativeMet
    - There is **NO standalone target** named `generate_jni("libchrobalt__jni_registration")` or `action("libchrobalt__jni_registration")` in `cobalt/android/BUILD.gn`.
    - When `jni_zero.py generate-final` runs, it checks whether all Java classes with native methods referenced by `cobalt_apk` have registered native methods. If unlinked classes are found, it asserts unless stub generation is enabled.
 
-3. **Resolution (Default): Link the Real C++ Implementation into `libchrobalt`**:
+3. **Step 0 (MANDATORY before linking anything): Ask why the Java class is in `cobalt_apk` at all**:
+   - `cobalt_apk` has **no R8/ProGuard and no resource shrinking**, even in gold. Every transitive `android_library` dep ships its full dex AND its full `java_resources` (all locales). A single new upstream Java dep can add tens of MiB to a TV package.
+   - For each `Excess Java files` entry, trace the Java dependency path first:
+     `gn path out/<dir> //cobalt/android:cobalt_apk //<dir>:<java_target>` (or read the `deps` chain with `TOOL_READ_FILE` on the intermediate `BUILD.gn` files). Then use `TOOL_UPSTREAM_LOG` / `TOOL_CHROMIUM_CL_DIFF` on the `BUILD.gn` that introduced the new edge.
+   - Decide based on **whether Cobalt's own Java actually uses the class that introduced the edge**:
+     * **Cobalt uses it** → follow item 4 below (link the real implementation).
+     * **Cobalt does NOT use it** (the new dep hangs off an upstream `internal_java`/`factory_java` library that Cobalt only partially uses) → do NOT link natives. Instead cut the Java edge **on the Cobalt side (zero upstream edits)**: define a narrow `generate_jni` + `android_library` in `cobalt/android/BUILD.gn` referencing only the upstream `.java` files Cobalt actually needs via `//...` paths, and point Cobalt's `android_library` at that target while leaving upstream `BUILD.gn` and C++ files untouched so future rolls never conflict. (`jni_zero` keys `jni_targets` metadata by `rebase_path(sources, root_build_dir)` — the `.java` path, not the GN target name — so Cobalt's Java `generate_jni` and upstream's C++ `generate_jni` align automatically, and `remove_uncalled_jni = true` on `libchrobalt` drops the unused siblings.) Only split the upstream `BUILD.gn` if package-private Java access across split targets makes a Cobalt-side target impossible.
+     * **Maintaining Cobalt-side narrow Java targets on later rolls**: if a later roll relocates one of the referenced `//.../*.java` files or adds an `import` to it (producing a GN missing-source or `javac` symbol error on e.g. `:cobalt_compositor_view_java`), update `sources` or minimal `deps` on that Cobalt-side target — **NEVER** switch Cobalt back to the bloated upstream `:factory_java` / `:internal_java` target to silence the error.
+   - **Always report the size delta** of `out/<dir>/apks/Cobalt.apk` (and `classes*.dex` / `resources.arsc` / `Cobalt.apk.R.txt` line count) before vs after. If the APK grows by more than 1 MiB, the fix is wrong or needs a `[HUMAN_REVIEW_REQUIRED]` flag naming the size delta and the new dep chain.
+   - **Real Example (M149.7802, b/555766579)**: https://crrev.com/c/7763465 made `//components/thin_webview/internal:internal_java` depend on `//components/browser_ui/modaldialog/android:java`. Via `browser_ui/widget` that pulled `//chrome/browser/ui/android/strings` (22 MiB of translated Chrome UI strings), `//components/browser_ui/strings` (9.6 MiB), Material Design and ~30 androidx libraries into `Cobalt.apk` (82.6 → 107.7 MiB). Cobalt's PiP only uses `CompositorViewFactory`/`CompositorViewImpl`; `ThinWebViewImpl` (the only user of ModalDialog) is never instantiated.
+     ```gn
+     # [BAD] AI (M149): satisfied the JNI assertion by linking natives and a
+     # stub file, keeping 25 MiB of dead Java/resources in the APK.
+     ":chrome_flags_jni_stubs",
+     "//components/browser_ui/modaldialog/android",
+     "//components/browser_ui/notifications/android",
+     "//components/offline_items_collection/core",
+
+     # [GOOD] cobalt/android/BUILD.gn: define a narrow target on the Cobalt
+     # side referencing only the two .java files Cobalt uses — zero upstream
+     # BUILD.gn or C++ edits, so future rebases never conflict.
+     generate_jni("cobalt_compositor_view_jni") {
+       sources = [ "//components/thin_webview/internal/java/src/org/chromium/components/thinwebview/internal/CompositorViewImpl.java" ]
+     }
+     android_library("cobalt_compositor_view_java") {
+       srcjar_deps = [ ":cobalt_compositor_view_jni" ]
+       sources = [
+         "//components/thin_webview/internal/java/src/org/chromium/components/thinwebview/internal/CompositorViewImpl.java",
+         "//components/thin_webview/java/src/org/chromium/components/thinwebview/CompositorViewFactory.java",
+       ]
+       deps = [
+         "//build/android:build_java",
+         "//components/thin_webview:java",
+         "//third_party/jni_zero:jni_zero_java",
+         "//ui/android:ui_java",
+       ]
+     }
+     # cobalt/android/BUILD.gn -- cobalt_pip_java
+     ":cobalt_compositor_view_java",   # was //components/thin_webview:factory_java
+     ```
+     Result: Cobalt.apk 107.73 → 82.42 MiB; zero upstream files modified; no extra natives or stubs needed.
+
+4. **Resolution when Cobalt really uses the class: Link the Real C++ Implementation into `libchrobalt`**:
    - For each file listed under `Excess Java files`, find the C++ `generate_jni` target and the `source_set` that implements its native methods (`TOOL_GREP: <ClassName>_jni.h`), and add that implementation target to the `libchrobalt` deps in `cobalt/android/BUILD.gn`. Add a comment naming the upstream CL that pulled the Java class in.
    - If the upstream implementation target drags in heavy deps that Cobalt strips (or creates a dependency cycle), add a minimal Cobalt-only target under `if (is_cobalt)` next to it that contains just the JNI C++ side, and depend on that instead.
    - Real Example (`cobalt/android/BUILD.gn` and `components/permissions/android/BUILD.gn`, M143.7471, Human #12591):
@@ -315,12 +357,12 @@ Chromium milestones frequently introduce Java classes annotated with `@NativeMet
        public_deps += [ "//components/permissions/android:core" ]
      }
      ```
-   - Why the carve-out is needed: linking the full `//components/permissions` target into `libchrobalt` creates a circular dependency and pulls in code Cobalt strips. The carve-out is a direct consequence of NOT stubbing (item 4): once you choose to link the real JNI implementation, you will often have to split out a minimal target like this.
+   - Why the carve-out is needed: linking the full `//components/permissions` target into `libchrobalt` creates a circular dependency and pulls in code Cobalt strips. The carve-out is a direct consequence of NOT stubbing (item 5): once you choose to link the real JNI implementation, you will often have to split out a minimal target like this.
    - A carve-out always has two halves. Do both, or you get duplicate symbols (files compiled in two targets) or missing symbols (files removed but no dep added):
      1. Add the Cobalt-only minimal `source_set` under `if (is_cobalt)` with just the JNI implementation files and their direct deps.
      2. In the original target, under `if (is_cobalt && is_android)`, `sources -=` those files and `public_deps +=` the new target so existing dependents still get the symbols.
 
-4. **Last Resort Only: `add_stubs_for_missing_jni = true`, Always Flagged**:
+5. **Last Resort Only: `add_stubs_for_missing_jni = true`, Always Flagged**:
    - `add_stubs_for_missing_jni = true` makes `jni_zero` generate empty native stubs so the assertion passes. The build succeeds, but any Java call into those methods at runtime reaches a stub with no real logic. This is a global bypass that hides missing functionality, so it is NOT an acceptable default (see `gn_healing.md` Rule 6).
    - Use it only if linking the real implementation is impossible (for example, the implementation depends on code Cobalt fundamentally cannot build). When you do, you MUST add a `[HUMAN_REVIEW_REQUIRED]` flag listing every Java class being stubbed and why the real target could not be linked:
      ```gn
