@@ -20,10 +20,12 @@
 #include <android/native_window_jni.h>
 #include <jni.h>
 
+#include <atomic>
 #include <mutex>
 #include <vector>
 
 #include "cobalt/android/jni_headers/VideoSurfaceView_jni.h"
+#include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/no_destructor.h"
@@ -51,6 +53,10 @@ jni_zero::ScopedJavaGlobalRef<jobject>& GetGlobalVideoSurface() {
 ANativeWindow* g_native_video_window = nullptr;
 // Global video surface pointer holder.
 VideoSurfaceHolder* g_video_surface_holder = nullptr;
+// Optional observer for unit tests.
+std::atomic<VideoSurfaceHolder::TestObserver*> g_test_observer{nullptr};
+// True while the video surface is hidden by SetVideoSurfaceVisible(false).
+std::atomic_bool g_video_surface_hidden{false};
 
 void ClearNativeWindow(void* raw_context) {
   ANativeWindow* native_window = static_cast<ANativeWindow*>(raw_context);
@@ -158,9 +164,47 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     ANativeWindow_release(g_native_video_window);
     g_native_video_window = NULL;
   }
+  // A new surface is visible, and the old one is gone.
+  g_video_surface_hidden.store(false);
   if (surface) {
     GetGlobalVideoSurface().Reset(env, surface);
     g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+  }
+}
+
+// static
+void VideoSurfaceHolder::SetTestObserverForTesting(TestObserver* observer) {
+  g_video_surface_hidden.store(false);
+  g_test_observer.store(observer);
+}
+
+// static
+void VideoSurfaceHolder::SetVideoSurfaceHolderForTesting(
+    VideoSurfaceHolder* holder) {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  g_video_surface_holder = holder;
+}
+
+// static
+bool VideoSurfaceHolder::SetVideoSurfaceForTestingIfNone(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobject>& surface) {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  if (GetGlobalVideoSurface()) {
+    return false;
+  }
+  GetGlobalVideoSurface().Reset(env, surface.obj());
+  return true;
+}
+
+// static
+void VideoSurfaceHolder::RemoveVideoSurfaceForTesting(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobject>& surface) {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  if (GetGlobalVideoSurface() &&
+      env->IsSameObject(GetGlobalVideoSurface().obj(), surface.obj())) {
+    GetGlobalVideoSurface().Reset();
   }
 }
 
@@ -175,16 +219,30 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
 
 jni_zero::ScopedJavaLocalRef<jobject>
 VideoSurfaceHolder::AcquireVideoSurface() {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder != NULL) {
-    return {};
+  jni_zero::ScopedJavaLocalRef<jobject> surface;
+  {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    if (g_video_surface_holder != NULL) {
+      return {};
+    }
+    if (!GetGlobalVideoSurface()) {
+      return {};
+    }
+    g_video_surface_holder = this;
+    JNIEnv* env = jni_zero::AttachCurrentThread();
+    surface =
+        jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
   }
-  if (!GetGlobalVideoSurface()) {
-    return {};
+  if (!ManagesParkedCodecAndSurfaceVisibility()) {
+    // Neither does anything unless a previous holder parked a codec or hid the
+    // surface, see |kMediaReuseVideoCodec|. Both are done without holding the
+    // video surface mutex, as they can take a while.
+    MediaCodecBridge::DiscardParkedVideoCodec();
+    if (g_video_surface_hidden.load()) {
+      SetVideoSurfaceVisible(true);
+    }
   }
-  g_video_surface_holder = this;
-  JNIEnv* env = jni_zero::AttachCurrentThread();
-  return jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
+  return surface;
 }
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
@@ -194,11 +252,35 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
   }
 }
 
+bool VideoSurfaceHolder::IsVideoSurfaceHeldByAnotherHolder() const {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  return g_video_surface_holder && g_video_surface_holder != this;
+}
+
 void VideoSurfaceHolder::CleanUpVideoSurface(
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
   std::lock_guard lock(*GetViewSurfaceMutex());
+  CleanUpVideoSurfaceLocked(gpu_provider);
+}
+
+bool VideoSurfaceHolder::TryCleanUpVideoSurface(
+    SbDecodeTargetGraphicsContextProvider* gpu_provider) {
+  std::unique_lock lock(*GetViewSurfaceMutex(), std::try_to_lock);
+  if (!lock.owns_lock()) {
+    return false;
+  }
+  CleanUpVideoSurfaceLocked(gpu_provider);
+  return true;
+}
+
+void VideoSurfaceHolder::CleanUpVideoSurfaceLocked(
+    SbDecodeTargetGraphicsContextProvider* gpu_provider) {
+  if (auto* observer = g_test_observer.load()) {
+    observer->OnCleanUpVideoSurface();
+    return;
+  }
 
   if (!g_native_video_window) {
     SB_LOG(INFO) << "Tried to clean up video window when it was null.";
@@ -211,10 +293,49 @@ void VideoSurfaceHolder::CleanUpVideoSurface(
   SB_LOG(INFO) << "Video surface has been cleared.";
 }
 
+void VideoSurfaceHolder::SetVideoSurfaceVisible(bool visible) {
+  g_video_surface_hidden.store(!visible);
+  if (auto* observer = g_test_observer.load()) {
+    observer->OnSetVideoSurfaceVisible(visible);
+    return;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+  if (!env) {
+    SB_LOG(INFO)
+        << "Tried to set video window visibility when JNIEnv was null.";
+    return;
+  }
+
+  Java_VideoSurfaceView_setVideoSurfaceVisible(env, visible);
+}
+
+void VideoSurfaceHolder::ShowVideoSurfaceWithNextFrame() {
+  g_video_surface_hidden.store(false);
+  if (auto* observer = g_test_observer.load()) {
+    observer->OnShowVideoSurfaceWithNextFrame();
+    return;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+  if (!env) {
+    SB_LOG(INFO)
+        << "Tried to show video window with next frame when JNIEnv was null.";
+    return;
+  }
+
+  Java_VideoSurfaceView_showVideoSurfaceWithNextFrame(env);
+}
+
 void VideoSurfaceHolder::ResetVideoSurface() {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
   std::lock_guard lock(*GetViewSurfaceMutex());
+
+  if (auto* observer = g_test_observer.load()) {
+    observer->OnResetVideoSurface();
+    return;
+  }
 
   JNIEnv* env = AttachCurrentThread();
   if (!env) {

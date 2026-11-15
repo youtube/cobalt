@@ -14,15 +14,21 @@
 
 #include "starboard/android/shared/media_codec_video_decoder.h"
 
+#include <android/api-level.h>
+
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <deque>
+#include <memory>
 #include <mutex>
+#include <string>
+#include <thread>
 #include <vector>
 
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/fake_media_codec.h"
+#include "starboard/android/shared/video_window.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -66,13 +72,16 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
                      bool enable_flush_during_seek = false) {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
     fake_factory_ = factory.get();  // Save raw pointer before moving!
+    codec_flush_count_ = factory->codec_flush_count();
+    factory->set_reusable_video_codec_count(reusable_video_codec_count_);
 
     MediaCodecVideoDecoder::StreamConfig stream_config{
         initial_stream_info ? *initial_stream_info : kDefaultVideoStreamInfo,
         /*drm_system=*/kSbDrmSystemInvalid, kSbPlayerOutputModePunchOut,
         /*decode_target_graphics_context_provider=*/
         &fake_graphics_context_provider_,
-        /*surface_view=*/dummy_surface_.obj(), max_video_capabilities};
+        /*surface_view=*/use_own_surface_ ? dummy_surface_.obj() : nullptr,
+        max_video_capabilities};
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
@@ -91,14 +100,25 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     // Setup sink to avoid crashes in Tick() on decoder thread
     auto sink = decoder_->GetSink();
     ASSERT_NE(sink, nullptr);
-    sink->SetRenderCB(
-        [this](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {
-          std::lock_guard lock(callback_mutex_);
-          render_count_++;
-          if (on_render_cb_) {
-            on_render_cb_();
-          }
-        });
+    sink->SetRenderCB([this](
+                          const VideoRendererSink::DrawFrameCB& draw_frame_cb) {
+      std::lock_guard lock(callback_mutex_);
+      render_count_++;
+      if (on_render_cb_) {
+        on_render_cb_();
+      }
+      while (!frames_to_draw_.empty()) {
+        scoped_refptr<VideoFrame> frame = std::move(frames_to_draw_.front());
+        frames_to_draw_.pop_front();
+        draw_frame_cb(frame, frame->timestamp() * 1000);
+      }
+    });
+  }
+
+  // Makes the sink draw |frame| the next time the decoder renders.
+  void QueueFrameForDraw(const scoped_refptr<VideoFrame>& frame) {
+    std::lock_guard lock(callback_mutex_);
+    frames_to_draw_.push_back(frame);
   }
 
   scoped_refptr<InputBuffer> CreateDummyVideoInputBuffer(
@@ -146,8 +166,16 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   int need_more_input_count_ = 0;
   int render_count_ = 0;
   std::function<void()> on_render_cb_;
+  std::deque<scoped_refptr<VideoFrame>> frames_to_draw_;
+  // When false, the decoder renders to the shared video surface instead of a
+  // surface of its own.
+  bool use_own_surface_ = true;
+  // The number of codecs the factory reports as reused.
+  int reusable_video_codec_count_ = 0;
   JobQueue job_queue_;
   FakeMediaCodecFactory* fake_factory_ = nullptr;
+  // Outlives |decoder_|, which owns the factory and its codecs.
+  std::shared_ptr<const std::atomic<int>> codec_flush_count_;
   // Punch-out decoders clean up the global video window on destruction, which
   // requires a provider when the test activity's video surface exists.
   SbDecodeTargetGraphicsContextProvider fake_graphics_context_provider_{
@@ -413,6 +441,353 @@ TEST_F(MediaCodecVideoDecoderTest, FlushSeekSameColorKeepsCodec) {
 
   EXPECT_EQ(fake_factory_->video_codec_create_count(), created);
   EXPECT_FALSE(error_called_);
+}
+
+// Records how decoders handle the shared video surface, instead of letting them
+// change it.
+class TestVideoSurfaceObserver : public VideoSurfaceHolder::TestObserver {
+ public:
+  TestVideoSurfaceObserver() {
+    VideoSurfaceHolder::SetTestObserverForTesting(this);
+  }
+  ~TestVideoSurfaceObserver() override {
+    VideoSurfaceHolder::SetTestObserverForTesting(nullptr);
+  }
+
+  void OnCleanUpVideoSurface() override { clean_up_count_++; }
+  void OnSetVideoSurfaceVisible(bool visible) override {
+    std::lock_guard lock(mutex_);
+    visibility_changes_.push_back(visible);
+  }
+  void OnShowVideoSurfaceWithNextFrame() override {
+    show_with_next_frame_count_++;
+  }
+
+  int clean_up_count() const { return clean_up_count_.load(); }
+  int show_with_next_frame_count() const {
+    return show_with_next_frame_count_.load();
+  }
+  std::vector<bool> visibility_changes() const {
+    std::lock_guard lock(mutex_);
+    return visibility_changes_;
+  }
+
+ private:
+  std::atomic<int> clean_up_count_{0};
+  std::atomic<int> show_with_next_frame_count_{0};
+  mutable std::mutex mutex_;
+  std::vector<bool> visibility_changes_;
+};
+
+// Tests of |kMediaReuseVideoCodec|. The decoders render to the shared video
+// surface, as only codecs connected to it can be reused.
+class MediaCodecVideoDecoderReuseTest : public MediaCodecVideoDecoderTest {
+ protected:
+  // Android 10, which the setting needs to hide and show the video surface.
+  static constexpr int kMinApiLevel = 29;
+  // Longer than the time a reused codec is given to produce output.
+  static constexpr int kReusedCodecTimeoutMs = 2'300;
+
+  void SetUp() override {
+    use_own_surface_ = false;
+    surface_was_set_ = VideoSurfaceHolder::SetVideoSurfaceForTestingIfNone(
+        AttachCurrentThread(), dummy_surface_);
+  }
+
+  void TearDown() override {
+    decoder_.reset();
+    if (surface_was_set_) {
+      VideoSurfaceHolder::RemoveVideoSurfaceForTesting(AttachCurrentThread(),
+                                                       dummy_surface_);
+    }
+  }
+
+  static bool IsApiLevelSupported() {
+    return android_get_device_api_level() >= kMinApiLevel;
+  }
+
+  static ExperimentalFeatures Features(
+      std::initializer_list<ExperimentalFeatureKey<bool>> keys) {
+    ExperimentalFeatures::Map settings;
+    for (const auto& key : keys) {
+      settings.emplace(std::string(key.key()), int64_t{1});
+    }
+    return ExperimentalFeatures(std::move(settings));
+  }
+
+  void CreateDecoderWithFeatures(
+      std::initializer_list<ExperimentalFeatureKey<bool>> keys,
+      bool enable_flush_during_seek = false) {
+    CreateDecoder(/*max_video_capabilities=*/"",
+                  /*initial_stream_info=*/nullptr, Features(keys),
+                  enable_flush_during_seek);
+  }
+
+  // Draws every frame the decoder outputs.
+  void InitializeDecoderAndDrawFrames() {
+    decoder_->Initialize(
+        [this](VideoDecoder::Status status,
+               const scoped_refptr<VideoFrame>& frame) {
+          if (frame && !frame->is_end_of_stream()) {
+            QueueFrameForDraw(frame);
+          }
+        },
+        [this](SbPlayerError error, const std::string& msg) {
+          error_called_ = true;
+        });
+  }
+
+  bool reuse_requested() const {
+    auto options = fake_factory_->last_video_platform_options();
+    return options && options->enable_reuse_video_codec;
+  }
+
+  // Decodes one frame, which is then drawn.
+  void DecodeAndDrawFrame(int index, int64_t timestamp) {
+    FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+    ASSERT_NE(fake_codec, nullptr);
+    fake_codec->SimulateInputBufferAvailable(index);
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(timestamp, 1024)});
+    ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
+    fake_codec->ConsumeQueuedInputs();
+    fake_codec->SimulateOutputAvailable(index, 0, 0, timestamp, 1024);
+    ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+    auto released = fake_codec->ConsumeReleasedOutputs();
+    ASSERT_EQ(released.size(), 1U);
+    EXPECT_TRUE(released[0].render);
+  }
+
+  int TeardownAndCountFlushes() {
+    const int flushes_before = codec_flush_count_->load();
+    decoder_->ResetForTeardown();
+    decoder_.reset();
+    return codec_flush_count_->load() - flushes_before;
+  }
+
+  TestVideoSurfaceObserver observer_;
+  bool surface_was_set_ = false;
+};
+
+// Without the setting, the codec is not requested for reuse, and the video
+// surface is cleared on destruction and never hidden or shown.
+TEST_F(MediaCodecVideoDecoderReuseTest, IsOffByDefault) {
+  CreateDecoderWithFeatures({});
+  ASSERT_TRUE(decoder_);
+  EXPECT_FALSE(reuse_requested());
+
+  InitializeDecoderAndDrawFrames();
+  DecodeAndDrawFrame(0, 10'000);
+  EXPECT_EQ(observer_.show_with_next_frame_count(), 0);
+
+  decoder_->ResetForTeardown();
+  decoder_.reset();
+  EXPECT_EQ(observer_.clean_up_count(), 1);
+  EXPECT_TRUE(observer_.visibility_changes().empty());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderReuseTest,
+       RequestsReuseAndHidesSurfaceInsteadOfClearingIt) {
+  CreateDecoderWithFeatures({kMediaReuseVideoCodec});
+  ASSERT_TRUE(decoder_);
+  if (!IsApiLevelSupported()) {
+    // The setting has no effect below Android 10.
+    EXPECT_FALSE(reuse_requested());
+    decoder_.reset();
+    EXPECT_EQ(observer_.clean_up_count(), 1);
+    EXPECT_TRUE(observer_.visibility_changes().empty());
+    return;
+  }
+  EXPECT_TRUE(reuse_requested());
+
+  // The surface may have been hidden by the previous decoder: it is shown with
+  // the first frame drawn, once.
+  InitializeDecoderAndDrawFrames();
+  EXPECT_EQ(observer_.show_with_next_frame_count(), 0);
+  DecodeAndDrawFrame(0, 10'000);
+  EXPECT_EQ(observer_.show_with_next_frame_count(), 1);
+  DecodeAndDrawFrame(1, 20'000);
+  EXPECT_EQ(observer_.show_with_next_frame_count(), 1);
+
+  // A parked codec stays connected to the surface, so the surface is hidden
+  // rather than cleared, once.
+  decoder_->ResetForTeardown();
+  EXPECT_EQ(observer_.visibility_changes(), std::vector<bool>{false});
+  decoder_.reset();
+  EXPECT_EQ(observer_.visibility_changes(), std::vector<bool>{false});
+  EXPECT_EQ(observer_.clean_up_count(), 0);
+  EXPECT_FALSE(error_called_);
+}
+
+// A decoder with a surface of its own neither parks its codec nor touches the
+// shared video surface differently.
+TEST_F(MediaCodecVideoDecoderReuseTest, IsOffForDecoderWithOwnSurface) {
+  use_own_surface_ = true;
+  CreateDecoderWithFeatures({kMediaReuseVideoCodec});
+  ASSERT_TRUE(decoder_);
+  EXPECT_FALSE(reuse_requested());
+
+  decoder_->ResetForTeardown();
+  decoder_.reset();
+  EXPECT_EQ(observer_.clean_up_count(), 1);
+  EXPECT_TRUE(observer_.visibility_changes().empty());
+}
+
+// The codec of an NDK decoder can't be parked, but the decoder still has to
+// show the surface, which a previous decoder may have hidden, and to hide it.
+TEST_F(MediaCodecVideoDecoderReuseTest, NdkDecoderDoesNotRequestReuse) {
+  if (!IsApiLevelSupported()) {
+    GTEST_SKIP() << "Requires API level " << kMinApiLevel;
+  }
+  CreateDecoderWithFeatures({kMediaReuseVideoCodec, kMediaNdkVideo});
+  ASSERT_TRUE(decoder_);
+  EXPECT_FALSE(reuse_requested());
+
+  InitializeDecoderAndDrawFrames();
+  DecodeAndDrawFrame(0, 10'000);
+  EXPECT_EQ(observer_.show_with_next_frame_count(), 1);
+
+  decoder_.reset();
+  EXPECT_EQ(observer_.visibility_changes(), std::vector<bool>{false});
+  EXPECT_EQ(observer_.clean_up_count(), 0);
+}
+
+// A decoder without the setting shows the surface a previous decoder with the
+// setting left hidden, as it would not show it with its first frame.
+TEST_F(MediaCodecVideoDecoderReuseTest,
+       DecoderWithoutSettingShowsSurfaceHiddenByPreviousDecoder) {
+  if (!IsApiLevelSupported()) {
+    GTEST_SKIP() << "Requires API level " << kMinApiLevel;
+  }
+  CreateDecoderWithFeatures({kMediaReuseVideoCodec});
+  ASSERT_TRUE(decoder_);
+  decoder_.reset();
+  ASSERT_EQ(observer_.visibility_changes(), std::vector<bool>{false});
+
+  CreateDecoderWithFeatures({});
+  ASSERT_TRUE(decoder_);
+  EXPECT_EQ(observer_.visibility_changes(), (std::vector<bool>{false, true}));
+  decoder_.reset();
+  EXPECT_EQ(observer_.visibility_changes(), (std::vector<bool>{false, true}));
+  EXPECT_EQ(observer_.clean_up_count(), 1);
+}
+
+// When a parked codec was released for this decoder's request, the frame it
+// left on the surface is cleared before the new codec connects to the surface.
+TEST_F(MediaCodecVideoDecoderReuseTest, ClearsSurfaceAfterParkedCodecReleased) {
+  if (!IsApiLevelSupported()) {
+    GTEST_SKIP() << "Requires API level " << kMinApiLevel;
+  }
+  CreateDecoderWithFeatures({kMediaReuseVideoCodec});
+  ASSERT_TRUE(decoder_);
+  auto options = fake_factory_->last_video_platform_options();
+  ASSERT_TRUE(options);
+  ASSERT_TRUE(options->on_parked_codec_released);
+  EXPECT_EQ(observer_.clean_up_count(), 0);
+
+  // As the Java MediaCodecCache does while the codec is being created.
+  options->on_parked_codec_released();
+  EXPECT_EQ(observer_.clean_up_count(), 1);
+}
+
+// The setting adds no flush to the teardown, and removes none: the codec is
+// parked in the state the last flush left it in.
+TEST_F(MediaCodecVideoDecoderReuseTest, DoesNotChangeTeardownFlushes) {
+  for (bool enable_flush_during_seek : {false, true}) {
+    SCOPED_TRACE(enable_flush_during_seek);
+    CreateDecoderWithFeatures({}, enable_flush_during_seek);
+    ASSERT_TRUE(decoder_);
+    InitializeDecoder();
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+    const int flushes_without_reuse = TeardownAndCountFlushes();
+
+    CreateDecoderWithFeatures({kMediaReuseVideoCodec},
+                              enable_flush_during_seek);
+    ASSERT_TRUE(decoder_);
+    InitializeDecoder();
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+    EXPECT_EQ(TeardownAndCountFlushes(), flushes_without_reuse);
+  }
+}
+
+TEST_F(MediaCodecVideoDecoderReuseTest,
+       ReusedCodecWithoutOutputIsReplacedByNewCodec) {
+  if (!IsApiLevelSupported()) {
+    GTEST_SKIP() << "Requires API level " << kMinApiLevel;
+  }
+  reusable_video_codec_count_ = 1;
+  CreateDecoderWithFeatures({kMediaReuseVideoCodec});
+  ASSERT_TRUE(decoder_);
+  InitializeDecoder();
+  ASSERT_TRUE(GetFakeVideoCodec()->IsReused());
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+
+  // The reused codec takes the inputs but never produces a frame.
+  GetFakeVideoCodec()->SimulateInputBufferAvailable(0);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10'000, 1024)});
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(20'000, 1024)});
+  ASSERT_TRUE(GetFakeVideoCodec()->WaitForInputQueue(1, 1000));
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(kReusedCodecTimeoutMs));
+  job_queue_.RunUntilIdle();
+
+  // A new codec was created, for which no reuse was requested, and the inputs
+  // were written to it again.
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 2);
+  EXPECT_FALSE(reuse_requested());
+  FakeMediaCodec* new_codec = GetFakeVideoCodec();
+  ASSERT_NE(new_codec, nullptr);
+  EXPECT_FALSE(new_codec->IsReused());
+  new_codec->SimulateInputBufferAvailable(0);
+  new_codec->SimulateInputBufferAvailable(1);
+  ASSERT_TRUE(new_codec->WaitForInputQueue(2, 1000));
+  auto queued_inputs = new_codec->ConsumeQueuedInputs();
+  ASSERT_EQ(queued_inputs.size(), 2U);
+  EXPECT_EQ(queued_inputs[0].pts, 10'000);
+  EXPECT_EQ(queued_inputs[1].pts, 20'000);
+  EXPECT_FALSE(error_called_);
+
+  // The decoder doesn't try a parked codec again after a seek either.
+  decoder_->Reset();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(30'000, 1024)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
+  EXPECT_FALSE(reuse_requested());
+}
+
+TEST_F(MediaCodecVideoDecoderReuseTest, ReusedCodecWithOutputIsKept) {
+  if (!IsApiLevelSupported()) {
+    GTEST_SKIP() << "Requires API level " << kMinApiLevel;
+  }
+  reusable_video_codec_count_ = 1;
+  CreateDecoderWithFeatures({kMediaReuseVideoCodec});
+  ASSERT_TRUE(decoder_);
+  InitializeDecoderAndDrawFrames();
+  ASSERT_TRUE(GetFakeVideoCodec()->IsReused());
+
+  DecodeAndDrawFrame(0, 10'000);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(kReusedCodecTimeoutMs));
+  job_queue_.RunUntilIdle();
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(error_called_);
+}
+
+// A newly created codec is not watched: it may take as long as it needs.
+TEST_F(MediaCodecVideoDecoderReuseTest, NewCodecWithoutOutputIsKept) {
+  if (!IsApiLevelSupported()) {
+    GTEST_SKIP() << "Requires API level " << kMinApiLevel;
+  }
+  CreateDecoderWithFeatures({kMediaReuseVideoCodec});
+  ASSERT_TRUE(decoder_);
+  InitializeDecoder();
+  ASSERT_FALSE(GetFakeVideoCodec()->IsReused());
+
+  GetFakeVideoCodec()->SimulateInputBufferAvailable(0);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10'000, 1024)});
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(kReusedCodecTimeoutMs));
+  job_queue_.RunUntilIdle();
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
 }
 
 TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {

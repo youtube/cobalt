@@ -123,6 +123,10 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
   }
 
   if (CanUseNdkMediaCodec(platform_options, j_media_crypto, color_metadata)) {
+    // A codec parked for reuse is connected to the video surface and holds a
+    // decoder, so it can't be kept next to a new codec. The Java codec creation
+    // below takes care of this itself.
+    MediaCodecBridge::DiscardParkedVideoCodec();
     auto ndk_bridge = NdkMediaCodec::Create(
         video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
         handler, j_surface, j_media_crypto, color_metadata,
@@ -203,7 +207,9 @@ std::ostream& operator<<(std::ostream& os,
             << ", require_software_codec="
             << ToString(options.require_software_codec)
             << ", tunnel_mode_audio_session_id="
-            << ToString(options.tunnel_mode_audio_session_id) << "}";
+            << ToString(options.tunnel_mode_audio_session_id)
+            << ", enable_reuse_video_codec="
+            << ToString(options.enable_reuse_video_codec) << "}";
 }
 
 }  // namespace starboard

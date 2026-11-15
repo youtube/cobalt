@@ -16,6 +16,7 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_H_
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -89,6 +90,13 @@ class MediaCodec {
     bool enable_ndk_video = false;
     // True for video with more than 8 bits per channel.
     bool is_high_bit_depth = false;
+    // Allows the codec to be taken from, and later parked in, the Java
+    // MediaCodecCache. See |kMediaReuseVideoCodec|.
+    bool enable_reuse_video_codec = false;
+    // Run during the creation of the codec, before a new codec connects to the
+    // video surface, if a codec parked in the MediaCodecCache was released
+    // without its last frame having been cleared from the surface.
+    std::function<void()> on_parked_codec_released;
   };
 
   static constexpr int32_t kBufferFlagCodecConfig = 2;
@@ -149,6 +157,13 @@ class MediaCodec {
   static bool IsFrameRenderedCallbackEnabled();
 
   virtual ~MediaCodec() = default;
+
+  // Returns true if the codec was used by a previous player and has been
+  // restarted, instead of being newly created. See |kMediaReuseVideoCodec|.
+  virtual bool IsReused() const { return false; }
+  // Makes sure the codec is released, and not kept for the next player, when
+  // this object is destroyed.
+  virtual void PreventReuse() {}
 
   virtual span<uint8_t> GetInputBufferAddress(jint index) = 0;
   virtual jint QueueInputBuffer(jint index,

@@ -52,11 +52,17 @@ class FakeMediaCodec : public MediaCodec {
     int64_t timestamp_ns;
   };
 
-  explicit FakeMediaCodec(Handler* handler,
-                          std::atomic<FakeMediaCodec*>* tracker);
+  // |flush_count|, when set, is incremented on every Flush() call. It is
+  // shared so that tests can read it after the codec has been destroyed.
+  explicit FakeMediaCodec(
+      Handler* handler,
+      std::atomic<FakeMediaCodec*>* tracker,
+      std::shared_ptr<std::atomic<int>> flush_count = nullptr);
   ~FakeMediaCodec() override;
 
   // MediaCodec implementation
+  bool IsReused() const override { return is_reused_; }
+  void PreventReuse() override { reuse_prevented_ = true; }
   span<uint8_t> GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
@@ -84,6 +90,8 @@ class FakeMediaCodec : public MediaCodec {
   // Test control methods
   // Simulates QueueInputBuffer() failures (e.g. MEDIA_CODEC_NO_KEY) and counts
   // attempts to test retry handling.
+  // Makes the codec report that it was taken over from a previous player.
+  void set_is_reused(bool is_reused) { is_reused_ = is_reused; }
   void set_queue_input_buffer_status(jint status);
   size_t queue_input_buffer_attempts() const;
   void SimulateInputBufferAvailable(int index);
@@ -92,6 +100,7 @@ class FakeMediaCodec : public MediaCodec {
                                int offset,
                                int64_t pts,
                                int size);
+  void SimulateFirstTunnelFrameReady();
   bool WaitForInputQueue(size_t num_packets, int timeout_ms);
   bool WaitForOutputReleased(size_t num_packets, int timeout_ms);
 
@@ -109,6 +118,9 @@ class FakeMediaCodec : public MediaCodec {
   std::vector<QueuedInput> queued_inputs_;        // Guarded by |mutex_|.
   std::vector<ReleasedOutput> released_outputs_;  // Guarded by |mutex_|.
   std::atomic<FakeMediaCodec*>* const tracker_ = nullptr;
+  std::atomic_bool is_reused_{false};
+  std::atomic_bool reuse_prevented_{false};
+  const std::shared_ptr<std::atomic<int>> flush_count_;
 };
 
 // FakeMediaCodecFactory is a factory implementation used to inject
@@ -143,18 +155,39 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
     return last_created_video_codec_;
   }
   int video_codec_create_count() const { return video_codec_create_count_; }
+  // The number of video codecs to report as reused, starting with the next one
+  // created with |enable_reuse_video_codec|. Simulates a codec being parked.
+  void set_reusable_video_codec_count(int count) {
+    reusable_video_codec_count_ = count;
+  }
+  // The number of Flush() calls on all codecs created by this factory. The
+  // counter outlives the factory and its codecs, so tests can read it after
+  // destroying a decoder that owns them.
+  std::shared_ptr<const std::atomic<int>> codec_flush_count() const {
+    return codec_flush_count_;
+  }
   std::optional<SbMediaColorMetadata> last_video_color_metadata() const {
     std::lock_guard lock(mutex_);
     return last_video_color_metadata_;
+  }
+  std::optional<MediaCodec::VideoPlatformOptions> last_video_platform_options()
+      const {
+    std::lock_guard lock(mutex_);
+    return last_video_platform_options_;
   }
 
  private:
   std::atomic<FakeMediaCodec*> last_created_audio_codec_{nullptr};
   std::atomic<FakeMediaCodec*> last_created_video_codec_{nullptr};
   std::atomic<int> video_codec_create_count_{0};
+  std::atomic<int> reusable_video_codec_count_{0};
+  const std::shared_ptr<std::atomic<int>> codec_flush_count_ =
+      std::make_shared<std::atomic<int>>(0);
   mutable std::mutex mutex_;
   std::optional<SbMediaColorMetadata>
       last_video_color_metadata_;  // Guarded by |mutex_|.
+  std::optional<MediaCodec::VideoPlatformOptions>
+      last_video_platform_options_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard

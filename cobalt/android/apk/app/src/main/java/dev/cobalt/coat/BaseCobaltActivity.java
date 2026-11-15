@@ -31,6 +31,7 @@ import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
 import androidx.annotation.VisibleForTesting;
+import dev.cobalt.media.MediaCodecCache;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
@@ -117,12 +118,18 @@ public abstract class BaseCobaltActivity extends Activity {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
+    // Codecs may be parked for reuse while the Activity is started. This is also allowed again in
+    // VideoSurfaceView.surfaceCreated(), once the new surface exists.
+    MediaCodecCache.allowCaching();
     getStarboardBridge().onActivityStart(this);
     super.onStart();
   }
 
   @Override
   protected void onStop() {
+    // Releases the parked codec, if any. A codec still used by a player is released, instead of
+    // parked, when the player lets go of it.
+    MediaCodecCache.stopCaching("activity_stopped");
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 

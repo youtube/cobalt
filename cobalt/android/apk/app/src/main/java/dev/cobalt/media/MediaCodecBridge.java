@@ -32,6 +32,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Size;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
@@ -119,6 +120,35 @@ class MediaCodecBridge {
 
   private final MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
+
+  // The parameters this video codec was requested with. Set only when the codec may be parked in
+  // MediaCodecCache on release() and reused by the next player, see "Media.ReuseVideoCodec".
+  @Nullable private volatile MediaCodecCache.CodecConfig mReuseConfig;
+  // Set once the codec has reported an error or failed to flush. Such a codec is never parked.
+  private volatile boolean mHasEncounteredError;
+  // True from a successful flush() until the codec is started again.
+  private volatile boolean mIsFlushed;
+  // How long the last flush() took.
+  private volatile long mLastFlushMs;
+
+  // While positive, callbacks posted to the main looper before the codec was parked have not all
+  // run yet. They belong to the previous player, so they are dropped.
+  @GuardedBy("mNativeBridgeLock")
+  private int mPendingStaleCallbackDrains;
+
+  // The output format at the first output buffer of the codec. Only tracked when the codec may be
+  // parked.
+  @GuardedBy("mNativeBridgeLock")
+  private MediaFormatWrapper mPlaybackOutputFormat;
+
+  // Set once a frame has been rendered to the output surface, where it stays until another frame
+  // replaces it.
+  private volatile boolean mHasRenderedFrames;
+  // Set once the codec has reported an output format, whether or not anyone was listening.
+  private volatile boolean mHasReportedOutputFormat;
+  // True from the reuse of the codec until its new owner renders a frame. Frames reported as
+  // rendered until then were rendered by the previous owner.
+  private volatile boolean mAwaitingFirstRenderAfterReuse;
 
   private boolean shouldSkipVideoFrame(long presentationTimeUs, boolean isDecodeOnly) {
     final double kMaxAcceptedOperatingRate = 60.0;
@@ -273,6 +303,8 @@ class MediaCodecBridge {
     private MediaCodecBridge mMediaCodecBridge;
     // Contains the error message when mMediaCodecBridge is null.
     private String mErrorMessage;
+    // True when mMediaCodecBridge was taken from MediaCodecCache instead of being created.
+    private boolean mIsReused;
 
     @CalledByNative("CreateMediaCodecBridgeResult")
     private CreateMediaCodecBridgeResult() {
@@ -288,6 +320,11 @@ class MediaCodecBridge {
     @CalledByNative("CreateMediaCodecBridgeResult")
     private String errorMessage() {
       return mErrorMessage;
+    }
+
+    @CalledByNative("CreateMediaCodecBridgeResult")
+    private boolean isReused() {
+      return mIsReused;
     }
   }
 
@@ -309,6 +346,11 @@ class MediaCodecBridge {
         new MediaCodec.Callback() {
           @Override
           public void onError(MediaCodec codec, MediaCodec.CodecException e) {
+            mHasEncounteredError = true;
+            if (mReuseConfig != null) {
+              // Releases the codec if it is parked.
+              MediaCodecCache.onCodecError(MediaCodecBridge.this);
+            }
             synchronized (mNativeBridgeLock) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
@@ -327,7 +369,7 @@ class MediaCodecBridge {
           @Override
           public void onInputBufferAvailable(MediaCodec codec, int index) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0) {
+              if (mNativeMediaCodecBridge == 0 || mPendingStaleCallbackDrains > 0) {
                 return;
               }
               MediaCodecBridgeJni.get()
@@ -339,7 +381,7 @@ class MediaCodecBridge {
           public void onOutputBufferAvailable(
               MediaCodec codec, int index, MediaCodec.BufferInfo info) {
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0 || mIsFlushing) {
+              if (mNativeMediaCodecBridge == 0 || mIsFlushing || mPendingStaleCallbackDrains > 0) {
                 return;
               }
               MediaCodecBridgeJni.get()
@@ -350,6 +392,9 @@ class MediaCodecBridge {
                       info.offset,
                       info.presentationTimeUs,
                       info.size);
+              if (mReuseConfig != null && mPlaybackOutputFormat == null) {
+                mPlaybackOutputFormat = mActiveFormat;
+              }
               mActiveOutputBuffers.incrementAndGet();
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.onNewOutput(info.presentationTimeUs);
@@ -360,8 +405,9 @@ class MediaCodecBridge {
 
           @Override
           public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
+            mHasReportedOutputFormat = true;
             synchronized (mNativeBridgeLock) {
-              if (mNativeMediaCodecBridge == 0) {
+              if (mNativeMediaCodecBridge == 0 || mPendingStaleCallbackDrains > 0) {
                 return;
               }
               mActiveFormat = new MediaFormatWrapper(format);
@@ -381,7 +427,9 @@ class MediaCodecBridge {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
               synchronized (mNativeBridgeLock) {
-                if (mNativeMediaCodecBridge == 0) {
+                if (mNativeMediaCodecBridge == 0
+                    || mPendingStaleCallbackDrains > 0
+                    || mAwaitingFirstRenderAfterReuse) {
                   return;
                 }
                 MediaCodecBridgeJni.get()
@@ -429,9 +477,46 @@ class MediaCodecBridge {
       int maxVideoInputSize,
       boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
+      boolean enableReuseVideoCodec,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
+
+    MediaCodecCache.CodecConfig reuseConfig = null;
+    if (enableReuseVideoCodec) {
+      reuseConfig =
+          new MediaCodecCache.CodecConfig(
+              mime,
+              decoderName,
+              surface,
+              widthHint,
+              heightHint,
+              fps,
+              maxWidth,
+              maxHeight,
+              maxVideoInputSize,
+              enableFrameRendererListener,
+              tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE,
+              crypto != null,
+              colorInfo != null);
+      MediaCodecBridge reusedBridge =
+          MediaCodecCache.acquire(nativeMediaCodecBridge, reuseConfig, skipVideoFramesOver60Fps);
+      if (reusedBridge != null) {
+        outCreateMediaCodecBridgeResult.mMediaCodecBridge = reusedBridge;
+        outCreateMediaCodecBridgeResult.mIsReused = true;
+        return;
+      }
+      if (MediaCodecCache.takeVideoSurfaceNeedsClear()) {
+        // The last frame of a released codec is still on the video surface. Have it cleared, as it
+        // is right after a codec is released when codecs are not reused, before a new codec
+        // connects to the surface.
+        MediaCodecBridgeJni.get().onParkedVideoCodecReleased(nativeMediaCodecBridge);
+      }
+      MediaCodecCache.logCreatingCodec(decoderName);
+    } else {
+      // Never keep a parked codec next to a newly created one.
+      MediaCodecCache.discard("request_without_reuse");
+    }
 
     if (decoderName.equals("")) {
       String message = "Invalid decoder name.";
@@ -485,6 +570,7 @@ class MediaCodecBridge {
             tunnelModeAudioSessionId,
             enableFrameRendererListener);
     bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
+    bridge.mReuseConfig = reuseConfig;
     MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
@@ -626,13 +712,13 @@ class MediaCodecBridge {
     if (!bridge.configureVideo(
         mediaFormat, surface, crypto, 0, maxWidth, maxHeight, outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to configure video codec.");
-      bridge.release();
+      bridge.doRelease();
       // outCreateMediaCodecBridgeResult.mErrorMessage is set inside configureVideo() on error.
       return;
     }
     if (!bridge.start(outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to start video codec.");
-      bridge.release();
+      bridge.doRelease();
       // outCreateMediaCodecBridgeResult.mErrorMessage is set inside start() on error.
       return;
     }
@@ -665,6 +751,7 @@ class MediaCodecBridge {
       }
       return false;
     }
+    mIsFlushed = false;
     return true;
   }
 
@@ -719,7 +806,8 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
-  private int flush() {
+  @VisibleForTesting
+  int flush() {
     // When a flush is initiated on the player thread, there could still be pending
     // callbacks (e.g. onOutputBufferAvailable) already posted to the main thread's
     // looper queue from before the flush.
@@ -730,13 +818,17 @@ class MediaCodecBridge {
     synchronized (mNativeBridgeLock) {
       mIsFlushing = true;
     }
+    long flushStartMs = SystemClock.elapsedRealtime();
     try {
       mMediaCodec.get().flush();
+      mLastFlushMs = SystemClock.elapsedRealtime() - flushStartMs;
+      mIsFlushed = true;
     } catch (Throwable e) {
       // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
       // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
       // in teardown. See b/455621481.
       Log.e(TAG, "Failed to flush MediaCodec", e);
+      mHasEncounteredError = true;
       return MediaCodecStatus.ERROR;
     } finally {
       mActiveOutputBuffers.set(0);
@@ -753,8 +845,124 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
+  /** Releases the video codec parked in MediaCodecCache, if any. */
+  @CalledByNative
+  private static void discardParkedVideoCodec() {
+    MediaCodecCache.discard("request_without_reuse");
+  }
+
+  /** Makes release() release the codec instead of parking it in MediaCodecCache. */
+  @CalledByNative
+  private void preventReuse() {
+    mReuseConfig = null;
+  }
+
+  @VisibleForTesting
+  void setReuseConfigForTesting(MediaCodecCache.CodecConfig config) {
+    mReuseConfig = config;
+  }
+
+  boolean isReuseEnabled() {
+    return mReuseConfig != null;
+  }
+
+  @Nullable
+  MediaCodecCache.CodecConfig getReuseConfig() {
+    return mReuseConfig;
+  }
+
+  String getCodecName() {
+    return mCodecName;
+  }
+
+  boolean hasEncounteredError() {
+    return mHasEncounteredError;
+  }
+
+  boolean hasRenderedFrames() {
+    return mHasRenderedFrames;
+  }
+
+  /**
+   * Returns true if the size of the output has changed since the first output buffer of the codec,
+   * e.g. because a stream switched to another resolution. The output format of the codec then no
+   * longer matches the parameters it was created with.
+   */
+  boolean hasOutputSizeChanged() {
+    synchronized (mNativeBridgeLock) {
+      MediaFormatWrapper first = mPlaybackOutputFormat;
+      MediaFormatWrapper current = mActiveFormat;
+      return first != null
+          && current != null
+          && (first.width() != current.width() || first.height() != current.height());
+    }
+  }
+
+  /**
+   * Detaches the bridge from its native owner and leaves the codec flushed and not restarted, the
+   * state it is parked in by MediaCodecCache: the codec then holds all its buffers and delivers no
+   * callbacks. The codec is only flushed here if it is not flushed already, which it is when the
+   * native decoder flushes it right before releasing it.
+   *
+   * @return how long the last flush took, in milliseconds, or -1 if the codec could not be flushed.
+   */
+  long detachForParking() {
+    synchronized (mNativeBridgeLock) {
+      mNativeMediaCodecBridge = 0;
+      ++mPendingStaleCallbackDrains;
+    }
+    boolean isFlushed = mIsFlushed || flush() == MediaCodecStatus.OK;
+    // Callbacks of the previous player may still be queued on the main looper. This runs after
+    // them, and before any callback the codec posts once it is started again.
+    mMainHandler.post(
+        () -> {
+          synchronized (mNativeBridgeLock) {
+            --mPendingStaleCallbackDrains;
+          }
+        });
+    return isFlushed ? mLastFlushMs : -1;
+  }
+
+  /**
+   * Attaches a parked bridge to a new native owner and restarts the codec, leaving the bridge as a
+   * newly created one would be.
+   *
+   * @throws IllegalStateException if the codec can't be started. The caller must then release the
+   *     bridge with doRelease().
+   */
+  void attachForReuse(long nativeMediaCodecBridge, boolean skipVideoFramesOver60Fps) {
+    mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
+    mPlaybackRate = 1.0;
+    mFps = 30;
+    // Has no effect unless the previous playback changed the operating rate.
+    updateOperatingRate();
+    mFrameRateEstimator = MediaCodecFrameRateEstimator.create(mIsTunnelingPlayback);
+    // The callbacks of the restarted codec need the lock, so none of them runs before the new
+    // owner is attached. If the codec can't be started, the new owner is never attached.
+    synchronized (mNativeBridgeLock) {
+      mMediaCodec.get().start();
+      mIsFlushed = false;
+      mAwaitingFirstRenderAfterReuse = true;
+      mNativeMediaCodecBridge = nativeMediaCodecBridge;
+      if (mHasReportedOutputFormat) {
+        // A new codec reports its output format before its first output buffer. A restarted one
+        // only does so when the format changes, so report it here. A codec that has not reported
+        // a format yet will do so itself.
+        MediaCodecBridgeJni.get().onMediaCodecOutputFormatChanged(nativeMediaCodecBridge);
+      }
+    }
+  }
+
   @CalledByNative
   public void release() {
+    if (mReuseConfig != null && MediaCodecCache.maybeParkOnRelease(this)) {
+      return;
+    }
+    doRelease();
+  }
+
+  /** Releases the codec. Unlike release(), never parks it in MediaCodecCache. */
+  void doRelease() {
     try {
       MediaCodecOutputTracker.get().unregister(this);
       synchronized (mNativeBridgeLock) {
@@ -929,9 +1137,14 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
-  private void releaseOutputBuffer(int index, boolean render) {
+  @VisibleForTesting
+  void releaseOutputBuffer(int index, boolean render) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, render);
+      if (render) {
+        mHasRenderedFrames = true;
+        mAwaitingFirstRenderAfterReuse = false;
+      }
       mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
@@ -943,6 +1156,8 @@ class MediaCodecBridge {
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
+      mHasRenderedFrames = true;
+      mAwaitingFirstRenderAfterReuse = false;
       mActiveOutputBuffers.decrementAndGet();
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
@@ -1184,5 +1399,7 @@ class MediaCodecBridge {
         long nativeMediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
 
     void onMediaCodecFirstTunnelFrameReady(long nativeMediaCodecBridge);
+
+    void onParkedVideoCodecReleased(long nativeMediaCodecBridge);
   }
 }

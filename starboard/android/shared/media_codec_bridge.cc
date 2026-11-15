@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include <atomic>
+
 #include "base/android/jni_array.h"
 #include "base/android/jni_bytebuffer.h"
 #include "base/android/jni_string.h"
@@ -38,6 +40,10 @@ using base::android::JavaByteBufferToMutableSpan;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
+
+// Set once a video codec has been created with |enable_reuse_video_codec|, i.e.
+// once the Java MediaCodecCache may hold a parked codec.
+std::atomic_bool g_video_codec_reuse_requested{false};
 using jni_zero::JavaParamRef;
 using jni_zero::ScopedJavaLocalRef;
 
@@ -145,8 +151,14 @@ MediaCodecBridge::CreateVideoMediaCodec(
   ScopedJavaLocalRef<jobject> j_create_media_codec_bridge_result(
       Java_CreateMediaCodecBridgeResult_Constructor(env));
 
+  if (platform_options.enable_reuse_video_codec) {
+    g_video_codec_reuse_requested.store(true);
+  }
+
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
+  native_media_codec_bridge->on_parked_codec_released_ =
+      platform_options.on_parked_codec_released;
   Java_MediaCodecBridge_createVideoMediaCodecBridge(
       env, reinterpret_cast<jlong>(native_media_codec_bridge.get()),
       ConvertUTF8ToJavaString(env, mime),
@@ -159,6 +171,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
       platform_options.max_input_size,
       platform_options.enable_frame_renderer_listener,
       platform_options.skip_video_frames_over_60_fps,
+      platform_options.enable_reuse_video_codec,
       j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
@@ -179,8 +192,24 @@ MediaCodecBridge::CreateVideoMediaCodec(
                << ", has_color_metadata=" << ToString(!!color_metadata)
                << ", platform_options=" << platform_options;
 
+  native_media_codec_bridge->is_reused_ =
+      Java_CreateMediaCodecBridgeResult_isReused(
+          env, j_create_media_codec_bridge_result) == JNI_TRUE;
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
+}
+
+// static
+void MediaCodecBridge::DiscardParkedVideoCodec() {
+  if (!g_video_codec_reuse_requested.load()) {
+    return;
+  }
+  Java_MediaCodecBridge_discardParkedVideoCodec(AttachCurrentThread());
+}
+
+void MediaCodecBridge::PreventReuse() {
+  Java_MediaCodecBridge_preventReuse(AttachCurrentThread(),
+                                     j_media_codec_bridge_);
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
@@ -381,6 +410,12 @@ void MediaCodecBridge::OnMediaCodecFrameRendered(
 
 void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
   handler_->OnMediaCodecFirstTunnelFrameReady();
+}
+
+void MediaCodecBridge::OnParkedVideoCodecReleased(JNIEnv* env) {
+  if (on_parked_codec_released_) {
+    on_parked_codec_released_();
+  }
 }
 
 }  // namespace starboard

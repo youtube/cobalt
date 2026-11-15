@@ -38,6 +38,7 @@
 #include "starboard/common/player.h"
 #include "starboard/common/size.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
@@ -58,10 +59,12 @@ using std::placeholders::_2;
 
 class VideoFrameImpl final : public VideoFrame {
  public:
+  typedef std::function<void()> VideoFrameDrawCallback;
   typedef std::function<void()> VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodec* media_codec_bridge,
+                 const VideoFrameDrawCallback& draw_callback,
                  const VideoFrameReleaseCallback& release_callback)
       : VideoFrame(dequeue_output_result.flags &
                            MediaCodec::kBufferFlagEndOfStream
@@ -70,8 +73,10 @@ class VideoFrameImpl final : public VideoFrame {
         dequeue_output_result_(dequeue_output_result),
         media_codec_bridge_(media_codec_bridge),
         released_(false),
+        draw_callback_(draw_callback),
         release_callback_(release_callback) {
     SB_DCHECK(media_codec_bridge_);
+    SB_DCHECK(draw_callback_);
     SB_DCHECK(release_callback_);
   }
 
@@ -89,6 +94,7 @@ class VideoFrameImpl final : public VideoFrame {
     SB_DCHECK(!released_);
     SB_DCHECK(!is_end_of_stream());
     released_ = true;
+    draw_callback_();
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
     release_callback_();
@@ -98,6 +104,7 @@ class VideoFrameImpl final : public VideoFrame {
   DequeueOutputResult dequeue_output_result_;
   MediaCodec* media_codec_bridge_;
   volatile bool released_;
+  const VideoFrameDrawCallback draw_callback_;
   const VideoFrameReleaseCallback release_callback_;
 };
 
@@ -162,6 +169,14 @@ bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
   return frame_size.width > max_video_size.width ||
          frame_size.height > max_video_size.height;
 }
+
+// SurfaceControl transactions, which hide and show the video surface around a
+// parked codec, need Android 10. See |kMediaReuseVideoCodec|.
+constexpr int kMinApiLevelToReuseVideoCodec = 29;
+
+// How long a reused codec may take to produce its first output after it got its
+// first input, before it is replaced by a new one.
+constexpr int64_t kReusedCodecFirstOutputTimeoutUsec = 2'000'000;
 
 }  // namespace
 
@@ -348,6 +363,17 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      // A parked codec stays connected to the shared video surface, so every
+      // decoder rendering to that surface has to hide it on teardown, and show
+      // it with its first frame, while the setting is on.
+      apply_transaction_to_frame_on_surface_cleanup_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaReuseVideoCodec) &&
+          output_mode_ == kSbPlayerOutputModePunchOut && !surface_view_ &&
+          android_get_device_api_level() >= kMinApiLevelToReuseVideoCodec),
+      // The NDK codec has no Java MediaCodecBridge to park.
+      enable_reuse_video_codec_(
+          apply_transaction_to_frame_on_surface_cleanup_ && !enable_ndk_video_),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -413,16 +439,30 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_)
+               << ", apply_transaction_to_frame_on_surface_cleanup="
+               << ToString(apply_transaction_to_frame_on_surface_cleanup_)
+               << ", enable_reuse_video_codec="
+               << ToString(enable_reuse_video_codec_);
+  if (!enable_reuse_video_codec_ &&
+      pipeline_config.experimental_features.GetBool(kMediaReuseVideoCodec)) {
+    SB_LOG(INFO) << "ReuseVideoCodec: not_eligible reason="
+                 << (output_mode_ != kSbPlayerOutputModePunchOut ? "output_mode"
+                     : surface_view_                             ? "own_surface"
+                     : enable_ndk_video_                         ? "ndk_video"
+                                                                 : "api_level");
+  }
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
+  MaybeHideVideoSurfaceOnTeardown();
   TeardownCodec();
   // The video surface must be reset after tunnel mode playbacks. This prevents
   // video distortion on some platforms. For details, see http://b/182610842.
   if (tunnel_mode_audio_session_id_.has_value()) {
     ResetVideoSurface();
-  } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
+  } else if (output_mode_ == kSbPlayerOutputModePunchOut &&
+             !apply_transaction_to_frame_on_surface_cleanup_) {
     CleanUpVideoSurface(decode_target_graphics_context_provider_);
   }
 }
@@ -656,6 +696,7 @@ void MediaCodecVideoDecoder::Reset() {
 }
 
 void MediaCodecVideoDecoder::ResetForTeardown() {
+  MaybeHideVideoSurfaceOnTeardown();
   ResetInternal(skip_flush_on_decoder_teardown_);
 }
 
@@ -886,6 +927,12 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     max_video_size_ = video_stream_info.frame_size;
   }
 
+  const int64_t create_started_us = CurrentMonotonicTime();
+  std::function<void()> on_parked_codec_released;
+  if (enable_reuse_video_codec_) {
+    on_parked_codec_released =
+        std::bind(&MediaCodecVideoDecoder::OnParkedCodecReleased, this);
+  }
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaCodecDecoder
   //                    ctor.
@@ -904,9 +951,19 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           /*enable_ndk_video=*/enable_ndk_video_,
           /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
           /*enable_codec_thread_improvements=*/
-          enable_codec_thread_improvements_});
+          enable_codec_thread_improvements_,
+          /*enable_reuse_video_codec=*/
+          enable_reuse_video_codec_ && !reused_codec_failed_,
+          /*on_parked_codec_released=*/on_parked_codec_released});
   if (result) {
     media_decoder_ = std::move(result.value());
+    if (enable_reuse_video_codec_) {
+      // No decoder thread is running yet, so these can be set without a lock.
+      codec_is_reused_ = media_decoder_->media_codec()->IsReused();
+      codec_create_started_us_ = create_started_us;
+      codec_created_us_ = CurrentMonotonicTime();
+      awaiting_first_output_.store(true);
+    }
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
@@ -936,6 +993,9 @@ void MediaCodecVideoDecoder::TeardownCodec() {
   }
   media_decoder_.reset();
   color_metadata_ = std::nullopt;
+  codec_is_reused_ = false;
+  awaiting_first_output_.store(false);
+  inputs_since_reuse_.clear();
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
@@ -989,6 +1049,10 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
     }
   }
 
+  if (codec_is_reused_) {
+    WatchReusedCodec(input_buffers);
+  }
+
   media_decoder_->WriteInputBuffers(input_buffers);
   if (media_decoder_->GetNumberOfPendingInputs() <
       static_cast<size_t>(kMaxPendingInputsSize)) {
@@ -1022,6 +1086,16 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   SB_CHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
+  if (enable_reuse_video_codec_ && awaiting_first_output_.load() &&
+      awaiting_first_output_.exchange(false)) {
+    const int64_t now_us = CurrentMonotonicTime();
+    SB_LOG(INFO) << "ReuseVideoCodec: first_output reused="
+                 << (codec_is_reused_ ? 1 : 0) << " create_ms="
+                 << (codec_created_us_ - codec_create_started_us_) / 1'000
+                 << " create_to_first_output_ms="
+                 << (now_us - codec_create_started_us_) / 1'000;
+  }
+
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
   if (!is_end_of_stream) {
@@ -1048,6 +1122,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       need_more_input ? kNeedMoreInput : kBufferFull,
       make_scoped_refptr<VideoFrameImpl>(
           dequeue_output_result, media_codec_bridge,
+          std::bind(&MediaCodecVideoDecoder::OnVideoFrameDraw, this),
           std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
 }
 
@@ -1160,6 +1235,11 @@ void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 
 void MediaCodecVideoDecoder::OnFirstTunnelFrameReady() {
   SB_DCHECK(tunnel_mode_audio_session_id_);
+  if (apply_transaction_to_frame_on_surface_cleanup_) {
+    // A previous non-tunnel playback may have hidden the surface. The codec
+    // renders tunnel mode frames itself, so show the surface right away.
+    SetVideoSurfaceVisible(true);
+  }
 
   tunnel_mode_first_frame_rendered_.store(true);
   TryToSignalPrerollForTunnelMode();
@@ -1189,10 +1269,132 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
+void MediaCodecVideoDecoder::OnVideoFrameDraw() {
+  // Check the const flag first to avoid an atomic exchange on every frame when
+  // the feature is disabled.
+  if (!apply_transaction_to_frame_on_surface_cleanup_ ||
+      has_drawn_first_frame_.exchange(true)) {
+    return;
+  }
+  ShowVideoSurfaceWithNextFrame();
+}
+
 void MediaCodecVideoDecoder::OnVideoFrameRelease() {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
+  }
+}
+
+void MediaCodecVideoDecoder::MaybeHideVideoSurfaceOnTeardown() {
+  SB_CHECK(BelongsToCurrentThread());
+  if (!apply_transaction_to_frame_on_surface_cleanup_ ||
+      tunnel_mode_audio_session_id_.has_value() ||
+      has_hidden_video_surface_on_teardown_) {
+    return;
+  }
+
+  // |owns_video_surface_| is cleared in OnSurfaceDestroyed(), so the surface is
+  // alive while it is set, even if it was acquired after a previous surface was
+  // destroyed.
+  bool should_hide_surface = owns_video_surface_;
+  if (!should_hide_surface && has_drawn_first_frame_.load()) {
+    // The decoder released the surface after rendering to it, e.g. on a seek
+    // with |enable_flush_during_seek_| disabled, so its last frame may still be
+    // displayed. Hide it, unless the surface has been destroyed since, or has
+    // been acquired by another decoder that may be rendering to it already.
+    // Note that |surface_destroy_mutex_| must not be held while acquiring the
+    // video surface mutex, see JNI_VideoSurfaceView_OnVideoSurfaceChanged().
+    {
+      std::lock_guard lock(surface_destroy_mutex_);
+      should_hide_surface = !surface_destroyed_;
+    }
+    should_hide_surface =
+        should_hide_surface && !IsVideoSurfaceHeldByAnotherHolder();
+  }
+  if (!should_hide_surface) {
+    return;
+  }
+
+  has_hidden_video_surface_on_teardown_ = true;
+  // Don't show the surface again if a frame is drawn after this.
+  has_drawn_first_frame_.store(true);
+  SetVideoSurfaceVisible(false);
+}
+
+void MediaCodecVideoDecoder::OnParkedCodecReleased() {
+  SB_CHECK(BelongsToCurrentThread());
+  // The surface is hidden, and no codec is connected to it at this point.
+  // The surface mutex may be held by a thread that is waiting for this one in
+  // OnSurfaceDestroyed(), so don't wait for it: the surface is going away then.
+  const int64_t started_us = CurrentMonotonicTime();
+  const bool cleared =
+      TryCleanUpVideoSurface(decode_target_graphics_context_provider_);
+  SB_LOG(INFO) << "ReuseVideoCodec: surface_cleared cleared="
+               << (cleared ? 1 : 0)
+               << " clear_ms=" << (CurrentMonotonicTime() - started_us) / 1'000;
+}
+
+void MediaCodecVideoDecoder::WatchReusedCodec(
+    const InputBuffers& input_buffers) {
+  SB_CHECK(BelongsToCurrentThread());
+  if (!awaiting_first_output_.load()) {
+    inputs_since_reuse_.clear();
+    return;
+  }
+  // Keep the inputs so that they can be written to a new codec if this one
+  // turns out not to work. The number of inputs is limited, as the renderer
+  // stops writing once |kMaxPendingInputsSize| inputs are pending.
+  inputs_since_reuse_.insert(inputs_since_reuse_.end(), input_buffers.begin(),
+                             input_buffers.end());
+  if (!reused_codec_watchdog_scheduled_) {
+    reused_codec_watchdog_scheduled_ = true;
+    Schedule(std::bind(&MediaCodecVideoDecoder::OnReusedCodecWatchdog, this),
+             kReusedCodecFirstOutputTimeoutUsec);
+  }
+}
+
+void MediaCodecVideoDecoder::OnReusedCodecWatchdog() {
+  SB_CHECK(BelongsToCurrentThread());
+  reused_codec_watchdog_scheduled_ = false;
+  InputBuffers input_buffers;
+  input_buffers.swap(inputs_since_reuse_);
+  if (!media_decoder_ || !codec_is_reused_ || !awaiting_first_output_.load() ||
+      input_buffers.empty()) {
+    return;
+  }
+
+  SB_LOG(WARNING) << "ReuseVideoCodec: fallback reason=no_output inputs="
+                  << input_buffers.size() << " timeout_ms="
+                  << kReusedCodecFirstOutputTimeoutUsec / 1'000
+                  << "; replacing the reused codec with a new one.";
+  // Not only for this codec: don't take a chance with a parked codec again in
+  // this playback.
+  reused_codec_failed_ = true;
+  media_decoder_->media_codec()->PreventReuse();
+  TeardownCodec();
+
+  if (needs_fps_to_initialize_codec_) {
+    // InitializeCodec() takes the frame rate from, and then writes, the pending
+    // input buffers.
+    pending_input_buffers_ = input_buffers;
+  }
+  auto result = InitializeCodec(input_buffers.front()->video_stream_info());
+  if (!result) {
+    std::string error_message =
+        "Failed to replace reused codec with error: " + result.error();
+    SB_LOG(ERROR) << error_message;
+    pending_input_buffers_.clear();
+    TeardownCodec();
+    ReportError(kSbPlayerErrorDecode, error_message);
+    return;
+  }
+  if (!needs_fps_to_initialize_codec_) {
+    // The frame tracker and the renderer already know about these inputs.
+    media_decoder_->WriteInputBuffers(input_buffers);
+  }
+  if (end_of_stream_written_) {
+    media_decoder_->WriteEndOfStream();
   }
 }
 
@@ -1254,6 +1456,8 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
     is_flushed_ = true;
   }
   CancelPendingJobs();
+  reused_codec_watchdog_scheduled_ = false;
+  inputs_since_reuse_.clear();
 
   // TODO(b/291959069): After flush |media_decoder_|, the output buffers
   // may have invalid frames. Reset |output_format_| to null here to skip max
