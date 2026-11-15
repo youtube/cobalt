@@ -553,56 +553,6 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest,
-           GetAllocatedReflectsPendingFreesAcrossAllocateAndBatchedFree) {
-  constexpr size_t kAlignment = sizeof(void*);
-  constexpr size_t kBlockSize = 1024;
-
-  void* block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
-  void* block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
-  ASSERT_NE(block1, nullptr);
-  ASSERT_NE(block2, nullptr);
-
-  const size_t allocated_two = this->allocator_->GetAllocated();
-  EXPECT_GE(allocated_two, 2 * kBlockSize);
-
-  // Partial free immediately reduces GetAllocated().
-  this->allocator_->Free(block1);
-  const size_t allocated_one = this->allocator_->GetAllocated();
-  EXPECT_LT(allocated_one, allocated_two);
-  EXPECT_GE(allocated_one, kBlockSize);
-
-  // Subsequent Allocate() flushes pending frees and must not double-subtract
-  // the previously freed block's bytes.
-  void* block3 = this->allocator_->Allocate(kBlockSize, kAlignment);
-  ASSERT_NE(block3, nullptr);
-  EXPECT_EQ(this->allocator_->GetAllocated(), allocated_two);
-
-  this->allocator_->Free(block2);
-  this->allocator_->Free(block3);
-  EXPECT_EQ(this->allocator_->GetAllocated(), 0U);
-
-  // Verify the > 32-block batched-free fast path also tracks individual frees
-  // and resets GetAllocated() to 0 on full drain.
-  constexpr size_t kNumBlocks = 40;
-  std::vector<void*> blocks;
-  blocks.reserve(kNumBlocks);
-  for (size_t i = 0; i < kNumBlocks; ++i) {
-    void* ptr = this->allocator_->Allocate(kBlockSize, kAlignment);
-    ASSERT_NE(ptr, nullptr);
-    blocks.push_back(ptr);
-  }
-  size_t prev_allocated = this->allocator_->GetAllocated();
-  for (size_t i = 0; i + 1 < kNumBlocks; ++i) {
-    this->allocator_->Free(blocks[i]);
-    const size_t curr_allocated = this->allocator_->GetAllocated();
-    EXPECT_LT(curr_allocated, prev_allocated);
-    prev_allocated = curr_allocated;
-  }
-  this->allocator_->Free(blocks.back());
-  EXPECT_EQ(this->allocator_->GetAllocated(), 0U);
-}
-
-TYPED_TEST(BidirectionalFitReuseAllocatorTest,
            TryToDecommitOneBlockGracePeriodAndCapacity) {
   constexpr size_t kAlignment = sizeof(void*);
   constexpr size_t kBlockSize = 64 * 1024;

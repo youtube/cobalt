@@ -153,7 +153,6 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
       SB_DCHECK(freed);
     }
     pending_frees_.clear();
-    pending_free_bytes_ = 0;
   }
 
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment) +
@@ -206,18 +205,6 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
     return;
   }
 
-  // Peek at the block header size so `GetAllocated()` reflects this free in
-  // O(1) time before the deferred `TryFree()` runs.
-  const BlockMetadata* metadata = static_cast<const BlockMetadata*>(memory) - 1;
-  SB_DCHECK_EQ(metadata->signature, this);
-  SB_DCHECK(IsValidFallbackIndex(metadata->fallback_index));
-  SB_DCHECK_GT(metadata->size, 0);
-  if (metadata->signature != this ||
-      !IsValidFallbackIndex(metadata->fallback_index) || metadata->size <= 0) {
-    return;
-  }
-  pending_free_bytes_ += static_cast<size_t>(metadata->size);
-  SB_DCHECK_LE(pending_free_bytes_, total_allocated_in_bytes_);
   pending_frees_.push_back(memory);
 
   if (pending_frees_.size() == total_allocated_blocks_) {
@@ -230,7 +217,6 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
       pending_frees_.clear();
 
       total_allocated_in_bytes_ = 0;
-      pending_free_bytes_ = 0;
       total_allocated_blocks_ = 0;
 
       if (enable_decommit_on_idle_ ||
@@ -248,7 +234,6 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
         SB_DCHECK(freed);
       }
       pending_frees_.clear();
-      pending_free_bytes_ = 0;
     }
   }
 }
@@ -285,22 +270,15 @@ void EmbeddedMetadataReuseAllocatorBase::PrintAllocations(
   }
 
   size_t capacity = GetCapacity();
-  size_t allocated = GetAllocated();
   int64_t allocated_percentage =
-      capacity == 0 ? 0 : static_cast<int64_t>(allocated) * 100 / capacity;
-  size_t free_bytes = capacity >= allocated ? capacity - allocated : 0;
-  size_t active_blocks = total_allocated_blocks_ >= pending_frees_.size()
-                             ? total_allocated_blocks_ - pending_frees_.size()
-                             : 0;
-  SB_LOG(INFO) << "Allocated " << allocated << " bytes ("
+      capacity == 0
+          ? 0
+          : static_cast<int64_t>(total_allocated_in_bytes_) * 100 / capacity;
+  SB_LOG(INFO) << "Allocated " << total_allocated_in_bytes_ << " bytes ("
                << allocated_percentage << "%) from a pool of capacity "
-               << capacity << " bytes.  There are " << free_bytes
-               << " free bytes.";
-  SB_LOG(INFO) << "Active allocated blocks: " << active_blocks << " (plus "
-               << pending_frees_.size() << " pending-free blocks / "
-               << pending_free_bytes_
-               << " bytes included in the un-flushed histogram below; "
-               << total_allocated_blocks_ << " total blocks).";
+               << capacity << " bytes.  There are "
+               << capacity - total_allocated_in_bytes_ << " free bytes.";
+  SB_LOG(INFO) << "Total allocated block: " << total_allocated_blocks_;
 
   int lines = 0;
   size_t accumulated_blocks = 0;
