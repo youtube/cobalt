@@ -250,6 +250,13 @@ JNI_CobaltContentBrowserClient_IsPlatformServicesOffUiThreadEnabled(JNIEnv*) {
   return base::FeatureList::IsEnabled(
       features::kCobaltPlatformServicesOffUiThread);
 }
+
+static jboolean
+JNI_CobaltContentBrowserClient_IsMediaSessionUiAndArtworkOptimizationEnabled(
+    JNIEnv*) {
+  return base::FeatureList::IsEnabled(
+      features::kCobaltMediaSessionUiAndArtworkOptimization);
+}
 #endif  // BUILDFLAG(IS_ANDROID)
 
 std::string GetCobaltUserAgent() {

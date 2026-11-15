@@ -15,19 +15,29 @@
 package dev.cobalt.coat;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.os.Looper;
 import android.os.Parcel;
+import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.chromium.content_public.browser.MediaSession;
+import org.chromium.content_public.browser.MediaSessionObserver;
+import org.chromium.services.media_session.MediaMetadata;
+import org.chromium.services.media_session.MediaPosition;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
@@ -63,11 +73,22 @@ public class CobaltMediaSessionTest {
   }
 
   private CobaltMediaSession createMediaSession(boolean platformServicesOffUiThreadEnabled) {
+    return createMediaSession(
+        platformServicesOffUiThreadEnabled, /* mediaSessionOptimizationEnabled= */ false);
+  }
+
+  private CobaltMediaSession createMediaSession(
+      boolean platformServicesOffUiThreadEnabled, boolean mediaSessionOptimizationEnabled) {
     CobaltMediaSession session =
         new CobaltMediaSession(mContext, mMockDownloader) {
           @Override
           protected boolean isPlatformServicesOffUiThreadEnabled() {
             return platformServicesOffUiThreadEnabled;
+          }
+
+          @Override
+          protected boolean isMediaSessionOptimizationEnabled() {
+            return mediaSessionOptimizationEnabled;
           }
         };
     session.setMediaSessionForTesting(mMockMediaSession);
@@ -232,5 +253,99 @@ public class CobaltMediaSessionTest {
         .isSameInstanceAs(secondCallback);
     assertThat(firstInvocations.get()).isEqualTo(0);
     assertThat(secondInvocations.get()).isEqualTo(1);
+  }
+
+  @Test
+  public void mediaSessionPositionChanged_withOptimization_skipsSetMetadataWhenDurationUnchanged() {
+    CobaltMediaSession cobaltMediaSession =
+        createMediaSession(
+            /* platformServicesOffUiThreadEnabled= */ false,
+            /* mediaSessionOptimizationEnabled= */ true);
+    MediaSessionObserver observer =
+        cobaltMediaSession.createMediaSessionObserver(mock(MediaSession.class));
+
+    observer.mediaSessionStateChanged(/* isControllable= */ true, /* isPaused= */ false);
+    observer.mediaSessionMetadataChanged(new MediaMetadata("Video 1", "Channel", "Album"));
+    verify(mMockMediaSession, times(1)).setMetadata(any());
+
+    // First position update sets initial duration (Long.MIN_VALUE -> 120_000L): calls setMetadata.
+    observer.mediaSessionPositionChanged(new MediaPosition(120_000L, 1_000L, 1.0f, 100L));
+    verify(mMockMediaSession, times(2)).setMetadata(any());
+    verify(mMockMediaSession, times(2)).setPlaybackState(any());
+
+    // Subsequent position ticks with unchanged duration skip setMetadata but still update state.
+    observer.mediaSessionPositionChanged(new MediaPosition(120_000L, 2_000L, 1.0f, 200L));
+    observer.mediaSessionPositionChanged(new MediaPosition(120_000L, 3_000L, 1.0f, 300L));
+    verify(mMockMediaSession, times(2)).setMetadata(any());
+    verify(mMockMediaSession, times(4)).setPlaybackState(any());
+
+    // Duration change triggers setMetadata again.
+    observer.mediaSessionPositionChanged(new MediaPosition(180_000L, 0L, 1.0f, 400L));
+    ArgumentCaptor<MediaMetadataCompat> captor = ArgumentCaptor.forClass(MediaMetadataCompat.class);
+    verify(mMockMediaSession, times(3)).setMetadata(captor.capture());
+    assertThat(captor.getValue().getLong(MediaMetadataCompat.METADATA_KEY_DURATION))
+        .isEqualTo(180_000L);
+
+    // Explicit mediaSessionMetadataChanged still calls setMetadata even when duration is unchanged.
+    observer.mediaSessionMetadataChanged(new MediaMetadata("Video 2", "Channel", "Album"));
+    verify(mMockMediaSession, times(4)).setMetadata(captor.capture());
+    assertThat(captor.getValue().getString(MediaMetadataCompat.METADATA_KEY_TITLE))
+        .isEqualTo("Video 2");
+  }
+
+  @Test
+  public void mediaSessionPositionChanged_withoutOptimization_callsSetMetadataEveryTick() {
+    CobaltMediaSession cobaltMediaSession =
+        createMediaSession(
+            /* platformServicesOffUiThreadEnabled= */ false,
+            /* mediaSessionOptimizationEnabled= */ false);
+    MediaSessionObserver observer =
+        cobaltMediaSession.createMediaSessionObserver(mock(MediaSession.class));
+
+    observer.mediaSessionStateChanged(/* isControllable= */ true, /* isPaused= */ false);
+    observer.mediaSessionMetadataChanged(new MediaMetadata("Video 1", "Channel", "Album"));
+    observer.mediaSessionPositionChanged(new MediaPosition(120_000L, 1_000L, 1.0f, 100L));
+    observer.mediaSessionPositionChanged(new MediaPosition(120_000L, 2_000L, 1.0f, 200L));
+
+    verify(mMockMediaSession, times(3)).setMetadata(any());
+  }
+
+  @Test
+  public void mediaSessionDestroyed_withOptimization_clearsCachedArtwork() {
+    CobaltMediaSession optimizedSession =
+        createMediaSession(
+            /* platformServicesOffUiThreadEnabled= */ false,
+            /* mediaSessionOptimizationEnabled= */ true);
+    ArtworkLoader loader = optimizedSession.getArtworkLoaderForTesting();
+    loader.mRequestedArtworkUrl = "https://i.ytimg.com/pending.jpg";
+    loader.mCurrentArtworkUrl = "https://i.ytimg.com/current.jpg";
+    loader.mCurrentArtwork = Bitmap.createBitmap(64, 36, Bitmap.Config.ARGB_8888);
+
+    MediaSessionObserver observer =
+        optimizedSession.createMediaSessionObserver(mock(MediaSession.class));
+    observer.mediaSessionDestroyed();
+
+    assertThat(loader.mRequestedArtworkUrl).isEmpty();
+    assertThat(loader.mCurrentArtworkUrl).isEmpty();
+    assertThat(loader.mCurrentArtwork).isNull();
+  }
+
+  @Test
+  public void mediaSessionDestroyed_withoutOptimization_retainsCachedArtwork() {
+    CobaltMediaSession unoptimizedSession =
+        createMediaSession(
+            /* platformServicesOffUiThreadEnabled= */ false,
+            /* mediaSessionOptimizationEnabled= */ false);
+    ArtworkLoader loader = unoptimizedSession.getArtworkLoaderForTesting();
+    Bitmap cachedBitmap = Bitmap.createBitmap(64, 36, Bitmap.Config.ARGB_8888);
+    loader.mCurrentArtworkUrl = "https://i.ytimg.com/current.jpg";
+    loader.mCurrentArtwork = cachedBitmap;
+
+    MediaSessionObserver observer =
+        unoptimizedSession.createMediaSessionObserver(mock(MediaSession.class));
+    observer.mediaSessionDestroyed();
+
+    assertThat(loader.mCurrentArtworkUrl).isEqualTo("https://i.ytimg.com/current.jpg");
+    assertThat(loader.mCurrentArtwork).isSameInstanceAs(cachedBitmap);
   }
 }

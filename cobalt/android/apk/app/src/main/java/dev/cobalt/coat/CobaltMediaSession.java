@@ -64,6 +64,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private Set<Integer> mActions;
   private MediaPosition mPosition;
   private Bitmap mArtworkImage;
+  private long mLastSentDurationMs = Long.MIN_VALUE;
   private final MediaSessionCompat.Callback mMediaSessionCallback;
   // Only read and written on the main looper when CobaltPlatformServicesOffUiThread is enabled.
   private LifecycleCallback mLifecycleCallback = null;
@@ -88,8 +89,19 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   }
 
   @VisibleForTesting
+  protected boolean isMediaSessionOptimizationEnabled() {
+    return FeatureList.isNativeInitialized()
+        && CobaltContentBrowserClient.isMediaSessionUiAndArtworkOptimizationEnabled();
+  }
+
+  @VisibleForTesting
   LifecycleCallback getLifecycleCallbackForTesting() {
     return mLifecycleCallback;
+  }
+
+  @VisibleForTesting
+  ArtworkLoader getArtworkLoaderForTesting() {
+    return mArtworkLoader;
   }
 
   /**
@@ -237,6 +249,10 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     mMediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
     mMediaSession.setCallback(mMediaSessionCallback);
     mMediaSession.setActive(true);
+    mLastSentDurationMs = Long.MIN_VALUE;
+    if (isMediaSessionOptimizationEnabled() && mMetadata != null) {
+      updateMetadata();
+    }
 
     if (mLifecycleCallback != null) {
       mLifecycleCallback.onMediaSessionLifecycle(true, mMediaSession.getSessionToken());
@@ -258,11 +274,13 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     mMediaSession.setActive(false);
     mMediaSession.release();
     mMediaSession = null;
+    mLastSentDurationMs = Long.MIN_VALUE;
 
     Log.i(TAG, "MediaSession has been deactivated.");
   }
 
-  private MediaSessionObserver createMediaSessionObserver(MediaSession mediaSession) {
+  @VisibleForTesting
+  MediaSessionObserver createMediaSessionObserver(MediaSession mediaSession) {
     return new MediaSessionObserver(mediaSession) {
       @Override
       public void mediaSessionDestroyed() {
@@ -271,6 +289,10 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
         mActions = null;
         mPosition = null;
         mArtworkImage = null;
+        mLastSentDurationMs = Long.MIN_VALUE;
+        if (isMediaSessionOptimizationEnabled()) {
+          mArtworkLoader.clearCachedArtwork();
+        }
       }
 
       @Override
@@ -305,7 +327,14 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
       @Override
       public void mediaSessionPositionChanged(@Nullable MediaPosition position) {
         mPosition = position;
-        updateMetadata();
+        if (isMediaSessionOptimizationEnabled()) {
+          long newDuration = position != null ? position.getDuration() : Long.MIN_VALUE;
+          if (newDuration != mLastSentDurationMs) {
+            updateMetadata();
+          }
+        } else {
+          updateMetadata();
+        }
         updatePlaybackState();
       }
     };
@@ -377,6 +406,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
       return;
     }
 
+    mLastSentDurationMs = Long.MIN_VALUE;
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     mMediaSession.setMetadata(metadataBuilder.build());
   }
@@ -400,7 +430,11 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
       metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, mArtworkImage);
     }
     if (mPosition != null) {
-      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, mPosition.getDuration());
+      long duration = mPosition.getDuration();
+      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
+      mLastSentDurationMs = duration;
+    } else {
+      mLastSentDurationMs = Long.MIN_VALUE;
     }
     // Set mediaSession's metadata to update the "Now Playing Card".
     MediaMetadataCompat metadata = metadataBuilder.build();
