@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <list>
+#include <optional>
 
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -36,6 +37,16 @@ namespace {
 
 const int64_t kBufferTooLateThreshold = -32'000;  // -32ms
 const int64_t kBufferReadyThreshold = 50'000;     // 50ms
+
+// The following are only used with |kMediaDeadlineDrivenVideoOutput|.
+// The longest time to go without rendering. The thread that renders is also
+// woken up by every decoded frame, so this only bounds how late a change of the
+// media time that was not anticipated, e.g. of the playback rate, is noticed.
+const int64_t kMaxTimeToNextRender = 50'000;  // 50ms
+const int64_t kMinTimeToNextRender = 1'000;   // 1ms
+// Render this much after the front frame becomes ready, so that it is ready
+// for sure by then, instead of right when it becomes ready.
+const int64_t kTimeToNextRenderMargin = 1'000;  // 1ms
 
 jlong GetSystemNanoTime() {
   timespec now;
@@ -68,6 +79,11 @@ void VideoRenderAlgorithmAndroid::Render(
   SB_CHECK(frames);
   SB_CHECK(draw_frame_cb);
 
+  // How long this function doesn't have to be called again, unless a frame is
+  // added to |frames|. With no frame left to release, that is as long as
+  // allowed. Reset where the loop is left because it has to check again soon.
+  std::optional<int64_t> time_to_next_render_us = kMaxTimeToNextRender;
+
   while (frames->size() > 0) {
     if (frames->front()->is_end_of_stream()) {
       frames->pop_front();
@@ -90,10 +106,13 @@ void VideoRenderAlgorithmAndroid::Render(
       // stalled or hasn't consumed frames yet.
       if (first_frame_released_ &&
           (!is_audio_playing || playback_time == seek_to_time_)) {
+        // Nothing tells when the audio starts to play.
+        time_to_next_render_us = std::nullopt;
         break;
       }
     } else {
       if (!is_audio_playing) {
+        time_to_next_render_us = std::nullopt;
         break;
       }
     }
@@ -116,6 +135,7 @@ void VideoRenderAlgorithmAndroid::Render(
         // Let the loop process the end of stream frame, if there is one.
         continue;
       } else {
+        time_to_next_render_us = std::nullopt;
         break;
       }
     }
@@ -143,8 +163,22 @@ void VideoRenderAlgorithmAndroid::Render(
       frames->pop_front();
       first_frame_released_ = true;
     } else {
+      if (playback_rate == 0) {
+        // Paused. Nothing tells when the playback resumes.
+        time_to_next_render_us = std::nullopt;
+      } else {
+        // The front frame becomes ready when it is |kBufferReadyThreshold|
+        // early.
+        time_to_next_render_us = std::clamp<int64_t>(
+            early_us - kBufferReadyThreshold + kTimeToNextRenderMargin,
+            kMinTimeToNextRender, kMaxTimeToNextRender);
+      }
       break;
     }
+  }
+
+  if (video_decoder_->deadline_driven_video_output()) {
+    video_decoder_->set_time_to_next_render(time_to_next_render_us);
   }
 }
 

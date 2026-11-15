@@ -22,6 +22,7 @@
 #include <deque>
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <vector>
 
@@ -59,6 +60,7 @@ class MockHost : public MediaCodecDecoder::Host {
               (MediaCodec * media_codec),
               (override));
   MOCK_METHOD(bool, Tick, (MediaCodec * media_codec), (override));
+  MOCK_METHOD(std::optional<int64_t>, GetTimeToNextTick, (), (override));
   MOCK_METHOD(void, OnFlushing, (), (override));
   MOCK_METHOD(bool,
               IsBufferDecodeOnly,
@@ -193,6 +195,204 @@ TEST_F(MediaCodecDecoderTest, BasicDecodingFlow) {
   decoder_.reset();
   EXPECT_FALSE(error_called);
 }
+
+// The threads that can call Host::Tick().
+enum class VideoLoop { kSingle, kDual, kDualV2 };
+
+// Tests of |deadline_driven_video_output|, for each of the loops that call
+// Host::Tick().
+class MediaCodecDecoderDeadlineDrivenTest
+    : public ::testing::TestWithParam<VideoLoop> {
+ protected:
+  void CreateDecoder(bool deadline_driven_video_output) {
+    ON_CALL(host_, Tick(_)).WillByDefault(Invoke([this](MediaCodec*) {
+      ++tick_count_;
+      return false;
+    }));
+    ON_CALL(host_, ProcessOutputBuffer(_, _, _))
+        .WillByDefault(
+            Invoke([this](MediaCodec* codec, const DequeueOutputResult& output,
+                          int number_of_pending_inputs) {
+              codec->ReleaseOutputBuffer(output.index, false);
+              {
+                std::lock_guard lock(mutex_);
+                ++processed_output_count_;
+              }
+              condition_variable_.notify_all();
+            }));
+
+    MediaCodecDecoder::VideoExperimentalOptions options;
+    options.enable_codec_thread_improvements = GetParam() == VideoLoop::kDualV2;
+    options.deadline_driven_video_output = deadline_driven_video_output;
+    auto result = MediaCodecDecoder::CreateForVideo(
+        factory_, &job_queue_, &host_, kSbMediaVideoCodecH264, Size(1920, 1080),
+        /*max_frame_size=*/std::nullopt, /*fps=*/0,
+        jni_zero::JavaRef<jobject>(), kSbDrmSystemInvalid,
+        /*color_metadata=*/nullptr, /*require_software_codec=*/false,
+        /*is_high_bit_depth=*/false,
+        /*frame_rendered_cb=*/[](int64_t) {},
+        /*first_tunnel_frame_ready_cb=*/[]() {},
+        /*tunnel_mode_audio_session_id=*/std::nullopt,
+        /*enable_frame_renderer_listener=*/false,
+        /*max_video_input_size=*/0, /*flush_delay_usec=*/0,
+        /*use_dual_threads=*/GetParam() != VideoLoop::kSingle, options);
+    ASSERT_TRUE(result);
+    decoder_ = std::move(result.value());
+    codec_ = factory_.last_created_video_codec();
+    ASSERT_NE(codec_, nullptr);
+    decoder_->Initialize([](SbPlayerError, const std::string&) {});
+  }
+
+  // Starts the decoder threads. The input stays pending, as the codec has no
+  // input buffer for it, so the threads have nothing to do but to tick.
+  void StartThreads() {
+    uint8_t* buffer = new uint8_t[16]();
+    SbPlayerSampleInfo sample_info = {};
+    sample_info.type = kSbMediaTypeVideo;
+    sample_info.buffer = buffer;
+    sample_info.buffer_size = 16;
+    sample_info.video_sample_info.stream_info.codec = kSbMediaVideoCodecH264;
+    sample_info.video_sample_info.stream_info.mime = "";
+    sample_info.video_sample_info.stream_info.max_video_capabilities = "";
+    auto deallocate_func = [](SbPlayer player, void* context,
+                              const void* sample_buffer) {
+      delete[] static_cast<const uint8_t*>(sample_buffer);
+    };
+    decoder_->WriteInputBuffers(
+        {make_scoped_refptr<InputBuffer>(deallocate_func, /*player=*/nullptr,
+                                         /*context=*/nullptr, sample_info)});
+  }
+
+  // Lets the threads start and take their first wait.
+  void WaitForThreadsToSettle() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  // Returns the number of Host::Tick() calls per second, measured over about
+  // |kMeasureDurationMs|.
+  double MeasureTicksPerSecond() {
+    WaitForThreadsToSettle();
+    const auto start = std::chrono::steady_clock::now();
+    const int ticks_before = tick_count_.load();
+    std::this_thread::sleep_for(std::chrono::milliseconds(kMeasureDurationMs));
+    const int ticks = tick_count_.load() - ticks_before;
+    const std::chrono::duration<double> elapsed =
+        std::chrono::steady_clock::now() - start;
+    return ticks / elapsed.count();
+  }
+
+  bool WaitForTickCountAbove(int tick_count, int timeout_ms) {
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(timeout_ms);
+    while (tick_count_.load() <= tick_count) {
+      if (std::chrono::steady_clock::now() > deadline) {
+        return false;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    return true;
+  }
+
+  bool WaitForProcessedOutput(int count, int timeout_ms) {
+    std::unique_lock lock(mutex_);
+    return condition_variable_.wait_for(
+        lock, std::chrono::milliseconds(timeout_ms),
+        [&] { return processed_output_count_ >= count; });
+  }
+
+  void TearDown() override {
+    // Stops the decoder threads, which use the members below.
+    decoder_.reset();
+  }
+
+  static constexpr int kMeasureDurationMs = 600;
+  // Without asking the host, the loops tick every 8 ms (dual), i.e. 125 times
+  // per second, or twice every 1 ms (single). With a wait of 50 ms they tick 20
+  // (dual) or 40 (single) times per second. This is in between.
+  static constexpr double kTicksPerSecondThreshold = 70;
+
+  JobQueue job_queue_;
+  FakeMediaCodecFactory factory_;
+  NiceMock<MockHost> host_;
+  FakeMediaCodec* codec_ = nullptr;
+  std::atomic_int tick_count_{0};
+  std::mutex mutex_;
+  std::condition_variable condition_variable_;
+  int processed_output_count_ = 0;  // Guarded by |mutex_|.
+  // Declared last, as its threads use the members above until it is destroyed.
+  std::unique_ptr<MediaCodecDecoder> decoder_;
+};
+
+TEST_P(MediaCodecDecoderDeadlineDrivenTest, DoesNotAskHostByDefault) {
+  EXPECT_CALL(host_, GetTimeToNextTick()).Times(0);
+  CreateDecoder(/*deadline_driven_video_output=*/false);
+  StartThreads();
+
+  EXPECT_GT(MeasureTicksPerSecond(), kTicksPerSecondThreshold);
+}
+
+TEST_P(MediaCodecDecoderDeadlineDrivenTest, WaitsAsLongAsHostAllows) {
+  ON_CALL(host_, GetTimeToNextTick()).WillByDefault(Return(50'000));
+  CreateDecoder(/*deadline_driven_video_output=*/true);
+  StartThreads();
+
+  EXPECT_LT(MeasureTicksPerSecond(), kTicksPerSecondThreshold);
+}
+
+TEST_P(MediaCodecDecoderDeadlineDrivenTest,
+       TicksAtUsualIntervalWhenHostDoesNotSay) {
+  ON_CALL(host_, GetTimeToNextTick()).WillByDefault(Return(std::nullopt));
+  CreateDecoder(/*deadline_driven_video_output=*/true);
+  StartThreads();
+
+  EXPECT_GT(MeasureTicksPerSecond(), kTicksPerSecondThreshold);
+}
+
+// The host can't make the loop tick more often than it does without the
+// setting.
+TEST_P(MediaCodecDecoderDeadlineDrivenTest, NeverWaitsLessThanUsualInterval) {
+  if (GetParam() == VideoLoop::kSingle) {
+    GTEST_SKIP() << "The usual interval of this loop is too short to measure.";
+  }
+  ON_CALL(host_, GetTimeToNextTick()).WillByDefault(Return(1));
+  CreateDecoder(/*deadline_driven_video_output=*/true);
+  StartThreads();
+
+  // 125 times per second with the usual interval of 8 ms.
+  EXPECT_LT(MeasureTicksPerSecond(), 250);
+}
+
+TEST_P(MediaCodecDecoderDeadlineDrivenTest, OutputEndsTheWait) {
+  // Far longer than the test waits for the output to be processed.
+  ON_CALL(host_, GetTimeToNextTick()).WillByDefault(Return(10'000'000));
+  CreateDecoder(/*deadline_driven_video_output=*/true);
+  StartThreads();
+  WaitForThreadsToSettle();
+  const int ticks_before = tick_count_.load();
+
+  codec_->SimulateOutputAvailable(0, 0, 0, /*pts=*/10'000, 1024);
+
+  EXPECT_TRUE(WaitForProcessedOutput(1, /*timeout_ms=*/1'000));
+  // The host gets to render the new frame.
+  EXPECT_TRUE(WaitForTickCountAbove(ticks_before, /*timeout_ms=*/1'000));
+}
+
+TEST_P(MediaCodecDecoderDeadlineDrivenTest, DestructionEndsTheWait) {
+  ON_CALL(host_, GetTimeToNextTick()).WillByDefault(Return(10'000'000));
+  CreateDecoder(/*deadline_driven_video_output=*/true);
+  StartThreads();
+  WaitForThreadsToSettle();
+
+  const auto start = std::chrono::steady_clock::now();
+  decoder_.reset();
+  EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::seconds(2));
+}
+
+INSTANTIATE_TEST_SUITE_P(,
+                         MediaCodecDecoderDeadlineDrivenTest,
+                         ::testing::Values(VideoLoop::kSingle,
+                                           VideoLoop::kDual,
+                                           VideoLoop::kDualV2));
 
 class MediaCodecDecoderVideoDualThreadsTest
     : public ::testing::TestWithParam<bool> {

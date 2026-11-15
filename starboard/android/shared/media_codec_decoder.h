@@ -16,6 +16,7 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_DECODER_H_
 
 #include <atomic>
+#include <chrono>
 #include <deque>
 #include <memory>
 #include <optional>
@@ -55,6 +56,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     bool enable_trivial_optimizations = false;
     // Only has an effect when dual decoder threads are used.
     bool enable_codec_thread_improvements = false;
+    // Waits as long as Host::GetTimeToNextTick() allows between calls of
+    // Host::Tick(). See |kMediaDeadlineDrivenVideoOutput|.
+    bool deadline_driven_video_output = false;
   };
 
   MediaCodec* media_codec() const { return media_codec_bridge_.get(); }
@@ -75,6 +79,13 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     // TODO: Revise the scheduling logic to give the host a chance to process in
     //       a more elegant way.
     virtual bool Tick(MediaCodec* media_codec) = 0;
+    // Returns how long the decoding thread may wait before the next Tick(), in
+    // microseconds, as of the last Tick(), provided that nothing else comes up:
+    // the thread always calls Tick() again once it has processed an output
+    // buffer. Returns nullopt if Tick() has to be called at the usual short
+    // interval, which is also the shortest the thread waits. Only called when
+    // |deadline_driven_video_output| is set, on the thread that calls Tick().
+    virtual std::optional<int64_t> GetTimeToNextTick() { return std::nullopt; }
     // This function gets called before calling Flush() on the contained
     // MediaCodecBridge so the host can have a chance to do necessary cleanups
     // before the MediaCodecBridge is flushed.
@@ -223,6 +234,14 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       std::vector<DequeueOutputResult>* dequeue_output_results);
   bool ProcessOneInputBuffer(std::deque<PendingInput>* pending_inputs,
                              std::vector<int>* input_buffer_indices);
+  // Returns how long to wait for input or output, when there is none to
+  // process, before calling Host::Tick() again. |default_wait| is the fixed
+  // interval used when the wait is not driven by the host.
+  std::chrono::microseconds GetWaitBeforeNextTick(
+      std::chrono::microseconds default_wait);
+  // Returns true if the thread must not start to wait because it is being
+  // terminated. To be called with |mutex_| held.
+  bool ShouldSkipWaitForTermination() const;
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
   // Invoked by |drm_system_| with its callback lock held; acquires |mutex_|.
@@ -259,6 +278,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   // when |use_dual_threads_| is also true, as the improvements only apply to
   // the dual-thread video decoder.
   const bool enable_codec_thread_improvements_ = false;
+  // See |kMediaDeadlineDrivenVideoOutput|. Never true in tunnel mode, where
+  // Host::Tick() is not called.
+  const bool deadline_driven_video_output_ = false;
 
   ErrorCB error_cb_;
 

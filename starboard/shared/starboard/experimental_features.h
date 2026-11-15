@@ -192,6 +192,12 @@ inline const char* ToString(NdkAudioMode mode) {
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 
+// When set, the thread that releases decoded video frames to MediaCodec sleeps
+// until the next frame is due, or until a new frame is decoded, instead of
+// waking up at a fixed short interval to check.
+inline constexpr ExperimentalFeatureKey<bool> kMediaDeadlineDrivenVideoOutput(
+    "Media.DeadlineDrivenVideoOutput");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 
