@@ -545,7 +545,7 @@ BASE_FEATURE(kCobaltDecoderBufferDecommitOnMemoryPressure,
 BASE_FEATURE_PARAM(int,
                    kCobaltDecoderBufferDecommitRetainBlocks,
                    &kCobaltDecoderBufferDecommitOnMemoryPressure,
-                   "retain_blocks",
+                   "CobaltDecoderBufferDecommitOnMemoryPressure_retain_blocks",
                    4);
 // Whether CRITICAL memory pressure also releases blocks in the retain window.
 BASE_FEATURE_PARAM(bool,
@@ -553,6 +553,14 @@ BASE_FEATURE_PARAM(bool,
                    &kCobaltDecoderBufferDecommitOnMemoryPressure,
                    "release_retained_on_critical",
                    true);
+// Whether idle blocks beyond the retain window are decommitted immediately when
+// live allocations drop to zero (e.g., exiting Watch or inline preview back to
+// Browse), without waiting for an OS memory-pressure callback.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltDecoderBufferDecommitWhenEmpty,
+                   &kCobaltDecoderBufferDecommitOnMemoryPressure,
+                   "CobaltDecoderBufferDecommitOnMemoryPressure_when_empty",
+                   false);
 // When enabled, the MediaSource stream parsers parse appended data in place
 // rather than copying it into an internal byte queue. Cobalt retains the
 // ArrayBuffer passed to SourceBuffer.appendBuffer() until the StreamParser is
