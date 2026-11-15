@@ -36,6 +36,13 @@ jobs:
           sudo swapon /mnt/swapfile
           free -h
 
+      - name: Install host build dependencies
+        run: |
+          # gperf is required by //third_party/blink/renderer/platform:color_data
+          # and is not part of the ubuntu-latest runner image.
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gperf
+
       - name: Install depot_tools
         run: |
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
