@@ -1,0 +1,1283 @@
+diff --git a/cobalt/adblock/BUILD.gn b/cobalt/adblock/BUILD.gn
+new file mode 100644
+index 0000000..9219662
+--- /dev/null
++++ b/cobalt/adblock/BUILD.gn
+@@ -0,0 +1,27 @@
++# Copyright 2026 The Cobalt Authors. All Rights Reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++source_set("adblock") {
++  sources = [
++    "adblock_js.h",
++    "adblock_render_frame_observer.cc",
++    "adblock_render_frame_observer.h",
++  ]
++
++  deps = [
++    "//content/public/renderer",
++    "//third_party/blink/public:blink_headers",
++    "//url",
++  ]
++}
+diff --git a/cobalt/adblock/adblock.gni b/cobalt/adblock/adblock.gni
+new file mode 100644
+index 0000000..8c1dfb3
+--- /dev/null
++++ b/cobalt/adblock/adblock.gni
+@@ -0,0 +1,19 @@
++# Copyright 2026 The Cobalt Authors. All Rights Reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++declare_args() {
++  # Injects the ad-blocking script into YouTube documents before the page's
++  # own scripts run. Set to false to build a stock Cobalt renderer.
++  cobalt_enable_adblock = true
++}
+diff --git a/cobalt/adblock/adblock.js b/cobalt/adblock/adblock.js
+new file mode 100644
+index 0000000..b097c75
+--- /dev/null
++++ b/cobalt/adblock/adblock.js
+@@ -0,0 +1,469 @@
++// Copyright 2026 The Cobalt Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++/*
++ * Ad blocker for the YouTube TV (leanback) web app running inside Cobalt.
++ *
++ * This file is copied into the APK as assets/yt-adblock.js and evaluated in the
++ * page's main world by CobaltInjector. It is deliberately ES5-only: Cobalt's
++ * JavaScript engine on older TV firmware does not ship every modern built-in.
++ *
++ * The leanback app turns InnerTube responses into objects with JSON.parse. The
++ * player response carries the ad pipeline in top-level keys such as
++ * adPlacements/playerAds/adSlots; deleting them before the app reads the object
++ * is enough to stop pre-roll, mid-roll and post-roll ads on the TV client.
++ */
++(function () {
++  if (window.__ytTvAdblock) {
++    return;
++  }
++  window.__ytTvAdblock = true;
++
++  var AD_KEYS = [
++    "adPlacements",
++    "playerAds",
++    "adSlots",
++    "adBreakHeartbeatParams",
++    "importantAdBreak",
++    "adBreakServiceMetadata"
++  ];
++
++  function isObject(value) {
++    return value !== null && typeof value === "object";
++  }
++
++  function has(object, key) {
++    return Object.prototype.hasOwnProperty.call(object, key);
++  }
++
++  function addHeader(out, name, value) {
++    var lower = String(name).toLowerCase();
++    if (lower === "content-length" || lower === "content-encoding") {
++      return;
++    }
++    out[name] = value;
++  }
++
++  // The rebuilt body is re-serialized JSON, so it no longer matches the wire
++  // encoding or byte length of the original response.
++  function sanitizedHeaders(headers) {
++    var out = {};
++    if (!headers) {
++      return out;
++    }
++    if (typeof headers.forEach === "function") {
++      headers.forEach(function (value, name) {
++        addHeader(out, name, value);
++      });
++      return out;
++    }
++    for (var name in headers) {
++      if (has(headers, name)) {
++        addHeader(out, name, headers[name]);
++      }
++    }
++    return out;
++  }
++
++  function stripAdKeys(object) {
++    if (!isObject(object)) {
++      return;
++    }
++    for (var i = 0; i < AD_KEYS.length; i++) {
++      var key = AD_KEYS[i];
++      if (has(object, key)) {
++        try {
++          delete object[key];
++        } catch (e) {
++          /* frozen object: leave it alone */
++        }
++      }
++    }
++  }
++
++  var PROMO_RENDERER_KEYS = [
++    "adSlotRenderer",
++    "adSlotMetadata",
++    "promotedSparklesTextSearchRenderer",
++    "promotedSparklesWebRenderer",
++    "searchPyvRenderer",
++    "mealbarPromoRenderer",
++    "backgroundPromoRenderer",
++    "compactPromoRenderer",
++    "statementBannerRenderer",
++    "inFeedAdLayoutRenderer"
++  ];
++
++  function isAdOrPromoItem(item) {
++    if (!isObject(item)) {
++      return false;
++    }
++    for (var i = 0; i < PROMO_RENDERER_KEYS.length; i++) {
++      if (has(item, PROMO_RENDERER_KEYS[i])) {
++        return true;
++      }
++    }
++    return false;
++  }
++
++  function withoutAdItems(items) {
++    if (!Array.isArray(items)) {
++      return items;
++    }
++    var kept = [];
++    for (var i = 0; i < items.length; i++) {
++      if (isAdOrPromoItem(items[i])) {
++        continue;
++      }
++      kept.push(items[i]);
++    }
++    return kept;
++  }
++
++  function stripItemSections(items) {
++    if (!Array.isArray(items)) {
++      return;
++    }
++    for (var i = 0; i < items.length; i++) {
++      var item = items[i];
++      if (!isObject(item) || !isObject(item.itemSectionRenderer)) {
++        continue;
++      }
++      var contents = item.itemSectionRenderer.contents;
++      if (Array.isArray(contents)) {
++        item.itemSectionRenderer.contents = withoutAdItems(contents);
++      }
++    }
++  }
++
++  function stripShelves(shelves) {
++    if (!Array.isArray(shelves)) {
++      return;
++    }
++    for (var i = 0; i < shelves.length; i++) {
++      var shelf = shelves[i];
++      if (!isObject(shelf)) {
++        continue;
++      }
++      var renderer = shelf.shelfRenderer || shelf.tvShelfRenderer;
++      if (!renderer || !isObject(renderer.content)) {
++        continue;
++      }
++      var horizontal = renderer.content.horizontalListRenderer;
++      if (horizontal && Array.isArray(horizontal.items)) {
++        horizontal.items = withoutAdItems(horizontal.items);
++      }
++      var grid = renderer.content.gridRenderer;
++      if (grid && Array.isArray(grid.items)) {
++        grid.items = withoutAdItems(grid.items);
++      }
++    }
++  }
++
++  function stripSectionList(holder) {
++    if (!isObject(holder) || !Array.isArray(holder.contents)) {
++      return;
++    }
++    holder.contents = withoutAdItems(holder.contents);
++    stripItemSections(holder.contents);
++    stripShelves(holder.contents);
++  }
++
++  function stripBrowseResponse(response) {
++    if (!isObject(response.contents)) {
++      return;
++    }
++
++    stripSectionList(response.contents.sectionListRenderer);
++
++    var browse = response.contents.tvBrowseRenderer;
++    if (isObject(browse) && isObject(browse.content)) {
++      var surface = browse.content.tvSurfaceContentRenderer;
++      if (isObject(surface) && isObject(surface.content)) {
++        stripSectionList(surface.content.sectionListRenderer);
++        if (isObject(surface.content.gridRenderer)) {
++          surface.content.gridRenderer.items = withoutAdItems(surface.content.gridRenderer.items);
++        }
++      }
++
++      var secondary = browse.content.tvSecondaryNavRenderer;
++      if (isObject(secondary) && Array.isArray(secondary.sections)) {
++        for (var i = 0; i < secondary.sections.length; i++) {
++          var section = secondary.sections[i] && secondary.sections[i].tvSecondaryNavSectionRenderer;
++          if (!isObject(section) || !Array.isArray(section.tabs)) {
++            continue;
++          }
++          for (var j = 0; j < section.tabs.length; j++) {
++            var tab = section.tabs[j] && section.tabs[j].tabRenderer;
++            var tabSurface = tab && tab.content && tab.content.tvSurfaceContentRenderer;
++            var tabContent = tabSurface && tabSurface.content;
++            if (!isObject(tabContent)) {
++              continue;
++            }
++            stripSectionList(tabContent.sectionListRenderer);
++            if (isObject(tabContent.gridRenderer)) {
++              tabContent.gridRenderer.items = withoutAdItems(tabContent.gridRenderer.items);
++            }
++          }
++        }
++      }
++    }
++
++    var watchNext = response.contents.singleColumnWatchNextResults;
++    if (isObject(watchNext) && isObject(watchNext.pivot)) {
++      stripSectionList(watchNext.pivot.sectionListRenderer);
++    }
++
++    var continuation = response.continuationContents;
++    if (isObject(continuation)) {
++      stripSectionList(continuation.sectionListContinuation);
++      stripSectionList(continuation.horizontalListContinuation);
++      if (isObject(continuation.horizontalListContinuation)) {
++        continuation.horizontalListContinuation.items =
++          withoutAdItems(continuation.horizontalListContinuation.items);
++      }
++      if (isObject(continuation.gridContinuation)) {
++        continuation.gridContinuation.items = withoutAdItems(continuation.gridContinuation.items);
++      }
++    }
++  }
++
++  function stripEntries(holder) {
++    if (!isObject(holder) || !Array.isArray(holder.entries)) {
++      return;
++    }
++    var kept = [];
++    for (var i = 0; i < holder.entries.length; i++) {
++      var entry = holder.entries[i];
++      var command = entry && entry.command;
++      var endpoint = command && command.reelWatchEndpoint;
++      if (endpoint && endpoint.adClientParams && endpoint.adClientParams.isAd) {
++        continue;
++      }
++      kept.push(entry);
++    }
++    holder.entries = kept;
++  }
++
++  function stripShortsAds(response) {
++    stripEntries(response);
++    stripEntries(response.reelWatchFeedResponse);
++    stripEntries(response.reelWatchSequenceResponse);
++  }
++
++  function strip(response) {
++    if (!isObject(response)) {
++      return response;
++    }
++    stripAdKeys(response);
++    stripShortsAds(response);
++    try {
++      stripBrowseResponse(response);
++    } catch (e) {
++      /* unexpected response shape: keep the ad-key stripping only */
++    }
++    return response;
++  }
++
++  var originalParse = JSON.parse;
++  try {
++    JSON.parse = function () {
++      var parsed = originalParse.apply(this, arguments);
++      try {
++        strip(parsed);
++      } catch (e) {
++        /* never break the app's own parsing */
++      }
++      return parsed;
++    };
++  } catch (e) {
++    /* JSON.parse not writable: nothing else we can do */
++  }
++
++  var INNERTUBE_PATHS = [
++    "/youtubei/v1/player",
++    "/youtubei/v1/next",
++    "/youtubei/v1/browse",
++    "/youtubei/v1/search",
++    "/youtubei/v1/reel/",
++    "/get_midroll_info"
++  ];
++
++  function isInnerTubeUrl(url) {
++    var text = String(url || "");
++    for (var i = 0; i < INNERTUBE_PATHS.length; i++) {
++      if (text.indexOf(INNERTUBE_PATHS[i]) !== -1) {
++        return true;
++      }
++    }
++    return false;
++  }
++
++  try {
++    var originalFetch = window.fetch;
++    if (typeof originalFetch === "function" && typeof Response === "function") {
++      window.fetch = function () {
++        var args = arguments;
++        var requestUrl = "";
++        try {
++          requestUrl = args[0] && args[0].url ? args[0].url : args[0];
++        } catch (e) {
++          /* ignore */
++        }
++        return originalFetch.apply(this, args).then(function (response) {
++          if (!response || !response.clone) {
++            return response;
++          }
++          var responseUrl = String(response.url || requestUrl || "");
++          if (!isInnerTubeUrl(responseUrl)) {
++            return response;
++          }
++          return response
++            .clone()
++            .text()
++            .then(function (body) {
++              var parsed;
++              try {
++                parsed = originalParse(body);
++              } catch (e) {
++                return response;
++              }
++              try {
++                strip(parsed);
++              } catch (e) {
++                /* ignore */
++              }
++              var rebuilt;
++              try {
++                rebuilt = new Response(JSON.stringify(parsed), {
++                  status: response.status,
++                  statusText: response.statusText,
++                  headers: sanitizedHeaders(response.headers)
++                });
++              } catch (e) {
++                return response;
++              }
++              try {
++                Object.defineProperty(rebuilt, "url", {
++                  value: responseUrl,
++                  enumerable: true,
++                  configurable: true
++                });
++              } catch (e) {
++                /* Response may be non-extensible in older engines */
++              }
++              return rebuilt;
++            })
++            ["catch"](function () {
++              return response;
++            });
++        });
++      };
++    }
++  } catch (e) {
++    /* fetch is not available in this engine */
++  }
++
++  function stripJsonText(text) {
++    if (typeof text !== "string") {
++      return text;
++    }
++    var parsed = originalParse(text);
++    strip(parsed);
++    return JSON.stringify(parsed);
++  }
++
++  function stripXhrValue(value, xhr) {
++    if (typeof value === "string") {
++      return stripJsonText(value);
++    }
++    if (isObject(value) && xhr.responseType === "json") {
++      strip(value);
++    }
++    return value;
++  }
++
++  function shadowXhrProperty(xhr, name) {
++    var descriptor = Object.getOwnPropertyDescriptor(
++        XMLHttpRequest.prototype, name);
++    if (!descriptor || typeof descriptor.get !== "function") {
++      return;
++    }
++    var rawGet = descriptor.get;
++    var cached;
++    var hasCached = false;
++    try {
++      Object.defineProperty(xhr, name, {
++        configurable: true,
++        enumerable: true,
++        get: function () {
++          var value = rawGet.call(this);
++          if (hasCached) {
++            return cached;
++          }
++          try {
++            cached = stripXhrValue(value, this);
++            hasCached = true;
++            return cached;
++          } catch (e) {
++            return value;
++          }
++        }
++      });
++    } catch (e) {
++      /* not shadowable on this engine */
++    }
++  }
++
++  function installXhrHook() {
++    if (typeof XMLHttpRequest !== "function" || !XMLHttpRequest.prototype) {
++      return;
++    }
++    var proto = XMLHttpRequest.prototype;
++    var originalOpen = proto.open;
++    var originalSend = proto.send;
++    if (typeof originalOpen !== "function" || typeof originalSend !== "function") {
++      return;
++    }
++    proto.open = function (method, url) {
++      this.__ytTvAdblockUrl = String(url || "");
++      this.__ytTvAdblockHooked = false;
++      return originalOpen.apply(this, arguments);
++    };
++    proto.send = function () {
++      try {
++        if (!this.__ytTvAdblockHooked && isInnerTubeUrl(this.__ytTvAdblockUrl)) {
++          this.__ytTvAdblockHooked = true;
++          shadowXhrProperty(this, "responseText");
++          shadowXhrProperty(this, "response");
++        }
++      } catch (e) {
++        /* keep the request untouched */
++      }
++      return originalSend.apply(this, arguments);
++    };
++  }
++
++  try {
++    installXhrHook();
++  } catch (e) {
++    /* XMLHttpRequest not available in this engine */
++  }
++
++  try {
++    console.log("[yt-tv-adblock] active");
++  } catch (e) {
++    /* console is not forwarded on some Cobalt builds */
++  }
++})();
+diff --git a/cobalt/adblock/adblock_js.h b/cobalt/adblock/adblock_js.h
+new file mode 100644
+index 0000000..eea060d
+--- /dev/null
++++ b/cobalt/adblock/adblock_js.h
+@@ -0,0 +1,496 @@
++// Copyright 2026 The Cobalt Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++// Generated by generate_adblock_js.py from adblock.js. Do not edit.
++
++#ifndef COBALT_ADBLOCK_ADBLOCK_JS_H_
++#define COBALT_ADBLOCK_ADBLOCK_JS_H_
++
++namespace cobalt {
++
++inline constexpr char kAdblockJs[] = R"YTADBLOCK_JS(
++// Copyright 2026 The Cobalt Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++/*
++ * Ad blocker for the YouTube TV (leanback) web app running inside Cobalt.
++ *
++ * This file is copied into the APK as assets/yt-adblock.js and evaluated in the
++ * page's main world by CobaltInjector. It is deliberately ES5-only: Cobalt's
++ * JavaScript engine on older TV firmware does not ship every modern built-in.
++ *
++ * The leanback app turns InnerTube responses into objects with JSON.parse. The
++ * player response carries the ad pipeline in top-level keys such as
++ * adPlacements/playerAds/adSlots; deleting them before the app reads the object
++ * is enough to stop pre-roll, mid-roll and post-roll ads on the TV client.
++ */
++(function () {
++  if (window.__ytTvAdblock) {
++    return;
++  }
++  window.__ytTvAdblock = true;
++
++  var AD_KEYS = [
++    "adPlacements",
++    "playerAds",
++    "adSlots",
++    "adBreakHeartbeatParams",
++    "importantAdBreak",
++    "adBreakServiceMetadata"
++  ];
++
++  function isObject(value) {
++    return value !== null && typeof value === "object";
++  }
++
++  function has(object, key) {
++    return Object.prototype.hasOwnProperty.call(object, key);
++  }
++
++  function addHeader(out, name, value) {
++    var lower = String(name).toLowerCase();
++    if (lower === "content-length" || lower === "content-encoding") {
++      return;
++    }
++    out[name] = value;
++  }
++
++  // The rebuilt body is re-serialized JSON, so it no longer matches the wire
++  // encoding or byte length of the original response.
++  function sanitizedHeaders(headers) {
++    var out = {};
++    if (!headers) {
++      return out;
++    }
++    if (typeof headers.forEach === "function") {
++      headers.forEach(function (value, name) {
++        addHeader(out, name, value);
++      });
++      return out;
++    }
++    for (var name in headers) {
++      if (has(headers, name)) {
++        addHeader(out, name, headers[name]);
++      }
++    }
++    return out;
++  }
++
++  function stripAdKeys(object) {
++    if (!isObject(object)) {
++      return;
++    }
++    for (var i = 0; i < AD_KEYS.length; i++) {
++      var key = AD_KEYS[i];
++      if (has(object, key)) {
++        try {
++          delete object[key];
++        } catch (e) {
++          /* frozen object: leave it alone */
++        }
++      }
++    }
++  }
++
++  var PROMO_RENDERER_KEYS = [
++    "adSlotRenderer",
++    "adSlotMetadata",
++    "promotedSparklesTextSearchRenderer",
++    "promotedSparklesWebRenderer",
++    "searchPyvRenderer",
++    "mealbarPromoRenderer",
++    "backgroundPromoRenderer",
++    "compactPromoRenderer",
++    "statementBannerRenderer",
++    "inFeedAdLayoutRenderer"
++  ];
++
++  function isAdOrPromoItem(item) {
++    if (!isObject(item)) {
++      return false;
++    }
++    for (var i = 0; i < PROMO_RENDERER_KEYS.length; i++) {
++      if (has(item, PROMO_RENDERER_KEYS[i])) {
++        return true;
++      }
++    }
++    return false;
++  }
++
++  function withoutAdItems(items) {
++    if (!Array.isArray(items)) {
++      return items;
++    }
++    var kept = [];
++    for (var i = 0; i < items.length; i++) {
++      if (isAdOrPromoItem(items[i])) {
++        continue;
++      }
++      kept.push(items[i]);
++    }
++    return kept;
++  }
++
++  function stripItemSections(items) {
++    if (!Array.isArray(items)) {
++      return;
++    }
++    for (var i = 0; i < items.length; i++) {
++      var item = items[i];
++      if (!isObject(item) || !isObject(item.itemSectionRenderer)) {
++        continue;
++      }
++      var contents = item.itemSectionRenderer.contents;
++      if (Array.isArray(contents)) {
++        item.itemSectionRenderer.contents = withoutAdItems(contents);
++      }
++    }
++  }
++
++  function stripShelves(shelves) {
++    if (!Array.isArray(shelves)) {
++      return;
++    }
++    for (var i = 0; i < shelves.length; i++) {
++      var shelf = shelves[i];
++      if (!isObject(shelf)) {
++        continue;
++      }
++      var renderer = shelf.shelfRenderer || shelf.tvShelfRenderer;
++      if (!renderer || !isObject(renderer.content)) {
++        continue;
++      }
++      var horizontal = renderer.content.horizontalListRenderer;
++      if (horizontal && Array.isArray(horizontal.items)) {
++        horizontal.items = withoutAdItems(horizontal.items);
++      }
++      var grid = renderer.content.gridRenderer;
++      if (grid && Array.isArray(grid.items)) {
++        grid.items = withoutAdItems(grid.items);
++      }
++    }
++  }
++
++  function stripSectionList(holder) {
++    if (!isObject(holder) || !Array.isArray(holder.contents)) {
++      return;
++    }
++    holder.contents = withoutAdItems(holder.contents);
++    stripItemSections(holder.contents);
++    stripShelves(holder.contents);
++  }
++
++  function stripBrowseResponse(response) {
++    if (!isObject(response.contents)) {
++      return;
++    }
++
++    stripSectionList(response.contents.sectionListRenderer);
++
++    var browse = response.contents.tvBrowseRenderer;
++    if (isObject(browse) && isObject(browse.content)) {
++      var surface = browse.content.tvSurfaceContentRenderer;
++      if (isObject(surface) && isObject(surface.content)) {
++        stripSectionList(surface.content.sectionListRenderer);
++        if (isObject(surface.content.gridRenderer)) {
++          surface.content.gridRenderer.items = withoutAdItems(surface.content.gridRenderer.items);
++        }
++      }
++
++      var secondary = browse.content.tvSecondaryNavRenderer;
++      if (isObject(secondary) && Array.isArray(secondary.sections)) {
++        for (var i = 0; i < secondary.sections.length; i++) {
++          var section = secondary.sections[i] && secondary.sections[i].tvSecondaryNavSectionRenderer;
++          if (!isObject(section) || !Array.isArray(section.tabs)) {
++            continue;
++          }
++          for (var j = 0; j < section.tabs.length; j++) {
++            var tab = section.tabs[j] && section.tabs[j].tabRenderer;
++            var tabSurface = tab && tab.content && tab.content.tvSurfaceContentRenderer;
++            var tabContent = tabSurface && tabSurface.content;
++            if (!isObject(tabContent)) {
++              continue;
++            }
++            stripSectionList(tabContent.sectionListRenderer);
++            if (isObject(tabContent.gridRenderer)) {
++              tabContent.gridRenderer.items = withoutAdItems(tabContent.gridRenderer.items);
++            }
++          }
++        }
++      }
++    }
++
++    var watchNext = response.contents.singleColumnWatchNextResults;
++    if (isObject(watchNext) && isObject(watchNext.pivot)) {
++      stripSectionList(watchNext.pivot.sectionListRenderer);
++    }
++
++    var continuation = response.continuationContents;
++    if (isObject(continuation)) {
++      stripSectionList(continuation.sectionListContinuation);
++      stripSectionList(continuation.horizontalListContinuation);
++      if (isObject(continuation.horizontalListContinuation)) {
++        continuation.horizontalListContinuation.items =
++          withoutAdItems(continuation.horizontalListContinuation.items);
++      }
++      if (isObject(continuation.gridContinuation)) {
++        continuation.gridContinuation.items = withoutAdItems(continuation.gridContinuation.items);
++      }
++    }
++  }
++
++  function stripEntries(holder) {
++    if (!isObject(holder) || !Array.isArray(holder.entries)) {
++      return;
++    }
++    var kept = [];
++    for (var i = 0; i < holder.entries.length; i++) {
++      var entry = holder.entries[i];
++      var command = entry && entry.command;
++      var endpoint = command && command.reelWatchEndpoint;
++      if (endpoint && endpoint.adClientParams && endpoint.adClientParams.isAd) {
++        continue;
++      }
++      kept.push(entry);
++    }
++    holder.entries = kept;
++  }
++
++  function stripShortsAds(response) {
++    stripEntries(response);
++    stripEntries(response.reelWatchFeedResponse);
++    stripEntries(response.reelWatchSequenceResponse);
++  }
++
++  function strip(response) {
++    if (!isObject(response)) {
++      return response;
++    }
++    stripAdKeys(response);
++    stripShortsAds(response);
++    try {
++      stripBrowseResponse(response);
++    } catch (e) {
++      /* unexpected response shape: keep the ad-key stripping only */
++    }
++    return response;
++  }
++
++  var originalParse = JSON.parse;
++  try {
++    JSON.parse = function () {
++      var parsed = originalParse.apply(this, arguments);
++      try {
++        strip(parsed);
++      } catch (e) {
++        /* never break the app's own parsing */
++      }
++      return parsed;
++    };
++  } catch (e) {
++    /* JSON.parse not writable: nothing else we can do */
++  }
++
++  var INNERTUBE_PATHS = [
++    "/youtubei/v1/player",
++    "/youtubei/v1/next",
++    "/youtubei/v1/browse",
++    "/youtubei/v1/search",
++    "/youtubei/v1/reel/",
++    "/get_midroll_info"
++  ];
++
++  function isInnerTubeUrl(url) {
++    var text = String(url || "");
++    for (var i = 0; i < INNERTUBE_PATHS.length; i++) {
++      if (text.indexOf(INNERTUBE_PATHS[i]) !== -1) {
++        return true;
++      }
++    }
++    return false;
++  }
++
++  try {
++    var originalFetch = window.fetch;
++    if (typeof originalFetch === "function" && typeof Response === "function") {
++      window.fetch = function () {
++        var args = arguments;
++        var requestUrl = "";
++        try {
++          requestUrl = args[0] && args[0].url ? args[0].url : args[0];
++        } catch (e) {
++          /* ignore */
++        }
++        return originalFetch.apply(this, args).then(function (response) {
++          if (!response || !response.clone) {
++            return response;
++          }
++          var responseUrl = String(response.url || requestUrl || "");
++          if (!isInnerTubeUrl(responseUrl)) {
++            return response;
++          }
++          return response
++            .clone()
++            .text()
++            .then(function (body) {
++              var parsed;
++              try {
++                parsed = originalParse(body);
++              } catch (e) {
++                return response;
++              }
++              try {
++                strip(parsed);
++              } catch (e) {
++                /* ignore */
++              }
++              var rebuilt;
++              try {
++                rebuilt = new Response(JSON.stringify(parsed), {
++                  status: response.status,
++                  statusText: response.statusText,
++                  headers: sanitizedHeaders(response.headers)
++                });
++              } catch (e) {
++                return response;
++              }
++              try {
++                Object.defineProperty(rebuilt, "url", {
++                  value: responseUrl,
++                  enumerable: true,
++                  configurable: true
++                });
++              } catch (e) {
++                /* Response may be non-extensible in older engines */
++              }
++              return rebuilt;
++            })
++            ["catch"](function () {
++              return response;
++            });
++        });
++      };
++    }
++  } catch (e) {
++    /* fetch is not available in this engine */
++  }
++
++  function stripJsonText(text) {
++    if (typeof text !== "string") {
++      return text;
++    }
++    var parsed = originalParse(text);
++    strip(parsed);
++    return JSON.stringify(parsed);
++  }
++
++  function stripXhrValue(value, xhr) {
++    if (typeof value === "string") {
++      return stripJsonText(value);
++    }
++    if (isObject(value) && xhr.responseType === "json") {
++      strip(value);
++    }
++    return value;
++  }
++
++  function shadowXhrProperty(xhr, name) {
++    var descriptor = Object.getOwnPropertyDescriptor(
++        XMLHttpRequest.prototype, name);
++    if (!descriptor || typeof descriptor.get !== "function") {
++      return;
++    }
++    var rawGet = descriptor.get;
++    var cached;
++    var hasCached = false;
++    try {
++      Object.defineProperty(xhr, name, {
++        configurable: true,
++        enumerable: true,
++        get: function () {
++          var value = rawGet.call(this);
++          if (hasCached) {
++            return cached;
++          }
++          try {
++            cached = stripXhrValue(value, this);
++            hasCached = true;
++            return cached;
++          } catch (e) {
++            return value;
++          }
++        }
++      });
++    } catch (e) {
++      /* not shadowable on this engine */
++    }
++  }
++
++  function installXhrHook() {
++    if (typeof XMLHttpRequest !== "function" || !XMLHttpRequest.prototype) {
++      return;
++    }
++    var proto = XMLHttpRequest.prototype;
++    var originalOpen = proto.open;
++    var originalSend = proto.send;
++    if (typeof originalOpen !== "function" || typeof originalSend !== "function") {
++      return;
++    }
++    proto.open = function (method, url) {
++      this.__ytTvAdblockUrl = String(url || "");
++      this.__ytTvAdblockHooked = false;
++      return originalOpen.apply(this, arguments);
++    };
++    proto.send = function () {
++      try {
++        if (!this.__ytTvAdblockHooked && isInnerTubeUrl(this.__ytTvAdblockUrl)) {
++          this.__ytTvAdblockHooked = true;
++          shadowXhrProperty(this, "responseText");
++          shadowXhrProperty(this, "response");
++        }
++      } catch (e) {
++        /* keep the request untouched */
++      }
++      return originalSend.apply(this, arguments);
++    };
++  }
++
++  try {
++    installXhrHook();
++  } catch (e) {
++    /* XMLHttpRequest not available in this engine */
++  }
++
++  try {
++    console.log("[yt-tv-adblock] active");
++  } catch (e) {
++    /* console is not forwarded on some Cobalt builds */
++  }
++})();
++)YTADBLOCK_JS";
++
++}  // namespace cobalt
++
++#endif  // COBALT_ADBLOCK_ADBLOCK_JS_H_
+diff --git a/cobalt/adblock/adblock_render_frame_observer.cc b/cobalt/adblock/adblock_render_frame_observer.cc
+new file mode 100644
+index 0000000..ef7fd12
+--- /dev/null
++++ b/cobalt/adblock/adblock_render_frame_observer.cc
+@@ -0,0 +1,66 @@
++// Copyright 2026 The Cobalt Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#include "cobalt/adblock/adblock_render_frame_observer.h"
++
++#include "cobalt/adblock/adblock_js.h"
++#include "content/public/renderer/render_frame.h"
++#include "third_party/blink/public/platform/web_string.h"
++#include "third_party/blink/public/platform/web_url.h"
++#include "third_party/blink/public/web/web_document.h"
++#include "third_party/blink/public/web/web_local_frame.h"
++#include "third_party/blink/public/web/web_script_source.h"
++#include "url/gurl.h"
++
++namespace cobalt {
++
++namespace {
++
++bool IsYouTubeDocument(const blink::WebDocument& document) {
++  const blink::WebURL web_url = document.Url();
++  const GURL url(web_url.GetString().Utf8());
++  return url.DomainIs("youtube.com") || url.DomainIs("youtube-nocookie.com");
++}
++
++}  // namespace
++
++AdblockRenderFrameObserver::AdblockRenderFrameObserver(
++    content::RenderFrame* render_frame)
++    : content::RenderFrameObserver(render_frame) {}
++
++AdblockRenderFrameObserver::~AdblockRenderFrameObserver() = default;
++
++void AdblockRenderFrameObserver::DidClearWindowObject() {
++  if (!render_frame()) {
++    return;
++  }
++
++  blink::WebLocalFrame* web_frame = render_frame()->GetWebFrame();
++  if (!web_frame) {
++    return;
++  }
++
++  if (!IsYouTubeDocument(web_frame->GetDocument())) {
++    return;
++  }
++
++  web_frame->ExecuteScript(
++      blink::WebScriptSource(blink::WebString::FromUTF8(kAdblockJs)));
++}
++
++void AdblockRenderFrameObserver::OnDestruct() {
++  delete this;
++}
++
++}  // namespace cobalt
+diff --git a/cobalt/adblock/adblock_render_frame_observer.h b/cobalt/adblock/adblock_render_frame_observer.h
+new file mode 100644
+index 0000000..36a1eec
+--- /dev/null
++++ b/cobalt/adblock/adblock_render_frame_observer.h
+@@ -0,0 +1,40 @@
++// Copyright 2026 The Cobalt Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#ifndef COBALT_ADBLOCK_ADBLOCK_RENDER_FRAME_OBSERVER_H_
++#define COBALT_ADBLOCK_ADBLOCK_RENDER_FRAME_OBSERVER_H_
++
++#include "content/public/renderer/render_frame_observer.h"
++
++namespace cobalt {
++
++// Installs the ad-blocking script into YouTube documents before any of the
++// document's own scripts run.
++class AdblockRenderFrameObserver : public content::RenderFrameObserver {
++ public:
++  explicit AdblockRenderFrameObserver(content::RenderFrame* render_frame);
++  ~AdblockRenderFrameObserver() override;
++
++  AdblockRenderFrameObserver(const AdblockRenderFrameObserver&) = delete;
++  AdblockRenderFrameObserver& operator=(const AdblockRenderFrameObserver&) =
++      delete;
++
++  // content::RenderFrameObserver:
++  void DidClearWindowObject() override;
++  void OnDestruct() override;
++};
++
++}  // namespace cobalt
++
++#endif  // COBALT_ADBLOCK_ADBLOCK_RENDER_FRAME_OBSERVER_H_
+diff --git a/cobalt/adblock/generate_adblock_js.py b/cobalt/adblock/generate_adblock_js.py
+new file mode 100755
+index 0000000..05872fe
+--- /dev/null
++++ b/cobalt/adblock/generate_adblock_js.py
+@@ -0,0 +1,69 @@
++#!/usr/bin/env python3
++# Copyright 2026 The Cobalt Authors. All Rights Reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++"""Regenerates adblock_js.h from adblock.js.
++
++The generated header is checked in so the GN build does not need to run Python
++as part of the build. Run this script after editing adblock.js:
++
++  python3 cobalt/adblock/generate_adblock_js.py
++"""
++
++from pathlib import Path
++
++_DELIMITER = "YTADBLOCK_JS"
++
++_HEADER = """\
++// Copyright 2026 The Cobalt Authors. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++// Generated by generate_adblock_js.py from adblock.js. Do not edit.
++
++#ifndef COBALT_ADBLOCK_ADBLOCK_JS_H_
++#define COBALT_ADBLOCK_ADBLOCK_JS_H_
++
++namespace cobalt {{
++
++inline constexpr char kAdblockJs[] = R"{delimiter}(
++{script}){delimiter}";
++
++}}  // namespace cobalt
++
++#endif  // COBALT_ADBLOCK_ADBLOCK_JS_H_
++"""
++
++
++def main():
++  adblock_dir = Path(__file__).resolve().parent
++  script = (adblock_dir / "adblock.js").read_text(encoding="utf-8")
++  if '){0}"'.format(_DELIMITER) in script:
++    raise SystemExit("adblock.js contains the raw string delimiter")
++  header = _HEADER.format(delimiter=_DELIMITER, script=script)
++  (adblock_dir / "adblock_js.h").write_text(header, encoding="utf-8")
++
++
++if __name__ == "__main__":
++  main()
+diff --git a/cobalt/renderer/BUILD.gn b/cobalt/renderer/BUILD.gn
+index 17da596..e3c5d03 100644
+--- a/cobalt/renderer/BUILD.gn
++++ b/cobalt/renderer/BUILD.gn
+@@ -11,6 +11,7 @@
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
++import("//cobalt/adblock/adblock.gni")
+ import("//starboard/build/buildflags.gni")
+ import("//testing/test.gni")
+ 
+@@ -23,6 +24,7 @@ source_set("renderer") {
+   ]
+ 
+   deps = [
++    "//cobalt/adblock",
+     "//cobalt/browser:switches",
+     "//cobalt/browser/mojom",
+     "//cobalt/media/audio:webaudio",
+@@ -41,6 +43,10 @@ source_set("renderer") {
+     "//v8",
+   ]
+ 
++  if (cobalt_enable_adblock) {
++    defines = [ "COBALT_ENABLE_ADBLOCK" ]
++  }
++
+   if (use_starboard_media) {
+     deps += [ "//media/mojo/clients" ]
+ 
+diff --git a/cobalt/renderer/cobalt_content_renderer_client.cc b/cobalt/renderer/cobalt_content_renderer_client.cc
+index b3806c5..329b6e7 100644
+--- a/cobalt/renderer/cobalt_content_renderer_client.cc
++++ b/cobalt/renderer/cobalt_content_renderer_client.cc
+@@ -24,6 +24,9 @@
+ #include "base/threading/hang_watcher.h"
+ #include "base/time/time.h"
+ #include "build/build_config.h"
++#if defined(COBALT_ENABLE_ADBLOCK)
++#include "cobalt/adblock/adblock_render_frame_observer.h"
++#endif  // defined(COBALT_ENABLE_ADBLOCK)
+ #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
+ #include "cobalt/renderer/cobalt_render_frame_observer.h"
+ #include "cobalt/shell/common/url_constants.h"
+@@ -211,6 +214,9 @@ void CobaltContentRendererClient::RenderFrameCreated(
+   CHECK(content::RenderThread::IsMainThread());
+   new js_injection::JsCommunication(render_frame);
+   new CobaltRenderFrameObserver(render_frame);
++#if defined(COBALT_ENABLE_ADBLOCK)
++  new AdblockRenderFrameObserver(render_frame);
++#endif  // defined(COBALT_ENABLE_ADBLOCK)
+   if (render_frame->GetWebView()) {
+     viewport_size_ =
+         gfx::ToCeiledSize(render_frame->GetWebView()->VisualViewportSize());

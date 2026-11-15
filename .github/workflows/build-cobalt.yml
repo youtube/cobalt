@@ -1,0 +1,83 @@
+name: Build Cobalt 27.lts Android ARM
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          # Cobalt pulls its own SDK/NDK/aapt2 via CIPD (checkout_android=True),
+          # so the runner's preinstalled Android SDK is not needed.
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+
+      - name: Add swap space
+        run: |
+          sudo fallocate -l 8G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+
+      - name: Install depot_tools
+        run: |
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
+          echo "/opt/depot_tools" >> "$GITHUB_PATH"
+          echo "DEPOT_TOOLS_UPDATE=0" >> "$GITHUB_ENV"
+
+      - name: Clone Cobalt 27.lts.10
+        run: |
+          mkdir -p /tmp/cobalt-src
+          git clone --depth 1 --branch 27.lts.10 \
+            https://github.com/youtube/cobalt.git /tmp/cobalt-src/src
+
+      - name: Sync dependencies with gclient
+        run: |
+          export PATH="/opt/depot_tools:$PATH"
+          cd /tmp/cobalt-src
+          # DEPS only fetches android_sdk/android_toolchain/android_build_tools
+          # when checkout_android is true; the DEPS default is false.
+          cat > .gclient <<'EOF'
+          solutions = [
+            {
+              "name": "src",
+              "url": "https://github.com/youtube/cobalt.git",
+              "managed": False,
+              "custom_deps": {},
+              "custom_vars": {"checkout_android": True},
+            },
+          ]
+          EOF
+          gclient sync -D --no-history -j4
+
+      - name: Apply adblock patch
+        run: ./adblock/apply.sh /tmp/cobalt-src/src
+
+      - name: Build Cobalt APK
+        run: |
+          export PATH="/opt/depot_tools:$PATH"
+          ./adblock/build.sh /tmp/cobalt-src/src
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cobalt-Android-ARM-Adblock
+          path: /tmp/cobalt-src/src/out/android-arm_devel/apks/Cobalt.apk
+          if-no-files-found: error
