@@ -136,6 +136,13 @@ BASE_FEATURE(kCDPScreenshotNewSurface,
 BASE_FEATURE(kCobaltSkipSyncGpuChannelWhenHidden,
              "CobaltSkipSyncGpuChannelWhenHidden",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Suppresses per-request CookieAccessObserver, TrustToken, SharedDictionary,
+// DeviceBoundSession, and per-subresource ResourceLoadComplete Mojo IPCs onto
+// BrowserThread::UI (Android's main looper) when DevTools is not attached.
+BASE_FEATURE(kCobaltSuppressLoaderUiThreadObservers,
+             "CobaltSuppressLoaderUiThreadObservers",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // When enabled, code cache does not use a browsing_data filter for deletions.
