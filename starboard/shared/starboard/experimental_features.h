@@ -211,6 +211,13 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableVideoRendererVspAdjustment(
         "Media.EnableVideoRendererVspAdjustment");
 
+// When set, the video decoder prerolls a single frame after every seek. By
+// default it does so only if the first video frame written since the codec was
+// created has a non-zero timestamp, so a seek that keeps the codec, in a
+// playback that started at 0, prerolls as many frames as the start of playback.
+inline constexpr ExperimentalFeatureKey<bool> kMediaFixFlushedSeekPreroll(
+    "Media.FixFlushedSeekPreroll");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
     "Media.FlushAudioTrackDuringSeek");
 
