@@ -909,6 +909,51 @@ TEST_F(ResourcePoolTest, TileMemoryMetricsDisabled) {
 
   pool->ReleaseResource(std::move(resource));
 }
+
+TEST_F(ResourcePoolTest,
+       BusyResourceReturnedAfterTimerEvictsWithCobaltExpirationDelay) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltResourcePoolExpirationDelay);
+
+  size_t bytes_limit = 10 * 1024 * 1024;
+  size_t count_limit = 100;
+  resource_pool_->SetResourceUsageLimits(bytes_limit, count_limit);
+
+  gfx::Size size(100, 100);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space;
+
+  ResourcePool::InUsePoolResource resource =
+      resource_pool_->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource);
+  EXPECT_TRUE(resource_pool_->PrepareForExport(
+      resource, viz::TransferableResource::ResourceSource::kTest));
+
+  std::vector<viz::TransferableResource> transfers;
+  resource_provider_->PrepareSendToParent(
+      {resource.resource_id_for_export()}, &transfers,
+      static_cast<viz::RasterContextProvider*>(context_provider_.get()));
+
+  resource_pool_->ReleaseResource(std::move(resource));
+  EXPECT_EQ(1u, resource_pool_->GetBusyResourceCountForTesting());
+
+  // Let the initial eviction timer fire while the resource is still busy in
+  // Viz.
+  test_task_runner_->FastForwardBy(ResourcePool::kDefaultExpirationDelay * 2);
+  EXPECT_EQ(40000u, resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(1u, resource_pool_->GetBusyResourceCountForTesting());
+
+  // Viz returns the busy resource; DidFinishUsingResource() must schedule a
+  // fresh eviction timer so the now-unused resource is evicted.
+  resource_provider_->ReleaseAllExportedResources(/*lose=*/false);
+  EXPECT_EQ(0u, resource_pool_->GetBusyResourceCountForTesting());
+  EXPECT_EQ(40000u, resource_pool_->GetTotalMemoryUsageForTesting());
+
+  test_task_runner_->FastForwardBy(ResourcePool::kDefaultExpirationDelay);
+  EXPECT_EQ(0u, resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
+}
 #endif
 
 }  // namespace cc

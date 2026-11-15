@@ -263,6 +263,13 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                           kMaxAnimtionDuration);
 
 #if BUILDFLAG(IS_COBALT)
+// Overrides cc::ResourcePool's idle tile backing expiration delay (default 5s)
+// so evicted off-screen SharedImage tile textures are reclaimed faster after
+// shelf scrolling.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltResourcePoolExpirationDelay);
+CC_BASE_EXPORT extern const base::FeatureParam<int>
+    kCobaltResourcePoolExpirationDelayMs;
+
 // Enables periodic emission of tile texture memory metrics (Memory.GPU.TileMemory and Memory.GPU.TileMemory.Peak).
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltTileMemoryMetrics);
 

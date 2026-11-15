@@ -22,6 +22,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gtest_util.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/test_mock_time_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cc/animation/animation.h"
@@ -19426,5 +19428,63 @@ TEST_P(ConcurrentSnapAnimationsTest, TrackAnimatingSnapTargetIds) {
   EXPECT_FALSE(snap_state_map.contains(container1_id_));
   EXPECT_FALSE(snap_state_map.contains(container2_id_));
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_P(LayerTreeHostImplTest, CobaltResourcePoolExpirationDelayOverridesDefault) {
+  auto run_expiration_check = [this](bool enable_feature, int configured_ms,
+                                     base::TimeDelta expected_delay) {
+    base::test::ScopedFeatureList scoped_feature_list;
+    if (enable_feature) {
+      scoped_feature_list.InitAndEnableFeatureWithParameters(
+          features::kCobaltResourcePoolExpirationDelay,
+          {{"CobaltResourcePoolExpirationDelay_ms",
+            base::NumberToString(configured_ms)}});
+    } else {
+      scoped_feature_list.InitAndDisableFeature(
+          features::kCobaltResourcePoolExpirationDelay);
+    }
+
+    auto mock_task_runner = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
+    FakeImplTaskRunnerProvider mock_provider(mock_task_runner);
+    DebugScopedSetMainThreadBlocked main_blocked(&mock_provider);
+    auto frame_sink = CreateLayerTreeFrameSink();
+    auto custom_host_impl = LayerTreeHostImpl::Create(
+        DefaultSettings(), this, &mock_provider, &stats_instrumentation_,
+        &task_graph_runner_,
+        AnimationHost::CreateForTesting(ThreadInstance::kImpl), nullptr, 0,
+        nullptr, nullptr);
+    custom_host_impl->SetVisible(true);
+    ASSERT_TRUE(custom_host_impl->InitializeFrameSink(frame_sink.get()));
+    ASSERT_NE(custom_host_impl->resource_pool(), nullptr);
+    custom_host_impl->resource_pool()->SetClockForTesting(
+        mock_task_runner->GetMockTickClock());
+
+    ResourcePool::InUsePoolResource resource =
+        custom_host_impl->resource_pool()->AcquireResource(
+            gfx::Size(128, 128), viz::SinglePlaneFormat::kRGBA_8888,
+            gfx::ColorSpace::CreateSRGB());
+    custom_host_impl->resource_pool()->ReleaseResource(std::move(resource));
+    EXPECT_EQ(1u, custom_host_impl->resource_pool()
+                      ->GetTotalResourceCountForTesting());
+
+    mock_task_runner->FastForwardBy(expected_delay - base::Milliseconds(1));
+    EXPECT_EQ(1u, custom_host_impl->resource_pool()
+                      ->GetTotalResourceCountForTesting());
+
+    mock_task_runner->FastForwardBy(base::Milliseconds(1));
+    EXPECT_EQ(0u, custom_host_impl->resource_pool()
+                      ->GetTotalResourceCountForTesting());
+
+    custom_host_impl->ReleaseLayerTreeFrameSink();
+  };
+
+  run_expiration_check(/*enable_feature=*/true, /*configured_ms=*/500,
+                       base::Milliseconds(500));
+  run_expiration_check(/*enable_feature=*/true, /*configured_ms=*/10,
+                       base::Milliseconds(100));
+  run_expiration_check(/*enable_feature=*/false, /*configured_ms=*/500,
+                       ResourcePool::kDefaultExpirationDelay);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace cc

@@ -37,6 +37,7 @@
 #if BUILDFLAG(IS_COBALT)
 #include <atomic>
 
+#include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "cc/base/features.h"
@@ -643,6 +644,12 @@ void ResourcePool::DidFinishUsingResource(
     std::unique_ptr<PoolResource> resource) {
   unused_memory_usage_bytes_ += resource->memory_usage();
   unused_resources_.push_front(std::move(resource));
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltResourcePoolExpirationDelay)) {
+    ScheduleEvictExpiredResourcesIn(resource_expiration_delay_);
+  }
+#endif
 }
 
 void ResourcePool::ScheduleEvictExpiredResourcesIn(
