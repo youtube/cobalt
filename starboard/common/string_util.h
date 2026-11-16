@@ -53,6 +53,14 @@ constexpr bool IsHexDigit(char c) noexcept {
   return IsAsciiDigit(c) || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 }
 
+constexpr bool IsAsciiPrintable(char c) noexcept {
+  return c >= ' ' && c <= '~';
+}
+
+constexpr char ToLowerASCII(char c) noexcept {
+  return (c >= 'A' && c <= 'Z') ? static_cast<char>(c + ('a' - 'A')) : c;
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_STRING_UTIL_H_

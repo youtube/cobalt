@@ -134,5 +134,44 @@ TEST(StringUtilTest, IsHexDigit) {
   EXPECT_FALSE(IsHexDigit(static_cast<char>(0xff)));
 }
 
+TEST(StringUtilTest, IsAsciiPrintable) {
+  static_assert(IsAsciiPrintable(' '), "");
+  static_assert(IsAsciiPrintable('A'), "");
+  static_assert(IsAsciiPrintable('~'), "");
+  static_assert(!IsAsciiPrintable('\0'), "");
+  static_assert(!IsAsciiPrintable('\x1f'), "");
+  static_assert(!IsAsciiPrintable('\x7f'), "");
+  static_assert(!IsAsciiPrintable(static_cast<char>(0x80)), "");
+  static_assert(!IsAsciiPrintable(static_cast<char>(0xff)), "");
+
+  for (char c = ' '; c <= '~'; ++c) {
+    EXPECT_TRUE(IsAsciiPrintable(c));
+  }
+  EXPECT_FALSE(IsAsciiPrintable('\t'));
+  EXPECT_FALSE(IsAsciiPrintable('\n'));
+  EXPECT_FALSE(IsAsciiPrintable('\x7f'));
+  EXPECT_FALSE(IsAsciiPrintable(static_cast<char>(0xff)));
+}
+
+TEST(StringUtilTest, ToLowerASCII) {
+  static_assert(ToLowerASCII('A') == 'a', "");
+  static_assert(ToLowerASCII('Z') == 'z', "");
+  static_assert(ToLowerASCII('a') == 'a', "");
+  static_assert(ToLowerASCII('z') == 'z', "");
+  static_assert(ToLowerASCII('0') == '0', "");
+  static_assert(ToLowerASCII('@') == '@', "");
+  static_assert(ToLowerASCII('[') == '[', "");
+  static_assert(
+      ToLowerASCII(static_cast<char>(0xc3)) == static_cast<char>(0xc3), "");
+  static_assert(
+      ToLowerASCII(static_cast<char>(0xff)) == static_cast<char>(0xff), "");
+
+  for (char c = 'A'; c <= 'Z'; ++c) {
+    EXPECT_EQ(static_cast<char>(c + ('a' - 'A')), ToLowerASCII(c));
+  }
+  EXPECT_EQ('5', ToLowerASCII('5'));
+  EXPECT_EQ(static_cast<char>(0xff), ToLowerASCII(static_cast<char>(0xff)));
+}
+
 }  // namespace
 }  // namespace starboard

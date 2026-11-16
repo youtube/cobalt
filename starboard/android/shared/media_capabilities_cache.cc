@@ -76,8 +76,8 @@ Range GetRange(JNIEnv* env,
 }
 
 void ConvertStringToLowerCase(std::string* str) {
-  for (size_t i = 0; i < str->length(); i++) {
-    (*str)[i] = std::tolower((*str)[i]);
+  for (char& c : *str) {
+    c = ToLowerASCII(c);
   }
 }
 

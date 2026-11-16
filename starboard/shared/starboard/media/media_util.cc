@@ -15,13 +15,13 @@
 #include "starboard/shared/starboard/media/media_util.h"
 
 #include <algorithm>
-#include <cctype>
 #include <optional>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/media/codec_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -320,10 +320,11 @@ std::string GetStringRepresentation(const uint8_t* data, const int size) {
   std::string result;
 
   for (int i = 0; i < size; ++i) {
-    if (std::isspace(data[i])) {
+    const char ch = static_cast<char>(data[i]);
+    if (IsAsciiWhitespace(ch)) {
       result += ' ';
-    } else if (std::isprint(data[i])) {
-      result += data[i];
+    } else if (IsAsciiPrintable(ch)) {
+      result += ch;
     } else {
       result += '?';
     }
