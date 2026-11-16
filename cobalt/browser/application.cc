@@ -71,6 +71,7 @@
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/storage/c27_storage_cleanup.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -798,6 +799,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   }
   network_module_options.storage_manager_options.savegame_options.id =
       partition_key;
+
+  // Rollback PoC (option C): after a rollback from Cobalt 27, delete the
+  // storage it left behind before our own storage is loaded and written.
+  // Cobalt 27 names its directories after the raw --url value only.
+  storage::DeleteOrphanedC27StorageAtStartup(
+      command_line->GetSwitchValueASCII(browser::switches::kInitialURL));
 
   base::Optional<std::string> default_key =
       base::GetApplicationKey(GURL(kDefaultURL));
