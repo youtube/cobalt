@@ -32,7 +32,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
-#include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"

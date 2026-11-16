@@ -27,6 +27,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 
 namespace starboard {
 
@@ -76,7 +77,7 @@ void ParseParamTypeAndValue(const std::string& name,
 
 bool ContainsSpace(const std::string& str) {
   for (size_t i = 0; i < str.size(); ++i) {
-    if (isspace(str[i])) {
+    if (IsAsciiWhitespace(str[i])) {
       return true;
     }
   }
@@ -84,10 +85,10 @@ bool ContainsSpace(const std::string& str) {
 }
 
 void Trim(std::string* str) {
-  while (!str->empty() && isspace(*str->begin())) {
+  while (!str->empty() && IsAsciiWhitespace(*str->begin())) {
     str->erase(str->begin());
   }
-  while (!str->empty() && isspace(*str->rbegin())) {
+  while (!str->empty() && IsAsciiWhitespace(*str->rbegin())) {
     str->resize(str->size() - 1);
   }
 }

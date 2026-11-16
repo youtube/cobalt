@@ -19,6 +19,7 @@ source_set("common_headers_only") {
   sources = [
     "log.h",
     "string.h",
+    "string_util.h",
     "system_property.h",
   ]
 
@@ -105,6 +106,7 @@ static_library("common") {
     "storage.h",
     "string.cc",
     "string.h",
+    "string_util.h",
     "thread.cc",
     "thread.h",
     "thread_options.h",
@@ -151,6 +153,7 @@ source_set("common_test") {
     "span_test.cc",
     "starboard_common_time_test.cc",
     "string_test.cc",
+    "string_util_test.cc",
   ]
   deps = [
     ":common",
