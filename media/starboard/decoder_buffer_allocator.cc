@@ -269,7 +269,7 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     //     decommits idle blocks immediately while the app is suspended.
     //   - allocate_with_page_alignment (bit 25): When set (bit 25 is
     //     non-zero), forces new OS block allocations to be page-aligned and
-    //     rounded up to page sizes.
+    //     rounded up to page sizes. Default is true.
     //   - aggressive_decommit_on_suspend (bit 26): When set (bit 26 is
     //     non-zero), aggressively decommits all idle blocks (ignoring retain
     //     window) while suspended (implies enable_decommit_on_suspend).
@@ -278,7 +278,7 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     //   - mark_as_cold_on_reclaim (bit 28): When set (bit 28 is non-zero),
     //     uses MADV_COLD on reclaimed blocks.
     // - block_size (8 bits): Specifies both the initial pool capacity and the
-    //   fallback allocation increment in MB.
+    //   fallback allocation increment.
     // - retain_blocks (8 bits): Specifies the first `retain_blocks` blocks of
     //   the pool are kept fully committed.
     // - conservative_decommit_blocks (8 bits): Specifies the next

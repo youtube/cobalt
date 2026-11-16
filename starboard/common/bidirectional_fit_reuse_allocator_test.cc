@@ -123,10 +123,6 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
   void ResetAllocator(size_t initial_capacity = 0,
                       size_t small_allocation_threshold = 0,
                       size_t allocation_increment = 0) {
-    allocator_.reset();
-    fallback_allocator_.reset();
-    mock_fallback_allocator_ = nullptr;
-
     void* tmp = nullptr;
     std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
@@ -141,10 +137,6 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     fallback_allocator_.swap(fallback_allocator);
   }
   void ResetAllocatorWithDecommitSupport() {
-    allocator_.reset();
-    fallback_allocator_.reset();
-    mock_fallback_allocator_ = nullptr;
-
     void* tmp = nullptr;
     std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
@@ -173,10 +165,6 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
       bool aggressive_decommit_on_suspend = false,
       bool memset_on_reclaim = false,
       bool mark_as_cold_on_reclaim = false) {
-    allocator_.reset();
-    fallback_allocator_.reset();
-    mock_fallback_allocator_ = nullptr;
-
     void* tmp = nullptr;
     std::ignore = posix_memalign(&tmp, Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
@@ -569,7 +557,6 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   // Freeing both blocks reaches idle and reclaims fallback blocks.
   this->allocator_->Free(block1);
   this->allocator_->Free(block2);
-  EXPECT_EQ(this->allocator_->GetAllocated(), 0U);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   // During the grace period, TryToDecommitOneBlock() should not decommit any

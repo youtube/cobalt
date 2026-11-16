@@ -57,7 +57,6 @@ ReuseAllocatorBase::~ReuseAllocatorBase() {
   }
 }
 
-// TODO(b/454441375): Move this to be in sync with the declaration order.
 void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
     bool include_retained_blocks) {
   if ((is_suspended_ && aggressive_decommit_on_suspend_) ||
