@@ -416,6 +416,52 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram
+    name="Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized{Occurrence}"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard player initialization latency. -->
+
+  <owner>austinosagie@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Time from the start of the Starboard call that creates the platform player
+    (SbPlayerCreate(), or SbUrlPlayerCreate() for the tvOS URL player) until
+    SbPlayerBridge receives the kSbPlayerStateInitialized player status. This
+    includes the synchronous call measured by
+    Cobalt.Media.LatencyTiming.SbPlayerCreate{Occurrence} plus the player's
+    asynchronous initialization. Recorded once per player creation, when the
+    bridge accepts its first kSbPlayerStateInitialized status. Not recorded if
+    player creation fails. Recorded for {Occurrence}, where the occurrence
+    refers to the call that created the player.
+  </summary>
+  <token key="Occurrence">
+    <variant name="" summary="only the first call in the process"/>
+    <variant name=".Subsequent"
+        summary="every call after the first, e.g. for the next video"/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Media.LatencyTiming.SbPlayerCreate{Occurrence}"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard player creation latency. -->
+
+  <owner>austinosagie@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Wall-clock time taken by the Starboard call that creates the platform player
+    in SbPlayerBridge: SbPlayerCreate(), or SbUrlPlayerCreate() for the tvOS URL
+    player. Recorded for every call, including calls that fail to create a valid
+    player. Every call is recorded in exactly one variant. Recorded for
+    {Occurrence}. See also
+    Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized{Occurrence}.
+  </summary>
+  <token key="Occurrence">
+    <variant name="" summary="only the first call in the process"/>
+    <variant name=".Subsequent"
+        summary="every call after the first, e.g. for the next video"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Network.NavigationTimeout" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -536,6 +582,18 @@ Always run the pretty print utility on this file after editing:
     <variant name="Image" summary="The splash screen showed an image."/>
     <variant name="Video" summary="The splash screen played a video."/>
   </token>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.ClearCachedFilesResult"
+    enum="SplashCacheClearResult" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records the result of deleting the splash assets that the WebApp cached
+    (splash.webm and splash.png in the default and music caches), as they may
+    have crashed Cobalt. Recorded once per launch in Finch's crash safe mode,
+    i.e., when the empty experiment config is used due to the crash streak.
+  </summary>
 </histogram>
 
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"

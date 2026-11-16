@@ -557,13 +557,13 @@ TEST(CobaltDiscardableCacheSizeLimitTest, DisabledByDefaultOnAndroid) {
       base::features::kCobaltGpuDiscardableCacheLimit));
 }
 #else   // BUILDFLAG(IS_ANDROID)
-TEST(CobaltDiscardableCacheSizeLimitTest, DefaultsToOneMb) {
+TEST(CobaltDiscardableCacheSizeLimitTest, DefaultsTo32Mb) {
   base::test::ScopedFeatureList scoped_features;
   scoped_features.InitWithEmptyFeatureAndFieldTrialLists();
 
   EXPECT_TRUE(base::FeatureList::IsEnabled(
       base::features::kCobaltGpuDiscardableCacheLimit));
-  EXPECT_EQ(DiscardableCacheSizeLimit(), kOneMb);
+  EXPECT_EQ(DiscardableCacheSizeLimit(), 32 * kOneMb);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

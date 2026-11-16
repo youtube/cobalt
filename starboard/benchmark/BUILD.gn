@@ -110,16 +110,14 @@ test("player_benchmarks") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
-# Benchmarks of the Starboard media APIs the player is built on, one
-# subdirectory per API (currently SbAudioSink). Select one with
-# --benchmark_filter, e.g. --benchmark_filter=BM_AudioSink.
-test("media_benchmarks") {
+# The SbAudioSink benchmarks.
+test("audio_sink_benchmarks") {
   testonly = true
 
   sources = [
-    "media/audio_sink/audio_sink_benchmark_helper.cc",
-    "media/audio_sink/audio_sink_benchmark_helper.h",
-    "media/audio_sink/audio_sink_create_benchmark.cc",
+    "audio_sink/audio_sink_benchmark_helper.cc",
+    "audio_sink/audio_sink_benchmark_helper.h",
+    "audio_sink/audio_sink_create_benchmark.cc",
   ]
 
   deps = cobalt_platform_dependencies + [

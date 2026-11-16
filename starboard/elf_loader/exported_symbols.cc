@@ -425,23 +425,31 @@ ExportedSymbols::ExportedSymbols() {
 
 }  // NOLINT
 
-const void* ExportedSymbols::Lookup(const char* name) {
-  const void* address = map_[name];
+const void* ExportedSymbols::Lookup(const char* name, bool is_weak) const {
+  if (!name) {
+    return nullptr;
+  }
+  auto it = map_.find(name);
   // Any symbol that is not registered as part of the Starboard API in the
   // constructor of this class is a leak, and is an error.
-  if (address) {
-    return address;
+  if (it != map_.end()) {
+    return it->second;
   }
 
   // Not an error, as it could be a weak symbol.
   SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
+  if (is_weak) {
+    return nullptr;
+  }
 #if !defined(OFFICIAL_BUILD)
-  address = dlsym(RTLD_DEFAULT, name);
+  const void* address = dlsym(RTLD_DEFAULT, name);
   if (address == nullptr) {
     SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
   }
-#endif  // !defined(OFFICIAL_BUILD)
   return address;
+#else
+  return nullptr;
+#endif  // !defined(OFFICIAL_BUILD)
 }
 
 }  // namespace elf_loader

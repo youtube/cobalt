@@ -143,14 +143,6 @@ inline constexpr char kUseStarboardLifecycle[] = "UseStarboardLifeCycle";
 // See b/512163617.
 inline constexpr char kV8DisableSparkplug[] = "V8DisableSparkplug";
 
-// Overrides V8 initial old space size in MB; defaults to 64 MB.
-// See b/540879465.
-inline constexpr char kV8InitialOldSpaceSize[] = "V8InitialOldSpaceSize";
-
-// Overrides V8 max old space size in MB; defaults to 512 MB.
-// See b/549674099.
-inline constexpr char kV8MaxOldSpaceSize[] = "V8MaxOldSpaceSize";
-
 // Sets V8 bytecode aging threshold in seconds for aggressive bytecode flushing.
 // See b/535719369.
 inline constexpr char kV8SetBytecodeOldTime[] = "V8SetBytecodeOldTime";

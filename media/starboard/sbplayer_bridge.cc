@@ -15,9 +15,11 @@
 #include "media/starboard/sbplayer_bridge.h"
 
 #include <algorithm>
+#include <atomic>
 #include <iomanip>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -27,8 +29,10 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/base/starboard/experimental_features.h"
@@ -81,6 +85,42 @@ class ScopedVectorClearer {
  private:
   std::vector<T>& vec_;
 };
+
+// Returns whether this is the first call that creates an SbPlayer in the
+// process. Used to record the first call, which may include one-time costs,
+// separately from later ones.
+bool IsFirstSbPlayerCreateInProcess() {
+  static std::atomic<bool> first_call_pending{true};
+  return first_call_pending.exchange(false);
+}
+
+// Records the latency of the Starboard call that creates the player:
+// SbPlayerCreate(), or SbUrlPlayerCreate() for the tvOS URL player. Every call
+// is recorded, including ones that fail to create a valid player.
+constexpr std::string_view kSbPlayerCreateHistogram =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreate";
+// Records the time from the call that creates the player until the player
+// first reports kSbPlayerStateInitialized.
+constexpr std::string_view kSbPlayerCreateToInitializedHistogram =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
+// Suffix of the variant of the above histograms for every call after the first
+// one in the process.
+constexpr std::string_view kSubsequentCallSuffix = ".Subsequent";
+
+// Records |elapsed| to |histogram_name|, or to its kSubsequentCallSuffix
+// variant if |is_first_call| is false. |is_first_call| refers to the call that
+// created the player, so that all of a player's metrics use the same variant.
+void RecordSbPlayerLatency(std::string_view histogram_name,
+                           base::TimeDelta elapsed,
+                           bool is_first_call) {
+  const std::string name =
+      is_first_call ? std::string(histogram_name)
+                    : base::StrCat({histogram_name, kSubsequentCallSuffix});
+  base::UmaHistogramCustomMicrosecondsTimes(
+      name, elapsed, /*min=*/base::Milliseconds(1), /*max=*/base::Seconds(10),
+      /*buckets=*/50);
+  LOG(INFO) << name << " took " << elapsed.InMicroseconds() << " us.";
+}
 
 // Removes the buffer at |index| of |buffer_queue| if it has |handle|. Returns
 // the size of the removed buffer, or std::nullopt if it doesn't match.
@@ -165,6 +205,17 @@ GetStarboardExtensionExperimentalFeatures(
 }
 
 }  // namespace
+
+template <typename CreateFn>
+SbPlayer SbPlayerBridge::CreateWithUmaLatency(CreateFn&& create_fn) {
+  is_first_sb_player_create_ = IsFirstSbPlayerCreateInProcess();
+  const base::ElapsedTimer timer;
+  sb_player_create_start_time_ = timer.start_time();
+  SbPlayer player = std::forward<CreateFn>(create_fn)();
+  RecordSbPlayerLatency(kSbPlayerCreateHistogram, timer.Elapsed(),
+                        is_first_sb_player_create_);
+  return player;
+}
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
@@ -697,10 +748,12 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-  player_ = sbplayer_interface_->CreateUrlPlayer(
-      url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
-      &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
-      &SbPlayerBridge::PlayerErrorCB, this);
+  player_ = CreateWithUmaLatency([&] {
+    return sbplayer_interface_->CreateUrlPlayer(
+        url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
+        &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
+        &SbPlayerBridge::PlayerErrorCB, this);
+  });
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
@@ -804,11 +857,13 @@ void SbPlayerBridge::CreatePlayer() {
         &extension_features);
   }
 
-  player_ = sbplayer_interface_->Create(
-      window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
-      &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
-      &SbPlayerBridge::PlayerErrorCB, this,
-      get_decode_target_graphics_context_provider_func_.Run());
+  player_ = CreateWithUmaLatency([&] {
+    return sbplayer_interface_->Create(
+        window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
+        &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
+        &SbPlayerBridge::PlayerErrorCB, this,
+        get_decode_target_graphics_context_provider_func_.Run());
+  });
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
@@ -1169,6 +1224,15 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
   }
 
   if (state == kSbPlayerStateInitialized) {
+    // Only the first kSbPlayerStateInitialized after the player is created is
+    // recorded, as a later one wouldn't reflect the initialization latency.
+    if (sb_player_create_start_time_) {
+      RecordSbPlayerLatency(
+          kSbPlayerCreateToInitializedHistogram,
+          base::TimeTicks::Now() - *sb_player_create_start_time_,
+          is_first_sb_player_create_);
+      sb_player_create_start_time_.reset();
+    }
     if (ticket_ == SB_PLAYER_INITIAL_TICKET) {
       ++ticket_;
     }

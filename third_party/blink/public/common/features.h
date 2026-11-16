@@ -241,6 +241,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassBufferingBytesConsumer);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassHTMLPreloadScanner);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltPreserveTrivial3DTransform);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipHiddenMediaControlsWork);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kCobaltSkipHiddenMediaControlsCreation);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipMediaProgressLayoutUpdate);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltV8MemorySaverOnMemoryPressure);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                                kCobaltV8MemorySaverHoldSeconds);
