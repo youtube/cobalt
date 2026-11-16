@@ -536,6 +536,7 @@ static_library("cobalt_shell_test_lib") {
     ":cobalt_browsertests_support",
     ":cobalt_browsertests_support_mojom",
     "//cc/base",
+    "//cobalt/common/features",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_app",

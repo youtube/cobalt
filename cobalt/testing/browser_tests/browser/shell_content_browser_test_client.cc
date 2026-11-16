@@ -26,6 +26,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
+#include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -200,6 +201,10 @@ void ShellContentBrowserTestClient::CreateFeatureListAndFieldTrials() {
   // Schedule a Local State write since the above function resulted in some
   // prefs being updated.
   GetSharedState().local_state->CommitPendingWrite();
+
+  // Push features and params down to Starboard, as
+  // CobaltContentBrowserClient does for production.
+  cobalt::features::InitializeStarboardFeatures();
 }
 
 void ShellContentBrowserTestClient::SetUpFieldTrials() {
