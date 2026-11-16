@@ -100,12 +100,12 @@ void NeedsProvisioningFunc(SbDrmSystem drm_system,
       type == kSbDrmSessionRequestTypeIndividualizationRequest);
 }
 
-bool NeedsProvisioning(const char* key_system) {
-  constexpr int64_t kSessionUpdateRequestTimeout = 5'000'000;  // 5 seconds
+bool NeedsProvisioning(const std::string& key_system) {
+  constexpr int64_t kSessionUpdateRequestTimeoutUs = 5'000'000;  // 5 seconds
 
   Queue<bool> needs_provisioning;
-  SbDrmSystem drm_system = CreateDummyDrmSystem(key_system, &needs_provisioning,
-                                                NeedsProvisioningFunc);
+  SbDrmSystem drm_system = CreateDummyDrmSystem(
+      key_system.c_str(), &needs_provisioning, NeedsProvisioningFunc);
   if (!SbDrmSystemIsValid(drm_system)) {
     return false;
   }
@@ -114,7 +114,7 @@ bool NeedsProvisioning(const char* key_system) {
 
   // A failed request doesn't need provisioning, and `GetTimed()` returns false
   // if there's no answer.
-  bool result = needs_provisioning.GetTimed(kSessionUpdateRequestTimeout);
+  bool result = needs_provisioning.GetTimed(kSessionUpdateRequestTimeoutUs);
   SbDrmDestroySystem(drm_system);
   return result;
 }
@@ -248,9 +248,8 @@ void SkipTestIfNotSupported(const SbPlayerTestConfig& config) {
   }
 }
 
-bool IsWidevineKeySystem(const char* key_system) {
-  SB_CHECK(key_system);
-  return std::string_view(key_system).rfind("com.widevine", 0) == 0;
+bool IsWidevineKeySystem(std::string_view key_system) {
+  return key_system.rfind("com.widevine", 0) == 0;
 }
 
 void GenerateWidevineSessionUpdateRequest(SbDrmSystem drm_system) {
@@ -259,12 +258,13 @@ void GenerateWidevineSessionUpdateRequest(SbDrmSystem drm_system) {
                                     sizeof(kCencInitData));
 }
 
-bool IsWidevineKeySystemProvisioned(const char* key_system) {
+bool IsWidevineKeySystemProvisioned(std::string_view key_system) {
   // nplb never provisions the device, so the answer can't change.
-  static std::map<std::string, bool> provisioned;
+  static std::map<std::string, bool, std::less<>> provisioned;
   auto it = provisioned.find(key_system);
   if (it == provisioned.end()) {
-    it = provisioned.emplace(key_system, !NeedsProvisioning(key_system)).first;
+    std::string key(key_system);
+    it = provisioned.emplace(key, !NeedsProvisioning(key)).first;
   }
   return it->second;
 }
