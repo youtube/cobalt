@@ -253,6 +253,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // The last enqueued |SbMediaColorMetadata|.
   std::optional<SbMediaColorMetadata> color_metadata_;
+  // True when the active |media_decoder_| was created with
+  // |is_high_bit_depth = true| (bits_per_channel > 8).
+  bool codec_is_high_bit_depth_ = false;
 
   // media_codec_factory_ cannot be null.
   const std::unique_ptr<MediaCodec::Factory> media_codec_factory_;

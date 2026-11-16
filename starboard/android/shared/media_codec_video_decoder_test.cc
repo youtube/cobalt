@@ -798,5 +798,171 @@ TEST_F(
   EXPECT_FALSE(error_called_);
 }
 
+TEST_F(MediaCodecVideoDecoderTest,
+       SdrInitialStreamToHdrFirstBufferRebuildsCodecOnce) {
+  ExperimentalFeatures features(
+      {{std::string(kMediaSkipRedundantColorCodecReinit.key()), int64_t{1}}});
+  CreateDecoder(/*max_video_capabilities=*/"", &kDefaultVideoStreamInfo,
+                std::move(features));
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_EQ(fake_factory_->last_video_color_metadata()->transfer,
+            kSbMediaTransferIdSmpteSt2084);
+
+  // Subsequent HDR buffers keep the rebuilt HDR codec.
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(33'333, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/false)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       DeferredAv1StartupCreatesCodecOnceWithExpectedColorMetadata) {
+  VideoStreamInfo av1_hdr_info = kHdrVideoStreamInfo;
+  av1_hdr_info.codec = kSbMediaVideoCodecAv1;
+
+  VideoStreamInfo av1_bt601_sdr_info = kDefaultVideoStreamInfo;
+  av1_bt601_sdr_info.codec = kSbMediaVideoCodecAv1;
+  av1_bt601_sdr_info.frame_size = {854, 480};
+  av1_bt601_sdr_info.color_metadata.primaries = kSbMediaPrimaryIdSmpte170M;
+  av1_bt601_sdr_info.color_metadata.transfer = kSbMediaTransferIdSmpte170M;
+  av1_bt601_sdr_info.color_metadata.matrix = kSbMediaMatrixIdSmpte170M;
+
+  for (bool flag_enabled : {false, true}) {
+    // 1. AV1 HDR10 (PQ): deferred until 3 buffers arrive for fps estimation,
+    // then created once with PQ metadata under both flag states.
+    decoder_.reset();
+    error_called_ = false;
+    ExperimentalFeatures hdr_features =
+        flag_enabled
+            ? ExperimentalFeatures(
+                  {{std::string(kMediaSkipRedundantColorCodecReinit.key()),
+                    int64_t{1}}})
+            : ExperimentalFeatures{};
+    CreateDecoder(/*max_video_capabilities=*/"", &av1_hdr_info,
+                  std::move(hdr_features));
+    ASSERT_EQ(fake_factory_->video_codec_create_count(), 0);
+
+    InitializeDecoder();
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+        0, 1024, &av1_hdr_info, /*is_key_frame=*/true)});
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 0);
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+        33'333, 1024, &av1_hdr_info, /*is_key_frame=*/false)});
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 0);
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+        66'667, 1024, &av1_hdr_info, /*is_key_frame=*/false)});
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+    ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+    EXPECT_EQ(fake_factory_->last_video_color_metadata()->transfer,
+              kSbMediaTransferIdSmpteSt2084);
+    EXPECT_FALSE(error_called_);
+
+    // 2. AV1 BT.601 SDR: created once after 3 buffers; flag off passes
+    // Smpte170M metadata via !IsIdentity(), while flag on omits HDR metadata.
+    decoder_.reset();
+    error_called_ = false;
+    ExperimentalFeatures sdr_features =
+        flag_enabled
+            ? ExperimentalFeatures(
+                  {{std::string(kMediaSkipRedundantColorCodecReinit.key()),
+                    int64_t{1}}})
+            : ExperimentalFeatures{};
+    CreateDecoder(/*max_video_capabilities=*/"", &av1_bt601_sdr_info,
+                  std::move(sdr_features));
+    ASSERT_EQ(fake_factory_->video_codec_create_count(), 0);
+
+    InitializeDecoder();
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+        0, 1024, &av1_bt601_sdr_info, /*is_key_frame=*/true)});
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 0);
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+        33'333, 1024, &av1_bt601_sdr_info, /*is_key_frame=*/false)});
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 0);
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+        66'667, 1024, &av1_bt601_sdr_info, /*is_key_frame=*/false)});
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+    if (flag_enabled) {
+      EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+    } else {
+      ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+      EXPECT_EQ(fake_factory_->last_video_color_metadata()->primaries,
+                kSbMediaPrimaryIdSmpte170M);
+    }
+    EXPECT_FALSE(error_called_);
+  }
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       HighBitDepthNonHdrTransitionRebuildsCodecWithFlagEnabled) {
+  VideoStreamInfo bt709_8bit_sdr = kDefaultVideoStreamInfo;
+  bt709_8bit_sdr.color_metadata.bits_per_channel = 8;
+
+  VideoStreamInfo bt601_10bit_sdr = bt709_8bit_sdr;
+  bt601_10bit_sdr.frame_size = {854, 480};
+  bt601_10bit_sdr.color_metadata.bits_per_channel = 10;
+  bt601_10bit_sdr.color_metadata.primaries = kSbMediaPrimaryIdSmpte170M;
+  bt601_10bit_sdr.color_metadata.transfer = kSbMediaTransferIdSmpte170M;
+  bt601_10bit_sdr.color_metadata.matrix = kSbMediaMatrixIdSmpte170M;
+
+  VideoStreamInfo bt709_10bit_sdr = bt709_8bit_sdr;
+  bt709_10bit_sdr.color_metadata.bits_per_channel = 10;
+
+  ExperimentalFeatures features(
+      {{std::string(kMediaSkipRedundantColorCodecReinit.key()), int64_t{1}}});
+  CreateDecoder(/*max_video_capabilities=*/"width=1920; height=1080",
+                &bt709_8bit_sdr, std::move(features),
+                /*enable_flush_during_seek=*/true);
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+  ASSERT_TRUE(fake_factory_->last_video_platform_options().has_value());
+  EXPECT_FALSE(fake_factory_->last_video_platform_options()->is_high_bit_depth);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+  // First-buffer mismatch from 8-bit SDR to 10-bit BT.601 SDR rebuilds with
+  // is_high_bit_depth=true while keeping color_metadata unset.
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      0, 1024, &bt601_10bit_sdr, /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  ASSERT_TRUE(fake_factory_->last_video_platform_options().has_value());
+  EXPECT_TRUE(fake_factory_->last_video_platform_options()->is_high_bit_depth);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+  // Flushed seek between two 10-bit SDR color spaces keeps the 10-bit codec.
+  decoder_->Reset();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      100'000'000, 1024, &bt709_10bit_sdr, /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+
+  // Flushed seek from 10-bit SDR back to 8-bit SDR rebuilds with
+  // is_high_bit_depth=false.
+  decoder_->Reset();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      200'000'000, 1024, &bt709_8bit_sdr, /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
+  ASSERT_TRUE(fake_factory_->last_video_platform_options().has_value());
+  EXPECT_FALSE(fake_factory_->last_video_platform_options()->is_high_bit_depth);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+  // Flushed seek from 8-bit SDR to 10-bit BT.601 SDR rebuilds with
+  // is_high_bit_depth=true.
+  decoder_->Reset();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      300'000'000, 1024, &bt601_10bit_sdr, /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 4);
+  ASSERT_TRUE(fake_factory_->last_video_platform_options().has_value());
+  EXPECT_TRUE(fake_factory_->last_video_platform_options()->is_high_bit_depth);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_FALSE(error_called_);
+}
+
 }  // namespace
 }  // namespace starboard

@@ -926,12 +926,14 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaCodecDecoder
   //                    ctor.
+  const bool is_high_bit_depth =
+      video_stream_info.color_metadata.bits_per_channel > 8;
   auto result = MediaCodecDecoder::CreateForVideo(
       *media_codec_factory_, job_queue(), /*host=*/this,
       video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
       video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
-      video_stream_info.color_metadata.bits_per_channel > 8,
+      is_high_bit_depth,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
@@ -946,6 +948,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           skip_redundant_color_codec_reinit_});
   if (result) {
     media_decoder_ = std::move(result.value());
+    codec_is_high_bit_depth_ = is_high_bit_depth;
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
@@ -964,6 +967,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     return Success();
   }
   media_decoder_.reset();
+  codec_is_high_bit_depth_ = false;
   return Failure("Media Decoder is not valid: " + result.error());
 }
 
@@ -975,6 +979,7 @@ void MediaCodecVideoDecoder::TeardownCodec() {
   }
   media_decoder_.reset();
   color_metadata_ = std::nullopt;
+  codec_is_high_bit_depth_ = false;
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
@@ -1343,6 +1348,10 @@ bool MediaCodecVideoDecoder::NeedsCodecTransition(
                    color_metadata_->mastering_metadata));
   }
 
+  const bool stream_is_high_bit_depth = stream_color.bits_per_channel > 8;
+  if (stream_is_high_bit_depth != codec_is_high_bit_depth_) {
+    return true;
+  }
   const bool stream_is_hdr = ShouldConfigureHdrColorMetadata(stream_color);
   const bool codec_is_hdr = color_metadata_.has_value();
   if (stream_is_hdr != codec_is_hdr) {
