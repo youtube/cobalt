@@ -598,6 +598,16 @@ void DiscardableSharedMemoryManager::OnMemoryPressure(
     case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
       break;
     case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+#if BUILDFLAG(IS_COBALT)
+      if (base::FeatureList::IsEnabled(
+              base::features::kCobaltDiscardableModeratePressureLimit)) {
+        ReduceMemoryUsageUntilWithinLimit(static_cast<size_t>(
+            memory_limit_ *
+            base::features::kCobaltDiscardableModeratePressureLimitFraction
+                .Get()));
+        break;
+      }
+#endif  // BUILDFLAG(IS_COBALT)
       // Purge memory until usage is within half of |memory_limit_|.
       ReduceMemoryUsageUntilWithinLimit(memory_limit_ / 2);
       break;

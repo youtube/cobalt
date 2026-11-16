@@ -27,6 +27,16 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableModerateMemoryPressure);
 // descriptor and maps a segment only briefly when purging it.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDiscardableSingleMapping);
 
+// When enabled, MODERATE memory pressure makes DiscardableSharedMemoryManager
+// purge unlocked discardable segments until usage is within
+// |moderate_limit_fraction| of the memory limit, instead of upstream's 1/2.
+// Purging uses madvise, so the memory of unlocked (not in use) image decodes,
+// Skia cache entries, etc. is returned to the OS immediately.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDiscardableModeratePressureLimit);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kCobaltDiscardableModeratePressureLimitFraction);
+
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessImageTransferCache);
