@@ -32,6 +32,7 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/common/log.h"
+#include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -43,44 +44,39 @@
 
 namespace starboard {
 
-bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                           const MimeType* content_type,
-                           int /*profile*/,
-                           int /*level*/,
-                           int bit_depth,
-                           SbMediaPrimaryId primary_id,
-                           SbMediaTransferId transfer_id,
-                           SbMediaMatrixId matrix_id,
-                           int frame_width,
-                           int frame_height,
-                           int64_t bitrate,
-                           int fps,
-                           bool decode_to_texture_required) {
-  if (decode_to_texture_required) {
-    SB_LOG(WARNING) << "Decoding to texture required with " << frame_width << "x"
-                    << frame_height;
+bool MediaIsVideoSupported(const MimeType* content_type,
+                           const VideoSupportQueryParams& params) {
+  const ParsedVideoCodec& codec_info = params.codec_info;
+
+  if (params.decode_to_texture_required) {
+    SB_LOG(WARNING) << "Decoding to texture required with "
+                    << params.frame_size.width << "x"
+                    << params.frame_size.height;
     return false;
   }
 
   const auto video_resolution = platform::device().video_resolution().value_or(platform::Resolution{});
 
-  if (frame_height > video_resolution.height || frame_width > video_resolution.width) {
+  if (!params.frame_size.FitsWithin(
+          Size(video_resolution.width, video_resolution.height))) {
     return false;
   }
 
-  if (transfer_id != kSbMediaTransferIdUnspecified &&
-      transfer_id != kSbMediaTransferIdBt709 &&
-      transfer_id != kSbMediaTransferIdSmpteSt2084 &&
-      transfer_id != kSbMediaTransferIdAribStdB67) {
+  if (codec_info.transfer_id != kSbMediaTransferIdUnspecified &&
+      codec_info.transfer_id != kSbMediaTransferIdBt709 &&
+      codec_info.transfer_id != kSbMediaTransferIdSmpteSt2084 &&
+      codec_info.transfer_id != kSbMediaTransferIdAribStdB67) {
     return false;
   }
 
-  if (!Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
+  if (!Is8BitSDRVideo(codec_info.bit_depth, codec_info.primary_id,
+                      codec_info.transfer_id, codec_info.matrix_id)) {
     auto format = platform::device().hdr().value_or(platform::HDRFormat{});
-    if (transfer_id == kSbMediaTransferIdSmpteSt2084 && !format.hdr10 && !format.hdr10Plus) {
+    if (codec_info.transfer_id == kSbMediaTransferIdSmpteSt2084 &&
+        !format.hdr10 && !format.hdr10Plus) {
       return false;
     }
-    if (transfer_id == kSbMediaTransferIdAribStdB67 && !format.hlg) {
+    if (codec_info.transfer_id == kSbMediaTransferIdAribStdB67 && !format.hlg) {
       return false;
     }
     if (content_type) {
@@ -96,8 +92,9 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     }
   }
 
-  return bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 60 &&
-         GstRegistryHasElementForMediaType(video_codec);
+  return params.bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond &&
+         params.fps <= 60 &&
+         GstRegistryHasElementForMediaType(codec_info.codec);
 }
 
 }  // namespace starboard

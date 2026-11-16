@@ -1,0 +1,189 @@
+# Checks if a PR can affect the tvOS build. This runs PR code (GN exec_script)
+# with a read-only token, so auto_label_kokoro.yaml applies the label from the
+# uploaded result.
+name: tvOS Impact
+
+# tvos.yaml looks up this run by name.
+run-name: tvOS Impact (#${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }} (${{ github.event.action }}))
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+    branches:
+      - main
+      - staging
+      - autoroll-chromium/main-to-staging
+      - 'stack/**'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number }}'
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Changes that gn analyze can't see, e.g. the platform's
+  # configuration_public.h, included via STARBOARD_CONFIGURATION_INCLUDE, always
+  # count. Checking them first skips the checkout and gclient sync.
+  check-paths:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      always_affects_tvos: ${{ steps.check.outputs.always_affects_tvos }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|starboard/tvos/arm64/simulator/|\.github/workflows/(tvos|tvos_impact|auto_label_kokoro)\.yaml$)
+        run: |
+          files=$(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename')
+          echo "${files}"
+          # The API lists at most 3000 files.
+          if [[ "$(grep -c . <<< "${files}")" -lt "${CHANGED_FILES}" ]] || grep -qE "${ALWAYS_AFFECTS_TVOS}" <<< "${files}"; then
+            echo "always_affects_tvos=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "always_affects_tvos=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  analyze-tvos-impact:
+    needs: check-paths
+    if: needs.check-paths.outputs.always_affects_tvos == 'false'
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    permissions:
+      contents: read
+    timeout-minutes: 20
+    # Keeps the run's conclusion success on timeout, so the label is applied.
+    continue-on-error: true
+    container:
+      image: ghcr.io/youtube/cobalt/linux:main
+      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
+      volumes:
+        - /runner-cache:/runner-cache
+    env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
+      IS_CI: 1
+    outputs:
+      affects_tvos: ${{ steps.analyze.outputs.affects_tvos }}
+    # Container jobs run steps with `sh` by default.
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            cobalt/build
+
+      - name: Parse Test Targets JSON
+        id: parse-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          test_targets_json_file: cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
+
+      # There's no tvOS golden workspace. The Linux one has a synced checkout
+      # with depot_tools and gn, which is enough for the tvOS `gn gen`.
+      - name: Prepare OverlayFS Workspace
+        uses: ./.github/actions/overlay_workspace
+        with:
+          path: cobalt
+          platform: linux-x64x11
+          use_gcloud: true
+
+      # github.sha is the PR merge commit. Set Up Depot Tools syncs src to it
+      # if DEPS changed, so check it out instead of squash merging.
+      - name: Check Out PR Merge Commit
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          mkdir -p cobalt/src
+          cd cobalt/src
+          git config --global --add safe.directory "${PWD}"
+          if [[ ! -d .git ]]; then
+            git init -q
+            git remote add origin "${REPO_URL}"
+          fi
+          git fetch --no-tags --depth=2 --filter=blob:none origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+          git diff --name-only --no-renames HEAD^1 HEAD | tee "${RUNNER_TEMP}/changed_files.txt"
+
+      - name: Set Up Depot Tools
+        uses: ./.github/actions/depot_tools
+        with:
+          platform: linux-x64x11
+          use_gcloud: true
+
+      - name: Check tvOS Build Impact
+        id: analyze
+        working-directory: cobalt/src
+        env:
+          TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
+          HEADERS: \.(h|hh|hpp|inc|inl|def)$
+        run: |
+          files="${RUNNER_TEMP}/changed_files.txt"
+          out="${RUNNER_TEMP}/out"
+          wrapper="--script-executable=${PWD}/cobalt/build/tvos_linux_script_wrapper.py"
+          python3 cobalt/build/gn.py "${out}" -p tvos-arm64-simulator -C devel --no-rbe --no-check "${wrapper}"
+
+          # gn analyze only knows headers listed in BUILD.gn, so add includers.
+          for header in $(grep -E "${HEADERS}" "${files}"); do
+            git grep -lF "\"${header}\"" -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.m' '*.mm' '*.h' '*.hh' '*.hpp' '*.inc' '*.inl' '*.def' >> "${files}" || true
+          done
+
+          jq -nR --argjson targets "${TEST_TARGETS}" '{
+            files: [inputs | select(. != "") | "//" + .] | unique,
+            test_targets: [$targets[] | "//" + .],
+            additional_compile_targets: ["//cobalt:cobalt"]
+          }' < "${files}" > "${out}/analyze_in.json"
+          gn analyze "${out}" "${out}/analyze_in.json" "${out}/analyze_out.json" "${wrapper}"
+          cat "${out}/analyze_out.json"
+          status=$(jq -r .status "${out}/analyze_out.json")
+          echo "affects_tvos=$([[ "${status}" == "No dependency" ]] && echo false || echo true)" >> "${GITHUB_OUTPUT}"
+
+  # Uploads the result unless the run is cancelled. auto_label_kokoro.yaml
+  # treats a missing result as a cancelled run.
+  report:
+    needs: [check-paths, analyze-tvos-impact]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Write Result
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ALWAYS_AFFECTS_TVOS: ${{ needs.check-paths.outputs.always_affects_tvos }}
+          AFFECTS_TVOS: ${{ needs.analyze-tvos-impact.outputs.affects_tvos }}
+        run: |
+          mkdir -p tvos_impact
+          echo "${PR_NUMBER}" > tvos_impact/pr_number
+          [[ "${ALWAYS_AFFECTS_TVOS}" == "true" ]] && AFFECTS_TVOS=true
+          # Empty if the analysis was skipped, failed, or timed out.
+          [[ "${AFFECTS_TVOS}" =~ ^(true|false)$ ]] || AFFECTS_TVOS=""
+          echo "${AFFECTS_TVOS}" > tvos_impact/affects_tvos
+          cat tvos_impact/*
+
+      - name: Upload Result
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: tvos-impact
+          path: tvos_impact/
+          retention-days: 1

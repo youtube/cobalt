@@ -15,7 +15,7 @@
 #include <chrono>
 
 #include "starboard/audio_sink.h"
-#include "starboard/benchmark/media/audio_sink/audio_sink_benchmark_helper.h"
+#include "starboard/benchmark/audio_sink/audio_sink_benchmark_helper.h"
 #include "starboard/media.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
