@@ -119,6 +119,8 @@ class CC_EXPORT LayerTreeSettings {
       ImageDecodeCacheUtils::GetPersistentCacheBudgetCount();
   size_t decoded_image_persistent_cache_budget_bytes =
       ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes();
+  bool single_tile_visible_interest_area = false;
+  bool single_tile_visible_only = false;
 #endif
   int max_preraster_distance_in_screen_pixels = 1000;
   bool use_rgba_4444 = false;
