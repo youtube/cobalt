@@ -29,9 +29,6 @@ namespace starboard {
 
 namespace {
 
-// Number of allocations between attempts to decommit one pending idle block.
-constexpr int kDecommitCadence = 100;
-
 int ceil_power_2(int i) {
   SB_DCHECK_GE(i, 0);
 
@@ -199,9 +196,6 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
       static_cast<uint8_t*>(allocated_block.address()) + sizeof(BlockMetadata);
 
   AddAllocatedBlock(allocated_block);
-  if (enable_decommit_on_idle_) {
-    TryToDecommitOneBlock(kDecommitCadence);
-  }
 
   return user_address;
 }
