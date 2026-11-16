@@ -359,6 +359,8 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
     base::AutoLock scoped_lock(allocator->mutex_);
     allocator->decommit_on_suspend_enabled_ = true;
   }
+  // TODO(b/520141273): `enable_decommit_on_idle` is always true here; clean it
+  // up across the call hierarchy after the experiment concludes.
   if (strategy_config.enable_decommit_on_idle) {
     // This feature is enable only, and isn't expected to be disabled.
     allocator->EnablePeriodicDecommitLoop();
