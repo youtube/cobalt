@@ -15,12 +15,14 @@
 #include "starboard/common/reuse_allocator_base.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <utility>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/memory.h"
+#include "starboard/common/time.h"
 
 namespace starboard {
 
@@ -107,7 +109,7 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
         fallback_block.size >= *size_to_try &&
         MemoryIsAligned(fallback_block.address, alignment)) {
       fallback_block.state = kActiveInUse;
-      decommit_grace_ticks_remaining_ = kDecommitGraceTicks;
+      decommit_grace_end_us_ = CurrentMonotonicTime() + kDecommitGraceDelayUs;
       *size_to_try = fallback_block.size;
       return {fallback_block.address, static_cast<intptr_t>(i)};
     }
@@ -122,7 +124,7 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
     intptr_t index = static_cast<intptr_t>(fallback_allocations_.size());
     fallback_allocations_.emplace_back(ptr, *size_to_try);
     capacity_ += *size_to_try;
-    decommit_grace_ticks_remaining_ = kDecommitGraceTicks;
+    decommit_grace_end_us_ = CurrentMonotonicTime() + kDecommitGraceDelayUs;
     return {ptr, index};
   }
   return {nullptr, -1};
@@ -131,7 +133,7 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
 void ReuseAllocatorBase::ReclaimFallbackBlocks() {
   SB_LOG(INFO) << "Allocator reached idle state, reclaiming "
                << fallback_allocations_.size() << " fallback allocations.";
-  decommit_grace_ticks_remaining_ = kDecommitGraceTicks;
+  decommit_grace_end_us_ = CurrentMonotonicTime() + kDecommitGraceDelayUs;
   has_pending_decommits_ = false;
   for (size_t i = 0; i < fallback_allocations_.size(); ++i) {
     auto& fallback_block = fallback_allocations_[i];
@@ -173,12 +175,8 @@ void ReuseAllocatorBase::ReclaimFallbackBlocks() {
 }
 
 // TODO(b/454441375): Move this to be in sync with the declaration order.
-void ReuseAllocatorBase::TryToDecommitOneBlock() {
-  if (!has_pending_decommits_) {
-    return;
-  }
-  if (decommit_grace_ticks_remaining_ > 0) {
-    --decommit_grace_ticks_remaining_;
+void ReuseAllocatorBase::TryToDecommitOneBlock(int64_t now_us) {
+  if (!has_pending_decommits_ || now_us < decommit_grace_end_us_) {
     return;
   }
   for (auto it = fallback_allocations_.rbegin();

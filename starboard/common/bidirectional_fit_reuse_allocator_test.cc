@@ -24,6 +24,7 @@
 #include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "starboard/common/fixed_no_free_allocator.h"
 #include "starboard/common/pointer_arithmetic.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -541,7 +542,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest,
-           TryToDecommitOneBlockGracePeriod) {
+           TryToDecommitOneBlockGraceDelay) {
   constexpr size_t kAlignment = sizeof(void*);
   constexpr size_t kBlockSize = 64 * 1024;
 
@@ -555,20 +556,22 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   ASSERT_NE(block2, nullptr);
 
   // Freeing both blocks reaches idle and reclaims fallback blocks.
+  const int64_t before_reclaim_us = CurrentMonotonicTime();
   this->allocator_->Free(block1);
   this->allocator_->Free(block2);
+  const int64_t after_reclaim_us = CurrentMonotonicTime();
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
-  // During the grace period, TryToDecommitOneBlock() should not decommit any
-  // blocks.
-  for (size_t i = 0; i < ReuseAllocatorBase::kDecommitGraceTicks; ++i) {
-    this->allocator_->TryToDecommitOneBlock();
-    EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
-  }
-
-  // On the next tick after the grace window, the non-retained block is
-  // decommitted.
+  // Before the grace delay elapses, TryToDecommitOneBlock() should not
+  // decommit any blocks.
   this->allocator_->TryToDecommitOneBlock();
+  this->allocator_->TryToDecommitOneBlock(
+      before_reclaim_us + ReuseAllocatorBase::kDecommitGraceDelayUs - 1);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
+
+  // Once the grace delay has elapsed, the non-retained block is decommitted.
+  this->allocator_->TryToDecommitOneBlock(
+      after_reclaim_us + ReuseAllocatorBase::kDecommitGraceDelayUs);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
 
   // Re-allocating both blocks re-activates the decommitted block cleanly.
@@ -582,7 +585,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest,
-           GracePeriodRestartsOnBlockReuseAndNoDecommitOnAllocate) {
+           GraceDelayRestartsOnBlockReuseAndNoDecommitOnAllocate) {
   constexpr size_t kAlignment = sizeof(void*);
   constexpr size_t kBlockSize = 64 * 1024;
 
@@ -597,20 +600,26 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
 
   this->allocator_->Free(block1);
   this->allocator_->Free(block2);
+  const int64_t after_reclaim_us = CurrentMonotonicTime();
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
-  // Advance partway through the grace window, then reactivate block 0 via
-  // Allocate().
-  for (size_t i = 0; i + 1 < ReuseAllocatorBase::kDecommitGraceTicks; ++i) {
-    this->allocator_->TryToDecommitOneBlock();
-  }
+  // Advance partway through the grace delay, then ensure the monotonic clock
+  // advances by at least 1 us before reactivating block 0 via Allocate().
+  this->allocator_->TryToDecommitOneBlock(
+      after_reclaim_us + ReuseAllocatorBase::kDecommitGraceDelayUs / 2);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
+
+  int64_t before_reactivate_us = CurrentMonotonicTime();
+  while (before_reactivate_us <= after_reclaim_us) {
+    before_reactivate_us = CurrentMonotonicTime();
+  }
 
   // Perform > 100 Allocate()/Free() cycles on the retained block without
   // background ticks to confirm Allocate() never decommits on the hot path and
-  // that reactivating block 0 restarted the grace window for the idle tail
+  // that reactivating block 0 restarted the grace delay for the idle tail
   // block.
   void* active = this->allocator_->Allocate(512, kAlignment);
+  const int64_t after_reactivate_us = CurrentMonotonicTime();
   ASSERT_NE(active, nullptr);
   for (int i = 0; i < 120; ++i) {
     void* temp = this->allocator_->Allocate(256, kAlignment);
@@ -619,14 +628,16 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   }
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
-  // Because reactivating block 0 restarted the grace period, the idle tail
-  // block must still wait a full `kDecommitGraceTicks` ticks before
-  // decommitting.
-  for (size_t i = 0; i < ReuseAllocatorBase::kDecommitGraceTicks; ++i) {
-    this->allocator_->TryToDecommitOneBlock();
-    EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
-  }
-  this->allocator_->TryToDecommitOneBlock();
+  // Because reactivating block 0 restarted the grace delay, the original
+  // deadline and any timestamp before the new deadline must not decommit.
+  this->allocator_->TryToDecommitOneBlock(
+      after_reclaim_us + ReuseAllocatorBase::kDecommitGraceDelayUs);
+  this->allocator_->TryToDecommitOneBlock(
+      before_reactivate_us + ReuseAllocatorBase::kDecommitGraceDelayUs - 1);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
+
+  this->allocator_->TryToDecommitOneBlock(
+      after_reactivate_us + ReuseAllocatorBase::kDecommitGraceDelayUs);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
 
   this->allocator_->Free(active);
