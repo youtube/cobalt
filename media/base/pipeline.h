@@ -84,6 +84,10 @@ class MEDIA_EXPORT Pipeline {
     // the frame rate is unstable.  The duration used for the frame rate is
     // based on wall clock time, not media time.
     virtual void OnVideoFrameRateChange(std::optional<int> fps) = 0;
+
+    // Executed on the false -> true transition of loading progress when
+    // buffered time ranges change on the demuxer. Default no-op for test mocks.
+    virtual void OnLoadingProgress() {}
   };
 
   virtual ~Pipeline() {}
@@ -254,6 +258,10 @@ class MEDIA_EXPORT Pipeline {
   // Return true if loading progress has been made since the last time this
   // method was called.
   virtual bool DidLoadingProgress() = 0;
+
+  // Enables posting Client::OnLoadingProgress() on false -> true transitions
+  // of DidLoadingProgress(). Disabled by default for zero-overhead parity.
+  virtual void SetLoadingProgressNotificationsEnabled(bool enabled) {}
 
   // Gets the current pipeline statistics.
   virtual PipelineStatistics GetStatistics() const = 0;

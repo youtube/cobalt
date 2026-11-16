@@ -2531,7 +2531,24 @@ void HTMLMediaElement::ProgressEventTimerFired() {
     ScheduleNamedEvent(event_type_names::kStalled);
     sent_stalled_event_ = true;
     SetShouldDelayLoadEvent(false);
+#if BUILDFLAG(IS_COBALT)
+  } else if (media_source_attachment_ &&
+             base::FeatureList::IsEnabled(
+                 features::kCobaltStopMseIdleProgressTimer)) {
+    progress_event_timer_.Stop();
+#endif  // BUILDFLAG(IS_COBALT)
   }
+}
+
+void HTMLMediaElement::DidLoadingProgressFromPipeline() {
+#if BUILDFLAG(IS_COBALT)
+  if (media_source_attachment_ && network_state_ == kNetworkLoading &&
+      !progress_event_timer_.IsActive() &&
+      base::FeatureList::IsEnabled(
+          features::kCobaltStopMseIdleProgressTimer)) {
+    StartProgressEventTimer();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void HTMLMediaElement::AddPlayedRange(double start, double end) {

@@ -482,6 +482,14 @@ BASE_FEATURE(kCobaltSkipMediaProgressLayoutUpdate,
              "CobaltSkipMediaProgressLayoutUpdate",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Stops HTMLMediaElement::progress_event_timer_ (350ms repeating timer on
+// CrRendererMain) on MediaSource attachments when DidLoadingProgress() is false
+// (since MSE never fires 'stalled'), and re-arms it on the false->true edge of
+// DemuxerHost::OnBufferedTimeRangesChanged().
+BASE_FEATURE(kCobaltStopMseIdleProgressTimer,
+             "CobaltStopMseIdleProgressTimer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
              "EvictMemoryCacheOnCriticalMemoryPressure",

@@ -433,6 +433,7 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   void OnVideoNaturalSizeChange(const gfx::Size& size) override;
   void OnVideoOpacityChange(bool opaque) override;
   void OnVideoFrameRateChange(std::optional<int> fps) override;
+  void OnLoadingProgress() override;
   void OnVideoAverageKeyframeDistanceUpdate() override;
   void OnAudioPipelineInfoChange(const media::AudioPipelineInfo& info) override;
   void OnVideoPipelineInfoChange(const media::VideoPipelineInfo& info) override;

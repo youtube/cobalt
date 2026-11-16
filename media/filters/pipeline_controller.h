@@ -145,6 +145,7 @@ class MEDIA_EXPORT PipelineController {
   Ranges<base::TimeDelta> GetBufferedTimeRanges() const;
   base::TimeDelta GetMediaDuration() const;
   bool DidLoadingProgress();
+  void SetLoadingProgressNotificationsEnabled(bool enabled);
   PipelineStatistics GetStatistics() const;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb);
   void OnEnabledAudioTracksChanged(

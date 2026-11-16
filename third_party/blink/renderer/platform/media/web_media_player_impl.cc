@@ -69,6 +69,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/url_request/url_request_job.h"
 #include "services/device/public/mojom/battery_monitor.mojom-blink.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/web_audio_source_provider_impl.h"
 #include "third_party/blink/public/platform/web_content_decryption_module.h"
@@ -530,6 +531,12 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       WTF::BindRepeating(&WebMediaPlayerImpl::CreateRenderer,
                          WTF::Unretained(this)),
       media_log_.get());
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          blink::features::kCobaltStopMseIdleProgressTimer)) {
+    pipeline->SetLoadingProgressNotificationsEnabled(true);
+  }
+#endif
 
   // `WTF::Unretained` for `demuxer_manager_` is safe, because it outlives
   // |pipeline_controller_|.
@@ -2504,6 +2511,13 @@ void WebMediaPlayerImpl::OnVideoFrameRateChange(std::optional<int> fps) {
 
   last_reported_fps_ = fps;
   UpdateSmoothnessHelper();
+}
+
+void WebMediaPlayerImpl::OnLoadingProgress() {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  if (client_) {
+    client_->DidLoadingProgressFromPipeline();
+  }
 }
 
 void WebMediaPlayerImpl::OnAudioConfigChange(

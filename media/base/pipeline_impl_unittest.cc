@@ -107,6 +107,12 @@ class PipelineImplTest : public ::testing::Test {
     MOCK_METHOD1(OnSuspend, void(PipelineStatus));
     MOCK_METHOD1(OnResume, void(PipelineStatus));
     MOCK_METHOD1(OnCdmAttached, void(bool));
+
+    void OnLoadingProgress() override { ++loading_progress_count_; }
+    int loading_progress_count() const { return loading_progress_count_; }
+
+   private:
+    int loading_progress_count_ = 0;
   };
 
   PipelineImplTest()
@@ -710,6 +716,51 @@ TEST_F(PipelineImplTest, GetBufferedTimeRanges) {
   DoSeek(kSeekTime);
 
   EXPECT_FALSE(pipeline_->DidLoadingProgress());
+}
+
+TEST_F(PipelineImplTest,
+       OnBufferedTimeRangesChangedNotifiesLoadingProgressOnFalseToTrueEdge) {
+  CreateVideoStream();
+  const auto kDuration = base::Seconds(100);
+  SetDemuxerExpectations(kDuration);
+  StartPipelineAndExpect(PIPELINE_OK);
+
+  EXPECT_EQ(0, callbacks_.loading_progress_count());
+  EXPECT_FALSE(pipeline_->DidLoadingProgress());
+
+  // By default (notifications disabled for flag-off parity), range updates do
+  // not post OnLoadingProgress().
+  Ranges<base::TimeDelta> ranges;
+  ranges.Add(base::TimeDelta(), base::Seconds(5));
+  demuxer_host_->OnBufferedTimeRangesChanged(ranges);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(0, callbacks_.loading_progress_count());
+  EXPECT_TRUE(pipeline_->DidLoadingProgress());
+  EXPECT_FALSE(pipeline_->DidLoadingProgress());
+
+  // Enable notifications: first false -> true transition posts
+  // OnLoadingProgress().
+  pipeline_->SetLoadingProgressNotificationsEnabled(true);
+  ranges.Add(base::Seconds(5), base::Seconds(10));
+  demuxer_host_->OnBufferedTimeRangesChanged(ranges);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(1, callbacks_.loading_progress_count());
+
+  // While did_loading_progress remains unconsumed (true), subsequent range
+  // updates do not spam OnLoadingProgress().
+  ranges.Add(base::Seconds(10), base::Seconds(20));
+  demuxer_host_->OnBufferedTimeRangesChanged(ranges);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(1, callbacks_.loading_progress_count());
+
+  // Consuming DidLoadingProgress() resets the flag to false, so the next
+  // buffered range update fires OnLoadingProgress() again.
+  EXPECT_TRUE(pipeline_->DidLoadingProgress());
+  EXPECT_FALSE(pipeline_->DidLoadingProgress());
+  ranges.Add(base::Seconds(20), base::Seconds(30));
+  demuxer_host_->OnBufferedTimeRangesChanged(ranges);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(2, callbacks_.loading_progress_count());
 }
 
 TEST_F(PipelineImplTest, BufferedTimeRangesCanChangeAfterStop) {
