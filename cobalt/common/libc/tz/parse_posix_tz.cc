@@ -15,6 +15,7 @@
 #include "cobalt/common/libc/tz/parse_posix_tz.h"
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <iostream>
 #include <optional>
@@ -22,8 +23,6 @@
 #include <string_view>
 #include <system_error>
 #include <vector>
-
-#include "starboard/common/string_util.h"
 
 namespace cobalt {
 namespace common {
@@ -37,7 +36,7 @@ bool IsValidDstContinuation(const std::string_view& view) {
     return true;
   }
   char c = view.front();
-  return starboard::IsAsciiDigit(c) || c == '+' || c == '-' || c == ',';
+  return std::isdigit(c) || c == '+' || c == '-' || c == ',';
 }
 
 // Number of seconds in an hour.
@@ -64,7 +63,7 @@ std::optional<int> StringViewToInt(const std::string_view& string_to_convert) {
 // not modified.
 std::optional<int> ParseInteger(std::string_view& timezone_view) {
   auto it = std::find_if_not(timezone_view.begin(), timezone_view.end(),
-                             starboard::IsAsciiDigit);
+                             [](char c) { return std::isdigit(c); });
   size_t digits_end = std::distance(timezone_view.begin(), it);
 
   if (digits_end == 0) {
@@ -256,7 +255,7 @@ std::optional<std::string> ExtractName(std::string_view& timezone_view) {
     timezone_view.remove_prefix(end_quote + 1);
   } else {
     auto it = std::find_if(timezone_view.begin(), timezone_view.end(),
-                           [](char c) { return !starboard::IsAsciiAlpha(c); });
+                           [](char c) { return !std::isalpha(c); });
     size_t name_end = std::distance(timezone_view.begin(), it);
 
     if (name_end == 0) {
