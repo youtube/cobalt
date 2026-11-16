@@ -358,10 +358,6 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
     // This optimization is enable only, and isn't expected to be disabled.
     base::AutoLock scoped_lock(allocator->mutex_);
     allocator->decommit_on_suspend_enabled_ = true;
-    if (allocator->is_suspended_ && allocator->strategy_ &&
-        !allocator->is_decommit_on_pressure_strategy_) {
-      allocator->strategy_->SetSuspended(true);
-    }
   }
   if (strategy_config.enable_decommit_on_idle) {
     // This feature is enable only, and isn't expected to be disabled.
