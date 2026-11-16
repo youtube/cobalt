@@ -17,10 +17,15 @@
 #include <atomic>
 #include <cstring>
 #include <functional>
+#include <map>
+#include <string>
+#include <string_view>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/queue.h"
 #include "starboard/common/string.h"
+#include "starboard/drm.h"
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
@@ -33,6 +38,7 @@ namespace nplb {
 namespace {
 
 using ::starboard::AudioSampleInfo;
+using ::starboard::Queue;
 using ::starboard::VideoDmpReader;
 using ::starboard::VideoSampleInfo;
 using std::placeholders::_1;
@@ -77,6 +83,41 @@ const char* kVideoTestFiles[] = {
 
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                            kSbPlayerOutputModePunchOut};
+
+void NeedsProvisioningFunc(SbDrmSystem drm_system,
+                           void* context,
+                           int ticket,
+                           SbDrmStatus status,
+                           SbDrmSessionRequestType type,
+                           const char* error_message,
+                           const void* session_id,
+                           int session_id_size,
+                           const void* content,
+                           int content_size,
+                           const char* url) {
+  static_cast<Queue<bool>*>(context)->Put(
+      status == kSbDrmStatusSuccess &&
+      type == kSbDrmSessionRequestTypeIndividualizationRequest);
+}
+
+bool NeedsProvisioning(const std::string& key_system) {
+  constexpr int64_t kSessionUpdateRequestTimeoutUs = 5'000'000;  // 5 seconds
+
+  Queue<bool> needs_provisioning;
+  SbDrmSystem drm_system = CreateDummyDrmSystem(
+      key_system.c_str(), &needs_provisioning, NeedsProvisioningFunc);
+  if (!SbDrmSystemIsValid(drm_system)) {
+    return false;
+  }
+
+  GenerateWidevineSessionUpdateRequest(drm_system);
+
+  // A failed request doesn't need provisioning, and `GetTimed()` returns false
+  // if there's no answer.
+  bool result = needs_provisioning.GetTimed(kSessionUpdateRequestTimeoutUs);
+  SbDrmDestroySystem(drm_system);
+  return result;
+}
 
 }  // namespace
 
@@ -171,6 +212,12 @@ std::string GetSbPlayerTestConfigName(
 }
 
 void SkipTestIfNotSupported(const SbPlayerTestConfig& config) {
+  if (IsWidevineKeySystem(config.key_system) &&
+      !IsWidevineKeySystemProvisioned(config.key_system)) {
+    GTEST_SKIP() << "The device isn't provisioned for " << config.key_system
+                 << ".";
+  }
+
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
   if (config.audio_filename && strlen(config.audio_filename) > 0) {
     VideoDmpReader dmp_reader(config.audio_filename,
@@ -199,6 +246,27 @@ void SkipTestIfNotSupported(const SbPlayerTestConfig& config) {
                              config.key_system)) {
     GTEST_SKIP() << "Unsupported output mode.";
   }
+}
+
+bool IsWidevineKeySystem(std::string_view key_system) {
+  return key_system.rfind("com.widevine", 0) == 0;
+}
+
+void GenerateWidevineSessionUpdateRequest(SbDrmSystem drm_system) {
+  SbDrmGenerateSessionUpdateRequest(drm_system, kInitialTicket,
+                                    kCencInitDataType, kCencInitData,
+                                    sizeof(kCencInitData));
+}
+
+bool IsWidevineKeySystemProvisioned(std::string_view key_system) {
+  // nplb never provisions the device, so the answer can't change.
+  static std::map<std::string, bool, std::less<>> provisioned;
+  auto it = provisioned.find(key_system);
+  if (it == provisioned.end()) {
+    std::string key(key_system);
+    it = provisioned.emplace(key, !NeedsProvisioning(key)).first;
+  }
+  return it->second;
 }
 
 void DummyDeallocateSampleFunc(SbPlayer player,

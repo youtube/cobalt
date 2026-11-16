@@ -1,9 +1,9 @@
 {
   "comment": "AOSP nplb exclusions.",
   "failing_tests": [
+    "*SbPlayerWriteSampleTest.SecondaryPlayerTest/*widevine*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*_137_avc_*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*sintel_329_ec3*",
-    "*widevine*",
     "MultiplePlayerTest.SunnyDay",
     "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
