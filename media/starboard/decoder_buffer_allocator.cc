@@ -114,14 +114,14 @@ DecoderBufferAllocator* DecoderBufferAllocator::Get() {
 }
 
 void DecoderBufferAllocator::SetSuspended(bool is_suspended) {
+  if (!decommit_on_suspend_enabled_.load(std::memory_order_acquire)) {
+    return;
+  }
   base::AutoLock scoped_lock(mutex_);
   if (is_suspended_ == is_suspended) {
     return;
   }
   is_suspended_ = is_suspended;
-  if (!decommit_on_suspend_enabled_) {
-    return;
-  }
   LOG(INFO) << "DecoderBufferAllocator suspend state changed to "
             << (is_suspended ? "suspended." : "resumed.");
   // Skip forwarding while a Finch memory-pressure strategy is still draining a
@@ -356,8 +356,8 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
   }
   if (enable_decommit_on_suspend) {
     // This optimization is enable only, and isn't expected to be disabled.
-    base::AutoLock scoped_lock(allocator->mutex_);
-    allocator->decommit_on_suspend_enabled_ = true;
+    allocator->decommit_on_suspend_enabled_.store(true,
+                                                  std::memory_order_release);
   }
   // TODO(b/520141273): `enable_decommit_on_idle` is always true here; clean it
   // up across the call hierarchy after the experiment concludes.
@@ -413,7 +413,7 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     strategy_ = experimental_strategy_create_cb_.Run(initial_capacity_,
                                                      allocation_unit_);
     if (strategy_) {
-      if (decommit_on_suspend_enabled_ && is_suspended_) {
+      if (is_suspended_) {
         strategy_->SetSuspended(true);
       }
       LOG(INFO) << "Allocated " << initial_capacity_

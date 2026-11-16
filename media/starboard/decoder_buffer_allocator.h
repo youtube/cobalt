@@ -15,6 +15,7 @@
 #ifndef MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 #define MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 
+#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <sstream>
@@ -204,7 +205,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // ignored.
   bool is_decommit_on_pressure_strategy_ GUARDED_BY(mutex_) = false;
   bool is_suspended_ GUARDED_BY(mutex_) = false;
-  bool decommit_on_suspend_enabled_ GUARDED_BY(mutex_) = false;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation
@@ -213,6 +213,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
   int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  std::atomic<bool> decommit_on_suspend_enabled_{false};
 };
 
 }  // namespace media
