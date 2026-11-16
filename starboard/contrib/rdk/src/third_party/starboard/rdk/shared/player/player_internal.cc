@@ -51,6 +51,7 @@
 #include <optional>
 #include <sys/resource.h>
 #include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 #include "starboard/common/thread.h"
 #include "starboard/common/time.h"
 #include "starboard/drm.h"
@@ -673,7 +674,7 @@ struct MaxVideoCapabilities {
   bool Parse(const char* caps_str) {
     auto parse_entry = [this](std::string& entry) {
       auto end = std::remove_if(entry.begin(), entry.end(),
-        [](unsigned char c) { return std::isspace(c) || c == '"' || c == '\''; });
+        [](char c) { return ::starboard::IsAsciiWhitespace(c) || c == '"' || c == '\''; });
       if (end != entry.end()) {
         *end = '\0';
       }

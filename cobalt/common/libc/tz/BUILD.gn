@@ -18,7 +18,10 @@ static_library("tz") {
     "parse_posix_tz.h",
   ]
 
-  deps = [ "//starboard:starboard_headers_only" ]
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common:common_headers_only",
+  ]
 }
 
 source_set("tz_test") {

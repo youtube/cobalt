@@ -63,6 +63,31 @@ TEST(StringUtilTest, IsAsciiWhitespace) {
   EXPECT_FALSE(IsAsciiWhitespace(static_cast<char>(0xff)));
 }
 
+TEST(StringUtilTest, IsAsciiUpperAndLower) {
+  static_assert(IsAsciiUpper('A'), "");
+  static_assert(IsAsciiUpper('Z'), "");
+  static_assert(!IsAsciiUpper('@'), "");
+  static_assert(!IsAsciiUpper('['), "");
+  static_assert(!IsAsciiUpper('a'), "");
+  static_assert(!IsAsciiUpper(static_cast<char>(0xff)), "");
+
+  static_assert(IsAsciiLower('a'), "");
+  static_assert(IsAsciiLower('z'), "");
+  static_assert(!IsAsciiLower('`'), "");
+  static_assert(!IsAsciiLower('{'), "");
+  static_assert(!IsAsciiLower('A'), "");
+  static_assert(!IsAsciiLower(static_cast<char>(0xff)), "");
+
+  for (char c = 'A'; c <= 'Z'; ++c) {
+    EXPECT_TRUE(IsAsciiUpper(c));
+    EXPECT_FALSE(IsAsciiLower(c));
+  }
+  for (char c = 'a'; c <= 'z'; ++c) {
+    EXPECT_TRUE(IsAsciiLower(c));
+    EXPECT_FALSE(IsAsciiUpper(c));
+  }
+}
+
 TEST(StringUtilTest, IsAsciiAlpha) {
   static_assert(IsAsciiAlpha('A'), "");
   static_assert(IsAsciiAlpha('Z'), "");

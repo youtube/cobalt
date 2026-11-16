@@ -41,8 +41,16 @@ constexpr bool IsAsciiWhitespace(char c) noexcept {
          c == '\v';
 }
 
+constexpr bool IsAsciiUpper(char c) noexcept {
+  return c >= 'A' && c <= 'Z';
+}
+
+constexpr bool IsAsciiLower(char c) noexcept {
+  return c >= 'a' && c <= 'z';
+}
+
 constexpr bool IsAsciiAlpha(char c) noexcept {
-  return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+  return IsAsciiUpper(c) || IsAsciiLower(c);
 }
 
 constexpr bool IsAsciiDigit(char c) noexcept {
