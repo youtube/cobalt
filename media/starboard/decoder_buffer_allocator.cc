@@ -35,10 +35,6 @@ namespace media {
 
 namespace {
 
-// Interval between background `TryToDecommitOneBlock()` ticks; combined with
-// `starboard::ReuseAllocatorBase::kDecommitGraceTicks` (3 ticks), idle blocks
-// wait at least 15s after reclaim or block activation before background
-// decommit begins.
 constexpr base::TimeDelta kDefaultPeriodicDecommitInterval = base::Seconds(5);
 
 // The current default AllocatorStrategy is EmbeddedMetadataReuseAllocatorBase.
@@ -270,9 +266,7 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     //
     // - flags (8 bits):
     //   - enable_decommit_on_suspend (bit 24): When set (bit 24 is non-zero),
-    //     informs the allocator of app suspend/resume so idle blocks are
-    //     decommitted immediately while suspended instead of waiting for
-    //     periodic background decommit.
+    //     decommits idle blocks immediately while the app is suspended.
     //   - allocate_with_page_alignment (bit 25): When set (bit 25 is
     //     non-zero), forces new OS block allocations to be page-aligned and
     //     rounded up to page sizes.

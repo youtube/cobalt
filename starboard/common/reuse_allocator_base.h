@@ -39,10 +39,8 @@ namespace starboard {
 // accessing or allocating memory concurrently across multiple threads.
 class ReuseAllocatorBase : public Allocator {
  public:
-  // Number of TryToDecommitOneBlock() calls to skip after
-  // ReclaimFallbackBlocks() or fallback block activation so consecutive
-  // playback transitions and seeks can reuse committed pages without
-  // page-fault thrashing.
+  // Number of TryToDecommitOneBlock() calls to skip after idle reclaim or
+  // fallback block activation before decommitting idle blocks.
   static constexpr size_t kDecommitGraceTicks = 3;
 
   // Allocator methods.
@@ -51,11 +49,8 @@ class ReuseAllocatorBase : public Allocator {
 
   // Updates whether the application is currently suspended. When
   // |is_suspended| transitions to true, any currently decommitable idle blocks
-  // (non-retained idle blocks, plus retained idle blocks when constructed with
-  // |aggressive_decommit_on_suspend|) are decommitted immediately, and any
-  // subsequent ReclaimFallbackBlocks() call while suspended will also decommit
-  // reclaimed blocks immediately instead of staging them for periodic
-  // background decommit.
+  // are decommitted immediately, and any subsequent ReclaimFallbackBlocks()
+  // call while suspended will also decommit reclaimed blocks immediately.
   void SetSuspended(bool is_suspended);
 
   // Immediately decommit all remaining decommitable blocks (e.g. on app
@@ -67,10 +62,7 @@ class ReuseAllocatorBase : public Allocator {
   // affected.
   void DecommitAllDecommitableBlocks(bool include_retained_blocks = false);
 
-  // Attempts to decommit a single pending idle block once `kDecommitGraceTicks`
-  // calls have elapsed since the pool last reached idle or activated a
-  // fallback block. After the grace window, each call decommits one pending
-  // block.
+  // Decommits one pending idle block once the grace window has elapsed.
   void TryToDecommitOneBlock();
 
  protected:
@@ -172,10 +164,7 @@ class ReuseAllocatorBase : public Allocator {
   // allocator.
   size_t capacity_ = 0;
 
-  // Number of periodic decommit ticks to wait after ReclaimFallbackBlocks() or
-  // AllocateFallbackBlock() before decommitting idle blocks, allowing
-  // video-to-video transitions and seeks to reuse already-committed blocks
-  // without page-fault storms.
+  // Remaining TryToDecommitOneBlock() ticks to skip before decommitting.
   size_t decommit_grace_ticks_remaining_ = 0;
 
   // Set to true when idle reclamation stages blocks for decommit.

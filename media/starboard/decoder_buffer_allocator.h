@@ -106,8 +106,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   static DecoderBufferAllocator* Get();
 
-  // Updates whether the application is currently suspended. Has no effect on
-  // the underlying strategy unless suspend decommit is enabled via V3 settings.
+  // Updates whether the application is currently suspended.
   void SetSuspended(bool is_suspended);
 
   // DecoderBuffer::Allocator methods.
