@@ -46,6 +46,8 @@ namespace media {
 using base::Time;
 using base::TimeDelta;
 
+class PlaybackUnderflowHandler;
+
 // SbPlayer based Renderer implementation, the entry point for all video
 // playbacks on Starboard platforms. Every Starboard renderer is usually
 // owned by StarboardRendererWrapper and must live on a single
@@ -241,6 +243,11 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                              bool is_preroll);
 
   void OnBufferingStateChange(BufferingState state);
+  void OnBufferingStateChangeWithReason(BufferingState state,
+                                        BufferingStateChangeReason reason);
+
+  // Implements PlaybackUnderflowHandler::Delegate. Defined in the .cc file.
+  class UnderflowDelegate;
 
   void NotifyError(PipelineStatus status);
   void OnConcealFallbackSuspend();
@@ -331,6 +338,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
   std::unique_ptr<SbPlayerBridge> player_bridge_;
+  // Mid-playback underflow handling. |underflow_handler_| does nothing when
+  // kMediaHandlePlaybackUnderflow is disabled. |underflow_delegate_| must be
+  // declared before |underflow_handler_| so it outlives it (the handler holds
+  // a raw_ptr to it).
+  const std::unique_ptr<UnderflowDelegate> underflow_delegate_;
+  const std::unique_ptr<PlaybackUnderflowHandler> underflow_handler_;
 
   base::OnceClosure pending_flush_cb_;
 

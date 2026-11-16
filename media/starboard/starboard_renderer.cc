@@ -35,6 +35,7 @@
 #include "media/base/video_codecs.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/decoder_buffer_allocator.h"
+#include "media/starboard/playback_underflow_handler.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
@@ -174,6 +175,81 @@ TimeDelta MapUrlPlayerDuration(TimeDelta duration) {
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 }  // namespace
 
+// Implements PlaybackUnderflowHandler::Delegate for StarboardRenderer, giving
+// the handler access to the renderer's playback state and SbPlayer. Owned by
+// StarboardRenderer, which keeps it alive for the lifetime of
+// |underflow_handler_|. Must be used on the renderer's task runner.
+class StarboardRenderer::UnderflowDelegate
+    : public PlaybackUnderflowHandler::Delegate {
+ public:
+  explicit UnderflowDelegate(StarboardRenderer* renderer)
+      : renderer_(renderer) {}
+
+  UnderflowDelegate(const UnderflowDelegate&) = delete;
+  UnderflowDelegate& operator=(const UnderflowDelegate&) = delete;
+
+  // PlaybackUnderflowHandler::Delegate implementation.
+  TimeDelta GetCurrentMediaTime() override {
+    CHECK(renderer_->task_runner_->RunsTasksInCurrentSequence());
+    return renderer_->GetMediaTime();
+  }
+
+  bool IsReadPending(DemuxerStream::Type type) const override {
+    CHECK(renderer_->task_runner_->RunsTasksInCurrentSequence());
+    switch (type) {
+      case DemuxerStream::AUDIO:
+        return renderer_->audio_read_in_progress_;
+      case DemuxerStream::VIDEO:
+        return renderer_->video_read_in_progress_;
+      default:
+        NOTREACHED();
+    }
+  }
+
+  bool IsPausedByApp() const override {
+    CHECK(renderer_->task_runner_->RunsTasksInCurrentSequence());
+    return renderer_->playback_rate_ == 0.0;
+  }
+
+  bool IsPlaybackActive() const override {
+    CHECK(renderer_->task_runner_->RunsTasksInCurrentSequence());
+    // No URL player check needed: monitoring never starts for URL players
+    // (see OnPlayerStatus()).
+    return renderer_->state_ == STATE_PLAYING && renderer_->player_bridge_ &&
+           !renderer_->pending_flush_cb_;
+  }
+
+  void PauseSbPlayer() override {
+    CHECK(renderer_->task_runner_->RunsTasksInCurrentSequence());
+    if (renderer_->player_bridge_) {
+      renderer_->player_bridge_->SetPlaybackRate(0.0);
+    }
+  }
+
+  void ResumeSbPlayer() override {
+    CHECK(renderer_->task_runner_->RunsTasksInCurrentSequence());
+    // Restores the app's rate, which is 0 if the app paused while playback
+    // was paused for underflow.
+    if (renderer_->player_bridge_) {
+      renderer_->player_bridge_->SetPlaybackRate(renderer_->playback_rate_);
+    }
+  }
+
+  void ReportBufferingState(BufferingState state,
+                            BufferingStateChangeReason reason) override {
+    CHECK(renderer_->task_runner_->RunsTasksInCurrentSequence());
+    renderer_->buffering_state_ = state;
+    renderer_->task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnBufferingStateChangeWithReason,
+                       renderer_->weak_factory_.GetWeakPtr(), state, reason));
+  }
+
+ private:
+  // Owns |this|.
+  const raw_ptr<StarboardRenderer> renderer_;
+};
+
 StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     std::unique_ptr<MediaLog> media_log,
@@ -206,7 +282,12 @@ StarboardRenderer::StarboardRenderer(
       ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
 #endif  // BUILDFLAG(IS_ANDROID)
-{
+      ,
+      underflow_delegate_(std::make_unique<UnderflowDelegate>(this)),
+      underflow_handler_(PlaybackUnderflowHandler::Create(
+          experimental_features.GetBool(kMediaHandlePlaybackUnderflow),
+          underflow_delegate_.get(),
+          task_runner)) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
@@ -428,6 +509,8 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   LOG(INFO) << "Flushing StarboardRenderer.";
 
+  underflow_handler_->OnFlush();
+
   // Prepares the |player_bridge_| for Seek(), the |player_bridge_| won't
   // request more data from us before Seek() is called.
   player_bridge_->PrepareForSeek();
@@ -478,6 +561,8 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
 
   timestamp_of_last_written_audio_ = TimeDelta();
   is_video_eos_written_ = false;
+  underflow_handler_->OnStartPlayingFrom(audio_stream_ != nullptr,
+                                         video_stream_ != nullptr);
   StoreMediaTime(time);
   // Ignore pending delayed calls to OnNeedData, and update variables used to
   // decide when to delay.
@@ -509,7 +594,9 @@ void StarboardRenderer::SetPlaybackRate(double playback_rate) {
 
   playback_rate_ = playback_rate;
 
-  if (player_bridge_) {
+  // While paused for an underflow, the SbPlayer stays paused; the new rate is
+  // applied when playback resumes.
+  if (player_bridge_ && !underflow_handler_->IsPausedForUnderflow()) {
     player_bridge_->SetPlaybackRate(playback_rate_);
   }
 }
@@ -578,17 +665,19 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
-  // |buffering_state_| is BUFFERING_HAVE_NOTHING from Flush() until the
-  // SbPlayer reports kSbPlayerStatePresenting, i.e. while a seek is pending.
+  // Apart from underflow pauses (see below), |buffering_state_| is
+  // BUFFERING_HAVE_NOTHING only from Flush() until the SbPlayer reports
+  // kSbPlayerStatePresenting, i.e. while a seek is pending.
   // SbPlayerGetInfo() may keep reporting the pre-seek position until the
   // SbPlayer completes the seek asynchronously. PipelineImpl clamps media time
   // so that it never goes backwards, so leaking a stale pre-seek position here
   // would freeze currentTime after a backwards seek until playback catches up.
-  // Report the seek time until the SbPlayer presents.
-  // Note that this has to be revisited if StarboardRenderer ever reports
-  // underflow via BUFFERING_HAVE_NOTHING during playback, as media time would
-  // then jump back to the last seek time.
-  if (buffering_state_ == BUFFERING_HAVE_NOTHING) {
+  // Report the seek time until the SbPlayer presents. BUFFERING_HAVE_NOTHING
+  // is also reported while playback is paused for underflow; the SbPlayer
+  // position is valid then, and must be used so media time doesn't jump back
+  // to the last seek time.
+  if (buffering_state_ == BUFFERING_HAVE_NOTHING &&
+      !underflow_handler_->IsPausedForUnderflow()) {
     media_time = seek_time_;
   }
 
@@ -1039,6 +1128,9 @@ void StarboardRenderer::OnDemuxerStreamRead(
   }
 
   if (status == DemuxerStream::kOk) {
+    // The underflow handler is told about the buffers before they are passed
+    // to the bridge, and treats them as written even if the bridge caches or
+    // drops them (e.g. while suspended).
     if (stream == audio_stream_) {
       DCHECK(audio_read_in_progress_);
       audio_read_in_progress_ = false;
@@ -1049,6 +1141,7 @@ void StarboardRenderer::OnDemuxerStreamRead(
           timestamp_of_last_written_audio_ = buffer->timestamp();
         }
       }
+      underflow_handler_->OnBuffersWritten(DemuxerStream::AUDIO, buffers);
       player_bridge_->WriteBuffers(DemuxerStream::AUDIO, buffers);
     } else {
       DCHECK(video_read_in_progress_);
@@ -1058,6 +1151,7 @@ void StarboardRenderer::OnDemuxerStreamRead(
           is_video_eos_written_ = true;
         }
       }
+      underflow_handler_->OnBuffersWritten(DemuxerStream::VIDEO, buffers);
       player_bridge_->WriteBuffers(DemuxerStream::VIDEO, buffers);
     }
   } else if (status == DemuxerStream::kAborted) {
@@ -1301,12 +1395,19 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
                          weak_factory_.GetWeakPtr(), buffering_state_));
       UpdateAudioWriteDuration();
 #if BUILDFLAG(IS_IOS_TVOS)
+      // URL players' data doesn't go through the demuxer, so there is no
+      // underflow to monitor.
       if (IsUrlPlayer()) {
         OnUrlPlayerPresenting();
+      } else {
+        underflow_handler_->OnPresenting();
       }
+#else   // BUILDFLAG(IS_IOS_TVOS)
+      underflow_handler_->OnPresenting();
 #endif  // BUILDFLAG(IS_IOS_TVOS)
       break;
     case kSbPlayerStateEndOfStream:
+      underflow_handler_->OnEndOfStream();
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
@@ -1545,6 +1646,13 @@ void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   client_->OnBufferingStateChange(buffering_state,
                                   BUFFERING_CHANGE_REASON_UNKNOWN);
+}
+
+void StarboardRenderer::OnBufferingStateChangeWithReason(
+    BufferingState buffering_state,
+    BufferingStateChangeReason reason) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  client_->OnBufferingStateChange(buffering_state, reason);
 }
 
 SbDecodeTarget StarboardRenderer::GetSbDecodeTarget() {
