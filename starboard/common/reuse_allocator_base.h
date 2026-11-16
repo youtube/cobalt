@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
@@ -39,20 +40,31 @@ namespace starboard {
 // accessing or allocating memory concurrently across multiple threads.
 class ReuseAllocatorBase : public Allocator {
  public:
+  // Minimum monotonic delay (15 seconds) after idle reclaim or fallback block
+  // activation before decommitting idle blocks.
+  static constexpr int64_t kDecommitGraceDelayUs = 15'000'000;
+
   // Allocator methods.
+  // TODO(b/520141273): Subtract aggressively decommitted bytes from capacity.
   size_t GetCapacity() const override { return capacity_; }
 
+  // Updates whether the application is currently suspended. When
+  // |is_suspended| transitions to true, any currently decommitable idle blocks
+  // are decommitted immediately, and any subsequent ReclaimFallbackBlocks()
+  // call while suspended will also decommit reclaimed blocks immediately.
+  void SetSuspended(bool is_suspended);
+
   // Immediately decommit all remaining decommitable blocks (e.g. on app
-  // suspend). Retained blocks are included if the allocator was constructed
-  // with |aggressive_decommit_on_suspend|, or if |include_retained_blocks| is
-  // true for this call (e.g. on critical memory pressure). In that case all
-  // idle blocks, including lazily freed ones, are released immediately (e.g.
-  // MADV_DONTNEED). Blocks in use are never affected.
+  // suspend). Retained blocks are included if the allocator is currently
+  // suspended and was constructed with |aggressive_decommit_on_suspend|, or if
+  // |include_retained_blocks| is true for this call (e.g. on critical memory
+  // pressure). In that case all idle blocks, including lazily freed ones, are
+  // released immediately (e.g. MADV_DONTNEED). Blocks in use are never
+  // affected.
   void DecommitAllDecommitableBlocks(bool include_retained_blocks = false);
 
-  // Attempts to decommit a single pending idle block, amortized by `cadence`.
-  // When `cadence == 1`, it immediately decommits a pending block.
-  void TryToDecommitOneBlock(int cadence);
+  // Decommits one pending idle block once the grace delay has elapsed.
+  void TryToDecommitOneBlock(int64_t now_us = CurrentMonotonicTime());
 
  protected:
   // TODO(b/454441375): Refactor positional boolean parameters into an Options
@@ -153,11 +165,15 @@ class ReuseAllocatorBase : public Allocator {
   // allocator.
   size_t capacity_ = 0;
 
-  // Counter to amortize decommits over multiple allocation attempts.
-  size_t block_decommit_attempt_count_ = 0;
+  // Earliest monotonic timestamp (in microseconds) at which pending idle
+  // blocks may be decommitted.
+  int64_t decommit_grace_end_us_ = 0;
 
   // Set to true when idle reclamation stages blocks for decommit.
   bool has_pending_decommits_ = false;
+
+  // Whether the application is currently suspended.
+  bool is_suspended_ = false;
 };
 
 }  // namespace starboard
