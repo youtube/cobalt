@@ -3294,6 +3294,8 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_native_stability_report_type.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_override_state.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_override_state.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_session_dirty_bit_stage.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_session_dirty_bit_stage.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h",
   ]

@@ -28,6 +28,8 @@ public class CobaltContentBrowserClient {
 
     void dispatchFocus();
 
+    void onActivityStopped();
+
     boolean isFreezeOnBackgroundEnabled();
 
     int getFreezeOnBackgroundDelayMs();
@@ -45,6 +47,10 @@ public class CobaltContentBrowserClient {
 
   public static void dispatchFocus() {
     CobaltContentBrowserClientJni.get().dispatchFocus();
+  }
+
+  public static void onActivityStopped() {
+    CobaltContentBrowserClientJni.get().onActivityStopped();
   }
 
   /**

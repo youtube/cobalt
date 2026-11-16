@@ -64,6 +64,11 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   void HideSplashScreen() override;
   void GetWasLowMemoryKilled(GetWasLowMemoryKilledCallback) override;
   void GetLowMemoryKillDetails(GetLowMemoryKillDetailsCallback) override;
+  void PromoteSessionDirtyBit() override;
+  void ClearSessionDirtyBit(ClearSessionDirtyBitCallback) override;
+  void AddSessionDirtyBitListener(
+      mojo::PendingRemote<mojom::H5vccSystemSessionDirtyBitListener> listener)
+      override;
 
  private:
   H5vccSystemImpl(content::RenderFrameHost& render_frame_host,

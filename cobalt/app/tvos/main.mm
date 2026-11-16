@@ -31,6 +31,7 @@
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/browser/tvos/plist_info.h"
+#include "cobalt/common/session_dirty_bit/session_dirty_bit_state.h"
 #include "cobalt/shell/browser/shell.h"
 #include "components/crash/core/app/crashpad.h"
 #include "content/public/app/content_main.h"
@@ -131,16 +132,19 @@ static const char** g_argv = nullptr;
         }));
   });
 
+  cobalt::OnSessionDirtyBitPlatformForeground();
   content::WebContents* web_contents = [self getWebContents];
   web_contents->GetRenderViewHost()->GetWidget()->Focus();
 }
 
 - (void)sceneWillResignActive:(UIScene*)scene {
+  cobalt::OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/false);
   content::WebContents* web_contents = [self getWebContents];
   web_contents->GetRenderViewHost()->GetWidget()->Blur();
 }
 
 - (void)sceneDidEnterBackground:(UIScene*)scene {
+  cobalt::OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/false);
   content::WebContents* web_contents = [self getWebContents];
   web_contents->UpdateWebContentsVisibility(content::Visibility::HIDDEN);
   // Freeze the page when entering background, triggering `document.onfreeze`

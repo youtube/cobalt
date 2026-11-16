@@ -259,6 +259,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   }
 
  protected:
+  bool is_visible() const { return is_visible_; }
+
   // Call this if CreateBrowserMainParts() is overridden in a subclass.
   void set_browser_main_parts(ShellBrowserMainParts* parts);
 

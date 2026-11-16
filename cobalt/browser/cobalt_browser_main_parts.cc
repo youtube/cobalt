@@ -47,6 +47,7 @@
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/common/session_dirty_bit/session_dirty_bit_state.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -845,6 +846,7 @@ void CobaltBrowserMainParts::PostMainMessageLoopRun() {
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
+  OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/true);
   GlobalFeatures::GetInstance()->Shutdown();
   ShellBrowserMainParts::PostDestroyThreads();
 }

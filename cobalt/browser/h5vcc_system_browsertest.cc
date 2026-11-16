@@ -12,9 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
 #include <string>
 
+#include "base/base_paths.h"
+#include "base/command_line.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/path_service.h"
+#include "base/test/scoped_path_override.h"
+#include "base/threading/platform_thread.h"
+#include "base/threading/thread_restrictions.h"
+#include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "build/build_config.h"
+#include "cobalt/common/session_dirty_bit/session_dirty_bit_state.h"
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/common/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "content/public/test/browser_test.h"
@@ -278,6 +293,235 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
 
   EXPECT_TRUE(CheckDefaultWasLowMemoryKilled());
   EXPECT_TRUE(CheckDefaultLowMemoryKillDetails());
+}
+
+class H5vccSystemSessionDirtyBitBrowserTestBase
+    : public H5vccSystemBrowserTest {
+ protected:
+  void ConfigureSessionDirtyBitFile(
+      base::CommandLine* command_line,
+      std::optional<SessionDirtyBitStage> initial_stage) {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    base::FilePath cache_dir;
+    if (base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
+        !cache_dir.empty()) {
+      CHECK(user_data_dir_.CreateUniqueTempDirUnderPath(cache_dir));
+    } else {
+      CHECK(user_data_dir_.CreateUniqueTempDir());
+    }
+    if (initial_stage.has_value()) {
+      WriteSessionDirtyBitFileForTesting(user_data_dir_.GetPath(),
+                                         *initial_stage);
+    }
+    // Override SHELL_DIR_USER_DATA directly in PathService in addition to
+    // setting `--user-data-dir`, because tvOS BasicStartupComplete() rewrites
+    // `--user-data-dir` to `base::DIR_CACHE`.
+    user_data_override_.emplace(content::SHELL_DIR_USER_DATA,
+                                user_data_dir_.GetPath(),
+                                /*is_absolute=*/true, /*create=*/true);
+    command_line->AppendSwitchPath(switches::kContentShellUserDataDir,
+                                   user_data_dir_.GetPath());
+  }
+
+  bool WaitForOnDiskStage(SessionDirtyBitStage expected) {
+    base::ElapsedTimer timer;
+    while (timer.Elapsed() < base::Seconds(5)) {
+      if (ReadSessionDirtyBitFileForTesting(user_data_dir_.GetPath()) ==
+          expected) {
+        return true;
+      }
+      base::RunLoop run_loop;
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE, run_loop.QuitClosure(), base::Milliseconds(10));
+      run_loop.Run();
+    }
+    return ReadSessionDirtyBitFileForTesting(user_data_dir_.GetPath()) ==
+           expected;
+  }
+
+  bool WaitForRendererPreviousStage(const std::string& expected) {
+    base::ElapsedTimer timer;
+    while (timer.Elapsed() < base::Seconds(5)) {
+      if (content::EvalJs(
+              shell()->web_contents(),
+              "window.h5vcc.system.getPreviousSessionDirtyBitStage()")
+              .ExtractString() == expected) {
+        return true;
+      }
+      base::RunLoop run_loop;
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE, run_loop.QuitClosure(), base::Milliseconds(10));
+      run_loop.Run();
+    }
+    return content::EvalJs(
+               shell()->web_contents(),
+               "window.h5vcc.system.getPreviousSessionDirtyBitStage()")
+               .ExtractString() == expected;
+  }
+
+  base::ScopedTempDir user_data_dir_;
+  std::optional<base::ScopedPathOverride> user_data_override_;
+};
+
+class H5vccSystemDefaultDirtyBitBrowserTest
+    : public H5vccSystemSessionDirtyBitBrowserTestBase {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    H5vccSystemBrowserTest::SetUpCommandLine(command_line);
+    ConfigureSessionDirtyBitFile(command_line, std::nullopt);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(H5vccSystemDefaultDirtyBitBrowserTest,
+                       DefaultCleanArmsEarlyAndPromotesToLate) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url1 = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url1));
+
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "typeof window.h5vcc.system."
+                              "getPreviousSessionDirtyBitStage === 'function'")
+                  .ExtractBool());
+  EXPECT_FALSE(
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage() "
+                      "instanceof Promise")
+          .ExtractBool());
+  EXPECT_EQ(
+      "clean",
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage()"));
+  EXPECT_EQ(SessionDirtyBitStage::kEarly,
+            ReadSessionDirtyBitFileForTesting(user_data_dir_.GetPath()));
+
+  // Promoting transitions on-disk stage from kEarly to kLate while preserving
+  // the current session's "clean" prior-session snapshot.
+  EXPECT_TRUE(content::ExecJs(shell()->web_contents(),
+                              "window.h5vcc.system.promoteSessionDirtyBit();"));
+  EXPECT_TRUE(WaitForOnDiskStage(SessionDirtyBitStage::kLate));
+  EXPECT_EQ(
+      "clean",
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage()"));
+}
+
+class H5vccSystemEarlyDirtyBitBrowserTest
+    : public H5vccSystemSessionDirtyBitBrowserTestBase {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    H5vccSystemBrowserTest::SetUpCommandLine(command_line);
+    ConfigureSessionDirtyBitFile(command_line, SessionDirtyBitStage::kEarly);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(H5vccSystemEarlyDirtyBitBrowserTest,
+                       ReportsEarlyAndPreservesSnapshotAcrossPreBootstrapBlur) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url1 = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url1));
+
+  EXPECT_EQ(
+      "early",
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage()"));
+  EXPECT_EQ(SessionDirtyBitStage::kEarly,
+            ReadSessionDirtyBitFileForTesting(user_data_dir_.GetPath()));
+
+  // A transient blur/focus BEFORE JS calls promoteSessionDirtyBit() must not
+  // lose the unconsumed prior-session crash from memory or disk.
+  content::Shell::OnBlur();
+  EXPECT_EQ(SessionDirtyBitStage::kEarly,
+            ReadSessionDirtyBitFileForTesting(user_data_dir_.GetPath()));
+  content::Shell::OnFocus();
+  EXPECT_EQ(
+      "early",
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage()"));
+
+  EXPECT_TRUE(content::ExecJs(shell()->web_contents(),
+                              "window.h5vcc.system.promoteSessionDirtyBit();"));
+  EXPECT_TRUE(WaitForOnDiskStage(SessionDirtyBitStage::kLate));
+  EXPECT_EQ(
+      "early",
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage()"));
+}
+
+class H5vccSystemLateDirtyBitBrowserTest
+    : public H5vccSystemSessionDirtyBitBrowserTestBase {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    H5vccSystemBrowserTest::SetUpCommandLine(command_line);
+    ConfigureSessionDirtyBitFile(command_line, SessionDirtyBitStage::kLate);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(H5vccSystemLateDirtyBitBrowserTest,
+                       BlurDisarmsAndFocusRearmsLateAndReloadClears) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url1 = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url1));
+
+  EXPECT_EQ(
+      "late",
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage()"));
+  EXPECT_TRUE(content::ExecJs(shell()->web_contents(),
+                              "window.h5vcc.system.promoteSessionDirtyBit();"));
+  EXPECT_TRUE(WaitForOnDiskStage(SessionDirtyBitStage::kLate));
+
+  // Platform blur disarms disk to kClean and clears the renderer's cached
+  // previous-session stage.
+  content::Shell::OnBlur();
+  EXPECT_TRUE(WaitForOnDiskStage(SessionDirtyBitStage::kClean));
+  EXPECT_TRUE(WaitForRendererPreviousStage("clean"));
+
+  // Platform focus re-arms disk directly to kLate because this document
+  // already promoted earlier in the session.
+  content::Shell::OnFocus();
+  EXPECT_TRUE(WaitForOnDiskStage(SessionDirtyBitStage::kLate));
+  EXPECT_EQ(
+      "clean",
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage()"));
+
+  // Intentional reload (`clearSessionDirtyBit` -> immediate cross-document
+  // navigation without intermediate wait) clears prior-session state and
+  // re-arms kEarly upon commit of the new document.
+  GURL url2 = embedded_test_server()->GetURL("/title2.html");
+  EXPECT_TRUE(content::ExecJs(shell()->web_contents(),
+                              "window.h5vcc.system.clearSessionDirtyBit();"));
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url2));
+  EXPECT_TRUE(WaitForOnDiskStage(SessionDirtyBitStage::kEarly));
+  EXPECT_EQ(
+      "clean",
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage()"));
+}
+
+class H5vccSystemCleanFileDirtyBitBrowserTest
+    : public H5vccSystemSessionDirtyBitBrowserTestBase {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    H5vccSystemBrowserTest::SetUpCommandLine(command_line);
+    ConfigureSessionDirtyBitFile(command_line, SessionDirtyBitStage::kClean);
+    // Pre-populate the internal switch to verify InitializeSessionDirtyBit()
+    // authoritatively overrides it when the on-disk file is clean.
+    command_line->AppendSwitchASCII(kPreviousSessionDirtyBitStageSwitch,
+                                    "late");
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(H5vccSystemCleanFileDirtyBitBrowserTest,
+                       CleanFileOverridesStaleSwitch) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+  EXPECT_EQ(
+      "clean",
+      content::EvalJs(shell()->web_contents(),
+                      "window.h5vcc.system.getPreviousSessionDirtyBitStage()"));
 }
 
 }  // namespace cobalt

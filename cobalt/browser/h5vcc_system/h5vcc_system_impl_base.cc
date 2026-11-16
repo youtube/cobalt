@@ -14,14 +14,18 @@
 
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 
+#include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "build/build_config.h"
+#include "cobalt/common/session_dirty_bit/session_dirty_bit_state.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/bindings/remote_set.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -35,6 +39,30 @@ namespace h5vcc_system {
 namespace {
 // Accessed solely on the Browser UI thread.
 SbWindow g_primary_sb_window = kSbWindowInvalid;
+
+mojo::RemoteSet<mojom::H5vccSystemSessionDirtyBitListener>&
+GetSessionDirtyBitListeners() {
+  static base::NoDestructor<
+      mojo::RemoteSet<mojom::H5vccSystemSessionDirtyBitListener>>
+      listeners;
+  return *listeners;
+}
+
+void NotifySessionDirtyBitListenersOnUIThread() {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) {
+    if (!content::BrowserThread::IsThreadInitialized(
+            content::BrowserThread::UI)) {
+      return;
+    }
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(&NotifySessionDirtyBitListenersOnUIThread));
+    return;
+  }
+  for (auto& listener : GetSessionDirtyBitListeners()) {
+    listener->OnPreviousSessionDirtyBitCleared();
+  }
+}
+
 }  // namespace
 
 // static
@@ -78,6 +106,8 @@ void H5vccSystemImpl::Create(
 
 void H5vccSystemImpl::Exit() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  cobalt::MarkPreviousSessionDirtyBitConsumed();
+  cobalt::OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/true);
   // Same logic as CobaltContentBrowserClient::FlushCookiesAndLocalStorage().
   // Consider moving to a utility that both can call.
   //
@@ -122,11 +152,47 @@ void H5vccSystemImpl::NotifyMainReady() {
   if (!render_frame_host().IsInPrimaryMainFrame()) {
     return;
   }
+  cobalt::MarkPreviousSessionDirtyBitConsumed();
   content::Shell* shell = content::Shell::FromWebContents(
       content::WebContents::FromRenderFrameHost(&render_frame_host()));
   if (shell) {
     shell->OnMainReady();
   }
+}
+
+void H5vccSystemImpl::PromoteSessionDirtyBit() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!render_frame_host().IsInPrimaryMainFrame()) {
+    return;
+  }
+  cobalt::PromoteSessionDirtyBit();
+}
+
+void H5vccSystemImpl::ClearSessionDirtyBit(
+    ClearSessionDirtyBitCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (render_frame_host().IsInPrimaryMainFrame()) {
+    cobalt::ClearSessionDirtyBit();
+  }
+  std::move(callback).Run();
+}
+
+void H5vccSystemImpl::AddSessionDirtyBitListener(
+    mojo::PendingRemote<mojom::H5vccSystemSessionDirtyBitListener> listener) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!render_frame_host().IsInPrimaryMainFrame()) {
+    return;
+  }
+  cobalt::SetPreviousSessionDirtyBitClearedCallback(
+      base::BindRepeating(&NotifySessionDirtyBitListenersOnUIThread));
+  mojo::Remote<mojom::H5vccSystemSessionDirtyBitListener> bound_listener(
+      std::move(listener));
+  if (cobalt::GetPreviousSessionDirtyBitStage() ==
+      cobalt::SessionDirtyBitStage::kClean) {
+    bound_listener->OnPreviousSessionDirtyBitCleared();
+    return;
+  }
+  GetSessionDirtyBitListeners().Add(std::move(bound_listener));
 }
 
 }  // namespace h5vcc_system

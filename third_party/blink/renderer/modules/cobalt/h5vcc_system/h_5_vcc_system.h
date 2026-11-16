@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_session_dirty_bit_stage.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -40,13 +41,15 @@ class ScriptState;
 
 class MODULES_EXPORT H5vccSystem final
     : public ScriptWrappable,
-      public ExecutionContextLifecycleObserver {
+      public ExecutionContextLifecycleObserver,
+      public h5vcc_system::mojom::blink::H5vccSystemSessionDirtyBitListener {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   explicit H5vccSystem(LocalDOMWindow&);
 
   void ContextDestroyed() override;
+  void OnPreviousSessionDirtyBitCleared() override;
 
   // Web-exposed interface:
   ScriptPromise<IDLString> getAdvertisingId(ScriptState*, ExceptionState&);
@@ -67,6 +70,9 @@ class MODULES_EXPORT H5vccSystem final
   ScriptPromise<IDLNullable<LowMemoryKillDetails>> getLowMemoryKillDetails(
       ScriptState*,
       ExceptionState&);
+  V8SessionDirtyBitStage getPreviousSessionDirtyBitStage();
+  void promoteSessionDirtyBit();
+  void clearSessionDirtyBit();
 
   void Trace(Visitor*) const override;
 
@@ -86,7 +92,13 @@ class MODULES_EXPORT H5vccSystem final
       bool supported,
       h5vcc_system::mojom::blink::LowMemoryKillDetailsPtr);
   void EnsureReceiverIsBound();
+  void MaybeRegisterSessionDirtyBitListener();
+  bool IsOutermostMainFrame() const;
   HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
+  HeapMojoReceiver<
+      h5vcc_system::mojom::blink::H5vccSystemSessionDirtyBitListener,
+      H5vccSystem>
+      dirty_bit_listener_receiver_;
 
   String advertising_id_;
   String tracking_authorization_status_;

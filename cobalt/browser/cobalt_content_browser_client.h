@@ -163,6 +163,9 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // base::FeatureList::SetInstance() to set the global instance.
   void CreateFeatureListAndFieldTrials() override;
 
+  // Initializes the session dirty bit in `base::DIR_CACHE` using `is_visible_`.
+  void InitializeSessionDirtyBitFromCacheDir();
+
   // Read from the experiment config, override features, and associate feature
   // params for Cobalt experiments.
   void SetUpCobaltFeaturesAndParams(base::FeatureList* feature_list);
