@@ -321,12 +321,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                               jni_zero::AttachCurrentThread(),
                               static_cast<jobject>(stream_config.surface_view))
                         : nullptr),
-      // A secure codec can keep its surface connected while it releases, so a
-      // codec recreated right away on the same surface fails to configure.
-      // Flush it on seek instead.
-      enable_flush_during_seek_(
-          pipeline_config.enable_flush_during_seek ||
-          (drm_system_ && drm_system_->require_secured_decoder())),
+      enable_flush_during_seek_(pipeline_config.enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34
                             ? platform_options.reset_delay_usec
                             : 0),
@@ -418,9 +413,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_)
-               << ", enable_flush_during_seek="
-               << ToString(enable_flush_during_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
