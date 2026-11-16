@@ -94,6 +94,11 @@ class MultiplePlayerTest : public ::testing::Test {
     const std::vector<const char*>& key_systems = GetKeySystems();
 
     for (auto key_system : key_systems) {
+      if (IsWidevineKeySystem(key_system) &&
+          !IsWidevineKeySystemProvisioned(key_system)) {
+        continue;
+      }
+
       std::vector<SbPlayerTestConfig> supported_configs;
       for (auto video_filename : video_test_files) {
         VideoDmpReader dmp_reader(video_filename,
