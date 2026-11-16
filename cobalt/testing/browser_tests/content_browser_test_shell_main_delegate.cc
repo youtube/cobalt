@@ -43,11 +43,10 @@ std::optional<int> ContentBrowserTestShellMainDelegate::PostEarlyInitialization(
     // initialized base::FeatureList state down to Starboard once per process
     // (for per-test overrides in reused processes, use
     // starboard::features::ScopedFeatureList).
-    static bool starboard_features_initialized = false;
-    if (!starboard_features_initialized) {
-      starboard_features_initialized = true;
+    [[maybe_unused]] static const bool starboard_features_initialized = []() {
       cobalt::features::InitializeStarboardFeatures();
-    }
+      return true;
+    }();
   }
   return std::nullopt;
 }
