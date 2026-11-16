@@ -34,9 +34,6 @@ MemorySaverController::MemorySaverController() {
   DCHECK(scheduler);
   sample_timer_.SetTaskRunner(scheduler->NonWakingTaskRunner());
 #if BUILDFLAG(IS_COBALT)
-  // |memory_saver_enabled_| is otherwise uninitialized when returning early
-  // below, and UpdateMemorySaverMode() reads it.
-  memory_saver_enabled_ = false;
   if (base::FeatureList::IsEnabled(
           features::kCobaltV8MemorySaverOnMemoryPressure)) {
     memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(

@@ -43,10 +43,12 @@ class CONTROLLER_EXPORT MemorySaverController {
   bool available_memory_low_ = false;
   // Set while memory pressure was signaled within the hold time.
   bool memory_pressure_active_ = false;
+  bool memory_saver_enabled_ = false;
+#else
+  bool memory_saver_enabled_;
 #endif  // BUILDFLAG(IS_COBALT)
 
   base::RepeatingTimer sample_timer_;
-  bool memory_saver_enabled_;
 };
 
 }  // namespace blink
