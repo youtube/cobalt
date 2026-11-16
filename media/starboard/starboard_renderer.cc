@@ -210,6 +210,9 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   CHECK_GT(max_samples_per_write_, 0);
+  report_underflow_ =
+      experimental_features_.GetBool(kMediaReportPlaybackUnderflow);
+  underflow_check_timer_.SetTaskRunner(task_runner_);
   {
     auto& registry = GetConcealRegistry();
     base::AutoLock auto_lock(registry.lock);
@@ -223,11 +226,13 @@ StarboardRenderer::StarboardRenderer(
             << base::GetQuotedJSONString(max_video_capabilities_)
             << ", max_samples_per_write=" << max_samples_per_write_
             << ", view_port_size=" << viewport_size_.ToString()
-            << ", experimental_features=" << experimental_features_;
+            << ", experimental_features=" << experimental_features_
+            << ", report_underflow=" << report_underflow_;
 }
 
 StarboardRenderer::~StarboardRenderer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  StopUnderflowCheck();
   weak_factory_.InvalidateWeakPtrs();
 
   LOG(INFO) << "Destructing StarboardRenderer.";
@@ -428,6 +433,9 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   LOG(INFO) << "Flushing StarboardRenderer.";
 
+  StopUnderflowCheck();
+  paused_for_underflow_ = false;
+
   // Prepares the |player_bridge_| for Seek(), the |player_bridge_| won't
   // request more data from us before Seek() is called.
   player_bridge_->PrepareForSeek();
@@ -478,6 +486,10 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
 
   timestamp_of_last_written_audio_ = TimeDelta();
   is_video_eos_written_ = false;
+  timestamp_of_last_written_audio_end_ = kNoTimestamp;
+  timestamp_of_last_written_video_end_ = kNoTimestamp;
+  is_audio_eos_written_ = false;
+  paused_for_underflow_ = false;
   StoreMediaTime(time);
   // Ignore pending delayed calls to OnNeedData, and update variables used to
   // decide when to delay.
@@ -509,7 +521,9 @@ void StarboardRenderer::SetPlaybackRate(double playback_rate) {
 
   playback_rate_ = playback_rate;
 
-  if (player_bridge_) {
+  // While paused for an underflow, the SbPlayer stays paused; the new rate is
+  // applied when playback resumes in CheckForUnderflow().
+  if (player_bridge_ && !paused_for_underflow_) {
     player_bridge_->SetPlaybackRate(playback_rate_);
   }
 }
@@ -585,10 +599,10 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   // so that it never goes backwards, so leaking a stale pre-seek position here
   // would freeze currentTime after a backwards seek until playback catches up.
   // Report the seek time until the SbPlayer presents.
-  // Note that this has to be revisited if StarboardRenderer ever reports
-  // underflow via BUFFERING_HAVE_NOTHING during playback, as media time would
-  // then jump back to the last seek time.
-  if (buffering_state_ == BUFFERING_HAVE_NOTHING) {
+  // BUFFERING_HAVE_NOTHING is also reported on a playback underflow, during
+  // which the SbPlayer is paused and reports the actual playback position.
+  // Don't report the seek time then, as media time would jump back to it.
+  if (buffering_state_ == BUFFERING_HAVE_NOTHING && !paused_for_underflow_) {
     media_time = seek_time_;
   }
 
@@ -1047,6 +1061,15 @@ void StarboardRenderer::OnDemuxerStreamRead(
           last_audio_sample_interval_ =
               buffer->timestamp() - timestamp_of_last_written_audio_;
           timestamp_of_last_written_audio_ = buffer->timestamp();
+          const TimeDelta end =
+              buffer->timestamp() +
+              std::max(buffer->duration(), base::Microseconds(0));
+          if (timestamp_of_last_written_audio_end_ == kNoTimestamp ||
+              end > timestamp_of_last_written_audio_end_) {
+            timestamp_of_last_written_audio_end_ = end;
+          }
+        } else {
+          is_audio_eos_written_ = true;
         }
       }
       player_bridge_->WriteBuffers(DemuxerStream::AUDIO, buffers);
@@ -1056,6 +1079,14 @@ void StarboardRenderer::OnDemuxerStreamRead(
       for (const auto& buffer : buffers) {
         if (buffer->end_of_stream()) {
           is_video_eos_written_ = true;
+        } else {
+          const TimeDelta end =
+              buffer->timestamp() +
+              std::max(buffer->duration(), base::Microseconds(0));
+          if (timestamp_of_last_written_video_end_ == kNoTimestamp ||
+              end > timestamp_of_last_written_video_end_) {
+            timestamp_of_last_written_video_end_ = end;
+          }
         }
       }
       player_bridge_->WriteBuffers(DemuxerStream::VIDEO, buffers);
@@ -1300,6 +1331,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
           base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
                          weak_factory_.GetWeakPtr(), buffering_state_));
       UpdateAudioWriteDuration();
+      StartUnderflowCheck();
 #if BUILDFLAG(IS_IOS_TVOS)
       if (IsUrlPlayer()) {
         OnUrlPlayerPresenting();
@@ -1307,6 +1339,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 #endif  // BUILDFLAG(IS_IOS_TVOS)
       break;
     case kSbPlayerStateEndOfStream:
+      StopUnderflowCheck();
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
@@ -1545,6 +1578,107 @@ void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   client_->OnBufferingStateChange(buffering_state,
                                   BUFFERING_CHANGE_REASON_UNKNOWN);
+}
+
+void StarboardRenderer::StartUnderflowCheck() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!report_underflow_ || underflow_check_timer_.IsRunning()) {
+    return;
+  }
+  underflow_check_timer_.Start(
+      FROM_HERE, kUnderflowCheckInterval,
+      base::BindRepeating(&StarboardRenderer::CheckForUnderflow,
+                          weak_factory_.GetWeakPtr()));
+}
+
+void StarboardRenderer::StopUnderflowCheck() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  underflow_check_timer_.Stop();
+}
+
+std::optional<TimeDelta> StarboardRenderer::GetWrittenDataAhead(
+    DemuxerStream* stream,
+    TimeDelta written_end,
+    bool eos_written,
+    TimeDelta media_time) const {
+  if (!stream || eos_written) {
+    return std::nullopt;
+  }
+  if (written_end == kNoTimestamp) {
+    return TimeDelta();
+  }
+  return written_end - media_time;
+}
+
+void StarboardRenderer::CheckForUnderflow() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(report_underflow_);
+
+  if (state_ != STATE_PLAYING || !player_bridge_ || pending_flush_cb_) {
+    return;
+  }
+  // Nothing to detect while paused by the app, unless we are the ones holding
+  // the SbPlayer paused.
+  if (!paused_for_underflow_ && playback_rate_ == 0.0) {
+    return;
+  }
+
+  const TimeDelta media_time = GetMediaTime();
+  const std::optional<TimeDelta> audio_ahead =
+      GetWrittenDataAhead(audio_stream_, timestamp_of_last_written_audio_end_,
+                          is_audio_eos_written_, media_time);
+  const std::optional<TimeDelta> video_ahead =
+      GetWrittenDataAhead(video_stream_, timestamp_of_last_written_video_end_,
+                          is_video_eos_written_, media_time);
+
+  if (!paused_for_underflow_) {
+    if (buffering_state_ != BUFFERING_HAVE_ENOUGH) {
+      return;
+    }
+    // A stream underflows when the playback position has reached the end of
+    // its written data and we are still waiting on the demuxer for more.
+    const bool audio_underflow = audio_ahead.has_value() &&
+                                 !audio_ahead->is_positive() &&
+                                 audio_read_in_progress_;
+    const bool video_underflow = video_ahead.has_value() &&
+                                 !video_ahead->is_positive() &&
+                                 video_read_in_progress_;
+    if (!audio_underflow && !video_underflow) {
+      return;
+    }
+    LOG(INFO) << "StarboardRenderer detected underflow at " << media_time
+              << " (audio_underflow=" << audio_underflow
+              << ", video_underflow=" << video_underflow
+              << ", audio_written_end=" << timestamp_of_last_written_audio_end_
+              << ", video_written_end=" << timestamp_of_last_written_video_end_
+              << "), pausing playback.";
+    paused_for_underflow_ = true;
+    player_bridge_->SetPlaybackRate(0.0);
+    buffering_state_ = BUFFERING_HAVE_NOTHING;
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                       weak_factory_.GetWeakPtr(), buffering_state_));
+    return;
+  }
+
+  const bool audio_recovered =
+      !audio_ahead.has_value() || *audio_ahead >= kUnderflowRecoveryThreshold;
+  const bool video_recovered =
+      !video_ahead.has_value() || *video_ahead >= kUnderflowRecoveryThreshold;
+  if (!audio_recovered || !video_recovered) {
+    return;
+  }
+  LOG(INFO) << "StarboardRenderer recovered from underflow at " << media_time
+            << " (audio_written_end=" << timestamp_of_last_written_audio_end_
+            << ", video_written_end=" << timestamp_of_last_written_video_end_
+            << "), resuming playback at rate " << playback_rate_ << ".";
+  paused_for_underflow_ = false;
+  player_bridge_->SetPlaybackRate(playback_rate_);
+  buffering_state_ = BUFFERING_HAVE_ENOUGH;
+  task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                                weak_factory_.GetWeakPtr(), buffering_state_));
 }
 
 SbDecodeTarget StarboardRenderer::GetSbDecodeTarget() {
