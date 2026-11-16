@@ -73,8 +73,6 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
                                       fallback_block.size,
                                       DecommitMode::kAggressive);
         fallback_block.state = kIdleDecommitted;
-        decommitted_bytes_ += fallback_block.size;
-        SB_CHECK_LE(decommitted_bytes_, capacity_);
       }
     }
     has_pending_decommits_ = false;
@@ -88,8 +86,6 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
         fallback_allocator_->Decommit(it->address, it->size,
                                       DecommitMode::kAggressive);
         it->state = kIdleDecommitted;
-        decommitted_bytes_ += it->size;
-        SB_CHECK_LE(decommitted_bytes_, capacity_);
       } else if (it->state == kIdlePendingFree) {
         fallback_allocator_->Decommit(it->address, it->size,
                                       DecommitMode::kConservative);
@@ -111,10 +107,6 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
     if (fallback_block.state != kActiveInUse &&
         fallback_block.size >= *size_to_try &&
         MemoryIsAligned(fallback_block.address, alignment)) {
-      if (fallback_block.state == kIdleDecommitted) {
-        SB_CHECK_GE(decommitted_bytes_, fallback_block.size);
-        decommitted_bytes_ -= fallback_block.size;
-      }
       fallback_block.state = kActiveInUse;
       decommit_grace_ticks_remaining_ = kDecommitGraceTicks;
       *size_to_try = fallback_block.size;
@@ -196,8 +188,6 @@ void ReuseAllocatorBase::TryToDecommitOneBlock() {
       fallback_allocator_->Decommit(it->address, it->size,
                                     DecommitMode::kAggressive);
       it->state = kIdleDecommitted;
-      decommitted_bytes_ += it->size;
-      SB_CHECK_LE(decommitted_bytes_, capacity_);
       return;
     }
     if (it->state == kIdlePendingFree) {

@@ -19,9 +19,7 @@
 #include <memory>
 
 #include "base/functional/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "media/base/demuxer_stream.h"
-#include "media/base/media_switches.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
 #include "starboard/common/embedded_metadata_reuse_allocator_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -219,53 +217,6 @@ TEST(DecoderBufferAllocatorStrategyTest,
   EXPECT_EQ(creation_count, 1);
 
   allocator.Free(DemuxerStream::VIDEO, handle2, 1024);
-}
-
-TEST(DecoderBufferAllocatorStrategyTest,
-     SetSuspendedSkipsWhenSuspendDecommitNotEnabled) {
-  // 1. When kCobaltDecoderBufferDecommitOnMemoryPressure is active without V3,
-  // SetSuspended(true) must not decommit idle blocks.
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeatureWithParameters(
-        media::kCobaltDecoderBufferDecommitOnMemoryPressure,
-        {{"retain_blocks", "0"}});
-    DecoderBufferAllocator pressure_allocator(
-        /*is_memory_pool_allocated_on_demand=*/false, 1024 * 1024, 1024 * 1024);
-    auto h1 = pressure_allocator.Allocate(DemuxerStream::VIDEO, 512 * 1024);
-    auto h2 = pressure_allocator.Allocate(DemuxerStream::VIDEO, 512 * 1024);
-    const size_t full_cap = pressure_allocator.GetCurrentMemoryCapacity();
-    pressure_allocator.Free(DemuxerStream::VIDEO, h1, 512 * 1024);
-    pressure_allocator.Free(DemuxerStream::VIDEO, h2, 512 * 1024);
-
-    pressure_allocator.SetSuspended(true);
-    EXPECT_EQ(pressure_allocator.GetCurrentMemoryCapacity(), full_cap);
-  }
-
-  // 2. Even if the underlying strategy tracks idle blocks, SetSuspended(true)
-  // on DecoderBufferAllocator is a no-op when V3 suspend decommit was not
-  // enabled.
-  {
-    DecoderBufferAllocator allocator(
-        /*is_memory_pool_allocated_on_demand=*/false, 1024 * 1024, 1024 * 1024);
-    allocator.UpdateAllocatorStrategy(base::BindRepeating(
-        [](int initial_capacity, int allocation_unit)
-            -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
-          DecoderBufferAllocator::Strategy::ExperimentConfig config;
-          config.initial_capacity = initial_capacity;
-          config.allocation_increment = allocation_unit;
-          config.enable_decommit_on_idle = true;
-          return std::make_unique<EmbeddedMetadataReuseAllocatorStrategy>(
-              config);
-        }));
-    auto h = allocator.Allocate(DemuxerStream::VIDEO, 64 * 1024);
-    const size_t full_cap = allocator.GetCurrentMemoryCapacity();
-    EXPECT_GE(full_cap, 1024u * 1024u);
-    allocator.Free(DemuxerStream::VIDEO, h, 64 * 1024);
-
-    allocator.SetSuspended(true);
-    EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), full_cap);
-  }
 }
 
 }  // namespace

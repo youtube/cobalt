@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "starboard/common/allocator.h"
-#include "starboard/common/check_op.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
@@ -47,16 +46,8 @@ class ReuseAllocatorBase : public Allocator {
   static constexpr size_t kDecommitGraceTicks = 3;
 
   // Allocator methods.
-  // Returns the committed capacity: total bytes obtained from the fallback
-  // allocator minus bytes currently aggressively decommitted (kIdleDecommitted,
-  // MADV_DONTNEED). Blocks decommitted with MADV_FREE (kIdleFreed) are still
-  // counted because the kernel may not have reclaimed them yet. Note that
-  // `max_capacity_` enforcement deliberately uses the raw `capacity_` since the
-  // virtual address range of decommitted blocks remains reserved and reusable.
-  size_t GetCapacity() const override {
-    SB_CHECK_LE(decommitted_bytes_, capacity_);
-    return capacity_ - decommitted_bytes_;
-  }
+  // TODO(b/520141273): Subtract aggressively decommitted bytes from capacity.
+  size_t GetCapacity() const override { return capacity_; }
 
   // Updates whether the application is currently suspended. When
   // |is_suspended| transitions to true, any currently decommitable idle blocks
@@ -180,10 +171,6 @@ class ReuseAllocatorBase : public Allocator {
   // How many total bytes we currently have allocated from the fallback
   // allocator.
   size_t capacity_ = 0;
-
-  // How many bytes in `fallback_allocations_` are currently aggressively
-  // decommitted (kIdleDecommitted via MADV_DONTNEED).
-  size_t decommitted_bytes_ = 0;
 
   // Number of periodic decommit ticks to wait after ReclaimFallbackBlocks() or
   // AllocateFallbackBlock() before decommitting idle blocks, allowing

@@ -553,7 +553,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest,
-           TryToDecommitOneBlockGracePeriodAndCapacity) {
+           TryToDecommitOneBlockGracePeriod) {
   constexpr size_t kAlignment = sizeof(void*);
   constexpr size_t kBlockSize = 64 * 1024;
 
@@ -566,9 +566,6 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   ASSERT_NE(block1, nullptr);
   ASSERT_NE(block2, nullptr);
 
-  const size_t full_capacity = this->allocator_->GetCapacity();
-  EXPECT_GE(full_capacity, this->allocator_->GetAllocated());
-
   // Freeing both blocks reaches idle and reclaims fallback blocks.
   this->allocator_->Free(block1);
   this->allocator_->Free(block2);
@@ -580,23 +577,18 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   for (size_t i = 0; i < ReuseAllocatorBase::kDecommitGraceTicks; ++i) {
     this->allocator_->TryToDecommitOneBlock();
     EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
-    EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
   }
 
   // On the next tick after the grace window, the non-retained block is
-  // decommitted and subtracted from GetCapacity().
+  // decommitted.
   this->allocator_->TryToDecommitOneBlock();
-  ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
-  EXPECT_EQ(this->allocator_->GetCapacity(),
-            full_capacity - this->mock_fallback_allocator_->decommits[0].size);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
 
-  // Re-allocating both blocks re-activates the decommitted block and restores
-  // full capacity.
+  // Re-allocating both blocks re-activates the decommitted block cleanly.
   block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
   block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
   ASSERT_NE(block1, nullptr);
   ASSERT_NE(block2, nullptr);
-  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
 
   this->allocator_->Free(block1);
   this->allocator_->Free(block2);
@@ -654,112 +646,6 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest,
-           ConservativeDecommitPreservesCapacityUntilAggressiveUpgrade) {
-  constexpr size_t kAlignment = sizeof(void*);
-  constexpr size_t kBlockSize = 64 * 1024;
-
-  this->ResetAllocatorWithTieredDecommitSupport(
-      /*retain_blocks=*/0,
-      /*conservative_decommit_blocks=*/1);
-
-  void* block = this->allocator_->Allocate(kBlockSize, kAlignment);
-  ASSERT_NE(block, nullptr);
-  const size_t full_capacity = this->allocator_->GetCapacity();
-
-  this->allocator_->Free(block);
-  for (size_t i = 0; i < ReuseAllocatorBase::kDecommitGraceTicks; ++i) {
-    this->allocator_->TryToDecommitOneBlock();
-  }
-  this->allocator_->TryToDecommitOneBlock();
-
-  // Conservative (MADV_FREE) decommit still counts toward committed capacity.
-  ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits[0].mode,
-            Allocator::DecommitMode::kConservative);
-  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
-
-  // Critical memory pressure (`include_retained_blocks = true`) upgrades the
-  // conservatively freed block to MADV_DONTNEED and subtracts its bytes once.
-  this->allocator_->DecommitAllDecommitableBlocks(
-      /*include_retained_blocks=*/true);
-  ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits[1].mode,
-            Allocator::DecommitMode::kAggressive);
-  EXPECT_EQ(this->allocator_->GetCapacity(),
-            full_capacity - this->mock_fallback_allocator_->decommits[1].size);
-}
-
-// Verifies that a block which stays kIdleDecommitted across a second
-// ReclaimFallbackBlocks() is neither decommitted again nor double-counted in
-// decommitted_bytes_ / GetCapacity().
-TYPED_TEST(BidirectionalFitReuseAllocatorTest,
-           DecommittedBytesNotDoubleCountedAcrossReclaims) {
-  constexpr size_t kAlignment = sizeof(void*);
-  constexpr size_t kBlockSize = 64 * 1024;
-
-  this->ResetAllocatorWithTieredDecommitSupport(
-      /*retain_blocks=*/0,
-      /*conservative_decommit_blocks=*/0);
-
-  void* block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
-  void* block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
-  ASSERT_NE(block1, nullptr);
-  ASSERT_NE(block2, nullptr);
-  const size_t full_capacity = this->allocator_->GetCapacity();
-
-  // Reach idle and decommit both blocks immediately (bypassing the grace
-  // period).
-  this->allocator_->Free(block1);
-  this->allocator_->Free(block2);
-  this->allocator_->DecommitAllDecommitableBlocks();
-  ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
-  const size_t fallback_block_size =
-      this->mock_fallback_allocator_->decommits[0].size;
-  ASSERT_EQ(this->mock_fallback_allocator_->decommits[1].size,
-            fallback_block_size);
-  EXPECT_EQ(this->allocator_->GetCapacity(),
-            full_capacity - 2 * fallback_block_size);
-
-  // Re-activate exactly one block, then free it again so the allocator reaches
-  // idle and calls ReclaimFallbackBlocks() while the other block is still
-  // kIdleDecommitted.
-  block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
-  ASSERT_NE(block1, nullptr);
-  EXPECT_EQ(this->allocator_->GetCapacity(),
-            full_capacity - fallback_block_size);
-  this->allocator_->Free(block1);
-  EXPECT_EQ(this->allocator_->GetAllocated(), 0U);
-
-  // Drain the grace period, then decommit the single pending block.
-  for (size_t i = 0; i < ReuseAllocatorBase::kDecommitGraceTicks; ++i) {
-    this->allocator_->TryToDecommitOneBlock();
-    EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
-  }
-  this->allocator_->TryToDecommitOneBlock();
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3U);
-  EXPECT_EQ(this->allocator_->GetCapacity(),
-            full_capacity - 2 * fallback_block_size);
-
-  // Further ticks must not decommit the already-decommitted block again.
-  for (int i = 0; i < 5; ++i) {
-    this->allocator_->TryToDecommitOneBlock();
-  }
-  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3U);
-  EXPECT_EQ(this->allocator_->GetCapacity(),
-            full_capacity - 2 * fallback_block_size);
-
-  // Re-activating both blocks restores the full committed capacity.
-  block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
-  block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
-  ASSERT_NE(block1, nullptr);
-  ASSERT_NE(block2, nullptr);
-  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
-
-  this->allocator_->Free(block1);
-  this->allocator_->Free(block2);
-}
-
-TYPED_TEST(BidirectionalFitReuseAllocatorTest,
            SuspendAndResumeImmediateDecommit) {
   constexpr size_t kAlignment = sizeof(void*);
   constexpr size_t kBlockSize = 64 * 1024;
@@ -772,7 +658,6 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   void* block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
   ASSERT_NE(block1, nullptr);
   ASSERT_NE(block2, nullptr);
-  const size_t full_capacity = this->allocator_->GetCapacity();
 
   // Case 1: Pool is already idle inside the grace period when
   // SetSuspended(true) arrives -> non-retained block is decommitted
@@ -782,11 +667,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
 
   this->allocator_->SetSuspended(true);
-  ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
-  const size_t fallback_block_size =
-      this->mock_fallback_allocator_->decommits[0].size;
-  EXPECT_EQ(this->allocator_->GetCapacity(),
-            full_capacity - fallback_block_size);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
 
   // Resume and reactivate both blocks.
   this->allocator_->SetSuspended(false);
@@ -794,21 +675,17 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
   ASSERT_NE(block1, nullptr);
   ASSERT_NE(block2, nullptr);
-  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
 
   // Case 2: App suspends while playback is still active; active blocks are
   // untouched at SetSuspended(true), and decommit happens immediately as soon
   // as the last block is freed.
   this->allocator_->SetSuspended(true);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
-  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
 
   this->allocator_->Free(block1);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
   this->allocator_->Free(block2);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
-  EXPECT_EQ(this->allocator_->GetCapacity(),
-            full_capacity - fallback_block_size);
 
   // Case 3: Resuming restores normal foreground grace-period deferral.
   this->allocator_->SetSuspended(false);
@@ -816,12 +693,10 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
   ASSERT_NE(block1, nullptr);
   ASSERT_NE(block2, nullptr);
-  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
 
   this->allocator_->Free(block1);
   this->allocator_->Free(block2);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
-  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
 }
 
 TYPED_TEST(BidirectionalFitReuseAllocatorTest,
@@ -840,7 +715,6 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   void* block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
   ASSERT_NE(block1, nullptr);
   ASSERT_NE(block2, nullptr);
-  const size_t full_capacity = this->allocator_->GetCapacity();
 
   // While not suspended, DecommitAllDecommitableBlocks(false) still honors
   // `retain_blocks=1` even though `aggressive_decommit_on_suspend` is enabled.
@@ -855,11 +729,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
 
   this->allocator_->DecommitAllDecommitableBlocks(
       /*include_retained_blocks=*/false);
-  ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
-  const size_t fallback_block_size =
-      this->mock_fallback_allocator_->decommits[0].size;
-  EXPECT_EQ(this->allocator_->GetCapacity(),
-            full_capacity - fallback_block_size);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
 
   // Reactivate both blocks, enter suspend, and free: both blocks (including
   // retained) are aggressively decommitted immediately without redundant kCold
@@ -878,7 +748,6 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
             Allocator::DecommitMode::kAggressive);
   EXPECT_EQ(this->mock_fallback_allocator_->decommits[1].mode,
             Allocator::DecommitMode::kAggressive);
-  EXPECT_EQ(this->allocator_->GetCapacity(), 0U);
 }
 
 }  // namespace starboard
