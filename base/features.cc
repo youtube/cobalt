@@ -171,13 +171,14 @@ BASE_FEATURE_PARAM(double,
                    kCobaltSkewportTargetTimeInSeconds,
                    &kCobaltSkewportTargetTime,
                    "skewport_target_time_in_seconds",
-                   0.0);
+                   // [cobalt-exp] skew-lookahead arm, not for submission.
+                   0.3);
 
 BASE_FEATURE_PARAM(double,
                    kCobaltGpuRasterizationSkewportTargetTimeInSeconds,
                    &kCobaltSkewportTargetTime,
                    "gpu_rasterization_skewport_target_time_in_seconds",
-                   0.0);
+                   0.3);
 
 // Enabled by default so that all Cobalt platforms disable prepaint raster.
 // Setting the parameter to a non-zero percentage (e.g. 50 or 67) restores a

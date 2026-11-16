@@ -17,6 +17,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
+#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/base/math_util.h"
 #include "cc/layers/picture_layer_impl.h"
@@ -497,6 +498,15 @@ void PictureLayerTiling::ComputeTilePriorityRects(
   if (features::IsCCSlimmingEnabled()) {
     live_tiles_rect = current_visible_rect_;
     bool draws_tiles = has_visible_rect_tiles_;
+#if BUILDFLAG(IS_COBALT)
+    // [cobalt-exp] skew-lookahead arm, not for submission.
+    // Keep skewport tiles alive while they are in the skewport, so they can
+    // be rasterized before they become visible.
+    if (UsesSkewportLookahead() && has_skewport_rect_tiles_) {
+      draws_tiles = true;
+      live_tiles_rect.Union(current_skewport_rect_);
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
     if (memory_limit_policy >= TileMemoryLimitPolicy::ALLOW_PREPAINT_ONLY) {
       draws_tiles |= has_skewport_rect_tiles_;
@@ -766,6 +776,25 @@ PictureLayerTiling::UpdateAndGetAllPrioritizedTilesForTesting() const {
   return result;
 }
 
+#if BUILDFLAG(IS_COBALT)
+// [cobalt-exp] skew-lookahead arm, not for submission.
+bool PictureLayerTiling::UsesSkewportLookahead() const {
+  return skewport_lookahead_allowed_ && client_->HasValidTilePriorities() &&
+         client_->global_tile_state().memory_limit_policy ==
+             TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM;
+}
+
+bool PictureLayerTiling::IsSkewportLookaheadTile(const Tile* tile) const {
+  if (!UsesSkewportLookahead() || !has_skewport_rect_tiles_) {
+    return false;
+  }
+  gfx::Rect tile_bounds =
+      tiling_data_.TileBounds(tile->tiling_i_index(), tile->tiling_j_index());
+  return !tile_bounds.Intersects(current_visible_rect_) &&
+         tile_bounds.Intersects(current_skewport_rect_);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 TilePriority PictureLayerTiling::ComputePriorityForTile(
     const Tile* tile,
     PriorityRectType priority_rect_type,
@@ -788,6 +817,18 @@ TilePriority PictureLayerTiling::ComputePriorityForTile(
     case PENDING_VISIBLE_RECT:
       return TilePriority(resolution_, priority_bin, 0);
     case SKEWPORT_RECT:
+#if BUILDFLAG(IS_COBALT)
+      // [cobalt-exp] skew-lookahead arm, not for submission.
+      // Under CUTOFF_ALLOW_REQUIRED_ONLY SOON tiles get no memory, so the
+      // skewport would never be drawn. Unoccluded skewport tiles become NOW
+      // tiles; distance_to_visible > 0 keeps them behind visible tiles and
+      // TileManager caps them and stops them from evicting other tiles.
+      if (UsesSkewportLookahead() && !is_tile_occluded) {
+        priority_bin = TilePriority::NOW;
+        break;
+      }
+      [[fallthrough]];
+#endif  // BUILDFLAG(IS_COBALT)
     case SOON_BORDER_RECT:
       if (priority_bin < TilePriority::SOON)
         priority_bin = TilePriority::SOON;
@@ -803,6 +844,12 @@ TilePriority PictureLayerTiling::ComputePriorityForTile(
   float distance_to_visible =
       current_content_to_screen_scale_ *
       current_visible_rect_.ManhattanInternalDistance(tile_bounds);
+#if BUILDFLAG(IS_COBALT)
+  if (priority_rect_type == SKEWPORT_RECT &&
+      priority_bin == TilePriority::NOW && distance_to_visible <= 0.f) {
+    distance_to_visible = 1.f;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   return TilePriority(resolution_, priority_bin, distance_to_visible);
 }
