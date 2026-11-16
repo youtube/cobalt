@@ -32,6 +32,8 @@ using ::starboard::kKeySystems;
 using ::starboard::kWidevineCertificate;
 
 using ::starboard::kCencInitData;
+using ::starboard::kCencInitDataType;
+using ::starboard::kInitialTicket;
 
 }  // namespace nplb
 
