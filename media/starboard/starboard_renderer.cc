@@ -696,10 +696,7 @@ void StarboardRenderer::OnUrlPlayerInitialized() {
     return;
   }
 
-  TimeDelta duration;
-  SbPlayerBridge::PlayerInfo info{nullptr, nullptr, nullptr,
-                                  nullptr, nullptr, &duration};
-  player_bridge_->GetInfo(&info);
+  const TimeDelta duration = player_bridge_->GetInfo().duration;
 
   // Keep the raw value so that GetMediaTime() doesn't push it again.
   last_duration_ = duration;
