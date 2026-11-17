@@ -49,6 +49,12 @@ public final class DeviceUtil {
   // server-side device.Is3GBOrMore condition (DeviceRam > 2673868 KB, i.e. 2.55+ GB).
   public static final int THREE_GB_OR_MORE_RAM_THRESHOLD_KB = 2673868;
 
+  // Physical RAM in KB that an NVIDIA SHIELD must exceed to count as high-end (2 GiB). Excludes the
+  // 2 GB SHIELD TV 2019 tube (sif, reports ~1.98 GB) while keeping the 3 GB SHIELDs (foster, darcy,
+  // mdarcy, ~2.98 GB) and the 4 GB darcy_nova. A 2 GB device can never report more than 2 GiB,
+  // while 3 GB SHIELDs stay well above it even with memory carveouts. See b/576081785.
+  public static final int NVIDIA_SHIELD_MIN_RAM_KB = 2 * 1024 * 1024;
+
   private static Boolean sIs1GbDeviceForTesting;
   private static Boolean sIsDisplayAtLeast1080pForTesting;
   private static Boolean sIsHighEndGpuMemoryDeviceForTesting;
@@ -114,7 +120,8 @@ public final class DeviceUtil {
    * launched for high-end Android TV devices. See b/586564688 and b/549674099.
    *
    * <p>Mirrors the server-side targeting of the launched force_gpu_mem_available_mb=256 value:
-   * device.IsNvidiaShield, device.IsGoogleStreamer or device.Is3GBOrMore. Keep the two in sync.
+   * (device.IsNvidiaShield and DeviceRam > 2097152 KB), device.IsGoogleStreamer or
+   * device.Is3GBOrMore. Keep the two in sync.
    *
    * <p>Note: SysUtils.isLowEndDevice() cannot be used; see is1GbDevice().
    */
@@ -131,11 +138,14 @@ public final class DeviceUtil {
       String manufacturer, String brand, String model, int physicalRamKb) {
     String deviceModel = toLowerCase(model);
     // device.IsNvidiaShield. Newer SHIELD firmware (e.g. darcy_nova on Android 16) reports
-    // "NVIDIA Android TV" instead of "SHIELD Android TV". SHIELD reports ~1.98 GB of RAM, so it is
-    // not covered by the RAM threshold below.
+    // "NVIDIA Android TV" instead of "SHIELD Android TV". The 3 GB SHIELDs (foster, darcy, mdarcy)
+    // report ~2.98 GB; this branch also keeps them covered if carveouts push them below the
+    // Is3GBOrMore threshold. The 2 GB sif (~1.98 GB) is excluded by the RAM check (b/576081785), as
+    // are SHIELDs that fail to report RAM.
     boolean isNvidiaShield =
         isBrand(manufacturer, brand, "nvidia")
-            && (deviceModel.equals("shield android tv") || deviceModel.equals("nvidia android tv"));
+            && (deviceModel.equals("shield android tv") || deviceModel.equals("nvidia android tv"))
+            && physicalRamKb > NVIDIA_SHIELD_MIN_RAM_KB;
     // device.IsGoogleStreamer.
     boolean isGoogleStreamer =
         (isBrand(manufacturer, brand, "google") || isBrand(manufacturer, brand, "google inc."))
