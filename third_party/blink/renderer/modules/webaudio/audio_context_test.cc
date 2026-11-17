@@ -3,16 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/webaudio/audio_context.h"
-<<<<<<< HEAD
-=======
-#include "third_party/blink/public/web/web_heap.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_worklet_options.h"
-#include "third_party/blink/renderer/modules/webaudio/audio_worklet.h"
-#include "third_party/blink/renderer/modules/webaudio/audio_worklet_messaging_proxy.h"
-#include "third_party/blink/renderer/core/workers/worker_thread.h"
-#include "third_party/blink/renderer/modules/webaudio/delay_node.h"
 #include "third_party/blink/public/common/buildflags.h"
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #include <array>
 #include <memory>
