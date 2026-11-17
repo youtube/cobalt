@@ -335,7 +335,8 @@ void StarboardAudioInputStream::HandleError(SLresult error) {
     callback_ = nullptr;
   }
   if (callback)
-    callback->OnError();
+    callback->OnError(
+        AudioInputStream::AudioInputCallback::Error::kRuntimeError);
 }
 
 }  // namespace media
