@@ -493,8 +493,8 @@ const char* ApplicationRdk::GetLocaleId() {
   auto normalize_locale = [](std::string& s) {
     // Handle inverted format: "US_en" or "US-en" -> "en_US"
     if (s.length() == 5 && (s[2] == '_' || s[2] == '-') &&
-        ::starboard::IsAsciiUpper(s[0]) && ::starboard::IsAsciiUpper(s[1]) &&
-        ::starboard::IsAsciiLower(s[3]) && ::starboard::IsAsciiLower(s[4])) {
+        IsAsciiUpper(s[0]) && IsAsciiUpper(s[1]) &&
+        IsAsciiLower(s[3]) && IsAsciiLower(s[4])) {
       s = s.substr(3, 2) + "_" + s.substr(0, 2);
       return;
     }

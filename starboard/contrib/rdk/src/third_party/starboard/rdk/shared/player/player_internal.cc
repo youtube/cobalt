@@ -674,7 +674,7 @@ struct MaxVideoCapabilities {
   bool Parse(const char* caps_str) {
     auto parse_entry = [this](std::string& entry) {
       auto end = std::remove_if(entry.begin(), entry.end(),
-        [](char c) { return ::starboard::IsAsciiWhitespace(c) || c == '"' || c == '\''; });
+        [](char c) { return IsAsciiWhitespace(c) || c == '"' || c == '\''; });
       if (end != entry.end()) {
         *end = '\0';
       }
