@@ -521,22 +521,26 @@ void MediaCodecDecoder::AudioDecoderThreadFunc() {
     dequeue_output_results.clear();
     {
       std::unique_lock lock(mutex_);
-      bool has_pending_input =
-          !pending_inputs.empty() || !pending_inputs_.empty();
-      bool has_input_buffer_indices =
-          !input_buffer_indices.empty() || !input_buffer_indices_.empty();
-      bool can_process_input = pending_input_to_retry_ ||
-                               (has_pending_input && has_input_buffer_indices);
-      if (dequeue_output_results_.empty() && !can_process_input) {
-        // Wait for a signal or a timeout. We don't use a predicate here
-        // because the complex conditions are already checked by the
-        // surrounding loop, which will re-evaluate the state when this wait
-        // returns.
-        if (condition_variable_.wait_for(lock, std::chrono::seconds(5)) ==
-            std::cv_status::timeout) {
-          SB_LOG_IF(ERROR, !stream_ended_.load())
-              << GetDecoderName(media_type_) << ": Wait() hits timeout.";
-        }
+      // Wait for a signal or a timeout.  The predicate is evaluated under
+      // |mutex_| before blocking, so a notification issued between the
+      // |destroying_| check at the top of the loop and this wait (e.g. from
+      // TerminateDecoderThread()) is never missed.
+      const bool has_work = condition_variable_.wait_for(
+          lock, std::chrono::seconds(5),
+          [this, &pending_inputs, &input_buffer_indices] {
+            bool has_pending_input =
+                !pending_inputs.empty() || !pending_inputs_.empty();
+            bool has_input_buffer_indices =
+                !input_buffer_indices.empty() || !input_buffer_indices_.empty();
+            bool can_process_input =
+                pending_input_to_retry_ ||
+                (has_pending_input && has_input_buffer_indices);
+            return destroying_.load() || !dequeue_output_results_.empty() ||
+                   can_process_input;
+          });
+      if (!has_work) {
+        SB_LOG_IF(ERROR, !stream_ended_.load())
+            << GetDecoderName(media_type_) << ": Wait() hits timeout.";
       }
       SB_DCHECK(dequeue_output_results.empty());
       if (destroying_.load()) {
@@ -648,8 +652,18 @@ void MediaCodecDecoder::VideoDecoderThreadFunc() {
       can_process_input =
           !pending_inputs.empty() && !input_buffer_indices.empty();
       if (!can_process_input && dequeue_output_results.empty()) {
+        // The predicate is evaluated under |mutex_| before blocking, so a
+        // notification issued before this wait (e.g. from
+        // TerminateDecoderThread()) is never missed.  The timeout keeps
+        // Tick() polled at |video_decoder_poll_interval_us_|.
         condition_variable_.wait_for(
-            lock, std::chrono::microseconds(video_decoder_poll_interval_us_));
+            lock, std::chrono::microseconds(video_decoder_poll_interval_us_),
+            [this, &pending_inputs, &input_buffer_indices] {
+              return destroying_.load() || !dequeue_output_results_.empty() ||
+                     ((!pending_inputs.empty() || !pending_inputs_.empty()) &&
+                      (!input_buffer_indices.empty() ||
+                       !input_buffer_indices_.empty()));
+            });
       }
     }
   }
@@ -679,11 +693,16 @@ void MediaCodecDecoder::InputThreadFunc() {
       }
     } else {
       std::unique_lock lock(mutex_);
-      if (pending_inputs_.empty() && input_buffer_indices_.empty()) {
-        // Wait for up to one second.  Technically we can wait longer, picking
-        // a reasonably small duration to avoid potential deadlock.
-        video_input_condition_variable_.wait_for(lock, std::chrono::seconds(1));
-      }
+      // Wait for up to one second.  Technically we can wait longer, picking
+      // a reasonably small duration to avoid potential deadlock.  The
+      // predicate is evaluated under |mutex_| before blocking, so a
+      // notification issued before this wait (e.g. from
+      // TerminateDecoderThread()) is never missed.
+      video_input_condition_variable_.wait_for(
+          lock, std::chrono::seconds(1), [this] {
+            return destroying_.load() || !pending_inputs_.empty() ||
+                   !input_buffer_indices_.empty();
+          });
       CollectPendingInputData_Locked(&pending_inputs, &input_buffer_indices);
     }
   }
@@ -819,7 +838,9 @@ void MediaCodecDecoder::OutputThreadFunc() {
           // TODO(b/329686979): Allow Tick() to return the time to next frame
           // release to dynamically adjust the wait duration.
           video_output_condition_variable_.wait_for(
-              lock, kDefaultWaitForNextFrameInterval);
+              lock, kDefaultWaitForNextFrameInterval, [this] {
+                return destroying_.load() || !dequeue_output_results_.empty();
+              });
         }
       }
     }
