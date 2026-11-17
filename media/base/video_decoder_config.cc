@@ -98,15 +98,11 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
          extra_data() == config.extra_data() &&
          encryption_scheme() == config.encryption_scheme() &&
          color_space_info() == config.color_space_info() &&
-<<<<<<< HEAD
-         hdr_metadata() == config.hdr_metadata() && level() == config.level() &&
-         spatial_format() == config.spatial_format();
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
          mime_type() == config.mime_type() &&
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-         hdr_metadata() == config.hdr_metadata() && level() == config.level();
->>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+         hdr_metadata() == config.hdr_metadata() && level() == config.level() &&
+         spatial_format() == config.spatial_format();
 }
 
 std::string VideoDecoderConfig::AsHumanReadableString() const {
@@ -127,15 +123,11 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", encryption scheme: " << encryption_scheme()
     << ", rotation: " << VideoRotationToString(video_transformation().rotation)
     << ", flipped: " << video_transformation().mirrored
-<<<<<<< HEAD
-    << ", color space: " << color_space_info().ToGfxColorSpace().ToString()
-    << ", spatial format: [" << spatial_format().ToString() << "]";
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", mime_type: " << mime_type()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-    << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
->>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    << ", color space: " << color_space_info().ToGfxColorSpace().ToString()
+    << ", spatial format: [" << spatial_format().ToString() << "]";
 
   if (!hdr_metadata().IsEmpty()) {
     s << ", hdr metadata: " << hdr_metadata().ToString();
