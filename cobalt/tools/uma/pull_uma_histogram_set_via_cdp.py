@@ -18,6 +18,7 @@
 import argparse
 import json
 import os
+import shlex
 import sys
 import time
 import threading
@@ -46,6 +47,9 @@ DEFAULT_COBALT_ACTIVITY_NAME = 'dev.cobalt.app.MainActivity'
 DEFAULT_POLL_INTERVAL_S = 30.0
 MAX_WEBSOCKET_RETRIES = 10
 WEBSOCKET_RETRY_DELAY_S = 2
+# Bounds every CDP socket operation, so a stalled target cannot block the
+# polling thread forever.
+CDP_TIMEOUT_S = 10
 
 
 def _print_q(message: str, quiet: bool):
@@ -85,13 +89,30 @@ def stop_package(package_name: str, quiet: bool) -> bool:
 
 def launch_cobalt(package_name: str, activity_name: str, url: str, quiet: bool):
   """Launches the Cobalt application with a specified URL.
-       Returns True on success and False upon failure."""
-  command_str = (f'adb shell am start -n {package_name}/{activity_name} '
-                 f'--esa commandLineArgs \'--remote-allow-origins=*,'
-                 f'--url=\"{url}\"\'')
-  stdout, stderr = run_adb_command(command_str, shell=True)
-  if stderr:
-    _print_q(f'Error launching Cobalt: {stderr}', quiet)
+
+  With an activity name, starts that component and passes the URL as a
+  `--url` switch. Without one, sends a VIEW intent for the URL to the package,
+  which works for apps whose launch activity is not dev.cobalt.app.MainActivity
+  (for example YouTube on Android TV).
+
+  Returns True on success and False upon failure.
+  """
+  if activity_name:
+    am_args = [
+        'am', 'start', '-n', f'{package_name}/{activity_name}', '--esa',
+        'commandLineArgs', f'--remote-allow-origins=*,--url={url}'
+    ]
+  else:
+    am_args = [
+        'am', 'start', '-a', 'android.intent.action.VIEW', '-d', url, '--esa',
+        'commandLineArgs', '--remote-allow-origins=*', '-p', package_name
+    ]
+  # No host shell is involved. adb runs its arguments as one device shell
+  # command line, so each argument is quoted for the device shell.
+  stdout, stderr = run_adb_command(['adb', 'shell', shlex.join(am_args)])
+  # `am start` reports a missing activity or package on stdout.
+  if stderr or (stdout and 'Error' in stdout):
+    _print_q(f'Error launching Cobalt: {stderr or stdout}', quiet)
     return False
   else:
     _print_q(
@@ -209,6 +230,14 @@ def _get_cobalt_resident_memory_metrics() -> list:
   ]
 
 
+def _receive_response(ws, message_id: int) -> dict:
+  """Returns the reply to `message_id`, skipping CDP event messages."""
+  while True:
+    response = json.loads(ws.recv())
+    if isinstance(response, dict) and response.get('id') == message_id:
+      return response
+
+
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
                                   output_file, quiet: bool):
   """Prints histogram data to the console and writes it to a file."""
@@ -222,7 +251,7 @@ def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
         }
     }
     ws.send(json.dumps(command))
-    response = json.loads(ws.recv())
+    response = _receive_response(ws, message_id)
     message_id += 1
     _print_q(f'\nMetric - {metric}:\n{response}\n', quiet)
     if output_file:
@@ -236,7 +265,7 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
                       url: str, quiet: bool):
   ws = None
   try:
-    ws = websocket.create_connection(websocket_url)
+    ws = websocket.create_connection(websocket_url, timeout=CDP_TIMEOUT_S)
     _print_q(f'Connected to WebSocket: {websocket_url}', quiet)
 
     message_id = 1
@@ -248,7 +277,7 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
         }
     }
     ws.send(json.dumps(command))
-    response = json.loads(ws.recv())
+    response = _receive_response(ws, message_id)
     _print_q('Enabled Performance domain (ID: ' + str(response['id']) + ')',
              quiet)
     message_id += 1
@@ -259,7 +288,7 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
         'params': {}
     }
     ws.send(json.dumps(command))
-    response = json.loads(ws.recv())
+    response = _receive_response(ws, message_id)
     message_id += 1
 
     if 'result' in response and 'metrics' in response['result']:
@@ -295,12 +324,22 @@ def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
       app_is_running = is_cobalt_running_linux()
 
     if app_is_running:
-      _interact_via_cdp(websocket_url, histograms, output_file, args.url,
-                        args.quiet)
+      if args.platform == 'android':
+        # The page target changes when the app navigates (for example after
+        # its splash screen) or restarts, so look it up before every poll.
+        websocket_url = get_websocket_url(
+            platform=args.platform, port=args.port, quiet=args.quiet)
+      if websocket_url:
+        _interact_via_cdp(websocket_url, histograms, output_file, args.url,
+                          args.quiet)
+      else:
+        _print_q(f'{header_prefix} No page target found. Skipping this poll.',
+                 args.quiet)
     elif iteration % 5 == 0:
       _print_q(f'{header_prefix} App not running.', args.quiet)
 
-    time.sleep(args.poll_interval_s)
+    # Wakes up early when the main thread stops polling.
+    stop_event.wait(args.poll_interval_s)
   _print_q('Data polling thread stopped.', args.quiet)
 
 
@@ -319,9 +358,15 @@ def _run_main(args, output_file):
 
   if args.platform == 'android' and not args.no_manage_cobalt:
     if not is_package_running_android(args.package_name):
+      activity_name = args.activity_name
+      if activity_name is None:
+        # Only the default package is known to have the default activity.
+        activity_name = (
+            DEFAULT_COBALT_ACTIVITY_NAME
+            if args.package_name == DEFAULT_COBALT_PACKAGE_NAME else '')
       launch_cobalt(
           package_name=args.package_name,
-          activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
+          activity_name=activity_name,
           url=args.url,
           quiet=args.quiet)
       _print_q(f'Waiting for {args.package_name} to start...', args.quiet)
@@ -335,9 +380,8 @@ def _run_main(args, output_file):
 
       if not started:
         _print_q(
-            f'Error: Failed to start {args.package_name}/'
-            f'{DEFAULT_COBALT_ACTIVITY_NAME} within 5 seconds. \nExiting...\n',
-            args.quiet)
+            f'Error: Failed to start {args.package_name} within 5 seconds. '
+            '\nExiting...\n', args.quiet)
         sys.exit(1)
   time.sleep(1)
 
@@ -360,8 +404,13 @@ def _run_main(args, output_file):
       f'\nPolling every {args.poll_interval_s}s. '
       'Ctrl+C to stop & save.', args.quiet)
 
+  deadline = time.time() + args.duration_s if args.duration_s > 0 else None
   try:
     while polling_thread.is_alive():
+      if deadline is not None and time.time() >= deadline:
+        _print_q(f'\n--duration-s {args.duration_s} reached. Stopping...',
+                 args.quiet)
+        break
       time.sleep(1)
   except KeyboardInterrupt:
     _print_q('\nCtrl+C received. Signaling polling thread to stop...',
@@ -370,6 +419,8 @@ def _run_main(args, output_file):
     _print_q(f'Main loop encountered an error: {e}', args.quiet)
   finally:
     stop_event.set()
+    # Lets an in-flight poll finish writing before the output file closes.
+    polling_thread.join(timeout=60)
     if args.platform == 'android' and not args.no_manage_cobalt:
       stop_package(args.package_name, args.quiet)
   _print_q('\nDONE!!!\n', args.quiet)
@@ -390,6 +441,13 @@ def main():
       default=DEFAULT_COBALT_PACKAGE_NAME,
       help='The package name of the Cobalt application.')
   parser.add_argument(
+      '--activity-name',
+      default=None,
+      help='(Android) Activity to start. Defaults to '
+      f'{DEFAULT_COBALT_ACTIVITY_NAME} for {DEFAULT_COBALT_PACKAGE_NAME}; for '
+      'other packages, the URL is sent as a VIEW intent to the package. Pass '
+      'an empty string to force the VIEW intent.')
+  parser.add_argument(
       '--platform',
       choices=['android', 'linux'],
       default='android',
@@ -399,6 +457,12 @@ def main():
       type=float,
       default=DEFAULT_POLL_INTERVAL_S,
       help='The polling frequency in seconds.')
+  parser.add_argument(
+      '--duration-s',
+      type=float,
+      default=0,
+      help='Stop polling after this many seconds (default: 0, poll until '
+      'Ctrl+C).')
   parser.add_argument(
       '--port',
       type=int,
