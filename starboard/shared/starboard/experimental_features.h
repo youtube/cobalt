@@ -255,8 +255,7 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
 // MediaCodec after a creation failure, which can be transient on devices whose
 // vendor HAL releases the previous codec instance asynchronously. Inputs are
 // buffered while a retry is pending. Retries are disabled when the setting is
-// unset (or 0, the "unset" sentinel) or negative. The retry count is capped at
-// 10.
+// unset (or 0, the "unset" sentinel) or negative.
 inline constexpr ExperimentalFeatureKey<int> kMediaVideoCodecCreationRetryCount(
     "Media.VideoCodecCreationRetryCount");
 

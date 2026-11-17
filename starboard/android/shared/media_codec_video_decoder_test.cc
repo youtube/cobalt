@@ -519,7 +519,7 @@ TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {
 }
 
 // Codec creation retry tests. Retries are scheduled on the job queue with a
-// 50ms base delay and linear backoff, so the tests pump the queue with a
+// 10ms base delay and linear backoff, so the tests pump the queue with a
 // generous timeout.
 constexpr int kRetryWaitTimeoutMs = 2000;
 

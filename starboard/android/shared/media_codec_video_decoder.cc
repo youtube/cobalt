@@ -128,7 +128,7 @@ const int kFpsGuesstimateRequiredInputBufferCount = 3;
 // Base delay before re-attempting MediaCodec creation after a transient
 // failure. Attempt n waits n * kCodecCreationRetryBaseDelayUsec (linear
 // backoff), giving the vendor HAL time to release the previous codec instance.
-constexpr int64_t kCodecCreationRetryBaseDelayUsec = 50'000;  // 50ms
+constexpr int64_t kCodecCreationRetryBaseDelayUsec = 10'000;  // 10ms
 
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
@@ -391,8 +391,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               .Get(kMediaVideoDecoderInitialPrerollCount)
               .value_or(kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
-      codec_creation_retry_(GetVideoCodecCreationRetryCount(
-          pipeline_config.experimental_features)),
+      codec_creation_retry_(
+          std::max(0,
+                   pipeline_config.experimental_features
+                       .Get(kMediaVideoCodecCreationRetryCount)
+                       .value_or(0))),
       surface_texture_bridge_(
           output_mode_ == kSbPlayerOutputModeDecodeToTexture
               ? std::make_unique<VideoSurfaceTextureBridge>(this)
@@ -675,9 +678,8 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
 
   if (codec_creation_retry_.pending) {
     SB_CHECK(!media_decoder_);
-    // The end of stream is forwarded by RetryCodecCreation() once the codec
-    // has been created.
-    codec_creation_retry_.pending->end_of_stream = true;
+    // RetryCodecCreation() forwards the end of stream once the codec is
+    // created.
     return;
   }
 
@@ -696,7 +698,6 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
       return;
     }
     if (*status == CodecInitStatus::kRetryScheduled) {
-      codec_creation_retry_.pending->end_of_stream = true;
       return;
     }
   }
@@ -910,11 +911,6 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   SB_CHECK(j_output_surface);
 
   if (needs_fps_to_initialize_codec_) {
-    video_fps_ = GuesstimateVideoFps(pending_input_buffers_);
-    SB_CHECK_GT(video_fps_, 0);
-  }
-
-  if (needs_fps_to_initialize_codec_) {
     SB_CHECK_GT(video_fps_, 0);
   } else {
     SB_CHECK_EQ(video_fps_, 0);
@@ -981,6 +977,10 @@ MediaCodecVideoDecoder::TryInitializeCodec(
     const VideoStreamInfo& video_stream_info) {
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(!codec_creation_retry_.pending);
+
+  if (needs_fps_to_initialize_codec_) {
+    video_fps_ = GuesstimateVideoFps(pending_input_buffers_);
+  }
 
   auto j_output_surface = PrepareOutputSurface();
   if (!j_output_surface) {
@@ -1064,17 +1064,11 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
     ReportError(kSbPlayerErrorDecode, error_message);
     return;
   }
-  switch (*status) {
-    case CodecInitStatus::kInitialized:
-      SB_LOG(INFO) << "MediaCodec created successfully after retry.";
-      if (retry.end_of_stream) {
-        media_decoder_->WriteEndOfStream();
-      }
-      break;
-    case CodecInitStatus::kRetryScheduled:
-      // Carry a latched end of stream over to the next retry.
-      codec_creation_retry_.pending->end_of_stream = retry.end_of_stream;
-      break;
+  if (*status == CodecInitStatus::kInitialized) {
+    SB_LOG(INFO) << "MediaCodec created successfully after retry.";
+    if (end_of_stream_written_) {
+      media_decoder_->WriteEndOfStream();
+    }
   }
 }
 

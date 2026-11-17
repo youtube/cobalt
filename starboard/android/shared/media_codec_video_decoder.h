@@ -315,9 +315,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
     // Stream info used by the failed attempt, for retries that fire before any
     // input buffer has arrived (constructor path).
     VideoStreamInfo stream_info;
-    // Set when WriteEndOfStream() is called while the retry is pending. The
-    // end of stream is forwarded to the codec once it is created.
-    bool end_of_stream = false;
   };
   struct CodecCreationRetryState {
     explicit CodecCreationRetryState(int max_retries)
