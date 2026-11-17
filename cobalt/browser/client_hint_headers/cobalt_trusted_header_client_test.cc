@@ -72,7 +72,7 @@ TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
 
   base::test::TestFuture<int32_t, const std::optional<net::HttpRequestHeaders>&>
       future;
-  remote->OnBeforeSendHeaders(initial_headers, future.GetCallback());
+  remote->OnBeforeSendHeaders(GURL(), initial_headers, future.GetCallback());
 
   ASSERT_TRUE(future.Wait()) << "Callback was not run.";
   EXPECT_EQ(net::OK, std::get<0>(future.Get()));
