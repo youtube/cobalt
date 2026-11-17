@@ -150,6 +150,13 @@ class GL_EXPORT NativeViewGLSurfaceEGL : public GLSurfaceEGL,
   // Some platforms may provide a custom implementation of vsync provider.
   virtual std::unique_ptr<gfx::VSyncProvider> CreateVsyncProviderInternal();
 
+#if BUILDFLAG(IS_COBALT)
+  // Returns the EGL swap interval to use while vsync is enabled: how many
+  // display refreshes each frame waits for. Subclasses override this to use a
+  // platform's configured value.
+  virtual int GetVSyncEnabledSwapInterval() const;
+#endif  // BUILDFLAG(IS_COBALT)
+
   EGLSurface surface_ = nullptr;
   bool supports_post_sub_buffer_ = false;
   bool supports_swap_buffer_with_damage_ = false;
