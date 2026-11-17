@@ -51,7 +51,6 @@ struct InProcessImageTransferCachePayload {
 
   sk_sp<SkImage> gainmap_image;
   std::optional<SkGainmapInfo> gainmap_info;
-  gfx::HDRMetadata hdr_metadata;
   sk_sp<SkColorSpace> target_color_space;
   bool needs_mips = false;
 
@@ -649,7 +648,6 @@ bool ClientImageTransferCacheEntry::SerializeInProcess(
     payload->gainmap_info = gainmap_info_;
   }
   payload->needs_mips = needs_mips_;
-  payload->hdr_metadata = hdr_metadata_;
   payload->target_color_space = target_color_space_;
   payload->unref_runner = std::move(unref_runner);
 
@@ -886,7 +884,6 @@ bool ServiceImageTransferCacheEntry::DeserializeInProcess(
   std::unique_ptr<InProcessImageTransferCachePayload> payload(raw_payload);
 
   has_gainmap_ = payload->gainmap_image != nullptr;
-  hdr_metadata_ = payload->hdr_metadata;
   const bool mip_mapped_for_upload =
       payload->needs_mips && !payload->target_color_space;
 
@@ -940,8 +937,8 @@ bool ServiceImageTransferCacheEntry::DeserializeInProcess(
 
   // Determine if this image will be tone mapped.
   const bool is_tone_mapped =
-      has_gainmap_ ||
-      ToneMapUtil::UseGlobalToneMapFilter(image_->colorSpace());
+      has_gainmap_ || ToneMapUtil::UseGlobalToneMapFilter(image_->colorSpace(),
+                                                          gfx::HDRMetadata());
 
   // Perform color conversion (if no tone mapping is needed).
   if (payload->target_color_space && !is_tone_mapped) {
