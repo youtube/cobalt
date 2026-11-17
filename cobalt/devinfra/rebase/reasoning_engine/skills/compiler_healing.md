@@ -99,6 +99,8 @@ When something that used to work has broken after a roll, **run both on the rele
        //       left TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED] comments.
 
        // [GOOD] local_dom_window.h: Cobalt entries after upstream's, unguarded.
+         enum class Supplements {
+           ...
            kAudioRendererSinkCache = 47,
 
            kH5vcc = 48,
@@ -108,11 +110,16 @@ When something that used to work has broken after a roll, **run both on the rele
 
        // [GOOD] execution_context.h: the tvOS supplement is migrated too.
        class CORE_EXPORT ExecutionContext
-           : public Supplementable<ExecutionContext, 35>, ...
+           : public Supplementable<ExecutionContext, 35>, ... {
+         ...
+         enum class Supplements {
+           ...
            kCanvasResourceProviderCache = 33,
 
            kDialServerManager = 34
          };
+         ...
+       };
 
        // dial_server_manager.cc
        const unsigned DialServerManager::kSupplementIndex =
