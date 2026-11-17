@@ -88,4 +88,30 @@ void AudioSinkBenchmarkUpdateSourceStatusFunc(int* frames_in_buffer,
 
 void AudioSinkBenchmarkConsumeFramesFunc(int frames_consumed, void* context) {}
 
+bool AudioSinkBenchmarkThreadWaiter::WaitForAudioThread(
+    std::chrono::milliseconds timeout) {
+  std::unique_lock lock(mutex_);
+  const int64_t initial_count = callback_count_;
+  return condition_.wait_for(lock, timeout,
+                             [&] { return callback_count_ != initial_count; });
+}
+
+// static
+void AudioSinkBenchmarkThreadWaiter::UpdateSourceStatusFunc(
+    int* frames_in_buffer,
+    int* offset_in_frames,
+    bool* is_playing,
+    bool* is_eos_reached,
+    void* context) {
+  AudioSinkBenchmarkUpdateSourceStatusFunc(frames_in_buffer, offset_in_frames,
+                                           is_playing, is_eos_reached, context);
+
+  auto* waiter = static_cast<AudioSinkBenchmarkThreadWaiter*>(context);
+  {
+    std::lock_guard lock(waiter->mutex_);
+    ++waiter->callback_count_;
+  }
+  waiter->condition_.notify_all();
+}
+
 }  // namespace starboard
