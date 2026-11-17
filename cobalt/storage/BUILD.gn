@@ -21,6 +21,8 @@ static_library("storage_constants") {
 
 static_library("storage") {
   sources = [
+    "c27_storage_cleanup.cc",
+    "c27_storage_cleanup.h",
     "savegame.cc",
     "savegame.h",
     "savegame_fake.cc",
@@ -45,6 +47,7 @@ static_library("storage") {
 target(gtest_target_type, "storage_test") {
   testonly = true
   sources = [
+    "c27_storage_cleanup_test.cc",
     "savegame_test.cc",
     "storage_manager_test.cc",
   ]
@@ -53,6 +56,7 @@ target(gtest_target_type, "storage_test") {
 
   deps = [
     ":storage",
+    "//base",
     "//cobalt/base",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
