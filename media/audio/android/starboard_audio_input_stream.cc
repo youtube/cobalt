@@ -109,14 +109,14 @@ AudioInputStream::OpenOutcome StarboardAudioInputStream::Open() {
           simple_buffer_queue_, audio_data_[i].get(), buffer_size_bytes_);
     }
     if (SL_RESULT_SUCCESS != err) {
-      HandleError(err);
+      HandleError(err, Error::kStartupFailed);
       return AudioInputStream::OpenOutcome::kFailed;
     }
   }
 
   err = (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING);
   if (SL_RESULT_SUCCESS != err) {
-    HandleError(err);
+    HandleError(err, Error::kStartupFailed);
     return AudioInputStream::OpenOutcome::kFailed;
   }
 
@@ -326,7 +326,7 @@ void StarboardAudioInputStream::ReleaseAudioBuffer() {
   }
 }
 
-void StarboardAudioInputStream::HandleError(SLresult error) {
+void StarboardAudioInputStream::HandleError(SLresult error, Error error_code) {
   DLOG(ERROR) << "Starboard Input error " << error;
   AudioInputCallback* callback = nullptr;
   {
@@ -335,7 +335,7 @@ void StarboardAudioInputStream::HandleError(SLresult error) {
     callback_ = nullptr;
   }
   if (callback)
-    callback->OnError();
+    callback->OnError(error_code);
 }
 
 }  // namespace media

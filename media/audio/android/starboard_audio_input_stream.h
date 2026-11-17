@@ -44,6 +44,8 @@ class AudioManagerAndroid;
 // It bypasses complex negotiation and is hardcoded for 16kHz Mono.
 class StarboardAudioInputStream : public AudioInputStream {
  public:
+  using Error = AudioInputStream::AudioInputCallback::Error;
+
   static const int kMaxNumOfBuffersInQueue = 2;
   static const int kDefaultBufferSizeInBytes = 1024;
 
@@ -91,7 +93,7 @@ class StarboardAudioInputStream : public AudioInputStream {
 
   // If OpenSLES reports an error this function handles it and passes it to
   // the attached AudioInputCallback::OnError().
-  void HandleError(SLresult error);
+  void HandleError(SLresult error, Error error_code);
 
   base::ThreadChecker thread_checker_;
 
