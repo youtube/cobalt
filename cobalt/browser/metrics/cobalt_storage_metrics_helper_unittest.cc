@@ -282,4 +282,37 @@ TEST(CobaltStorageMetricsHelperTest, RecordSteadyStateWriteRateForInterval) {
       "Cobalt.Storage.ProcessIo.WriteRateKBPerMin", 300, 1);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+TEST(CobaltStorageMetricsHelperTest, RecordCacheQuotaMetrics) {
+  base::HistogramTester histogram_tester;
+  const CobaltContentBrowserClient::CacheQuotas quotas{
+      .http_cache_bytes = 11u * 1024 * 1024,
+      .js_code_cache_bytes = 5u * 1024 * 1024,
+      .gpu_shader_cache_bytes = 0u,
+      .excess_bytes = 2u * 1024 * 1024,
+      .platform_budget_bytes = 24u * 1024 * 1024,
+      .outcome = CobaltContentBrowserClient::CacheQuotaAllocationOutcome::
+          kUnderBudgetAddedToHttp,
+  };
+
+  RecordCacheQuotaMetrics(quotas);
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.CacheQuota.AllocationOutcome",
+      CobaltContentBrowserClient::CacheQuotaAllocationOutcome::
+          kUnderBudgetAddedToHttp,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.CacheQuota.PlatformBudgetKB", 24 * 1024, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.Storage.CacheQuota.ExcessKB",
+                                      2 * 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.CacheQuota.EffectiveKB.Http", 11 * 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.CacheQuota.EffectiveKB.JsCode", 5 * 1024, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.CacheQuota.EffectiveKB.GpuShader", 0, 1);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
 }  // namespace cobalt
