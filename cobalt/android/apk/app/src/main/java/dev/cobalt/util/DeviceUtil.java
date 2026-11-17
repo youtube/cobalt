@@ -15,8 +15,10 @@
 package dev.cobalt.util;
 
 import android.content.Context;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import androidx.annotation.VisibleForTesting;
+import java.util.Locale;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.SysUtils;
 
@@ -43,8 +45,13 @@ public final class DeviceUtil {
   // a safe margin for system decor (e.g. navigation/status bars) reducing available pixels.
   public static final int DISPLAY_1080P_MIN_MAX_DIMENSION_PX = 1600;
 
+  // Physical RAM threshold in KB above which a device counts as "3 GB or more". Mirrors the
+  // server-side device.Is3GBOrMore condition (DeviceRam > 2673868 KB, i.e. 2.55+ GB).
+  public static final int THREE_GB_OR_MORE_RAM_THRESHOLD_KB = 2673868;
+
   private static Boolean sIs1GbDeviceForTesting;
   private static Boolean sIsDisplayAtLeast1080pForTesting;
+  private static Boolean sIsHighEndGpuMemoryDeviceForTesting;
 
   @VisibleForTesting
   public static void setIs1GbDeviceForTesting(Boolean is1Gb) {
@@ -57,9 +64,15 @@ public final class DeviceUtil {
   }
 
   @VisibleForTesting
+  public static void setIsHighEndGpuMemoryDeviceForTesting(Boolean isHighEnd) {
+    sIsHighEndGpuMemoryDeviceForTesting = isHighEnd;
+  }
+
+  @VisibleForTesting
   public static void resetForTesting() {
     sIs1GbDeviceForTesting = null;
     sIsDisplayAtLeast1080pForTesting = null;
+    sIsHighEndGpuMemoryDeviceForTesting = null;
   }
 
   /**
@@ -94,5 +107,52 @@ public final class DeviceUtil {
       // Ignored if context is not available.
     }
     return false;
+  }
+
+  /**
+   * Returns true if the device should get the raised GPU memory budget (256 MB) that the server
+   * launched for high-end Android TV devices. See b/586564688 and b/549674099.
+   *
+   * <p>Mirrors the server-side targeting of the launched force_gpu_mem_available_mb=256 value:
+   * device.IsNvidiaShield, device.IsGoogleStreamer or device.Is3GBOrMore. Keep the two in sync.
+   *
+   * <p>Note: SysUtils.isLowEndDevice() cannot be used; see is1GbDevice().
+   */
+  public static boolean isHighEndGpuMemoryDevice() {
+    if (sIsHighEndGpuMemoryDeviceForTesting != null) {
+      return sIsHighEndGpuMemoryDeviceForTesting;
+    }
+    return isHighEndGpuMemoryDevice(
+        Build.MANUFACTURER, Build.BRAND, Build.MODEL, SysUtils.amountOfPhysicalMemoryKB());
+  }
+
+  @VisibleForTesting
+  static boolean isHighEndGpuMemoryDevice(
+      String manufacturer, String brand, String model, int physicalRamKb) {
+    String deviceModel = toLowerCase(model);
+    // device.IsNvidiaShield. Newer SHIELD firmware (e.g. darcy_nova on Android 16) reports
+    // "NVIDIA Android TV" instead of "SHIELD Android TV". SHIELD reports ~1.98 GB of RAM, so it is
+    // not covered by the RAM threshold below.
+    boolean isNvidiaShield =
+        isBrand(manufacturer, brand, "nvidia")
+            && (deviceModel.equals("shield android tv") || deviceModel.equals("nvidia android tv"));
+    // device.IsGoogleStreamer.
+    boolean isGoogleStreamer =
+        (isBrand(manufacturer, brand, "google") || isBrand(manufacturer, brand, "google inc."))
+            && deviceModel.contains("streamer");
+    // device.Is3GBOrMore. A positive RAM test, so devices that fail to report RAM (0 or negative)
+    // keep the low default.
+    boolean is3GbOrMore = physicalRamKb > THREE_GB_OR_MORE_RAM_THRESHOLD_KB;
+    return isNvidiaShield || isGoogleStreamer || is3GbOrMore;
+  }
+
+  // The server matches on the reported device brand. Build.BRAND and Build.MANUFACTURER agree on
+  // the devices targeted here, so accept either.
+  private static boolean isBrand(String manufacturer, String brand, String expected) {
+    return expected.equals(toLowerCase(manufacturer)) || expected.equals(toLowerCase(brand));
+  }
+
+  private static String toLowerCase(String value) {
+    return value == null ? "" : value.toLowerCase(Locale.US);
   }
 }
