@@ -164,7 +164,7 @@ TEST(VideoDecoderConfigStructTraitsTest,
 =======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 TEST(VideoDecoderConfigStructTraitsTest, ConvertVideoDecoderConfig_MimeType) {
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   VideoDecoderConfig input(VideoCodec::kVP8, VP8PROFILE_ANY,
                            VideoDecoderConfig::AlphaMode::kIsOpaque,
                            VideoColorSpace(), kNoTransformation, kCodedSize,
@@ -178,7 +178,7 @@ TEST(VideoDecoderConfigStructTraitsTest, ConvertVideoDecoderConfig_MimeType) {
 =======
   input.set_mime_type("video/mp4; codecs=\"av01.0.09M.08\"");
 
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   std::vector<uint8_t> data =
       media::mojom::VideoDecoderConfig::Serialize(&input);
   VideoDecoderConfig output;
@@ -191,6 +191,6 @@ TEST(VideoDecoderConfigStructTraitsTest, ConvertVideoDecoderConfig_MimeType) {
   EXPECT_EQ(output.mime_type(), "video/mp4; codecs=\"av01.0.09M.08\"");
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace media

@@ -1453,7 +1453,7 @@ class CORE_EXPORT WebFrameWidgetImpl
   // OnCobaltPresentationCallback().
   Vector<CobaltMainFrameSnapshot> pending_cobalt_main_snapshots_;
 #endif
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace blink

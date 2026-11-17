@@ -373,7 +373,7 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
   handler_library->swap(local_handler_library);
   return true;
 }
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if defined(__arm__) && defined(__ARM_ARCH_7A__)
 #define CURRENT_ABI "armeabi-v7a"
@@ -458,7 +458,7 @@ void MakePackagePaths(std::string* classpath, std::string* libpath) {
 const char kCrashpadJavaMain[] =
     "org.chromium.components.crash.browser.CrashpadMain";
 const char kCrashReportUrl[] = "https://clients2.google.com/cr/report";
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
                       base::FilePath* database_path,
@@ -540,7 +540,7 @@ bool SetLdLibraryPath(const base::FilePath& lib_path) {
   return true;
 }
 
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 class HandlerStarter {
   // TODO(jperaza): Currently only launching a same-bitness handler is
   // supported. The logic to build package paths, locate a handler executable,
@@ -587,7 +587,7 @@ class HandlerStarter {
     // thread observation callback upon report completion.
     arguments.push_back("--no-periodic-tasks");
 #endif
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (crashpad::SetSanitizationInfo(GetCrashReporterClient(),
                                       &browser_sanitization_info_)) {
       arguments.push_back(base::StringPrintf("--sanitization-information=%p",
@@ -634,7 +634,7 @@ class HandlerStarter {
         return database_path;
       }
 #endif
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       std::vector<std::string> env;
       if (!internal::BuildEnvironmentWithApk(kUse64Bit, &env)) {
         return database_path;
@@ -680,7 +680,7 @@ class HandlerStarter {
         return false;
       }
 #endif
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       std::vector<std::string> env;
       if (!internal::BuildEnvironmentWithApk(kUse64Bit, &env)) {
         return false;
@@ -721,7 +721,7 @@ class HandlerStarter {
     return GetCrashpadClient().StartHandlerForClient(
         handler_path, database_path, metrics_path, url, process_annotations,
         arguments, fd);
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
  private:

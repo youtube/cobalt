@@ -83,6 +83,6 @@ TEST(VideoDecoderConfigTest, SetMimeTypeAndMatches) {
   EXPECT_FALSE(config1.Matches(config2));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace media

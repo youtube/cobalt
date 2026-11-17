@@ -37,4 +37,4 @@ if (angle_use_static_angle && !is_android) {
 }
 =======
 angle_enable_vulkan_validation_layers = !is_starboard
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
