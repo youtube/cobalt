@@ -540,7 +540,8 @@ vars = {
   'libcxx_revision':       'a01c02c9d4acbdae3b7e8a2f3ee58579a9c29f96',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:ebc8f16ca7b0d36a3e532ee90896f9eb48e5423b',
+  # Cobalt needs https://gn-review.googlesource.com/c/gn/+/18820 for modular builds.
+  'gn_version': 'git_revision:8ea3af9118a65387fe4d8428db6f59c5927dd55a',
 
   # ninja CIPD package.
   'ninja_package': 'infra/3pp/tools/ninja/',
