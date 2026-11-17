@@ -1958,7 +1958,7 @@ source_set("platform_browser_tests") {
     }
   }  # enable_extensions_core
 
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 566ff0ee612 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (enable_pdf) {
     deps += [
       "//chrome/browser/pdf:pdf_extension_test_utils",

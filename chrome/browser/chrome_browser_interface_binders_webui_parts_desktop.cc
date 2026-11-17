@@ -559,7 +559,7 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
         privacy_sandbox_internals::PrivacySandboxInternalsUI>(map);
   }
 
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 566ff0ee612 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   RegisterWebUIControllerInterfaceBinder<
       guest_contents::mojom::GuestContentsHost, WebUIBrowserUI>(map);
 

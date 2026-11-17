@@ -211,7 +211,7 @@
 =======
 #include "content/browser/webauth/webauth_request_security_checker.h"
 #elif !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 566ff0ee612 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/public/mojom/hid/hid.mojom-forward.h"
 #endif
 

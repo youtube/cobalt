@@ -372,7 +372,7 @@ void GpuHostImpl::SetChannelDiskCacheHandle(
     return;
   }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 566ff0ee612 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   scoped_refptr<gpu::GpuDiskCache> cache =
       delegate_->GetGpuDiskCacheFactory()->Get(handle);

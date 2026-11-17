@@ -619,7 +619,7 @@ ParseResult MP4StreamParser::ParseBox() {
   ParseResult result =
       BoxReader::ReadTopLevelBox(buf, media_log_.get(), &reader);
 =======
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 566ff0ee612 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (result != ParseResult::kOk)
     return result;
 
@@ -1737,7 +1737,7 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(int64_t max_clear_offset) {
 
       result = BoxReader::StartTopLevelBox(buf, media_log_, &type, &box_sz);
     }
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 566ff0ee612 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (result != ParseResult::kOk)
       break;
 
