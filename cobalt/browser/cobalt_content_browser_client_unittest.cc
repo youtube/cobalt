@@ -874,18 +874,7 @@ class CobaltContentBrowserClientHeaderTest
 };
 
 TEST_F(CobaltContentBrowserClientHeaderTest,
-       NetworkContextParamsHaveNoHeadersByDefault) {
-  browser::CobaltHeaderValueProvider::GetInstance()->SetHeaderValue(
-      browser::kAndroidOSExperienceHeaderName, "Amati");
-
-  EXPECT_TRUE(
-      ConfigureNetworkContextParams()->cobalt_extra_request_headers.empty());
-}
-
-TEST_F(CobaltContentBrowserClientHeaderTest,
-       NetworkContextParamsHaveHeadersWhenSkippingHeaderClient) {
-  base::test::ScopedFeatureList feature_list(
-      features::kCobaltSkipTrustedHeaderClient);
+       NetworkContextParamsHaveHeadersByDefault) {
   auto* provider = browser::CobaltHeaderValueProvider::GetInstance();
   provider->SetHeaderValue(browser::kAndroidOSExperienceHeaderName, "Amati");
   provider->SetHeaderValue(browser::kBuildFingerprintHeaderName,
@@ -899,7 +888,27 @@ TEST_F(CobaltContentBrowserClientHeaderTest,
                         "test/fingerprint")));
 }
 
-TEST_F(CobaltContentBrowserClientHeaderTest, InstallsHeaderClientByDefault) {
+TEST_F(CobaltContentBrowserClientHeaderTest,
+       NetworkContextParamsHaveNoHeadersWhenNotSkippingHeaderClient) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kCobaltSkipTrustedHeaderClient);
+  browser::CobaltHeaderValueProvider::GetInstance()->SetHeaderValue(
+      browser::kAndroidOSExperienceHeaderName, "Amati");
+
+  EXPECT_TRUE(
+      ConfigureNetworkContextParams()->cobalt_extra_request_headers.empty());
+}
+
+TEST_F(CobaltContentBrowserClientHeaderTest,
+       DoesNotInstallHeaderClientByDefault) {
+  EXPECT_FALSE(GetInstalledHeaderClient().is_valid());
+}
+
+TEST_F(CobaltContentBrowserClientHeaderTest,
+       InstallsHeaderClientWhenNotSkippingHeaderClient) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kCobaltSkipTrustedHeaderClient);
+
   mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>
       header_client = GetInstalledHeaderClient();
   EXPECT_TRUE(header_client.is_valid());
@@ -907,14 +916,6 @@ TEST_F(CobaltContentBrowserClientHeaderTest, InstallsHeaderClientByDefault) {
   // Let the self-owned header client see the disconnect and delete itself.
   header_client.reset();
   task_environment_.RunUntilIdle();
-}
-
-TEST_F(CobaltContentBrowserClientHeaderTest,
-       DoesNotInstallHeaderClientWhenSkippingHeaderClient) {
-  base::test::ScopedFeatureList feature_list(
-      features::kCobaltSkipTrustedHeaderClient);
-
-  EXPECT_FALSE(GetInstalledHeaderClient().is_valid());
 }
 
 // A helper observer implementation for PlatformServiceObserver that captures

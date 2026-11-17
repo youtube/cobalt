@@ -9,9 +9,15 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "ui/gfx/swap_result.h"
 #include "ui/gl/gl_export.h"
 #include "ui/gl/gl_surface.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace gfx {
 class VSyncProvider;
@@ -66,6 +72,10 @@ class GL_EXPORT GLSurfacePresentationHelper {
   void PostSwapBuffers(gfx::SwapResult result);
 
  private:
+#if BUILDFLAG(IS_COBALT)
+  class FenceWaitState;
+#endif  // BUILDFLAG(IS_COBALT)
+
   struct Frame {
     Frame(Frame&& other);
     Frame(int frame_id, GLSurface::PresentationCallback callback);
@@ -73,6 +83,10 @@ class GL_EXPORT GLSurfacePresentationHelper {
           GLSurface::PresentationCallback callback);
     Frame(std::unique_ptr<GLFence>&& fence,
           GLSurface::PresentationCallback callback);
+#if BUILDFLAG(IS_COBALT)
+    Frame(scoped_refptr<FenceWaitState> fence_wait_state,
+          GLSurface::PresentationCallback callback);
+#endif  // BUILDFLAG(IS_COBALT)
     explicit Frame(GLSurface::PresentationCallback callback);
     ~Frame();
     Frame& operator=(Frame&& other);
@@ -82,6 +96,9 @@ class GL_EXPORT GLSurfacePresentationHelper {
     std::unique_ptr<GPUTimer> timer;
     // GLFence is used only if gpu timers are not available.
     std::unique_ptr<GLFence> fence;
+#if BUILDFLAG(IS_COBALT)
+    scoped_refptr<FenceWaitState> fence_wait_state;
+#endif  // BUILDFLAG(IS_COBALT)
     int frame_id = -1;
     GLSurface::PresentationCallback callback;
     gfx::SwapResult result = gfx::SwapResult::SWAP_ACK;
@@ -104,16 +121,25 @@ class GL_EXPORT GLSurfacePresentationHelper {
                            const base::TimeDelta interval);
 
   void ScheduleCheckPendingFrames(bool align_with_next_vsync);
+#if BUILDFLAG(IS_COBALT)
+  void OnFenceWaitCompleted(scoped_refptr<FenceWaitState> fence_wait_state);
+#endif  // BUILDFLAG(IS_COBALT)
 
   const raw_ptr<gfx::VSyncProvider> vsync_provider_;
   scoped_refptr<GLContext> gl_context_;
   raw_ptr<GLSurface> surface_ = nullptr;
   scoped_refptr<GPUTimingClient> gpu_timing_client_;
+#if BUILDFLAG(IS_COBALT)
+  scoped_refptr<base::SequencedTaskRunner> fence_wait_task_runner_;
+#endif  // BUILDFLAG(IS_COBALT)
   base::circular_deque<Frame> pending_frames_;
   base::TimeTicks vsync_timebase_;
   base::TimeDelta vsync_interval_;
   bool check_pending_frame_scheduled_ = false;
   bool gl_fence_supported_ = false;
+#if BUILDFLAG(IS_COBALT)
+  bool async_egl_fence_supported_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
   raw_ptr<EGLTimestampClient> egl_timestamp_client_ = nullptr;
   bool update_vsync_pending_ = false;
 

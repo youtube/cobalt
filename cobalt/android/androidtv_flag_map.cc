@@ -50,8 +50,6 @@ constexpr char kAreaBasedVideoBufferBudgetFeature[] =
     "AreaBasedVideoBufferBudget";
 
 // Experiment-controlled defaults, used when the experiment key is absent.
-constexpr char kDefaultInitialOldSpaceSizeMb[] = "64";
-constexpr char kDefaultMaxOldSpaceSizeMb[] = "512";
 #if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
 constexpr char kDefaultForceGpuMemAvailableMb[] = "64";
 #endif
@@ -194,19 +192,9 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
         base::StrCat({v8_switches::kBytecodeOldTime, *old_time}));
   }
 
-  js_flags.push_back(
-      base::StrCat({v8_switches::kInitialOldSpaceSize,
-                    flag_map.GetNumeric(flags::kV8InitialOldSpaceSize)
-                        .value_or(kDefaultInitialOldSpaceSizeMb)}));
-
   if (flag_map.Has(flags::kV8DisableSparkplug)) {
     js_flags.push_back(v8_switches::kNoSparkplug);
   }
-
-  js_flags.push_back(
-      base::StrCat({v8_switches::kMaxOldSpaceSize,
-                    flag_map.GetNumeric(flags::kV8MaxOldSpaceSize)
-                        .value_or(kDefaultMaxOldSpaceSizeMb)}));
 
   if (const auto gpu_mem =
           flag_map.GetNumeric(flags::kForceGpuMemAvailableMb)) {

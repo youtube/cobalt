@@ -819,7 +819,8 @@ TEST_F(SplashScreenTest, SplashUrlFromFeatureParam) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kSplashScreenConfig,
-        {{"url", "https://www.example.com/splash.html"}}}},
+        {{cobalt::features::kSplashScreenUrlParam.name,
+          "https://www.example.com/splash.html"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen(/*topic=*/"music");
 
@@ -837,7 +838,8 @@ TEST_F(SplashScreenTest, SplashUrlFromFeatureParam) {
 TEST_F(SplashScreenTest, InvalidSplashUrlFallsBackToBuiltInSplashScreen) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
-      {{cobalt::features::kSplashScreenConfig, {{"url", "not a url"}}}},
+      {{cobalt::features::kSplashScreenConfig,
+        {{cobalt::features::kSplashScreenUrlParam.name, "not a url"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -855,13 +857,13 @@ TEST_F(SplashScreenTest, SplashUrlIgnoredInGoldBuilds) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kSplashScreenConfig,
-        {{"url", "https://www.example.com/splash.html"}}}},
+        {{"SplashScreenConfig_url", "https://www.example.com/splash.html"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen();
 
   CallLoadSplashScreenWebContents(shell);
-  // The "url" param doesn't exist in gold builds, so the built-in splash screen
-  // is always used.
+  // The "SplashScreenConfig_url" param doesn't exist in gold builds, so the
+  // built-in splash screen is always used.
   EXPECT_EQ(GetPendingSplashScreenURL(shell),
             GURL(std::string(switches::kSplashScreenURL) +
                  "?force_image=true&timeout=1500"));

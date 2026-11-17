@@ -60,14 +60,14 @@ bool SbMediaCanChangeType(const char* current_mime, const char* new_mime) {
 
   // Reject cross-family video codec switches (e.g. VP9 -> AV1).
   if (current_mime_info->has_video_info() &&
-      current_mime_info->video_info().codec !=
-          new_mime_info->video_info().codec) {
+      current_mime_info->video_info().codec_info.codec !=
+          new_mime_info->video_info().codec_info.codec) {
     SB_DLOG(INFO) << "Cannot change video codec family from "
                   << starboard::GetMediaVideoCodecName(
-                         current_mime_info->video_info().codec)
+                         current_mime_info->video_info().codec_info.codec)
                   << " to "
                   << starboard::GetMediaVideoCodecName(
-                         new_mime_info->video_info().codec);
+                         new_mime_info->video_info().codec_info.codec);
     return false;
   }
 
