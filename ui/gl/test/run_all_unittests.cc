@@ -21,6 +21,10 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "starboard/client_porting/wrap_main/wrap_main.h"
+#endif
+
 namespace {
 class GlTestSuite : public base::TestSuite {
  public:
@@ -67,6 +71,27 @@ class GlTestSuite : public base::TestSuite {
 
 }  // namespace
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+static int InitAndRunAllTests(int argc, char** argv) {
+#if BUILDFLAG(IS_OZONE)
+  mojo::core::Init();
+#endif
+
+  GlTestSuite test_suite(argc, argv);
+
+  return base::LaunchUnitTests(
+      argc, argv,
+      base::BindOnce(&GlTestSuite::Run, base::Unretained(&test_suite)));
+}
+
+SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests)
+
+#if !SB_IS(EVERGREEN)
+int main(int argc, char** argv) {
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+}
+#endif  // !SB_IS(EVERGREEN)
+#else
 int main(int argc, char** argv) {
 #if BUILDFLAG(IS_OZONE)
   mojo::core::Init();
@@ -78,3 +103,4 @@ int main(int argc, char** argv) {
       argc, argv,
       base::BindOnce(&GlTestSuite::Run, base::Unretained(&test_suite)));
 }
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)

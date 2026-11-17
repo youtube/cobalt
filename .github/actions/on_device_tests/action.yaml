@@ -142,8 +142,15 @@ runs:
 
         # Check for missing result xml files.
         target_failed=0
-        readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[] | if type == "object" then .target else . end')
-        for test_target_with_path in "${test_targets[@]}"; do
+        readarray -t test_target_entries < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -rc '.[] | if type == "object" then {target: .target, shards: (.shards // 1)} else {target: ., shards: 1} end')
+        for entry in "${test_target_entries[@]}"; do
+          test_target_with_path=$(echo "${entry}" | jq -r '.target')
+          shards=$(echo "${entry}" | jq -r '.shards')
+          if ! [[ "${shards}" =~ ^[0-9]+$ ]] || (( shards < 1 || shards > 10 )); then
+            echo "::error::Invalid shards value (${shards}) for ${test_target_with_path}; expected integer in 1..10."
+            target_failed=1
+            continue
+          fi
           test_target=${test_target_with_path#*:}
           test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
               --filter-dir "${FILTER_DIR}" \
@@ -153,19 +160,79 @@ runs:
             continue
           fi
 
-          xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
-          if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            # Target was NOT skipped, but XML is missing -> Crash.
-            echo "Test result xml is missing for ${test_target}."
-            log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
-            if [ -f "${log_paths[0]:-}" ]; then
-              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
+          if [[ "${shards}" -gt 1 ]]; then
+            for (( shard_idx=0; shard_idx<shards; shard_idx++ )); do
+              shard_filter=$(python3 cobalt/devinfra/github/test_filter.py \
+                  --filter-dir "${FILTER_DIR}" \
+                  --target "${test_target}" \
+                  --shard "${shard_idx}")
+              shard_dir="${test_output}/${PLATFORM}/shard_${shard_idx}"
+              if [ "${shard_filter}" == "-*" ]; then
+                # On the initial attempt, emit a zero-test XML so result
+                # processing sees the expected shard count. On retry attempts,
+                # leave skipped shards untouched so download_test_results
+                # preserves the passing XML from the earlier attempt.
+                if [[ "${GITHUB_RUN_ATTEMPT:-1}" -eq 1 ]]; then
+                  mkdir -p "${shard_dir}"
+                  echo "Skipped due to test filter." > "${shard_dir}/${test_target}_log.txt"
+                  printf '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="0" failures="0" errors="0" time="0"></testsuites>\n' \
+                    > "${shard_dir}/${test_target}_testoutput.xml"
+                fi
+                continue
+              fi
+
+              xml_files=("${shard_dir}/${test_target}"*.xml)
+              if [[ "${#xml_files[@]}" -eq 0 ]]; then
+                echo "Test result xml is missing for ${test_target} shard ${shard_idx}."
+                log_path="${shard_dir}/${test_target}_log.txt"
+                if [ -f "${log_path}" ]; then
+                  python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+                    "${log_path}" \
+                    "${shard_dir}/${test_target}_testoutput.xml"
+                fi
+                target_failed=1
+              elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
+                # Double-check the result XML for failures. ODT service has been known to report incorrect status.
+                echo "::error::Found failures in the test xml for ${test_target} shard ${shard_idx}."
+                target_failed=1
+              elif ! grep -q '<testcase' "${xml_files[@]}"; then
+                # A non-skipped shard that ran zero test cases (for example when
+                # device setup or test listing failed before execution) must not
+                # archive an empty XML that marks the shard as passed on retry.
+                echo "::error::Test result xml has no test cases for ${test_target} shard ${shard_idx}."
+                rm -f "${xml_files[@]}"
+                log_path="${shard_dir}/${test_target}_log.txt"
+                if [ -f "${log_path}" ]; then
+                  python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+                    "${log_path}" \
+                    "${shard_dir}/${test_target}_testoutput.xml"
+                fi
+                target_failed=1
+              fi
+            done
+          else
+            xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+            if [[ "${#xml_files[@]}" -eq 0 ]]; then
+              # Target was NOT skipped, but XML is missing -> Crash.
+              echo "Test result xml is missing for ${test_target}."
+              log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
+              if [ -f "${log_paths[0]:-}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
+              fi
+              target_failed=1
+            elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
+              # Double-check the result XML for failures. ODT service has been known to report incorrect status.
+              echo "::error::Found failures in the test xml."
+              target_failed=1
+            elif [[ "${test_target}" == *"cobalt_browsertests"* ]] && ! grep -q '<testcase' "${xml_files[@]}"; then
+              echo "::error::Test result xml has no test cases for ${test_target}."
+              rm -f "${xml_files[@]}"
+              log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
+              if [ -f "${log_paths[0]:-}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
+              fi
+              target_failed=1
             fi
-            target_failed=1
-          elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
-            # Double-check the result XML for failures. ODT service has been known to report incorrect status.
-            echo "::error::Found failures in the test xml."
-            target_failed=1
           fi
         done
         exit ${target_failed}

@@ -476,6 +476,7 @@ bool Relocations::ResolveSymbol(Word rel_type,
                                 Addr reloc,
                                 Addr* sym_addr) {
   const char* sym_name = dynamic_section_->LookupNameById(rel_symbol);
+  const bool is_weak = dynamic_section_->IsWeakById(rel_symbol);
   SB_DLOG(INFO) << "Resolve: " << sym_name;
   const void* address = NULL;
 
@@ -483,7 +484,7 @@ bool Relocations::ResolveSymbol(Word rel_type,
   if (sym) {
     address = reinterpret_cast<void*>(base_memory_address_ + sym->st_value);
   } else {
-    address = exported_symbols_->Lookup(sym_name);
+    address = exported_symbols_->Lookup(sym_name, is_weak);
   }
 
   SB_DLOG(INFO) << "Resolve: address=0x" << std::hex << address;
@@ -496,7 +497,7 @@ bool Relocations::ResolveSymbol(Word rel_type,
 
   // The symbol was not found. Normally this is an error except
   // if this is a weak reference.
-  if (!dynamic_section_->IsWeakById(rel_symbol)) {
+  if (!is_weak) {
     SB_LOG(ERROR) << "Could not find symbol: " << sym_name;
     return false;
   }

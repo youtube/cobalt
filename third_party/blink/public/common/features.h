@@ -240,7 +240,15 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClientHintsXRFormFactor);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassBufferingBytesConsumer);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassHTMLPreloadScanner);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltPreserveTrivial3DTransform);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipHiddenMediaControlsWork);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kCobaltSkipHiddenMediaControlsCreation);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipMediaProgressLayoutUpdate);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltV8MemorySaverOnMemoryPressure);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                               kCobaltV8MemorySaverHoldSeconds);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kCobaltV8MemorySaverOnCriticalOnly);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kEvictMemoryCacheOnCriticalMemoryPressure);
 #endif  // BUILDFLAG(IS_COBALT)
