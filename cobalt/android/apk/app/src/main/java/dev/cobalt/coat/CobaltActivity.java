@@ -910,6 +910,16 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   }
 
   /**
+   * Returns whether the CobaltFlushStorageOnFreeze Finch feature is enabled. Finch state lives in
+   * native, so this is false until the native library and base::FeatureList are initialized.
+   */
+  @VisibleForTesting
+  protected boolean isFlushStorageOnFreezeFeatureEnabled() {
+    return FeatureList.isNativeInitialized()
+        && CobaltContentBrowserClient.isFlushStorageOnFreezeEnabled();
+  }
+
+  /**
    * Returns whether the web app should receive a freeze event when the Activity is stopped. NVIDIA
    * Shield always freezes (see {@link #SHIELD_FREEZE_DELAY_MS}); every other device follows the
    * CobaltFreezeOnBackground Finch feature.
@@ -957,6 +967,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   /** Dispatches the document freeze event to the active WebContents, if there still is one. */
   private void freezeActiveWebContents() {
     WebContents webContents = getActiveWebContents();
+    if (isFlushStorageOnFreezeFeatureEnabled()) {
+      CobaltContentBrowserClient.freezeAndFlushCookiesAndLocalStorage(webContents);
+      return;
+    }
     if (webContents != null) {
       webContents.onFreeze();
     }
