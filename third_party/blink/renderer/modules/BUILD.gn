@@ -768,6 +768,7 @@ source_set("unit_tests") {
       "ai/language_model_tool_types_test.cc",
       "ai/model_execution_responder_test.cc",
       "ai/proofreader_test.cc",
+      "ai/semantic_embedder_test.cc",
     ]
   }
 
