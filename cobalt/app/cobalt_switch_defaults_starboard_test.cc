@@ -249,6 +249,31 @@ TEST(PreloadGpuShaderDiskCacheTest, VisibleLaunchLeavesCacheDisabled) {
   EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuDiskCacheSizeKB));
 }
 
+TEST(PreloadGpuShaderDiskCacheTest,
+     OverBudgetExplicitCacheSizeResetsToDefault) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB, "8192");
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line,
+                                                     /*is_visible=*/false);
+  EXPECT_TRUE(DiskCacheEnabled(command_line));
+  EXPECT_EQ(command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB),
+            base::NumberToString(
+                CobaltMainDelegate::kPreloadGrShaderDiskCacheSizeKB));
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, InvalidCacheSizeResetsToDefault) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB, "not_a_num");
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line,
+                                                     /*is_visible=*/false);
+  EXPECT_TRUE(DiskCacheEnabled(command_line));
+  EXPECT_EQ(command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB),
+            base::NumberToString(
+                CobaltMainDelegate::kPreloadGrShaderDiskCacheSizeKB));
+}
+
 TEST(PreloadGpuShaderDiskCacheTest, DisableSwitchLeavesCacheDisabled) {
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);

@@ -239,10 +239,10 @@ BASE_DECLARE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause);
 
 // Gates independent Finch/Mendel experimentation on Cobalt's on-disk HTTP cache
 // capacity (DIR_CACHE/Cache), decoupled from V8 code-cache optimizations. When
-// enabled, `cobalt_http_cache_size_bytes` (default: 12582912 bytes / 12 MiB,
-// clamped to [1048576, 1073741824]) overrides Android's 25 MiB default while
-// still honoring explicit developer `--max-http-cache-size` CLI overrides, and
-// caps Starboard's HTTP cache within `ComputeDefaultHttpCacheSize()`.
+// enabled, `cobalt_http_cache_size_bytes` (default: 12 MiB on Android, 9 MiB
+// on Starboard, clamped to [1048576, 1073741824]) overrides Android's 25 MiB
+// default and sets Starboard's configured HTTP quota for additive validation
+// against `kSbMaxSystemPathCacheDirectorySize` in `ResolveCacheQuotas()`.
 BASE_DECLARE_FEATURE(kCobaltHttpCacheQuota);
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltMaxHttpCacheSizeBytes);
 
@@ -251,8 +251,9 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltMaxHttpCacheSizeBytes);
 //    `CobaltCodeCacheOptimization_size_bytes` (default: 10485760 bytes /
 //    10 MiB, clamped to [1048576, 1073741824], while `Code Cache/wasm` stays
 //    capped at 1 MiB) so cold-start bytecode writes do not cross SimpleCache's
-//    90% eviction watermark, and updates Starboard's dynamic non-HTTP cache
-//    reserve in `ComputeDefaultHttpCacheSize()` accordingly.
+//    90% eviction watermark. On non-Android platforms, this value is validated
+//    additively against `kSbMaxSystemPathCacheDirectorySize` in
+//    `ResolveCacheQuotas()`.
 // 2. When `CobaltCodeCacheOptimization_bypass_heat_check` is true (default),
 //    sets `WebPreferences::v8_cache_options` to `kCodeWithoutHeatCheck` instead
 //    of `kDefault` so Launch #1 after install, cache clear, or weekly JS

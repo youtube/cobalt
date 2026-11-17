@@ -251,11 +251,17 @@ BASE_FEATURE(kCobaltHttpCacheQuota,
              "CobaltHttpCacheQuota",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_ANDROID)
+constexpr int kDefaultMaxHttpCacheSizeBytes = 12582912;  // 12 MiB
+#else
+constexpr int kDefaultMaxHttpCacheSizeBytes = 9437184;  // 9 MiB
+#endif
+
 BASE_FEATURE_PARAM(int,
                    kCobaltMaxHttpCacheSizeBytes,
                    &kCobaltHttpCacheQuota,
                    "cobalt_http_cache_size_bytes",
-                   12582912);
+                   kDefaultMaxHttpCacheSizeBytes);
 
 BASE_FEATURE(kCobaltCodeCacheOptimization,
              "CobaltCodeCacheOptimization",
