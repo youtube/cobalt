@@ -112,8 +112,6 @@ base::HeapArray<uint8_t> PrepareAACBuffer(
 }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // Reads the header of the top-level box at `offset` in `queue`, without reading
 // at or past `max_offset`, which must not be past queue.tail(). Unlike
@@ -150,8 +148,6 @@ ParseResult ReadTopLevelBoxHeaderAt(OffsetSegmentedByteQueue& queue,
                                           media_log, type, box_size);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Create a HdrMetadataTrack for attaching metadata to track samples. Returns
 // nullptr on failure.
 std::unique_ptr<HdrMetadataTrack> MakeMetadataTrack(
