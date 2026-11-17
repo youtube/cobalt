@@ -675,6 +675,7 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, ResetsStateForPlayerCreatedOnResume) {
   auto second_mock_player = std::make_unique<MockSbPlayer>();
   const SbPlayer second_player =
       reinterpret_cast<SbPlayer>(second_mock_player.get());
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
   SuspendAndResumeWith(second_player);
 
   EXPECT_CALL(mock_sbplayer_interface_, Destroy(second_player)).Times(1);

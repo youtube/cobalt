@@ -256,7 +256,7 @@ SbPlayer SbPlayerBridge::CreateWithUmaLatency(CreateFn&& create_fn) {
 }
 
 void SbPlayerBridge::DestroyPlayer() {
-  DCHECK(SbPlayerIsValid(player_));
+  CHECK(SbPlayerIsValid(player_));
   const std::string_view state_suffix =
       GetSbPlayerDestroyStateSuffix(last_player_state_);
 
