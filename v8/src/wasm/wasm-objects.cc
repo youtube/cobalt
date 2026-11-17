@@ -1215,8 +1215,6 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::ChangeArrayBufferResizability(
   return RefreshBuffer(isolate, memory_object, std::move(backing_store));
 }
 
-An empty string is intentionally returned for this conflict block because upstream CL `bfc14802f9af` refactored `WasmMemoryMapDescriptor` from a JS heap object into a C++ `v8::Object::Wrappable` located in `v8/src/wasm/wasm-memory-map-descriptor.{h,cc}`, deleting these methods from `v8/src/wasm/wasm-objects.cc`. Accepting `HEAD` (the upstream deletion) resolves the conflict correctly without re-introducing dead methods.
-
 // static
 MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
