@@ -4,6 +4,7 @@
   "tests_to_run": [
     "HttpCacheTest.CobaltFontMimeTypesCachedWhenFeatureEnabled",
     "HttpCacheTest.CobaltShouldPassThroughExcludedUrls",
-    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty"
+    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty",
+    "TrustStoreInMemoryStarboardTest.*"
   ]
 }
