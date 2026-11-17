@@ -925,7 +925,7 @@ static sk_sp<SkData> mmap_filename(const char path[]) {
 // All code related to Font mmap cache are grouped below for easy maintenance.
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "include/private/base/SkMutex.h"
+#include "include/private/SkMutex.h"
 #include "src/core/SkTHash.h"
 
 using PathToDataMap = skia_private::THashMap<SkString, sk_sp<SkData>>;
