@@ -2693,14 +2693,9 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '96a92e202fd2759ca50e3e475bca903e082f9c3e',
-=======
 # Cobalt: imported
 #  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '051df2ec4895ab90673df6d14db0e15e780f6758',
->>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '96a92e202fd2759ca50e3e475bca903e082f9c3e',
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3143,14 +3138,9 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + '33875ce0b4287376e7642c412be2a1975a78d425',
-=======
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + '77889f4867c822547908093eaa240b34eb086303',
->>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('webrtc_git') + '/src.git' + '@' + '33875ce0b4287376e7642c412be2a1975a78d425',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
