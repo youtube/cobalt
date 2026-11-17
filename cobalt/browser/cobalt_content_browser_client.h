@@ -16,6 +16,7 @@
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
 #include <atomic>
+#include <cstdint>
 #include <optional>
 #include <string_view>
 
@@ -40,6 +41,10 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
+
+namespace base {
+class CommandLine;
+}  // namespace base
 
 class PrefService;
 
@@ -254,9 +259,41 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
           receiver);
   uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
 
-  // Computes the maximum HTTP cache size in bytes based on the platform's
-  // total cache directory budget.
-  static uint32_t ComputeDefaultHttpCacheSize(uint32_t total_dir_budget_bytes);
+  // Outcome of additive DIR_CACHE quota validation on non-Android platforms.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused. Must match
+  // CobaltCacheQuotaAllocationOutcome in
+  // tools/metrics/histograms/metadata/cobalt/enums.xml.
+  enum class CacheQuotaAllocationOutcome {
+    kExactMatch = 0,
+    kUnderBudgetAddedToHttp = 1,
+    kOverBudgetResetToDefaults = 2,
+    kUnsupportedPlatformBudget = 3,
+    kMaxValue = kUnsupportedPlatformBudget,
+  };
+
+  struct CacheQuotas {
+    uint32_t http_cache_bytes = 0;
+    uint32_t js_code_cache_bytes = 0;
+    uint32_t gpu_shader_cache_bytes = 0;
+    uint32_t excess_bytes = 0;
+    uint32_t platform_budget_bytes = 0;
+    CacheQuotaAllocationOutcome outcome =
+        CacheQuotaAllocationOutcome::kExactMatch;
+  };
+
+  // Resolves non-Android DIR_CACHE quotas additively against
+  // `total_dir_budget_bytes`. Budgets below 24 MiB are treated as 24 MiB with
+  // an error log. If the sum exceeds the effective budget, all configurable
+  // quotas reset to defaults; any remaining excess below the effective budget
+  // is added to the HTTP cache quota.
+  static CacheQuotas ResolveCacheQuotas(uint32_t total_dir_budget_bytes,
+                                        bool is_visible,
+                                        const base::CommandLine& command_line,
+                                        bool log_warnings_and_errors = true);
+
+  void SetStartupCacheQuotas(const CacheQuotas& quotas);
+  CacheQuotas GetResolvedCacheQuotas() const;
 
   // Populates `network_context_params->http_cache_max_size` using the platform
   // default, `kCobaltHttpCacheQuota` Finch configuration, and any explicit
@@ -264,7 +301,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   static void ConfigureHttpCacheMaxSize(
       bool in_memory,
       uint32_t total_dir_budget_bytes,
-      network::mojom::NetworkContextParams* network_context_params);
+      network::mojom::NetworkContextParams* network_context_params,
+      bool is_visible = false);
 
   // Populates `network_context_params->initial_ssl_config` with Cobalt's
   // disabled TLS cipher suites.
@@ -309,6 +347,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   const std::optional<int64_t> startup_timestamp_;
   const std::string deep_link_;
   bool is_visible_;
+  std::optional<CacheQuotas> startup_cache_quotas_;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
 

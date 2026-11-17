@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -20,6 +22,7 @@
 #include "base/command_line.h"
 #include "base/strings/string_number_conversions.h"
 #include "cobalt/app/cobalt_main_delegate.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
@@ -28,6 +31,7 @@
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
+#include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
@@ -247,6 +251,50 @@ TEST(PreloadGpuShaderDiskCacheTest, VisibleLaunchLeavesCacheDisabled) {
   EXPECT_FALSE(DiskCacheEnabled(command_line));
   EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuShaderDiskCacheGrOnly));
   EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuDiskCacheSizeKB));
+}
+
+// Verifies the preload startup journey where an oversized GPU shader cache CLI
+// switch exceeds the platform's DIR_CACHE budget and is reset to the 2048 KB
+// default before GPU initialization.
+TEST(PreloadGpuShaderDiskCacheTest,
+     OverBudgetExplicitCacheSizeResetsToDefault) {
+  const uint32_t over_budget_kb = std::max<uint32_t>(
+      8192u, (kSbMaxSystemPathCacheDirectorySize / 1024u) + 1024u);
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB,
+                                 base::NumberToString(over_budget_kb));
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line,
+                                                     /*is_visible=*/false);
+  EXPECT_TRUE(DiskCacheEnabled(command_line));
+  EXPECT_EQ(command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB),
+            base::NumberToString(
+                CobaltMainDelegate::kPreloadGrShaderDiskCacheSizeKB));
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, PreloadLaunchUsesProvidedResolvedQuotas) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB, "512");
+  CobaltContentBrowserClient::CacheQuotas resolved_quotas;
+  resolved_quotas.gpu_shader_cache_bytes = 1024u * 1024;
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(
+      &command_line, /*is_visible=*/false, resolved_quotas);
+  EXPECT_TRUE(DiskCacheEnabled(command_line));
+  EXPECT_EQ(command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB),
+            "1024");
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, InvalidCacheSizeResetsToDefault) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB, "not_a_num");
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line,
+                                                     /*is_visible=*/false);
+  EXPECT_TRUE(DiskCacheEnabled(command_line));
+  EXPECT_EQ(command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB),
+            base::NumberToString(
+                CobaltMainDelegate::kPreloadGrShaderDiskCacheSizeKB));
 }
 
 TEST(PreloadGpuShaderDiskCacheTest, DisableSwitchLeavesCacheDisabled) {
