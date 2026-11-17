@@ -70,6 +70,7 @@ TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
   std::string enabled_features =
       GetSwitchValue(cmd_line_pxr, ::switches::kEnableFeatures);
   EXPECT_EQ(std::string("UseFoo,DefaultEnableANGLEValidation, "
+                        "DefaultEnableGpuRasterization, "
                         "SmallerInterestArea, "
                         "ReclaimPrepaintTilesWhenIdle, "
                         "ReclaimOldPrepaintTiles, "

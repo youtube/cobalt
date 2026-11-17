@@ -94,6 +94,12 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // missing and causes errors. So Enable it by default. (More context in
        // b/444042898)
        "DefaultEnableANGLEValidation, "
+       // https://crrev.com/c/7805470 (M149) dropped IS_LINUX from the
+       // default-enabled platforms of kDefaultEnableGpuRasterization, which
+       // silently switched Evergreen/Linux builds to software rasterization
+       // (+~27 MB steady VmRSS on RDK, b/555766579). Keep GPU rasterization
+       // on; the GPU blocklist still applies.
+       "DefaultEnableGpuRasterization, "
        "SmallerInterestArea, "
        "ReclaimPrepaintTilesWhenIdle, "
        "ReclaimOldPrepaintTiles, "
