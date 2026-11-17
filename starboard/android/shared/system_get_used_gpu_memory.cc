@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
+
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/system.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -23,10 +25,10 @@
 // same value.
 int64_t SbSystemGetUsedGPUMemory() {
   JNIEnv* env = jni_zero::AttachCurrentThread();
-  int graphics_kb =
+  std::optional<int> graphics_kb =
       starboard::StarboardBridge::GetInstance()->GetUsedGraphicsMemoryKb(env);
-  if (graphics_kb < 0) {
+  if (!graphics_kb) {
     return 0;
   }
-  return static_cast<int64_t>(graphics_kb) * 1024;
+  return static_cast<int64_t>(*graphics_kb) * 1024;
 }

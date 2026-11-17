@@ -1243,25 +1243,27 @@ public class BaseStarboardBridge {
   @CalledByNative
   protected void setStartupDiagnosisInfo(String key, String value) {}
 
+  private static final int INVALID_GRAPHICS_MEMORY_KB = -1;
+
   /**
    * Returns the "summary.graphics" value of ActivityManager memory info for this process, in KB, or
-   * -1 if it can't be read.
+   * INVALID_GRAPHICS_MEMORY_KB if it can't be read.
    */
   @CalledByNative
   public int getUsedGraphicsMemoryKb() {
     ActivityManager activityManager =
         (ActivityManager) mAppContext.getSystemService(Context.ACTIVITY_SERVICE);
     if (activityManager == null) {
-      return -1;
+      return INVALID_GRAPHICS_MEMORY_KB;
     }
     try {
       Debug.MemoryInfo[] infos = activityManager.getProcessMemoryInfo(new int[] {Process.myPid()});
       if (infos == null || infos.length == 0 || infos[0] == null) {
-        return -1;
+        return INVALID_GRAPHICS_MEMORY_KB;
       }
       return CobaltMemoryInfoBridge.getGraphicsMemoryKb(infos[0]);
-    } catch (SecurityException e) {
-      return -1;
+    } catch (RuntimeException e) {
+      return INVALID_GRAPHICS_MEMORY_KB;
     }
   }
 
