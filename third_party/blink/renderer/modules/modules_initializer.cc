@@ -61,6 +61,7 @@
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_inspector_agent.h"
 #if BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/modules/cobalt/cobalt_lifecycle_controller.h"
+#include "third_party/blink/renderer/modules/cobalt/event_type_cobalt_names.h"
 #endif
 #include "third_party/blink/renderer/modules/document_metadata/document_metadata_server.h"
 #include "third_party/blink/renderer/modules/document_picture_in_picture/picture_in_picture_controller_impl.h"
@@ -187,14 +188,24 @@ const char SuspendCaptureObserver::kSupplementName[] = "SuspendCaptureObserver";
 
 void ModulesInitializer::Initialize() {
   // Strings must be initialized before calling CoreInitializer::init().
+#if BUILDFLAG(IS_COBALT)
+  constexpr unsigned kCobaltStaticStringsCount =
+      event_type_names::kCobaltNamesCount;
+#else
+  constexpr unsigned kCobaltStaticStringsCount = 0;
+#endif  // BUILDFLAG(IS_COBALT)
   const unsigned kModulesStaticStringsCount =
       event_interface_names::kModulesNamesCount +
-      event_target_names::kModulesNamesCount + indexed_db_names::kNamesCount;
+      event_target_names::kModulesNamesCount + indexed_db_names::kNamesCount +
+      kCobaltStaticStringsCount;
   StringImpl::ReserveStaticStringsCapacityForSize(
       kModulesStaticStringsCount + StringImpl::AllStaticStrings().size());
 
   event_interface_names::InitModules();
   event_target_names::InitModules();
+#if BUILDFLAG(IS_COBALT)
+  event_type_names::InitCobalt();
+#endif  // BUILDFLAG(IS_COBALT)
   Document::RegisterEventFactory(EventModulesFactory::Create());
   ModuleBindingsInitializer::Init();
   indexed_db_names::Init();

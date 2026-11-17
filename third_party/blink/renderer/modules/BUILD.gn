@@ -408,7 +408,10 @@ group("make_modules_generated") {
   ]
 
   if (is_cobalt) {
-    public_deps += [ "//cobalt/browser/h5vcc_platform_service/public/mojom:mojom_blink_headers" ]
+    public_deps += [
+      ":make_modules_generated_cobalt_event_type_names",
+      "//cobalt/browser/h5vcc_platform_service/public/mojom:mojom_blink_headers",
+    ]
   }
 }
 
@@ -470,6 +473,15 @@ make_names("make_modules_generated_media_capabilities_names") {
   deps = []  # Don't use default deps (otherwise it will be circular).
 }
 
+if (is_cobalt) {
+  # Cobalt-specific event type names, kept separate from Chromium's
+  # core/events/event_type_names.json5 to simplify rebasing onto upstream.
+  make_names("make_modules_generated_cobalt_event_type_names") {
+    in_files = [ "cobalt/event_type_cobalt_names.json5" ]
+    output_dir = "$blink_modules_output_dir/cobalt"
+  }
+}
+
 blink_modules_sources("modules_generated") {
   # Targets from above that generate outputs that need to be compiled.
   # All sources declared as outputs from these targets will be compiled
@@ -481,6 +493,10 @@ blink_modules_sources("modules_generated") {
     ":make_modules_generated_indexed_db_names",
     ":make_modules_generated_media_capabilities_names",
   ]
+  if (is_cobalt) {
+    targets_generating_sources +=
+        [ ":make_modules_generated_cobalt_event_type_names" ]
+  }
 
   sources = []
   foreach(current, targets_generating_sources) {
