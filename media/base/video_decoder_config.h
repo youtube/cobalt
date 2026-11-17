@@ -166,18 +166,16 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // useful for decryptors that decrypts an encrypted stream to a clear stream.
   void SetIsEncrypted(bool is_encrypted);
 
-<<<<<<< HEAD
   void set_spatial_format(const VideoSpatialFormat& spatial_format) {
     spatial_format_ = spatial_format;
   }
   const VideoSpatialFormat& spatial_format() const { return spatial_format_; }
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Mime_type string of the config.
   void set_mime_type(std::string_view mime_type) { mime_type_ = mime_type; }
   const std::string& mime_type() const { return mime_type_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  private:
   VideoCodec codec_ = VideoCodec::kUnknown;
@@ -205,15 +203,12 @@ class MEDIA_EXPORT VideoDecoderConfig {
   VideoColorSpace color_space_info_;
   gfx::HDRMetadata hdr_metadata_;
 
-<<<<<<< HEAD
   VideoSpatialFormat spatial_format_;
 
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Full mime string for the video decoder config.
   std::string mime_type_ = "";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is
   // typically small, the performance impact is minimal.
