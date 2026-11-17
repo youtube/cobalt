@@ -36,7 +36,7 @@
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
 #include "skia/ext/font_utils.h"
-#include "src/base/SkTSearch.h"
+#include "src/core/SkTSearch.h"
 #include "src/core/SkTraceEvent.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/font.h"

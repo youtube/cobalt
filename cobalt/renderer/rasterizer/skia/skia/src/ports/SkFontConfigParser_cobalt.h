@@ -16,7 +16,7 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTCONFIGPARSER_COBALT_H_
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
-#include "include/private/base/SkTDArray.h"
+#include "include/private/SkTDArray.h"
 
 namespace SkFontConfigParser {
 
