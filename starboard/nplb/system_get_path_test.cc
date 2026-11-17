@@ -260,5 +260,10 @@ TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   EXPECT_GT(now_usec, ToMicroseconds(executable_file_info.st_ctim));
 }
 
+TEST(SbSystemGetPathTest, CacheDirectoryMaxSizeIsAtLeast24MiB) {
+  constexpr uint32_t kMinCacheDirectorySizeBytes = 24u * 1024 * 1024;
+  EXPECT_GE(kSbMaxSystemPathCacheDirectorySize, kMinCacheDirectorySizeBytes);
+}
+
 }  // namespace
 }  // namespace nplb
