@@ -1438,10 +1438,6 @@ class CORE_EXPORT WebFrameWidgetImpl
 
   std::optional<float> browser_controls_top_height_override_;
 
-<<<<<<< HEAD
-=======
-  bool throttling_frame_rate_ = false;
-
 #if BUILDFLAG(IS_COBALT)
   base::TimeTicks cobalt_bmf_start_time_;
   // When the main-thread BeginMainFrame task started running, i.e. before
@@ -1453,7 +1449,6 @@ class CORE_EXPORT WebFrameWidgetImpl
   // OnCobaltPresentationCallback().
   Vector<CobaltMainFrameSnapshot> pending_cobalt_main_snapshots_;
 #endif
->>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace blink
