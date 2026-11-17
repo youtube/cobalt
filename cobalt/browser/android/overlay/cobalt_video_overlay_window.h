@@ -93,7 +93,7 @@ class CobaltVideoOverlayWindow : public content::VideoOverlayWindow,
   void SetSurfaceId(const viz::SurfaceId& surface_id) override;
   void SetPlaybackControlsVisibility(bool is_visible) override;
   void SetImmersiveVideoOptions(
-      blink::mojom::ImmersiveOptionsPtr options) override;
+      const content::ImmersiveOptions& options) override;
 
   // JNI callbacks from CobaltPictureInPictureActivity.java
   void SetJavaActivity(JNIEnv* env,
