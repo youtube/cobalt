@@ -1,0 +1,9 @@
+Flask[async]==3.1.3
+requests
+gunicorn
+google-auth
+google-cloud
+google-cloud-logging
+google-cloud-ndb
+PyJWT
+cryptography
