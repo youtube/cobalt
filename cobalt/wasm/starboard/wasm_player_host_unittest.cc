@@ -272,12 +272,13 @@ class WasmPlayerHostTest : public testing::Test {
     return events;
   }
 
-  // Reports `rect` as the geometry of `surface`'s hole.
-  void MoveHole(uint32_t surface, const gfx::RectF& rect) {
+  // Reports `rect` and `z_index` as the geometry of `surface`'s hole.
+  void MoveHole(uint32_t surface, const gfx::RectF& rect, int32_t z_index = 0) {
     task_environment_.RunUntilIdle();
     auto it = geometry_.clients.find(host_->SurfaceToken(surface));
     ASSERT_NE(it, geometry_.clients.end());
-    it->second->OnVideoGeometryChange(rect, gfx::OVERLAY_TRANSFORM_NONE);
+    it->second->OnVideoGeometryChange(rect, gfx::OVERLAY_TRANSFORM_NONE,
+                                      z_index);
     task_environment_.RunUntilIdle();
   }
 
@@ -727,11 +728,16 @@ TEST_F(WasmPlayerHostTest, HolePositionsPlayerUntilSurfaceDestroyed) {
   EXPECT_CALL(sbplayer_, SetBounds(sb_player_, 1, 2, 3, 4, 5));
   host_->SetBounds(player, 1, 2, 3, 4, 5);
 
-  EXPECT_CALL(sbplayer_, SetBounds(sb_player_, 1, 10, 20, 30, 40));
-  MoveHole(surface, gfx::RectF(10, 20, 30, 40));
-  // The guest's z-index still applies.
-  EXPECT_CALL(sbplayer_, SetBounds(sb_player_, 6, 10, 20, 30, 40));
+  // The hole's rect and compositor z-index replace the guest's bounds.
+  EXPECT_CALL(sbplayer_, SetBounds(sb_player_, 3, 10, 20, 30, 40));
+  MoveHole(surface, gfx::RectF(10, 20, 30, 40), 3);
+  EXPECT_CALL(sbplayer_, SetBounds(sb_player_, 3, 10, 20, 30, 40));
   host_->SetBounds(player, 6, 7, 8, 9, 10);
+  // A new z-index alone moves the player in the stack.
+  EXPECT_CALL(sbplayer_, SetBounds(sb_player_, 4, 10, 20, 30, 40));
+  MoveHole(surface, gfx::RectF(10, 20, 30, 40), 4);
+  // An unchanged report does nothing.
+  MoveHole(surface, gfx::RectF(10, 20, 30, 40), 4);
 
   EXPECT_CALL(sbplayer_, SetBounds(sb_player_, 6, 7, 8, 9, 10));
   host_->DestroySurface(surface);

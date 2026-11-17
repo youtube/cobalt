@@ -85,8 +85,9 @@ interface H5vccWasmPlayer {
   [NoAllocDirectCall]
   boolean writeEndOfStream(unsigned long player, long streamType);
 
-  // Ignored once a <video> element has positioned the player's surface, except
-  // for `zIndex`, until the surface is destroyed.
+  // Ignored once a <video> element has positioned the player's surface, until
+  // the surface is destroyed; players then stack in the compositor's order of
+  // the video holes, as for <video>.
   [NoAllocDirectCall]
   undefined setBounds(unsigned long player,
                       long zIndex,

@@ -159,7 +159,8 @@ class WasmPlayerHost : public cobalt::media::mojom::VideoGeometryChangeClient {
 
   // cobalt::media::mojom::VideoGeometryChangeClient:
   void OnVideoGeometryChange(const gfx::RectF& rect,
-                             gfx::OverlayTransform transform) override;
+                             gfx::OverlayTransform transform,
+                             int32_t z_index) override;
 
  private:
   struct Player;
@@ -168,6 +169,7 @@ class WasmPlayerHost : public cobalt::media::mojom::VideoGeometryChangeClient {
     base::UnguessableToken token;
     mojo::ReceiverId receiver = 0;
     std::optional<gfx::Rect> rect;
+    int32_t z_index = 0;
   };
 
   Player* Find(uint32_t player);

@@ -813,18 +813,19 @@ size_t WasmPlayerHost::SampleCopiesForTesting(uint32_t player) {
   return p ? p->samples.size() : 0;
 }
 
-void WasmPlayerHost::OnVideoGeometryChange(
-    const gfx::RectF& rect,
-    gfx::OverlayTransform /*transform*/) {
+void WasmPlayerHost::OnVideoGeometryChange(const gfx::RectF& rect,
+                                           gfx::OverlayTransform /*transform*/,
+                                           int32_t z_index) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const uint32_t surface = geometry_receivers_.current_context();
   auto it = surfaces_.find(surface);
   const gfx::Rect bounds = gfx::ToEnclosedRect(rect);
-  // The compositor reports the rect every frame.
-  if (it == surfaces_.end() || it->second.rect == bounds) {
+  if (it == surfaces_.end() ||
+      (it->second.rect == bounds && it->second.z_index == z_index)) {
     return;
   }
   it->second.rect = bounds;
+  it->second.z_index = z_index;
   for (auto& [id, player] : players_) {
     if (player->surface == surface) {
       ApplyBounds(*player);
@@ -856,10 +857,11 @@ WasmPlayerHost::Player* WasmPlayerHost::Find(uint32_t player) {
 
 void WasmPlayerHost::ApplyBounds(Player& player) {
   auto surface = surfaces_.find(player.surface);
+  // Like StarboardRenderer, a player placed by its hole stacks in the
+  // compositor's order of the video holes.
   if (surface != surfaces_.end() && surface->second.rect) {
     const gfx::Rect& rect = *surface->second.rect;
-    sbplayer_->SetBounds(player.sb_player,
-                         player.bounds ? player.bounds->z_index : 0, rect.x(),
+    sbplayer_->SetBounds(player.sb_player, surface->second.z_index, rect.x(),
                          rect.y(), rect.width(), rect.height());
   } else if (player.bounds) {
     sbplayer_->SetBounds(player.sb_player, player.bounds->z_index,
