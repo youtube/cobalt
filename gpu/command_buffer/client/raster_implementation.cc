@@ -200,7 +200,8 @@ bool ProcessPaintImage(
   // standard serialization.
   if (paint_image.HasGainmapInfo() ||
       !paint_image.GetHDRMetadata().IsEmpty() ||
-      cc::ToneMapUtil::UseGlobalToneMapFilter(paint_image.color_space())) {
+      cc::ToneMapUtil::UseGlobalToneMapFilter(paint_image.color_space(),
+                                              paint_image.GetHDRMetadata())) {
     return false;
   }
 
