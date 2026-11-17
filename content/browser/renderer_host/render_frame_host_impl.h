@@ -206,12 +206,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/containers/id_map.h"
-<<<<<<< HEAD
-#else
-=======
-#include "content/browser/webauth/webauth_request_security_checker.h"
 #elif !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/public/mojom/hid/hid.mojom-forward.h"
 #endif
 

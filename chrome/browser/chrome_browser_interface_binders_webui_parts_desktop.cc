@@ -544,22 +544,7 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
         on_device_internals::mojom::PageHandlerFactory,
         on_device_internals::OnDeviceInternalsUI>(map);
   }
-<<<<<<< HEAD
-=======
 #endif  // !BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(privacy_sandbox::kRelatedWebsiteSetsDevUI)) {
-    RegisterWebUIControllerInterfaceBinder<
-        related_website_sets::mojom::RelatedWebsiteSetsPageHandler,
-        privacy_sandbox_internals::PrivacySandboxInternalsUI>(map);
-  }
-
-  if (base::FeatureList::IsEnabled(privacy_sandbox::kPrivateStateTokensDevUI)) {
-    RegisterWebUIControllerInterfaceBinder<
-        private_state_tokens::mojom::PrivateStateTokensPageHandler,
-        privacy_sandbox_internals::PrivacySandboxInternalsUI>(map);
-  }
-
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   RegisterWebUIControllerInterfaceBinder<
       guest_contents::mojom::GuestContentsHost, WebUIBrowserUI>(map);
 

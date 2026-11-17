@@ -16,18 +16,18 @@ Cobalt is a single-domain application that does **not** use Chromium's Privacy S
 The **core goal** for Privacy Sandbox during any rebase is to **keep Privacy Sandbox code stripped from Cobalt** and **delete Cobalt's temporary `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` / `if (enable_privacy_sandbox_apis)` blocks as soon as upstream Chromium itself deletes those features**.
 
 #### 1. Scenario A — Upstream Chromium Deletes a Privacy Sandbox Feature: DELETE the Guarded Block Completely!
-Cobalt's `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` (often combined with `&& CHROMIUM_MILESTONE_LE_138` or `&& CHROMIUM_MILESTONE_LE_150`) and `if (enable_privacy_sandbox_apis)` blocks exist **only** to strip Privacy Sandbox code before upstream deletes it (as documented in `BUILD.gn`: `# If in the future privacy sandbox components are removed from the code base, ignore this if block`).
+Cobalt's `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` (often combined with `&& CHROMIUM_MILESTONE_LE_138` or `&& CHROMIUM_MILESTONE_LE_153`) and `if (enable_privacy_sandbox_apis)` blocks exist **only** to strip Privacy Sandbox code before upstream deletes it (as documented in `BUILD.gn`: `# If in the future privacy sandbox components are removed from the code base, ignore this if block`).
 - When upstream Chromium deletes a Privacy Sandbox member, method, `#include`, or GN `deps` entry (`<<<< HEAD` removes it), **ACCEPT the upstream deletion completely** and delete Cobalt's `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` / `if (enable_privacy_sandbox_apis)` block too!
 - **NEVER** resurrect upstream-deleted Privacy Sandbox code inside a Cobalt `#if` block.
 
 **Real Example 1 — Upstream Deleting IP Protection in C++ (`services/network/network_context.h` & `network_service.cc`, Igalia M144 `#12760` / `#12818`)**:
 ```cpp
 // [BAD] Resurrecting upstream-deleted IP Protection members/includes inside Cobalt's #if block:
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "components/ip_protection/common/ip_protection_core.h"  // nogncheck
 #endif
 ...
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
   ip_protection::IpProtectionCore* ip_protection_core() {
     return ip_protection_core_.get();
   }
@@ -63,11 +63,11 @@ When upstream adds a new function, Mojo binder, DevTools handler, or call site r
   ```cpp
   // [GOOD] Gate both the header declaration and .cc implementation when a parameter
   // type (SharedStorageWorkletHost) belongs to a stripped Privacy Sandbox subsystem:
-  #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
   void CreateReportingServiceProxyForSharedStorageWorklet(
       SharedStorageWorkletHost* shared_storage_worklet_host,
       mojo::PendingReceiver<blink::mojom::ReportingServiceProxy> receiver);
-  #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
   ```
 
 - **Pattern B2 — `void` Hook or Pointer-Returning Getter (`content/browser/devtools/devtools_instrumentation.cc` & `browser_context.cc`, PR `#11535`)**:

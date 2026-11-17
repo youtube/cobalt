@@ -2,11 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-<<<<<<< HEAD
-=======
-import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/blink/renderer/bindings/bindings.gni")
->>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 import("//third_party/blink/renderer/bindings/generated_in_core.gni")
 import("//third_party/blink/renderer/core/core.gni")
 import("//third_party/blink/renderer/platform/blink_fuzzer_test.gni")

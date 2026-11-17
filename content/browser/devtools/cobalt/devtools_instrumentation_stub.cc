@@ -224,7 +224,8 @@ void DidUpdatePrerenderStatus(
     PreloadingTriggeringOutcome status,
     std::optional<PrerenderFinalStatus> prerender_status,
     std::optional<std::string> disallowed_mojo_interface,
-    const std::vector<PrerenderMismatchedHeaders>* mismatched_headers) {}
+    const std::vector<network::MismatchedHttpRequestHeader>*
+        mismatched_headers) {}
 
 void FencedFrameCreated(
     base::SafeRef<RenderFrameHostImpl> owner_render_frame_host,

@@ -31,11 +31,11 @@ void CreateReportingServiceProxyForSharedWorker(
 void CreateReportingServiceProxyForDedicatedWorker(
     DedicatedWorkerHost* dedicated_worker_host,
     mojo::PendingReceiver<blink::mojom::ReportingServiceProxy> receiver);
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 void CreateReportingServiceProxyForSharedStorageWorklet(
     SharedStorageWorkletHost* shared_storage_worklet_host,
     mojo::PendingReceiver<blink::mojom::ReportingServiceProxy> receiver);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
 }  // namespace content
 

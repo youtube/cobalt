@@ -18,6 +18,7 @@
 #include "media/audio/android/starboard_audio_input_stream.h"
 
 #include "base/android/jni_android.h"
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/time/time.h"
 #include "cobalt/media/audio/audio_input_constants.h"
@@ -294,8 +295,10 @@ void StarboardAudioInputStream::ReadBufferQueue() {
     // Convert from interleaved format to deinterleaved audio bus format while
     // still under the lock to protect audio_bus_ and audio_data_.
     audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
-        reinterpret_cast<int16_t*>(audio_data_[active_buffer_index_].get()),
-        audio_bus_->frames());
+        base::span<const int16_t>(
+            reinterpret_cast<const int16_t*>(
+                audio_data_[active_buffer_index_].get()),
+            static_cast<size_t>(audio_bus_->frames() * audio_bus_->channels())));
 
     callback_->OnData(audio_bus_.get(),
                       base::TimeTicks::Now() - hardware_delay_,

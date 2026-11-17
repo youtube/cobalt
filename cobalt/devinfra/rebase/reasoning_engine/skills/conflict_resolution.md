@@ -94,14 +94,14 @@ The goal of a milestone rebase is **not** a mechanical "use A over B" replacemen
    #endif
    ```
 10. PRIVACY SANDBOX CONFLICT RESOLUTION (`b/505811196` — `ENABLE_PRIVACY_SANDBOX_APIS` / `enable_privacy_sandbox_apis`):
-   - Cobalt disables Chromium's Privacy Sandbox (`enable_privacy_sandbox_apis = !is_cobalt`) and wraps Privacy Sandbox code in `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` (often with `&& CHROMIUM_MILESTONE_LE_150`) or `if (enable_privacy_sandbox_apis)` **only** as a temporary measure until upstream Chromium deletes those features.
+   - Cobalt disables Chromium's Privacy Sandbox (`enable_privacy_sandbox_apis = !is_cobalt`) and wraps Privacy Sandbox code in `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` (often with `&& CHROMIUM_MILESTONE_LE_153`) or `if (enable_privacy_sandbox_apis)` **only** as a temporary measure until upstream Chromium deletes those features.
    - **When `<<<< HEAD` shows upstream deleting the Privacy Sandbox code/deps** (e.g., deleting `ip_protection_core_`, `masked_domain_list_manager_`, `probabilistic_reveal_token_registry_`, `CanvasNoiseTokenData`, or `//components/ip_protection/common:*` in `services/network/`): **ACCEPT the upstream deletion completely** and remove the `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` / `if (enable_privacy_sandbox_apis)` block too! Never resurrect upstream-deleted Privacy Sandbox code inside a Cobalt `#if` block.
    - **When `<<<< HEAD` shows upstream refactoring code that still exists inside a Privacy Sandbox block** (e.g., `FederatedAuthRequestImpl::Create` -> `webid::RequestService::Create` or relocating `digital_identity_request_impl.h`): keep the `#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)` guard and update the code inside it to match `HEAD`. Keep adjacent guarded declarations/includes consolidated into a single `#if ... #endif` block and always put a newline after `// nogncheck`.
 
    **Real Example (`services/network/network_context.h` & `services/network/BUILD.gn`, Igalia M144/M145)**:
    ```cpp
    // [BAD] Resurrecting upstream-deleted IP Protection code inside Cobalt's #if guard:
-   #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+   #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
      ip_protection::IpProtectionCore* ip_protection_core() {
        return ip_protection_core_.get();
      }

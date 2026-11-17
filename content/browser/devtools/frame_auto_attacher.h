@@ -9,10 +9,10 @@
 #include "base/scoped_observation.h"
 #include "content/browser/devtools/protocol/target_auto_attacher.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "content/browser/devtools/shared_storage_worklet_devtools_manager.h"
 #include "content/browser/interest_group/debuggable_auction_worklet_tracker.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
 namespace content {
 
@@ -24,10 +24,10 @@ class ServiceWorkerDevToolsAgentHost;
 
 class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
                           public ServiceWorkerDevToolsManager::Observer
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
                           , public DebuggableAuctionWorkletTracker::Observer,
                           public SharedStorageWorkletDevToolsManager::Observer
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 {
  public:
   explicit FrameAutoAttacher(DevToolsRendererChannel* renderer_channel);
@@ -46,7 +46,7 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
                      bool* should_pause_on_start) override;
   void WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) override;
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
   // DebuggableAuctionWorkletTracker::Observer implementation.
   void AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                              bool& should_pause_on_start) override;
@@ -56,7 +56,7 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
                                    bool& should_pause_on_start) override;
   void SharedStorageWorkletDestroyed(
       SharedStorageWorkletDevToolsAgentHost* host) override;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
   void ReattachServiceWorkers();
   void UpdateFrames();
@@ -65,13 +65,13 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
   raw_ptr<RenderFrameHostImpl> render_frame_host_ = nullptr;
   base::ScopedObservation<ServiceWorkerDevToolsManager, FrameAutoAttacher>
       service_worker_devtools_manager_observation_{this};
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
   base::ScopedObservation<SharedStorageWorkletDevToolsManager,
                           FrameAutoAttacher>
       shared_storage_worklet_devtools_manager_observation_{this};
   base::ScopedObservation<DebuggableAuctionWorkletTracker, FrameAutoAttacher>
       debuggable_auction_worklet_worklet_devtools_manager_observation_{this};
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 };
 
 }  // namespace content

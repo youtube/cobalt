@@ -255,7 +255,7 @@ bool IsProcessBackgroundedCGroup(const StringPiece& cgroup_contents) {
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Reads /proc/<pid>/status and returns the PID in its PID namespace.
 // If the process is not in a PID namespace or /proc/<pid>/status does not
 // report NSpid, kNullProcessId is returned.
@@ -293,7 +293,7 @@ ProcessId Process::GetPidInNamespace() const {
   }
   return kNullProcessId;
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS)
 // static
