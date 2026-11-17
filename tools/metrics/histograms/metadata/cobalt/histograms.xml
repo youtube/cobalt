@@ -960,6 +960,65 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.Storage.CacheQuota.AllocationOutcome"
+    enum="CobaltCacheQuotaAllocationOutcome" expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the outcome of validating DIR_CACHE quotas additively against
+    kSbMaxSystemPathCacheDirectorySize on non-Android platforms, 10 seconds
+    after browser startup. UnsupportedPlatformBudget takes precedence if the raw
+    platform constant is below 24 MiB.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.CacheQuota.EffectiveKB.GpuShader" units="KB"
+    expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the effective GPU shader disk cache quota in kilobytes on
+    non-Android platforms, 10 seconds after browser startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.CacheQuota.EffectiveKB.Http" units="KB"
+    expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the effective HTTP disk cache quota in kilobytes (including any
+    excess budget added) on non-Android platforms, 10 seconds after browser
+    startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.CacheQuota.EffectiveKB.JsCode" units="KB"
+    expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the effective V8 JavaScript generated code cache quota in kilobytes
+    on non-Android platforms, 10 seconds after browser startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.CacheQuota.ExcessKB" units="KB"
+    expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the excess DIR_CACHE budget in kilobytes added to the HTTP cache
+    quota (after any over-budget fallback) on non-Android platforms, 10 seconds
+    after browser startup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.CacheQuota.PlatformBudgetKB" units="KB"
+    expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the raw kSbMaxSystemPathCacheDirectorySize platform constant in
+    kilobytes (before applying the 24 MiB floor) on non-Android platforms, 10
+    seconds after browser startup.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.Cookie.CommitDuration" units="ms"
     expires_after="never">
   <owner>haozheng@google.com</owner>
