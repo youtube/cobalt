@@ -60,6 +60,7 @@ if (current_toolchain == starboard_toolchain) {
       "file.h",
       "file_impl.cc",
       "file_impl.h",
+      "file_open.h",
       "gnu_hash_table.cc",
       "gnu_hash_table.h",
       "lz4_file_impl.cc",
@@ -84,6 +85,13 @@ if (current_toolchain == starboard_toolchain) {
       "//third_party/lz4_lib:lz4",
       "//third_party/zstd:decompress",
     ]
+
+    # On Android, OpenFileInPlace() is part of the Starboard implementation
+    # (starboard/android/shared/elf_loader_file_open.cc), which reads
+    # uncompressed assets straight from the APK.
+    if (!is_android) {
+      sources += [ "file_open_stub.cc" ]
+    }
 
     if (use_asan) {
       sources += [ "dl_iterate_phdr_override.cc" ]

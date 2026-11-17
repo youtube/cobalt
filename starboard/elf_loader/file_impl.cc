@@ -15,10 +15,12 @@
 #include "starboard/elf_loader/file_impl.h"
 
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/elf_loader/file_open.h"
 #include "starboard/elf_loader/log.h"
 
 namespace {
@@ -43,12 +45,24 @@ FileImpl::~FileImpl() {
 bool FileImpl::Open(const char* name) {
   SB_DLOG(INFO) << "Loading: " << name;
   name_ = name;
+  file_ = OpenFileInPlace(name, &offset_, &size_);
+  if (file_ >= 0) {
+    return true;
+  }
   // Don't use the 2-arg open() since _FORTIFY_SOURCE rewrites it to __open_2,
   // which bypasses -Wl,--wrap=open.
   file_ = open(name, O_RDONLY, 0);
   if (file_ < 0) {
     return false;
   }
+  struct stat info;
+  if (fstat(file_, &info) != 0) {
+    close(file_);
+    file_ = -1;
+    return false;
+  }
+  offset_ = 0;
+  size_ = info.st_size;
   return true;
 }
 
@@ -56,7 +70,7 @@ bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
   if (file_ < 0) {
     return false;
   }
-  int64_t ret = lseek(file_, offset, SEEK_SET);
+  int64_t ret = lseek(file_, offset_ + offset, SEEK_SET);
   SB_DLOG(INFO) << "lseek: ret=" << ret;
   if (ret == -1) {
     LogLastError("lseek: failed");

@@ -352,6 +352,7 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/system_network_is_disconnected.cc",
       "asset_manager.cc",
       "asset_manager.h",
+      "elf_loader_file_open.cc",
       "posix_emu/access.cc",
       "posix_emu/alarm.cc",
       "posix_emu/dirent.cc",
