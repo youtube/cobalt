@@ -64,7 +64,7 @@ int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md) {
 }
 
 int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx) {
-  // Historically, this function called |EVP_MD_CTX_cleanup| on return. Some
+  // Historically, this function called `EVP_MD_CTX_cleanup` on return. Some
   // callers rely on this to avoid memory leaks.
   Cleanup cleanup = [&] { EVP_MD_CTX_cleanup(ctx); };
 

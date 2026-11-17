@@ -232,8 +232,8 @@ void bssl::BORINGSSL_keccak_absorb(struct BORINGSSL_keccak_st *ctx,
   }
 
   const size_t rate_words = ctx->rate_bytes / 8;
-  // XOR the input. Accessing |ctx->state| as a |uint8_t*| is allowed by strict
-  // aliasing because we require |uint8_t| to be a character type.
+  // XOR the input. Accessing `ctx->state` as a `uint8_t*` is allowed by strict
+  // aliasing because we require `uint8_t` to be a character type.
   uint8_t *state_bytes = (uint8_t *)ctx->state;
 
   // Absorb partial block.
@@ -287,8 +287,8 @@ static uint8_t keccak_terminator(struct BORINGSSL_keccak_st *ctx) {
 }
 
 static void keccak_finalize(struct BORINGSSL_keccak_st *ctx) {
-  // XOR the terminator. Accessing |ctx->state| as a |uint8_t*| is allowed by
-  // strict aliasing because we require |uint8_t| to be a character type.
+  // XOR the terminator. Accessing `ctx->state` as a `uint8_t*` is allowed by
+  // strict aliasing because we require `uint8_t` to be a character type.
   uint8_t *state_bytes = (uint8_t *)ctx->state;
   state_bytes[ctx->absorb_offset] ^= keccak_terminator(ctx);
   state_bytes[ctx->rate_bytes - 1] ^= 0x80;
@@ -298,8 +298,8 @@ static void keccak_finalize(struct BORINGSSL_keccak_st *ctx) {
 #if defined(HAVE_KECCAK_X2)
 static void keccak_finalize_x2(struct BORINGSSL_keccak_st ctx[2]) {
   for (size_t i = 0; i < 2; ++i) {
-    // XOR the terminator. Accessing |ctx->state| as a |uint8_t*| is allowed by
-    // strict aliasing because we require |uint8_t| to be a character type.
+    // XOR the terminator. Accessing `ctx->state` as a `uint8_t*` is allowed by
+    // strict aliasing because we require `uint8_t` to be a character type.
     uint8_t *state_bytes = (uint8_t *)ctx[i].state;
     state_bytes[ctx[i].absorb_offset] ^= keccak_terminator(&ctx[i]);
     state_bytes[ctx[i].rate_bytes - 1] ^= 0x80;
@@ -323,8 +323,8 @@ void bssl::BORINGSSL_keccak_squeeze(struct BORINGSSL_keccak_st *ctx,
     ctx->phase = boringssl_keccak_phase_squeeze;
   }
 
-  // Accessing |ctx->state| as a |uint8_t*| is allowed by strict aliasing
-  // because we require |uint8_t| to be a character type.
+  // Accessing `ctx->state` as a `uint8_t*` is allowed by strict aliasing
+  // because we require `uint8_t` to be a character type.
   const uint8_t *state_bytes = (const uint8_t *)ctx->state;
   while (out_len) {
     if (ctx->squeeze_offset == ctx->rate_bytes) {
@@ -375,8 +375,8 @@ void bssl::BORINGSSL_keccak_squeeze_x2(struct BORINGSSL_keccak_st ctx[2],
     ctx->phase = boringssl_keccak_phase_squeeze;
   }
 
-  // Accessing |ctx->state| as a |uint8_t*| is allowed by strict aliasing
-  // because we require |uint8_t| to be a character type.
+  // Accessing `ctx->state` as a `uint8_t*` is allowed by strict aliasing
+  // because we require `uint8_t` to be a character type.
   uint8_t *optr[2] = {outs[0], outs[1]};
   while (out_len) {
     if (ctx->squeeze_offset == ctx->rate_bytes) {

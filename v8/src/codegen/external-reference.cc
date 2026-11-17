@@ -8,7 +8,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/v8-fast-api-calls.h"
-#include "src/api/api-inl.h"
+#include "src/api/api.h"
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/logging.h"
@@ -23,6 +23,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/simulator.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/ic/stub-cache.h"
@@ -281,11 +282,6 @@ ExternalReference ExternalReference::isolate_address() {
   return ExternalReference(IsolateFieldId::kIsolateAddress);
 }
 
-ExternalReference ExternalReference::handle_scope_implementer_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->handle_scope_implementer_address());
-}
-
 #ifdef V8_ENABLE_SANDBOX
 ExternalReference ExternalReference::sandbox_base_address() {
   return ExternalReference(Sandbox::current()->base_address());
@@ -337,23 +333,6 @@ ExternalReference ExternalReference::shared_trusted_pointer_table_base_address(
   return ExternalReference(
       isolate->shared_trusted_pointer_table_base_address());
 }
-
-ExternalReference
-ExternalReference::address_of_code_pointer_table_base_address() {
-  return ExternalReference(IsolateFieldId::kCodePointerTableBaseAddress);
-}
-
-ExternalReference ExternalReference::code_pointer_table_base_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->code_pointer_table_base_address());
-}
-
-#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-ExternalReference ExternalReference::global_code_pointer_table_base_address() {
-  return ExternalReference(
-      IsolateGroup::current()->code_pointer_table()->base_address());
-}
-#endif
 
 ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
   return ExternalReference(
@@ -603,6 +582,8 @@ FUNCTION_REFERENCE(wasm_switch_wasmfx_stack, wasm::switch_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_return_jspi_stack, wasm::return_jspi_stack)
 FUNCTION_REFERENCE(wasm_return_wasmfx_stack, wasm::return_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_retire_stack, wasm::retire_stack)
+FUNCTION_REFERENCE(wasmfx_set_wasm_code, wasm::wasmfx_set_wasm_code)
+FUNCTION_REFERENCE(wasm_cont_bind, wasm::cont_bind)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)
 FUNCTION_REFERENCE(wasm_switch_from_the_central_stack,

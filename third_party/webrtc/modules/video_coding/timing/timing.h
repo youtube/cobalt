@@ -17,13 +17,15 @@
 #include <optional>
 
 #include "api/field_trials_view.h"
+#include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_timing.h"
 #include "modules/video_coding/timing/decode_time_percentile_filter.h"
-#include "modules/video_coding/timing/timestamp_extrapolator.h"
+#include "modules/video_coding/timing/default_video_jitter_timing.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
 
@@ -64,14 +66,13 @@ class VCMTiming {
     TimeDelta current_delay = TimeDelta::Zero();
   };
 
-  VCMTiming(Clock* clock, const FieldTrialsView& field_trials);
+  VCMTiming(Clock* clock,
+            const FieldTrialsView& field_trials,
+            TimeDelta render_delay);
   virtual ~VCMTiming() = default;
 
   // Resets the timing to the initial state.
   void Reset();
-
-  // Sets the amount of time needed to render an image. Defaults to 10 ms.
-  void set_render_delay(TimeDelta render_delay);
 
   // Sets the minimum time the video must be delayed on the receiver to
   // get the desired jitter buffer level.
@@ -96,7 +97,8 @@ class VCMTiming {
 
   // Used to report that a frame is passed to decoding. Updates the timestamp
   // filter which is used to map between timestamps and receiver system time.
-  virtual void OnCompleteTemporalUnit(uint32_t rtp_timestamp, Timestamp now);
+  virtual void OnCompleteTemporalUnit(uint32_t rtp_timestamp,
+                                      Timestamp receive_time);
 
   // Returns the receiver system time when the frame with `rtp_timestamp`
   // should be rendered, assuming that the system time currently is `now`.
@@ -116,9 +118,10 @@ class VCMTiming {
 
  private:
   mutable Mutex mutex_;
-  Clock* const clock_;
-  const std::unique_ptr<TimestampExtrapolator> ts_extrapolator_
-      RTC_PT_GUARDED_BY(mutex_);
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker worker_sequence_checker_;
+  DefaultVideoJitterTiming video_jitter_timing_
+      RTC_GUARDED_BY(worker_sequence_checker_);
+
   std::unique_ptr<DecodeTimePercentileFilter> decode_time_filter_
       RTC_GUARDED_BY(mutex_) RTC_PT_GUARDED_BY(mutex_);
 

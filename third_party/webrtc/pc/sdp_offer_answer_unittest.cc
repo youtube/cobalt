@@ -127,7 +127,8 @@ class SdpOfferAnswerTest : public ::testing::Test {
                                             Dav1dDecoderTemplateAdapter>>(),
             nullptr /* audio_mixer */,
             nullptr /* audio_processing */,
-            nullptr /* audio_frame_processor */)) {
+            nullptr /* audio_frame_processor */,
+            CreateTestFieldTrialsPtr())) {
     metrics::Reset();
   }
 

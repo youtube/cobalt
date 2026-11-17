@@ -184,7 +184,6 @@ class ToolbarView : public views::AccessiblePaneView,
     return performance_intervention_button_;
   }
   MediaToolbarButtonView* media_button() const { return media_button_; }
-  BrowserAppMenuButton* app_menu_button() const { return app_menu_button_; }
   HomeButton* home_button() const { return home_; }
   PinnedActionToolbarButton* tab_search_button() const {
     return tab_search_button_;
@@ -290,13 +289,17 @@ class ToolbarView : public views::AccessiblePaneView,
   gfx::Size GetToolbarButtonSize() const override;
   views::BubbleAnchor GetDefaultExtensionDialogAnchor() override;
   PageActionIconView* GetPageActionIconView(PageActionIconType type) override;
-  IconLabelBubbleView* GetPageActionView(actions::ActionId action_id) override;
+  page_actions::PageActionViewInterface* GetPageActionViewInterface(
+      actions::ActionId action_id) override;
   AppMenuControl* GetAppMenuControl() override;
+  const AppMenuControl* GetAppMenuControl() const;
   gfx::Rect GetFindBarBoundingBox(int contents_bottom) override;
   void FocusToolbar() override;
   views::AccessiblePaneView* GetAsAccessiblePaneView() override;
   views::BubbleAnchor GetBubbleAnchor(
       std::optional<actions::ActionId> action_id) override;
+  views::BubbleAnchor GetPageActionBubbleAnchor(
+      actions::ActionId action_id) override;
   void ZoomChangedForActiveTab(bool can_show_bubble) override;
   AvatarToolbarButtonInterface* GetAvatarToolbarButtonInterface() override;
   ToolbarButton* GetBackButton() override;

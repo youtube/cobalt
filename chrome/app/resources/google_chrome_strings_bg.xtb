@@ -65,6 +65,7 @@
 <translation id="1640672724030957280">Изтегля се...</translation>
 <translation id="1651617469580841801">Когато използвате Google Обектив, заглавието, URL адресът и съдържанието на страницата, включително PDF файловете, се изпращат до Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">Всичко за ChromeOS Flex</translation>
+<translation id="1665867022636014702">Използване на препоръчаните от Google настройки на браузъра</translation>
 <translation id="1674870198290878346">Отваряне на връзката в прозорец в режим „инко&amp;гнито“ на Chrome</translation>
 <translation id="1682634494516646069">Google Chrome не може да чете и записва в директорията си за данни:
 
@@ -76,7 +77,6 @@
 <translation id="177180974022074201">Изпробвайте с Gemini в Chrome</translation>
 <translation id="1786003790898721085">Проверете дали сте влезли в Chrome на устройството си <ph name="TARGET_DEVICE_NAME" /> и опитайте да изпратите отново.</translation>
 <translation id="1786044937610313874">Преките пътища се отварят в Chrome</translation>
-<translation id="178701303897325119">Това разширение вече не се поддържа. Chrome препоръчва да го премахнете.</translation>
 <translation id="1812689907177901597">С изключването на тази функция можете да влизате в сайтовете на Google, като например Gmail, без да влизате в Chrome</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome препоръчва да поставите на пауза раздела, който забавя браузъра ви}other{Chrome препоръчва да поставите на пауза разделите, които забавят браузъра ви}}</translation>
 <translation id="1832046143430087831">Ускорява сайтовете с машината V8 на Chrome, но същевременно устойчивостта на браузъра срещу атаки леко намалява. Тази настройка е изключена.</translation>
@@ -94,7 +94,6 @@
 <translation id="1953553007165777902">Изтегля се... Оставащо време: <ph name="MINUTE" /> мин</translation>
 <translation id="1979600810166324878">Сърфирайте по-безопасно в движение с подобрената защита от Безопасно сърфиране в Chrome за iOS</translation>
 <translation id="2001586581944147178">Попречете на хората с достъп до трафика ви в интернет да виждат кои сайтове посещавате. Chrome използва защитена връзка, за да потърси IP адреса на даден сайт в DNS (системата за имена на домейни).</translation>
-<translation id="2008942457798486387">{NUM_EXTENSIONS,plural, =1{Това разширение вече не се поддържа. Chrome препоръчва да го премахнете.}other{Тези разширения вече не се поддържат. Chrome препоръчва да ги премахнете.}}</translation>
 <translation id="2018528049276128029">Всеки потребителски профил съхранява своя собствена информация в Chrome, като например отметки, история, пароли и др.</translation>
 <translation id="2018879682492276940">Инсталирането не успя. Моля, опитайте отново.</translation>
 <translation id="2024959665595762054">Потвърдете, че сте вие, за да използвате и запазвате данните от Chrome в профила си в Google</translation>
@@ -151,6 +150,7 @@
 <translation id="2580411288591421699">Не може да се инсталира същата версия на Google Chrome, която се използва понастоящем. Моля, затворете браузъра и опитайте отново.</translation>
 <translation id="2586406160782125153">Данните за сърфирането ви ще се изтрият от това устройство. За да ги извлечете по-късно, влезте в Chrome като <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Кеширането на изтеглената инсталационна програма не бе успешно. Грешка: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
+<translation id="2608461706055011366">Получете бърз общ преглед на този документ и задавайте въпроси с Gemini в Chrome</translation>
 <translation id="2620436844016719705">Система</translation>
 <translation id="263447411082773721">Поддържайте паролите, историята и отметките си синхронизирани на всичките си устройства. Осъществявайте лесно достъп до познати и любими функции, като зададете Chrome като браузър по подразбиране. Chrome ще бъде фиксиран в лентата на задачите за бърз достъп.</translation>
 <translation id="2645435784669275700">ChromeOS</translation>
@@ -158,6 +158,7 @@
 <translation id="2652691236519827073">Отваряне на връзката в нов &amp;раздел на Chrome</translation>
 <translation id="2665296953892887393">Помогнете ни да подобрим Google Chrome, като ни изпращате <ph name="UMA_LINK" /> му и сигнали за сривове</translation>
 <translation id="2668094785979141847">Кликнете, за да излезете от Google Обектив</translation>
+<translation id="2674238339205910678">ChromeOS Flex не успя да запази данните от Chrome в профила ви в Google, защото данните ви за вход в профила не са актуални</translation>
 <translation id="2681444469812712297">Отваряне на <ph name="URL" /> в нов раздел в Google Chrome.</translation>
 <translation id="2699790011615497488">Отваряне на Gemini в Chrome бета</translation>
 <translation id="2712141162840347885">Изберете каквото и да е, за да търсите с Google Обектив, или натиснете Escape за изход</translation>
@@ -188,6 +189,7 @@
 <translation id="2945997411976714835">Грешка при инсталирането: Стартирането на инсталационния процес не бе успешно.</translation>
 <translation id="2969728957078202736"><ph name="PAGE_TITLE" /> – Вход в мрежата – Chrome</translation>
 <translation id="2970681950995291301">За да премахнете профила си в Google от Chrome, излезте от браузъра на страницата „Настройки“</translation>
+<translation id="2976869732253036751">Получавайте сигнали за проследяване на цените с Chrome на телефона си</translation>
 <translation id="2991167882679440829">Паролите и другите ви данни в Chrome, които сте запазили в профила си в Google, ще бъдат премахнати от това устройство. За да ги използвате отново в Chrome, влезте пак в профила си.</translation>
 <translation id="2994465299455873643">Предоставя услуги за шифроване и сигурен начин за възстановяване на <ph name="BROWSER_NAME" />, ако браузърът вече не е актуален. Ако тази услуга е деактивирана, <ph name="BROWSER_NAME" /> може да загуби достъп до шифрованите данни и е възможно <ph name="BROWSER_NAME" /> да не успее да се възстанови.</translation>
 <translation id="3003694935412297923">Всички задачи</translation>
@@ -240,6 +242,7 @@
 <translation id="345171907106878721">Добавяне на вас към Chrome</translation>
 <translation id="3453763134178591239">Общи условия на Chrome OS</translation>
 <translation id="3503306920980160878">Chrome се нуждае от достъп до данните за местоположението ви, за да ги сподели с този сайт</translation>
+<translation id="3539955434060988644">Отваряне на връзката в прозорец в режим „инко&amp;гнито“ на Chrome</translation>
 <translation id="3576528680708590453">Системният ви администратор е конфигурирал Google Chrome да отваря алтернативен браузър за достъп до <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Синхронизирайте и персонализирайте Chrome на всичките си устройства</translation>
 <translation id="3583751698304738917">Вече сте влезли като <ph name="USER_EMAIL_ADDRESS" /> в друг потребителски профил в Chrome</translation>
@@ -383,6 +386,7 @@
 <translation id="5127558335897923940">Оставете Chrome в лентата Dock, за да имате бърз достъп до браузъра по всяко време</translation>
 <translation id="5132929315877954718">Открийте отлични приложения, игри, разширения и теми за Google Chrome.</translation>
 <translation id="5139423532931106058">Персонализиране на потребителския ви профил в Chrome</translation>
+<translation id="5152381187352661267">Умения в Chrome</translation>
 <translation id="5163087008893166964">Добре дошли в Chrome. Отворен е нов прозорец на браузъра</translation>
 <translation id="5166439563123238795">Chrome се нуждае от разрешение да проследява ръцете ви</translation>
 <translation id="5169778651486082413">Използвайте паролите си с Chrome на телефона си</translation>
@@ -478,6 +482,7 @@
 <translation id="6070348360322141662">За повишаване на сигурността Google Chrome ще шифрова данните ви</translation>
 <translation id="6075300983329039771">Организацията ви (<ph name="MANAGER" />) изисква да влезете в профила си в Chrome</translation>
 <translation id="6113794647360055231">Chrome се подобри</translation>
+<translation id="6116004140911290070">Активиране на уменията в Chrome</translation>
 <translation id="6116252277240876590">Този език се използва за показване на менюта, настройки, сигнали и друг текст в Chrome</translation>
 <translation id="6127237283587442951">Използване на Chrome по подразбиране и фиксиране на браузъра</translation>
 <translation id="6134085236017727171">За да се използва микрофонът ви, дайте достъп на Chrome от <ph name="BEGIN_LINK" />системните настройки<ph name="END_LINK" /></translation>
@@ -531,6 +536,7 @@
 <translation id="6497147134301593682">Chrome бе затворен автоматично</translation>
 <translation id="6506909944137591434">Chrome се нуждае от разрешение за достъп до камерата, за да създаде триизмерна карта на заобикалящата ви среда</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> – Google Chrome Dev</translation>
+<translation id="6520608191273161151">ChromeOS Flex не успя да запази данните от Chrome в профила ви в Google поради грешка при влизане в профила</translation>
 <translation id="6520670145826811516">За да се използва местоположението ви, дайте достъп на Chrome от <ph name="BEGIN_LINK" />системните настройки<ph name="END_LINK" /></translation>
 <translation id="652948702951888897">История в Chrome</translation>
 <translation id="6532945796722480006">Отваряне на Gemini в Chrome Canary</translation>
@@ -578,6 +584,7 @@
 <translation id="7011190694940573312">Инсталирането не бе успешно, защото тази версия на операционната система не се поддържа.</translation>
 <translation id="7024536598735240744">Грешка при разпакетирането: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025800014283535195">Оттук можете да превключвате между потребителските профили в Chrome</translation>
+<translation id="7026856149118332950">Кликнете върху <ph name="BEGIN_BOLD" />Да<ph name="END_BOLD" /> в известието от Windows, за да фиксирате Chrome в лентата на задачите за бърз достъп.</translation>
 <translation id="7047386856539490735">Полезни ли са тези резултати?</translation>
 <translation id="7051685429025310665">Не сте посещавали този сайт наскоро. Chrome премахна разрешенията „<ph name="PERMISSION_1" />“, „<ph name="PERMISSION_2" />“ и „<ph name="PERMISSION_3" />“.</translation>
 <translation id="7059914902409643750">Персонализирайте Chrome според вкуса си</translation>
@@ -670,6 +677,7 @@
 <translation id="7890208801193284374">Ако споделяте компютър, близките и приятелите ви могат да сърфират отделно и да настроят Chrome точно така, както искат.</translation>
 <translation id="7896673875602241923">По-рано някой влезе в Chrome на този компютър като <ph name="ACCOUNT_EMAIL_LAST" />. Моля, създайте нов потребител в браузъра, така че информацията ви да се съхранява отделно.</translation>
 <translation id="7904985524660297937">Изпробвайте Gemini в Google Chrome</translation>
+<translation id="7905880575591690197">ChromeOS не успя да запази данните от Chrome в профила ви в Google поради грешка при влизане в профила</translation>
 <translation id="7917876797003313048">Можете да управлявате профилите си в Google, в които сте влезли. Те се използват за браузъра Chrome, Google Play Магазин, Gmail и др. Ако искате да добавите профил за друго лице, като например член на семейството, вместо това добавете нов човек към вашия <ph name="DEVICE_TYPE" />. <ph name="LINK_BEGIN" />Научете повече<ph name="LINK_END" /></translation>
 <translation id="7936702483636872823">Chrome блокира това изтегляне, защото файлът е измамнически и може да извърши неочаквани промени на устройството ви</translation>
 <translation id="7951272445806340501">ChromeOS Flex трябва да се рестартира, за да бъде приложена актуализацията.</translation>
@@ -745,6 +753,7 @@
 <translation id="8624541899164515475">Настройки (отваря се в нов раздел).</translation>
 <translation id="8625237574518804553">{0,plural, =1{Chrome ще се стартира отново след 1 минута}other{Chrome ще се стартира отново след # минути}}</translation>
 <translation id="8637932705841171563">За да споделите прозореца си, разрешете записването на екрана за Chrome в System Settings</translation>
+<translation id="8642497536370021917">Потвърдете, че сте вие, за да можете винаги да използвате и запазвате данните от Chrome в профила си в Google</translation>
 <translation id="8656634243791296665">Отваряне на Gemini в Chrome Dev</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8679801911857917785">То също контролира коя страница се показва при стартиране на Chrome.</translation>
@@ -794,6 +803,7 @@
 <translation id="93760716455950538">Рестартиране на ChromeOS Flex</translation>
 <translation id="943390475793766444">Chrome препоръчва този файл да бъде сканиран, защото може да е опасен.</translation>
 <translation id="945522503751344254">Изпращане на отзиви</translation>
+<translation id="973195869036269770">ChromeOS не успя да запази данните от Chrome в профила ви в Google, защото данните ви за вход в профила не са актуални</translation>
 <translation id="983803489796659991">Инсталирането не бе успешно, защото сървърът за актуализиране няма хеш данни за приложението.</translation>
 <translation id="989369509083708165">Google Chrome е браузърът ви по подразбиране</translation>
 <translation id="989816563149873169">Посредством <ph name="SHORTCUT" /> можете да превключвате между потребителските профили в Chrome</translation>

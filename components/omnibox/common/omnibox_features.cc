@@ -171,7 +171,7 @@ BASE_FEATURE(kMostVisitedTilesHorizontalRenderGroup,
 BASE_FEATURE(kRichAutocompletion, "OmniboxRichAutocompletion", ENABLED);
 
 // When enabled, the multimodal input button is shown in the Omnibox.
-BASE_FEATURE(kOmniboxMultimodalInput, ENABLED);
+BASE_FEATURE(kOmniboxMultimodalInput, DISABLED);
 
 // An additional gate to the behavior of OmniboxMultimodalInput on desktop.
 BASE_FEATURE(kAndroidDesktopAimGate, DISABLED);
@@ -327,11 +327,6 @@ BASE_FEATURE(kOmniboxItemDecoration, DISABLED);
 // When the first suggestion is a url, the favicon is shown in the status view.
 BASE_FEATURE(kExactMatchFavicons, DISABLED);
 
-// If enabled, the omnibox will use the short suggest path.
-BASE_FEATURE(kUseShortSuggestPathV1,
-             "OmniboxUseShortSuggestPathV1",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // The features below allow tuning number of suggestions offered to users in
 // specific contexts. These features are default enabled and are used to control
 // related fieldtrial parameters.
@@ -458,9 +453,6 @@ BASE_FEATURE(kDiagnostics, "OmniboxDiagnostics", DISABLED);
 // Force the realbox on Android regardless of platform/configuration checks.
 BASE_FEATURE(kForceAndroidRealbox, DISABLED);
 
-// When enabled, offer a desktop-like omnibox UI enhancement on large form
-// factors.
-BASE_FEATURE(kOmniboxImprovementForLFF, ENABLED);
 
 // If enabled, disables ligatures in the URL bar on Android.
 BASE_FEATURE(kUrlBarWithoutLigatures, ENABLED);
@@ -493,7 +485,6 @@ static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kOmniboxMultimodalInput,
       &kAndroidDesktopAimGate,
       &kMultilineEditField,
-      &kOmniboxImprovementForLFF,
       &kServeJavaCachedZeroSuggest,
       &kAIMSuppressVerbatimMatch,
       &kResetSuggestionsScroll,

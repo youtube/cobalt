@@ -220,6 +220,7 @@ rtc_library("rtp_video_frame_assembler_unittests") {
     ":encoded_frame",
     ":rtp_video_frame_assembler",
     ":video_frame_type",
+    "..:rtp_header_extension_id",
     "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_packetizer_av1_test_helper",
     "../../modules/rtp_rtcp:rtp_rtcp_format",

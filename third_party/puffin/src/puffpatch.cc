@@ -5,14 +5,23 @@
 #include <inttypes.h>
 
 #include <algorithm>
+#include <memory>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/containers/span.h"
+#include "base/files/file.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/memory_mapped_file.h"
 #include "base/numerics/byte_conversions.h"
 #include "base/strings/string_view_util.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "puffin/memory_stream.h"
 #include "puffin/src/include/puffin/brotli_util.h"
 #include "puffin/src/include/puffin/common.h"
@@ -24,6 +33,7 @@
 #include "puffin/src/logging.h"
 #include "puffin/src/puffin.pb.h"
 #include "puffin/src/puffin_stream.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "zucchini/patch_reader.h"
 #include "zucchini/zucchini.h"
 
@@ -101,25 +111,92 @@ Status DecodePatch(const uint8_t* patch,
   return Status::P_OK;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+// Creates a memory-mapped temporary file of the specified size. Returns a
+// unique pointer to the memory-mapped file on success, or nullptr if temporary
+// file creation or memory mapping fails.
+std::unique_ptr<base::MemoryMappedFile> CreateMemoryMappedTemporaryFile(
+    size_t size) {
+  base::FilePath temp_path;
+  if (!base::CreateTemporaryFile(&temp_path)) {
+    PLOG(ERROR) << "Failed to create a temporary file for memory-mapping";
+    return nullptr;
+  }
+
+  base::File temp_file(
+      temp_path, base::File::FLAG_OPEN | base::File::FLAG_READ |
+                     base::File::FLAG_WRITE | base::File::FLAG_WIN_TEMPORARY |
+                     base::File::FLAG_WIN_SHARE_DELETE |
+                     base::File::FLAG_DELETE_ON_CLOSE);
+
+  if (!temp_file.IsValid()) {
+    PLOG(ERROR) << "Failed to open temporary file for memory-mapping";
+    base::DeleteFile(temp_path);
+    return nullptr;
+  }
+
+  auto mapped_file = std::make_unique<base::MemoryMappedFile>();
+  if (!mapped_file->Initialize(std::move(temp_file), {0, size},
+                               base::MemoryMappedFile::READ_WRITE_EXTEND)) {
+    PLOG(ERROR) << "Failed to memory-map temporary file";
+    return nullptr;
+  }
+
+  return mapped_file;
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+using PatchBufferBacking =
+    std::variant<std::unique_ptr<base::MemoryMappedFile>, Buffer>;
+
+PatchBufferBacking AllocatePatchBuffer(size_t size) {
+  // Accessing PathUtils from a sandboxed process on Android might crash.
+  // Consider enabling this code path in the future, though patching only runs
+  // in sandboxed processes on Android and is expected to fall back to in-memory
+  // buffers. See: crbug.com/513197224
+#if !BUILDFLAG(IS_ANDROID)
+  // The minimum size in bytes at which memory-mapped file backing is attempted.
+  constexpr size_t kMemoryMappedFileCutoff = 1024 * 1024;
+  if (size < kMemoryMappedFileCutoff) {
+    return Buffer(size);
+  }
+
+  if (std::unique_ptr<base::MemoryMappedFile> mapped_file =
+          CreateMemoryMappedTemporaryFile(size)) {
+    return std::move(mapped_file);
+  }
+#endif
+  return Buffer(size);
+}
+
+base::span<uint8_t> GetMutableSpan(PatchBufferBacking& backing) {
+  return std::visit(
+      absl::Overload{
+          [](const std::unique_ptr<base::MemoryMappedFile>& mapped_file) {
+            return mapped_file->mutable_bytes();
+          },
+          [](Buffer& buffer) { return base::span<uint8_t>(buffer); }},
+      backing);
+}
+
 Status ApplyZucchiniPatch(UniqueStreamPtr src_stream,
                           size_t src_size,
                           const uint8_t* patch_start,
                           size_t patch_size,
                           UniqueStreamPtr dst_stream) {
   // Read the source data
-  Buffer puffed_src(src_size);
-  Buffer buffer(1024 * 1024);
+  PatchBufferBacking puffed_src_backing = AllocatePatchBuffer(src_size);
+  base::span<uint8_t> puffed_src_span = GetMutableSpan(puffed_src_backing);
+
   uint64_t bytes_wrote = 0;
   while (bytes_wrote < src_size) {
     auto write_size =
-        std::min(static_cast<uint64_t>(buffer.size()), src_size - bytes_wrote);
-    if (!src_stream->Read(buffer.data(), write_size)) {
+        std::min(static_cast<uint64_t>(1024 * 1024), src_size - bytes_wrote);
+    if (!src_stream->Read(puffed_src_span.data() + bytes_wrote, write_size)) {
       src_stream->Close();
       dst_stream->Close();
       return Status::P_READ_ERROR;
     }
-    std::copy(buffer.data(), buffer.data() + write_size,
-              puffed_src.data() + bytes_wrote);
     bytes_wrote += write_size;
   }
   src_stream->Close();
@@ -136,14 +213,17 @@ Status ApplyZucchiniPatch(UniqueStreamPtr src_stream,
 
   // TODO(197361113) Stream the patched result once zucchini supports it. So we
   // can save some memory when applying patch on device.
-  Buffer patched_data(patch_reader->header().new_size);
+  PatchBufferBacking buffer_backing =
+      AllocatePatchBuffer(patch_reader->header().new_size);
+  base::span<uint8_t> patched_span = GetMutableSpan(buffer_backing);
+
   auto status = zucchini::ApplyBuffer(
-      {puffed_src.data(), puffed_src.size()}, *patch_reader,
-      {patched_data.data(), patched_data.size()});
+      {puffed_src_span.data(), puffed_src_span.size()}, *patch_reader,
+      {patched_span.data(), patched_span.size()});
   Status result = Status::P_OK;
   switch (status) {
     case zucchini::status::kStatusSuccess:
-      if (!dst_stream->Write(patched_data.data(), patched_data.size())) {
+      if (!dst_stream->Write(patched_span.data(), patched_span.size())) {
         result = Status::P_WRITE_ERROR;
       }
       break;

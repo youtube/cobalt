@@ -1021,5 +1021,74 @@ TEST(GoogCcScenario, FallbackToLossBasedBweWithoutPacketFeedback) {
   EXPECT_LE(client->target_rate().kbps(), 300);
 }
 
+TEST(GoogCcNetworkControllerTest,
+     TriggersTargetRateUpdateWhenBandwidthLimitedChanges) {
+  NetworkControllerTestFixture fixture;
+  std::unique_ptr<NetworkControllerInterface> controller =
+      fixture.CreateController();
+  Timestamp current_time = Timestamp::Millis(123456);
+
+  NetworkControlUpdate update = controller->OnNetworkAvailability(
+      {.at_time = current_time, .network_available = true});
+  update = controller->OnProcessInterval({.at_time = current_time});
+  ASSERT_TRUE(update.target_rate.has_value());
+  EXPECT_TRUE(update.target_rate->is_bandwidth_limited);
+
+  // Send packet to initialize ALR detector
+  SentPacket sent_packet;
+  sent_packet.send_time = current_time;
+  sent_packet.size = DataSize::Bytes(1000);
+  update = controller->OnSentPacket(sent_packet);
+
+  // Wait 10 seconds without sending any packets (this will make budget ratio
+  // accumulate and enter ALR)
+  current_time += TimeDelta::Seconds(10);
+  // Send a tiny packet to trigger AlrDetector state change evaluation
+  sent_packet.send_time = current_time;
+  sent_packet.size = DataSize::Bytes(1);
+  update = controller->OnSentPacket(sent_packet);
+
+  bool alr_detected = false;
+  if (update.target_rate.has_value() &&
+      !update.target_rate->is_bandwidth_limited) {
+    alr_detected = true;
+  } else {
+    // Process interval should trigger target rate update if not already
+    // triggered by OnSentPacket
+    update = controller->OnProcessInterval({.at_time = current_time});
+    if (update.target_rate.has_value() &&
+        !update.target_rate->is_bandwidth_limited) {
+      alr_detected = true;
+    }
+  }
+  EXPECT_TRUE(alr_detected);
+
+  // Now send a large burst of packets to leave ALR.
+  // Target rate is kInitialBitrate (60kbps). Budget ratio needs to drop below
+  // 0.5. We send 50 packets of 1000 bytes.
+  bool bandwidth_limited_detected = false;
+  for (int i = 0; i < 50; ++i) {
+    current_time += TimeDelta::Millis(1);
+    sent_packet.send_time = current_time;
+    sent_packet.size = DataSize::Bytes(1000);
+    update = controller->OnSentPacket(sent_packet);
+    if (update.target_rate.has_value() &&
+        update.target_rate->is_bandwidth_limited) {
+      bandwidth_limited_detected = true;
+    }
+  }
+
+  if (!bandwidth_limited_detected) {
+    // Process interval should trigger target rate update if not already
+    // triggered by OnSentPacket
+    update = controller->OnProcessInterval({.at_time = current_time});
+    if (update.target_rate.has_value() &&
+        update.target_rate->is_bandwidth_limited) {
+      bandwidth_limited_detected = true;
+    }
+  }
+  EXPECT_TRUE(bandwidth_limited_detected);
+}
+
 }  // namespace test
 }  // namespace webrtc

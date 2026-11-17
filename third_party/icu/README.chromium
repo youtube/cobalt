@@ -267,14 +267,6 @@ D. Local Modifications
   - https://bugzilla.mozilla.org/show_bug.cgi?id=2010411
   - https://github.com/unicode-org/cldr/pull/5309
 
-13. "GMT+0" in "en-GB" locale
-    Timezone representation is "GMT+0" in "en-GB" locale since ICU 78 though it
-    was "GMT". It caused a site compatibility issue.
-  - patches/cldr-19362-british-gmt.patch
-  - https://bugzilla.mozilla.org/show_bug.cgi?id=2018880
-  - https://github.com/mozilla-firefox/firefox/commit/d9a1061bb178
-  - https://unicode-org.atlassian.net/browse/CLDR-19362
-
-14. Missing long name in iso8601 calendar.
+13. Missing long name in iso8601 calendar.
     https://unicode-org.atlassian.net/browse/ICU-23262
   - patches/missing_iso8601_resource.patch

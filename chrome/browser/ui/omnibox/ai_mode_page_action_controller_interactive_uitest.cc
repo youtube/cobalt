@@ -270,4 +270,51 @@ IN_PROC_BROWSER_TEST_F(
                   CheckChipVisible(false));
 }
 
+class AiModePageActionControllerDynamicAiModeButtonInteractiveUiTest
+    : public AiModePageActionControllerInteractiveUiTest {
+ protected:
+  void InitializeFeatures() override {
+    features_.InitWithFeaturesAndParameters(
+        /*enabled_features*/ {{kWebUIOmniboxDynamicAiModeButton, {}},
+                              {
+                                  features::kPageActionsMigration,
+                                  {
+                                      {
+                                          features::kPageActionsMigrationAiMode
+                                              .name,
+                                          "true",
+                                      },
+                                  },
+                              },
+                              {omnibox::internal::kWebUIOmniboxPopup, {}},
+                              {omnibox::internal::kWebUIOmniboxAimPopup, {}}},
+        /*disabled_features*/ {});
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(
+    AiModePageActionControllerDynamicAiModeButtonInteractiveUiTest,
+    HidesOnWebPageFocus) {
+  RunTestSequence(OpenTabWithPageUrlAndFocusOmnibox(/*is_ntp=*/false),
+                  CheckChipVisible(/*visible=*/false));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    AiModePageActionControllerDynamicAiModeButtonInteractiveUiTest,
+    ShowsOnNtpFocus) {
+  RunTestSequence(OpenTabWithPageUrlAndFocusOmnibox(/*is_ntp=*/true),
+                  CheckChipVisible(/*visible=*/true));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    AiModePageActionControllerDynamicAiModeButtonInteractiveUiTest,
+    HidesOnUrlSuggestion) {
+  RunTestSequence(OpenTabWithPageUrlAndFocusOmnibox(/*is_ntp=*/true),
+                  CheckChipVisible(true),
+                  // Type a URL.
+                  EnterText(kOmniboxElementId, u"https://google.com"),
+                  CheckChipVisible(false));
+}
+
 }  // namespace omnibox
+

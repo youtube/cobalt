@@ -153,8 +153,8 @@ bool tls13_advance_key_schedule(SSL_HANDSHAKE *hs, Span<const uint8_t> in) {
 }
 
 // derive_secret_with_transcript derives a secret of length
-// |transcript.DigestLen()| and writes the result in |out| with the given label,
-// the current base secret, and the state of |transcript|. It returns true on
+// `transcript.DigestLen()` and writes the result in `out` with the given label,
+// the current base secret, and the state of `transcript`. It returns true on
 // success and false on error.
 static bool derive_secret_with_transcript(
     const SSL_HANDSHAKE *hs, InplaceVector<uint8_t, SSL_MAX_MD_SIZE> *out,
@@ -279,7 +279,7 @@ class ChaChaRecordNumberEncrypter : public RecordNumberEncrypter {
   bool GenerateMask(Span<uint8_t> out, Span<const uint8_t> sample) override {
     // RFC 9147 section 4.2.3 uses the first 4 bytes of the sample as the
     // counter and the next 12 bytes as the nonce. If we have less than 4+12=16
-    // bytes in the sample, then we'll read past the end of the |sample| buffer.
+    // bytes in the sample, then we'll read past the end of the `sample` buffer.
     // The counter is interpreted as little-endian per RFC 8439.
     if (sample.size() < 16) {
       return false;
@@ -420,9 +420,9 @@ bool tls13_derive_resumption_secret(SSL_HANDSHAKE *hs) {
 
 static const char kTLS13LabelFinished[] = "finished";
 
-// tls13_verify_data sets |out| to be the HMAC of |context| using a derived
-// Finished key for both Finished messages and the PSK binder. |out| must have
-// space available for |EVP_MAX_MD_SIZE| bytes.
+// tls13_verify_data sets `out` to be the HMAC of `context` using a derived
+// Finished key for both Finished messages and the PSK binder. `out` must have
+// space available for `EVP_MAX_MD_SIZE` bytes.
 static bool tls13_verify_data(uint8_t *out, size_t *out_len,
                               const EVP_MD *digest, Span<const uint8_t> secret,
                               Span<const uint8_t> context, bool is_dtls) {
@@ -704,7 +704,7 @@ bool ssl_ech_accept_confirmation(
   // See RFC 9849, sections 7.2 and 7.2.1.
   static const uint8_t kZeros[EVP_MAX_MD_SIZE] = {0};
 
-  // We hash |msg|, with bytes from |offset| zeroed.
+  // We hash `msg`, with bytes from `offset` zeroed.
   if (msg.size() < offset + ECH_CONFIRMATION_SIGNAL_LEN) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     return false;

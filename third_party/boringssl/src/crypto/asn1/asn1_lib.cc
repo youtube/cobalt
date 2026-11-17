@@ -63,13 +63,13 @@ OPENSSL_DECLARE_ERROR_REASON(ASN1, UNKNOWN_FORMAT)
 OPENSSL_DECLARE_ERROR_REASON(ASN1, UNKNOWN_TAG)
 OPENSSL_DECLARE_ERROR_REASON(ASN1, UNSUPPORTED_TYPE)
 
-// Limit |ASN1_STRING|s to 64 MiB of data. Most of this module, as well as
+// Limit `ASN1_STRING`s to 64 MiB of data. Most of this module, as well as
 // downstream code, does not correctly handle overflow. We cap string fields
-// more tightly than strictly necessary to fit in |int|. This is not expected to
+// more tightly than strictly necessary to fit in `int`. This is not expected to
 // impact real world uses of this field.
 //
 // In particular, this limit is small enough that the bit count of a BIT STRING
-// comfortably fits in an |int|, with room for arithmetic.
+// comfortably fits in an `int`, with room for arithmetic.
 #define ASN1_STRING_MAX (64 * 1024 * 1024)
 
 static void asn1_put_length(unsigned char **pp, int length);
@@ -270,7 +270,7 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, ossl_ssize_t len_s) {
   if (data != nullptr) {
     OPENSSL_memcpy(str->data, data, len);
     // Historically, OpenSSL would NUL-terminate most (but not all)
-    // |ASN1_STRING|s, in case anyone accidentally passed |str->data| into a
+    // `ASN1_STRING`s, in case anyone accidentally passed `str->data` into a
     // function expecting a C string. We retain this behavior for compatibility,
     // but code must not rely on this. See CVE-2021-3712.
     str->data[len] = '\0';

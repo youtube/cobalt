@@ -44,7 +44,7 @@ static const size_t kMaxEarlyDataSkipped = 16384;
 // processed.
 static const uint8_t kMaxWarningAlerts = 4;
 
-// ssl_needs_record_splitting returns one if |ssl|'s current outgoing cipher
+// ssl_needs_record_splitting returns one if `ssl`'s current outgoing cipher
 // state needs record-splitting and zero otherwise.
 bool ssl_needs_record_splitting(const SSL *ssl) {
   return !CRYPTO_fuzzer_mode_enabled() &&
@@ -354,12 +354,12 @@ static bool tls_seal_scatter_suffix_len(const SSL *ssl, size_t *out_suffix_len,
                                             extra_in_len);
 }
 
-// tls_seal_scatter_record seals a new record of type |type| and body |in| and
-// splits it between |out_prefix|, |out|, and |out_suffix|. Exactly
-// |tls_seal_scatter_prefix_len| bytes are written to |out_prefix|, |in_len|
-// bytes to |out|, and |tls_seal_scatter_suffix_len| bytes to |out_suffix|. It
+// tls_seal_scatter_record seals a new record of type `type` and body `in` and
+// splits it between `out_prefix`, `out`, and `out_suffix`. Exactly
+// `tls_seal_scatter_prefix_len` bytes are written to `out_prefix`, `in_len`
+// bytes to `out`, and `tls_seal_scatter_suffix_len` bytes to `out_suffix`. It
 // returns one on success and zero on error. If enabled,
-// |tls_seal_scatter_record| implements TLS 1.0 CBC 1/n-1 record splitting and
+// `tls_seal_scatter_record` implements TLS 1.0 CBC 1/n-1 record splitting and
 // may write two records concatenated.
 static bool tls_seal_scatter_record(SSL *ssl, uint8_t *out_prefix, uint8_t *out,
                                     uint8_t *out_suffix, uint8_t type,
@@ -369,7 +369,7 @@ static bool tls_seal_scatter_record(SSL *ssl, uint8_t *out_prefix, uint8_t *out,
     assert(ssl->s3->aead_write_ctx->ExplicitNonceLen() == 0);
     const size_t prefix_len = SSL3_RT_HEADER_LENGTH;
 
-    // Write the 1-byte fragment into |out_prefix|.
+    // Write the 1-byte fragment into `out_prefix`.
     uint8_t *split_body = out_prefix + prefix_len;
     uint8_t *split_suffix = split_body + 1;
 
@@ -388,8 +388,8 @@ static bool tls_seal_scatter_record(SSL *ssl, uint8_t *out_prefix, uint8_t *out,
                                        ssl->s3->aead_write_ctx->cipher()) ==
            split_record_len);
 
-    // Write the n-1-byte fragment. The header gets split between |out_prefix|
-    // (header[:-1]) and |out| (header[-1:]).
+    // Write the n-1-byte fragment. The header gets split between `out_prefix`
+    // (header[:-1]) and `out` (header[-1:]).
     uint8_t tmp_prefix[SSL3_RT_HEADER_LENGTH];
     if (!do_seal_record(ssl, tmp_prefix, out + 1, out_suffix, type, in + 1,
                         in_len - 1)) {

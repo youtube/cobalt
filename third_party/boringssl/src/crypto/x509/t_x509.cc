@@ -93,7 +93,7 @@ int X509_print_ex(BIO *bp, const X509 *x, unsigned long nmflags,
         return 0;
       }
     } else {
-      ERR_clear_error();  // Clear |ASN1_INTEGER_get_uint64|'s error.
+      ERR_clear_error();  // Clear `ASN1_INTEGER_get_uint64`'s error.
       const char *neg =
           (serial->type == V_ASN1_NEG_INTEGER) ? " (Negative)" : "";
       if (BIO_printf(bp, "\n%12s%s", "", neg) <= 0) {

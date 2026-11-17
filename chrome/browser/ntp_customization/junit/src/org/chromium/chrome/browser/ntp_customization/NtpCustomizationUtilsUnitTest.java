@@ -34,6 +34,7 @@ import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_C
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_TYPE;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR_DARK;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH;
 import static org.chromium.components.browser_ui.styles.SemanticColorUtils.getDefaultIconColor;
 
@@ -219,6 +220,38 @@ public class NtpCustomizationUtilsUnitTest {
     }
 
     @Test
+    @EnableFeatures({
+        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2,
+        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC
+    })
+    public void testIsNTPCustomizationSyncEnabled_BothEnabled() {
+        assertTrue(NtpCustomizationUtils.isNTPCustomizationSyncEnabled());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    @DisableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC)
+    public void testIsNTPCustomizationSyncEnabled_OnlyV2Enabled() {
+        assertFalse(NtpCustomizationUtils.isNTPCustomizationSyncEnabled());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC)
+    @DisableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    public void testIsNTPCustomizationSyncEnabled_OnlyThemeSyncEnabled() {
+        assertFalse(NtpCustomizationUtils.isNTPCustomizationSyncEnabled());
+    }
+
+    @Test
+    @DisableFeatures({
+        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2,
+        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC
+    })
+    public void testIsNTPCustomizationSyncEnabled_BothDisabled() {
+        assertFalse(NtpCustomizationUtils.isNTPCustomizationSyncEnabled());
+    }
+
+    @Test
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testIsNtpThemeCustomizationEnabledWithWindowAndroid() {
         NtpCustomizationPolicyManager policyManager = mock(NtpCustomizationPolicyManager.class);
@@ -385,6 +418,44 @@ public class NtpCustomizationUtilsUnitTest {
     }
 
     @Test
+    public void testSaveThemeColorFromHexInfoToSharedPreference() {
+        @ColorInt int primaryColorLight = Color.RED;
+        @ColorInt int primaryColorDark = Color.BLUE;
+        @ColorInt int backgroundColorLight = Color.GREEN;
+        @ColorInt int backgroundColorDark = Color.YELLOW;
+
+        NtpThemeColorFromHexInfo colorInfo =
+                new NtpThemeColorFromHexInfo(
+                        mContext,
+                        backgroundColorLight,
+                        backgroundColorDark,
+                        primaryColorLight,
+                        primaryColorDark);
+
+        NtpCustomizationUtils.saveThemeColorFromHexInfoToSharedPreference(colorInfo);
+
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        assertEquals(
+                primaryColorLight,
+                prefsManager.readInt(
+                        NTP_CUSTOMIZATION_PRIMARY_COLOR, NtpThemeColorInfo.COLOR_NOT_SET));
+        assertEquals(
+                primaryColorDark,
+                prefsManager.readInt(
+                        NTP_CUSTOMIZATION_PRIMARY_COLOR_DARK, NtpThemeColorInfo.COLOR_NOT_SET));
+        assertEquals(
+                backgroundColorLight,
+                prefsManager.readInt(
+                        ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR,
+                        NtpThemeColorInfo.COLOR_NOT_SET));
+        assertEquals(
+                backgroundColorDark,
+                prefsManager.readInt(
+                        ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR_DARK,
+                        NtpThemeColorInfo.COLOR_NOT_SET));
+    }
+
+    @Test
     public void testResetCustomizedImage() {
         SharedPreferencesManager sharedPreferencesManager = ChromeSharedPreferences.getInstance();
 
@@ -468,6 +539,42 @@ public class NtpCustomizationUtilsUnitTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    public void testGetPrimaryColorFromCustomizedThemeColor_colorFromHex_LightAndDark() {
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(COLOR_FROM_HEX);
+
+        @ColorInt int primaryColorLight = Color.RED;
+        @ColorInt int primaryColorDark = Color.BLUE;
+        @ColorInt int backgroundColorLight = Color.GREEN;
+        @ColorInt int backgroundColorDark = Color.YELLOW;
+
+        NtpThemeColorFromHexInfo colorInfo =
+                new NtpThemeColorFromHexInfo(
+                        mContext,
+                        backgroundColorLight,
+                        backgroundColorDark,
+                        primaryColorLight,
+                        primaryColorDark);
+        NtpCustomizationUtils.saveThemeColorFromHexInfoToSharedPreference(colorInfo);
+
+        // Test light mode case.
+        ColorUtils.setInNightModeForTesting(false);
+        assertEquals(
+                primaryColorLight,
+                (int)
+                        NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor(
+                                mContext, /* checkDailyRefresh= */ false));
+
+        // Test dark mode case.
+        ColorUtils.setInNightModeForTesting(true);
+        assertEquals(
+                primaryColorDark,
+                (int)
+                        NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor(
+                                mContext, /* checkDailyRefresh= */ false));
+    }
+
+    @Test
     @DisableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testGetPrimaryColorFromCustomizedThemeColor_flagDisabled() {
         assertNull(
@@ -544,6 +651,19 @@ public class NtpCustomizationUtilsUnitTest {
         // again.
         assertEquals(
                 primaryColor,
+                (int)
+                        NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor(
+                                mContext, /* checkDailyRefresh= */ false));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    public void testGetPrimaryColorFromCustomizedThemeColor_colorFromHex() {
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(COLOR_FROM_HEX);
+        NtpCustomizationUtils.setCustomizedPrimaryColorToSharedPreference(Color.GREEN);
+
+        assertEquals(
+                Color.GREEN,
                 (int)
                         NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor(
                                 mContext, /* checkDailyRefresh= */ false));

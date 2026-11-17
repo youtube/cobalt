@@ -43,23 +43,18 @@ class FakeGlicCookieSynchronizer : public GlicCookieSynchronizer {
   int copy_cookies_called_count() const { return copy_cookies_called_count_; }
   void set_sync_result(bool result) { sync_result_ = result; }
 
-  void WaitForSyncToComplete() {
-    base::RunLoop run_loop;
-    quit_closure_ = run_loop.QuitClosure();
-    run_loop.Run();
-  }
+  void WaitForSyncToComplete() { std::ignore = sync_complete_future_.Take(); }
 
  private:
   void RunCallback(base::OnceCallback<void(bool)> callback) {
     std::move(callback).Run(sync_result_);
-    if (quit_closure_) {
-      std::move(quit_closure_).Run();
-    }
+    sync_complete_future_.SetValue(true);
   }
 
   int copy_cookies_called_count_ = 0;
   bool sync_result_ = true;
-  base::OnceClosure quit_closure_;
+  base::test::TestFuture<bool> sync_complete_future_{
+      base::test::TestFutureMode::kQueue};
   base::WeakPtrFactory<FakeGlicCookieSynchronizer> weak_ptr_factory_{this};
 };
 
@@ -73,6 +68,12 @@ class AuthControllerTest : public testing::Test {
  protected:
   void SetUp() override {
     testing::Test::SetUp();
+    default_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{},
+        /*disabled_features=*/{
+            features::kGlicCookieSyncOnTokenChange,
+            features::kGlicCookieSyncOnOpenEvenIfNoSyncNeeded,
+            features::kGlicCookieSyncOnError});
     profile_ = std::make_unique<TestingProfile>();
     identity_test_env_ = std::make_unique<signin::IdentityTestEnvironment>();
 
@@ -94,6 +95,7 @@ class AuthControllerTest : public testing::Test {
   std::unique_ptr<signin::IdentityTestEnvironment> identity_test_env_;
   std::unique_ptr<AuthController> auth_controller_;
   raw_ptr<FakeGlicCookieSynchronizer> synchronizer_;
+  base::test::ScopedFeatureList default_feature_list_;
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -105,10 +107,34 @@ TEST_F(AuthControllerTest, SkipCookieSyncOnOpen_Disabled) {
   auth_controller_->CheckAuthBeforeLoad(future.GetCallback());
 
   EXPECT_EQ(future.Get(), mojom::PrepareForClientResult::kSuccess);
+  synchronizer_->WaitForSyncToComplete();
   EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 1);
   histogram_tester.ExpectUniqueSample(
       "Glic.Auth.CheckAuthBeforeLoadOutcome",
       glic::CheckAuthBeforeLoadOutcome::kSyncAttempted, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "Glic.CookieSynchronization.SuccessByTrigger",
+      GlicCookieSyncTrigger::kCheckAuthBeforeLoad, 1);
+  histogram_tester.ExpectTotalCount(
+      "Glic.CookieSynchronization.FailureByTrigger", 0);
+}
+
+TEST_F(AuthControllerTest, CookieSyncFailureHistograms) {
+  base::HistogramTester histogram_tester;
+  synchronizer_->set_sync_result(false);
+
+  base::test::TestFuture<mojom::PrepareForClientResult> future;
+  auth_controller_->CheckAuthBeforeLoad(future.GetCallback());
+
+  EXPECT_EQ(future.Get(),
+            mojom::PrepareForClientResult::kErrorResyncingCookies);
+  synchronizer_->WaitForSyncToComplete();
+  histogram_tester.ExpectUniqueSample(
+      "Glic.CookieSynchronization.FailureByTrigger",
+      GlicCookieSyncTrigger::kCheckAuthBeforeLoad, 1);
+  histogram_tester.ExpectTotalCount(
+      "Glic.CookieSynchronization.SuccessByTrigger", 0);
 }
 
 TEST_F(AuthControllerTest, SkipCookieSyncOnOpen_Enabled) {
@@ -140,6 +166,7 @@ TEST_F(AuthControllerTest,
 
 TEST_F(AuthControllerTest, CookieSyncOnTokenChange_PrimaryAccountChanged) {
   feature_list_.InitAndEnableFeature(features::kGlicCookieSyncOnTokenChange);
+  base::HistogramTester histogram_tester;
 
   EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 0);
 
@@ -148,10 +175,12 @@ TEST_F(AuthControllerTest, CookieSyncOnTokenChange_PrimaryAccountChanged) {
   identity_test_env_->MakePrimaryAccountAvailable(
       "user2@gmail.com", signin::ConsentLevel::kSignin);
 
-  // Expect 1 or more calls because both OnPrimaryAccountChanged and
-  // OnErrorStateOfRefreshTokenUpdatedForAccount may be triggered when setting
-  // a new account.
+  synchronizer_->WaitForSyncToComplete();
+
   EXPECT_GT(synchronizer_->copy_cookies_called_count(), 0);
+  histogram_tester.ExpectBucketCount(
+      "Glic.CookieSynchronization.SuccessByTrigger",
+      GlicCookieSyncTrigger::kOnPrimaryAccountChanged, 1);
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
@@ -205,6 +234,7 @@ TEST_F(AuthControllerTest,
 TEST_F(AuthControllerTest,
        CookieSyncOnTokenChange_SetRefreshTokenForAccountTriggerSync) {
   feature_list_.InitAndEnableFeature(features::kGlicCookieSyncOnTokenChange);
+  base::HistogramTester histogram_tester;
 
   CoreAccountInfo account_info =
       identity_test_env_->identity_manager()->GetPrimaryAccountInfo(
@@ -213,6 +243,9 @@ TEST_F(AuthControllerTest,
   identity_test_env_->SetRefreshTokenForAccount(account_info.account_id);
   synchronizer_->WaitForSyncToComplete();
   ASSERT_EQ(synchronizer_->copy_cookies_called_count(), 1);
+  histogram_tester.ExpectUniqueSample(
+      "Glic.CookieSynchronization.SuccessByTrigger",
+      GlicCookieSyncTrigger::kOnRefreshTokenUpdated, 1);
 }
 
 TEST_F(AuthControllerTest,
@@ -235,6 +268,161 @@ TEST_F(AuthControllerTest,
   // Both calls should eventually succeed.
   EXPECT_EQ(future1.Get(), mojom::PrepareForClientResult::kSuccess);
   EXPECT_EQ(future2.Get(), mojom::PrepareForClientResult::kSuccess);
+
+  // Both syncs should have completed.
+  synchronizer_->WaitForSyncToComplete();
+  synchronizer_->WaitForSyncToComplete();
+}
+
+TEST_F(AuthControllerTest, CookieSyncOnError_Disabled) {
+  // If kGlicCookieSyncOnError is disabled (but kGlicCookieSyncOnTokenChange is
+  // enabled), OnClientError should NOT trigger a sync immediately.
+  feature_list_.InitWithFeatures(
+      /*enabled_features=*/{features::kGlicCookieSyncOnTokenChange},
+      /*disabled_features=*/{features::kGlicCookieSyncOnError});
+
+  auth_controller_->OnClientError();
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 0);
+
+  // However, calling CheckAuthBeforeLoad should attempt a sync.
+  base::test::TestFuture<mojom::PrepareForClientResult> future;
+  auth_controller_->CheckAuthBeforeLoad(future.GetCallback());
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 1);
+  synchronizer_->WaitForSyncToComplete();
+  EXPECT_EQ(future.Get(), mojom::PrepareForClientResult::kSuccess);
+}
+
+TEST_F(AuthControllerTest, CookieSyncOnError_Enabled) {
+  feature_list_.InitWithFeaturesAndParameters(
+      {{features::kGlicCookieSyncOnError, {{"min_interval", "5m"}}},
+       {features::kGlicCookieSyncOnTokenChange, {}}},
+      {});
+
+  // OnClientError should trigger sync immediately.
+  auth_controller_->OnClientError();
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 1);
+
+  synchronizer_->WaitForSyncToComplete();
+
+  // Subsequent CheckAuthBeforeLoad should NOT attempt sync because sync is
+  // already complete.
+  base::test::TestFuture<mojom::PrepareForClientResult> future;
+  auth_controller_->CheckAuthBeforeLoad(future.GetCallback());
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 1);
+  EXPECT_EQ(future.Get(), mojom::PrepareForClientResult::kSuccess);
+}
+
+TEST_F(AuthControllerTest, CookieSyncOnError_Tolerance) {
+  feature_list_.InitWithFeaturesAndParameters(
+      {{features::kGlicCookieSyncOnError, {{"min_interval", "5m"}}},
+       {features::kGlicCookieSyncOnTokenChange, {}}},
+      {});
+
+  // First error should trigger sync immediately.
+  auth_controller_->OnClientError();
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 1);
+  synchronizer_->WaitForSyncToComplete();
+
+  // Second error immediately after should NOT trigger immediate sync.
+  auth_controller_->OnClientError();
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 1);
+
+  // Fast forward 4 minutes (less than the 5 minute minimum interval).
+  task_environment_.FastForwardBy(base::Minutes(4));
+  auth_controller_->OnClientError();
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 1);
+
+  // But calling CheckAuthBeforeLoad should still trigger sync because sync is
+  // needed.
+  {
+    base::test::TestFuture<mojom::PrepareForClientResult> future;
+    auth_controller_->CheckAuthBeforeLoad(future.GetCallback());
+    EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 2);
+    synchronizer_->WaitForSyncToComplete();
+    EXPECT_EQ(future.Get(), mojom::PrepareForClientResult::kSuccess);
+  }
+
+  // Clear interval by fast forwarding 6 minutes.
+  task_environment_.FastForwardBy(base::Minutes(6));
+
+  // Trigger error again.
+  auth_controller_->OnClientError();
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 3);
+  synchronizer_->WaitForSyncToComplete();
+
+  // Fast forward another 5 minutes and 1 second (exceeds the 5 minute
+  // interval).
+  task_environment_.FastForwardBy(base::Seconds(301));
+  auth_controller_->OnClientError();
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 4);
+  synchronizer_->WaitForSyncToComplete();
+}
+
+TEST_F(AuthControllerTest, CookieSyncOnError_TransientError) {
+  feature_list_.InitWithFeaturesAndParameters(
+      {{features::kGlicCookieSyncOnError, {{"min_interval", "5m"}}},
+       {features::kGlicCookieSyncOnTokenChange, {}}},
+      {});
+
+  // kUnauthenticated transient error should trigger sync immediately.
+  auth_controller_->OnClientTransientError(
+      mojo_base::mojom::AbslStatusCode::kUnauthenticated);
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 1);
+  synchronizer_->WaitForSyncToComplete();
+
+  // Fast forward 6 minutes to clear the interval.
+  task_environment_.FastForwardBy(base::Minutes(6));
+
+  // kInternal transient error should trigger sync.
+  auth_controller_->OnClientTransientError(
+      mojo_base::mojom::AbslStatusCode::kInternal);
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 2);
+  synchronizer_->WaitForSyncToComplete();
+
+  // Fast forward 6 minutes to clear the interval.
+  task_environment_.FastForwardBy(base::Minutes(6));
+
+  // kNotFound transient error should NOT trigger sync.
+  auth_controller_->OnClientTransientError(
+      mojo_base::mojom::AbslStatusCode::kNotFound);
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 2);
+
+  // And CheckAuthBeforeLoad should not trigger sync after kNotFound since
+  // kNotFound does not need sync.
+  base::test::TestFuture<mojom::PrepareForClientResult> future;
+  auth_controller_->CheckAuthBeforeLoad(future.GetCallback());
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 2);
+  EXPECT_EQ(future.Get(), mojom::PrepareForClientResult::kSuccess);
+}
+
+TEST_F(AuthControllerTest, CookieSyncOnOpenEvenIfNoSyncNeeded_Enabled) {
+  feature_list_.InitWithFeatures(
+      /*enabled_features=*/{features::kGlicCookieSyncOnTokenChange,
+                            features::kGlicCookieSyncOnOpenEvenIfNoSyncNeeded},
+      /*disabled_features=*/{});
+
+  // Prepare a successful sync beforehand to mark needs_sync as false.
+  CoreAccountInfo account_info =
+      identity_test_env_->identity_manager()->GetPrimaryAccountInfo(
+          signin::ConsentLevel::kSignin);
+  identity_test_env_->SetRefreshTokenForAccount(account_info.account_id);
+  synchronizer_->WaitForSyncToComplete();
+  ASSERT_EQ(synchronizer_->copy_cookies_called_count(), 1);
+
+  // Call CheckAuthBeforeLoad. Since kGlicCookieSyncOnOpenEvenIfNoSyncNeeded is
+  // enabled, it should trigger another sync in the background immediately.
+  base::test::TestFuture<mojom::PrepareForClientResult> future;
+  auth_controller_->CheckAuthBeforeLoad(future.GetCallback());
+
+  // We should not wait for the background sync to finish before the load
+  // callback returns.
+  EXPECT_EQ(future.Get(), mojom::PrepareForClientResult::kSuccess);
+
+  // A new sync should have been triggered in the background.
+  EXPECT_EQ(synchronizer_->copy_cookies_called_count(), 2);
+
+  // Wait for the background sync to complete to cleanup.
+  synchronizer_->WaitForSyncToComplete();
 }
 
 }  // namespace glic

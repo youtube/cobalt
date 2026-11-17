@@ -163,7 +163,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Search.AuxiliarySearch.DonationCount.{AuxiliarySearchEntryType}"
-    units="count" expires_after="2026-09-24">
+    units="count" expires_after="2026-11-29">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -516,7 +516,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenEvents{Context}{Profile}"
-    enum="SearchEngineChoiceScreenEvents" expires_after="2026-09-13">
+    enum="SearchEngineChoiceScreenEvents" expires_after="2026-11-29">
   <owner>dgn@chromium.org</owner>
   <owner>samarchehade@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
@@ -1018,7 +1018,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.DefaultSearchEngineMirrorCheckOutcome"
-    enum="DefaultSearchEngineMirrorCheckOutcomeType" expires_after="2026-09-30">
+    enum="DefaultSearchEngineMirrorCheckOutcomeType" expires_after="2026-11-29">
   <owner>fikremengistu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1048,7 +1048,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.DefaultSearchEngineResetNotificationShown"
-    enum="BooleanShown" expires_after="2026-09-30">
+    enum="BooleanShown" expires_after="2026-11-29">
   <owner>fikremengistu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1064,7 +1064,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.DefaultSearchProviderType2{Population}"
-    enum="OmniboxSearchEngineType" expires_after="2026-08-30">
+    enum="OmniboxSearchEngineType" expires_after="2026-11-29">
   <owner>mpearson@chromium.org</owner>
   <owner>ftirelo@chromium.org</owner>
   <summary>
@@ -1100,7 +1100,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Image.Camera.Open" enum="CameraOpenEntryPoint"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>juanmojica@google.com</owner>
   <owner>schechter@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -1143,6 +1143,22 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
   <summary>
     Records whether there is a site search with a URL-like keyword whose target
     URL has a different eTLD, but the same domain otherwise.
+  </summary>
+</histogram>
+
+<histogram name="Search.Integrity.CustomPopulatedDefault" enum="Boolean"
+    expires_after="2026-10-20">
+  <owner>musalmaan@chromium.org</owner>
+  <owner>iclelland@chromium.org</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Records whether the default search engine is a custom search engine but has
+    a non-zero `prepopulate_id`. This helps identify engines that are not part
+    of the standard prepopulated list but are appearing in the default search
+    list.
+
+    Recorded once per profile at startup when the search engine allowlist is
+    initialized and the configuration is checked.
   </summary>
 </histogram>
 
@@ -1309,7 +1325,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.iOS.SelectDefaultSearchEngine"
-    enum="OmniboxSearchEngineType" expires_after="2026-09-20">
+    enum="OmniboxSearchEngineType" expires_after="2026-11-29">
   <owner>sczs@chromium.org</owner>
   <owner>gambard@chromium.org</owner>
   <summary>
@@ -1554,7 +1570,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.RegionSearch.Lens.Result"
-    enum="LensRegionSearchCaptureResult" expires_after="2026-09-27">
+    enum="LensRegionSearchCaptureResult" expires_after="2026-11-29">
   <owner>juanmojica@google.com</owner>
   <owner>benwgold@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -1850,6 +1866,39 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
     Collected when the SiteSearchSettings policy is enabled or updated and after
     that on every browser start.
   </summary>
+</histogram>
+
+<histogram name="Search.SearchPromotion.DefaultBrowserState"
+    enum="DefaultBrowserState" expires_after="2027-05-22">
+  <owner>qlucyk@chromium.org</owner>
+  <owner>iclelland@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Records the user's default browser state. Recorded when the user visits a
+    Google Search URL and is evaluated for the search promotion. Recorded
+    asynchronously to avoid blocking the UI thread. Only recorded on Windows.
+  </summary>
+</histogram>
+
+<histogram name="Search.SearchPromotion.DefaultBrowserType.{Interaction}.{Arm}"
+    enum="SearchPromotionDefaultBrowserType" expires_after="2027-05-22">
+  <owner>qlucyk@chromium.org</owner>
+  <owner>iclelland@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Records the user's default browser type (Chrome, Edge, Safari, Firefox,
+    etc.). Recorded when the user {Interaction} the search promotion IPH on
+    {Arm}. Recorded asynchronously on a background task thread. Only recorded on
+    Windows.
+  </summary>
+  <token key="Interaction">
+    <variant name="Accepted" summary="accepted"/>
+    <variant name="Dismissed" summary="dismissed or closed"/>
+  </token>
+  <token key="Arm">
+    <variant name="ArmA" summary="Arm A (promo only)"/>
+    <variant name="ArmB" summary="Arm B (promo and install)"/>
+  </token>
 </histogram>
 
 <histogram name="Search.SearchProviderOverrideStatus"

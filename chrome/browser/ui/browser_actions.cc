@@ -15,6 +15,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "base/notreached.h"
 #include "build/branding_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -37,6 +38,8 @@
 #endif
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/indigo/resources/grit/indigo_strings.h"
+#include "chrome/browser/multistep_filter/ui/filter_ui_controller.h"
+#include "chrome/browser/ui/actions/actions_util.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/actions/chrome_actions.h"
 #include "chrome/browser/ui/ai_overlay_dialog/ai_overlay_dialog_controller.h"
@@ -63,6 +66,7 @@
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/lens/lens_string_utils.h"
 #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
+#include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/page_action/page_action_triggers.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/passwords/passwords_model_delegate.h"
@@ -222,28 +226,19 @@ BrowserActions::BrowserActions(BrowserWindowInterface* bwi)
 
 BrowserActions::~BrowserActions() {
   browser_action_prefs_listener_.reset();
-  // Extract the unique ptr and destruct it after the raw_ptr to avoid a
-  // dangling pointer scenario.
-  std::unique_ptr<actions::ActionItem> owned_root_action_item =
-      actions::ActionManager::Get().RemoveAction(root_action_item_);
-  root_action_item_ = nullptr;
+  if (root_action_item_) {
+    // Extract the unique ptr and destruct it after the raw_ptr to avoid a
+    // dangling pointer scenario.
+    std::unique_ptr<actions::ActionItem> owned_root_action_item =
+        actions::ActionManager::Get().RemoveAction(root_action_item_);
+    root_action_item_ = nullptr;
+  }
 }
 
 // static
 std::u16string BrowserActions::GetCleanTitleAndTooltipText(
     std::u16string string) {
-  static constexpr std::u16string_view kEllipsisUnicode{u"\u2026"};
-  static constexpr std::u16string_view kEllipsisText{u"..."};
-
-  const auto remove_ellipsis = [&string](const std::u16string_view ellipsis) {
-    const size_t ellipsis_pos = string.find(ellipsis);
-    if (ellipsis_pos != std::u16string::npos) {
-      string.erase(ellipsis_pos);
-    }
-  };
-  remove_ellipsis(kEllipsisUnicode);
-  remove_ellipsis(kEllipsisText);
-  return gfx::RemoveAccelerator(string);
+  return chrome::GetCleanTitleAndTooltipText(std::move(string));
 }
 
 void BrowserActions::InitializeBrowserActions() {
@@ -923,7 +918,7 @@ void BrowserActions::InitializeChromeMenuActions() {
           base::BindRepeating(
               [](BrowserWindowInterface* bwi, actions::ActionItem* item,
                  actions::ActionInvocationContext context) {
-                chrome::NewTab(bwi);
+                chrome::NewTab(bwi, NewTabTypes::kNewTabCommand);
               },
               bwi))
           .SetActionId(kActionNewTab)
@@ -974,27 +969,27 @@ void BrowserActions::InitializeChromeMenuActions() {
 
   const bool is_incognito = profile_->IsIncognitoProfile();
   root_action_item_->AddChild(
-      ChromeMenuAction(base::BindRepeating(
-                           [](BrowserWindowInterface* bwi, bool is_incognito,
-                              actions::ActionItem* item,
-                              actions::ActionInvocationContext context) {
-                             Browser* const browser_for_opening_webui =
-                                 bwi->GetBrowserForMigrationOnly()
-                                     ->GetBrowserForOpeningWebUi();
-                             if (is_incognito) {
-                               chrome::ShowIncognitoClearBrowsingDataDialog(
-                                   browser_for_opening_webui);
-                             } else {
-                               chrome::ShowClearBrowsingDataDialog(
-                                   browser_for_opening_webui);
-                             }
-                           },
-                           bwi, is_incognito),
-                       kActionClearBrowsingData, IDS_CLEAR_BROWSING_DATA,
-                       IDS_CLEAR_BROWSING_DATA,
-                       features::IsRoundedIconsEnabled()
-                           ? kDeleteIcon
-                           : kTrashCanRefreshOldIcon)
+      ChromeMenuAction(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, bool is_incognito,
+                 actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                BrowserWindowInterface* const browser_for_opening_webui =
+                    bwi->GetBrowserForMigrationOnly()
+                        ->GetBrowserForOpeningWebUi();
+                if (is_incognito) {
+                  chrome::ShowIncognitoClearBrowsingDataDialog(
+                      browser_for_opening_webui);
+                } else {
+                  chrome::ShowClearBrowsingDataDialog(
+                      browser_for_opening_webui);
+                }
+              },
+              bwi, is_incognito),
+          kActionClearBrowsingData, IDS_CLEAR_BROWSING_DATA,
+          IDS_CLEAR_BROWSING_DATA,
+          features::IsRoundedIconsEnabled() ? kDeleteIcon
+                                            : kTrashCanRefreshOldIcon)
           .SetEnabled(is_incognito ||
                       (!is_guest_session && !profile->IsSystemProfile()))
           .Build());
@@ -1397,10 +1392,10 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
                         .toolbar_button_provider();
                 CHECK(toolbar_button_provider);
 
-                views::View* page_action_view =
-                    toolbar_button_provider->GetPageActionView(
+                views::BubbleAnchor page_action_anchor =
+                    toolbar_button_provider->GetPageActionBubbleAnchor(
                         kActionShowCollaborationRecentActivity);
-                CHECK(page_action_view);
+                CHECK(page_action_anchor);
 
                 tabs::TabInterface* tab = bwi->GetActiveTabInterface();
                 CHECK(tab);
@@ -1430,7 +1425,7 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
                             profile, group_id);
 
                 bubble_coordinator->ShowForCurrentTab(
-                    page_action_view, web_contents, tab_activity_log,
+                    page_action_anchor, web_contents, tab_activity_log,
                     group_activity_log, profile);
               },
               bwi))
@@ -1757,7 +1752,20 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
                 auto* controller =
                     indigo::IndigoPageActionController::From(tab);
                 if (controller) {
-                  controller->InvokeAction();
+                  auto entry_point = [&]() {
+                    auto raw_entry_point =
+                        static_cast<page_actions::PageActionEntryPoint>(
+                            context.GetProperty(
+                                page_actions::kPageActionEntryPointKey));
+                    switch (raw_entry_point) {
+                      case page_actions::PageActionEntryPoint::kSuggestionChip:
+                        return indigo::EntryPoint::kSuggestionChip;
+                      case page_actions::PageActionEntryPoint::kAnchoredMessage:
+                        return indigo::EntryPoint::kAnchoredMessage;
+                    }
+                    NOTREACHED();
+                  }();
+                  controller->InvokeAction(entry_point);
                 }
               },
               bwi))
@@ -1775,8 +1783,23 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
     root_action_item_->AddChild(
         actions::ActionItem::Builder()
             .SetActionId(kActionMultistepFilter)
-            // TODO(b/512435534): Add SetInvokeActionCallback once the
-            // controller is updated.
+            .SetInvokeActionCallback(base::BindRepeating(
+                [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                   actions::ActionInvocationContext context) {
+                  tabs::TabInterface* tab = bwi->GetActiveTabInterface();
+                  if (!tab) {
+                    return;
+                  }
+                  multistep_filter::FilterUiController* filter_ui_controller =
+                      multistep_filter::FilterUiController::From(tab);
+                  if (!filter_ui_controller) {
+                    // The controller is null in off-the-record (incognito)
+                    // sessions.
+                    return;
+                  }
+                  filter_ui_controller->OnActionInvoked();
+                },
+                bwi))
             .SetImage(ui::ImageModel::FromVectorIcon(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
                 vector_icons::kPlayCircleSparkIcon

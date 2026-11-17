@@ -3292,8 +3292,9 @@ target(_test_target_type, "net_unittests") {
 
   fuzztests = [
     "CRLSetTest.ParseDoesNotCrash",
-    "HpackHeaderTableFuzzTest.CanCallMethodSequence",
     "HostCacheTest.CheckHostCacheSerialization",
+    "HostResolverCacheFuzzTest.SerializationDoesNotCrash",
+    "HpackHeaderTableFuzzTest.CanCallMethodSequence",
     "HttpNoVarySearchTest.AreEquivalentImplementationsMatch",
     "PickleTest.FuzzRoundTrip",
     "ParseProxyListFuzzer.TestOneInput",

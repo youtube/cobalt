@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
@@ -63,7 +63,6 @@
 #include "sandbox/win/src/app_container.h"
 #include "sandbox/win/src/process_mitigations.h"
 #include "sandbox/win/src/sandbox.h"
-#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 namespace sandbox {
 namespace policy {
@@ -500,7 +499,10 @@ ResultCode GenerateConfigForSandboxedProcess(const base::CommandLine& cmd_line,
     }
 
     if (sandbox_type == Sandbox::kNetwork || sandbox_type == Sandbox::kAudio ||
-        sandbox_type == Sandbox::kIconReader) {
+        sandbox_type == Sandbox::kIconReader ||
+        (sandbox_type == Sandbox::kSpeechRecognition &&
+         base::FeatureList::IsEnabled(
+             features::kSpeechRecognitionSandboxHardening))) {
       mitigations |= MITIGATION_DYNAMIC_CODE_DISABLE;
     }
 
@@ -838,17 +840,7 @@ class BrokerServicesDelegateImpl : public BrokerServicesDelegate {
         std::move(task), std::move(reply));
   }
 
-  void BeforeTargetProcessCreateOnCreationThread(
-      const void* trace_id) override {
-    TRACE_EVENT_BEGIN("startup", "TargetProcess::Create",
-                      perfetto::Track::FromPointer(trace_id));
-  }
-
-  void AfterTargetProcessCreateOnCreationThread(const void* trace_id,
-                                                DWORD process_id) override {
-    TRACE_EVENT_END("startup", perfetto::Track::FromPointer(trace_id), "pid",
-                    process_id);
-  }
+  void BeforeTargetProcessCreateOnCreationThread() override {}
 
   void OnCreateThreadActionCreateFailure(DWORD last_error) override {
     UMA_HISTOGRAM_SPARSE(
@@ -1111,13 +1103,13 @@ std::optional<size_t> SandboxWin::GetJobMemoryLimit(Sandbox sandbox_type) {
   // Returns a memory limit scaled to the available physical memory, up to
   // 64 GB. Used by GPU and ODML process sandboxes.
   auto get_scaled_physical_memory_based_limit = []() -> size_t {
-    const base::ByteCount physical_memory =
-        base::SysInfo::AmountOfPhysicalMemory();
-    if (physical_memory > base::GiB(64)) {
+    const base::ByteSize physical_memory =
+        base::SysInfo::AmountOfTotalPhysicalMemory();
+    if (physical_memory > base::GiBU(64)) {
       return 64 * GB;
-    } else if (physical_memory > base::GiB(32)) {
+    } else if (physical_memory > base::GiBU(32)) {
       return 32 * GB;
-    } else if (physical_memory > base::GiB(16)) {
+    } else if (physical_memory > base::GiBU(16)) {
       return 16 * GB;
     }
     return 8 * GB;

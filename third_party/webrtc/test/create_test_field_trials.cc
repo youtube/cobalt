@@ -20,8 +20,8 @@ ABSL_FLAG(std::string,
           force_fieldtrials,
           "",
           "Field trials control experimental feature code which can be forced. "
-          "E.g. running with --force_fieldtrials=WebRTC-FooFeature/Enable/"
-          " will assign the group Enable to field trial WebRTC-FooFeature.");
+          "E.g. running with --force_fieldtrials=WebRTC-FooFeature/Enabled/"
+          " will assign the group Enabled to field trial WebRTC-FooFeature.");
 
 namespace webrtc {
 

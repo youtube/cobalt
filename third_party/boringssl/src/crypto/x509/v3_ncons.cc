@@ -56,7 +56,7 @@ int equal_case(const CBS *a, const CBS *b) {
   if (CBS_len(a) != CBS_len(b)) {
     return 0;
   }
-  // Note we cannot use |OPENSSL_strncasecmp| because that would stop
+  // Note we cannot use `OPENSSL_strncasecmp` because that would stop
   // iterating at NUL.
   const uint8_t *a_data = CBS_data(a), *b_data = CBS_data(b);
   for (size_t i = 0; i < CBS_len(a); i++) {
@@ -354,7 +354,7 @@ int nc_dns(const ASN1_IA5STRING *dns, const ASN1_IA5STRING *base,
     }
   }
 
-  // If |base_cbs| begins with a '.', do a simple suffix comparison. This is
+  // If `base_cbs` begins with a '.', do a simple suffix comparison. This is
   // not part of RFC5280, but is part of OpenSSL's original behavior.
   if (starts_with(&base_cbs, '.')) {
     if (has_suffix_case(&dns_cbs, &base_cbs)) {

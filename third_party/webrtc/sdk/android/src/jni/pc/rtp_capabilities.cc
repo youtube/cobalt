@@ -56,15 +56,21 @@ RtpCapabilities JavaToNativeRtpCapabilities(
       Java_RtpCapabilities_getHeaderExtensions(jni, j_capabilities);
   for (const JavaRef<jobject>& j_header_extension :
        Iterable(jni, j_header_extensions)) {
-    RtpHeaderExtensionCapability header_extension;
-    header_extension.uri = JavaToStdString(
+    std::string uri = JavaToStdString(
         jni, Java_HeaderExtensionCapability_getUri(jni, j_header_extension));
-    header_extension.preferred_id = RtpHeaderExtensionId(
-        Java_HeaderExtensionCapability_getPreferredId(jni, j_header_extension));
-    header_extension.preferred_encrypt =
+    int id =
+        Java_HeaderExtensionCapability_getPreferredId(jni, j_header_extension);
+    bool preferred_encrypt =
         Java_HeaderExtensionCapability_getPreferredEncrypted(
             jni, j_header_extension);
-    capabilities.header_extensions.push_back(header_extension);
+    if (id == 0) {
+      capabilities.header_extensions.emplace_back(
+          uri, preferred_encrypt, RtpTransceiverDirection::kSendRecv);
+    } else {
+      capabilities.header_extensions.emplace_back(
+          uri, RtpHeaderExtensionId(id), preferred_encrypt,
+          RtpTransceiverDirection::kSendRecv);
+    }
   }
 
   // Convert codecs.

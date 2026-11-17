@@ -140,7 +140,7 @@ class VideoStreamBufferControllerFixture
         decode_sync_(clock_,
                      &fake_metronome_,
                      time_controller_.GetMainThread()),
-        timing_(clock_, field_trials_),
+        timing_(clock_, field_trials_, /*render_delay=*/TimeDelta::Millis(10)),
         buffer_(std::make_unique<VideoStreamBufferController>(
             clock_,
             time_controller_.GetMainThread(),

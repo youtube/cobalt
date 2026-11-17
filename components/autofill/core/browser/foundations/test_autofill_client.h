@@ -94,6 +94,7 @@
 
 namespace autofill {
 
+class PersonalContextAccessManager;
 class TestAutofillClient;
 
 // This class is for easier writing of tests. There are two instances of the
@@ -186,6 +187,15 @@ class TestAutofillClientTemplate : public T {
 
   AutofillAiManager* GetAutofillAiManager() override {
     return mock_autofill_ai_delegate_.get();
+  }
+
+  PersonalContextAccessManager* GetPersonalContextAccessManager() override {
+    return personal_context_access_manager_;
+  }
+
+  void set_personal_context_access_manager(
+      PersonalContextAccessManager* personal_context_access_manager) {
+    personal_context_access_manager_ = personal_context_access_manager;
   }
 
   consent_auditor::ConsentAuditor* GetConsentAuditor() override {
@@ -500,6 +510,13 @@ class TestAutofillClientTemplate : public T {
     return test_addresses_;
   }
 
+  bool ShouldShowPersonalContextAutofillNotice() const override {
+    return should_show_personal_context_autofill_notice_;
+  }
+  void set_should_show_personal_context_autofill_notice(bool should_show) {
+    should_show_personal_context_autofill_notice_ = should_show;
+  }
+
   void SetAutofillProfileEnabled(bool autofill_profile_enabled) {
     autofill_profile_enabled_ = autofill_profile_enabled;
     if (PrefService* prefs = GetPrefs()) {
@@ -722,6 +739,8 @@ class TestAutofillClientTemplate : public T {
   metrics::ProfileMetricsService test_profile_metrics_service_{
       metrics::ProfileMetricsContext(1)};
   raw_ptr<syncer::SyncService> test_sync_service_ = nullptr;
+  raw_ptr<PersonalContextAccessManager> personal_context_access_manager_ =
+      nullptr;
   std::unique_ptr<OtpPhishGuardDelegate> otp_phish_guard_delegate_;
   std::unique_ptr<accessibility_annotator::AccessibilityQueryService>
       accessibility_query_service_;
@@ -796,6 +815,8 @@ class TestAutofillClientTemplate : public T {
   bool is_credit_card_upload_enabled_ = true;
 
   bool is_tab_in_actor_mode_ = false;
+
+  bool should_show_personal_context_autofill_notice_ = false;
 
   SuggestionHidingReason popup_hidden_reason_;
 

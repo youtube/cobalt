@@ -359,6 +359,12 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
                                     (NSDictionary<NSString*, NSString*>*)
                                         formFieldData;
 
+// Adds a fake Send Tab To Self entry with the given text fragment to the local
+// model and returns its GUID.
+- (NSString*)addFakeSendTabToSelfEntryWithURL:(NSString*)url
+                                        title:(NSString*)title
+                                 textFragment:(NSString*)textFragment;
+
 // Waits for the local Send Tab To Self model to contain an entry with the
 // given GUID.
 - (void)waitForSendTabToSelfEntryWithGUID:(NSString*)guid;
@@ -839,6 +845,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 
 // Returns whether Chrome Next is enabled.
 - (BOOL)isChromeNextEnabled;
+
+// Returns whether the Chrome Next Share Icon is visible.
+- (BOOL)isChromeNextShareIconVisible;
 
 // Returns YES if the view with `accessibilityID` or any of its ancestors is
 // animating.

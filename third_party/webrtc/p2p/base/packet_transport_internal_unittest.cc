@@ -19,34 +19,32 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 
+namespace webrtc {
 namespace {
 
 using ::testing::MockFunction;
 
 TEST(PacketTransportInternal,
      NotifyPacketReceivedPassthrougPacketToRegisteredListener) {
-  webrtc::FakePacketTransport packet_transport("test");
-  MockFunction<void(webrtc::PacketTransportInternal*,
-                    const webrtc::ReceivedIpPacket&)>
+  FakePacketTransport packet_transport("test");
+  MockFunction<void(PacketTransportInternal*, const ReceivedIpPacket&)>
       receiver;
 
   packet_transport.RegisterReceivedPacketCallback(&receiver,
                                                   receiver.AsStdFunction());
   EXPECT_CALL(receiver, Call)
-      .WillOnce([](webrtc::PacketTransportInternal*,
-                   const webrtc::ReceivedIpPacket& packet) {
-        EXPECT_EQ(packet.decryption_info(),
-                  webrtc::ReceivedIpPacket::kDtlsDecrypted);
+      .WillOnce([](PacketTransportInternal*, const ReceivedIpPacket& packet) {
+        EXPECT_EQ(packet.decryption_info(), ReceivedIpPacket::kDtlsDecrypted);
       });
-  packet_transport.NotifyPacketReceived(webrtc::ReceivedIpPacket(
-      {}, webrtc::SocketAddress(), std::nullopt, webrtc::EcnMarking::kNotEct,
-      webrtc::ReceivedIpPacket::kDtlsDecrypted));
+  packet_transport.NotifyPacketReceived(
+      ReceivedIpPacket({}, SocketAddress(), std::nullopt, EcnMarking::kNotEct,
+                       ReceivedIpPacket::kDtlsDecrypted));
 
   packet_transport.DeregisterReceivedPacketCallback(&receiver);
 }
 
 TEST(PacketTransportInternal, NotifiesOnceOnClose) {
-  webrtc::FakePacketTransport packet_transport("test");
+  FakePacketTransport packet_transport("test");
   int call_count = 0;
   packet_transport.SetOnCloseCallback([&]() { ++call_count; });
   ASSERT_EQ(call_count, 0);
@@ -57,3 +55,5 @@ TEST(PacketTransportInternal, NotifiesOnceOnClose) {
 }
 
 }  // namespace
+
+}  // namespace webrtc

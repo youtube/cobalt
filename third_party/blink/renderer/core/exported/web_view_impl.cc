@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/debug/crash_logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
@@ -146,6 +147,7 @@
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
 #include "third_party/blink/renderer/core/loader/interactive_detector.h"
 #include "third_party/blink/renderer/core/loader/no_state_prefetch_client.h"
+#include "third_party/blink/renderer/core/navigation_api/navigation_api.h"
 #include "third_party/blink/renderer/core/page/chrome_client_impl.h"
 #include "third_party/blink/renderer/core/page/context_menu_controller.h"
 #include "third_party/blink/renderer/core/page/context_menu_provider.h"
@@ -163,6 +165,7 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
+#include "third_party/blink/renderer/core/skeleton/skeleton_loader.h"
 #include "third_party/blink/renderer/core/speculation_rules/document_speculation_rules.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
@@ -1859,8 +1862,6 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   settings->SetTouchDragEndContextMenu(prefs.touch_dragend_context_menu);
   settings->SetWebXRImmersiveArAllowed(prefs.webxr_immersive_ar_allowed);
   settings->SetModalContextMenu(prefs.modal_context_menu);
-  settings->SetRequireTransientActivationAndAuthorizationForSubAppsAPIs(
-      prefs.subapps_apis_require_user_gesture_and_authorization);
 
 #if BUILDFLAG(IS_MAC)
   web_view_impl->SetMaximumLegibleScale(
@@ -1962,7 +1963,7 @@ void WebViewImpl::SetPageFocus(bool enable) {
           DocumentUpdateReason::kFocus);
       Element* element = focused_frame->GetDocument()->FocusedElement();
       if (element && focused_frame->Selection()
-                         .ComputeVisibleSelectionInDOMTree()
+                         .ComputeVisibleSelectionInDomTree()
                          .IsNone()) {
         // If the selection was cleared while the WebView was not
         // focused, then the focus element shows with a focus ring but
@@ -2562,8 +2563,13 @@ void WebViewImpl::SetPageLifecycleStateInternal(
     SetHistoryIndexAndLength(page_restore_params->pending_history_list_index,
                              page_restore_params->current_history_list_length);
   }
-  if (eviction_changed)
+  if (eviction_changed) {
+    SCOPED_CRASH_KEY_BOOL("BFCache", "eviction_enabled",
+                          new_state->eviction_enabled);
+    SCOPED_CRASH_KEY_BOOL("BFCache", "is_in_back_forward_cache",
+                          new_state->is_in_back_forward_cache);
     HookBackForwardCacheEviction(new_state->eviction_enabled);
+  }
   if (resuming_page) {
     // TODO(https://crbug.com/427130212): Consider moving this to happen earlier
     // and together with other page state updates so that the ordering is clear.
@@ -2575,6 +2581,11 @@ void WebViewImpl::SetPageLifecycleStateInternal(
   if (restoring_from_bfcache) {
     DCHECK(dispatching_pageshow);
     DCHECK(page_restore_params);
+
+    // Flush restore-related callbacks on NavigationAPI. This should come after
+    // `SetPageFrozen()` so callbacks run after the execution context resumes,
+    // and before dispatching pageshow.
+    FlushRestoreCallbacks();
 
     DispatchPersistedPageshow(page_restore_params->navigation_start);
 
@@ -2616,6 +2627,16 @@ void WebViewImpl::SetPageLifecycleStateInternal(
     if (frame->IsWebLocalFrame()) {
       frame->ToWebLocalFrame()->Client()->DidSetPageLifecycleState(
           bfcache_change);
+    }
+  }
+
+  if (restoring_from_bfcache) {
+    if (LocalFrame* frame = DynamicTo<LocalFrame>(GetPage()->MainFrame())) {
+      if (Document* document = frame->GetDocument()) {
+        if (SkeletonLoader* skeleton_loader = SkeletonLoader::Get(*document)) {
+          skeleton_loader->RestoringFromBFCache();
+        }
+      }
     }
   }
 
@@ -2779,6 +2800,21 @@ void WebViewImpl::DispatchPersistedPageshow(base::TimeTicks navigation_start) {
   }
 }
 
+void WebViewImpl::FlushRestoreCallbacks() {
+  // Traverse the frames and flush callbacks, such as invoking restore callback
+  // and adding dispose callback via posttask.
+  for (Frame* frame = GetPage()->MainFrame(); frame;
+       frame = frame->Tree().TraverseNext()) {
+    if (auto* local_frame = DynamicTo<LocalFrame>(frame)) {
+      if (LocalDOMWindow* window = local_frame->DomWindow()) {
+        if (NavigationApi* navigation = window->navigation()) {
+          navigation->FlushRestoreCallbacks();
+        }
+      }
+    }
+  }
+}
+
 namespace {
 
 void ValidatePausedStateConsistency() {
@@ -2795,12 +2831,12 @@ void ValidatePausedStateConsistency() {
       auto* local_frame = DynamicTo<LocalFrame>(frame);
       const LocalDOMWindow* window =
           local_frame ? local_frame->DomWindow() : nullptr;
-      if (!window) {
+      if (!window || window->is_in_back_forward_cache()) {
         continue;
       }
       const bool microtasks_are_paused =
           window->GetAgent()->event_loop()->AreMicrotasksPaused();
-      CHECK(!microtasks_are_paused, base::NotFatalUntil::M150);
+      CHECK(!microtasks_are_paused, base::NotFatalUntil::M153) << window->Url();
     }
   }
 }

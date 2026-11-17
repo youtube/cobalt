@@ -19,9 +19,9 @@
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/fenced_frame/fenced_frame_url_mapping.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "content/browser/shared_storage/shared_storage_saved_query_data.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "content/common/content_export.h"
 #include "content/common/navigation_client.mojom.h"
 #include "content/public/browser/page.h"
@@ -62,10 +62,6 @@ class RenderFrameHostImpl;
 // Please refer to content/public/browser/page.h for more details.
 class CONTENT_EXPORT PageImpl : public Page {
  public:
-  enum class ActivationType {
-    kPrerendering,
-    kPreview,
-  };
   PageImpl(RenderFrameHostImpl& rfh, PageDelegate& delegate);
 
   ~PageImpl() override;
@@ -190,7 +186,6 @@ class CONTENT_EXPORT PageImpl : public Page {
   // prerendered to activated. Tells the corresponding RenderFrameHostImpls that
   // the renderer will be activating their documents.
   void Activate(
-      ActivationType type,
       StoredPage::RenderViewHostImplSafeRefSet& render_view_hosts_to_activate,
       std::optional<blink::ViewTransitionState> view_transition_state,
       base::OnceCallback<void(base::TimeTicks)> completion_callback);
@@ -314,7 +309,7 @@ class CONTENT_EXPORT PageImpl : public Page {
   mojom::DidCommitProvisionalLoadParamsPtr TakeLastCommitParams();
 
  private:
-  void DidActivateAllRenderViewsForPrerenderingOrPreview(
+  void DidActivateAllRenderViewsForPrerendering(
       base::OnceCallback<void(base::TimeTicks)> completion_callback);
 
   // This method is needed to ensure that PageImpl can both implement a Page's
@@ -401,7 +396,7 @@ class CONTENT_EXPORT PageImpl : public Page {
   FencedFrameURLMapping fenced_frame_urls_map_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
   // If `blink::features::kSharedStorageSelectURLLimit` is enabled, the number
   // of bits of entropy remaining in this pageload's overall budget for calls to
   // `sharedStorage.selectURL()`. Calls from all sites on this page are
@@ -429,7 +424,7 @@ class CONTENT_EXPORT PageImpl : public Page {
       std::tuple<url::Origin, url::Origin, GURL, std::string, std::u16string>,
       SharedStorageSavedQueryData>
       select_url_saved_query_index_results_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
   // This class is owned by the main RenderFrameHostImpl and it's safe to keep a
   // reference to it.

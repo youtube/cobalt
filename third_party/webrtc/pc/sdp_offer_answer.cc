@@ -4578,8 +4578,8 @@ void SdpOfferAnswerHandler::UpdateTransceiverChannel(
     if (!transceiver->internal()->HasChannel()) {
       transceiver->internal()->CreateChannel(
           content.mid(), pc_->call_ptr(), pc_->configuration()->media_config,
-          pc_->SrtpRequired(), pc_->GetCryptoOptions(), audio_options(),
-          video_options(), video_bitrate_allocator_factory_.get(),
+          pc_->SrtpRequired(), pc_->GetCryptoOptions(),
+          video_bitrate_allocator_factory_.get(),
           [mid = content.mid(), this]() {
             RTC_DCHECK_RUN_ON(network_thread());
             return transport_controller_n()->GetRtpTransport(mid);
@@ -5919,8 +5919,8 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
       !rtp_manager()->GetAudioTransceiver()->internal()->HasChannel()) {
     rtp_manager()->GetAudioTransceiver()->internal()->CreateChannel(
         voice->mid(), pc_->call_ptr(), pc_->configuration()->media_config,
-        pc_->SrtpRequired(), pc_->GetCryptoOptions(), audio_options(),
-        video_options(), video_bitrate_allocator_factory_.get(),
+        pc_->SrtpRequired(), pc_->GetCryptoOptions(),
+        video_bitrate_allocator_factory_.get(),
         [mid = voice->mid(), this]() {
           RTC_DCHECK_RUN_ON(network_thread());
           return transport_controller_n()->GetRtpTransport(mid);
@@ -5933,8 +5933,8 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
       !rtp_manager()->GetVideoTransceiver()->internal()->HasChannel()) {
     rtp_manager()->GetVideoTransceiver()->internal()->CreateChannel(
         video->mid(), pc_->call_ptr(), pc_->configuration()->media_config,
-        pc_->SrtpRequired(), pc_->GetCryptoOptions(), audio_options(),
-        video_options(), video_bitrate_allocator_factory_.get(),
+        pc_->SrtpRequired(), pc_->GetCryptoOptions(),
+        video_bitrate_allocator_factory_.get(),
         [mid = video->mid(), this]() {
           RTC_DCHECK_RUN_ON(network_thread());
           return transport_controller_n()->GetRtpTransport(mid);

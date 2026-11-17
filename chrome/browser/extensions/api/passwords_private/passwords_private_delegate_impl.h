@@ -23,7 +23,8 @@
 #include "chrome/browser/extensions/api/passwords_private/password_check_delegate.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_utils.h"
-#include "chrome/browser/ui/passwords/settings/password_manager_porter.h"
+#include "chrome/browser/ui/passwords/settings/password_export_controller.h"
+#include "chrome/browser/ui/passwords/settings/password_import_controller.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
 #include "chrome/common/extensions/api/passwords_private.h"
 #include "components/device_reauth/device_authenticator.h"
@@ -143,8 +144,7 @@ class PasswordsPrivateDelegateImpl
       content::WebContents* web_contents,
       AuthenticationCallback callback) override;
   void ShowAddShortcutDialog(content::WebContents* web_contents) override;
-  void ShowExportedFileInShell(content::WebContents* web_contents,
-                               std::string file_path) override;
+  void ShowLastExportedFileInShell(content::WebContents* web_contents) override;
   void ChangePasswordManagerPin(
       content::WebContents* web_contents,
       base::OnceCallback<void(bool)> success_callback) override;
@@ -183,9 +183,9 @@ class PasswordsPrivateDelegateImpl
     return credential_id_generator_.GenerateId(credential);
   }
 
-  void SetPorterForTesting(
-      std::unique_ptr<PasswordManagerPorterInterface> porter) {
-    password_manager_porter_ = std::move(porter);
+  void SetImportControllerForTesting(
+      std::unique_ptr<PasswordImportControllerInterface> controller) {
+    password_import_controller_ = std::move(controller);
   }
 
   void SetRecipientsFetcherForTesting(
@@ -298,10 +298,11 @@ class PasswordsPrivateDelegateImpl
   // Used to add/edit passwords and to create |password_check_delegate_|.
   password_manager::SavedPasswordsPresenter saved_passwords_presenter_;
 
-  // Used to control the export and import flows.
-  std::unique_ptr<PasswordManagerPorterInterface> password_manager_porter_;
-
-  base::FilePath last_exported_path_;
+  // Used to control the import and export flows.
+  std::unique_ptr<PasswordImportControllerInterface>
+      password_import_controller_;
+  std::unique_ptr<PasswordExportControllerInterface>
+      password_export_controller_;
 
   PasswordAccessAuthTimeoutHandler auth_timeout_handler_;
 

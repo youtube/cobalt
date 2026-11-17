@@ -8,8 +8,8 @@
 #import <CoreFoundation/CoreFoundation.h>
 
 #import <string>
-#import <vector>
 
+#import "base/containers/span.h"
 #import "base/memory/raw_ptr.h"
 #import "base/scoped_observation.h"
 #import "components/send_tab_to_self/send_tab_to_self_model_observer.h"
@@ -28,6 +28,9 @@ class SendTabToSelfModel;
 
 // Service that listens for SendTabToSelf model changes and calls UI
 // handlers to update the UI accordingly.
+// TODO(crbug.com/519101926): Consider refactoring this class to implement
+// send_tab_to_self::ReceivingUiHandler once that interface is moved to
+// components/send_tab_to_self, unifying the receiving flow.
 class SendTabToSelfBrowserAgent
     : public BrowserUserData<SendTabToSelfBrowserAgent>,
       public send_tab_to_self::SendTabToSelfModelObserver,
@@ -41,11 +44,11 @@ class SendTabToSelfBrowserAgent
   // Updates the UI to reflect the new entries. Calls the handlers
   // registered through ReceivingUIRegistry.
   void OnEntriesAddedRemotely(
-      const std::vector<const send_tab_to_self::SendTabToSelfEntry*>&
-          new_entries) override;
+      base::span<const send_tab_to_self::SendTabToSelfEntry* const> new_entries)
+      override;
   // Updates the UI to reflect the removal of entries. Calls the handlers
   // registered through ReceivingUIRegistry.
-  void OnEntriesRemovedRemotely(const std::vector<std::string>& guids) override;
+  void OnEntriesRemovedRemotely(base::span<const std::string> guids) override;
 
   // WebStateListObserver::
   void WebStateListDidChange(WebStateList* web_state_list,

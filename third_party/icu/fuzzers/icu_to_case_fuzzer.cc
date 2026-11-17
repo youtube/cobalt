@@ -11,8 +11,6 @@
 #include "third_party/icu/fuzzers/fuzzer_utils.h"
 #include "third_party/icu/source/common/unicode/ustring.h"
 
-IcuEnvironment* env = new IcuEnvironment();
-
 template <typename T>
 using deleted_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
 
@@ -28,6 +26,7 @@ static const std::array<const char*, 5> kCaseLocales = {{
 
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  static IcuEnvironment env;
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString str(UnicodeStringFromUtf32(data, size));
 

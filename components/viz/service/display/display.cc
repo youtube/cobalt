@@ -247,8 +247,7 @@ void Display::PresentationGroupTiming::OnDraw(
     HintSession::BoostType boost_type,
     int64_t choreographer_vsync_id,
     int64_t swap_trace_id,
-    std::optional<PossibleDeadline> deadline,
-    std::optional<PossibleDeadline> preferred) {
+    std::optional<PossibleDeadline> selected_deadline) {
   frame_time_ = frame_time;
   interval_ = interval;
   draw_start_timestamp_ = draw_start_timestamp;
@@ -257,8 +256,7 @@ void Display::PresentationGroupTiming::OnDraw(
   boost_type_ = boost_type;
   choreographer_vsync_id_ = choreographer_vsync_id;
   swap_trace_id_ = swap_trace_id;
-  deadline_ = std::move(deadline);
-  preferred_ = std::move(preferred);
+  selected_deadline_ = std::move(selected_deadline);
 }
 
 void Display::PresentationGroupTiming::OnSwap(gfx::SwapTimings timings,
@@ -660,7 +658,7 @@ void DebugDrawFrame(
         render_pass->transform_to_root_target.ToDecomposedString().c_str());
 
     for (auto* quad : render_pass->quad_list) {
-      auto* sqs = quad->shared_quad_state;
+      const SharedQuadState* sqs = quad->shared_quad_state;
       auto quad_to_root_transform = sqs->quad_to_target_transform;
       if (non_root_passes_in_root_space()) {
         quad_to_root_transform.PostConcat(
@@ -768,6 +766,10 @@ OverdrawTracker::OverdrawTimeSeries Display::StopTrackingOverdraw() {
   overdraw_tracker_.reset();
 
   return overdraw_data;
+}
+
+int Display::GetCurrentAllocatedBuffers() const {
+  return renderer_ ? renderer_->GetCurrentAllocatedBuffers() : 0;
 }
 
 bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
@@ -879,9 +881,6 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
         "ink metadata", frame.delegated_ink_metadata->ToString());
     renderer_->SetDelegatedInkMetadata(std::move(frame.delegated_ink_metadata));
   }
-
-  UMA_HISTOGRAM_ENUMERATION("Compositing.ColorGamut",
-                            frame.content_color_usage);
 
 #if BUILDFLAG(IS_ANDROID)
   bool wide_color_enabled =
@@ -1061,7 +1060,7 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
         std::move(renderer_main_thread_ids),
         /*boost_type=*/HintSession::BoostType::kDefault,
         params.choreographer_vsync_id.value_or(0), display_trace_id,
-        params.deadline, params.preferred_deadline);
+        params.selected_deadline);
 
     bool has_interactive_frame = false;
     bool has_animated_frame = false;
@@ -1380,8 +1379,7 @@ void Display::DidReceivePresentationFeedback(
         copy_feedback, presentation_group_timing.choreographer_vsync_id(),
         presentation_group_timing.frame_time(),
         presentation_group_timing.interval(),
-        presentation_group_timing.deadline(),
-        presentation_group_timing.preferred());
+        presentation_group_timing.selected_deadline());
   }
   pending_presentation_group_timings_.erase(group_it);
 }

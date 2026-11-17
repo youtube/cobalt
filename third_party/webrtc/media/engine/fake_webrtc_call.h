@@ -155,8 +155,12 @@ class FakeAudioReceiveStream final : public AudioReceiveStreamInterface {
       bool get_and_clear_legacy_stats) const override;
   void SetSink(AudioSinkInterface* sink) override;
   void SetGain(float gain) override;
-  void SetJitterBufferMaxPackets(size_t max_packets) override {}
-  void SetJitterBufferFastAccelerate(bool fast_accelerate) override {}
+  void SetJitterBufferMaxPackets(size_t max_packets) override {
+    config_.jitter_buffer_max_packets = max_packets;
+  }
+  void SetJitterBufferFastAccelerate(bool fast_accelerate) override {
+    config_.jitter_buffer_fast_accelerate = fast_accelerate;
+  }
   bool SetBaseMinimumPlayoutDelayMs(int delay_ms) override {
     base_mininum_playout_delay_ms_ = delay_ms;
     return true;

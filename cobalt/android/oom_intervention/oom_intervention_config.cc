@@ -71,7 +71,7 @@ OomInterventionConfig::OomInterventionConfig()
     physical_memory_ratio = features::kPhysicalMemoryThresholdRatio.Get();
   }
   renderer_detection_args_->private_footprint_threshold =
-      base::SysInfo::AmountOfPhysicalMemory().InBytesUnsigned() *
+      base::SysInfo::AmountOfTotalPhysicalMemory().InBytes() *
       physical_memory_ratio;
 }
 

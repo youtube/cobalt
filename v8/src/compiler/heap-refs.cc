@@ -728,16 +728,28 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
   if (function->has_prototype_slot()) {
     prototype_or_initial_map_ = broker->GetOrCreateData(
         function->prototype_or_initial_map(kAcquireLoad), kAssumeMemoryFence);
+
+    // See JSFunctionWithPrototype::has_instance_prototype().
     has_instance_prototype_ =
         (prototype_or_initial_map_ != broker->the_hole_value().data());
 
     if (has_instance_prototype_) {
-      has_initial_map_ = prototype_or_initial_map_->IsMap();
+      // Unwrap prototype_or_initial_map_ to get initial map and instance
+      // prototype values. See JSFunction::initial_map() and
+      // JSFunction::instance_prototype().
+      ObjectData* proto_or_map = prototype_or_initial_map_;
+      if (proto_or_map->IsTuple2()) {
+        Tagged<Tuple2> tuple = Cast<Tuple2>(*proto_or_map->object());
+        proto_or_map =
+            broker->GetOrCreateData(tuple->value1(), kAssumeMemoryFence);
+      }
+
+      has_initial_map_ = proto_or_map->IsMap();
       if (has_initial_map_) {
         // MapData is not used for initial_map_ because some
         // AlwaysSharedSpaceJSObject subclass constructors (e.g. SharedArray)
         // have initial maps in RO space, which can be accessed directly.
-        initial_map_ = prototype_or_initial_map_;
+        initial_map_ = proto_or_map;
 
         MapRef initial_map_ref =
             TryMakeRefFromData<Map>(broker, initial_map_).value();
@@ -755,10 +767,8 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
                 broker, Cast<Map>(initial_map_->object())->prototype())
                 .data();
       } else {
-        static_assert(std::is_same_v<JSPrototype, UnionOf<JSReceiver, Null>>);
-        DCHECK(prototype_or_initial_map_->IsJSReceiver() ||
-               prototype_or_initial_map_->IsNull());
-        instance_prototype_ = prototype_or_initial_map_;
+        DCHECK(proto_or_map->IsJSReceiver());
+        instance_prototype_ = proto_or_map;
       }
     }
   }
@@ -1265,13 +1275,7 @@ bool MapRef::IsUndefinedMap(JSHeapBroker* broker) const {
   return *this == broker->undefined_map();
 }
 
-bool MapRef::IsSeqStringMap() const {
-  return InstanceTypeChecker::IsSeqString(*object());
-}
 
-bool MapRef::IsThinStringMap() const {
-  return InstanceTypeChecker::IsThinString(*object());
-}
 
 bool MapRef::IsStringWrapperMap() const {
   return IsJSPrimitiveWrapperMap() &&

@@ -83,7 +83,7 @@ constexpr char kFingerprint[] =
     "a=fingerprint:sha-1 "
     "4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF:3E:5D:49:6B:19:E5:7C:AB\r\n";
 constexpr char kExtmapAllowMixed[] = "a=extmap-allow-mixed\r\n";
-constexpr int kExtmapId = 1;
+constexpr RtpHeaderExtensionId kExtmapId(1);
 constexpr char kExtmapUri[] = "http://example.com/082005/ext.htm#ttime";
 constexpr char kExtmap[] =
     "a=extmap:1 http://example.com/082005/ext.htm#ttime\r\n";

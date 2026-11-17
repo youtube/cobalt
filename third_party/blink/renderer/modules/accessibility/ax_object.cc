@@ -112,6 +112,7 @@
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/layout/layout_image.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/core/mathml_names.h"
 #include "third_party/blink/renderer/core/overscroll/overscroll_area_tracker.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
@@ -912,24 +913,21 @@ bool AXObject::CanHaveChildren(Element& element) {
 }
 
 // static
-HTMLMapElement* AXObject::GetMapForImage(Node* image) {
-  if (!IsA<HTMLImageElement>(image))
+HTMLMapElement* AXObject::GetMapForImage(Node* node) {
+  auto* image = DynamicTo<HTMLImageElement>(node);
+  if (!image || !IsA<LayoutImage>(image->GetLayoutObject())) {
     return nullptr;
-
-  LayoutImage* layout_image = DynamicTo<LayoutImage>(image->GetLayoutObject());
-  if (!layout_image)
+  }
+  HTMLMapElement* map_element = image->GetImageMap();
+  if (!map_element) {
     return nullptr;
-
-  HTMLMapElement* map_element = layout_image->ImageMap();
-  if (!map_element)
-    return nullptr;
-
+  }
   // Don't allow images that are actually children of a map, as this could lead
   // to an infinite loop, where the descendant image points to the ancestor map,
   // yet the descendant image is being returned here as an ancestor.
-  if (Traversal<HTMLMapElement>::FirstAncestor(*image))
+  if (Traversal<HTMLMapElement>::FirstAncestor(*image)) {
     return nullptr;
-
+  }
   // The image has an associated <map> and does not have a <map> ancestor.
   return map_element;
 }
@@ -1176,6 +1174,10 @@ void AXObject::Serialize(ui::AXNodeData* node_data,
       DisplayLockUtilities::CreateLockCheckMemoizationScope();
 
   node_data->role = ComputeFinalRoleForSerialization();
+  if (accessibility_mode.has_mode(ui::AXMode::kNativeAdaptedWebContents) &&
+      IsRoot()) {
+    node_data->role = ax::mojom::blink::Role::kGenericContainer;
+  }
   node_data->id = AXObjectID();
 
   PreSerializationConsistencyCheck();
@@ -2002,18 +2004,29 @@ void AXObject::SerializeOtherScreenReaderAttributes(
 }
 
 void AXObject::SerializeMathContent(ui::AXNodeData* node_data) const {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   const Element* element = GetElement();
   if (!element) {
     return;
   }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   if (node_data->role == ax::mojom::blink::Role::kMath ||
       node_data->role == ax::mojom::blink::Role::kMathMLMath) {
     TruncateAndAddStringAttribute(
         node_data, ax::mojom::blink::StringAttribute::kMathContent,
         element->GetInnerHTMLString(), kMaxStaticTextLength);
   }
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+#elif BUILDFLAG(IS_ANDROID)
+  if (element->IsMathMLElement()) {
+    // Add `arg` and `intent` attributes if non-empty.
+    TruncateAndAddStringAttribute(
+        node_data, ax::mojom::blink::StringAttribute::kMathArg,
+        element->getAttribute(mathml_names::kArgAttr));
+    TruncateAndAddStringAttribute(
+        node_data, ax::mojom::blink::StringAttribute::kMathIntent,
+        element->getAttribute(mathml_names::kIntentAttr));
+  }
+#endif
 }
 
 void AXObject::SerializeScrollAttributes(ui::AXNodeData* node_data) const {
@@ -2468,12 +2481,23 @@ void AXObject::SerializeUnignoredAttributes(ui::AXNodeData* node_data,
     SerializeImplicitActions(node_data);
   }
 
-  // Expose kHasActions when at least one valid actions target was
-  // serialized. Targets without an accessible name are dropped per the
-  // spec PR (https://github.com/w3c/aria/pull/1805) #aria-actions; this
-  // gate covers both author-defined targets (aria-actions) and implicit
-  // targets derived from children of menuitem-like roles.
-  if (node_data->HasIntListAttribute(
+  // Expose kHasActions in two cases:
+  //   1. The aria-actions attribute is set on a role that supports it
+  //      (Core-AAM PR 1805 #aria-actions:
+  //      https://github.com/w3c/aria/pull/1805). The Core-AAM mapping
+  //      requires the has-actions object attribute to be exposed
+  //      whenever aria-actions is set, even when all referenced targets
+  //      fail the Author MUSTs in IsValidAriaActionsTarget and
+  //      kActionsIds is therefore empty.
+  //   2. SerializeImplicitActions populated kActionsIds for a
+  //      menuitem-like role. That path is gated by
+  //      AccessibilityImplicitActionsEnabled() at the call site above,
+  //      so kActionsIds can be non-empty even when AriaActionsEnabled()
+  //      is off.
+  if ((RuntimeEnabledFeatures::AriaActionsEnabled() &&
+       RoleSupportsAriaAttribute(RoleValue(), html_names::kAriaActionsAttr) &&
+       HasAriaAttribute(html_names::kAriaActionsAttr)) ||
+      node_data->HasIntListAttribute(
           ax::mojom::blink::IntListAttribute::kActionsIds)) {
     node_data->AddState(ax::mojom::blink::State::kHasActions);
   }

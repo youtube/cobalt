@@ -188,7 +188,8 @@ BaseChannel::BaseChannel(
       worker_thread_(worker_thread),
       network_thread_(network_thread),
       signaling_thread_(signaling_thread),
-      alive_(PendingTaskSafetyFlag::Create()),
+      alive_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(true,
+                                                              worker_thread)),
       on_first_packet_received_(std::move(callbacks.on_first_packet_received)),
       on_first_packet_sent_(std::move(callbacks.on_first_packet_sent)),
       on_packet_received_n_(std::move(callbacks.on_packet_received)),
@@ -206,7 +207,6 @@ BaseChannel::BaseChannel(
                             : SenderParamsVariant(AudioSenderParameter())),
       media_type_(media_type),
       ssrc_generator_(ssrc_generator) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
   RTC_DCHECK(media_send_channel_);
   RTC_DCHECK(media_receive_channel_);
   RTC_DCHECK(ssrc_generator_);

@@ -10,13 +10,21 @@
 #include "components/password_manager/core/browser/password_manager_buildflags.h"
 
 namespace password_manager::features {
-#if !BUILDFLAG(IS_IOS)  // Desktop
+#if !BUILDFLAG(IS_IOS)  // Desktop and Android
 BASE_FEATURE(kActorLogin, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginConflictingPermissionCleanup,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginLocalClassificationModel,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(IS_IOS)  // iOS
+BASE_FEATURE(kActorLogin, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kActorLoginConflictingPermissionCleanup,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kActorLoginLocalClassificationModel,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kActorLoginSyncsPasswordPermissions,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -143,6 +151,8 @@ BASE_FEATURE(kIOSProactivePasswordGenerationBottomSheet,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // IS_IOS
 
+BASE_FEATURE(kMagiChromeQrCodeAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kMarkAllCredentialsAsLeaked, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -180,6 +190,11 @@ BASE_FEATURE(kPasswordStorePropagatesActionableErrors,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPasswordCheckupPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
+BASE_FEATURE(kPasswordManualFallbackSecurityChecks,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kRestartToGainAccessToKeychain,
@@ -219,5 +234,8 @@ BASE_FEATURE(kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+BASE_FEATURE(kWebAuthnUsePasskeyFromAnotherDeviceInManualFallback,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace password_manager::features

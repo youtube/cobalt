@@ -419,7 +419,8 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
   Browser* app_browser = web_app::InstallWebAppFromPageGetBrowser(
       browser(),
       embedded_https_test_server().GetURL("/banners/manifest_test_page.html"));
-  const webapps::AppId app_id = app_browser->app_controller()->app_id();
+  const webapps::AppId app_id =
+      web_app::AppBrowserController::From(app_browser)->app_id();
   content::WebContents* app_web_contents =
       app_browser->tab_strip_model()->GetActiveWebContents();
   histograms.ExpectBucketCount("WebApp.LaunchSource",
@@ -1074,7 +1075,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallBackgroundAppAlreadyInstalledBrowserTest,
   views::test::WidgetDestroyedWaiter destroyed(widget);
 
   // Switch to a different tab, which should dismiss the dialog.
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
 
   destroyed.Wait();
 
@@ -1114,7 +1115,8 @@ IN_PROC_BROWSER_TEST_F(WebInstallBackgroundAppAlreadyInstalledBrowserTest,
 
   Browser* app_browser =
       web_app::InstallWebAppFromPageGetBrowser(browser(), install_url);
-  const webapps::AppId app_id = app_browser->app_controller()->app_id();
+  const webapps::AppId app_id =
+      web_app::AppBrowserController::From(app_browser)->app_id();
   content::WebContents* app_web_contents =
       app_browser->tab_strip_model()->GetActiveWebContents();
   histograms.ExpectBucketCount("WebApp.LaunchSource",
@@ -2083,7 +2085,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandDialogTest,
 
   // Verify the origin label.
   views::Label* start_url_view = tracker_views->GetUniqueViewAs<views::Label>(
-      kSimpleInstallDialogOriginLabel, context);
+      kSimpleInstallDialogAppInfoLabel, context);
   ASSERT_NE(start_url_view, nullptr);
   EXPECT_EQ(
       start_url_view->GetText(),
@@ -2163,6 +2165,98 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
   views::test::WidgetDestroyedWaiter destroyed(widget);
   views::test::CancelDialog(widget);
   destroyed.Wait();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Concurrent install tests for the install_in_progress_ guard. Install #1
+// is fired with EXECUTE_SCRIPT_NO_RESOLVE_PROMISES so it sits at its dialog
+// (no auto-accept); install #2 hits the guard and rejects with AbortError.
+///////////////////////////////////////////////////////////////////////////////
+
+// Current-document install #1 interleaved with background-document install
+// #2 -- verifies the guard fires across install types.
+IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
+                       ConcurrentCurrentAndBackgroundInstallsRejected) {
+  // Navigate to a page with a manifest so the current-document install is
+  // valid and proceeds to the install dialog.
+  GURL current_doc_url = embedded_https_test_server().GetURL(
+      "/banners/manifest_with_id_test_page.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), current_doc_url));
+
+  // Background-document install #2 would normally need a permission grant,
+  // but it is rejected by the install_in_progress_ guard before the
+  // permission prompt is shown.
+  std::string install_url = GetInstallableAppURL().spec();
+  base::HistogramTester histograms;
+
+  // Fire current-document install #1.
+  ASSERT_TRUE(content::ExecJs(web_contents(), "navigator.install();",
+                              content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
+
+  // Fire background-document install #2 and wait for its rejection.
+  ASSERT_TRUE(TryInstallApp(install_url));
+  EXPECT_FALSE(ResultExists());
+  EXPECT_TRUE(ErrorExists());
+  EXPECT_EQ(GetErrorName(), kAbortError);
+
+  histograms.ExpectBucketCount(
+      kInstallResultUma, web_app::WebInstallServiceResult::kInstallInProgress,
+      1);
+  histograms.ExpectBucketCount(
+      kVariantedInstallResultUma,
+      web_app::WebInstallServiceResult::kInstallInProgress, 1);
+  // Install #1 is current-document, install #2 is background-document.
+  histograms.ExpectBucketCount(
+      kInstallTypeUma, web_app::WebInstallServiceType::kCurrentDocument, 1);
+  histograms.ExpectBucketCount(
+      kInstallTypeUma, web_app::WebInstallServiceType::kBackgroundDocument, 1);
+  histograms.ExpectBucketCount(kVariantedInstallTypeUma,
+                               web_app::WebInstallServiceType::kCurrentDocument,
+                               1);
+  histograms.ExpectBucketCount(
+      kVariantedInstallTypeUma,
+      web_app::WebInstallServiceType::kBackgroundDocument, 1);
+}
+
+// Interleaves two background-document installs.
+IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
+                       ConcurrentBackgroundInstallsRejected) {
+  NavigateToValidUrl();
+
+  std::string install_url_1 =
+      embedded_https_test_server()
+          .GetURL("/banners/manifest_with_id_test_page.html")
+          .spec();
+  std::string install_url_2 = GetInstallableAppURL().spec();
+
+  // Auto-grant the permission prompt so install #1 proceeds to the install
+  // dialog (which has no auto-accept and blocks indefinitely).
+  SetPermissionResponse(/*permission_granted=*/true);
+  base::HistogramTester histograms;
+
+  // Fire background-document install #1.
+  ASSERT_TRUE(content::ExecJs(web_contents(),
+                              "navigator.install('" + install_url_1 + "');",
+                              content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
+
+  // Fire background-document install #2 and wait for its rejection.
+  ASSERT_TRUE(TryInstallApp(install_url_2));
+  EXPECT_FALSE(ResultExists());
+  EXPECT_TRUE(ErrorExists());
+  EXPECT_EQ(GetErrorName(), kAbortError);
+
+  histograms.ExpectBucketCount(
+      kInstallResultUma, web_app::WebInstallServiceResult::kInstallInProgress,
+      1);
+  histograms.ExpectBucketCount(
+      kVariantedInstallResultUma,
+      web_app::WebInstallServiceResult::kInstallInProgress, 1);
+  // Both installs are background-document.
+  histograms.ExpectBucketCount(
+      kInstallTypeUma, web_app::WebInstallServiceType::kBackgroundDocument, 2);
+  histograms.ExpectBucketCount(
+      kVariantedInstallTypeUma,
+      web_app::WebInstallServiceType::kBackgroundDocument, 2);
 }
 
 }  // namespace web_app

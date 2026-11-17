@@ -372,14 +372,18 @@ const GridLayoutSubtree* GridLayoutAlgorithm::ComputeGridGeometry(
   // If we have a layout subtree in the constraint space, it means we are in a
   // subgrid whose geometry is already computed. We can exit early by simply
   // copying the layout data and constructing our grid items.
+  //
+  // `parent_is_auto_placed` is set to false because at this point, track sizing
+  // has completed, so if we are in a nested grid lanes container, sizing and
+  // explicit placement information within this subgrid are known and accurate.
   if (const auto* layout_subtree = constraint_space.GetGridLayoutSubtree()) {
     const auto* layout_data = layout_subtree->LayoutData();
 
     if (!node.ChildLayoutBlockedByDisplayLock()) {
       bool must_invalidate_placement_cache = false;
-      *grid_items = node.ConstructGridItems(node.CachedLineResolver(),
-                                            &must_invalidate_placement_cache,
-                                            oof_children);
+      *grid_items = node.ConstructGridItems(
+          node.CachedLineResolver(), &must_invalidate_placement_cache,
+          /*parent_is_auto_placed=*/false, oof_children);
 
       DCHECK(!must_invalidate_placement_cache)
           << "We shouldn't need to invalidate the placement cache if we relied "
@@ -419,7 +423,7 @@ const GridLayoutSubtree* GridLayoutAlgorithm::ComputeGridGeometry(
   const auto& container_style = Style();
   const bool applies_auto_min_size =
       !container_style.AspectRatio().IsAuto() &&
-      container_style.IsOverflowVisibleOrClip() &&
+      !container_style.IsOverflowValueScrollableBlock() &&
       container_style.LogicalMinHeight().HasAuto();
 
   if (grid_available_size_.block_size == kIndefiniteSize ||
@@ -2362,29 +2366,21 @@ void GridLayoutAlgorithm::PlaceGridItemsForFragmentation(
     return true;
   };
 
-  // PlaceGaps simply places all gaps that fit within the current
-  // fragmentainer. The main idea is that we start from the first unprocessed
-  // gap, and place gaps until we find one that doesn't fit. If the last gap
+  // `PlaceMainGaps` simply builds and returns all main gaps that fit within
+  // the current fragmentainer. We start from the first unprocessed gap,
+  // and place gaps until we find one that doesn't fit. If the last gap
   // placed is split by the fragmentainer boundary or is the last content in
   // this fragmentainer, we suppress it and adjust the `intrinsic_block_size`
   // and item offsets by the delta of the gap that might have spilled over to
   // the next fragmentainer.
-  //
-  // TODO(samomekarajr): We currently suppress "free space" due to alignment as
-  // we would gaps. This is because the track sizing algorithm records free
-  // space as part of the gutters. This needs to be investigated further to
-  // determine what. the right behavior should be in these cases.
-  auto PlaceGaps = [&]() {
-    if (!full_gap_geometry || fragmentainer_space == kIndefiniteSize) {
-      return;
-    }
+  auto PlaceMainGaps = [&]() -> MainGaps {
+    MainGaps fragment_main_gaps;
 
     const MainGaps& main_gaps = full_gap_geometry->GetMainGaps();
     if (main_gaps.empty()) {
-      return;
+      return fragment_main_gaps;
     }
 
-    MainGaps fragment_main_gaps;
     LayoutUnit half_row_gap_size = full_gap_geometry->GetBlockGapSize() / 2;
 
     // Determines whether the last placed gap needs to be suppressed because it
@@ -2450,8 +2446,6 @@ void GridLayoutAlgorithm::PlaceGridItemsForFragmentation(
     };
 
     wtf_size_t current_processed_gap_set_idx = kNotFound;
-    const wtf_size_t initial_unprocessed_row_gap_idx =
-        *first_unprocessed_row_gap_idx;
     for (wtf_size_t gap_index = *first_unprocessed_row_gap_idx;
          gap_index < main_gaps.size(); ++gap_index) {
       LayoutUnit row_gap_midpoint = main_gaps[gap_index].GetGapOffset() +
@@ -2488,6 +2482,18 @@ void GridLayoutAlgorithm::PlaceGridItemsForFragmentation(
     if (!fragment_main_gaps.empty()) {
       MaybeSuppressLastGap(current_processed_gap_set_idx);
     }
+
+    return fragment_main_gaps;
+  };
+
+  auto PlaceGaps = [&]() {
+    if (!full_gap_geometry || fragmentainer_space == kIndefiniteSize) {
+      return;
+    }
+
+    const wtf_size_t initial_unprocessed_row_gap_idx =
+        *first_unprocessed_row_gap_idx;
+    MainGaps fragment_main_gaps = PlaceMainGaps();
 
     // Create gap geometry for this fragmentainer if we have gaps.
     if ((RuntimeEnabledFeatures::CSSGapDecorationEnabled() &&

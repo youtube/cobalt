@@ -91,8 +91,6 @@ namespace {
 
 static constexpr std::string_view kPermissionGrantedHistogram =
     "Actor.NavigationGating.PermissionGranted";
-static constexpr std::string_view kActionNavigationsApprovedByServerHistogram =
-    "Actor.NavigationGating.ActionNavigationsApprovedByServer";
 
 BASE_FEATURE(kActorReloadCrashedTabBeforeAct, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -314,17 +312,11 @@ ExecutionEngine::ShouldDeferNavigation(
       LogNavigationGating(source_origin, navigation_handle.GetInitiatorOrigin(),
                           url::Origin::Create(navigation_handle.GetURL()),
                           /*applied_gate=*/false);
-      MaybeRecordNavigationConfirmationMetrics(
-          state(), url::Origin::Create(navigation_handle.GetURL()),
-          /*is_pre_approved=*/true);
       return content::NavigationThrottle::PROCEED;
     case GatingDecision::kAllowByStaticList:
       LogNavigationGating(source_origin, navigation_handle.GetInitiatorOrigin(),
                           url::Origin::Create(navigation_handle.GetURL()),
                           /*applied_gate=*/false);
-      MaybeRecordNavigationConfirmationMetrics(
-          state(), url::Origin::Create(navigation_handle.GetURL()),
-          /*is_pre_approved=*/false);
       return content::NavigationThrottle::PROCEED;
     case GatingDecision::kBlockByStaticList:
     case GatingDecision::kBlockByContainerConfig:
@@ -342,12 +334,7 @@ ExecutionEngine::ShouldDeferNavigation(
               navigation_handle.GetInitiatorOrigin(),
               navigation_handle.GetURL(),
               GetPrimaryMainFrame(navigation_handle)->GetPageUkmSourceId(),
-              skip_prompt, std::move(timer),
-              std::move(callback).Then(base::BindOnce(
-                  &ExecutionEngine::MaybeRecordNavigationConfirmationMetrics,
-                  GetActionSequenceWeakPtr(), state(),
-                  url::Origin::Create(navigation_handle.GetURL()),
-                  /*is_pre_approved=*/false))));
+              skip_prompt, std::move(timer), std::move(callback)));
       return content::NavigationThrottle::DEFER;
     }
   }
@@ -544,48 +531,6 @@ void ExecutionEngine::SendNavigationConfirmationRequest(
   }
   task_->delegate()->RequestToConfirmNavigation(task_->id(), destination,
                                                 std::move(callback));
-}
-
-void ExecutionEngine::MaybeRecordNavigationConfirmationMetrics(
-    ExecutionEngine::State state_for_metrics,
-    const url::Origin& destination,
-    bool is_pre_approved) {
-  if (!base::FeatureList::IsEnabled(
-          kGlicRecordNavigationConfirmationRequestMetrics)) {
-    return;
-  }
-
-  // Record a metric if we can attribute this metric to an action (i.e. the
-  // execution engine is in a relevant state)
-  if (state_for_metrics != ExecutionEngine::State::kToolInvoke &&
-      state_for_metrics != ExecutionEngine::State::kUiPostInvoke) {
-    return;
-  }
-
-  if (is_pre_approved) {
-    base::UmaHistogramBoolean(kActionNavigationsApprovedByServerHistogram,
-                              true);
-    return;
-  }
-
-  if (!task_->delegate()) {
-    return;
-  }
-  task_->delegate()->RequestToConfirmNavigation(
-      task_->id(), destination,
-      base::BindOnce([](webui::mojom::NavigationConfirmationResponsePtr
-                            response) {
-        switch (response->result->which()) {
-          case webui::mojom::ConfirmationRequestResult::Tag::kPermissionGranted:
-            base::UmaHistogramBoolean(
-                kActionNavigationsApprovedByServerHistogram,
-                response->result->get_permission_granted());
-            return;
-          case webui::mojom::ConfirmationRequestResult::Tag::kErrorReason:
-            return;
-        }
-        NOTREACHED();
-      }));
 }
 
 void ExecutionEngine::OnNavigationConfirmationDecision(
@@ -851,7 +796,7 @@ void ExecutionEngine::KickOffNextAction() {
 
 void ExecutionEngine::SafetyChecksForNextAction() {
   TRACE_EVENT0("actor", "ExecutionEngine::SafetyChecksForNextAction");
-  tabs::TabInterface* tab = GetNextAction().GetTabHandle().Get();
+  tabs::TabInterface* tab = GetNextAction().GetTabForValidation().Get();
 
   if (!tab) {
     journal_->Log(GURL::EmptyGURL(), task_->id(), "Act Failed",
@@ -937,7 +882,7 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!action_sequence_.empty());
 
-  tabs::TabInterface* tab = GetNextAction().GetTabHandle().Get();
+  tabs::TabInterface* tab = GetNextAction().GetTabForValidation().Get();
   if (!tab) {
     journal_->Log(GURL::EmptyGURL(), task_->id(), "Act Failed",
                   JournalDetailsBuilder()
@@ -986,13 +931,17 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
 }
 
 void ExecutionEngine::FailedOnTabBeforeToolCreation() {
-  tabs::TabHandle tab = GetNextAction().GetTabHandle();
-  journal_->Log(GetNextAction().GetURLForJournal(), task_->id(), "Act Failed",
-                JournalDetailsBuilder()
-                    .Add("tabId", tab.raw_value())
-                    .AddError("Associating tab for failed action")
-                    .Build());
-  task_->AddTab(tab, /*stop_task_on_detach=*/true, base::DoNothing());
+  journal_->Log(
+      GetNextAction().GetURLForJournal(), task_->id(), "Act Failed",
+      JournalDetailsBuilder()
+          .Add("tabId", GetNextAction().GetTabForValidation().raw_value())
+          .AddError("Associating tab for failed action")
+          .Build());
+  tabs::TabHandle actuation_tab = GetNextAction().GetTabHandle();
+  if (actuation_tab != tabs::TabHandle::Null()) {
+    task_->AddTab(actuation_tab, /*stop_task_on_detach=*/true,
+                  base::DoNothing());
+  }
 }
 
 void ExecutionEngine::ExecuteNextAction() {
@@ -1081,12 +1030,12 @@ void ExecutionEngine::FinishedToolInvoke(mojom::ActionResultPtr result) {
   RecordToolTimings(GetInProgressAction().Name(), end_time - action_start_time_,
                     end_time - *result->execution_end_time);
 
-  if (GetInProgressAction().GetTabHandle() != tabs::TabHandle::Null()) {
+  if (GetInProgressAction().GetTabForValidation() != tabs::TabHandle::Null()) {
     observation_strategy_.VoteForScreenshot(
-        GetInProgressAction().GetTabHandle(),
+        GetInProgressAction().GetTabForValidation(),
         static_cast<ScreenshotPolicy>(result->screenshot_policy));
     observation_strategy_.VoteForPageContentExtraction(
-        GetInProgressAction().GetTabHandle(),
+        GetInProgressAction().GetTabForValidation(),
         static_cast<PageContentExtractionPolicy>(result->page_content_policy));
   }
 

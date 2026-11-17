@@ -1216,7 +1216,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
             exports->FindEntry(roots, lookup->name(),
                                Smi::ToInt(Object::GetHash(*lookup->name())));
         // We found the accessor, so the entry must exist.
-        DCHECK(entry.is_found());
+        CHECK(entry.is_found());
         int value_index = ObjectHashTable::EntryToValueIndex(entry);
         Handle<Smi> smi_handler =
             LoadHandler::LoadModuleExport(isolate(), value_index);
@@ -1484,8 +1484,10 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
             DirectHandle<Smi> get_smi_handler = LoadHandler::LoadField(
                 isolate(), it.GetFieldIndex(), it.GetFieldDescriptorIndex());
             if (DirectHandle<JSFunction> trap; TryCast(trap_method, &trap)) {
-              return MaybeObjectHandle(LoadHandler::LoadProxyFast(
-                  isolate(), target_map, handler_map, get_smi_handler, trap));
+              if (!trap->shared()->is_class_constructor()) {
+                return MaybeObjectHandle(LoadHandler::LoadProxyFast(
+                    isolate(), target_map, handler_map, get_smi_handler, trap));
+              }
             }
           }
         }

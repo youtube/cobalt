@@ -32,6 +32,8 @@
 <translation id="1085677983426914530"><ph name="FILENAME" /> کھولی نہیں جا سکی</translation>
 <translation id="1086486568852410168">‏Google لینز سے تلاش کریں</translation>
 <translation id="1096992026380844478">آپ کی مطابقت پذیری کی ترتیبات آپ کے آخری بیک اپ کی بنیاد پر بحال کی جائیں گی۔ <ph name="BEGIN_LINK" />دیکھیں کہ آپ کیا مطابقت پذیر کر سکتے ہیں<ph name="END_LINK" /></translation>
+<translation id="1097049112094133492">{count,plural, =1{‫1 دستی تلاش کو نظر انداز کیا گیا}other{# دستی تلاشیں نظر انداز کی گئیں}}</translation>
+<translation id="1097807529207545420">{count,plural, =1{‫1 پاس ورڈ کی فوری طور پر تصدیق کی گئی}other{‫# پاس ورڈز کی فوری طور پر تصدیق کی گئی}}</translation>
 <translation id="1103523840287552314"><ph name="LANGUAGE" /> کو ہمیشہ ترجمہ کریں</translation>
 <translation id="1110772719190051587">‏‫Face ID کے ساتھ غیر مقفل کریں</translation>
 <translation id="1112015203684611006">پرنٹنگ ناکام۔</translation>
@@ -60,6 +62,7 @@
 <translation id="1201402288615127009">اگلا</translation>
 <translation id="1204075260022434100">{count,plural, =1{بُک مارک کو آپ کے اکاؤنٹ {email} میں "{title}" میں محفوظ کیا گیا}other{‫{count} بُک مارکس کو آپ کے اکاؤنٹ، {email} میں "{title}" میں محفوظ کیا گیا}}</translation>
 <translation id="1207493287814084192">شام 5:30 بجے</translation>
+<translation id="1215414310909588335">{count,plural, =1{ٹائپنگ کا 1 منٹ محفوظ ہو گیا}other{ٹائپنگ کے # منٹ محفوظ ہو گئے}}</translation>
 <translation id="1217294226280635614">اسپلٹ اسکرین</translation>
 <translation id="1218730690561976633">بہتر کردہ آٹو فل صارف کی توثیق کو ٹوگل کریں</translation>
 <translation id="1219674500290482172">انٹرنیٹ سے منسلک ہونے سے قاصر ہے۔</translation>
@@ -111,7 +114,6 @@
 <translation id="1369286077209859800">ٹیب گروپ میں سبھی ٹیبز دکھائیں</translation>
 <translation id="136942498637440594">آپ تصاویر اور جو کچھ آپ دیکھتے ہیں تلاش کر سکتے ہیں۔</translation>
 <translation id="1373120905936431262">‏‫Nano Banana کے ساتھ ریمکس کرنے کے لیے کوئی تصویر اپ لوڈ کریں</translation>
-<translation id="1377321085342047638">کارڈ نمبر</translation>
 <translation id="1377508275003315939">پاس ورڈز</translation>
 <translation id="1381022135873211423">{count,plural, =1{{count} پتہ میں سے {position}}other{{count} پتے میں سے {position}}}</translation>
 <translation id="1383876407941801731">تلاش کریں</translation>
@@ -169,6 +171,7 @@
 <translation id="1554043146674176775">‏‫AI وضع آف کریں</translation>
 <translation id="1554477036522844996">نئی ونڈو</translation>
 <translation id="1558391695376153246">پوشیدگی ٹیبز بند کریں</translation>
+<translation id="1559263013367304065">‏‫Google لینز استعمال کرنے کے بعد سے</translation>
 <translation id="1560153516220021659">ثانوی ٹول بار کا بٹن سکیڑا گیا</translation>
 <translation id="1565371473877914088">نیا پوشیدگی ٹیب</translation>
 <translation id="1567960978791353852">ریڈنگ موڈ دکھائیں</translation>
@@ -192,7 +195,6 @@
 <translation id="1629162218487290695">توثیق کریں کہ یہ آپ ہیں…</translation>
 <translation id="1634520742547161889">MM/YY</translation>
 <translation id="1636234353664774105">نیویگیشن خصوصیت کا استعمال کرتے ہوئے موڈ در موڈ ڈائریکشنز رہنمائی کے ساتھ اپنی منزل کی ڈائریکشنز حاصل کریں</translation>
-<translation id="1637811476055996098">فائلوں کا انتخاب کریں</translation>
 <translation id="1641113438599504367">محفوظ براؤزنگ</translation>
 <translation id="1644574205037202324">سرگزشت</translation>
 <translation id="164673457281113247">{count,plural, =1{بُک مارک محفوظ ہو گیا}other{بُک مارکس محفوظ ہو گئے}}</translation>
@@ -208,6 +210,7 @@
 <translation id="1671568970992212376">‏اپنی Google تصاویر میں تصاویر محفوظ کریں اور کسی بھی وقت ان تک رسائی حاصل کریں۔</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> سے <ph name="TARGET_LANGUAGE" /> میں</translation>
 <translation id="1678855624321223424">آپ کی تنظیم کی پالیسیوں کی بنیاد پر، اس فائل میں حساس معلومات ہو سکتی ہیں</translation>
+<translation id="1683276189281028863">پاس ورڈ چیک اپ</translation>
 <translation id="168389590065701766">‏اب آپ اپنے ایڈریس بار سے Google لینز کھول سکتے ہیں اور جو کچھ بھی دیکھتے ہیں اسے تلاش کر سکتے ہیں</translation>
 <translation id="1689333818294560261">عرفی نام</translation>
 <translation id="169048873465870056">ٹیب کو ہٹائیں اور گروپ کو حذف کریں؟</translation>
@@ -344,6 +347,7 @@
 <translation id="2122754583996902531">آپ کا براؤزر نظم کردہ ہے۔ <ph name="BEGIN_LINK" />مزید جانیں<ph name="END_LINK" /></translation>
 <translation id="2139867232736819575">وہ متن تلاش کریں جسے آپ نے کاپی کیا ہے</translation>
 <translation id="2147127444698817042">‏صرف iPhone پر دستیاب ہے</translation>
+<translation id="2148326276832455306">‏‫Google AI کو بہتر بنانے کے لیے چیٹس کا جائزہ لیا جاتا ہے اور انہیں استعمال کیا جاتا ہے۔ آپ اپنے مقام کے بارے میں معلومات سمیت <ph name="BEGIN_LINK" />اپنی سرگرمی کا نظم<ph name="END_LINK" /> کر سکتے ہیں۔ <ph name="BEGIN_LINK" />اپنے انتخابات کے بارے میں مزید جانیں<ph name="END_LINK" />۔</translation>
 <translation id="2148799636999124959">اپنے محفوظ کردہ پاس ورڈز کے ساتھ تیزی سے سائٹس اور ایپس میں سائن ان کریں۔</translation>
 <translation id="2149968176347646218">کنکشن محفوظ نہیں ہے</translation>
 <translation id="2149973817440762519">بک مارک میں ترمیم کریں</translation>
@@ -402,6 +406,7 @@
 <translation id="2326302612031521902">یونٹ کا منتخب کنندہ</translation>
 <translation id="2330607597130465898">کوئی تحفظ نہیں</translation>
 <translation id="233375395665273385">حذف کریں اور سائن آؤٹ کریں</translation>
+<translation id="2340966584724330791">‏‫Google آپ کی چیٹس اور آپ Gemini کے ساتھ جو اشتراک کرتے ہیں کو جمع کرتا ہے (جیسے فائلز، ویڈیوز، اسکرینز اور تصاویر)۔ یہ آپ کے تاثرات، Gemini کے ساتھ آپ کی ملاحظہ کردہ ویب سائٹس کی معلومات، پروڈکٹ کا استعمال اور مقام کی معلومات (بشمول آپ کے آلے کا عمومی مقام، IP پتہ یا آپ کے Google اکاؤنٹ میں موجود گھر یا دفتر کے پتے) بھی جمع کرتا ہے۔</translation>
 <translation id="2350463587705616331">گہرا بھوراگہرا بھورا پس منظر کا رنگ</translation>
 <translation id="2351097562818989364">ترجمہ کی آپ کی ترتیبات دوبارہ ترتیب دی گئیں ہیں۔</translation>
 <translation id="2353784052777482798">{COUNT,plural, =1{‏آپ اپنے Google اکاؤنٹ {EMAIL} میں {DOMAIN_ONE} کے لیے اپنا پاس ورڈ محفوظ کر سکتے ہیں۔}=2{‏آپ اپنے Google اکاؤنٹ {EMAIL} میں {DOMAIN_ONE} اور {DOMAIN_TWO} کے لیے اپنے پاس ورڈز محفوظ کر سکتے ہیں۔}=3{‏آپ اپنے Google اکاؤنٹ {EMAIL} میں {DOMAIN_ONE}، {DOMAIN_TWO} اور {OTHER_DOMAINS_COUNT} دیگر کے لیے اپنے پاس ورڈز محفوظ کر سکتے ہیں۔}other{‏آپ اپنے Google اکاؤنٹ {EMAIL} میں {DOMAIN_ONE}، {DOMAIN_TWO} اور {OTHER_DOMAINS_COUNT} دیگر کے لیے اپنے پاس ورڈز محفوظ کر سکتے ہیں۔}}</translation>
@@ -414,6 +419,7 @@
 <translation id="2367025302166767427">اپنی معلومات پُر کرنے میں دشواری پیش آ رہی ہے</translation>
 <translation id="2371084566192454134">ٹیبز اور ٹیب گروپس</translation>
 <translation id="2371303771137626249">نئی</translation>
+<translation id="2375947780110007467">‏‫Google اشتراک کردہ ٹیبز کے مواد اور URL کا استعمال کرتا ہے۔ آپ کے موجودہ ٹیب کا اشتراک نئی چیٹس میں کیا جاتا ہے۔ آپ اس ترتیب کو کسی بھی وقت تبدیل کر سکتے ہیں۔</translation>
 <translation id="2381405137052800939">مبادیات</translation>
 <translation id="2384692388811649784">پوشیدگی ٹیبز کو چھپائیں</translation>
 <translation id="2386793615875593361">1 کو منتخب کیا گیا</translation>
@@ -484,6 +490,7 @@
 <translation id="2640733327287333451">کوئی صارف نام نہیں ہے ••••••</translation>
 <translation id="264215785133931186">ابھی چیک کیا گيا</translation>
 <translation id="2647434099613338025">زبان شامل کریں</translation>
+<translation id="2648812801228676606">آپ <ph name="NAME_OR_EMAIL" /> کے بطور سائن ان رہے</translation>
 <translation id="2649592894792404568">‏آپ اپنے Google پاس ورڈ مینیجر کا ڈیٹا حذف کرنے والے ہیں</translation>
 <translation id="2652129567809778422">پاس ورڈ منتخب کریں</translation>
 <translation id="2658056020748144467">فائل کو کھولنے سے قاصر</translation>
@@ -547,6 +554,7 @@
 <translation id="284581348330507117">منفرد پاس ورڈز تخلیق کریں</translation>
 <translation id="2856883624744451946">گروپ کا نام</translation>
 <translation id="2858204748079866344">‏آپ کی رازداری کے تحفظ کے لیے، Chrome اس فیلڈ میں آپ کا پاس ورڈ آٹو فل نہیں کرے گا۔</translation>
+<translation id="2858951819750638913">‫Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 سائٹ (مطابقت پذیر آلات پر مزید)}other{# سائٹس (مطابقت پذیر آلات پر مزید)}}</translation>
 <translation id="2870560284913253234">سائٹ</translation>
 <translation id="2876369937070532032">‏آپ کو سیکیورٹی کا خطرہ لاحق ہونے پر، Google کو آپ کے ملاحظہ کئے جانے والے چند صفحات کے URLs بھیجتا ہے</translation>
@@ -657,6 +665,7 @@
 <translation id="3280562213547448728">صوتی تلاش</translation>
 <translation id="3289505634533552500">صوتی تلاش</translation>
 <translation id="3295904109373959849">ٹیب گروپس گرڈ</translation>
+<translation id="3301639354590628973">اکاؤنٹس سوئچ کریں؟</translation>
 <translation id="3302837541200840455">‫<ph name="TAB_TITLE" />، نئی سرگرمی</translation>
 <translation id="3305294846493618482">مزید</translation>
 <translation id="3311748811247479259">آف</translation>
@@ -707,6 +716,7 @@
 <translation id="3493531032208478708">تجویز کردہ مواد کے بارے میں <ph name="BEGIN_LINK" />مزید جانیں<ph name="END_LINK" /></translation>
 <translation id="349446645805573740">منتخب کریں کہ "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" کو کہاں محفوظ کرنا ہے</translation>
 <translation id="3504377992102007712">ترتیبات</translation>
+<translation id="3507556793108992994">{count,plural, =1{‏1 ٹیب صاف کر دیا گیا}other{‫# ٹیبز صاف کر دیا گیا}}</translation>
 <translation id="35083190962747987">‏{url}$ کھولیں</translation>
 <translation id="3511519535430890904">براؤزنگ کا تحفظ شامل کریں</translation>
 <translation id="3512572904898385012">اب آپ اپنے کیمرے سے خریداری اور ترجمہ کر سکتے ہیں۔ اسے آزمانے کے لئے تھپتھپائیں۔</translation>
@@ -738,7 +748,6 @@
 <translation id="3578866308944526475"><ph name="EMAIL" />، آپ کی تنظیم کے زیر انتظام ہے۔</translation>
 <translation id="3580448612293054698"><ph name="ENTITY_TYPE" /> اپ ڈیٹ کریں؟</translation>
 <translation id="3581564640715911333">صفحات کو دیگر زبانوں میں ترجمہ کرنے کی پیشکش کریں</translation>
-<translation id="3583726884554296148">‏اپنے کارڈ کو اپنے Google اکاؤنٹ میں محفوظ کریں تاکہ اسے اس خریداری اور Chrome پر کی جانے والی مستقبل کی خریداریوں کے لیے آٹو فل کیا جا سکے</translation>
 <translation id="3587482841069643663">سبھی</translation>
 <translation id="3587885837929752825">‏آپ کی تنظیم یہ محدود کرتی ہے کہ آپ اپنے Google اکاؤنٹ میں کیا محفوظ کر سکتے ہیں۔</translation>
 <translation id="3588820906588687999">تصویر نئے ٹیب میں کھولیں</translation>
@@ -844,6 +853,7 @@
 <translation id="3962326069546168954">محفوظ کریں</translation>
 <translation id="3967327056943561740">بُک مارکس</translation>
 <translation id="3967822245660637423">ڈاؤن لوڈ مکمل ہوگیا ہے</translation>
+<translation id="3968685670440571540">پاس ورڈز اور آٹو فل استعمال کرنے کے بعد سے</translation>
 <translation id="3973560090698854095">‏اس سے آپ کے Google اکاؤنٹ <ph name="USER_EMAIL" /> میں محفوظ کردہ پتے حذف ہو جاتے ہیں۔</translation>
 <translation id="398604237578616937"><ph name="USER_EMAIL" /> کے بطور سائن ان کردہ۔ اکاؤنٹ مینیو کھولیں۔</translation>
 <translation id="3986739045730058129">ٹیب پر جائیں</translation>
@@ -869,6 +879,7 @@
 <translation id="4047337302138771011">اپنے پاس ورڈز کا اشتراک کریں</translation>
 <translation id="4049419681095579435">پیکیج پہلے ہی ٹریک کیا گیا ہے</translation>
 <translation id="4049507953662678203">یقینی بنائیں کہ آپ کے پاس نیٹ ورک کنکشن ہے اور دوبارہ کوشش کریں۔</translation>
+<translation id="4054290211988862686">فائل منتخب کریں</translation>
 <translation id="4070132839822635162">سائن ان نہ کریں</translation>
 <translation id="4092655288299341041">مدد دکھائیں</translation>
 <translation id="4095483462103784441">نیا ٹیب گروپ تخلیق کریں</translation>
@@ -912,6 +923,7 @@
 <translation id="422474357428465195">آپ کے پاس ورڈ میں مختلف مسائل ہیں جن سے آپ کی سیکیورٹی کو خطرہ لاحق ہو سکتا ہے۔</translation>
 <translation id="422477017457571619">‏‫Google کو بھیجے جا رہے آپ کے براؤزنگ ڈیٹا کی بنیاد پر خطرناک سائٹس، ڈاؤن لوڈز اور ایکسٹینشنز کے خلاف ریئل ٹائم میں AI تقویت یافتہ حفاظت ملتی ہے</translation>
 <translation id="4231395118547300571">سیفٹی چیک کی اطلاعات آن ہیں</translation>
+<translation id="4232376164796433044">پاس ورڈز اور آٹو فل</translation>
 <translation id="4232817129213135694">اس آلہ کے لیے پاس کیز سیٹ اپ کریں</translation>
 <translation id="4237377247299956313"><ph name="BEGIN_BOLD" />ڈیفالٹ براؤزر ایپ<ph name="END_BOLD" /> پر تھپتھپائیں</translation>
 <translation id="424063167283213501">معلوم مسافر نمبر محفوظ کریں</translation>
@@ -933,8 +945,9 @@
 <translation id="4286718549648564014">پتہ آپ کے اکاؤنٹ <ph name="USER_EMAIL" /> میں منتقل کر دیا گیا</translation>
 <translation id="4287172530684295552">پڑھی ہوئی کا نشان لگائیں</translation>
 <translation id="428768789042547925">نیا کیا ہے</translation>
+<translation id="4289309730265289297">تصویری لائبریری</translation>
 <translation id="429074084062258019">{count,plural, =1{گروپ میں ٹیب شامل کریں}other{گروپ میں ٹیبز شامل کریں}}</translation>
-<translation id="4300830875340617674">کارڈ اسکین کریں اور آٹو فل کریں</translation>
+<translation id="4294506173142861371">‫<ph name="FIRST_NAME" /> کے بطور سائن ان کریں؟</translation>
 <translation id="4302061870579014542">پوزیشن سیٹ کریں</translation>
 <translation id="4304713468139749426">پاس ورڈ مینیجر</translation>
 <translation id="4306349443295056740">‏‫OCSP پر دستخط کرنا</translation>
@@ -1273,6 +1286,7 @@
 <translation id="5444892875087332195">بُک مارکس</translation>
 <translation id="5447973833955560753">بازیابی پاس ورڈ</translation>
 <translation id="5452354193031718372">مضبوط پاس ورڈ استعمال کریں:</translation>
+<translation id="5453088693079603292">کون سی سرگرمی جمع کی جاتی ہے</translation>
 <translation id="5454211924362324495">دوسروں کو اپنا پاس ورڈ استعمال کرنے سے روکنے کے لیے، <ph name="BEGIN_LINK" />اسے <ph name="WEBSITE" /> پر تبدیل کریں<ph name="END_LINK" /></translation>
 <translation id="5457082343331641453">اپنی تلاش میں شامل کریں</translation>
 <translation id="5457226814769348910">آف لائن ورژن کھولیں</translation>
@@ -1336,6 +1350,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="5647702255748985085">گروپ چھوڑیں؟</translation>
 <translation id="5648166631817621825">آخری 7 دن</translation>
 <translation id="5652623411397330904">آپ جو پروڈکٹس ٹریک کرتے ہیں وہ یہاں نظر آئیں گے۔</translation>
+<translation id="565364728543769472">ویڈیو بنائیں</translation>
 <translation id="5656431592348714536">بہتر کردہ کیلنڈر</translation>
 <translation id="5659593005791499971">ای میل</translation>
 <translation id="5666313630530585305">ویب سائٹ میں سائن ان کریں۔</translation>
@@ -1450,7 +1465,6 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="6045460247888249350">عنوان شامل کریں</translation>
 <translation id="6052269326659653305">پروفائل سوئچ کریں</translation>
 <translation id="605721222689873409">YY</translation>
-<translation id="6058415747854995776">ویڈیو بنائیں</translation>
 <translation id="6059830886158432458">اپنی کہانیوں اور سرگرمی کو یہاں کنٹرول کریں</translation>
 <translation id="6063802271331271857">تصویر کو ریمکس کریں</translation>
 <translation id="6066301408025741299">منسوخ کرنے کیلئے تھپتھپائیں۔</translation>
@@ -1522,6 +1536,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="6253686838150111720">‫<ph name="URL" /> میں سائن ان کریں</translation>
 <translation id="6254066287920239840">براؤزر کی بجائے لنکس کو ایپ میں کھولیں۔</translation>
 <translation id="6259928806013786178">ریڈنگ موڈ ناکام ہو گیا</translation>
+<translation id="626335165106398104">‏‫Gemini دیگر سروسز کے ساتھ کام کرتا ہے</translation>
 <translation id="6268773951964630964">کاپی کردہ تصویر تلاش کریں</translation>
 <translation id="6271462272606946663">موبائل سائٹ کی درخواست کو چھپائیں</translation>
 <translation id="6271824294945464304">پاس ورڈ کا اشتراک کرنا</translation>
@@ -1637,6 +1652,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="6609890790934458793"><ph name="WEBSITE" />، <ph name="SECOND_WEBSITE" /> اور <ph name="THIRD_WEBSITE" /> کے پاسورڈز حذف ہو جائيں گے۔ آپ کے اکاؤنٹس حذف نہیں ہوں گے۔</translation>
 <translation id="661266467055912436">آپ کے لیے اور ویب پر ہر کسی کے لیے سیکیورٹی کو بہتر بناتا ہے۔</translation>
 <translation id="6612912757320004438">ٹیبز کی اطلاعات کی اجازت دیں…</translation>
+<translation id="6613372200395638275">‏حسب ضرورت مدد فراہم کرنے کے لیے، Gemini آپ کے کچھ ڈیٹا (جیسے آپ کی چیٹس، مقام اور دیگر متعلقہ معلومات کے حصے) کا اشتراک Maps اور فلائٹس جیسی دیگر Google سروسز کے ساتھ کرتا ہے۔ یہ سروسز معلومات کو بہتر بنانے کے لیے استعمال کی جا سکتی ہیں، چاہے آپ بعد میں اپنی Gemini ایپس کی سرگرمی کو حذف کر دیں۔ ‫<ph name="BEGIN_LINK" />Gemini ایپس کا رازداری ہب<ph name="END_LINK" /> میں مزید جانیں۔</translation>
 <translation id="6617761071025228250">ٹیکسٹ صاف کریں</translation>
 <translation id="6619015782482868078">فیروزی تھیم</translation>
 <translation id="6620279676667515405">منسوخ کریں</translation>
@@ -1690,6 +1706,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="6757899787818440812">درمیانی اونچائی</translation>
 <translation id="6759709389246683070">آپ بعد میں ملاحظہ کرنے کی یاد دہانی سیٹ کرنے کیلئے اس ٹیب کو ٹچ کر کے اور دبا کر رکھ سکتے ہیں</translation>
 <translation id="6761393919622941301">آڈیو</translation>
+<translation id="6765551480308401897">ڈیفالٹ نہ بنائیں</translation>
 <translation id="6770452996697898492">[BOOKED]</translation>
 <translation id="6779455296366983087">آپ کا براؤزنگ ڈیٹا حذف کر دیا جائے گا</translation>
 <translation id="6782531425936234573">ڈیٹا برآمد کریں</translation>
@@ -1700,7 +1717,6 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="6807287147325542056">دیگر ایپس میں پاس ورڈز</translation>
 <translation id="681368974849482173">آئٹم بنایا گیا</translation>
 <translation id="681631578600400068">ڈرائیونگ لائسنس کی معلومات محفوظ کریں</translation>
-<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{‏بُک مارک آپ کے Google اکاؤنٹ، {email} میں محفوظ کیا گیا}other{‏‫{count} بُک مارکس آپ کے Google اکاؤنٹ، {email} میں محفوظ کیے گئے}}</translation>
 <translation id="6826004672264649705">فی الحال اس پروڈکٹ کو ٹریک کیا جا رہا ہے۔ قیمت کی سرگزشت دیکھنے کے لیے کھولیں</translation>
 <translation id="6830728435402077660">محفوظ نہیں</translation>
@@ -1712,6 +1728,9 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="6858718102216837409">زبان شامل کریں…</translation>
 <translation id="6858855187367714033">اسکین کیا گیا</translation>
 <translation id="6859944681507688231">‏QR کوڈ یا کریڈٹ کارڈ اسکین کرنے کیلئے، ترتیبات سے کیمرا کو فعال کریں۔</translation>
+<translation id="6862212368460840758">آپ <ph name="SIGNED_EMAIL" /> کے بطور سائن ان ہیں۔
+
+اپنے کمپیوٹر سے جاری رکھنے کے لیے، <ph name="OTHER_EMAIL" /> پر سوئچ کریں۔ آپ کو اس اکاؤنٹ سے پاس ورڈز، بُک مارکس اور بہت کچھ ملے گا۔</translation>
 <translation id="6867369562105931222">پاس ورڈ</translation>
 <translation id="6867400383614725881">نیا پوشیدگی ٹیب</translation>
 <translation id="686831807558000905">سائن ان نہ کریں</translation>
@@ -1780,6 +1799,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="7091023926159231962">{count,plural, =1{‫{count} پاس ورڈ کو درآمد نہیں کیا جا سکا}other{‫{count} پاس ورڈز کو درآمد نہیں کیا جا سکا}}</translation>
 <translation id="7095110968493193530">‏<ph name="EMAIL" /> کے لیے Google پاس ورڈ مینیجر میں محفوظ کریں</translation>
 <translation id="7097046145876891318">ایڈریس بار میں، وقت کے ساتھ قیمت میں تبدیلیاں دیکھنے کے لیے قیمت کی سرگزشت پر تھپتھپائیں</translation>
+<translation id="7098554251807199977">‏نہ تو Gemini کے ساتھ آپ کی گفتگوؤں اور نہ ہی آپ کے <ph name="BEGIN_LINK" />Google Workspace ڈیٹا<ph name="END_LINK" /> کا جائزہ لیا جائے گا یا تخلیق کر سکنے والے AI ماڈلز کو بہتر بنانے کے لیے استعمال کیا جائے گا۔</translation>
 <translation id="7102005569666697658">ڈاؤن لوڈ ہو رہی ہے… <ph name="FILE_SIZE" /></translation>
 <translation id="7104701424653979232">مینو ← ترتیبات ← ادائیگی کے طریقے</translation>
 <translation id="7108338896283013870">چھپائیں</translation>
@@ -1837,7 +1857,6 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="7347998088283246662">پاس ورڈز، سرگزشت، بُک مارکس اور بہت کچھ درآمد کریں</translation>
 <translation id="7352651011704765696">کچھ غلط ہو گیا</translation>
 <translation id="7357999308187750900">سبھی دیکھیں</translation>
-<translation id="7364796246159120393">فائل کا انتخاب کریں</translation>
 <translation id="736564850024123010">حسب ضرورت تجربے کیلئے اپنے ایڈریس بار کی پوزیشن پر سوئچ کریں۔</translation>
 <translation id="7366909168761621528">براؤزنگ ڈیٹا</translation>
 <translation id="7367530036083223701">پاس ورڈ مینیجر ویجیٹ کی مدد سے ہوم اسکرین سے اپنے پاس ورڈز تک محفوظ طریقے سے رسائی حاصل کریں۔</translation>
@@ -1878,6 +1897,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="7464143666517313304">اس سے اس آلہ پر محفوظ کردہ پتے حذف ہو جاتے ہیں۔</translation>
 <translation id="7468373585447318060">آپ جن پروڈکٹس کو ٹریک کرتے ہیں ان کی قیمتوں میں کمی سے باخبر رہیں۔</translation>
 <translation id="746872191028309255">نظر آنے والی چیزوں کو اپنے کیمرا اور تصویری گیلری کے ساتھ انہیں خریدیں۔</translation>
+<translation id="7469215556134875318">پاس ورڈ چیک اپ استعمال کرنے کے بعد سے</translation>
 <translation id="7471557245617580330">نیا ٹیب بنائیں</translation>
 <translation id="7473555040328423550">ٹیب شامل کریں</translation>
 <translation id="7476548258282096076">یہ کارڈ آپ کی سب سے زیادہ ملاحظہ کردہ سائٹس دکھاتا ہے۔</translation>
@@ -1887,6 +1907,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="7491161827858509164">‏پہلے ڈاؤن لوڈ کی گئی فائلز دیکھنے کے لیے، <ph name="BEGIN_LINK" />Files<ph name="END_LINK" /> کھولیں</translation>
 <translation id="7498234416455752244">ترمیم جاری رکھیں</translation>
 <translation id="7500244509706269886">آٹو فل فارم</translation>
+<translation id="7504841985386528758">ٹیب گروپس کے بارے میں جاننے کے بعد سے</translation>
 <translation id="750493650310597496">0 منتخب کیا گیا</translation>
 <translation id="7505402981231763928">‏‫Gemini استعمال کرنے کے لیے آپ کو سائن ان کرنا ہوگا</translation>
 <translation id="7506817096924591340"><ph name="FILENAME" /> (<ph name="FILESIZE" />)۔</translation>
@@ -1919,6 +1940,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="7603308509262646847">کارڈ کے حامل <ph name="NAME" /> کو آٹو فل کریں</translation>
 <translation id="7603852183842204213">پاپ اپس کو مسدود کر دیا گیا (<ph name="NUMBER_OF_BLOCKED_POPUPS" />)</translation>
 <translation id="7605594153474022051">مطابقت پذیری کام نہیں کر رہی ہے</translation>
+<translation id="7606639338662398635">ٹیب گروپس</translation>
 <translation id="760667371114328991">سیفٹی چیک کی اطلاعات کو آف کریں</translation>
 <translation id="7612619742409846846">‏Google میں سائن ان ہے بطور</translation>
 <translation id="7612849887607288481">‏‫AI پروٹو ٹائپنگ مینو کھولیں</translation>
@@ -1968,6 +1990,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="777637629667389858">‏آپ کے سائن ان ہونے پر، تمام Google سروسز پر آپ کی حفاظت کرتا ہے۔</translation>
 <translation id="7776604279034196531">دستیاب ہونے پر ایڈریس بار سے ریڈنگ موڈ تک رسائی حاصل کریں</translation>
 <translation id="7781829728241885113">گزشتہ کل</translation>
+<translation id="7788474973847076315">تصویر لیں</translation>
 <translation id="7788868432173225918">توسیع شدہ منظر کو مسترد کریں</translation>
 <translation id="7791543448312431591">شامل کریں</translation>
 <translation id="7795253248079882669"><ph name="BEGIN_BOLD" />ایکسپورٹ کریں<ph name="END_BOLD" /> پر تھپتھپائیں</translation>
@@ -1998,7 +2021,6 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="7866872729285243843">اپنے تمام آلات پر اپنی پڑھنے کی فہرست حاصل کرنے کے لیے، ترتیبات میں "پڑھنے کی فہرست" کو آن کریں۔</translation>
 <translation id="7874107544081154809"><ph name="CELL_ACCESSIBILITY_LABEL" /> کے ساتھ فارم آٹو فل کریں</translation>
 <translation id="7879275349003161544">ڈاؤن لوڈز دکھائیں</translation>
-<translation id="7882689957034389473">تصویر لیں</translation>
 <translation id="7883882164760409935">آپ کے پاس دوبارہ استعمال کردہ پاس ورڈز ہیں۔</translation>
 <translation id="7887198238286927132">‏آپ کی رازداری کے تحفظ کے لیے، Chrome اس فیلڈ کو آٹو فل نہیں کرے گا۔</translation>
 <translation id="7887552845761062935">مزید اختیارات کھولنے کے لیے دو بار تھپتھپائیں اور دبائے رکھیں</translation>
@@ -2012,6 +2034,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="792357691529995513">کوئی مسئلہ نہیں ملا</translation>
 <translation id="7925108652071887026">آٹو فل ڈیٹا</translation>
 <translation id="7926975587469166629">کارڈ کا عرفی نام</translation>
+<translation id="792762900715361006">تصویر یا ویڈیو لیں</translation>
 <translation id="7927711904086083099">غیر منتخب کردہ</translation>
 <translation id="7927902634113905831">وہ اکاؤنٹ منتخب کریں جسے آپ <ph name="FILESIZE" /> - "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />" کو محفوظ کرنے کے لیے استعمال کرنا چاہتے ہیں</translation>
 <translation id="7930998711684428189">اگر پاس ورڈز ڈیٹا کی خلاف ورزی میں افشاء ہوتے ہیں تو آپ کو متنبہ کرتا ہے۔</translation>
@@ -2160,7 +2183,6 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="8395180897620197612">لاگ کرنا روکیں</translation>
 <translation id="8407669440184693619">اس سائٹ کے لیے کوئی پاس ورڈ نہیں ملا</translation>
 <translation id="8407831512155324054">آپ کے پاس ورڈز مضبوط لگ رہے ہیں</translation>
-<translation id="8414030140103493759">تصویر یا ویڈیو لیں</translation>
 <translation id="8414283596511250978">اپنے پاس ورڈز کبھی نہ بھولیں</translation>
 <translation id="8415120635186642416">کسی بھی چیز کی تحقیق کریں</translation>
 <translation id="842523302461531262">ترتیبات میں ڈیفالٹ بنائیں…</translation>
@@ -2173,11 +2195,11 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="8439758443371991593">'پڑھنے کی فہرست میں شامل کریں' کو چھپائیں</translation>
 <translation id="8443986842926457191">‏URL ‏2048 حروف سے زیادہ ہے</translation>
 <translation id="8449869326050867919">پاس ورڈ کا اشتراک کر دیا گیا</translation>
+<translation id="8461708300275916315">اگر آپ کی عمر 18 سال سے کم ہے</translation>
 <translation id="8473815223723723001">‏‫Gemini کے ساتھ تصویر میں ترمیم کریں</translation>
 <translation id="8473863474539038330">پتے وغیرہ</translation>
 <translation id="8474378002946546633">اطلاعات کی اجازت دیں</translation>
 <translation id="8477178913400731244">ڈیٹا حذف کریں</translation>
-<translation id="847939250509903814">تصویری لائبریری</translation>
 <translation id="8481184073299279701">‏تمام ٹیبز سے مستقبل کے JavaScript کونسول لاگز اور خرابیاں جمع کرنے کیلئے، "لاگنگ شروع کریں" بٹن پر تھپتھپائیں۔ لاگز اس وقت تک جمع (اور صرف میموری میں اسٹور) کئے جائیں گے جب تک یہ صفحہ بند نہ ہو جائے یا "لاگنگ بند کریں" پر نہ تھپتھپایا جائے۔</translation>
 <translation id="8487667956631253959">آن ہے</translation>
 <translation id="8487700953926739672">آف لائن دستیاب ہے</translation>
@@ -2234,6 +2256,8 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="8636825310635137004">اپنے دیگر آلات سے اپنے ٹیبز حاصل کرنے کیلئے، مطابقت پذیری کو آن کریں۔</translation>
 <translation id="8637431369725868556">خطرناک سائٹس سے تحفظ حاصل کریں۔</translation>
 <translation id="8638151046944329622">{COUNT,plural, =0{کوئی متاثرہ پاس ورڈ نہیں}=1{{COUNT} متاثرہ پاس ورڈ}other{{COUNT} متاثرہ پاس ورڈز}}</translation>
+<translation id="8639963783467694461">آٹو فل ترتیبات</translation>
+<translation id="8642417828095157370">مزید متعلقہ جوابات کے لیے ٹیبز کا اشتراک کیا جاتا ہے</translation>
 <translation id="8643403533759285912">گروپ حذف کریں</translation>
 <translation id="8647280737650867362">قیمت کے ٹریک کو کالعدم نہیں کیا جا سکا۔</translation>
 <translation id="8654802032646794042">منسوخ کریں</translation>
@@ -2247,6 +2271,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="8672733398999596205">تمام کو فعال کریں</translation>
 <translation id="8674716540979958118">آپ کے پاس متاثرہ پاس ورڈز ہیں۔</translation>
 <translation id="8679900250380464358">پڑھنے کی فہرست میں شامل کریں</translation>
+<translation id="8680643216091361291">‏آپ کی <ph name="BEGIN_LINK" />سرگرمی برقرار رکھیں<ph name="END_LINK" /> کی ترتیب بطور ڈیفالٹ آف ہے۔ جب یہ آف ہو تو Google آپ کی چیٹس کو 3 دنوں کے لیے محفوظ کرتا ہے۔ یہ Gemini ایپس کو صحیح طریقے سے کام کرنے، انہیں محفوظ رکھنے میں مدد کرنے اور مسائل کو حل کرنے کی غرض سے آپ کے تاثرات کا استعمال کرنے کے لیے ان کا استعمال کرتا ہے۔ آپ سبھی کیلئے Google AI کو بہتر بنانے میں مدد کرنے کے لیے 'سرگرمی برقرار رکھیں' کو آن کر سکتے ہیں۔</translation>
 <translation id="8680786875305615692">سبھی کے لیے ویب پر سیکیورٹی کو بہتر بنانے میں مدد کریں</translation>
 <translation id="8680787084697685621">اکاؤنٹ سائن ان کی تفصیلات پرانی ہیں۔</translation>
 <translation id="8690752723634292147">حذف کرنے کی توثیق کریں</translation>
@@ -2256,6 +2281,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="8694281486652655615">یہ آئٹم دکھائی دیتا ہے</translation>
 <translation id="8696297579102085705">اپنے آلے پر بھیجیں</translation>
 <translation id="8697136149718343437">ایڈریس بار کو نیچے منتقل کریں</translation>
+<translation id="869891660844655955">میعاد ختم ہونے کی تاریخ</translation>
 <translation id="8706253136355675497">درجہ حرارت</translation>
 <translation id="8706806585855470492">آپ کو ٹیب گروپس میں اشتراک، شمولیت اور تعاون کرنے کا موقع ملے گا</translation>
 <translation id="8709409604518538305">ٹیبز بند کیے گئے</translation>
@@ -2282,6 +2308,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="8766790350274092814"><ph name="WEBSITE" /> اور <ph name="SECOND_WEBSITE" /> کے پاسورڈز حذف ہو جائيں گے۔ آپ کے اکاؤنٹس حذف نہیں ہوں گے۔</translation>
 <translation id="8775144690796719618">‏غلط URL</translation>
 <translation id="8781834595282316166">گروپ میں نیا ٹیب</translation>
+<translation id="8784653774976848206">فائلوں کا انتخاب کریں</translation>
 <translation id="8786100550345425552">اجازتوں میں ترمیم کریں</translation>
 <translation id="878871978861915380">"قیمت کی ٹریکنگ" کو چھپائیں</translation>
 <translation id="8792626944327216835">مائیکروفون</translation>
@@ -2396,6 +2423,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="9162432979321511934">آٹو فل پاس ورڈز آن کریں</translation>
 <translation id="9165320910061267720">‏قیمت میں کمی کے الرٹس کی اطلاعات حاصل کرنے کے لیے، آپ کو اپنے iOS کی ترتیبات میں اطلاعات کو آن کرنا ہوگا۔</translation>
 <translation id="9179151630575358778">اس آئٹم کو چھپاتا ہے</translation>
+<translation id="9183563643084679152">‏آپ نے Chrome میں سائن ان کرنے کے لیے ایک QR کوڈ اسکین کیا۔ آپ کو اس اکاؤنٹ سے پاس ورڈز، بُک مارکس اور بہت کچھ ملے گا۔</translation>
 <translation id="9183733013282108610">پوشیدگی تلاش</translation>
 <translation id="9186762474139509529">لاگ کرنا شروع کریں</translation>
 <translation id="9191031968346938109">اس میں شامل کریں…</translation>

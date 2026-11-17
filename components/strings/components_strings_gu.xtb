@@ -306,6 +306,7 @@
 <translation id="1458140305240870199">અંતર્વસ્ત્રો</translation>
 <translation id="1458770162980644530">"હમણાં ખરીદો, પછીથી ચુકવો" સેવાની શરતોની સ્ક્રીન. કીબોર્ડ છુપાવેલું છે.</translation>
 <translation id="1459693405370120464">હવામાન</translation>
+<translation id="1460317464907341501">શું આ ઇમેઇલ ઍડ્રેસની ચકાસણી ઑટોમૅટિક રીતે કરીએ?</translation>
 <translation id="1461041542809785877">પર્ફોર્મન્સ</translation>
 <translation id="1462245070427461050">JIS B9</translation>
 <translation id="1462951478840426066">તમારા કમ્પ્યુટર પર ફૉન્ટનો ઉપયોગ કરો, જેથી તમે હાઇ ફિડેલિટી કન્ટેન્ટ બનાવી શકો</translation>
@@ -849,7 +850,6 @@
 <translation id="2316087952091171402"><ph name="UPPER_ESTIMATE" /> કરતાં ઓછું. તમારી આગલી મુલાકાત વખતે કેટલીક સાઇટ વધુ ધીમે લોડ થાય એમ બની શકે છે.</translation>
 <translation id="2316090909467242775">આ રિકવરીનો પાસવર્ડ અજમાવી જુઓ</translation>
 <translation id="2316159751672436664">ChromeOS સેટિંગમાં જઈને તમારા ઍક્સેસિબિલિટીના ટૂલને મનગમતા બનાવો</translation>
-<translation id="2316887270356262533">1 MB કરતાં ઓછું ખાલી કરે છે. તમારી આગલી મુલાકાત સમયે કેટલીક સાઇટ વધુ ધીમે લોડ થઈ શકે છે.</translation>
 <translation id="2317259163369394535"><ph name="DOMAIN" /> માટે વપરાશકર્તાનામ અને પાસવર્ડ આવશ્યક છે.</translation>
 <translation id="2318594867107319532">પૉલિસીમાં છેલ્લે ફેરફાર કર્યાનો ટાઇમસ્ટેમ્પ:</translation>
 <translation id="2320564945062300737">ચહેરાની સંભાળ માટેની પ્રોડક્ટ</translation>
@@ -875,6 +875,7 @@
 <translation id="2354001756790975382">અન્ય બુકમાર્ક</translation>
 <translation id="2355395290879513365">તમે આ સાઇટ પર જોઈ રહ્યાં છો તે છબીઓને હુમલાખોરો જોઈ શકે છે અને તેમાં ફેરફાર કરીને તમને છેતરી શકે છે.</translation>
 <translation id="2356941001189392209">જ્યાં જૂની ટેક્નોલોજીની ઇવેન્ટ જોવા મળી રહી છે, તેવા તમે મુલાકાત લો છો તે પેજના URLsની મર્યાદિત સૂચિ</translation>
+<translation id="2357312461142072202">{NUM_TABS,plural, =1{1 ટૅબ શેર કરશે}one{{NUM_TABS} ટૅબ શેર કરશે}other{{NUM_TABS} ટૅબ શેર કરશે}}</translation>
 <translation id="2357481397660644965">તમારું ડિવાઇસ <ph name="DEVICE_MANAGER" /> દ્વારા મેનેજ કરવામાં આવે છે અને તમારું એકાઉન્ટ <ph name="ACCOUNT_MANAGER" /> દ્વારા મેનેજ કરવામાં આવે છે.</translation>
 <translation id="2359629602545592467">બહુવિધ</translation>
 <translation id="2359808026110333948">આગળ વધો</translation>
@@ -1386,6 +1387,7 @@
 <translation id="3158539265159265653">ડિસ્ક</translation>
 <translation id="3162070126914310576">અત્યારે ડિવાઇસની નોંધણી કરી શકાતી નથી કારણ કે તમારી સંસ્થાનું યુનિટ તેની પ્રારંભિક નોંધણીની મર્યાદાએ પહોંચી ગયું છે. સહાયતા માટે તમારા ઍડમિનિસ્ટ્રેટરનો સંપર્ક કરો.</translation>
 <translation id="3162559335345991374">તમે ઉપયોગ કરી રહ્યા છો તે વાઇ-ફાઇને તેના લોગિન પેજની મુલાકાત લેવાની જરૂર હોઈ શકે છે.</translation>
+<translation id="316542773973815724">નૅવિગેશન</translation>
 <translation id="316638481603975524">વેબ ઍપ ઇન્સ્ટૉલ કરવા માટે કહી શકે છે</translation>
 <translation id="3166788340998560642">આગલી વખતે તમે તેનો ઉપયોગ કરશો, ત્યારે Chrome તેને <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" />માં સાચવવાની ઑફર કરશે</translation>
 <translation id="3168744840365648658">રેડિયો સાધન</translation>
@@ -2004,6 +2006,7 @@
 <translation id="412601465078863288">અપલોડ કરવાનો સમય સમાપ્ત થયો</translation>
 <translation id="4127317221386336246">વસ્ત્રો સાથે પહેરાતી ઍક્સેસરી</translation>
 <translation id="4129401438321186435">{COUNT,plural, =1{1 અન્ય}one{# અન્ય}other{# અન્ય}}</translation>
+<translation id="4129810348470013900">કંઈક ખોટું થયું. તમારું ઇન્ટરનેટ કનેક્શન ચેક કરો અને ફરી પ્રયાસ કરો.</translation>
 <translation id="4129992181550680635">શૈક્ષણિક સંસાધનો</translation>
 <translation id="4130226655945681476">નેટવર્ક કેબલ્સ, મૉડેમ અને રાઉટર તપાસીને</translation>
 <translation id="4132448310531350254">ઍપ "<ph name="POLICY_IDS_LIST" />" દ્વારા રેફરન્સ આપવામાં આવેલા file_extension "<ph name="FILE_EXTENSION" />" માટેના ડુપ્લિકેટ હૅન્ડલર.</translation>
@@ -3021,6 +3024,7 @@
 <translation id="5728246486828755318">પ્રિન્ટરની વિગતવાર સુવિધાઓનો ઉપયોગ કરવા માટે પૂછી શકે છે</translation>
 <translation id="5729442113829771034">પ્રી-સ્કૂલ શિક્ષણ</translation>
 <translation id="5730040223043577876">જો તમે અન્ય સાઇટ પર તમારા પાસવર્ડનો ફરી ઉપયોગ કર્યો હોય, તો Chrome તેને રીસેટ કરવાનો સુઝાવ આપે છે.</translation>
+<translation id="5735174108294025227">ચકાસાયેલા ઇમેઇલ ઍડ્રેસ અહીં દેખાશે</translation>
 <translation id="573555826359077410">'ફોર્મ બનાવો' બટન, Google Formsમાં ઝડપથી કોઈ નવું ફોર્મ બનાવવા માટે સક્રિય કરો</translation>
 <translation id="5738385766833540397">તમે ટ્રૅક કરો છો તે પ્રોડક્ટની કિંમતમાં ઘટાડા વિશેના અલર્ટ મેળવવાની રીત મેનેજ કરો</translation>
 <translation id="5739619009927381786">આગલા પગલામાં, સામાન્ય રીતે તમારી ફિંગરપ્રિન્ટનો ઉપયોગ કરીને, તમારી સ્ક્રીનને અનલૉક કરો. અથવા તમે <ph name="BEGIN_LINK" />અન્ય રીતે પણ ચકાસણી કરી<ph name="END_LINK" /> શકો છો.</translation>
@@ -3399,7 +3403,6 @@
 <translation id="633348045801643466">ચેકઆઉટ વખતે <ph name="PAY_LATER_OPTIONS_HELP_LINK_BEGIN" />પછીથી ચુકવો<ph name="PAY_LATER_OPTIONS_HELP_LINK_END" /> વિકલ્પ બતાવો</translation>
 <translation id="6335029926534404762">રમતગમત માટેના શૂઝ</translation>
 <translation id="6336948221660696475">VRને મંજૂરી નથી</translation>
-<translation id="6337133576188860026"><ph name="SIZE" /> કરતાં ઓછી જગ્યા ખાલી કરે છે. તમારી આગલી મુલાકાત સમયે કેટલીક સાઇટ વધુ ધીમે લોડ થઈ શકે છે.</translation>
 <translation id="6337534724793800597">નામ દ્વારા નીતિઓને ફિલ્ટર કરો</translation>
 <translation id="633770708279464947"><ph name="SECURE_DNS_SALT" />નું મૂલ્ય અમાન્ય છે અને તેનો ઉપયોગ કરવામાં આવશે નહીં.</translation>
 <translation id="6338645927051849741">પાસવર્ડ • Google Password Manager</translation>
@@ -3757,7 +3760,6 @@
 <translation id="6893057134494550310">લેમિનેટિંગ ફૉઇલ</translation>
 <translation id="6893204630281237373">Chromeમાં ચુકવણી ઍપ બંધ કરવા માટે, તમારા <ph name="BEGIN_LINK1" />ચુકવણી માટેના સેટિંગ<ph name="END_LINK1" />માં જાઓ</translation>
 <translation id="6895330447102777224">તમારા કાર્ડની પુષ્ટિ કરવામાં આવી છે</translation>
-<translation id="6895573608763679343"><ph name="GROUP_HEADER" /> ગ્રૂપમાં <ph name="NUM_MATCHES_IN_GROUP" />માંથી <ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />, <ph name="MATCH_POSITION" />.</translation>
 <translation id="6896758677409633944">કૉપિ કરો</translation>
 <translation id="6897140037006041989">વપરાશકર્તા એજન્ટ</translation>
 <translation id="6898699227549475383">ઑર્ગેનાઇઝેશન (O)</translation>
@@ -3950,7 +3952,6 @@
 <translation id="718872491229180389">ચીયરલીડિંગ</translation>
 <translation id="7188840756966467339">ફરી શરૂ કરો અને પૉલિસીઓ લાગુ કરો</translation>
 <translation id="7192188280913829296">વિશેષતા "vendor_id" પણ ઉલ્લેખિત હોવી આવશ્યક છે.</translation>
-<translation id="7192203810768312527"><ph name="SIZE" /> ખાલી કરે છે. તમારી આગલી મુલાકાત સમયે કેટલીક સાઇટ વધુ ધીમે લોડ થઈ શકે છે.</translation>
 <translation id="7192537357091279678">કમ્પ્યુટર ડ્રાઇવ અને સ્ટોરેજ</translation>
 <translation id="7193661028827781021">સંદર્ભ</translation>
 <translation id="719464814642662924">વિઝા</translation>
@@ -4070,7 +4071,6 @@
 <translation id="7388380253839603603">ગૅસની કિંમતો અને વાહનોના ઈંધણ સંબંધિત સેવાઓ</translation>
 <translation id="7388594495505979117">{0,plural, =1{તમારું ડિવાઇસ 1 મિનિટમાં ફરી શરૂ થશે}one{તમારું ડિવાઇસ # મિનિટમાં ફરી શરૂ થશે}other{તમારું ડિવાઇસ # મિનિટમાં ફરી શરૂ થશે}}</translation>
 <translation id="7393161616326137353">સાહસવાળી ગેમ</translation>
-<translation id="7393243238767102021"><ph name="DOMAIN" />ને આ ઇમેઇલ ઍડ્રેસની ચકાસણી ઑટોમૅટિક રીતે કરવાની મંજૂરી આપીએ?</translation>
 <translation id="7393475648162498734">ચેકઆઉટ વખતે તમારા કાર્ડ માટે કયા રિવૉર્ડ અને લાભ ઉપલબ્ધ હોય છે, તે બતાવે છે</translation>
 <translation id="7393971683644170444">તમારા કાર્ડના પ્રદાતા સાથે કનેક્ટ કરી રહ્યાં છીએ...</translation>
 <translation id="739728382607845710">ચુકવણી હૅન્ડલરનું આઇકન</translation>
@@ -4123,7 +4123,6 @@
 <translation id="7450577240311017924">'સિંક મેનેજ કરો' બટન, Chrome સેટિંગમાં તમે જે માહિતી સિંક કરવા ઇચ્છતા હો, તે મેનેજ કરવા માટે સક્રિય કરો</translation>
 <translation id="7451311239929941790">આ સમસ્યા વિશે <ph name="BEGIN_LINK" />વધુ જાણો<ph name="END_LINK" />.</translation>
 <translation id="745208957946308667">Dino ગેમ, રમવા માટે સ્પેસ દબાવો</translation>
-<translation id="74521886886364465"><ph name="GROUP_HEADER" /> ગ્રૂપમાં <ph name="NUM_MATCHES_IN_GROUP" />માંથી <ph name="SUGGESTION_TITLE" />, <ph name="MATCH_POSITION" />.</translation>
 <translation id="7453032093368223821">અન્ય ડેટા મેનેજ કરો</translation>
 <translation id="7453849010505253492">આ સર્વર સાબિત કરી શક્યું નથી કે તે <ph name="DOMAIN" /> છે કારણ કે તે એવા સુરક્ષા સર્ટિફિકેટનો ઉપયોગ કરી રહ્યું છે જેનો Chrome અથવા વેબ ટ્રાફિક એન્ક્રિપ્શન માટેની તમારી સિસ્ટમની ગોઠવણી દ્વારા વિશ્વાસ કરવામાં આવતો નથી. આવું કદાચ કોઈ ખોટી ગોઠવણી અથવા કોઈ અટૅક કરનારાએ તમારા કનેક્શનમાં અવરોધ ઊભો કર્યો હોવાને કારણે થયું હોઈ શકે છે. <ph name="BEGIN_VIEW_CERTIFICATE_LINK" />સર્ટિફિકેટ જુઓ<ph name="END_VIEW_CERTIFICATE_LINK" /></translation>
 <translation id="7454377933424667109">ક્લાઉડ એકાઉન્ટ</translation>

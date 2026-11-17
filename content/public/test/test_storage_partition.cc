@@ -164,12 +164,12 @@ TestStoragePartition::GetDeviceBoundSessionManager() {
   return device_bound_session_manager_;
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 BrowsingTopicsSiteDataManager*
 TestStoragePartition::GetBrowsingTopicsSiteDataManager() {
   return browsing_topics_site_data_manager_;
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
 DevToolsBackgroundServicesContext*
 TestStoragePartition::GetDevToolsBackgroundServicesContext() {

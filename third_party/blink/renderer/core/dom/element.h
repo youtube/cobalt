@@ -1648,7 +1648,13 @@ class CORE_EXPORT Element : public ContainerNode {
   CustomElementDefinition* GetCustomElementDefinition() const;
 
   // Scoped Custom Elements
-  CustomElementRegistry* customElementRegistry() const;
+  //
+  // Returns the custom element registry associated with this element.
+  // See TreeScope::customElementRegistry() for the rule about when to
+  // pass `script_state` (in short: any caller that will hand the registry
+  // to script must pass it).
+  CustomElementRegistry* customElementRegistry(
+      ScriptState* script_state = nullptr) const;
   // When it comes to storing an element's custom element registry, we have an
   // optimization where if the registry to be set is the same as element's tree
   // scope's registry, we don't store it in the element itself and rely on tree
@@ -2071,6 +2077,7 @@ class CORE_EXPORT Element : public ContainerNode {
   Element* GetOverscrollContainer() const;
   void SetOverscrollContainer(Element*);
   void ClearOverscrollContainer();
+  void DetachOverscroll();
 
   // This method matches the logic of the following UA style rule, and is used
   // in the case that the overlay property is not enabled. This is separate from
@@ -2089,6 +2096,9 @@ class CORE_EXPORT Element : public ContainerNode {
   // Latch the element as a custom password field via CSS -webkit-text-security
   // heuristics.
   void SetHasBeenHeuristicCustomPasswordCSS();
+
+  void ClearSkeletonPseudo();
+  PseudoElement& EnsureSkeletonPseudo();
 
  protected:
   // Returns true if this element is a native password field or has been
@@ -2228,6 +2238,7 @@ class CORE_EXPORT Element : public ContainerNode {
   friend class AXObject;
   friend class KeyboardEventManager;
   struct AffectedByPseudoStateChange;
+  void DetachDescendantsNeedingReattachDuringSkip();
 
   ShadowRoot* GetShadowRootInternal() const;
 
@@ -2343,6 +2354,7 @@ class CORE_EXPORT Element : public ContainerNode {
 
   void UpdateColumnPseudoElements(const StyleRecalcChange,
                                   const StyleRecalcContext&);
+  void UpdateSkeleton(const StyleRecalcChange, const StyleRecalcContext&);
   PseudoElement* UpdatePseudoElement(
       PseudoId,
       const StyleRecalcChange,

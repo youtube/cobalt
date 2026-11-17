@@ -29,7 +29,7 @@ static void tls_on_handshake_complete(SSL *ssl) {
   // The handshake should have released its final message.
   assert(!ssl->s3->has_message);
 
-  // During the handshake, |hs_buf| is retained. Release if it there is no
+  // During the handshake, `hs_buf` is retained. Release if it there is no
   // excess in it. There should not be any excess because the handshake logic
   // rejects unprocessed data after each Finished message. Note this means we do
   // not allow a TLS 1.2 HelloRequest to be packed into the same record as
@@ -58,7 +58,7 @@ static bool tls_set_read_state(SSL *ssl, ssl_encryption_level_t level,
       return false;
     }
 
-    // QUIC only uses |ssl| for handshake messages, which never use early data
+    // QUIC only uses `ssl` for handshake messages, which never use early data
     // keys, so we return without installing anything. This avoids needing to
     // have two secrets active at once in 0-RTT.
     if (level == ssl_encryption_early_data) {
@@ -87,7 +87,7 @@ static bool tls_set_write_state(SSL *ssl, ssl_encryption_level_t level,
       return false;
     }
 
-    // QUIC only uses |ssl| for handshake messages, which never use early data
+    // QUIC only uses `ssl` for handshake messages, which never use early data
     // keys, so we return without installing anything. This avoids needing to
     // have two secrets active at once in 0-RTT.
     if (level == ssl_encryption_early_data) {
@@ -103,7 +103,7 @@ static bool tls_set_write_state(SSL *ssl, ssl_encryption_level_t level,
 
 static void tls_finish_flight(SSL *ssl) {
   // We don't track whether a flight is complete in TLS and instead always flush
-  // every queued message in |tls_flush|, whether the flight is complete or not.
+  // every queued message in `tls_flush`, whether the flight is complete or not.
 }
 
 static void tls_schedule_ack(SSL *ssl) {

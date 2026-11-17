@@ -67,7 +67,6 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.FakeTimeTestRule;
-import org.chromium.base.FeatureOverrides;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
@@ -113,6 +112,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
+import org.chromium.components.messages.DismissReason;
 import org.chromium.components.messages.MessageBannerProperties;
 import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageIdentifier;
@@ -139,7 +139,6 @@ import java.util.stream.Collectors;
     ChromeFeatureList.SESSION_RESTORE_AFTER_CRASH,
     ChromeFeatureList.INCOGNITO_AS_WINDOW_FULL_SCREEN
 })
-@DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
 public class MultiInstanceManagerApi31UnitTest {
     private static final int INSTANCE_ID_1 = 1;
     private static final int INSTANCE_ID_2 = 2;
@@ -420,6 +419,7 @@ public class MultiInstanceManagerApi31UnitTest {
 
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
+    @DisableFeatures(ChromeFeatureList.ALLOC_INSTANCE_ID_INCREASED_DEFAULT_RANGE)
     public void testAllocInstanceId_reachesMaximum() {
         assertTrue(mMultiInstanceManager.mMaxInstances < mActivityPool.length);
         int index = 0;
@@ -472,6 +472,27 @@ public class MultiInstanceManagerApi31UnitTest {
         // instance 1 because it has persistent state. With ON_STARTUP_WINDOW_POLICY enabled, it
         // refrains from reusing instance 1 and allocates a brand-new unused index (2).
         assertEquals(2, allocInstanceIndex(PASSED_ID_INVALID, mActivityPool[1]));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ON_STARTUP_WINDOW_POLICY)
+    public void testAllocInstanceId_onStartupWindowPolicy_relaunchBypassesPolicy() {
+        DeviceInfo.setIsDesktopForTesting(true);
+        // Allocate instance 0 and 1.
+        assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mActivityPool[0]));
+        assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mActivityPool[1]));
+
+        // Simulate closing a window from Android Recents.
+        removeTaskOnRecentsScreen(mActivityPool[1]);
+
+        // Mock the intent for the current activity to contain EXTRA_FROM_RELAUNCH.
+        Intent relaunchIntent = new Intent();
+        relaunchIntent.putExtra(IntentHandler.EXTRA_FROM_RELAUNCH, true);
+        when(mCurrentActivity.getIntent()).thenReturn(relaunchIntent);
+
+        // With ON_STARTUP_WINDOW_POLICY enabled, but with EXTRA_FROM_RELAUNCH set on the intent,
+        // it should bypass the skip check and reuse instance 1.
+        assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mActivityPool[1]));
     }
 
     @Test
@@ -983,6 +1004,40 @@ public class MultiInstanceManagerApi31UnitTest {
 
         // Verify that subsequent id allocation uses a new id, not a persisted one marked for
         // deletion.
+        var multiInstanceManager = createTestMultiInstanceManager(mActivityTask59);
+        var allocatedIdInfo =
+                multiInstanceManager.allocInstanceId(
+                        /* windowId= */ -1,
+                        TASK_ID_59,
+                        /* preferNew= */ false,
+                        /* isIncognitoIntent= */ false);
+        assertEquals(3, allocatedIdInfo.instanceId);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ALLOC_INSTANCE_ID_INCREASED_DEFAULT_RANGE)
+    public void testAllocInstanceId_maxInstanceLimitWindowCountMarkedForDeletion() {
+        MultiWindowUtils.setMaxInstancesForTesting(3);
+
+        // Setup 3 instances.
+        assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mCurrentActivity));
+        mMultiInstanceManager.initialize(
+                /* instanceId= */ 0, /* taskId= */ TASK_ID_56, SupportedProfileType.MIXED);
+        assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask57));
+        assertEquals(2, allocInstanceIndex(PASSED_ID_INVALID, mActivityTask58));
+
+        // Simulate closure of all windows from the window manager.
+        mMultiInstanceManager.closeWindows(List.of(0, 1, 2), CloseWindowAppSource.WINDOW_MANAGER);
+        destroyActivity(mCurrentActivity);
+        destroyActivity(mActivityTask57);
+        destroyActivity(mActivityTask58);
+
+        // Verify that they are marked for deletion.
+        assertTrue(ChromeMultiInstancePersistentStore.readMarkedForDeletion(/* instanceId= */ 0));
+        assertTrue(ChromeMultiInstancePersistentStore.readMarkedForDeletion(/* instanceId= */ 1));
+        assertTrue(ChromeMultiInstancePersistentStore.readMarkedForDeletion(/* instanceId= */ 2));
+
+        // Allocating a new instance should now loop past the limit and allocate a new ID (3).
         var multiInstanceManager = createTestMultiInstanceManager(mActivityTask59);
         var allocatedIdInfo =
                 multiInstanceManager.allocInstanceId(
@@ -1578,13 +1633,8 @@ public class MultiInstanceManagerApi31UnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
-    public void testOpenWindow_opensAdjacently_WithRobustWindowManagementExperimental() {
+    public void testOpenWindow() {
         setupTwoInstances();
-        FeatureOverrides.overrideParam(
-                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
-                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
-                true);
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
 
         mMultiInstanceManager.openWindow(INSTANCE_ID_2, NewWindowAppSource.WINDOW_MANAGER);
@@ -1600,32 +1650,6 @@ public class MultiInstanceManagerApi31UnitTest {
         int flags = intent.getFlags();
         assertTrue(
                 "FLAG_ACTIVITY_LAUNCH_ADJACENT should be set.",
-                (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
-    public void testOpenWindow_opensFullScreen_WithRobustWindowManagementExperimental() {
-        setupTwoInstances();
-        FeatureOverrides.overrideParam(
-                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
-                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
-                false);
-        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-
-        mMultiInstanceManager.openWindow(INSTANCE_ID_2, NewWindowAppSource.WINDOW_MANAGER);
-
-        verify(mCurrentActivity).startActivity(intentCaptor.capture());
-        Intent intent = intentCaptor.getValue();
-        assertEquals(
-                "New window source extra is incorrect.",
-                NewWindowAppSource.WINDOW_MANAGER,
-                intent.getIntExtra(
-                        IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, NewWindowAppSource.UNKNOWN));
-        assertNotEquals("Intent should not be null.", null, intent);
-        int flags = intent.getFlags();
-        assertFalse(
-                "FLAG_ACTIVITY_LAUNCH_ADJACENT should not be set.",
                 (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
     }
 
@@ -2070,6 +2094,30 @@ public class MultiInstanceManagerApi31UnitTest {
                 "Message identifier should match.",
                 MessageIdentifier.MULTI_INSTANCE_CREATION_LIMIT,
                 message.getValue().get(MessageBannerProperties.MESSAGE_IDENTIFIER));
+    }
+
+    @Test
+    public void testShowInstanceCreationLimitMessage_SuppressesDuplicates() {
+        when(mCurrentActivity.getResources()).thenReturn(mock(Resources.class));
+
+        // First invocation enqueues.
+        mMultiInstanceManager.showInstanceCreationLimitMessage();
+        ArgumentCaptor<PropertyModel> message = ArgumentCaptor.forClass(PropertyModel.class);
+        verify(mMessageDispatcher).enqueueWindowScopedMessage(message.capture(), eq(false));
+        reset(mMessageDispatcher);
+
+        // Second invocation does not enqueue again because it is already enqueued.
+        mMultiInstanceManager.showInstanceCreationLimitMessage();
+        verify(mMessageDispatcher, never()).enqueueWindowScopedMessage(any(), anyBoolean());
+
+        // Dismiss the message.
+        message.getValue()
+                .get(MessageBannerProperties.ON_DISMISSED)
+                .onResult(DismissReason.GESTURE);
+
+        // Third invocation now enqueues again because the first one was dismissed.
+        mMultiInstanceManager.showInstanceCreationLimitMessage();
+        verify(mMessageDispatcher).enqueueWindowScopedMessage(any(), eq(false));
     }
 
     @Test

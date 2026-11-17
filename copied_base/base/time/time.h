@@ -1148,14 +1148,14 @@ class BASE_EXPORT TimeTicks : public time_internal::TimeBase<TimeTicks> {
 #endif  // BUILDFLAG(ENABLE_MACH_ABSOLUTE_TIME_TICKS)
 #endif  // BUILDFLAG(IS_APPLE)
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   // Converts to TimeTicks the value obtained from SystemClock.uptimeMillis().
   // Note: this conversion may be non-monotonic in relation to previously
   // obtained TimeTicks::Now() values because of the truncation (to
   // milliseconds) performed by uptimeMillis().
   static TimeTicks FromUptimeMillis(int64_t uptime_millis_value);
 
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
   // Converts to TimeTicks the value obtained from System.nanoTime(). This

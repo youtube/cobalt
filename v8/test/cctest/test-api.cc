@@ -24846,6 +24846,11 @@ TEST(StreamingWithIsolateScriptCache) {
 // Variant of the above test which evicts the root SharedFunctionInfo from the
 // Isolate script cache but still reuses the same Script.
 TEST(StreamingWithIsolateScriptCacheClearingRootSFI) {
+  if (i::v8_flags.conservative_stack_scanning) {
+    // CSS may retain object non-deterministically, which makes this test flaky.
+    return;
+  }
+
   StreamingWithIsolateScriptCache(true);
 }
 

@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/toolbar/coordinator/toolbar_mediator.h"
 
+#import "base/metrics/user_metrics.h"
 #import "base/notimplemented.h"
 #import "components/omnibox/browser/omnibox_pref_names.h"
 #import "components/policy/core/common/policy_pref_names.h"
@@ -18,6 +19,7 @@
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_web_state_utils.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_backed_boolean.h"
 #import "ios/chrome/browser/shared/model/url/url_util.h"
@@ -78,17 +80,17 @@
   std::unique_ptr<GeminiBrowserAgentObserverBridge> _geminiObserver;
 }
 
-- (instancetype)initWithWebStateList:(WebStateList*)webStateList
-                       actionFactory:(BrowserActionFactory*)actionFactory
-                         prefService:(PrefService*)prefService
-                fullscreenController:(FullscreenController*)fullscreenController
-                         topPosition:(BOOL)topPosition
-        defaultBrowserBannerAppAgent:
-            (DefaultBrowserBannerPromoAppAgent*)defaultBrowserBannerAppAgent
-               authenticationService:
-                   (AuthenticationService*)authenticationService
-                       geminiService:(GeminiService*)geminiService
-                  geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent {
+- (instancetype)initWithIncognito:(BOOL)incognito
+                     webStateList:(WebStateList*)webStateList
+                    actionFactory:(BrowserActionFactory*)actionFactory
+                      prefService:(PrefService*)prefService
+             fullscreenController:(FullscreenController*)fullscreenController
+                      topPosition:(BOOL)topPosition
+     defaultBrowserBannerAppAgent:
+         (DefaultBrowserBannerPromoAppAgent*)defaultBrowserBannerAppAgent
+            authenticationService:(AuthenticationService*)authenticationService
+                    geminiService:(GeminiService*)geminiService
+               geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent {
   self = [super init];
   if (self) {
     _webStateList = webStateList;
@@ -102,8 +104,8 @@
             webStateList, _activeWebStateObserver.get());
 
     _buttonMenuFactory = [[ToolbarButtonMenuFactory alloc]
-        initForToolbarWithIncognito:_incognito
-                       webStateList:_webStateList
+        initForToolbarWithIncognito:incognito
+                       webStateList:webStateList
                       actionFactory:actionFactory];
     _buttonMenuFactory.delegate = self;
 
@@ -288,6 +290,25 @@
                                                kIosGeminiButtonToolbar
                   showSnackbarOnCompletion:YES
                                 completion:nil];
+}
+
+- (void)recordUserActionsForToolsMenuTapped {
+  if (!_webStateList) {
+    return;
+  }
+  web::WebState* webState = _webStateList->GetActiveWebState();
+  if (!webState) {
+    return;
+  }
+
+  if (IsUrlNtp(webState->GetVisibleURL())) {
+    base::RecordAction(base::UserMetricsAction("MobileToolbarShowMenuOnNTP"));
+  }
+  base::RecordAction(base::UserMetricsAction("MobileToolbarShowMenu"));
+  if (IsReaderModeActiveInWebState(webState)) {
+    base::RecordAction(
+        base::UserMetricsAction("MobileToolbarShowMenuFromReaderMode"));
+  }
 }
 
 #pragma mark - ToolbarButtonMenuFactoryDelegate

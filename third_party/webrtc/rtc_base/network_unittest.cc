@@ -27,7 +27,6 @@
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/sequence_checker.h"
-#include "api/test/rtc_error_matchers.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
@@ -1250,7 +1249,7 @@ TEST_F(NetworkTest, TestNetworkMonitoring) {
   manager.StartUpdating();
   FakeNetworkMonitor* network_monitor = GetNetworkMonitor(manager);
   EXPECT_TRUE(network_monitor && network_monitor->started());
-  EXPECT_THAT(WaitUntil([&] { return callback_called_; }, IsTrue()), IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return callback_called_; }));
   callback_called_ = false;
 
   // Clear the networks so that there will be network changes below.
@@ -1258,7 +1257,7 @@ TEST_F(NetworkTest, TestNetworkMonitoring) {
   // Network manager is started, so the callback is called when the network
   // monitor fires the network-change event.
   network_monitor->InovkeNetworksChangedCallbackForTesting();
-  EXPECT_THAT(WaitUntil([&] { return callback_called_; }, IsTrue()), IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return callback_called_; }));
 
   // Network manager is stopped.
   manager.StopUpdating();
@@ -1280,7 +1279,7 @@ TEST_F(NetworkTest, MAYBE_DefaultLocalAddress) {
                                   {this, [this]() { OnNetworksChanged(); }},
                                   &factory);
   manager.StartUpdating();
-  EXPECT_THAT(WaitUntil([&] { return callback_called_; }, IsTrue()), IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return callback_called_; }));
 
   // Make sure we can query default local address when an address for such
   // address family exists.

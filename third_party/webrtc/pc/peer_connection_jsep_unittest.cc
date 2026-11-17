@@ -43,6 +43,7 @@
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/pc/sctp/fake_sctp_transport.h"
@@ -90,6 +91,7 @@ class PeerConnectionJsepTest : public ::testing::Test {
     dependencies.network_thread = network_thread_.get();
     dependencies.signaling_thread = Thread::Current();
     dependencies.adm = FakeAudioCaptureModule::Create();
+    dependencies.env = CreateTestEnvironment();
     EnableMediaWithDefaults(dependencies);
     dependencies.sctp_factory = std::make_unique<FakeSctpTransportFactory>();
     return dependencies;

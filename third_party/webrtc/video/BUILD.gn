@@ -553,6 +553,7 @@ if (rtc_include_tests) {
         "../api:frame_generator_api",
         "../api:make_ref_counted",
         "../api:rtc_event_log_output_file",
+        "../api:rtp_header_extension_id",
         "../api:rtp_parameters",
         "../api:scoped_refptr",
         "../api:simulated_network_api",
@@ -932,6 +933,7 @@ if (rtc_include_tests) {
   rtc_cc_test("bandwidth_tests") {
     sources = [ "end_to_end_tests/bandwidth_tests.cc" ]
     deps = [
+      "../api:rtp_header_extension_id",
       "../api:rtp_headers",
       "../api:rtp_parameters",
       "../api:simulated_network_api",
@@ -972,6 +974,7 @@ if (rtc_include_tests) {
       "../api:frame_generator_api",
       "../api:rtp_parameters",
       "../api:simulated_network_api",
+      "../api/task_queue",
       "../api/video:video_frame",
       "../rtc_base:rtc_event",
       "../rtc_base:task_queue_for_test",
@@ -990,6 +993,7 @@ if (rtc_include_tests) {
   rtc_cc_test("codec_tests") {
     sources = [ "end_to_end_tests/codec_tests.cc" ]
     deps = [
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api/environment",
       "../api/test/video:function_video_factory",
@@ -1032,6 +1036,7 @@ if (rtc_include_tests) {
   rtc_cc_test("corruption_detection_tests") {
     sources = [ "end_to_end_tests/corruption_detection_tests.cc" ]
     deps = [
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api/environment",
       "../api/task_queue",
@@ -1056,6 +1061,7 @@ if (rtc_include_tests) {
   rtc_cc_test("extended_reports_tests") {
     sources = [ "end_to_end_tests/extended_reports_tests.cc" ]
     deps = [
+      "../api:rtp_header_extension_id",
       "../api:rtp_headers",
       "../api:rtp_parameters",
       "../api:simulated_network_api",
@@ -1083,6 +1089,7 @@ if (rtc_include_tests) {
   rtc_cc_test("fec_tests") {
     sources = [ "end_to_end_tests/fec_tests.cc" ]
     deps = [
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api:simulated_network_api",
       "../api/environment",
@@ -1118,6 +1125,7 @@ if (rtc_include_tests) {
       "../api:fake_frame_decryptor",
       "../api:fake_frame_encryptor",
       "../api:make_ref_counted",
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api/environment",
       "../api/test/video:function_video_factory",
@@ -1140,6 +1148,7 @@ if (rtc_include_tests) {
   rtc_cc_test("histogram_tests") {
     sources = [ "end_to_end_tests/histogram_tests.cc" ]
     deps = [
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api/environment",
       "../api/test/video:function_video_factory",
@@ -1250,6 +1259,7 @@ if (rtc_include_tests) {
   rtc_cc_test("retransmission_tests") {
     sources = [ "end_to_end_tests/retransmission_tests.cc" ]
     deps = [
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api:transport_api",
       "../api/environment",
@@ -1318,6 +1328,7 @@ if (rtc_include_tests) {
   rtc_cc_test("ssrc_tests") {
     sources = [ "end_to_end_tests/ssrc_tests.cc" ]
     deps = [
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api:simulated_network_api",
       "../api/task_queue",
@@ -1343,6 +1354,7 @@ if (rtc_include_tests) {
   rtc_cc_test("stats_tests") {
     sources = [ "end_to_end_tests/stats_tests.cc" ]
     deps = [
+      "../api:rtp_header_extension_id",
       "../api:rtp_headers",
       "../api:rtp_parameters",
       "../api:scoped_refptr",
@@ -1386,6 +1398,7 @@ if (rtc_include_tests) {
     deps = [
       ":multi_stream_tester",
       ":multi_stream_tests",
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api:simulated_network_api",
       "../api:transport_api",
@@ -1645,6 +1658,7 @@ if (rtc_include_tests) {
       "../api:frame_transformer_interface",
       "../api:make_ref_counted",
       "../api:mock_frame_transformer",
+      "../api:rtp_header_extension_id",
       "../api:rtp_headers",
       "../api:rtp_parameters",
       "../api:scoped_refptr",
@@ -1850,6 +1864,7 @@ if (rtc_include_tests) {
       "../api:bitrate_allocation",
       "../api:field_trials",
       "../api:field_trials_view",
+      "../api:rtp_header_extension_id",
       "../api:rtp_parameters",
       "../api/environment:environment_factory",
       "../api/rtc_event_log",
@@ -1891,6 +1906,7 @@ if (rtc_include_tests) {
       "../api:field_trials",
       "../api:field_trials_view",
       "../api:make_ref_counted",
+      "../api:rtp_header_extension_id",
       "../api:rtp_headers",
       "../api:rtp_parameters",
       "../api:scoped_refptr",

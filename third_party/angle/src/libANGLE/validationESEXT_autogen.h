@@ -255,8 +255,6 @@ bool ValidateLogicOpANGLE(const PrivateState &state,
                           angle::EntryPoint entryPoint,
                           LogicalOperation opcodePacked);
 
-// GL_ANGLE_lossy_etc_decode
-
 // GL_ANGLE_memory_object_flags
 bool ValidateTexStorageMemFlags2DANGLE(const Context *context,
                                        angle::EntryPoint entryPoint,
@@ -812,21 +810,6 @@ bool ValidateGetFramebufferPixelLocalStorageParameteruivANGLE(const Context *con
 // GL_ANGLE_texture_compression_dxt3
 
 // GL_ANGLE_texture_compression_dxt5
-
-// GL_ANGLE_texture_external_update
-bool ValidateTexImage2DExternalANGLE(const Context *context,
-                                     angle::EntryPoint entryPoint,
-                                     TextureTarget targetPacked,
-                                     GLint level,
-                                     GLint internalformat,
-                                     GLsizei width,
-                                     GLsizei height,
-                                     GLint border,
-                                     GLenum format,
-                                     GLenum type);
-bool ValidateInvalidateTextureANGLE(const Context *context,
-                                    angle::EntryPoint entryPoint,
-                                    TextureType targetPacked);
 
 // GL_ANGLE_texture_multisample
 bool ValidateTexStorage2DMultisampleANGLE(const Context *context,

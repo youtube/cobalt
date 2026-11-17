@@ -27,9 +27,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/command_updater.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/extensions/api/omnibox/omnibox_api.h"
-#include "chrome/browser/extensions/extension_ui_util.h"
-#include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/page_info/merchant_trust_service_factory.h"
 #include "chrome/browser/page_info/page_info_features.h"
 #include "chrome/browser/profiles/profile.h"
@@ -75,6 +72,7 @@
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_layout.h"
+#include "chrome/browser/ui/views/location_bar/location_bar_util.h"
 #include "chrome/browser/ui/views/location_bar/location_icon_view.h"
 #include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
 #include "chrome/browser/ui/views/location_bar/selected_keyword_view.h"
@@ -151,8 +149,6 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/url_constants.h"
-#include "extensions/browser/extension_registry.h"
-#include "extensions/common/feature_switch.h"
 #include "services/device/public/cpp/device_features.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
@@ -256,6 +252,15 @@ LocationBarView::LocationBarView(Browser* browser,
         base::BindRepeating([](const View* view) {
           const auto* v = views::AsViewClass<LocationBarView>(view);
           CHECK(v);
+
+          // The predicate might be called before LocationBarView is fully
+          // initialized (e.g. during view hierarchy construction or focus ring
+          // installation). GetOmniboxController() or its edit_model() might be
+          // null at this stage.
+          if (!v->is_initialized_) {
+            return false;
+          }
+
           // Show focus ring when the Omnibox is visibly focused and the popup
           // is closed.
           return v->GetOmniboxController()->edit_model()->is_caret_visible() &&
@@ -281,6 +286,12 @@ LocationBarView::LocationBarView(Browser* browser,
 }
 
 LocationBarView::~LocationBarView() {
+  // Remove selected keyword view since it has a raw_ptr to the omnibox
+  // controller.
+  auto selected_keyword_view = RemoveChildViewT(selected_keyword_view_.get());
+  selected_keyword_view_ = nullptr;
+  selected_keyword_view.reset();
+
   // Destroy the popup view first, since it holds a raw_ptr to the omnibox
   // view. Then explicitly delete the omnibox view to ensure it (a child view)
   // is destroyed before the omnibox controller (a member variable), since it
@@ -448,8 +459,8 @@ void LocationBarView::Init() {
       AddChildView(std::move(omnibox_additional_text_view));
   omnibox_additional_text_view_->SetEnabledColor(kColorOmniboxResultsUrl);
 
-  selected_keyword_view_ = AddChildView(
-      std::make_unique<SelectedKeywordView>(this, profile_, font_list));
+  selected_keyword_view_ = AddChildView(std::make_unique<SelectedKeywordView>(
+      this, profile_, omnibox_controller_.get(), font_list));
 
   if (browser_ && apps::features::ShouldShowLinkCapturingUX() &&
       !IsPageActionMigrated(PageActionIconType::kIntentPicker)) {
@@ -669,15 +680,9 @@ std::u16string_view LocationBarView::GetImeInlineAutocompletion() const {
 
 void LocationBarView::SetOmniboxAdditionalText(std::u16string_view text) {
   DCHECK(OmniboxFieldTrial::IsRichAutocompletionEnabled() || text.empty());
-  std::u16string adjusted_text;
-  if (!text.empty()) {
-    adjusted_text = std::u16string(text);
-    base::i18n::AdjustStringForLocaleDirection(&adjusted_text);
-    adjusted_text =
-        l10n_util::GetStringFUTF16(IDS_OMNIBOX_ADDITIONAL_TEXT_DASH_TEMPLATE,
-                                   std::u16string(), adjusted_text);
-  }
-  SetOmniboxAdjacentText(omnibox_additional_text_view_, adjusted_text);
+  std::u16string adjusted_text = FormatOmniboxAdditionalText(text);
+  SetOmniboxAdjacentText(omnibox_additional_text_view_,
+                         std::move(adjusted_text));
 }
 
 std::u16string_view LocationBarView::GetOmniboxAdditionalText() const {
@@ -948,28 +953,7 @@ void LocationBarView::Layout(PassKey) {
     leading_decorations.AddDecoration(
         vertical_padding, location_height, false, kLeadingDecorationMaxFraction,
         /*intra_item_padding=*/0, icon_left, selected_keyword_view_);
-    if (selected_keyword_view_->GetKeyword() != keyword) {
-      selected_keyword_view_->SetKeyword(keyword);
-      const TemplateURL* template_url =
-          TemplateURLServiceFactory::GetForProfile(profile_)
-              ->GetTemplateURLForKeyword(keyword);
-      gfx::Image image;
-      if (template_url &&
-          (template_url->type() == TemplateURL::OMNIBOX_API_EXTENSION)) {
-        image = extensions::OmniboxAPI::Get(profile_)->GetOmniboxIcon(
-            template_url->GetExtensionId());
-      } else if (template_url &&
-                 template_url->policy_origin() ==
-                     TemplateURLData::PolicyOrigin::kSearchAggregator) {
-        const SkBitmap* bitmap =
-            GetOmniboxController()->edit_model()->GetIconBitmap(
-                template_url->favicon_url());
-        if (bitmap) {
-          image = gfx::Image(gfx::ImageSkia::CreateFrom1xBitmap(*bitmap));
-        }
-      }
-      selected_keyword_view_->SetCustomImage(image);
-    }
+    selected_keyword_view_->SetKeyword(keyword);
   } else if (location_icon_view_->GetShowText() &&
              !ShouldChipOverrideLocationIcon()) {
     location_icon_view_->SetVisible(true);
@@ -1181,6 +1165,10 @@ void LocationBarView::Update(WebContents* contents) {
 
   if (contents) {
     omnibox_view_->OnTabChanged(contents);
+    if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2) &&
+        !omnibox::IsWebUIOmniboxInBrowserViewEnabled()) {
+      omnibox_popup_view_->OnTabChanged(contents);
+    }
   } else {
     omnibox_view_->Update();
   }
@@ -2112,8 +2100,9 @@ void LocationBarView::OnOmniboxFocused() {
 
   if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2) &&
       !in_popup_state_transition_) {
-    GetOmniboxController()->popup_state_manager()->SetPopupState(
-        OmniboxPopupState::kFull);
+    if (auto* popup_view = GetOmniboxPopupView()) {
+      popup_view->OnFocus();
+    }
   }
 }
 

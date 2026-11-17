@@ -615,14 +615,16 @@ TEST_F(MenuItemViewPaintUnitTest, SelectionIconColors) {
   MenuItemView* item_with_default_color =
       menu_item_view()->AppendMenuItem(1, u"item 1");
   item_with_default_color->SetIcon(ui::ImageModel::FromVectorIcon(
-      features::IsRoundedIconsEnabled() ? kCheckIcon : views::kMenuCheckOldIcon,
+      features::IsRoundedIconsEnabled() ? kCheckSmallIcon
+                                        : views::kMenuCheckOldIcon,
       ui::kColorMenuIcon));
 
   MenuItemView* item_with_colored_icon =
       menu_item_view()->AppendMenuItem(2, u"item 2");
   const SkColor custom_color2 = SK_ColorRED;
   item_with_colored_icon->SetIcon(ui::ImageModel::FromVectorIcon(
-      features::IsRoundedIconsEnabled() ? kCheckIcon : views::kMenuCheckOldIcon,
+      features::IsRoundedIconsEnabled() ? kCheckSmallIcon
+                                        : views::kMenuCheckOldIcon,
       custom_color2));
 
   menu_runner()->RunMenuAt(widget(), nullptr, gfx::Rect(),
@@ -835,6 +837,43 @@ TEST_F(MenuItemViewPaintUnitTest, AccessibleCheckedStateChange) {
       .GetAccessibleNodeData(&data);
   EXPECT_EQ(data.GetCheckedState(), GetCheckedStatus(command, type));
   EXPECT_EQ(data.GetCheckedState(), ax::mojom::CheckedState::kNone);
+}
+
+TEST_F(MenuItemViewPaintUnitTest, VisualCheckedStateChange) {
+  int command = 1000;
+
+  // Add a checkbox item.
+  menu_item_view()->AddMenuItemAt(
+      0, command, u"Checkbox", std::u16string(), std::u16string(),
+      ui::ImageModel(), ui::ImageModel(), MenuItemView::Type::kCheckbox,
+      ui::NORMAL_SEPARATOR, std::nullopt, std::nullopt, std::nullopt);
+
+  MenuItemView* item = menu_item_view()->GetMenuItemByID(command);
+  ASSERT_TRUE(item);
+
+  ImageView* check_icon = TestMenuItemView::radio_check_image_view(item);
+  ASSERT_TRUE(check_icon);
+
+  // Initial state should be unchecked.
+  EXPECT_FALSE(check_icon->GetVisible());
+
+  // Set checked in delegate.
+  GetDelegate()->SetItemChecked(command, true);
+
+  // Call RefreshCheckmarkState to update view.
+  item->RefreshCheckmarkState();
+
+  // Now it should be visible.
+  EXPECT_TRUE(check_icon->GetVisible());
+
+  // Set unchecked in delegate.
+  GetDelegate()->SetItemChecked(command, false);
+
+  // Update again.
+  item->RefreshCheckmarkState();
+
+  // Should be hidden again.
+  EXPECT_FALSE(check_icon->GetVisible());
 }
 
 TEST_F(MenuItemViewPaintUnitTest, AccessibleHasPopup) {

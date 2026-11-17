@@ -58,9 +58,6 @@ class TestContentPaymentRequestDelegate : public ContentPaymentRequestDelegate {
   bool IsOffTheRecord() const override;
   const GURL& GetLastCommittedURL() const override;
   autofill::AddressNormalizer* GetAddressNormalizer() override;
-  autofill::RegionDataLoader* GetRegionDataLoader() override;
-  ukm::UkmRecorder* GetUkmRecorder() override;
-  std::string GetAuthenticatedEmail() const override;
   PrefService* GetPrefService() override;
   void EmbedPaymentHandlerWindow(
       const GURL& url,
@@ -73,8 +70,6 @@ class TestContentPaymentRequestDelegate : public ContentPaymentRequestDelegate {
   void CompleteFullCardRequest();
   const base::WeakPtr<PaymentUIObserver> GetPaymentUIObserver() const override;
 
-  std::optional<base::UnguessableToken> GetChromeOSTWAInstanceId()
-      const override;
   std::string GetSecurePaymentConfirmationKeychainAccessGroup() const override;
 
   // Must be called if GetRenderFrameHost() needs to return non-null.

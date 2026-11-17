@@ -43,6 +43,7 @@
 #include "components/feature_engagement/test/scoped_iph_feature_list.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "ui/base/base_window.h"
@@ -155,9 +156,11 @@ class GlicBrowserTestMixin : public T {
     // Java.
 #if BUILDFLAG(IS_DESKTOP_ANDROID)
         {chrome::android::kEnableAndroidSidePanel, {}},
+        {chrome::android::kEnableAndroidSidePanelLogs, {}},
         {features::kGlicAndroidSidePanel, {}},
 #endif
     };
+
     glic_test_environment_.SetGlicPagePath(
         "/glic/browser_tests/minimal_client.html");
     scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
@@ -177,6 +180,12 @@ class GlicBrowserTestMixin : public T {
     // This is needed to force is_desktop() to return true for desktop Android
     // builds.
     command_line->AppendSwitch(switches::kForceDesktopAndroid);
+#endif
+#if BUILDFLAG(IS_ANDROID)
+    // Disable the first-run experience (FRE) so that when we launch a new
+    // ChromeTabbedActivity in tests, it shows the browser window instead of the
+    // FRE onboarding screens.
+    command_line->AppendSwitch("disable-fre");
 #endif
   }
 
@@ -215,6 +224,10 @@ class GlicBrowserTestMixin : public T {
     activation_controller_.reset();
 #endif
     T::TearDownOnMainThread();
+    // Ensure all pending UI thread tasks (such as Mojo disconnects or Android
+    // JNI cleanup tasks) have finished running before the test fixture is
+    // destroyed (which destroys ScopedFeatureList).
+    base::RunLoop().RunUntilIdle();
   }
 
   // Toggles the Glic UI.
@@ -233,12 +246,19 @@ class GlicBrowserTestMixin : public T {
     return WaitForGlicOpen(T::GetTabListInterface()->GetActiveTab());
   }
 
-  void RegisterConversation(GlicInstanceImpl* instance,
+  [[nodiscard]] TestResult<> WaitForInstanceDeletion(
+      base::WeakPtr<GlicInstanceImpl> instance) {
+    return RunUntilEqual<GlicInstanceImpl*>([&]() { return instance.get(); },
+                                            nullptr);
+  }
+
+  void RegisterConversation(GlicInstance* instance,
                             const std::string& conversation_id) {
     CHECK(instance);
     auto info = mojom::ConversationInfo::New();
     info->conversation_id = conversation_id;
-    instance->RegisterConversation(std::move(info), base::DoNothing());
+    static_cast<GlicInstanceImpl*>(instance)->RegisterConversation(
+        std::move(info), base::DoNothing());
   }
 
   // Registers a conversation and submits input to prevent the instance from
@@ -347,10 +367,28 @@ class GlicBrowserTestMixin : public T {
   TestResult<> CloseGlicForTabAndWait(tabs::TabInterface* tab) {
     GlicInstanceImpl* instance = GetInstanceForTab(tab);
     if (!instance) {
-      return base::unexpected("No Glic instance found for tab to close");
+      return base::ok();
     }
-    instance->Close(tab);
-    return WaitForGlicClose(instance);
+    base::WeakPtr<GlicInstanceImpl> weak_instance = instance->GetWeakPtr();
+    instance->Close(EmbedderKey(tab), CloseOptions());
+    RETURN_IF_ERROR(
+        WaitForSidePanelState(tab, GlicSidePanelCoordinator::State::kClosed));
+
+    // TODO(crbug.com/513209932): Actuating instances intentionally keep the
+    // WebContents visible on Android to make progress. On other platforms, the
+    // WebContents is hidden on close because the WebView is detached from the
+    // views hierarchy. Android doesn't seem to have the same automatic
+    // visibility change.
+#if BUILDFLAG(IS_ANDROID)
+    content::Visibility expected_visibility = instance->IsActuating()
+                                                  ? content::Visibility::VISIBLE
+                                                  : content::Visibility::HIDDEN;
+#else
+    content::Visibility expected_visibility = content::Visibility::HIDDEN;
+#endif
+
+    return WaitForWebUiContentsVisibility(weak_instance.get(),
+                                          expected_visibility);
   }
 
   [[nodiscard]] TestResult<GlicInstanceImpl*> WaitForGlicInstanceBoundToTab(
@@ -602,7 +640,8 @@ class GlicBrowserTestMixin : public T {
     glic_test_environment_.SetGlicFreUrlOverride(url);
   }
 
-  [[nodiscard]] TestResult<void> WaitForGlicClient(GlicInstance* instance) {
+  [[nodiscard]] TestResult<void> WaitForGlicClient(
+      GlicInstance* instance = nullptr) {
     auto* instance_impl = GetInstanceImpl(instance);
     return RunUntilEqual(
         [&]() { return instance_impl->host().IsWebClientConnected(); }, true,

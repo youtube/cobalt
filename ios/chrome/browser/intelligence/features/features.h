@@ -245,6 +245,10 @@ bool IsGeminiEligibilityAblationEnabled();
 BASE_DECLARE_FEATURE(kGeminiLive);
 bool IsGeminiLiveEnabled();
 
+// Feature flag for Gemini Live Dormant Reasons.
+BASE_DECLARE_FEATURE(kGeminiLiveDormantReasons);
+bool IsGeminiLiveDormantReasonsEnabled();
+
 // Feature flag for Gemini Copresence.
 BASE_DECLARE_FEATURE(kGeminiCopresence);
 bool IsGeminiCopresenceEnabled();
@@ -292,6 +296,11 @@ base::TimeDelta GetActorObservationDelayTimeout();
 // Used to configure how long the PageStabilityMonitor in Chrome for iOS waits.
 base::TimeDelta GetActorPageStabilityMinWait();
 base::TimeDelta GetActorPageStabilityTimeout();
+// The maximum number of mutations allowed within a post-interaction observation
+// window for the page to be considered stable.
+int GetActorPageStabilityMutationCap();
+// The post-interaction observation window duration for page stability checking.
+base::TimeDelta GetActorPageStabilityWindowDuration();
 
 // Returns true if the specified tool is disabled via the "DisabledTools"
 // feature parameter of the `kActorTools` feature.

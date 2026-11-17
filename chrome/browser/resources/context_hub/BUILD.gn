@@ -13,6 +13,18 @@ build_webui("build") {
     "app.ts",
     "app.html.ts",
     "browser_proxy.ts",
+    "memory_banks/memory_banks.html.ts",
+    "memory_banks/memory_banks.ts",
+    "taskbox/ai_taskbox.html.ts",
+    "taskbox/ai_taskbox.ts",
+    "taskbox/todo_item.html.ts",
+    "taskbox/todo_item.ts",
+  ]
+
+  css_files = [
+    "app.css",
+    "taskbox/ai_taskbox.css",
+    "taskbox/todo_item.css",
   ]
 
   mojo_files_deps =
@@ -21,6 +33,7 @@ build_webui("build") {
 
   ts_deps = [
     "//third_party/lit/v3_0:build_ts",
+    "//ui/webui/resources/cr_elements:build_ts",
     "//ui/webui/resources/js:build_ts",
     "//ui/webui/resources/mojo:build_ts",
   ]

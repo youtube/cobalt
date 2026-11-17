@@ -24,10 +24,10 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 
-using ::webrtc::FakeVideoRenderer;
-using ::webrtc::VideoBroadcaster;
-using ::webrtc::VideoSinkWants;
-using FrameSize = webrtc::VideoSinkWants::FrameSize;
+namespace webrtc {
+namespace {
+
+using FrameSize = VideoSinkWants::FrameSize;
 
 using ::testing::AllOf;
 using ::testing::Eq;
@@ -35,13 +35,13 @@ using ::testing::Field;
 using ::testing::Mock;
 using ::testing::Optional;
 
-class MockSink : public webrtc::VideoSinkInterface<webrtc::VideoFrame> {
+class MockSink : public VideoSinkInterface<VideoFrame> {
  public:
-  void OnFrame(const webrtc::VideoFrame&) override {}
+  void OnFrame(const VideoFrame&) override {}
 
   MOCK_METHOD(void,
               OnConstraintsChanged,
-              (const webrtc::VideoTrackSourceConstraints& constraints),
+              (const VideoTrackSourceConstraints& constraints),
               (override));
 };
 
@@ -50,7 +50,7 @@ TEST(VideoBroadcasterTest, frame_wanted) {
   EXPECT_FALSE(broadcaster.frame_wanted());
 
   FakeVideoRenderer sink;
-  broadcaster.AddOrUpdateSink(&sink, webrtc::VideoSinkWants());
+  broadcaster.AddOrUpdateSink(&sink, VideoSinkWants());
   EXPECT_TRUE(broadcaster.frame_wanted());
 
   broadcaster.RemoveSink(&sink);
@@ -62,21 +62,20 @@ TEST(VideoBroadcasterTest, OnFrame) {
 
   FakeVideoRenderer sink1;
   FakeVideoRenderer sink2;
-  broadcaster.AddOrUpdateSink(&sink1, webrtc::VideoSinkWants());
-  broadcaster.AddOrUpdateSink(&sink2, webrtc::VideoSinkWants());
+  broadcaster.AddOrUpdateSink(&sink1, VideoSinkWants());
+  broadcaster.AddOrUpdateSink(&sink2, VideoSinkWants());
   static int kWidth = 100;
   static int kHeight = 50;
 
-  webrtc::scoped_refptr<webrtc::I420Buffer> buffer(
-      webrtc::I420Buffer::Create(kWidth, kHeight));
+  scoped_refptr<I420Buffer> buffer(I420Buffer::Create(kWidth, kHeight));
   // Initialize, to avoid warnings on use of initialized values.
-  webrtc::I420Buffer::SetBlack(buffer.get());
+  I420Buffer::SetBlack(buffer.get());
 
-  webrtc::VideoFrame frame = webrtc::VideoFrame::Builder()
-                                 .set_video_frame_buffer(buffer)
-                                 .set_rotation(webrtc::kVideoRotation_0)
-                                 .set_timestamp_us(0)
-                                 .build();
+  VideoFrame frame = VideoFrame::Builder()
+                         .set_video_frame_buffer(buffer)
+                         .set_rotation(kVideoRotation_0)
+                         .set_timestamp_us(0)
+                         .build();
 
   broadcaster.OnFrame(frame);
   EXPECT_EQ(1, sink1.num_rendered_frames());
@@ -87,7 +86,7 @@ TEST(VideoBroadcasterTest, OnFrame) {
   EXPECT_EQ(1, sink1.num_rendered_frames());
   EXPECT_EQ(2, sink2.num_rendered_frames());
 
-  broadcaster.AddOrUpdateSink(&sink1, webrtc::VideoSinkWants());
+  broadcaster.AddOrUpdateSink(&sink1, VideoSinkWants());
   broadcaster.OnFrame(frame);
   EXPECT_EQ(2, sink1.num_rendered_frames());
   EXPECT_EQ(3, sink2.num_rendered_frames());
@@ -221,16 +220,15 @@ TEST(VideoBroadcasterTest, SinkWantsBlackFrames) {
   wants2.black_frames = false;
   broadcaster.AddOrUpdateSink(&sink2, wants2);
 
-  webrtc::scoped_refptr<webrtc::I420Buffer> buffer(
-      webrtc::I420Buffer::Create(100, 200));
+  scoped_refptr<I420Buffer> buffer(I420Buffer::Create(100, 200));
   // Makes it not all black.
   buffer->InitializeData();
 
-  webrtc::VideoFrame frame1 = webrtc::VideoFrame::Builder()
-                                  .set_video_frame_buffer(buffer)
-                                  .set_rotation(webrtc::kVideoRotation_0)
-                                  .set_timestamp_us(10)
-                                  .build();
+  VideoFrame frame1 = VideoFrame::Builder()
+                          .set_video_frame_buffer(buffer)
+                          .set_rotation(kVideoRotation_0)
+                          .set_timestamp_us(10)
+                          .build();
   broadcaster.OnFrame(frame1);
   EXPECT_TRUE(sink1.black_frame());
   EXPECT_EQ(10, sink1.timestamp_us());
@@ -243,11 +241,11 @@ TEST(VideoBroadcasterTest, SinkWantsBlackFrames) {
   wants2.black_frames = true;
   broadcaster.AddOrUpdateSink(&sink2, wants2);
 
-  webrtc::VideoFrame frame2 = webrtc::VideoFrame::Builder()
-                                  .set_video_frame_buffer(buffer)
-                                  .set_rotation(webrtc::kVideoRotation_0)
-                                  .set_timestamp_us(30)
-                                  .build();
+  VideoFrame frame2 = VideoFrame::Builder()
+                          .set_video_frame_buffer(buffer)
+                          .set_rotation(kVideoRotation_0)
+                          .set_timestamp_us(30)
+                          .build();
   broadcaster.OnFrame(frame2);
   EXPECT_FALSE(sink1.black_frame());
   EXPECT_EQ(30, sink1.timestamp_us());
@@ -267,11 +265,10 @@ TEST(VideoBroadcasterTest, ForwardsLastConstraintsOnAdd) {
   VideoBroadcaster broadcaster;
   broadcaster.ProcessConstraints({.min_fps = 2, .max_fps = 3});
   broadcaster.ProcessConstraints({.min_fps = 1, .max_fps = 4});
-  EXPECT_CALL(
-      sink,
-      OnConstraintsChanged(AllOf(
-          Field(&webrtc::VideoTrackSourceConstraints::min_fps, Optional(1)),
-          Field(&webrtc::VideoTrackSourceConstraints::max_fps, Optional(4)))));
+  EXPECT_CALL(sink,
+              OnConstraintsChanged(AllOf(
+                  Field(&VideoTrackSourceConstraints::min_fps, Optional(1)),
+                  Field(&VideoTrackSourceConstraints::max_fps, Optional(4)))));
   broadcaster.AddOrUpdateSink(&sink, VideoSinkWants());
 }
 
@@ -283,11 +280,10 @@ TEST(VideoBroadcasterTest, UpdatesOnlyNewSinksWithConstraints) {
   Mock::VerifyAndClearExpectations(&sink1);
   EXPECT_CALL(sink1, OnConstraintsChanged).Times(0);
   MockSink sink2;
-  EXPECT_CALL(
-      sink2,
-      OnConstraintsChanged(AllOf(
-          Field(&webrtc::VideoTrackSourceConstraints::min_fps, Optional(1)),
-          Field(&webrtc::VideoTrackSourceConstraints::max_fps, Optional(4)))));
+  EXPECT_CALL(sink2,
+              OnConstraintsChanged(AllOf(
+                  Field(&VideoTrackSourceConstraints::min_fps, Optional(1)),
+                  Field(&VideoTrackSourceConstraints::max_fps, Optional(4)))));
   broadcaster.AddOrUpdateSink(&sink2, VideoSinkWants());
 }
 
@@ -298,38 +294,34 @@ TEST(VideoBroadcasterTest, ForwardsConstraintsToSink) {
   broadcaster.AddOrUpdateSink(&sink, VideoSinkWants());
   Mock::VerifyAndClearExpectations(&sink);
 
-  EXPECT_CALL(sink, OnConstraintsChanged(AllOf(
-                        Field(&webrtc::VideoTrackSourceConstraints::min_fps,
-                              Eq(std::nullopt)),
-                        Field(&webrtc::VideoTrackSourceConstraints::max_fps,
-                              Eq(std::nullopt)))));
+  EXPECT_CALL(
+      sink,
+      OnConstraintsChanged(AllOf(
+          Field(&VideoTrackSourceConstraints::min_fps, Eq(std::nullopt)),
+          Field(&VideoTrackSourceConstraints::max_fps, Eq(std::nullopt)))));
   broadcaster.ProcessConstraints(
       {.min_fps = std::nullopt, .max_fps = std::nullopt});
   Mock::VerifyAndClearExpectations(&sink);
 
   EXPECT_CALL(
-      sink,
-      OnConstraintsChanged(AllOf(
-          Field(&webrtc::VideoTrackSourceConstraints::min_fps,
-                Eq(std::nullopt)),
-          Field(&webrtc::VideoTrackSourceConstraints::max_fps, Optional(3)))));
+      sink, OnConstraintsChanged(AllOf(
+                Field(&VideoTrackSourceConstraints::min_fps, Eq(std::nullopt)),
+                Field(&VideoTrackSourceConstraints::max_fps, Optional(3)))));
   broadcaster.ProcessConstraints({.min_fps = std::nullopt, .max_fps = 3});
   Mock::VerifyAndClearExpectations(&sink);
 
   EXPECT_CALL(
       sink,
       OnConstraintsChanged(AllOf(
-          Field(&webrtc::VideoTrackSourceConstraints::min_fps, Optional(2)),
-          Field(&webrtc::VideoTrackSourceConstraints::max_fps,
-                Eq(std::nullopt)))));
+          Field(&VideoTrackSourceConstraints::min_fps, Optional(2)),
+          Field(&VideoTrackSourceConstraints::max_fps, Eq(std::nullopt)))));
   broadcaster.ProcessConstraints({.min_fps = 2, .max_fps = std::nullopt});
   Mock::VerifyAndClearExpectations(&sink);
 
-  EXPECT_CALL(
-      sink,
-      OnConstraintsChanged(AllOf(
-          Field(&webrtc::VideoTrackSourceConstraints::min_fps, Optional(2)),
-          Field(&webrtc::VideoTrackSourceConstraints::max_fps, Optional(3)))));
+  EXPECT_CALL(sink,
+              OnConstraintsChanged(AllOf(
+                  Field(&VideoTrackSourceConstraints::min_fps, Optional(2)),
+                  Field(&VideoTrackSourceConstraints::max_fps, Optional(3)))));
   broadcaster.ProcessConstraints({.min_fps = 2, .max_fps = 3});
 }
 
@@ -438,3 +430,6 @@ TEST(VideoBroadcasterTest, IgnoreInactiveSinkIfNewApiUsed) {
   broadcaster.RemoveSink(&sink2);
   EXPECT_EQ(broadcaster.wants().resolution_alignment, 1);
 }
+
+}  // namespace
+}  // namespace webrtc

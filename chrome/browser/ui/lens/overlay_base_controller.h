@@ -126,9 +126,6 @@ class OverlayBaseController : public content::WebContentsDelegate,
   // this overlay controller.
   tabs::TabInterface* GetTabInterface();
 
-  // Called when the associated tab enters the foreground.
-  void TabForegrounded(tabs::TabInterface* tab);
-
   // Called when the associated tab will enter the background.
   void TabWillEnterBackground(tabs::TabInterface* tab);
 
@@ -180,12 +177,6 @@ class OverlayBaseController : public content::WebContentsDelegate,
   // Sets the opacity of the overlay web view. No-op if the web view does not
   // exist.
   void SetOverlayWebViewOpacity(float opacity);
-
-  // Detaches the overlay views and takes ownership to preserve state.
-  void PreserveOverlayViews();
-
-  // Returns the host view that the overlay should be attached to. Can be null.
-  views::View* GetHostView() const;
 
  protected:
   // Whether the side panel is showing.
@@ -287,6 +278,9 @@ class OverlayBaseController : public content::WebContentsDelegate,
   // not exist.
   virtual void ShowPreselectionBubble();
 
+  // Called when the associated tab enters the foreground.
+  virtual void TabForegrounded(tabs::TabInterface* tab);
+
   // This is callwed when the webUI acknowledges the intent to reshow the
   // overlay. Since it already is showing an old screenshot the opacity is set
   // to 0 of the layer when the screenshot is first available to the webUI.
@@ -362,6 +356,12 @@ class OverlayBaseController : public content::WebContentsDelegate,
 
   // Close the preselection bubble.
   void ClosePreselectionBubbleImpl();
+
+  // Returns the host view that the overlay should be attached to. Can be null.
+  views::View* GetHostView() const;
+
+  // Detaches the overlay views and takes ownership to preserve state.
+  void PreserveOverlayViews();
 
   // content::WebContentsObserver:
   void PrimaryMainFrameRenderProcessGone(

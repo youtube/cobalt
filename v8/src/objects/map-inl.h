@@ -114,8 +114,6 @@ void Map::set_raw_transitions(Tagged<Map::RawTransitionsT> value,
   transitions_or_prototype_info_.Release_Store(this, value, mode);
 }
 
-// `prototype_` field type is exactly Tagged<JSPrototype> (alias for
-// Union<JSReceiver, Null>); no narrowing needed.
 Tagged<JSPrototype> Map::prototype() const { return prototype_.load(); }
 void Map::set_prototype(Tagged<JSPrototype> value, WriteBarrierMode mode) {
   DCHECK(IsNull(value) || IsJSProxy(value) || IsWasmObject(value) ||
@@ -186,12 +184,9 @@ void Map::set_transitions_or_prototype_info(Tagged<Object> value,
 }
 
 // |bit_field| fields.
-// Concurrent access to |is_extended_map| and |has_non_instance_prototype|
-// is explicitly allowlisted here. The former is never modified after the map
-// is setup but it's being read by concurrent marker when pointer compression
-// is enabled. The latter bit can be modified on a live objects.
-BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
-                    Map::Bits1::HasNonInstancePrototypeBit)
+// Concurrent access to |is_extended_map| is explicitly allowlisted here.
+// It is never modified after the map is setup but it's being read by concurrent
+// marker when pointer compression is enabled.
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, is_extended_map,
                     Map::Bits1::IsExtendedMapBit)
 
@@ -235,7 +230,41 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_properties,
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
                     Map::Bits3::ConstructionCounterBits)
 
+bool IsMetaMap(Tagged<Map> map) {
+  return InstanceTypeChecker::IsMap(map->instance_type());
+}
 
+DEF_HEAP_OBJECT_PREDICATE(IsMetaMap) {
+  if (!IsMap(obj)) return false;
+  return IsMetaMap(UncheckedCast<Map>(obj));
+}
+inline bool IsMetaMap(const HeapObject* obj) {
+  return IsMetaMap(Tagged<HeapObject>(obj));
+}
+
+bool IsExtendedMap(Tagged<Map> map) {
+  DCHECK_IMPLIES(map->is_extended_map(), !IsMetaMap(map));
+  return map->is_extended_map();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsExtendedMap) {
+  if (!IsMap(obj)) return false;
+  return IsExtendedMap(UncheckedCast<Map>(obj));
+}
+
+bool IsJSInterceptorMap(Tagged<Map> map) {
+  return IsExtendedMap(map) && (UncheckedCast<ExtendedMap>(map)->map_kind() ==
+                                ExtendedMapKind::kJSInterceptorMap);
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsJSInterceptorMap) {
+  if (!IsMap(obj)) return false;
+  return IsJSInterceptorMap(UncheckedCast<Map>(obj));
+}
+
+DEF_CAST_TRAITS(ExtendedMap)
+DEF_CAST_TRAITS(JSInterceptorMap)
+DEF_CAST_TRAITS(MetaMap)
 
 // static
 bool Map::IsMostGeneralFieldType(Representation representation,
@@ -910,6 +939,11 @@ bool IsPrimitiveMap(Tagged<Map> map) {
   return map->instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE;
 }
 
+bool IsPrimitive(Tagged<Object> obj) {
+  if (obj.IsSmi()) return true;
+  return IsPrimitiveMap(Cast<HeapObject>(obj)->map());
+}
+
 void Map::UpdateDescriptors(Tagged<DescriptorArray> descriptors,
                             int number_of_own_descriptors) {
   SetInstanceDescriptors(descriptors, number_of_own_descriptors);
@@ -1179,27 +1213,7 @@ Tagged<Object> Map::GetConstructorRaw() const {
   return maybe_constructor;
 }
 
-Tagged<Object> Map::GetNonInstancePrototype() const {
-  DCHECK(has_non_instance_prototype());
-  Tagged<Object> raw_constructor = GetConstructorRaw();
-  CHECK(IsTuple2(raw_constructor));
-  // Get prototype from the {constructor, non-instance_prototype} tuple.
-  Tagged<Tuple2> non_instance_prototype_constructor_tuple =
-      Cast<Tuple2>(raw_constructor);
-  Tagged<Object> result = non_instance_prototype_constructor_tuple->value2();
-  DCHECK(!IsJSReceiver(result));
-  DCHECK(!IsFunctionTemplateInfo(result));
-  return result;
-}
-
-Tagged<Object> Map::GetConstructor() const {
-  Tagged<Object> maybe_constructor = GetConstructorRaw();
-  if (IsTuple2(maybe_constructor)) {
-    // Get constructor from the {constructor, non-instance_prototype} tuple.
-    maybe_constructor = Cast<Tuple2>(maybe_constructor)->value1();
-  }
-  return maybe_constructor;
-}
+Tagged<Object> Map::GetConstructor() const { return GetConstructorRaw(); }
 
 Tagged<Object> Map::TryGetConstructor(int max_steps) {
   Tagged<Object> maybe_constructor = constructor_or_back_pointer();
@@ -1208,10 +1222,6 @@ Tagged<Object> Map::TryGetConstructor(int max_steps) {
     if (max_steps-- == 0) return Smi::FromInt(0);
     maybe_constructor =
         Cast<Map>(maybe_constructor)->constructor_or_back_pointer();
-  }
-  if (IsTuple2(maybe_constructor)) {
-    // Get constructor from the {constructor, non-instance_prototype} tuple.
-    maybe_constructor = Cast<Tuple2>(maybe_constructor)->value1();
   }
   return maybe_constructor;
 }
@@ -1230,9 +1240,6 @@ Tagged<FunctionTemplateInfo> Map::GetFunctionTemplateInfo() const {
 void Map::SetConstructor(Tagged<Object> constructor, WriteBarrierMode mode) {
   // Never overwrite a back pointer with a constructor.
   CHECK(!IsMap(constructor_or_back_pointer()));
-  // Constructor field must contain {constructor, non-instance_prototype} tuple
-  // for maps with non-instance prototype.
-  DCHECK_EQ(has_non_instance_prototype(), IsTuple2(constructor));
   set_constructor_or_back_pointer(constructor, mode);
 }
 
@@ -1332,7 +1339,7 @@ int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
   return map->Hash(isolate, prototype) % NormalizedMapCache::kEntries;
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNormalizedMapCache) {
+DEF_HEAP_OBJECT_PREDICATE(IsNormalizedMapCache) {
   if (!IsWeakFixedArray(obj)) return false;
   if (Cast<WeakFixedArray>(obj)->ulength().value() !=
       NormalizedMapCache::kEntries) {

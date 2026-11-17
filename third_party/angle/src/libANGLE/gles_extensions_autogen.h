@@ -729,9 +729,6 @@ struct Extensions
     // GL_CHROMIUM_lose_context
     bool loseContextCHROMIUM = false;
 
-    // GL_ANGLE_lossy_etc_decode
-    bool lossyEtcDecodeANGLE = false;
-
     // GL_ANGLE_memory_object_flags
     bool memoryObjectFlagsANGLE = false;
 
@@ -806,9 +803,6 @@ struct Extensions
 
     // GL_ANGLE_texture_compression_dxt5
     bool textureCompressionDxt5ANGLE = false;
-
-    // GL_ANGLE_texture_external_update
-    bool textureExternalUpdateANGLE = false;
 
     // GL_ANGLE_texture_multisample
     bool textureMultisampleANGLE = false;

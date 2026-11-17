@@ -33,6 +33,8 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.Shadows;
 
 import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.Token;
@@ -49,9 +51,11 @@ import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupMergeNotificationType;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.ui.ExclusiveAccessManager;
 import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.chrome.browser.util.PictureInPictureWindowOptions;
 import org.chromium.chrome.browser.util.WindowFeatures;
+import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayAndroidManager;
@@ -84,7 +88,8 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
                 Tab tab,
                 Activity activity,
                 TabCreatorManager tabCreatorManager,
-                TabModel tabModel) {
+                TabModel tabModel,
+                ExclusiveAccessManager exclusiveAccessManager) {
             super(
                     tab,
                     activity,
@@ -97,7 +102,7 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
                     mock(Supplier.class),
                     mock(Supplier.class),
                     mock(Supplier.class),
-                    null);
+                    exclusiveAccessManager);
             mTabModel = tabModel;
             mTabMap = new HashMap<>();
         }
@@ -152,6 +157,8 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
     @Mock AppTask mAppTask;
     @Mock PopupCreator mPopupCreator;
     @Mock MultiWindowUtils mMultiWindowUtils;
+    @Mock ExclusiveAccessManager mExclusiveAccessManager;
+    @Mock RenderFrameHost mRenderFrameHost;
 
     @Captor private ArgumentCaptor<CompletableFuture<Boolean>> mFutureCaptor;
 
@@ -171,7 +178,7 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
         PopupCreatorFactory.setInstanceForTesting(mPopupCreator);
         mTabWebContentsDelegateAndroid =
                 new TestActivityTabWebContentsDelegateAndroid(
-                        mTab, mActivity, mTabCreatorManager, mTabModel);
+                        mTab, mActivity, mTabCreatorManager, mTabModel, mExclusiveAccessManager);
         DisplayAndroidManager.setInstanceForTesting(mDisplayAndroidManager);
         AconfigFlaggedApiDelegate.setInstanceForTesting(mFlaggedApiDelegate);
         AndroidTaskUtils.setAppTaskForTesting(mAppTask);
@@ -190,8 +197,19 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
         doReturn(mDisplayAndroid).when(mDisplayAndroidManager).getDisplayMatching(any());
     }
 
+    private void setRepositionPermission(boolean granted) {
+        android.app.Application app = RuntimeEnvironment.getApplication();
+        org.robolectric.shadows.ShadowApplication shadowApp = Shadows.shadowOf(app);
+        if (granted) {
+            shadowApp.grantPermissions("android.permission.REPOSITION_SELF_WINDOWS");
+        } else {
+            shadowApp.denyPermissions("android.permission.REPOSITION_SELF_WINDOWS");
+        }
+    }
+
     @Test
     public void testIsDocumentPictureInPictureBlockedBySystem() {
+        setRepositionPermission(true);
         // Test in app fullscreen (not multi-window mode) -> Blocked.
         when(mMultiWindowUtils.isInMultiWindowMode(mActivity)).thenReturn(false);
         assertTrue(mTabWebContentsDelegateAndroid.isDocumentPictureInPictureBlockedBySystem());
@@ -199,6 +217,16 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
         // Test in multi-window mode -> Not blocked.
         when(mMultiWindowUtils.isInMultiWindowMode(mActivity)).thenReturn(true);
         assertFalse(mTabWebContentsDelegateAndroid.isDocumentPictureInPictureBlockedBySystem());
+    }
+
+    @Test
+    public void
+            testIsDocumentPictureInPictureBlockedBySystem_BlockedWhenCurrentBrowserNotDefault() {
+        // Test when the current browser is NOT the default browser -> Blocked even in multi-window
+        // mode.
+        setRepositionPermission(false);
+        when(mMultiWindowUtils.isInMultiWindowMode(mActivity)).thenReturn(true);
+        assertTrue(mTabWebContentsDelegateAndroid.isDocumentPictureInPictureBlockedBySystem());
     }
 
     @Test
@@ -441,4 +469,23 @@ public class ActivityTabWebContentsDelegateAndroidUnitTest {
         verify(mFlaggedApiDelegate, never()).moveTaskTo(any(), anyInt(), any());
     }
 
+    @Test
+    @DisableFeatures({ChromeFeatureList.ENABLE_EXCLUSIVE_ACCESS_MANAGER})
+    public void testCanEnterFullscreenModeForTab_exclusiveAccessManagerDisabled() {
+        assertTrue(mTabWebContentsDelegateAndroid.canEnterFullscreenModeForTab(mRenderFrameHost));
+        verify(mExclusiveAccessManager, never()).canEnterFullscreenModeForTab(any());
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.ENABLE_EXCLUSIVE_ACCESS_MANAGER})
+    public void testCanEnterFullscreenModeForTab_exclusiveAccessManagerEnabled() {
+        when(mExclusiveAccessManager.canEnterFullscreenModeForTab(mRenderFrameHost))
+                .thenReturn(true);
+        assertTrue(mTabWebContentsDelegateAndroid.canEnterFullscreenModeForTab(mRenderFrameHost));
+        verify(mExclusiveAccessManager, times(1)).canEnterFullscreenModeForTab(mRenderFrameHost);
+
+        when(mExclusiveAccessManager.canEnterFullscreenModeForTab(mRenderFrameHost))
+                .thenReturn(false);
+        assertFalse(mTabWebContentsDelegateAndroid.canEnterFullscreenModeForTab(mRenderFrameHost));
+    }
 }

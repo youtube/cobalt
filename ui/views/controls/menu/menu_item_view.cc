@@ -171,6 +171,20 @@ void MenuItemView::UpdateAccessibleCheckedState() {
   }
 }
 
+void MenuItemView::RefreshCheckmarkState() {
+  UpdateAccessibleCheckedState();
+  if (radio_check_image_view_) {
+    if (type_ == Type::kCheckbox) {
+      bool is_checked =
+          GetDelegate() && GetDelegate()->IsItemChecked(GetCommand());
+      radio_check_image_view_->SetVisible(is_checked);
+    }
+    if (GetWidget()) {
+      UpdateSelectionBasedState(last_paint_as_selected_);
+    }
+  }
+}
+
 void MenuItemView::SetCommand(int command) {
   command_ = command;
   UpdateAccessibleCheckedState();
@@ -1639,7 +1653,7 @@ void MenuItemView::UpdateSelectionBasedState(bool paint_as_selected) {
   if (submenu_arrow_image_view_) {
     submenu_arrow_image_view_->SetImage(ui::ImageModel::FromVectorIcon(
         features::IsRoundedIconsEnabled()
-            ? vector_icons::kKeyboardArrowRightIcon
+            ? vector_icons::kKeyboardArrowRightFlippableIcon
             : vector_icons::kSubmenuArrowChromeRefreshOldIcon,
         colors.icon_color));
   }

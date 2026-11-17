@@ -7,10 +7,9 @@ import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.
 
 import {assertPositionAndSize, initializeBox, setupTextBoxTest} from './ink2_text_box_test_utils.js';
 
-const {manager, mockPlugin, textbox, viewport} = setupTextBoxTest();
-
 chrome.test.runTests([
   async function testViewportChanges() {
+    const {manager, textbox} = await setupTextBoxTest();
     // Initialize to a 100x100 box at 410, 303.
     initializeBox(manager, 100, 100, 410, 303);
     await microtasksFinished();
@@ -95,6 +94,7 @@ chrome.test.runTests([
   },
 
   async function testViewportRotationChanges() {
+    const {manager, textbox} = await setupTextBoxTest();
     // Custom init with different x offsets to simulate a rectangular page with
     // rotations.
     function initializeBoxWithOrientation(
@@ -223,6 +223,7 @@ chrome.test.runTests([
   },
 
   async function testMoveViewportOnFocus() {
+    const {manager, mockPlugin, textbox, viewport} = await setupTextBoxTest();
     // Ensure the viewport is scrollable by zooming in. Also ensure it is
     // located top/left, where we expect it.
     viewport.setZoom(2.0);
@@ -232,7 +233,7 @@ chrome.test.runTests([
     // level. A click position of 72 will offset the y location by
     // zoom * text size / 2 = text size = 12 by default. So this initializes
     // the top left corner to 60, 60.
-    manager.initializeTextAnnotation({x: 60, y: 72});
+    await manager.initializeTextAnnotation({x: 60, y: 72});
     await eventToPromise('textbox-focused-for-test', textbox);
     await microtasksFinished();
     const styles = getComputedStyle(textbox);

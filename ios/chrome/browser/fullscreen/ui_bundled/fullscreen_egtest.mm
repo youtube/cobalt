@@ -859,13 +859,35 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
   config.features_enabled.push_back(kFullscreenRefactoring);
   config.features_enabled.push_back(kHideToolbarsInOverflowMenu);
   config.features_disabled.push_back(web::features::kSmoothScrollingDefault);
-  // TODO(crbug.com/511992708): Fix these tests when Chrome Next is enabled.
-  config.features_disabled.push_back(kChromeNextIa);
+  config.features_enabled.push_back(kChromeNextIa);
   return config;
 }
 
 // This is currently needed to prevent this test case from being ignored.
 - (void)testEmpty {
+}
+
+// Tests that starting the app in landscape mode does not cause a crash.
+- (void)testStartInLandscape {
+  // Load a webpage first, so that it is restored on relaunch.
+  [ChromeEarlGrey loadURL:GURL("chrome://version")];
+  [ChromeEarlGrey waitForWebStateVisible];
+
+  // Rotate the simulator to landscape orientation.
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationLandscapeLeft
+                                   error:nil];
+
+  AppLaunchConfiguration config = [self appConfigurationForTestCase];
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+
+  // Verify the app successfully started in landscape mode.
+  UIInterfaceOrientation orientation = [ChromeEarlGrey interfaceOrientation];
+  GREYAssertTrue(UIInterfaceOrientationIsLandscape(orientation),
+                 @"App should start in landscape mode");
+
+  // Wait for the restored web page to become visible after startup.
+  [ChromeEarlGrey waitForWebStateVisible];
 }
 
 // TODO(crbug.com/499969010): Ensure PDFs display properly with new Fullscreen

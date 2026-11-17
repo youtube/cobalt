@@ -387,7 +387,7 @@ class WebRtcVideoEngineTest : public ::testing::Test {
         env_(CreateEnvironment(field_trials_.CreateCopy(),
                                time_controller_.CreateTaskQueueFactory(),
                                time_controller_.GetClock())),
-        call_(Call::Create(CallConfig(env_))),
+        call_(Call::Create(CallConfig::CreateSingleThreaded(env_))),
         encoder_factory_(new FakeWebRtcVideoEncoderFactory),
         decoder_factory_(new FakeWebRtcVideoDecoderFactory),
         video_bitrate_allocator_factory_(
@@ -627,7 +627,7 @@ TEST_F(WebRtcVideoEngineTest, CVOSetHeaderExtensionBeforeCapturer) {
   EXPECT_TRUE(send_channel->AddSendStream(StreamParams::CreateLegacy(kSsrc)));
 
   // Add CVO extension.
-  const int id = 1;
+  const RtpHeaderExtensionId id(1);
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("VP8"));
   parameters.extensions.push_back(
@@ -661,7 +661,7 @@ TEST_F(WebRtcVideoEngineTest, CVOSetHeaderExtensionBeforeAddSendStream) {
 
   auto send_channel = SetSendParamsWithAllSupportedCodecs();
   // Add CVO extension.
-  const int id = 1;
+  const RtpHeaderExtensionId id(1);
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("VP8"));
   parameters.extensions.push_back(
@@ -696,7 +696,7 @@ TEST_F(WebRtcVideoEngineTest, CVOSetHeaderExtensionAfterCapturer) {
   ::testing::Mock::VerifyAndClear(&video_source);
 
   // Add CVO extension.
-  const int id = 1;
+  const RtpHeaderExtensionId id(1);
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("VP8"));
   parameters.codecs.push_back(GetEngineCodec("VP9"));
@@ -749,7 +749,7 @@ TEST_F(WebRtcVideoEngineTest, GetStatsWithoutCodecsSetDoesNotCrash) {
 
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_->CreateReceiveChannel(env_, call_.get(), GetMediaConfig(),
-                                    VideoOptions(), CryptoOptions());
+                                    CryptoOptions());
   EXPECT_TRUE(receive_channel->AddRecvStream(StreamParams::CreateLegacy(123)));
   VideoMediaReceiveInfo receive_info;
   receive_channel->GetStats(&receive_info);
@@ -1024,7 +1024,7 @@ WebRtcVideoEngineTest::SetRecvParamsWithSupportedCodecs(
     const std::vector<Codec>& codecs) {
   std::unique_ptr<VideoMediaReceiveChannelInterface> channel =
       engine_->CreateReceiveChannel(env_, call_.get(), GetMediaConfig(),
-                                    VideoOptions(), CryptoOptions());
+                                    CryptoOptions());
   VideoReceiverParameters parameters;
   parameters.codecs = codecs;
   EXPECT_TRUE(channel->SetReceiverParameters(parameters));
@@ -1061,7 +1061,7 @@ TEST_F(WebRtcVideoEngineTest, ReceiveBufferSizeViaFieldTrial) {
   ChangeFieldTrials("WebRTC-ReceiveBufferSize", "size_bytes:10000");
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_->CreateReceiveChannel(env_, call_.get(), GetMediaConfig(),
-                                    VideoOptions(), CryptoOptions());
+                                    CryptoOptions());
   FakeNetworkInterface network(env_);
   receive_channel->SetInterface(&network);
   EXPECT_EQ(10000, network.recvbuf_size());
@@ -1074,7 +1074,7 @@ TEST_F(WebRtcVideoEngineTest, TooHighReceiveBufferSizeViaFieldTrial) {
   ChangeFieldTrials("WebRTC-ReceiveBufferSize", "size_bytes:10000001");
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_->CreateReceiveChannel(env_, call_.get(), GetMediaConfig(),
-                                    VideoOptions(), CryptoOptions());
+                                    CryptoOptions());
   FakeNetworkInterface network(env_);
   receive_channel->SetInterface(&network);
   EXPECT_EQ(kVideoRtpRecvBufferSize, network.recvbuf_size());
@@ -1086,7 +1086,7 @@ TEST_F(WebRtcVideoEngineTest, TooLowReceiveBufferSizeViaFieldTrial) {
   ChangeFieldTrials("WebRTC-ReceiveBufferSize", "size_bytes:9999");
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_->CreateReceiveChannel(env_, call_.get(), GetMediaConfig(),
-                                    VideoOptions(), CryptoOptions());
+                                    CryptoOptions());
   FakeNetworkInterface network(env_);
   receive_channel->SetInterface(&network);
   EXPECT_EQ(kVideoRtpRecvBufferSize, network.recvbuf_size());
@@ -1104,7 +1104,7 @@ TEST_F(WebRtcVideoEngineTest, UpdatesUnsignaledRtxSsrcAndRecoversPayload) {
 
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_->CreateReceiveChannel(env_, call_.get(), GetMediaConfig(),
-                                    VideoOptions(), CryptoOptions());
+                                    CryptoOptions());
   VideoReceiverParameters parameters;
   parameters.codecs = supported_codecs;
   ASSERT_TRUE(receive_channel->SetReceiverParameters(parameters));
@@ -1550,8 +1550,8 @@ TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, Vp8) {
   // Create a call.
   GlobalSimulatedTimeController time_controller(Timestamp::Millis(4711));
   const Environment env = CreateTestEnvironment({.time = &time_controller});
-  CallConfig call_config(env);
-  const std::unique_ptr<Call> call = Call::Create(std::move(call_config));
+  const std::unique_ptr<Call> call =
+      Call::Create(CallConfig::CreateSingleThreaded(env));
 
   // Create send channel.
   const int send_ssrc = 123;
@@ -1581,7 +1581,7 @@ TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, Vp8) {
   const int recv_ssrc = 321;
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine.CreateReceiveChannel(env, call.get(), GetMediaConfig(),
-                                  VideoOptions(), CryptoOptions());
+                                  CryptoOptions());
 
   VideoReceiverParameters recv_parameters;
   recv_parameters.codecs.push_back(engine_codecs.at(0));
@@ -1683,7 +1683,7 @@ class WebRtcVideoChannelEncodedFrameCallbackTest : public ::testing::Test {
       : field_trials_(CreateTestFieldTrials()),
         env_(CreateTestEnvironment(
             {.field_trials = &field_trials_, .time = &time_controller_})),
-        call_(Call::Create(CallConfig(env_))),
+        call_(Call::Create(CallConfig::CreateSingleThreaded(env_))),
         video_bitrate_allocator_factory_(
             CreateBuiltinVideoBitrateAllocatorFactory()),
         engine_(
@@ -1701,7 +1701,7 @@ class WebRtcVideoChannelEncodedFrameCallbackTest : public ::testing::Test {
         env_, call_.get(), MediaConfig(), VideoOptions(), CryptoOptions(),
         video_bitrate_allocator_factory_.get(), nullptr, nullptr);
     receive_channel_ = engine_.CreateReceiveChannel(
-        env_, call_.get(), MediaConfig(), VideoOptions(), CryptoOptions());
+        env_, call_.get(), MediaConfig(), CryptoOptions());
 
     network_interface_.SetDestination(receive_channel_.get());
     send_channel_->SetInterface(&network_interface_);
@@ -1873,7 +1873,7 @@ class WebRtcVideoChannelBaseTest : public ::testing::Test {
   void SetUp() override {
     // One testcase calls SetUp in a loop, only create call_ once.
     if (!call_) {
-      call_ = Call::Create(CallConfig(env_));
+      call_ = Call::Create(CallConfig::CreateSingleThreaded(env_));
     }
 
     MediaConfig media_config;
@@ -1886,7 +1886,7 @@ class WebRtcVideoChannelBaseTest : public ::testing::Test {
         env_, call_.get(), media_config, VideoOptions(), CryptoOptions(),
         video_bitrate_allocator_factory_.get(), nullptr, nullptr);
     receive_channel_ = engine_->CreateReceiveChannel(
-        env_, call_.get(), media_config, VideoOptions(), CryptoOptions());
+        env_, call_.get(), media_config, CryptoOptions());
     send_channel_->OnReadyToSend(true);
     receive_channel_->SetReceive(true);
     network_interface_.SetDestination(receive_channel_.get());
@@ -2792,9 +2792,8 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
         env_, fake_call_.get(), GetMediaConfig(), VideoOptions(),
         CryptoOptions(), video_bitrate_allocator_factory_.get(), nullptr,
         nullptr);
-    receive_channel_ =
-        engine_->CreateReceiveChannel(env_, fake_call_.get(), GetMediaConfig(),
-                                      VideoOptions(), CryptoOptions());
+    receive_channel_ = engine_->CreateReceiveChannel(
+        env_, fake_call_.get(), GetMediaConfig(), CryptoOptions());
     send_channel_->OnReadyToSend(true);
     receive_channel_->SetReceive(true);
     last_ssrc_ = 123;
@@ -2971,7 +2970,7 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
 
   void TestSetRecvRtpHeaderExtensions(const std::string& ext_uri) {
     // Enable extension.
-    const int id = 1;
+    const RtpHeaderExtensionId id(1);
     VideoReceiverParameters parameters = recv_parameters_;
     parameters.extensions.push_back(RtpExtension(ext_uri, id));
     EXPECT_TRUE(receive_channel_->SetReceiverParameters(parameters));
@@ -3306,8 +3305,9 @@ TEST_F(WebRtcVideoChannelTest, DisableFrameInstrumentationByDefault) {
 TEST_F(WebRtcVideoChannelTest,
        EnableFrameInstrumentationWhenEncryptedExtensionIsPresent) {
   VideoSenderParameters parameters = send_parameters_;
-  parameters.extensions.push_back(RtpExtension(
-      RtpExtension::kCorruptionDetectionUri, /*id=*/1, /*encrypt=*/true));
+  parameters.extensions.push_back(
+      RtpExtension(RtpExtension::kCorruptionDetectionUri,
+                   RtpHeaderExtensionId(1), /*encrypt=*/true));
   EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
 
   FakeVideoSendStream* send_stream =
@@ -3319,8 +3319,9 @@ TEST_F(WebRtcVideoChannelTest,
 TEST_F(WebRtcVideoChannelTest,
        DisableFrameInstrumentationWhenNoEncryptedExtensionIsPresent) {
   VideoSenderParameters parameters = send_parameters_;
-  parameters.extensions.push_back(RtpExtension(
-      RtpExtension::kCorruptionDetectionUri, /*id=*/1, /*encrypt=*/false));
+  parameters.extensions.push_back(
+      RtpExtension(RtpExtension::kCorruptionDetectionUri,
+                   RtpHeaderExtensionId(1), /*encrypt=*/false));
   EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
 
   FakeVideoSendStream* send_stream =
@@ -3405,7 +3406,7 @@ TEST_F(WebRtcVideoChannelTest,
 TEST_F(WebRtcVideoChannelTest, OnPacketReceivedIdentifiesExtensions) {
   VideoReceiverParameters parameters = recv_parameters_;
   parameters.extensions.push_back(
-      RtpExtension(RtpExtension::kVideoRotationUri, /*id=*/1));
+      RtpExtension(RtpExtension::kVideoRotationUri, RtpHeaderExtensionId(1)));
   ASSERT_TRUE(receive_channel_->SetReceiverParameters(parameters));
   time_controller_.AdvanceTime(TimeDelta::Zero());
   RtpHeaderExtensionMap extension_map(parameters.extensions);
@@ -3619,7 +3620,7 @@ TEST_F(WebRtcVideoChannelTest, SetMediaConfigSuspendBelowMinBitrate) {
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
       video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
-      env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
+      env_, fake_call_.get(), media_config, CryptoOptions());
   send_channel_->OnReadyToSend(true);
 
   send_channel_->SetSenderParameters(send_parameters_);
@@ -3632,7 +3633,7 @@ TEST_F(WebRtcVideoChannelTest, SetMediaConfigSuspendBelowMinBitrate) {
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
       video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
-      env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
+      env_, fake_call_.get(), media_config, CryptoOptions());
   send_channel_->OnReadyToSend(true);
 
   send_channel_->SetSenderParameters(send_parameters_);
@@ -4248,7 +4249,7 @@ TEST_F(WebRtcVideoChannelTest, PreviousAdaptationDoesNotApplyToScreenshare) {
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
       video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
-      env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
+      env_, fake_call_.get(), media_config, CryptoOptions());
 
   send_channel_->OnReadyToSend(true);
   ASSERT_TRUE(send_channel_->SetSenderParameters(parameters));
@@ -4302,7 +4303,7 @@ void WebRtcVideoChannelTest::TestDegradationPreference(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
       video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
-      env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
+      env_, fake_call_.get(), media_config, CryptoOptions());
   send_channel_->OnReadyToSend(true);
 
   EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
@@ -4338,7 +4339,7 @@ void WebRtcVideoChannelTest::TestCpuAdaptation(bool enable_overuse,
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
       video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
-      env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
+      env_, fake_call_.get(), media_config, CryptoOptions());
   send_channel_->OnReadyToSend(true);
 
   EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
@@ -9813,7 +9814,7 @@ class WebRtcVideoChannelSimulcastTest : public ::testing::Test {
         env_, &fake_call_, GetMediaConfig(), VideoOptions(), CryptoOptions(),
         mock_rate_allocator_factory_.get(), nullptr, nullptr);
     receive_channel_ = engine_.CreateReceiveChannel(
-        env_, &fake_call_, GetMediaConfig(), VideoOptions(), CryptoOptions());
+        env_, &fake_call_, GetMediaConfig(), CryptoOptions());
     send_channel_->OnReadyToSend(true);
     receive_channel_->SetReceive(true);
     last_ssrc_ = 123;

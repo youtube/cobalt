@@ -632,6 +632,9 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "relocatable wasm indirect call target: "
          << static_cast<uint32_t>(storage.integral);
       break;
+    case Kind::kRelocatableWasmCodePointer:
+      os << "relocatable self wasm code pointer";
+      break;
   }
   os << ']';
 }
@@ -2270,7 +2273,8 @@ void SupportedOperations::Initialize() {
   MachineOperatorBuilder::Flags supported =
       InstructionSelector::SupportedMachineOperatorFlags();
 #define SET_SUPPORTED(name, machine_name) \
-  instance_.name##_ = supported & MachineOperatorBuilder::Flag::k##machine_name;
+  instance_.name##_ =                     \
+      supported.contains(MachineOperatorBuilder::Flag::k##machine_name);
 
   SUPPORTED_OPERATIONS_LIST(SET_SUPPORTED)
 #undef SET_SUPPORTED

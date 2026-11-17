@@ -156,6 +156,15 @@ BASE_FEATURE(kDesktopPWAsPreventClose,
 // Adds a user settings that allows PWAs to be opened with a tab strip.
 BASE_FEATURE(kDesktopPWAsTabStripSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Removes the Window Controls Overlay toggle button from the PWA toolbar
+// and auto-enables WCO when the app developer specifies it in the manifest.
+// When disabled, the toggle button is shown and WCO must be enabled by the
+// user. This feature only affects apps that have "window-controls-overlay" in
+// their PWA manifest's display_override field, apps without manifest support
+// are unaffected.
+BASE_FEATURE(kDesktopPWAsWindowControlsOverlayWithNoToggle,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the standalone Document Picture-in-Picture window path, replacing
 // the Browser-backed implementation with a dedicated host.
 BASE_FEATURE(kDocumentPipStandaloneWindow, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1204,6 +1213,8 @@ const base::FeatureParam<std::string> kIndigoDeleteUrl{&kIndigo,
                                                        "indigo_delete_url", ""};
 const base::FeatureParam<std::string> kIndigoOnboardingUrl{
     &kIndigo, "indigo_onboarding_url", ""};
+const base::FeatureParam<std::string> kIndigoSavedUrl{
+    &kIndigo, "indigo_saved_url", "about:blank"};
 const base::FeatureParam<std::string> kIndigoScopes{
     &kIndigo, "indigo_scopes",
     "https://www.googleapis.com/auth/userinfo.email"};
@@ -1214,6 +1225,8 @@ const base::FeatureParam<std::string> kIndigoGlicPrompt{
     &kIndigoOpenGlic, "indigo_glic_prompt", ""};
 const base::FeatureParam<std::string> kIndigoGlicPromptKey{
     &kIndigoOpenGlic, "indigo_glic_prompt_key", ""};
+const base::FeatureParam<std::string> kIndigoGlicSkillId{
+    &kIndigoOpenGlic, "indigo_glic_skill_id", ""};
 
 #if !BUILDFLAG(IS_ANDROID)
 // A feature that controls whether Instant uses a spare renderer.
@@ -1719,6 +1732,7 @@ BASE_FEATURE(kWebAppPeriodicPreinstallUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kWebAppMigratePreinstalledChat, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebAppInstallDialog, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebAppInstallDialogWinPin, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When this feature is enabled, the web app sync code will process the
 // `migrated_from_manifest_id` field in its sync data to possibly treat new

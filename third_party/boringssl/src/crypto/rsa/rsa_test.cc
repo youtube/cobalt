@@ -119,7 +119,7 @@ static const uint8_t kKey1Public[] = {
     0x43, 0x81, 0x59, 0xa7, 0x90, 0x56, 0xc1, 0x69, 0x42, 0xb3, 0xaf, 0x1c,
     0x8d, 0x4e, 0xbf, 0x02, 0x03, 0x01, 0x00, 0x01};
 
-// kOAEPCiphertext1 is a sample encryption of |kPlaintext| with |kKey1| using
+// kOAEPCiphertext1 is a sample encryption of `kPlaintext` with `kKey1` using
 // RSA OAEP, SHA-1, and no label. It was generated with:
 //
 // clang-format off
@@ -266,7 +266,7 @@ static const uint8_t kPKCS1Ciphertext2[] = {
     0xcd, 0xb4, 0x39, 0xcf, 0xbf, 0x78, 0xcc, 0xb6, 0x87, 0xf9, 0xb7, 0x8b,
     0x6a, 0xce, 0x9f, 0xc8};
 
-// kOAEPCiphertext2 is a sample encryption of |kPlaintext| with |kKey2| using
+// kOAEPCiphertext2 is a sample encryption of `kPlaintext` with `kKey2` using
 // RSA OAEP, SHA-1, and no label. It was generated with:
 //
 // clang-format off
@@ -351,7 +351,7 @@ static const uint8_t kKey3[] = {
     0x2b, 0x4e, 0x9e, 0x2e, 0x0f, 0x96, 0x56, 0xe6, 0x98, 0xea, 0x36, 0x66,
     0xed, 0xfb, 0x25, 0x79, 0x80, 0x39, 0xf7};
 
-// kOAEPCiphertext3 is a sample encryption of |kPlaintext| with |kKey3| using
+// kOAEPCiphertext3 is a sample encryption of `kPlaintext` with `kKey3` using
 // RSA OAEP, SHA-1, and no label.
 static const uint8_t kOAEPCiphertext3[] = {
     0xb8, 0x24, 0x6b, 0x56, 0xa6, 0xed, 0x58, 0x81, 0xae, 0xb5, 0x85, 0xd9,
@@ -512,7 +512,7 @@ TEST_P(RSAEncryptTest, TestKey) {
     }
 
     if (RSA_get0_d(key) != nullptr) {
-      // |oaep_ciphertext| should decrypt to |kPlaintext|.
+      // `oaep_ciphertext` should decrypt to `kPlaintext`.
       plaintext_len = 0;
       ASSERT_TRUE(RSA_decrypt(key, &plaintext_len, plaintext.data(),
                               plaintext.size(), param.oaep_ciphertext.data(),
@@ -603,12 +603,12 @@ TEST(RSATest, GenerateFIPS) {
   }
 }
 
-// Wrappers over |RSA_new| and |RSA_set0_*|. |RSA_new_public_key| and
-// |RSA_new_private_key| are much, much easier to use than OpenSSL's APIs, but
+// Wrappers over `RSA_new` and `RSA_set0_*`. `RSA_new_public_key` and
+// `RSA_new_private_key` are much, much easier to use than OpenSSL's APIs, but
 // we specifically want to exercise the case where the key is not checked for
 // consistency after creation.
 //
-// Matching the |RSA_set0_*| functions, each group of parameters must be either
+// Matching the `RSA_set0_*` functions, each group of parameters must be either
 // all null or all non-null. OpenSSL picked some odd invariants for these APIs.
 
 UniquePtr<RSA> NewRSAPublicUnchecked(const BIGNUM *n, const BIGNUM *e) {
@@ -826,7 +826,7 @@ TEST(RSATest, CheckKey) {
   ERR_clear_error();
 
   // It is no longer possible in the public API to construct these, but
-  // |RSA_check_key| should notice if n or e is missing.
+  // `RSA_check_key` should notice if n or e is missing.
   rsa = NewRSAPublicUnchecked(n.get(), e.get());
   ASSERT_TRUE(rsa);
   FromOpaque(rsa.get())->n = nullptr;
@@ -851,7 +851,7 @@ TEST(RSATest, CheckKey) {
   ASSERT_TRUE(rsa);
   EXPECT_TRUE(RSA_check_key(rsa.get()));
 
-  // It is not longer to construct a key with p but not q, but |RSA_check_key|
+  // It is not longer to construct a key with p but not q, but `RSA_check_key`
   // should notice if only one of p and q is available.
   rsa = NewRSAPrivateUnchecked(n.get(), e.get(), d.get(), p.get(), q.get(),
                                /*dmp1=*/nullptr,
@@ -1070,7 +1070,7 @@ TEST(RSATest, KeygenFail) {
   ASSERT_TRUE(rsa);
 
   // Cause RSA key generation after a prime has been generated, to test that
-  // |rsa| is left alone.
+  // `rsa` is left alone.
   BN_GENCB cb;
   BN_GENCB_set(
       &cb, [](int event, int, BN_GENCB *) -> int { return event != 3; },
@@ -1083,7 +1083,7 @@ TEST(RSATest, KeygenFail) {
   // Key generation should fail.
   EXPECT_FALSE(RSA_generate_key_ex(rsa, 2048, e.get(), &cb));
 
-  // Failed key generations do not leave garbage in |rsa|.
+  // Failed key generations do not leave garbage in `rsa`.
   EXPECT_FALSE(rsa->n);
   EXPECT_FALSE(rsa->e);
   EXPECT_FALSE(rsa->d);
@@ -1147,7 +1147,7 @@ TEST(RSATest, KeygenFailOnce) {
       &failed);
 
   // Although key generation internally retries, the external behavior of
-  // |BN_GENCB| is preserved.
+  // `BN_GENCB` is preserved.
   UniquePtr<BIGNUM> e(BN_new());
   ASSERT_TRUE(e);
   ASSERT_TRUE(BN_set_word(e.get(), RSA_F4));
@@ -1207,7 +1207,7 @@ TEST(RSATest, OverwriteKey) {
   plaintext.resize(len);
   EXPECT_EQ(Bytes(plaintext), Bytes(kPlaintext));
 
-  // Overwrite |key1| with the contents of |key2|.
+  // Overwrite `key1` with the contents of `key2`.
   UniquePtr<RSA> key2(RSA_private_key_from_bytes(kKey2, sizeof(kKey2)));
   ASSERT_TRUE(key2);
 
@@ -1255,7 +1255,7 @@ TEST(RSATest, OverwriteKey) {
   ASSERT_NO_FATAL_FAILURE(
       check_rsa_compatible(/*enc=*/key2.get(), /*dec=*/key1.get()));
 
-  // If we generate a new key on top of |key1|, it should be usable and
+  // If we generate a new key on top of `key1`, it should be usable and
   // self-consistent. We test this by making a new key with the same parameters
   // and checking they behave the same.
   ASSERT_TRUE(

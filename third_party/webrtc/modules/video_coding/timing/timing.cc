@@ -16,12 +16,13 @@
 #include <optional>
 
 #include "api/field_trials_view.h"
+#include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_timing.h"
 #include "modules/video_coding/timing/decode_time_percentile_filter.h"
-#include "modules/video_coding/timing/timestamp_extrapolator.h"
+#include "modules/video_coding/timing/default_video_jitter_timing.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/synchronization/mutex.h"
@@ -75,23 +76,20 @@ bool VCMTiming::VideoDelayTimings::UseLowLatencyRendering() const {
          max_playout_delay <= kLowLatencyStreamMaxPlayoutDelayThreshold;
 }
 
-VCMTiming::VCMTiming(Clock* clock, const FieldTrialsView& field_trials)
-    : clock_(clock),
-      ts_extrapolator_(
-          std::make_unique<TimestampExtrapolator>(clock_->CurrentTime(),
-                                                  field_trials)),
-      decode_time_filter_(std::make_unique<DecodeTimePercentileFilter>()) {}
+VCMTiming::VCMTiming(Clock* clock,
+                     const FieldTrialsView& field_trials,
+                     TimeDelta render_delay)
+    : video_jitter_timing_(clock, field_trials),
+      decode_time_filter_(std::make_unique<DecodeTimePercentileFilter>()),
+      timings_({.render_delay = render_delay}) {}
 
 void VCMTiming::Reset() {
+  RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
+  video_jitter_timing_.Reset();
+
   MutexLock lock(&mutex_);
-  ts_extrapolator_->Reset(clock_->CurrentTime());
   decode_time_filter_ = std::make_unique<DecodeTimePercentileFilter>();
   timings_.Reset();
-}
-
-void VCMTiming::set_render_delay(TimeDelta render_delay) {
-  MutexLock lock(&mutex_);
-  timings_.render_delay = render_delay;
 }
 
 TimeDelta VCMTiming::min_playout_delay() const {
@@ -154,25 +152,27 @@ void VCMTiming::StopDecodeTimer(TimeDelta decode_time, Timestamp now) {
       TimeDelta::Millis(decode_time_filter_->GetPercentileMs());
 }
 
-void VCMTiming::OnCompleteTemporalUnit(uint32_t rtp_timestamp, Timestamp now) {
-  MutexLock lock(&mutex_);
-  ts_extrapolator_->Update(now, rtp_timestamp);
+void VCMTiming::OnCompleteTemporalUnit(uint32_t rtp_timestamp,
+                                       Timestamp receive_time) {
+  RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
+  video_jitter_timing_.OnCompleteTemporalUnit(rtp_timestamp, receive_time);
 }
 
 Timestamp VCMTiming::RenderTime(uint32_t rtp_timestamp, Timestamp now) const {
-  MutexLock lock(&mutex_);
-  if (timings_.UseLowLatencyRendering()) {
-    // Render as soon as possible or with low-latency renderer algorithm.
+  RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
+  VideoDelayTimings timings = GetTimings();
+  if (timings.UseLowLatencyRendering()) {
+    // Render as soon as possible.
     return Timestamp::Zero();
   }
   std::optional<Timestamp> local_time =
-      ts_extrapolator_->ExtrapolateLocalTime(rtp_timestamp);
+      video_jitter_timing_.ExtrapolateLocalTime(rtp_timestamp);
   if (!local_time.has_value()) {
     return now;
   }
-  return *local_time + std::clamp(timings_.current_delay,
-                                  timings_.min_playout_delay,
-                                  timings_.max_playout_delay);
+  return *local_time + std::clamp(timings.current_delay,
+                                  timings.min_playout_delay,
+                                  timings.max_playout_delay);
 }
 
 TimeDelta VCMTiming::TargetVideoDelay() const {

@@ -179,6 +179,17 @@ GetPersistentCacheAsyncDiskWriteOpts() {
   return async_opts;
 }
 
+gpu::GpuPersistentCache::MetadataOpts GetPersistentCacheMetadataOpts() {
+  gpu::GpuPersistentCache::MetadataOpts metadata_options;
+
+  metadata_options.enabled =
+      base::FeatureList::IsEnabled(features::kGpuPersistentCacheMetadata);
+  metadata_options.preload_count =
+      features::kGpuPersistentCacheMetadataPreloadCount.Get();
+
+  return metadata_options;
+}
+
 }  // namespace
 
 GpuServiceImpl::GpuServiceImpl(
@@ -205,6 +216,7 @@ GpuServiceImpl::GpuServiceImpl(
 #endif
       persistent_caches_(
           /*max_in_memory_cache_size=*/gpu::GetDefaultGpuDiskCacheSize(),
+          /*metadata_options=*/GetPersistentCacheMetadataOpts(),
           /*async_write_options=*/GetPersistentCacheAsyncDiskWriteOpts()),
       clear_shader_cache_(base::FeatureList::IsEnabled(
           features::kClearGrShaderDiskCacheOnInvalidPrefix)) {
@@ -305,6 +317,7 @@ GpuServiceImpl::PendingEstablishGpuChannelRequest::
 GpuServiceImpl::GpuServiceImpl()
     : persistent_caches_(
           /*max_in_memory_cache_size=*/gpu::GetDefaultGpuDiskCacheSize(),
+          /*metadata_options=*/GetPersistentCacheMetadataOpts(),
           /*async_write_options=*/GetPersistentCacheAsyncDiskWriteOpts()),
       clear_shader_cache_(base::FeatureList::IsEnabled(
           features::kClearGrShaderDiskCacheOnInvalidPrefix)) {}

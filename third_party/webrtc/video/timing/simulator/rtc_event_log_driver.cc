@@ -88,11 +88,7 @@ void RtcEventLogDriver::Simulate() {
   bool done = false;
   simulator_queue_->PostTask([this, &done]() {
     RTC_DCHECK_RUN_ON(simulator_queue_.get());
-    for (auto& stream : streams_) {
-      stream.second->Close();
-    }
-    receiving_streams_.clear();
-    streams_.clear();
+    TeardownOnQueue();
     done = true;
   });
   time_controller_.AdvanceTime(TimeDelta::Zero());
@@ -201,6 +197,15 @@ void RtcEventLogDriver::OnLoggedRtpPacketIncoming(
                           << ")";
     }
   });
+}
+
+void RtcEventLogDriver::TeardownOnQueue() {
+  RTC_DCHECK_RUN_ON(simulator_queue_.get());
+  for (auto& stream : streams_) {
+    stream.second->Close();
+  }
+  receiving_streams_.clear();
+  streams_.clear();
 }
 
 }  // namespace webrtc::video_timing_simulator

@@ -672,6 +672,25 @@ bool IsAnySamplesQuery(gl::QueryType type)
     return type == gl::QueryType::AnySamples || type == gl::QueryType::AnySamplesConservative;
 }
 
+GLsizei GetRoundedDataCountForEmulatedXfb(const ContextVk *contextVk,
+                                          gl::PrimitiveMode mode,
+                                          GLsizei vertexOrIndexCount)
+{
+    ASSERT(contextVk->getFeatures().emulateTransformFeedback.enabled &&
+           contextVk->getState().isTransformFeedbackActiveUnpaused());
+    // For lines and triangles, the count should be rounded down to align with the number of
+    // vertices in the lines or triangles without leftover data.
+    if (mode == gl::PrimitiveMode::Triangles)
+    {
+        return vertexOrIndexCount - vertexOrIndexCount % 3;
+    }
+    if (mode == gl::PrimitiveMode::Lines)
+    {
+        return vertexOrIndexCount - vertexOrIndexCount % 2;
+    }
+    return vertexOrIndexCount;
+}
+
 bool QueueSerialsHaveDifferentIndexOrSmaller(const QueueSerial &queueSerial1,
                                              const QueueSerial &queueSerial2)
 {
@@ -1624,8 +1643,9 @@ angle::Result ContextVk::setupDraw(const gl::Context *context,
         ASSERT(firstVertexOrInvalid != -1);
         TransformFeedbackVk *transformFeedbackVk =
             vk::GetImpl(mState.getCurrentTransformFeedback());
-        std::array<int32_t, 4> &bufferOffsets = mGraphicsDriverUniforms.updateTransformFeedbackData(
-            static_cast<int32_t>(vertexOrIndexCount));
+        GLsizei roundedCount = GetRoundedDataCountForEmulatedXfb(this, mode, vertexOrIndexCount);
+        std::array<int32_t, 4> &bufferOffsets =
+            mGraphicsDriverUniforms.updateTransformFeedbackData(static_cast<int32_t>(roundedCount));
 
         transformFeedbackVk->getBufferOffsets(this, firstVertexOrInvalid, bufferOffsets.data(),
                                               bufferOffsets.size());
@@ -3813,11 +3833,18 @@ angle::Result ContextVk::submitCommands(const vk::Semaphore *signalSemaphore,
         // Framebuffer::syncState will not get called for current draw call since
         // State::syncDirtyObjects already took the dirty bits. Here we try to detect that current
         // drawFBO is getting affected and invalidate cached object in FramebufferVk so that they
-        // could get recreated. We have to do this detection logic before fallback since fallback
-        // will clear mImageWithTileMemory pointer.
+        // could get recreated. Note that in this case, the FBO dirty bits must already been
+        // processed, otherwise we won't have this bug since next draw call should trigger dirty bit
+        // processing and everything will be in sync. Without check
+        // drawFramebuffer->hasAnyDirtyBit() you may run the risk of accessing an already deleted
+        // RenderTargetVk object due to FramebufferVk's mRenderTargetCache has a stale reference. We
+        // have to do this detection logic before fallback since fallback will clear
+        // mImageWithTileMemory pointer.
+        const gl::Framebuffer *drawFramebuffer = mState.getDrawFramebuffer();
         const vk::ImageHelper *drawFBOImageWithTileMemory =
-            mState.getDrawFramebuffer() != nullptr ? getDrawFramebuffer()->getImageWithTileMemory()
-                                                   : nullptr;
+            (drawFramebuffer != nullptr && !drawFramebuffer->hasAnyDirtyBit())
+                ? getDrawFramebuffer()->getImageWithTileMemory()
+                : nullptr;
         const bool drawFBOImageFallbackFromTileMemory =
             drawFBOImageWithTileMemory && drawFBOImageWithTileMemory == mImageWithTileMemory;
 
@@ -7065,10 +7092,15 @@ angle::Result ContextVk::initBufferAllocation(vk::BufferHelper *bufferHelper,
                                                            alignment, bufferUsageType, pool);
     if (ANGLE_LIKELY(result == VK_SUCCESS))
     {
-        if (mRenderer->getFeatures().allocateNonZeroMemory.enabled)
+        if (isRobustResourceInitEnabled())
+        {
+            ANGLE_TRY(bufferHelper->initializeRobustMemory(
+                this, GetDefaultBufferUsageFlags(mRenderer), bufferHelper->getSize()));
+        }
+        else if (mRenderer->getFeatures().allocateNonZeroMemory.enabled)
         {
             ANGLE_TRY(bufferHelper->initializeNonZeroMemory(
-                this, GetDefaultBufferUsageFlags(mRenderer), allocationSize));
+                this, GetDefaultBufferUsageFlags(mRenderer), bufferHelper->getSize()));
         }
 
         return angle::Result::Continue;
@@ -7114,11 +7146,16 @@ angle::Result ContextVk::initBufferAllocation(vk::BufferHelper *bufferHelper,
     // returned.
     ANGLE_VK_CHECK(this, result == VK_SUCCESS, result);
 
-    // Initialize with non-zero value if needed.
-    if (mRenderer->getFeatures().allocateNonZeroMemory.enabled)
+    // Initialize with value if needed.
+    if (isRobustResourceInitEnabled())
+    {
+        ANGLE_TRY(bufferHelper->initializeRobustMemory(this, GetDefaultBufferUsageFlags(mRenderer),
+                                                       bufferHelper->getSize()));
+    }
+    else if (mRenderer->getFeatures().allocateNonZeroMemory.enabled)
     {
         ANGLE_TRY(bufferHelper->initializeNonZeroMemory(this, GetDefaultBufferUsageFlags(mRenderer),
-                                                        allocationSize));
+                                                        bufferHelper->getSize()));
     }
 
     return angle::Result::Continue;
@@ -8057,9 +8094,13 @@ angle::Result ContextVk::flushCommandsAndEndRenderPass(RenderPassClosureReason r
     // here. Next addImageWithTileMemory will just overwrite the pointer with new pointer.
     if (mImageWithTileMemory && mImageWithTileMemory->isVkImageContentDefined())
     {
-        FramebufferVk *drawFramebufferVk = getDrawFramebuffer();
+        // Only consult the FramebufferVk render-target cache if the draw framebuffer is in
+        // sync.  If it has pending dirty bits, the cached RenderTargetVk* may dangle.
+        const gl::Framebuffer *drawFramebuffer = mState.getDrawFramebuffer();
         const vk::ImageHelper *nextImageWithTileMemory =
-            drawFramebufferVk->getImageWithTileMemory();
+            (drawFramebuffer != nullptr && !drawFramebuffer->hasAnyDirtyBit())
+                ? getDrawFramebuffer()->getImageWithTileMemory()
+                : nullptr;
         if (nextImageWithTileMemory && nextImageWithTileMemory != mImageWithTileMemory)
         {
             ASSERT(nextImageWithTileMemory->useTileMemory());

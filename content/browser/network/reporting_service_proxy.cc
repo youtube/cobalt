@@ -243,6 +243,27 @@ class ReportingServiceProxyImpl : public blink::mojom::ReportingServiceProxy {
     QueueReport(url, endpoint, "csp-hash", std::move(body));
   }
 
+  void QueueConnectionAllowlistViolationReport(
+      const GURL& url,
+      const std::string& endpoint,
+      const std::string& url_string,
+      const std::string& connection,
+      const std::vector<std::string>& allowlist,
+      const std::string& disposition) override {
+    base::DictValue body;
+    body.Set("url", url_string);
+    body.Set("connection", connection);
+
+    base::ListValue script_allowlist;
+    for (const std::string& val : allowlist) {
+      script_allowlist.Append(val);
+    }
+    body.Set("allowlist", std::move(script_allowlist));
+    body.Set("disposition", disposition);
+
+    QueueReport(url, endpoint, "connection-allowlist", std::move(body));
+  }
+
   ChildProcessId render_process_id() const { return render_process_id_; }
 
  private:
@@ -314,7 +335,7 @@ void CreateReportingServiceProxyForDedicatedWorker(
       std::move(receiver));
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 void CreateReportingServiceProxyForSharedStorageWorklet(
     SharedStorageWorkletHost* shared_storage_worklet_host,
     mojo::PendingReceiver<blink::mojom::ReportingServiceProxy> receiver) {
@@ -334,6 +355,6 @@ void CreateReportingServiceProxyForSharedStorageWorklet(
               network_isolation_key)),
       std::move(receiver));
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
 }  // namespace content

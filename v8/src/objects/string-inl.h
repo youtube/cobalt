@@ -679,7 +679,7 @@ using SeqTwoByteSubStringKey = SeqSubStringKey<SeqTwoByteString>;
 
 bool String::Equals(Tagged<String> other) const {
   if (other == this) return true;
-  if (IsInternalizedString(this) && IsInternalizedString(other)) {
+  if (Is<InternalizedString>(this) && Is<InternalizedString>(other)) {
     return false;
   }
   return SlowEquals(other);
@@ -1486,7 +1486,7 @@ Address ExternalString::resource_as_address() const {
 
 void ExternalString::set_address_as_resource(Isolate* isolate, Address value) {
   resource_.store(isolate, value);
-  if (IsExternalOneByteString(this)) {
+  if (Is<ExternalOneByteString>(this)) {
     Cast<ExternalOneByteString>(this)->update_data_cache(
         isolate, reinterpret_cast<ExternalOneByteString::Resource*>(value));
   } else {
@@ -1827,6 +1827,22 @@ bool String::AsIntegerIndex(size_t* index) {
     return false;
   }
   return SlowAsIntegerIndex(index);
+}
+
+// The following methods are defined on the Name class for convenience,
+// but implemented here because they depend on String methods defined
+// in this file.
+bool Name::IsArrayIndex() {
+  uint32_t index;
+  return AsArrayIndex(&index);
+}
+
+bool Name::AsArrayIndex(uint32_t* index) {
+  return Is<String>(this) && Cast<String>(this)->AsArrayIndex(index);
+}
+
+bool Name::AsIntegerIndex(size_t* index) {
+  return Is<String>(this) && Cast<String>(this)->AsIntegerIndex(index);
 }
 
 SubStringRange::SubStringRange(Tagged<String> string,

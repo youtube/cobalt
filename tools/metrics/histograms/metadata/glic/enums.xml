@@ -139,6 +139,45 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:ClientErrorDialogType) -->
 
+<!-- LINT.IfChange(GlicContainerCreationReason) -->
+
+<enum name="GlicContainerCreationReason">
+  <int value="0" label="InitialColdWarming"/>
+  <int value="1" label="UserTriggeredColdStart"/>
+  <int value="2" label="Refill"/>
+  <int value="3" label="ReloadAfterExpiry"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/glic_web_contents_warming_pool.h:GlicContainerCreationReason) -->
+
+<!-- LINT.IfChange(GlicCookieSyncResult) -->
+
+<enum name="GlicCookieSyncResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Destroyed With Pending Callbacks"/>
+  <int value="2" label="No Storage Partition"/>
+  <int value="3" label="Dev Sync Failure"/>
+  <int value="4" label="User Not Signed In"/>
+  <int value="5" label="Auth Transient Error"/>
+  <int value="6" label="Auth Persistent Error"/>
+  <int value="7" label="Timeout"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/glic_cookie_synchronizer.h:GlicCookieSyncResult) -->
+
+<!-- LINT.IfChange(GlicCookieSyncTrigger) -->
+
+<enum name="GlicCookieSyncTrigger">
+  <int value="0" label="CheckAuthBeforeLoad"/>
+  <int value="1" label="CheckAuthBeforeLoadForced"/>
+  <int value="2" label="OnPrimaryAccountChanged"/>
+  <int value="3" label="OnRefreshTokenUpdated"/>
+  <int value="4" label="MaybeSyncCookiesOnError"/>
+  <int value="5" label="GlicClient"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/auth_controller.h:GlicCookieSyncTrigger) -->
+
 <!-- LINT.IfChange(GlicDaisyChainFirstAction) -->
 
 <enum name="GlicDaisyChainFirstAction">
@@ -650,9 +689,26 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="LocalGlicNotEnabledAndConsented"/>
   <int value="11" label="LocalAccountMismatch"/>
   <int value="12" label="LocalInvalidDocumentId"/>
+  <int value="13" label="LocalConversationNotFound"/>
+  <int value="14" label="LocalNoBoundTabs"/>
+  <int value="15" label="LocalTabNotInWindow"/>
+  <int value="16" label="LocalGlicAccessFromPageDisabled"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/extensions/api/glic_private/glic_private_api.cc:GlicPrivateApiStatusCodeHistogramValue) -->
+
+<!-- LINT.IfChange(GlicProcessCounterAbuseVerdictResult) -->
+
+<enum name="GlicProcessCounterAbuseVerdictResult">
+  <int value="0" label="Success: Interstitial displayed"/>
+  <int value="1" label="Failed: Invalid verdict payload"/>
+  <int value="2" label="Ignored: No interstitial requested"/>
+  <int value="3" label="Failed: URL mismatch"/>
+  <int value="4" label="Failed: Unsupported threat type"/>
+  <int value="5" label="Skipped: URL is already allowlisted"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_enums.h:GlicProcessCounterAbuseVerdictResult) -->
 
 <enum name="GlicProfileEnablementReason">
   <int value="0" label="Feature disabled"/>
@@ -856,6 +912,17 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/service/metrics/metrics_types.h:ResponseSegmentation) -->
+
+<!-- LINT.IfChange(GlicSbThreatType) -->
+
+<enum name="GlicSbThreatType">
+  <int value="0" label="Unspecified"/>
+  <int value="1" label="Social Engineering"/>
+  <int value="2" label="Malware"/>
+  <int value="3" label="Unwanted Software"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:SbThreatType) -->
 
 <!-- LINT.IfChange(GlicScrollToErrorReason) -->
 

@@ -78,8 +78,6 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
 
   // The last fullscreen progress value received.
   CGFloat _fullscreenProgress;
-  // Whether the assistant container is visible.
-  BOOL _assistantVisible;
 }
 
 - (instancetype)init {
@@ -151,11 +149,12 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
 
   view.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
 
-  [self
+  [view
       registerForTraitChanges:
           @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]
-                   withAction:@selector(onSystemTraitChange)];
-  [self onSystemTraitChange];
+                   withTarget:self
+                       action:@selector(viewTraitDidChange)];
+  [self viewTraitDidChange];
 }
 
 - (void)viewWillTransitionToSize:(CGSize)size
@@ -182,6 +181,9 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
   if (!IsFullscreenRefactoringEnabled()) {
     [self applyFrameForLayout];
   }
+  // This is necessary as the app bar container doesn't get all the refreshes
+  // when resizing the window.
+  [_appBar.view setNeedsLayout];
 }
 
 - (void)viewSafeAreaInsetsDidChange {
@@ -296,7 +298,6 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
 }
 
 - (void)setAssistantContainerVisible:(BOOL)visible {
-  _assistantVisible = visible;
   UIView* assistantView = _assistantShadowView;
   if (!assistantView) {
     return;
@@ -411,11 +412,14 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
   _sideAppContentTopConstraint.constant = constant;
 }
 
-// Updates the layout state when system traits change.
-- (void)onSystemTraitChange {
+// Called when the view's trait collection changes.
+- (void)viewTraitDidChange {
   self.layoutState.containedLayoutSupported =
-      IsSidePanelLayout(self.traitCollection);
+      IsSidePanelLayout(self.view.traitCollection);
   self.layoutState.windowedMode = IsWindowedMode(self.view.window);
+  if (IsChromeNextIaEnabled()) {
+    [self.layoutState updateAppBarPositionWithView:self.view coordinator:nil];
+  }
 }
 
 // Helper to update app content constraints for panel layout.
@@ -554,35 +558,10 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
 - (void)applyFrameForAppContentLayout {
   CGRect frame = self.view.bounds;
   UIEdgeInsets insets = [self appBarInsets];
-  insets.left += [self sidePanelLeftInset];
-
-  CGFloat panelWidth = [self assistantSidePanelWidth];
-
-  if (self.layoutState.containedLayoutSupported &&
-      _assistantContainerViewController && panelWidth > 0) {
-    CGFloat safeAreaTop = self.view.safeAreaInsets.top;
-    CGFloat margin = _assistantVisible ? kAssistantContainerMargin : 0.0;
-    // The base top inset uses the safe area if anchored to the status bar,
-    // otherwise it uses the container margin.
-    CGFloat baseTop =
-        (safeAreaTop > 0) ? safeAreaTop : kAssistantContainerMargin;
-
-    insets.right += margin;
-    insets.top += _assistantVisible ? baseTop : 0.0;
-    insets.bottom += margin;
-  }
 
   CGRect contentFrame = UIEdgeInsetsInsetRect(frame, insets);
   _appContentContainerView.frame = contentFrame;
-  if (self.layoutState.containedLayoutActive && !IsChromeNextIaEnabled()) {
-    // When the Assistant side panel is active, use bounds to avoid a double
-    // shift of the origin.
-    // However, when IsChromeNextIaEnabled() is true, the view hierarchy is
-    // inverted (when fullscreen refactor is disabled). In that mode, we must
-    // use frame to avoid misplacing the view at the left edge.
-    _appContentView.frame = _appContentContainerView.bounds;
-    return;
-  }
+
   _appContentView.frame = _appContentContainerView.frame;
 }
 
@@ -605,11 +584,11 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
   UIEdgeInsets insets = UIEdgeInsetsZero;
   switch (position) {
     case AppBarPosition::kLeft:
-      insets.left += kAppBarHeight;
+      insets.left += kAppBarHeightLandscape;
       break;
 
     case AppBarPosition::kRight:
-      insets.right += kAppBarHeight;
+      insets.right += kAppBarHeightLandscape;
       break;
 
     case AppBarPosition::kBottom: {
@@ -626,27 +605,7 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
   return insets;
 }
 
-// Calculates the width of the Assistant Side Panel based on current bounds.
-- (CGFloat)assistantSidePanelWidth {
-  return MIN(self.view.bounds.size.width * kAssistantSidePanelWidthMultiplier,
-             kAssistantSidePanelMaxWidth);
-}
 
-// Calculates left inset for the Assistant Side Panel.
-- (CGFloat)sidePanelLeftInset {
-  if (!self.layoutState.containedLayoutSupported ||
-      !_assistantContainerViewController) {
-    return 0;
-  }
-
-  CGFloat panelWidth = [self assistantSidePanelWidth];
-  if (panelWidth <= 0) {
-    return 0;
-  }
-
-  CGFloat width = panelWidth + _assistantLeadingConstraint.constant;
-  return MAX(0, width + kAssistantContainerMargin);
-}
 
 // Helper method for dismissal block when attempting to show the Gemini floaty
 // if invoked.
@@ -713,10 +672,8 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
         constraintLessThanOrEqualToConstant:kAssistantSidePanelMaxWidth],
   ];
 
-  if (IsFullscreenRefactoringEnabled()) {
-    [self setupAppContentConstraintsForPanel:assistantView];
-    [self updateAssistantTopConstraints:self.layoutState.containedLayoutActive];
-  }
+  [self setupAppContentConstraintsForPanel:assistantView];
+  [self updateAssistantTopConstraints:self.layoutState.containedLayoutActive];
 }
 
 // Sets up constraints for the app content view when the assistant side panel is
@@ -768,19 +725,6 @@ constexpr NSTimeInterval kIPHTransitionDelay = 0.5;
   ];
 
   _assistantSheetConstraints = sheetConstraints;
-  if (IsFullscreenRefactoringEnabled() && !IsChromeNextIaEnabled()) {
-    _assistantSheetConstraints =
-        [sheetConstraints arrayByAddingObjectsFromArray:@[
-          [_appContentContainerView.leadingAnchor
-              constraintEqualToAnchor:view.leadingAnchor],
-          [_appContentContainerView.trailingAnchor
-              constraintEqualToAnchor:view.trailingAnchor],
-          [_appContentContainerView.topAnchor
-              constraintEqualToAnchor:view.topAnchor],
-          [_appContentContainerView.bottomAnchor
-              constraintEqualToAnchor:view.bottomAnchor],
-        ]];
-  }
 }
 
 #pragma mark - SceneConsumer

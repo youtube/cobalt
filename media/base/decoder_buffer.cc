@@ -292,7 +292,7 @@ bool DecoderBuffer::DoSubsamplesMatch(const DecoderBuffer& buffer) {
 }
 
 void DecoderBuffer::set_discard_padding(const DiscardPadding& discard_padding) {
-  DCHECK(!end_of_stream());
+  CHECK(!end_of_stream());
   if (!side_data_ && discard_padding == DiscardPadding()) {
     return;
   }
@@ -300,7 +300,7 @@ void DecoderBuffer::set_discard_padding(const DiscardPadding& discard_padding) {
 }
 
 DecoderBufferSideData& DecoderBuffer::WritableSideData() {
-  DCHECK(!end_of_stream());
+  CHECK(!end_of_stream());
   if (!side_data()) {
     side_data_ = std::make_unique<DecoderBufferSideData>();
   }
@@ -309,7 +309,7 @@ DecoderBufferSideData& DecoderBuffer::WritableSideData() {
 
 void DecoderBuffer::set_side_data(
     std::unique_ptr<DecoderBufferSideData> side_data) {
-  DCHECK(!end_of_stream());
+  CHECK(!end_of_stream());
   side_data_ = std::move(side_data);
 }
 
@@ -319,7 +319,7 @@ bool DecoderBuffer::MatchesMetadataForTesting(
     return false;
   }
 
-  // Note: We use `side_data_` directly to avoid DCHECKs for EOS buffers.
+  // Note: We use `side_data_` directly to avoid CHECKs for EOS buffers.
   if (side_data_ && !side_data_->Matches(*buffer.side_data_)) {
     return false;
   }
@@ -349,7 +349,7 @@ bool DecoderBuffer::MatchesForTesting(const DecoderBuffer& buffer) const {
   if (end_of_stream())
     return true;
 
-  DCHECK(!buffer.end_of_stream());
+  CHECK(!buffer.end_of_stream());
   return base::span(*this) == base::span(buffer);
 }
 
@@ -395,7 +395,7 @@ std::string DecoderBuffer::AsHumanReadableString(bool verbose) const {
 }
 
 void DecoderBuffer::set_timestamp(base::TimeDelta timestamp) {
-  DCHECK(!end_of_stream());
+  CHECK(!end_of_stream());
   timestamp_ = timestamp;
 }
 

@@ -56,10 +56,10 @@ static const EVP_HPKE_AEAD *get_ech_aead(uint16_t aead_id) {
   return nullptr;
 }
 
-// ssl_client_hello_write_without_extensions serializes |client_hello| into
-// |out|, omitting the length-prefixed extensions. It serializes individual
-// fields, starting with |client_hello->version|, and ignores the
-// |client_hello->client_hello| field. It returns true on success and false on
+// ssl_client_hello_write_without_extensions serializes `client_hello` into
+// `out`, omitting the length-prefixed extensions. It serializes individual
+// fields, starting with `client_hello->version`, and ignores the
+// `client_hello->client_hello` field. It returns true on success and false on
 // failure.
 static bool ssl_client_hello_write_without_extensions(
     const SSL_CLIENT_HELLO *client_hello, CBB *out) {
@@ -164,7 +164,7 @@ bool ssl_decode_client_hello_inner(
   client_hello_inner.session_id = client_hello_outer->session_id;
   client_hello_inner.session_id_len = client_hello_outer->session_id_len;
 
-  // Begin serializing a message containing the ClientHelloInner in |cbb|.
+  // Begin serializing a message containing the ClientHelloInner in `cbb`.
   ScopedCBB cbb;
   CBB body, extensions_cbb;
   if (!ssl->method->init_message(ssl, cbb.get(), &body, SSL3_MT_CLIENT_HELLO) ||
@@ -220,7 +220,7 @@ bool ssl_decode_client_hello_inner(
         OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_OUTER_EXTENSION);
         return false;
       }
-      // Seek to |want| in |outer_extensions|. |ext_list| is required to match
+      // Seek to `want` in `outer_extensions`. `ext_list` is required to match
       // ClientHelloOuter in order.
       uint16_t found;
       CBS ext_body;
@@ -274,8 +274,8 @@ bool ssl_client_hello_decrypt(SSL_HANDSHAKE *hs, uint8_t *out_alert,
                               Span<const uint8_t> payload) {
   *out_is_decrypt_error = false;
 
-  // The ClientHelloOuterAAD is |client_hello_outer| with |payload| (which must
-  // point within |client_hello_outer->extensions|) replaced with zeros. See
+  // The ClientHelloOuterAAD is `client_hello_outer` with `payload` (which must
+  // point within `client_hello_outer->extensions`) replaced with zeros. See
   // RFC 9849, section 5.2.
   Array<uint8_t> aad;
   if (!aad.CopyFrom(Span(client_hello_outer->client_hello,
@@ -284,23 +284,23 @@ bool ssl_client_hello_decrypt(SSL_HANDSHAKE *hs, uint8_t *out_alert,
     return false;
   }
 
-  // We assert with |uintptr_t| because the comparison would be UB if they
+  // We assert with `uintptr_t` because the comparison would be UB if they
   // didn't alias.
-  // - |payload| must be contained in |extensions|.
+  // - `payload` must be contained in `extensions`.
   assert(reinterpret_cast<uintptr_t>(client_hello_outer->extensions) <=
          reinterpret_cast<uintptr_t>(payload.data()));
   assert(reinterpret_cast<uintptr_t>(client_hello_outer->extensions +
                                      client_hello_outer->extensions_len) >=
          reinterpret_cast<uintptr_t>(payload.data() + payload.size()));
-  // - |extensions| must be contained in |client_hello|.
+  // - `extensions` must be contained in `client_hello`.
   assert(reinterpret_cast<uintptr_t>(client_hello_outer->client_hello) <=
          reinterpret_cast<uintptr_t>(client_hello_outer->extensions));
   assert(reinterpret_cast<uintptr_t>(client_hello_outer->client_hello +
                                      client_hello_outer->client_hello_len) >=
          reinterpret_cast<uintptr_t>(client_hello_outer->extensions +
                                      client_hello_outer->extensions_len));
-  // From this then follows that |aad|, being a copy of |client_hello|, contains
-  // the |payload| byte range as well.
+  // From this then follows that `aad`, being a copy of `client_hello`, contains
+  // the `payload` byte range as well.
   Span<uint8_t> payload_aad = Span(aad).subspan(
       payload.data() - client_hello_outer->client_hello, payload.size());
   OPENSSL_memset(payload_aad.data(), 0, payload_aad.size());
@@ -398,7 +398,7 @@ bool ssl_is_valid_ech_public_name(Span<const uint8_t> public_name) {
         return false;
       }
     }
-    // |component| must be a valid LDH label. Checking for empty components also
+    // `component` must be a valid LDH label. Checking for empty components also
     // rejects leading dots.
     if (component.empty() || component.size() > 63 ||
         component.front() == '-' || component.back() == '-') {
@@ -474,7 +474,7 @@ static bool parse_ech_config(CBS *cbs, ECHConfig *out, bool *out_supported,
 
   out->public_key = public_key;
   out->public_name = public_name;
-  // This function does not ensure |out->kem_id| and |out->cipher_suites| use
+  // This function does not ensure `out->kem_id` and `out->cipher_suites` use
   // supported algorithms. The caller must do this.
   out->cipher_suites = cipher_suites;
 
@@ -540,7 +540,7 @@ bool ECHServerConfig::Init(Span<const uint8_t> ech_config,
     }
   }
 
-  // Check the public key in the ECHConfig matches |key|.
+  // Check the public key in the ECHConfig matches `key`.
   uint8_t expected_public_key[EVP_HPKE_MAX_PUBLIC_KEY_LENGTH];
   size_t expected_public_key_len;
   if (!EVP_HPKE_KEY_public_key(key, expected_public_key,
@@ -721,7 +721,7 @@ static size_t aead_overhead(const EVP_HPKE_AEAD *aead) {
   return EVP_AEAD_max_overhead(EVP_HPKE_AEAD_aead(aead));
 }
 
-// random_size returns a random value between |min| and |max|, inclusive.
+// random_size returns a random value between `min` and `max`, inclusive.
 static size_t random_size(size_t min, size_t max) {
   assert(min < max);
   size_t value;
@@ -824,7 +824,7 @@ bool ssl_encrypt_client_hello(SSL_HANDSHAKE *hs, Span<const uint8_t> enc) {
       padding_len = maximum_name_length - hostname_len;
     }
   } else {
-    // No SNI. Pad up to |maximum_name_length|, including server_name extension
+    // No SNI. Pad up to `maximum_name_length`, including server_name extension
     // overhead.
     padding_len = 9 + maximum_name_length;
   }
@@ -836,7 +836,7 @@ bool ssl_encrypt_client_hello(SSL_HANDSHAKE *hs, Span<const uint8_t> enc) {
     return false;
   }
 
-  // Encrypt |encoded|. See RFC 9849, section 6.1.1. First, assemble the
+  // Encrypt `encoded`. See RFC 9849, section 6.1.1. First, assemble the
   // extension with a placeholder value for ClientHelloOuterAAD. See RFC 9849,
   // section 5.2.
   const EVP_HPKE_KDF *kdf = EVP_HPKE_CTX_kdf(hs->ech_hpke_ctx.get());
@@ -857,7 +857,7 @@ bool ssl_encrypt_client_hello(SSL_HANDSHAKE *hs, Span<const uint8_t> enc) {
 
   // Construct ClientHelloOuterAAD.
   // TODO(https://crbug.com/boringssl/275): This ends up constructing the
-  // ClientHelloOuter twice. Instead, reuse |aad| for the ClientHello, now that
+  // ClientHelloOuter twice. Instead, reuse `aad` for the ClientHello, now that
   // draft-12 made the length prefixes match.
   bssl::ScopedCBB aad;
   if (!CBB_init(aad.get(), 256) ||
@@ -870,7 +870,7 @@ bool ssl_encrypt_client_hello(SSL_HANDSHAKE *hs, Span<const uint8_t> enc) {
     return false;
   }
 
-  // Replace the payload in |hs->ech_client_outer| with the encrypted value.
+  // Replace the payload in `hs->ech_client_outer` with the encrypted value.
   auto payload_span = Span(hs->ech_client_outer).last(payload_len);
   if (CRYPTO_fuzzer_mode_enabled()) {
     // In fuzzer mode, the server expects a cleartext payload.
@@ -917,10 +917,10 @@ int SSL_set1_ech_config_list(SSL *ssl, const uint8_t *ech_config_list,
 void SSL_get0_ech_name_override(const SSL *ssl, const char **out_name,
                                 size_t *out_name_len) {
   // When ECH is rejected, we use the public name. Note that, if
-  // |SSL_CTX_set_reverify_on_resume| is enabled, we reverify the certificate
+  // `SSL_CTX_set_reverify_on_resume` is enabled, we reverify the certificate
   // before the 0-RTT point. If also offering ECH, we verify as if
   // ClientHelloInner was accepted and do not override. This works because, at
-  // this point, |ech_status| will be |ssl_ech_none|. See the
+  // this point, `ech_status` will be `ssl_ech_none`. See the
   // ECH-Client-Reject-EarlyDataReject-OverrideNameOnRetry tests in runner.go.
   const SSL_HANDSHAKE *hs = ssl->s3->hs.get();
   if (!ssl->server && hs && ssl->s3->ech_status == ssl_ech_rejected) {
@@ -939,10 +939,10 @@ void SSL_get0_ech_retry_configs(const SSL *ssl,
   const SSL_HANDSHAKE *hs = ssl->s3->hs.get();
   if (!hs || !hs->ech_authenticated_reject) {
     // It is an error to call this function except in response to
-    // |SSL_R_ECH_REJECTED|. Returning an empty string risks the caller
+    // `SSL_R_ECH_REJECTED`. Returning an empty string risks the caller
     // mistakenly believing the server has disabled ECH. Instead, return a
     // non-empty ECHConfigList with a syntax error, so the subsequent
-    // |SSL_set1_ech_config_list| call will fail.
+    // `SSL_set1_ech_config_list` call will fail.
     assert(0);
     static const uint8_t kPlaceholder[] = {
         kECHConfigVersion >> 8, kECHConfigVersion & 0xff, 0xff, 0xff, 0xff};

@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -72,20 +73,18 @@ QuicConnectionId TestConnectionIdNineBytesLong(uint64_t connection_number);
 // Extracts the connection number passed to TestConnectionId().
 uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id);
 
-enum : uint16_t { kTestPort = 12345 };
-enum : uint32_t {
-  kMaxDatagramFrameSizeForTest = 1333,
-  kMaxPacketSizeForTest = 9001,
-  kInitialStreamFlowControlWindowForTest = 1024 * 1024,   // 1 MB
-  kInitialSessionFlowControlWindowForTest = 1536 * 1024,  // 1.5 MB
-};
+inline constexpr uint16_t kTestPort = 12345;
+inline constexpr uint32_t kMaxDatagramFrameSizeForTest = 1333;
+inline constexpr uint32_t kMaxPacketSizeForTest = 9001;
+inline constexpr uint32_t kInitialStreamFlowControlWindowForTest =
+    1024 * 1024;  // 1 MB
+inline constexpr uint32_t kInitialSessionFlowControlWindowForTest =
+    1536 * 1024;  // 1.5 MB
 
-enum : uint64_t {
-  kAckDelayExponentForTest = 10,
-  kMaxAckDelayForTest = 51,  // ms
-  kActiveConnectionIdLimitForTest = 52,
-  kMinAckDelayUsForTest = 1000
-};
+inline constexpr uint64_t kAckDelayExponentForTest = 10;
+inline constexpr uint64_t kMaxAckDelayForTest = 51;  // ms
+inline constexpr uint64_t kActiveConnectionIdLimitForTest = 52;
+inline constexpr uint64_t kMinAckDelayUsForTest = 1000;
 
 // Create an arbitrary stateless reset token, same across multiple calls.
 std::vector<uint8_t> CreateStatelessResetTokenForTest();
@@ -1104,6 +1103,9 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
     if (client_cert_mode_.has_value()) {
       ssl_config.client_cert_mode = *client_cert_mode_;
     }
+    if (server_padding_enabled_.has_value()) {
+      ssl_config.server_padding_enabled = *server_padding_enabled_;
+    }
 
     return ssl_config;
   }
@@ -1111,6 +1113,10 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
   void set_early_data_enabled(bool enabled) { early_data_enabled_ = enabled; }
 
   void set_client_cert_mode(ClientCertMode mode) { client_cert_mode_ = mode; }
+
+  void set_server_padding_enabled(std::optional<bool> enabled) {
+    server_padding_enabled_ = enabled;
+  }
 
  private:
   MockQuicSessionVisitor visitor_;
@@ -1121,6 +1127,9 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
   // If not nullopt, override the client_cert_mode value from base class'
   // ssl_config.
   std::optional<ClientCertMode> client_cert_mode_;
+  // If not nullopt, override the server_padding_enabled value from base class'
+  // ssl_config.
+  std::optional<bool> server_padding_enabled_;
 };
 
 class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
@@ -1585,6 +1594,8 @@ void CreateClientSessionForTest(
 //   server_session.
 // server_session: Pointer reference for the newly created server
 //   session.  The new object will be owned by the caller.
+// server_padding_enabled: If has_value(), override the server_padding_enabled
+//   setting for the session.
 void CreateServerSessionForTest(
     QuicServerId server_id, QuicTime::Delta connection_start_time,
     ParsedQuicVersionVector supported_versions,
@@ -1592,7 +1603,8 @@ void CreateServerSessionForTest(
     QuicCryptoServerConfig* server_crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     PacketSavingConnection** server_connection,
-    TestQuicSpdyServerSession** server_session);
+    TestQuicSpdyServerSession** server_session,
+    std::optional<bool> server_padding_enabled = std::nullopt);
 
 // Verifies that the relative error of |actual| with respect to |expected| is
 // no more than |margin|.
@@ -1754,9 +1766,7 @@ class TaggingEncrypter : public QuicEncrypter {
   }
 
  private:
-  enum {
-    kTagSize = 16,
-  };
+  static constexpr size_t kTagSize = 16;
 
   const uint8_t tag_;
 };
@@ -1817,9 +1827,7 @@ class TaggingDecrypter : public QuicDecrypter {
   }
 
  private:
-  enum {
-    kTagSize = 16,
-  };
+  static constexpr size_t kTagSize = 16;
 
   bool CheckTag(absl::string_view ciphertext, uint8_t tag);
 };

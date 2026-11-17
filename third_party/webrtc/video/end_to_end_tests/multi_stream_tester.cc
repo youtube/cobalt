@@ -60,8 +60,11 @@ void MultiStreamTester::RunTest() {
   // to make test more stable.
   auto network_thread = Thread::CreateWithSocketServer();
   network_thread->Start();
-  CallConfig sender_config(env);
-  CallConfig receiver_config(env);
+  CallConfig sender_config = CallConfig::CreateWithJoinedWorkerAndNetworkQueue(
+      env, network_thread.get());
+  CallConfig receiver_config =
+      CallConfig::CreateWithJoinedWorkerAndNetworkQueue(env,
+                                                        network_thread.get());
   std::unique_ptr<Call> sender_call;
   std::unique_ptr<Call> receiver_call;
   std::unique_ptr<test::DirectTransport> sender_transport;

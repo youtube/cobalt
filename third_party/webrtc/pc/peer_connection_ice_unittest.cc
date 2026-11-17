@@ -49,6 +49,7 @@
 #include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
 #include "test/create_test_environment.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
 #ifdef WEBRTC_ANDROID
@@ -1477,7 +1478,8 @@ class PeerConnectionIceConfigTest : public ::testing::Test {
         std::make_unique<VideoDecoderFactoryTemplate<
             LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter,
             OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>(),
-        nullptr /* audio_mixer */, nullptr /* audio_processing */);
+        nullptr /* audio_mixer */, nullptr /* audio_processing */,
+        nullptr /* audio_frame_processor */, CreateTestFieldTrialsPtr());
   }
   void CreatePeerConnection(const RTCConfiguration& config) {
     auto port_allocator = network_thread_->BlockingCall([&] {

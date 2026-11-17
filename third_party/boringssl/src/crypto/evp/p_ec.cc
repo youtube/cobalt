@@ -40,7 +40,7 @@ using namespace bssl;
 namespace {
 
 struct EVP_PKEY_ALG_EC : public EVP_PKEY_ALG {
-  // ec_group returns the |EC_GROUP| for this algorithm.
+  // ec_group returns the `EC_GROUP` for this algorithm.
   const EC_GROUP *(*ec_group)();
 };
 
@@ -81,7 +81,7 @@ static bssl::evp_decode_result_t eckey_pub_decode(const EVP_PKEY_ALG *alg,
 
   // See RFC 5480, section 2.
 
-  // Check that |params| matches |alg|. Only the namedCurve form is allowed.
+  // Check that `params` matches `alg`. Only the namedCurve form is allowed.
   const EC_GROUP *group = ec_alg->ec_group();
   if (ec_key_parse_curve_name(params, Span(&group, 1)) == nullptr) {
     if (ERR_equals(ERR_peek_last_error(), ERR_LIB_EC, EC_R_UNKNOWN_GROUP)) {

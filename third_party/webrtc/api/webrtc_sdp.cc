@@ -35,6 +35,7 @@
 #include "api/media_types.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/sctp_transport_interface.h"
@@ -799,7 +800,7 @@ bool ParseExtmap(absl::string_view line,
     }
   }
 
-  *extmap = RtpExtension(uri, value, encrypted);
+  *extmap = RtpExtension(uri, RtpHeaderExtensionId(value), encrypted);
   return true;
 }
 
@@ -1626,8 +1627,8 @@ bool ParseFingerprintAttribute(absl::string_view line,
   absl::c_transform(algorithm, algorithm.begin(), ::tolower);
 
   // The second field is the digest value. De-hexify it.
-  *fingerprint = SSLFingerprint::CreateUniqueFromRfc4572(algorithm, fields[1]);
-  if (!*fingerprint) {
+  *fingerprint = SSLFingerprint::CreateFromRfc4572(algorithm, fields[1]);
+  if (*fingerprint == nullptr) {
     return ParseFailed(line, "Failed to create fingerprint from the digest.",
                        error);
   }

@@ -1074,5 +1074,41 @@ TEST(AudioSendStreamTest, UseEncoderBitrateRange) {
   send_stream->Stop();
 }
 
+// Verifies that ReconfigureBitrateObserver() preserves the
+// BitrateAllocator registration when the WebRTC-Audio-ABWENoTWCC field trial
+// is enabled and TWCC is not negotiated for audio (i.e.
+// `include_in_congestion_control_allocation` is false). The Start() path
+// already short-circuits on `allocate_audio_without_feedback_`; this test
+// ensures the Reconfigure() path applies the same short-circuit.
+TEST(AudioSendStreamTest, AbweNoTwccTrialKeepsBaRegistrationOnReconfigure) {
+  ConfigHelper helper(/*audio_bwe_enabled=*/false,
+                      /*expect_set_encoder_call=*/true,
+                      /*use_null_audio_processing=*/true);
+  helper.field_trials().Set("WebRTC-Audio-ABWENoTWCC", "Enabled");
+  auto send_stream = helper.CreateAudioSendStream();
+
+  // Start() registers the stream with the BitrateAllocator.
+  EXPECT_CALL(*helper.bitrate_allocator(), AddObserver(send_stream.get(), _))
+      .Times(1);
+  EXPECT_CALL(*helper.channel_send(), StartSend());
+  send_stream->Start();
+
+  // Reconfigure with a different bitrate range. The observer should be
+  // re-added (update path) and must not be removed.
+  auto new_config = helper.config();
+  new_config.min_bitrate_bps = 12000;
+  new_config.max_bitrate_bps = 80000;
+  EXPECT_CALL(*helper.bitrate_allocator(), AddObserver(send_stream.get(), _))
+      .Times(1);
+  EXPECT_CALL(*helper.bitrate_allocator(), RemoveObserver(send_stream.get()))
+      .Times(0);
+  send_stream->Reconfigure(new_config, nullptr);
+
+  EXPECT_CALL(*helper.bitrate_allocator(), RemoveObserver(send_stream.get()))
+      .Times(1);
+  EXPECT_CALL(*helper.channel_send(), StopSend());
+  send_stream->Stop();
+}
+
 }  // namespace test
 }  // namespace webrtc

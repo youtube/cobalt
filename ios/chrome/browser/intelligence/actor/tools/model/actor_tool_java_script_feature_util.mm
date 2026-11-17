@@ -11,29 +11,6 @@
 
 namespace actor {
 
-void ParseJavaScriptResult(ToolExecutionCallback callback,
-                           const base::Value* result) {
-  // `result` being null indicates that the JS function call timed out.
-  // TODO(crbug.com/505037793): return a timeout error here.
-  if (!result || !result->is_dict()) {
-    std::move(callback).Run(ToolExecutionResult(
-        InternalToolErrorCode::kJavascriptFeatureGotInvalidResult));
-    return;
-  }
-  const base::DictValue& result_dict = result->GetDict();
-  bool success = result_dict.FindBool("success").value_or(false);
-  if (!success) {
-    const std::string* error_message = result_dict.FindString("message");
-    std::move(callback).Run(ToolExecutionResult(
-        // TODO(crbug.com/505037793): return more tool-specific errors.
-        InternalToolErrorCode::kJavascriptFeatureFailedInJavaScriptExecution,
-        /*requires_page_stabilization=*/false,
-        error_message ? *error_message : "Unknown error in JS."));
-    return;
-  }
-  std::move(callback).Run(ToolExecutionResult::Ok());
-}
-
 ToolExecutionResult ParseJavaScriptResultWithResultCode(
     base::FunctionRef<mojom::ActionResultCode(int)> resultCodeTranslator,
     const base::Value* result) {
@@ -54,11 +31,14 @@ ToolExecutionResult ParseJavaScriptResultWithResultCode(
         InternalToolErrorCode::kJavascriptFeatureGotInvalidResult);
   }
   int error_code = static_cast<int>(*error_code_double);
+  mojom::ActionResultCode external_code = resultCodeTranslator(error_code);
+  bool requires_page_stabilization =
+      (external_code == mojom::ActionResultCode::kOk);
   if (const std::string* message = result_dict.FindString("message"); message) {
-    return ToolExecutionResult(resultCodeTranslator(error_code),
-                               /*requires_page_stabilization=*/false, *message);
+    return ToolExecutionResult(external_code, requires_page_stabilization,
+                               *message);
   } else {
-    return ToolExecutionResult(resultCodeTranslator(error_code));
+    return ToolExecutionResult(external_code, requires_page_stabilization);
   }
 }
 

@@ -16,12 +16,12 @@ import type {CrRadioGroupElement} from 'chrome://resources/ash/common/cr_element
 import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 import type {LocalizedLinkElement} from 'chrome://resources/ash/common/cr_elements/localized_link/localized_link.js';
 import type {App} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
-import {AppType, WindowMode} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
-import {BrowserProxy} from 'chrome://resources/cr_components/app_management/browser_proxy.js';
+import {AppType, browserProxyFactory, WindowMode} from 'chrome://resources/cr_components/app_management/app_management.mojom-webui.js';
 import type {AppMap} from 'chrome://resources/cr_components/app_management/constants.js';
 import {AppManagementUserAction} from 'chrome://resources/cr_components/app_management/constants.js';
 import {castExists, recordAppManagementUserAction} from 'chrome://resources/cr_components/app_management/util.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './supported_links_item.html.js';
@@ -119,6 +119,9 @@ export class AppManagementSupportedLinksItemElement extends
    * in the browser.
    */
   private isDisabled_(app: App): boolean {
+    if (loadTimeData.getBoolean('updateAppStringsOnSettingsEnabled')) {
+      return app.disableUserChoiceNavigationCapturing;
+    }
     return app.type === AppType.kWeb && app.windowMode === WindowMode.kBrowser;
   }
 
@@ -127,8 +130,25 @@ export class AppManagementSupportedLinksItemElement extends
   }
 
   private getPreferredLabel_(app: App): string {
+    if (this.isBrowserTabAppSupportingExistingClient_(app)) {
+      return this.i18n(
+          'appManagementIntentSharingOpenExistingTabLabel', String(app.title));
+    }
     return this.i18n(
         'appManagementIntentSharingOpenAppLabel', String(app.title));
+  }
+
+  private getBrowserLabel_(app: App): string {
+    if (this.isBrowserTabAppSupportingExistingClient_(app)) {
+      return this.i18n('appManagementIntentSharingOpenNewTabLabel');
+    }
+    return this.i18n('appManagementIntentSharingOpenBrowserLabel');
+  }
+
+  private isBrowserTabAppSupportingExistingClient_(app: App): boolean {
+    return loadTimeData.getBoolean('updateAppStringsOnSettingsEnabled') &&
+        app.windowMode === WindowMode.kBrowser &&
+        !app.disableUserChoiceNavigationCapturing;
   }
 
   private getDisabledExplanation_(app: App): TrustedHTML {
@@ -146,9 +166,8 @@ export class AppManagementSupportedLinksItemElement extends
 
     let overlappingAppIds: string[] = [];
     try {
-      const {appIds: appIds} =
-          await BrowserProxy.getInstance().handler.getOverlappingPreferredApps(
-              app.id);
+      const {appIds: appIds} = await browserProxyFactory.getInstance()
+                                   .handler.getOverlappingPreferredApps(app.id);
       overlappingAppIds = appIds;
     } catch (err) {
       // If we fail to get the overlapping preferred apps, do not
@@ -220,8 +239,8 @@ export class AppManagementSupportedLinksItemElement extends
     let overlappingAppIds: string[] = [];
     try {
       const {appIds: appIds} =
-          await BrowserProxy.getInstance().handler.getOverlappingPreferredApps(
-              this.app.id);
+          await browserProxyFactory.getInstance()
+              .handler.getOverlappingPreferredApps(this.app.id);
       overlappingAppIds = appIds;
     } catch (err) {
       // If we fail to get the overlapping preferred apps, don't prevent the
@@ -269,7 +288,8 @@ export class AppManagementSupportedLinksItemElement extends
   private setAppAsPreferredApp_(preference: PreferenceType): void {
     const newState = preference === PREFERRED_APP_PREF;
 
-    BrowserProxy.getInstance().handler.setPreferredApp(this.app.id, newState);
+    browserProxyFactory.getInstance().handler.setPreferredApp(
+        this.app.id, newState);
 
     const userAction = newState ?
         AppManagementUserAction.PREFERRED_APP_TURNED_ON :

@@ -112,7 +112,7 @@ class MockProofVerifier : public ProofVerifier {
 
   MOCK_METHOD(QuicAsyncStatus, VerifyCertChain,
               (const std::string& hostname, uint16_t port,
-               const std::vector<std::string>& certs,
+               const std::vector<absl::string_view>& certs,
                const std::string& ocsp_response, const std::string& cert_sct,
                const ProofVerifyContext* context, std::string* error_details,
                std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
@@ -189,7 +189,7 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
 
  protected:
   QuicAsyncStatus VerifyCertChain(
-      const std::vector<std::string>& certs, std::string* error_details,
+      const std::vector<absl::string_view>& certs, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     received_client_cert_ = true;
@@ -562,6 +562,28 @@ TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
             AlpnForVersion(server_stream()->version()));
   EXPECT_NE(server_stream()->Ciphersuite(), nullptr);
 }
+
+#if BORINGSSL_API_VERSION >= 41
+TEST_P(TlsServerHandshakerTest, HandshakeWithServerPaddingNotEnabledByServer) {
+  SetQuicRestartFlag(tls_server_padding_support, false);
+  client_crypto_config_->ssl_config().server_padding_to_request = 128;
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(client_stream()->ServerPaddingSentForTesting());
+}
+
+TEST_P(TlsServerHandshakerTest, HandshakeWithServerPaddingEnabledByServer) {
+  SetQuicRestartFlag(tls_server_padding_support, true);
+  client_crypto_config_->ssl_config().server_padding_to_request = 128;
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(client_stream()->ServerPaddingSentForTesting());
+}
+#endif
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {
   InitializeServerWithFakeProofSourceHandle();

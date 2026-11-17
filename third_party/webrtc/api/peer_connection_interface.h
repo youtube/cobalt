@@ -1552,7 +1552,10 @@ class RTC_EXPORT PeerConnectionFactoryInterface : public RefCountInterface {
       const std::string& stream_id) = 0;
 
   // Creates an AudioSourceInterface.
-  // `options` decides audio processing settings.
+  // The `options` specified here are elevated and applied globally at the media
+  // engine level to configure global audio processing settings (like APM
+  // options for AEC, AGC, and NS). These options persist reliably across stream
+  // lifecycles.
   virtual scoped_refptr<AudioSourceInterface> CreateAudioSource(
       const AudioOptions& options) = 0;
 

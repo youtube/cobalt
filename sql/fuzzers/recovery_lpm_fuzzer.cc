@@ -142,7 +142,11 @@ class Environment {
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     base::CommandLine::Init(0, nullptr);
     base::FilePath shmem_temp_dir;
-    CHECK(base::GetShmemTempDir(false, &shmem_temp_dir));
+    if (char* env_shmdir = std::getenv("SQL_RECOVERY_FUZZER_TEMP_DIR")) {
+      shmem_temp_dir = base::FilePath(env_shmdir);
+    } else {
+      CHECK(base::GetShmemTempDir(false, &shmem_temp_dir));
+    }
     base::ScopedTempDir temp_dir;
     CHECK(temp_dir.CreateUniqueTempDirUnderPath(shmem_temp_dir));
     return temp_dir;
@@ -284,8 +288,8 @@ DEFINE_PROTO_FUZZER(const sql_fuzzers::RecoveryFuzzerTestCase& fuzzer_input) {
 
   // Mutate the backing file. Skip the expensive file operations when there are
   // no bytes to mutate.
-  std::optional<int64_t> file_length = GetFileSize(env.db_path());
-  if (*file_length > 0) {
+  std::optional<int64_t> file_length = base::GetFileSize(env.db_path());
+  if (file_length.has_value() && *file_length > 0) {
     base::File file(env.db_path(), base::File::FLAG_OPEN |
                                        base::File::FLAG_READ |
                                        base::File::FLAG_WRITE);

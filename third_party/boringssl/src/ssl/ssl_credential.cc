@@ -193,8 +193,8 @@ bool SSLCredential::UsesPrivateKey() const {
 }
 
 bool SSLCredential::IsComplete() const {
-  // APIs like |SSL_use_certificate| and |SSL_set1_chain| configure the leaf and
-  // other certificates separately. It is possible for |chain| have a null leaf.
+  // APIs like `SSL_use_certificate` and `SSL_set1_chain` configure the leaf and
+  // other certificates separately. It is possible for `chain` have a null leaf.
   if (UsesX509() && (sk_CRYPTO_BUFFER_num(chain.get()) == 0 ||
                      sk_CRYPTO_BUFFER_value(chain.get(), 0) == nullptr)) {
     return false;
@@ -408,7 +408,7 @@ void SSL_CREDENTIAL_up_ref(SSL_CREDENTIAL *cred) {
 }
 
 SSL_CREDENTIAL *SSL_CREDENTIAL_dup_ref(const SSL_CREDENTIAL *cred) {
-  // Safety: we do not mutate the internal state of |cred| other than the
+  // Safety: we do not mutate the internal state of `cred` other than the
   // ref-count atomic variable.
   auto *cred_impl = FromOpaque(const_cast<SSL_CREDENTIAL *>(cred));
   cred_impl->UpRefInternal();
@@ -432,7 +432,7 @@ int SSL_CREDENTIAL_set1_private_key(SSL_CREDENTIAL *cred, EVP_PKEY *key) {
     return 0;
   }
 
-  // If the public half has been configured, check |key| matches. |pubkey| will
+  // If the public half has been configured, check `key` matches. `pubkey` will
   // have been extracted from the certificate, delegated credential, etc.
   if (cred_impl->pubkey != nullptr &&
       !ssl_compare_public_and_private_key(cred_impl->pubkey.get(), key)) {
@@ -765,9 +765,9 @@ int SSL_CREDENTIAL_set1_certificate_properties(
   }
   // Certificate property list has parsed correctly.
 
-  // We do not currently retain |cert_property_list|, but if we define another
+  // We do not currently retain `cert_property_list`, but if we define another
   // property with larger fields (e.g. stapled SCTs), it may make sense for
-  // those fields to retain |cert_property_list| and alias into it.
+  // those fields to retain `cert_property_list` and alias into it.
   if (trust_anchor.has_value()) {
     if (!CBS_len(&trust_anchor.value())) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_TRUST_ANCHOR_LIST);

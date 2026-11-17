@@ -51,6 +51,7 @@ PublishedObject DefaultObject() {
   object.metadata.location = Location(0, 0);
   object.metadata.subgroup = 0;
   object.metadata.status = MoqtObjectStatus::kNormal;
+  object.metadata.first_object_in_subgroup = true;
   object.metadata.arrival_time = quic::QuicTime::Zero();
   object.metadata.payload_length = 7;
   object.payload.push_back(quiche::QuicheMemSlice::Copy("payload"));
@@ -120,7 +121,7 @@ class OutgoingSubgroupStreamTest : public quic::test::QuicTest {
     EXPECT_CALL(visitor_, alarm_factory()).WillOnce(Return(&alarm_factory_));
   }
 
-  MoqtFramer framer_{true};
+  MoqtFramer framer_{true, quic::Perspective::IS_CLIENT};
   StrictMock<webtransport::test::MockStream> mock_stream_;
   DataStreamIndex index_;
   std::shared_ptr<StrictMock<MockTrackPublisher>> track_publisher_;
@@ -349,7 +350,7 @@ class OutgoingFetchStreamTest : public quic::test::QuicTest {
   }
 
  protected:
-  MoqtFramer framer_{true};
+  MoqtFramer framer_{true, quic::Perspective::IS_CLIENT};
   StrictMock<webtransport::test::MockStream> mock_stream_;
   std::unique_ptr<StrictMock<MockFetchTask>> task_;
   MockFetchTask* task_ptr_;
@@ -463,8 +464,9 @@ MoqtObject kDefaultObject = {
     0x80,  // publisher_priority
     "",    // extension_headers
     MoqtObjectStatus::kNormal,
-    0,  // subgroup_id
-    0,  // payload_length
+    0,     // subgroup_id
+    true,  // first_object_in_subgroup
+    0,     // payload_length
 };
 
 class MockSessionToUniStreamInterface : public SessionToUniStreamInterface {
@@ -539,7 +541,7 @@ TEST_F(IncomingDataStreamTest, DestructorBeforeTrackAlias) {
 }
 
 TEST_F(IncomingDataStreamTest, DestructorAfterObject) {
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   ProcessAlias(2);
   EXPECT_CALL(visitor_, OnObjectFragment);
   stream_->OnObjectMessage(kDefaultObject, "", true);
@@ -548,7 +550,7 @@ TEST_F(IncomingDataStreamTest, DestructorAfterObject) {
 }
 
 TEST_F(IncomingDataStreamTest, DestructorAfterFin) {
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   ProcessAlias(2);
   EXPECT_CALL(visitor_, OnObjectFragment);
   stream_->OnObjectMessage(kDefaultObject, "", true);
@@ -570,7 +572,7 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageNoTrackAliasError) {
 }
 
 TEST_F(IncomingDataStreamTest, OnObjectMessage) {
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   ProcessAlias(2);
   MoqtObject object = kDefaultObject;
   object.payload_length = 8;
@@ -592,7 +594,7 @@ TEST_F(IncomingDataStreamTest, OnObjectMessage) {
 }
 
 TEST_F(IncomingDataStreamTest, OnObjectMessageBufferPartialObject) {
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   ProcessAlias(2);
   MoqtObject object = kDefaultObject;
   object.payload_length = 6;
@@ -611,7 +613,7 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageBufferPartialObject) {
 
 TEST_F(IncomingDataStreamTest, OnObjectMessageDontBufferPartialObject) {
   EXPECT_CALL(session_, deliver_partial_objects()).WillRepeatedly(Return(true));
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   ProcessAlias(2);
   MoqtObject object = kDefaultObject;
   object.payload_length = 6;
@@ -647,8 +649,64 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageDontBufferPartialObject) {
   stream_->OnObjectMessage(object, "foobaz", true);
 }
 
+TEST_F(IncomingDataStreamTest, PartialObjectFetch) {
+  EXPECT_CALL(session_, deliver_partial_objects()).WillRepeatedly(Return(true));
+  MoqtFetch fetch;
+  fetch.request_id = 3;
+  StandaloneFetch standalone(ftn_, Location(0, 0), Location(0, 9));
+  int objects_available_callbacks = 0;
+  std::unique_ptr<MoqtFetchTask> fetch_task;
+  auto upstream_fetch = std::make_unique<UpstreamFetch>(
+      fetch, standalone,
+      [&](std::unique_ptr<MoqtFetchTask> t) { fetch_task = std::move(t); },
+      []() {});
+  upstream_fetch->OnFetchResult(Location(0, 9), absl::OkStatus(), []() {});
+  UpstreamFetch::UpstreamFetchTask* task = upstream_fetch->task();
+  task->SetObjectAvailableCallback([&]() { ++objects_available_callbacks; });
+
+  uint8_t stream_header[] = {0x05, 0x03};
+  mock_stream_.Receive(
+      absl::string_view(reinterpret_cast<const char*>(stream_header), 2),
+      false);
+  EXPECT_CALL(session_, GetFetch(3))
+      .WillOnce(Return(upstream_fetch->weak_ptr()));
+  stream_->OnCanRead();
+
+  MoqtObject sent_object = MoqtObject(
+      /*request_id=*/0, /*group_id=*/0,
+      /*object_id=*/0, /*publisher_priority=*/0x80, /*extension_headers=*/"",
+      MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
+      /*first_object_in_subgroup=*/true, /*payload_length=*/12);
+  stream_->OnObjectMessage(sent_object, "foo", false);
+  task->NotifyNewObject();
+  EXPECT_EQ(objects_available_callbacks, 1);
+  PublishedObject received_object;
+  EXPECT_EQ(task->GetNextObject(received_object),
+            MoqtFetchTask::GetNextObjectResult::kSuccess);
+  EXPECT_EQ(task->GetNextObject(received_object),
+            MoqtFetchTask::GetNextObjectResult::kPending);
+  EXPECT_EQ(sent_object.object_id, received_object.metadata.location.object);
+  EXPECT_EQ("foo", received_object.payload[0].AsStringView());
+  // Second and third fragments.
+  stream_->OnObjectMessage(sent_object, "bar", false);
+  task->NotifyNewObject();
+  EXPECT_EQ(objects_available_callbacks, 2);
+  stream_->OnObjectMessage(sent_object, "baz", false);
+  task->NotifyNewObject();
+  EXPECT_EQ(objects_available_callbacks, 2);
+  received_object.payload.clear();
+  EXPECT_EQ(task->GetNextObject(received_object),
+            MoqtFetchTask::GetNextObjectResult::kSuccess);
+  EXPECT_EQ(task->GetNextObject(received_object),
+            MoqtFetchTask::GetNextObjectResult::kPending);
+  EXPECT_EQ(sent_object.object_id, received_object.metadata.location.object);
+  ASSERT_EQ(received_object.payload.size(), 2);
+  EXPECT_EQ("bar", received_object.payload[0].AsStringView());
+  EXPECT_EQ("baz", received_object.payload[1].AsStringView());
+}
+
 TEST_F(IncomingDataStreamTest, OnObjectMessageInvalidTrack) {
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   uint8_t alias = 2;
   mock_stream_.Receive(
       absl::string_view(reinterpret_cast<const char*>(&alias), 1), false);
@@ -659,15 +717,17 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageInvalidTrack) {
 }
 
 TEST_F(IncomingDataStreamTest, OnObjectMessageNotInWindow) {
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   ProcessAlias(2);
-  track_->parameters().set_forward(false);
+  MessageParameters parameters;
+  parameters.set_forward(false);
+  track_->Update(parameters);
   EXPECT_CALL(visitor_, OnObjectFragment).Times(0);
   stream_->OnObjectMessage(kDefaultObject, "", true);
 }
 
 TEST_F(IncomingDataStreamTest, OnObjectMessageMissingSubgroupId) {
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   ProcessAlias(2);
   MoqtObject object = kDefaultObject;
   object.subgroup_id = std::nullopt;
@@ -676,7 +736,7 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageMissingSubgroupId) {
 }
 
 TEST_F(IncomingDataStreamTest, ObjectAfterTrackEnd) {
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   ProcessAlias(2);
   MoqtObject object = kDefaultObject;
   object.object_status = MoqtObjectStatus::kEndOfTrack;
@@ -691,7 +751,7 @@ TEST_F(IncomingDataStreamTest, ObjectAfterTrackEnd) {
 }
 
 TEST_F(IncomingDataStreamTest, ObjectAfterGroupEnd) {
-  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80, true));
   ProcessAlias(2);
   MoqtObject object = kDefaultObject;
   object.object_status = MoqtObjectStatus::kEndOfGroup;

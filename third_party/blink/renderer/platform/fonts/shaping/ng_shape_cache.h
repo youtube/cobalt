@@ -33,6 +33,7 @@
 #include "base/memory_coordinator/memory_consumer_registry.h"
 #include "base/memory_coordinator/traits.h"
 #include "base/task/single_thread_task_runner.h"
+#include "third_party/blink/renderer/platform/fonts/font_performance.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/prefinalizer.h"
@@ -188,13 +189,22 @@ class NGShapeCache : public GarbageCollected<NGShapeCache>,
 
   static constexpr char kConsumerId[] = "NGShapeCache";
   static constexpr base::MemoryConsumerTraits kNGShapeCacheTraits{
+      // Bounded entries of short strings; footprint under 10MB.
       base::MemoryConsumerTraits::EstimatedMemoryUsage::kSmall,
+      // Clearing maps requires traversing hash map structures.
       base::MemoryConsumerTraits::ReleaseMemoryCost::kRequiresTraversal,
+      // Results can be shaped again if cleared.
       base::MemoryConsumerTraits::InformationRetention::kLossless,
+      // Synchronously clears maps.
       base::MemoryConsumerTraits::ExecutionType::kSynchronous,
+      // Fixed entry limit that is independent to memory pressure.
       base::MemoryConsumerTraits::SupportsMemoryLimit::kNo,
+      // Shaping short text runs is fast.
       base::MemoryConsumerTraits::RecreateMemoryCost::kCheap,
-      base::MemoryConsumerTraits::ReleaseGCReferences::kYes};
+      // Drops pointers allocated on the Oilpan heap.
+      base::MemoryConsumerTraits::ReleaseGCReferences::kYes,
+      // Performs a one-shot eviction of the whole cache when under pressure.
+      base::MemoryConsumerTraits::IsStateful::kNo};
 
   template <typename StringMap, typename ShapeResultFunc>
   const ShapeResult* GetOrCreateImpl(StringMap& map,
@@ -202,12 +212,17 @@ class NGShapeCache : public GarbageCollected<NGShapeCache>,
                                      const ShapeResultFunc& shape_result_func) {
     if (map.size() >= kMaxSize) [[unlikely]] {
       const auto it = map.find(key);
-      return (it != map.end() && it->value) ? it->value.Get()
-                                            : shape_result_func().shape_result;
+      if (it != map.end() && it->value) {
+        FontPerformance::AddShapeCacheHit();
+        return it->value.Get();
+      }
+      FontPerformance::AddShapeCacheMiss();
+      return shape_result_func().shape_result;
     }
 
     const auto add_result = map.insert(key, nullptr);
     if (const auto* cached_result = add_result.stored_value->value.Get()) {
+      FontPerformance::AddShapeCacheHit();
       // Verify that the cache is consistent.
 #if EXPENSIVE_DCHECKS_ARE_ON()
       const auto [other_shape_result, can_cache_other] = shape_result_func();
@@ -234,6 +249,7 @@ class NGShapeCache : public GarbageCollected<NGShapeCache>,
       return cached_result;
     }
 
+    FontPerformance::AddShapeCacheMiss();
     const auto [shape_result, can_cache] = shape_result_func();
 
     // Only shape-results without font-fallback are valid, because the cache is

@@ -47,7 +47,6 @@
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/page_content_annotations/content/page_content_extraction_service.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
-#include "components/page_content_annotations/core/page_content_cache.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/base/big_buffer.h"
@@ -339,19 +338,13 @@ ComposeboxQueryControllerBridge::AddTabContextFromCache(JNIEnv* env,
   page_content_annotations::PageContentExtractionService* service =
       page_content_annotations::PageContentExtractionServiceFactory::
           GetForProfile(profile_);
-  if (!service) {
-    return {};
-  }
-
-  page_content_annotations::PageContentCache* cache =
-      service->GetPageContentCache();
-  if (!cache) {
+  if (!service || !service->IsOnDiskCacheEnabled()) {
     return {};
   }
 
   base::UnguessableToken file_token = session_handle_->CreateContextToken();
 
-  cache->GetPageContentForTab(
+  service->GetPageContentFromOnDiskCache(
       tab_id, base::BindOnce(
                   &ComposeboxQueryControllerBridge::OnGetPageContentFromCache,
                   weak_ptr_factory_.GetWeakPtr(), env, file_token,
@@ -766,7 +759,7 @@ void ComposeboxQueryControllerBridge::SubmitQueryToAimPage(
             query_text, self->session_handle_.get(),
             self->contextual_tasks_web_ui_interface_, active_tool, active_model,
             /*active_tab_context_id=*/std::nullopt,
-            /*overlay_token=*/std::nullopt);
+            /*overlay_token=*/std::nullopt, /*is_voice_search=*/false);
 
         contextual_tasks::FinalizeAndSendAimQuery(
             std::move(request_info), self->session_handle_.get(),

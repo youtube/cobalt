@@ -12,8 +12,10 @@ import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /** The set of common properties associated with any omnibox suggestion. */
 @NullMarked
@@ -27,6 +29,34 @@ public @interface SuggestionCommonProperties {
         int TABLET = 2;
     }
 
+    /**
+     * The positional mode of a suggestion within its visual group. Used to determine which corners
+     * of the suggestion background should be rounded.
+     */
+    @IntDef({
+        PositionalMode.MIDDLE,
+        PositionalMode.TOP,
+        PositionalMode.BOTTOM,
+        PositionalMode.SINGLE
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface PositionalMode {
+        int MIDDLE = 0;
+        int TOP = 1;
+        int BOTTOM = 2;
+        int SINGLE = 3;
+    }
+
+    /** The sides of the suggestion background that are allowed to be rounded. */
+    @Target(ElementType.TYPE_USE)
+    @IntDef({RoundSides.NONE, RoundSides.BOTTOM_ONLY, RoundSides.TOP_AND_BOTTOM})
+    @Retention(RetentionPolicy.SOURCE)
+    @interface RoundSides {
+        int NONE = 0;
+        int BOTTOM_ONLY = 1;
+        int TOP_AND_BOTTOM = 2;
+    }
+
     /** Whether dark colors should be applied to text, icons. */
     WritableIntPropertyKey COLOR_SCHEME = new WritableIntPropertyKey();
 
@@ -36,11 +66,11 @@ public @interface SuggestionCommonProperties {
     /** The device type for calculating the tile margin in the suggestion view. */
     WritableIntPropertyKey DEVICE_FORM_FACTOR = new WritableIntPropertyKey();
 
-    /** Whether the suggestion background's top corners should be rounded. */
-    WritableBooleanPropertyKey BG_TOP_CORNER_ROUNDED = new WritableBooleanPropertyKey();
+    /** The positional mode of the suggestion in its group, used for corner rounding. */
+    WritableIntPropertyKey BG_POSITIONAL_MODE = new WritableIntPropertyKey();
 
-    /** Whether the suggestion background's bottom corners should be rounded. */
-    WritableBooleanPropertyKey BG_BOTTOM_CORNER_ROUNDED = new WritableBooleanPropertyKey();
+    /** The sides of the suggestion background that are allowed to be rounded. */
+    WritableIntPropertyKey BG_ROUND_SIDES = new WritableIntPropertyKey();
 
     /** Whether a divider should be shown at the bottom of the suggestion. */
     WritableBooleanPropertyKey SHOW_DIVIDER = new WritableBooleanPropertyKey();
@@ -62,8 +92,8 @@ public @interface SuggestionCommonProperties {
                 COLOR_SCHEME,
                 LAYOUT_DIRECTION,
                 DEVICE_FORM_FACTOR,
-                BG_TOP_CORNER_ROUNDED,
-                BG_BOTTOM_CORNER_ROUNDED,
+                BG_POSITIONAL_MODE,
+                BG_ROUND_SIDES,
                 SHOW_DIVIDER,
                 SHOW_GROUP_SEPARATOR,
                 HEADER_TITLE,

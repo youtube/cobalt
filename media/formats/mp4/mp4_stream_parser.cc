@@ -238,7 +238,7 @@ void MP4StreamParser::Init(
   encrypted_media_init_data_cb_ = std::move(encrypted_media_init_data_cb);
   new_segment_cb_ = std::move(new_segment_cb);
   end_of_segment_cb_ = std::move(end_of_segment_cb);
-  media_log_ = media_log;
+  media_log_ = MediaLog::CloneSafely(media_log);
 }
 
 void MP4StreamParser::Reset() {
@@ -553,7 +553,7 @@ ParseResult MP4StreamParser::ParseBox() {
     }
 
     result = BoxReader::ReadTopLevelBox(
-        contiguous_span, media_log_, &reader);
+        contiguous_span, media_log_.get(), &reader);
 
     if (result == ParseResult::kNeedMoreData) {
       const size_t available = base::checked_cast<size_t>(
@@ -570,7 +570,7 @@ ParseResult MP4StreamParser::ParseBox() {
 
       result = ReadTopLevelBoxHeaderAt(
           *segmented_queue_, segmented_queue_->head(), max_parse_offset_,
-          media_log_, &type, &box_size);
+          media_log_.get(), &type, &box_size);
       if (result != ParseResult::kOk) {
         // Not enough data for the box header.
         return result;
@@ -600,7 +600,7 @@ ParseResult MP4StreamParser::ParseBox() {
         return ParseResult::kError;
       }
 
-      result = BoxReader::ReadTopLevelBox(*box, media_log_, &reader);
+      result = BoxReader::ReadTopLevelBox(*box, media_log_.get(), &reader);
     }
   } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -611,7 +611,7 @@ ParseResult MP4StreamParser::ParseBox() {
       return ParseResult::kNeedMoreData;
     }
 
-    result = BoxReader::ReadTopLevelBox(buf, media_log_, &reader);
+    result = BoxReader::ReadTopLevelBox(buf, media_log_.get(), &reader);
   }
 
   if (result != ParseResult::kOk)
@@ -1208,7 +1208,7 @@ bool MP4StreamParser::ParseMoof(BoxReader* reader) {
   MovieFragment moof;
   RCHECK(moof.Parse(reader));
   if (!runs_)
-    runs_ = std::make_unique<TrackRunIterator>(moov_.get(), media_log_);
+    runs_ = std::make_unique<TrackRunIterator>(moov_.get(), media_log_.get());
   RCHECK(runs_->Init(moof));
   RCHECK(ComputeHighestEndOffset(moof));
 
@@ -1719,14 +1719,15 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(int64_t max_clear_offset) {
       // each appended buffer once its samples have been emitted, instead of
       // retaining the whole mdat until its last byte arrives.
       result = ReadTopLevelBoxHeaderAt(*segmented_queue_, mdat_tail_,
-                                       max_parse_offset_, media_log_, &type,
-                                       &box_sz);
+                                       max_parse_offset_, media_log_.get(),
+                                       &type, &box_sz);
     } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     {
       base::span<const uint8_t> buf = ModulatedPeekAt(mdat_tail_);
 
-      result = BoxReader::StartTopLevelBox(buf, media_log_, &type, &box_sz);
+      result =
+          BoxReader::StartTopLevelBox(buf, media_log_.get(), &type, &box_sz);
     }
     if (result != ParseResult::kOk)
       break;
@@ -1781,7 +1782,7 @@ bool MP4StreamParser::HaveEnoughDataToEnqueueSamples() {
 bool MP4StreamParser::ComputeHighestEndOffset(const MovieFragment& moof) {
   highest_end_offset_ = 0;
 
-  TrackRunIterator runs(moov_.get(), media_log_);
+  TrackRunIterator runs(moov_.get(), media_log_.get());
   RCHECK(runs.Init(moof));
 
   while (runs.IsRunValid()) {

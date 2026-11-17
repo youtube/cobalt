@@ -593,6 +593,7 @@ rtc_library("neteq_test_tools") {
     ":neteq_tools",
     ":neteq_tools_minimal",
     ":pcm16b",
+    "../../api:rtp_header_extension_id",
     "../../api:rtp_headers",
     "../../api/units:timestamp",
     "../../common_audio",
@@ -1208,6 +1209,7 @@ if (rtc_include_tests) {
 
       deps = [
         ":neteq_test_tools",
+        "../../api:rtp_header_extension_id",
         "../../api:rtp_headers",
         "../../rtc_base:checks",
         "../rtp_rtcp:rtp_rtcp_format",

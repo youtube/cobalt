@@ -712,7 +712,7 @@ RecentTabsSubMenuModel::CreateWindowSubMenuModel(
   window_model->AddItemWithStringIdAndIcon(
       restore_all_command_id, IDS_RESTORE_WINDOW,
       ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
-                                         ? vector_icons::kOpenInNewIcon
+                                         ? vector_icons::kOpenInNewFlippableIcon
                                          : vector_icons::kLaunchOldIcon));
   local_window_items_.emplace(restore_all_command_id, window.id);
   window_model->AddSeparator(ui::NORMAL_SEPARATOR);
@@ -761,7 +761,7 @@ RecentTabsSubMenuModel::CreateGroupSubMenuModel(
   group_model->AddItemWithStringIdAndIcon(
       command_id, IDS_RESTORE_GROUP,
       ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
-                                         ? vector_icons::kOpenInNewIcon
+                                         ? vector_icons::kOpenInNewFlippableIcon
                                          : vector_icons::kLaunchOldIcon));
   local_group_items_.emplace(command_id, group.id);
   group_model->AddSeparator(ui::NORMAL_SEPARATOR);
@@ -781,7 +781,7 @@ RecentTabsSubMenuModel::CreateSplitSubMenuModel(
       std::make_unique<ui::SimpleMenuModel>(this);
   int command_id = GetAndIncrementNextMenuID();
   split_model->AddItemWithStringIdAndIcon(
-      command_id, IDS_RESTORE_ALL_TABS,
+      command_id, IDS_RESTORE_SPLIT,
       ui::ImageModel::FromVectorIcon(vector_icons::kLaunchOldIcon));
   local_split_items_.emplace(command_id, split.id);
   split_model->AddSeparator(ui::NORMAL_SEPARATOR);

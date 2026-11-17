@@ -23,6 +23,7 @@
 #include "api/environment/environment_factory.h"
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -319,7 +320,7 @@ TEST_F(RtpVideoStreamReceiver2Test, CacheColorSpaceFromLastPacketOfKeyframe) {
 
     RtpPacketReceived NextPacket() {
       RtpHeaderExtensionMap extension_map;
-      extension_map.Register<ColorSpaceExtension>(1);
+      extension_map.Register<ColorSpaceExtension>(RtpHeaderExtensionId(1));
       RtpPacketToSend packet_to_send(&extension_map);
       packet_to_send.SetSequenceNumber(sequence_number_++);
       packet_to_send.SetSsrc(kSsrc);
@@ -421,7 +422,8 @@ class ReceivedPacketGenerator {
 
   RtpPacketReceived NextPacket(bool include_corruption_header) {
     RtpHeaderExtensionMap extension_map;
-    extension_map.Register<CorruptionDetectionExtension>(/*id=*/1);
+    extension_map.Register<CorruptionDetectionExtension>(
+        RtpHeaderExtensionId(/*id=*/1));
     RtpPacketToSend packet_to_send(&extension_map);
     packet_to_send.SetSequenceNumber(sequence_number_++);
     packet_to_send.SetSsrc(kSsrc);
@@ -660,7 +662,7 @@ TEST_F(RtpVideoStreamReceiver2Test, SetProtectionPayloadTypes) {
 
 TEST_F(RtpVideoStreamReceiver2Test, PacketInfoIsPropagatedIntoVideoFrames) {
   constexpr uint64_t kAbsoluteCaptureTimestamp = 12;
-  constexpr int kId0 = 1;
+  constexpr RtpHeaderExtensionId kId0(1);
 
   RtpHeaderExtensionMap extension_map;
   extension_map.Register<AbsoluteCaptureTimeExtension>(kId0);
@@ -690,7 +692,7 @@ TEST_F(RtpVideoStreamReceiver2Test, PacketInfoIsPropagatedIntoVideoFrames) {
 TEST_F(RtpVideoStreamReceiver2Test,
        MissingAbsoluteCaptureTimeIsFilledWithExtrapolatedValue) {
   constexpr uint64_t kAbsoluteCaptureTimestamp = 12;
-  constexpr int kId0 = 1;
+  constexpr RtpHeaderExtensionId kId0(1);
 
   RtpHeaderExtensionMap extension_map;
   extension_map.Register<AbsoluteCaptureTimeExtension>(kId0);
@@ -1167,7 +1169,8 @@ TEST_F(RtpVideoStreamReceiver2Test, ParseGenericDescriptorOnePacket) {
   rtp_video_stream_receiver_->StartReceive();
 
   RtpHeaderExtensionMap extension_map;
-  extension_map.Register<RtpGenericFrameDescriptorExtension00>(5);
+  extension_map.Register<RtpGenericFrameDescriptorExtension00>(
+      RtpHeaderExtensionId(5));
   RtpPacketReceived rtp_packet(&extension_map);
   rtp_packet.SetPayloadType(kPayloadType);
 
@@ -1210,7 +1213,8 @@ TEST_F(RtpVideoStreamReceiver2Test, ParseGenericDescriptorTwoPackets) {
   rtp_video_stream_receiver_->StartReceive();
 
   RtpHeaderExtensionMap extension_map;
-  extension_map.Register<RtpGenericFrameDescriptorExtension00>(5);
+  extension_map.Register<RtpGenericFrameDescriptorExtension00>(
+      RtpHeaderExtensionId(5));
   RtpPacketReceived first_packet(&extension_map);
 
   RtpGenericFrameDescriptor first_packet_descriptor;
@@ -1271,7 +1275,8 @@ TEST_F(RtpVideoStreamReceiver2Test, ParseGenericDescriptorRawPayload) {
   rtp_video_stream_receiver_->StartReceive();
 
   RtpHeaderExtensionMap extension_map;
-  extension_map.Register<RtpGenericFrameDescriptorExtension00>(5);
+  extension_map.Register<RtpGenericFrameDescriptorExtension00>(
+      RtpHeaderExtensionId(5));
   RtpPacketReceived rtp_packet(&extension_map);
 
   RtpGenericFrameDescriptor generic_descriptor;
@@ -1302,7 +1307,8 @@ TEST_F(RtpVideoStreamReceiver2Test, UnwrapsFrameId) {
                                               /*raw_payload=*/true);
   rtp_video_stream_receiver_->StartReceive();
   RtpHeaderExtensionMap extension_map;
-  extension_map.Register<RtpGenericFrameDescriptorExtension00>(5);
+  extension_map.Register<RtpGenericFrameDescriptorExtension00>(
+      RtpHeaderExtensionId(5));
 
   uint16_t rtp_sequence_number = 1;
   auto inject_packet = [&](uint16_t wrapped_frame_id) {
@@ -1346,7 +1352,8 @@ class RtpVideoStreamReceiver2DependencyDescriptorTest
     rtp_video_stream_receiver_->AddReceiveCodec(payload_type_,
                                                 kVideoCodecGeneric, {},
                                                 /*raw_payload=*/true);
-    extension_map_.Register<RtpDependencyDescriptorExtension>(7);
+    extension_map_.Register<RtpDependencyDescriptorExtension>(
+        RtpHeaderExtensionId(7));
     rtp_video_stream_receiver_->StartReceive();
   }
 
@@ -1663,7 +1670,7 @@ TEST_F(RtpVideoStreamReceiver2Test, TransformFrameWithAbsoluteCaptureTime) {
   receiver->AddReceiveCodec(kPayloadType, kVideoCodecGeneric, {},
                             /*raw_payload=*/false);
 
-  constexpr int kId0 = 1;
+  constexpr RtpHeaderExtensionId kId0(1);
   RtpHeaderExtensionMap extension_map;
   extension_map.Register<AbsoluteCaptureTimeExtension>(kId0);
   RtpPacketReceived rtp_packet(&extension_map);
@@ -1732,7 +1739,7 @@ INSTANTIATE_TEST_SUITE_P(PlayoutDelay,
 TEST_P(RtpVideoStreamReceiver2TestPlayoutDelay, PlayoutDelay) {
   CopyOnWriteBuffer payload_data({'1', '2', '3', '4'});
   RtpHeaderExtensionMap extension_map;
-  extension_map.Register<PlayoutDelayLimits>(1);
+  extension_map.Register<PlayoutDelayLimits>(RtpHeaderExtensionId(1));
   RtpPacketToSend packet_to_send(&extension_map);
   packet_to_send.SetPayloadType(kPayloadType);
   packet_to_send.SetSequenceNumber(1);

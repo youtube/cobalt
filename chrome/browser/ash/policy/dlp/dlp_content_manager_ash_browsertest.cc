@@ -314,7 +314,7 @@ IN_PROC_BROWSER_TEST_P(ScreenshotTest, CheckRestriction) {
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
   ScreenshotArea fullscreen = ScreenshotArea::CreateForAllRootWindows();
   ScreenshotArea window =
       ScreenshotArea::CreateForWindow(web_contents->GetNativeView());
@@ -450,7 +450,7 @@ IN_PROC_BROWSER_TEST_F(ScreenshotTest, CheckRestriction_Blocked_Lacros) {
   aura::Window* window = shell_surface->GetWidget()->GetNativeWindow();
 
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
   ScreenshotArea fullscreen = ScreenshotArea::CreateForAllRootWindows();
   ScreenshotArea window_area = ScreenshotArea::CreateForWindow(window);
   const gfx::Rect rect = window->GetBoundsInRootWindow();
@@ -539,11 +539,11 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
                        VideoCaptureStoppedWhenConfidentialWindowResized) {
   SetupReporting();
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
 
   // Open first browser window.
   Browser* browser1 = browser();
-  chrome::NewTab(browser1);
+  chrome::NewTab(browser1, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser1, GURL(kExampleUrl)));
   content::WebContents* web_contents1 =
       browser1->tab_strip_model()->GetActiveWebContents();
@@ -551,7 +551,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   // Open second browser window.
   Browser* browser2 =
       Browser::Create(Browser::CreateParams(browser()->profile(), true));
-  chrome::NewTab(browser2);
+  chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
   // Resize browsers so that second window covers the first one.
@@ -592,11 +592,11 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest, VideoCaptureReported) {
   SetupReporting();
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
 
   // Open first browser window.
   Browser* browser1 = browser();
-  chrome::NewTab(browser1);
+  chrome::NewTab(browser1, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser1, GURL(kExampleUrl)));
   content::WebContents* web_contents1 =
       browser1->tab_strip_model()->GetActiveWebContents();
@@ -604,7 +604,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest, VideoCaptureReported) {
   // Open second browser window.
   Browser* browser2 =
       Browser::Create(Browser::CreateParams(browser()->profile(), true));
-  chrome::NewTab(browser2);
+  chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
   // Resize browsers so that second window covers the first one.
@@ -647,11 +647,11 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
                        VideoCaptureStoppedWhenNonConfidentialWindowResized) {
   SetupReporting();
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
 
   // Open first browser window.
   Browser* browser1 = browser();
-  chrome::NewTab(browser1);
+  chrome::NewTab(browser1, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser1, GURL(kExampleUrl)));
   content::WebContents* web_contents1 =
       browser1->tab_strip_model()->GetActiveWebContents();
@@ -659,7 +659,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   // Open second browser window.
   Browser* browser2 =
       Browser::Create(Browser::CreateParams(browser()->profile(), true));
-  chrome::NewTab(browser2);
+  chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
   // Resize browsers so that second window covers the first one.
@@ -701,11 +701,11 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
                        VideoCaptureNotStoppedWhenConfidentialWindowHidden) {
   SetupReporting();
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
 
   // Open first browser window.
   Browser* browser1 = browser();
-  chrome::NewTab(browser1);
+  chrome::NewTab(browser1, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser1, GURL(kExampleUrl)));
   content::WebContents* web_contents1 =
       browser1->tab_strip_model()->GetActiveWebContents();
@@ -713,7 +713,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   // Open second browser window.
   Browser* browser2 =
       Browser::Create(Browser::CreateParams(browser()->profile(), true));
-  chrome::NewTab(browser2);
+  chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
   // Resize browsers so that second window covers the first one.
@@ -758,11 +758,11 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
                        VideoCaptureWarnedAtEndAllowed) {
   SetupReporting();
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
 
   // Open first browser window.
   Browser* browser1 = browser();
-  chrome::NewTab(browser1);
+  chrome::NewTab(browser1, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser1, GURL(kExampleUrl)));
   content::WebContents* web_contents1 =
       browser1->tab_strip_model()->GetActiveWebContents();
@@ -770,7 +770,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   // Open second browser window.
   Browser* browser2 =
       Browser::Create(Browser::CreateParams(browser()->profile(), true));
-  chrome::NewTab(browser2);
+  chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
   // Resize browsers so that second window covers the first one.
@@ -830,11 +830,11 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
                        VideoCaptureWarnedAtEndCancelled) {
   SetupReporting();
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
 
   // Open first browser window.
   Browser* browser1 = browser();
-  chrome::NewTab(browser1);
+  chrome::NewTab(browser1, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser1, GURL(kExampleUrl)));
   content::WebContents* web_contents1 =
       browser1->tab_strip_model()->GetActiveWebContents();
@@ -842,7 +842,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   // Open second browser window.
   Browser* browser2 =
       Browser::Create(Browser::CreateParams(browser()->profile(), true));
-  chrome::NewTab(browser2);
+  chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
   // Resize browsers so that second window covers the first one.
@@ -904,9 +904,9 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   MockDlpWarnNotifier* mock_dlp_warn_notifier =
       CreateAndSetMockDlpWarnNotifier();
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
 
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1122,7 +1122,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
   // Run for fullscreen and window share.
   const auto root_media_id = content::DesktopMediaID::RegisterNativeWindow(
       content::DesktopMediaID::TYPE_SCREEN,
-      browser()->window()->GetNativeWindow()->GetRootWindow());
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow());
   const auto window_media_id = content::DesktopMediaID::RegisterNativeWindow(
       content::DesktopMediaID::TYPE_WINDOW,
       shell_surface->GetWidget()->GetNativeWindow());
@@ -1178,7 +1178,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
   // Run for fullscreen and window share.
   const auto root_media_id = content::DesktopMediaID::RegisterNativeWindow(
       content::DesktopMediaID::TYPE_SCREEN,
-      browser()->window()->GetNativeWindow()->GetRootWindow());
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow());
   const auto window_media_id = content::DesktopMediaID::RegisterNativeWindow(
       content::DesktopMediaID::TYPE_WINDOW,
       shell_surface->GetWidget()->GetNativeWindow());
@@ -1327,7 +1327,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
       false, 0);
 
   // Open new tab and navigate to a url.
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kGoogleUrl)));
   content::WebContents* new_web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1801,14 +1801,14 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
 
   // Open first browser window.
   Browser* browser1 = browser();
-  chrome::NewTab(browser1);
+  chrome::NewTab(browser1, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser1, GURL(kExampleUrl)));
-  aura::Window* browser1_window = browser()->window()->GetNativeWindow();
+  aura::Window* browser1_window = browser()->GetWindow()->GetNativeWindow();
 
   // Open second browser window.
   Browser* browser2 =
       Browser::Create(Browser::CreateParams(browser()->profile(), true));
-  chrome::NewTab(browser2);
+  chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
   content::WebContents* web_contents2 =
       browser2->tab_strip_model()->GetActiveWebContents();
@@ -1909,7 +1909,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   aura::Window* root_window =
-      browser()->window()->GetNativeWindow()->GetRootWindow();
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow();
   const auto media_id = content::DesktopMediaID::RegisterNativeWindow(
       content::DesktopMediaID::TYPE_SCREEN, root_window);
 
@@ -1926,7 +1926,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
   manager->OnScreenShareStarted(kLabel, {media_id}, kApplicationTitle,
                                 stop_cb_.Get(), state_change_cb_.Get(),
                                 /*source_callback=*/base::DoNothing());
-  exo::SetShellApplicationId(browser()->window()->GetNativeWindow(), kWindowId);
+  exo::SetShellApplicationId(browser()->GetWindow()->GetNativeWindow(),
+                             kWindowId);
   manager->OnWindowRestrictionChanged(kReceiverId, kWindowId,
                                       kScreenShareWarned);
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 1);
@@ -1967,7 +1968,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
 
   // Open new tab and navigate to a url.
   // Then move back to the screen-shared tab.
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kGoogleUrl)));
   ASSERT_NE(browser()->tab_strip_model()->GetActiveWebContents(), web_contents);
   ASSERT_EQ(web_contents->GetLastCommittedURL(), origin);

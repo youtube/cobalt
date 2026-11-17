@@ -20,10 +20,8 @@
 #include "chrome/browser/ash/arc/nearby_share/arc_nearby_share_uma.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/fileapi/external_file_url_util.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_manager.h"
 #include "chromeos/ash/experiences/arc/arc_util.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/storage_partition.h"
 #include "storage/browser/file_system/file_system_context.h"
@@ -60,10 +58,10 @@ int64_t GetTimeoutInSecondsFromBytes(uint64_t transfer_bytes) {
 
 // Returns scoped_refptr to FileSystemContext for an url.
 scoped_refptr<storage::FileSystemContext> GetScopedFileSystemContext(
-    Profile* const profile,
+    content::BrowserContext* const browser_context,
     const GURL& url) {
   content::StoragePartition* const storage =
-      profile->content::BrowserContext::GetStoragePartitionForUrl(url);
+      browser_context->GetStoragePartitionForUrl(url);
   DCHECK(storage);
   return storage->GetFileSystemContext();
 }
@@ -83,19 +81,59 @@ file_manager::util::FileSystemURLAndHandle GetFileSystemURLAndHandle(
 std::string StripPathComponents(const std::string& file_name) {
   return base::FilePath(file_name).BaseName().AsUTF8Unsafe();
 }
+
+// Create local unique share directory for cache files.
+base::FilePath DoCreateShareDirectory(const base::FilePath& base_directory) {
+  if (!base::PathExists(base_directory)) {
+    LOG(ERROR) << "Base directory does not exist: " << base_directory;
+    UpdateNearbyShareDataHandlingFail(
+        DataHandlingResult::kDirectoryDoesNotExist);
+    return base::FilePath();
+  }
+
+  // Prepare a temporary share directory to store cached share files.
+  base::FilePath temp_dir;
+  constexpr char kShareDirPrefix[] = "share-";
+  if (!base::CreateTemporaryDirInDir(base_directory, kShareDirPrefix,
+                                     &temp_dir) ||
+      !base::PathExists(temp_dir)) {
+    LOG(ERROR) << "Failed to create unique temp share directory under: "
+               << base_directory;
+    UpdateNearbyShareDataHandlingFail(
+        DataHandlingResult::kFailedToCreateDirectory);
+    return base::FilePath();
+  }
+  return temp_dir;
+}
+
+// Create file with create and write flags and return scoped fd.
+base::ScopedFD DoCreateFileForWrite(const base::FilePath& file_path) {
+  DCHECK(!file_path.empty());
+
+  base::File dest_file(file_path,
+                       base::File::FLAG_CREATE | base::File::FLAG_WRITE);
+  if (!dest_file.IsValid() || !base::PathExists(file_path)) {
+    LOG(ERROR) << "Invalid destination file at path: " << file_path;
+    UpdateNearbyShareDataHandlingFail(
+        DataHandlingResult::kInvalidDestinationFilePath);
+    return base::ScopedFD();
+  }
+
+  return base::ScopedFD(dest_file.TakePlatformFile());
+}
 }  // namespace
 
 ShareInfoFileHandler::FileShareConfig::FileShareConfig() = default;
 ShareInfoFileHandler::FileShareConfig::~FileShareConfig() = default;
 
 ShareInfoFileHandler::ShareInfoFileHandler(
-    Profile* profile,
+    content::BrowserContext* browser_context,
     mojom::ShareIntentInfo* share_info,
     base::FilePath directory,
     scoped_refptr<base::SequencedTaskRunner> task_runner)
-    : profile_(profile), task_runner_(task_runner) {
+    : browser_context_(browser_context), task_runner_(task_runner) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  DCHECK(profile_);
+  DCHECK(browser_context_);
   DCHECK(task_runner_);
   DCHECK(share_info);
 
@@ -117,23 +155,6 @@ ShareInfoFileHandler::ShareInfoFileHandler(
 }
 
 ShareInfoFileHandler::~ShareInfoFileHandler() = default;
-
-// static
-file_manager::util::FileSystemURLAndHandle
-ShareInfoFileHandler::GetFileSystemURL(content::BrowserContext* context,
-                                       const GURL& url) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  DCHECK(context);
-
-  Profile* const profile = Profile::FromBrowserContext(context);
-  DCHECK(profile);
-
-  scoped_refptr<storage::FileSystemContext> file_system_context =
-      GetScopedFileSystemContext(profile, url);
-  DCHECK(file_system_context.get());
-
-  return GetFileSystemURLAndHandle(*file_system_context, url);
-}
 
 const std::vector<base::FilePath>& ShareInfoFileHandler::GetFilePaths() const {
   return file_config_.paths;
@@ -158,23 +179,6 @@ void ShareInfoFileHandler::StartPreparingFiles(
   update_callback_ = std::move(update_callback);
   file_sharing_started_ = true;
 
-  if (!g_browser_process) {
-    LOG(ERROR) << "Unexpected null g_browser_process.";
-    UpdateNearbyShareDataHandlingFail(DataHandlingResult::kNullGBrowserProcess);
-    NotifyFileSharingCompleted(base::File::FILE_ERROR_INVALID_OPERATION);
-    return;
-  }
-
-  // |profile_| needs to be checked with ProfileManager::IsValidProfile
-  // before using it.  Abort if profile is not created.
-  if (g_browser_process->profile_manager() &&
-      !g_browser_process->profile_manager()->IsValidProfile(profile_)) {
-    LOG(ERROR) << "Invalid profile: " << profile_->GetProfileUserName();
-    UpdateNearbyShareDataHandlingFail(DataHandlingResult::kInvalidProfile);
-    NotifyFileSharingCompleted(base::File::FILE_ERROR_INVALID_OPERATION);
-    return;
-  }
-
   if (file_config_.directory.empty()) {
     LOG(ERROR) << "Base directory is empty.";
     UpdateNearbyShareDataHandlingFail(DataHandlingResult::kEmptyDirectory);
@@ -186,32 +190,9 @@ void ShareInfoFileHandler::StartPreparingFiles(
       << "Creating unique directory for share and converting URLs to files.";
   task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&ShareInfoFileHandler::CreateShareDirectory, this),
+      base::BindOnce(&DoCreateShareDirectory, file_config_.directory),
       base::BindOnce(&ShareInfoFileHandler::OnShareDirectoryPathCreated,
                      weak_ptr_factory_.GetWeakPtr()));
-}
-
-base::FilePath ShareInfoFileHandler::CreateShareDirectory() {
-  if (!base::PathExists(file_config_.directory)) {
-    LOG(ERROR) << "Base directory does not exist: " << file_config_.directory;
-    UpdateNearbyShareDataHandlingFail(
-        DataHandlingResult::kDirectoryDoesNotExist);
-    return base::FilePath();
-  }
-
-  // Prepare a temporary share directory to store cached share files.
-  base::FilePath temp_dir;
-  constexpr char kShareDirPrefix[] = "share-";
-  if (!base::CreateTemporaryDirInDir(file_config_.directory, kShareDirPrefix,
-                                     &temp_dir) ||
-      !base::PathExists(temp_dir)) {
-    LOG(ERROR) << "Failed to create unique temp share directory under: "
-               << file_config_.directory;
-    UpdateNearbyShareDataHandlingFail(
-        DataHandlingResult::kFailedToCreateDirectory);
-    return base::FilePath();
-  }
-  return temp_dir;
 }
 
 void ShareInfoFileHandler::OnShareDirectoryPathCreated(
@@ -253,30 +234,12 @@ void ShareInfoFileHandler::OnShareDirectoryPathCreated(
         share_dir.AppendASCII(StripPathComponents(file_name));
 
     task_runner_->PostTaskAndReplyWithResult(
-        FROM_HERE,
-        base::BindOnce(&ShareInfoFileHandler::CreateFileForWrite, this,
-                       dest_file_path),
+        FROM_HERE, base::BindOnce(&DoCreateFileForWrite, dest_file_path),
         base::BindOnce(&ShareInfoFileHandler::OnFileDescriptorCreated,
                        weak_ptr_factory_.GetWeakPtr(), url, dest_file_path,
                        file_size));
   }
   std::move(started_callback_).Run();
-}
-
-base::ScopedFD ShareInfoFileHandler::CreateFileForWrite(
-    const base::FilePath& file_path) {
-  DCHECK(!file_path.empty());
-
-  base::File dest_file(file_path,
-                       base::File::FLAG_CREATE | base::File::FLAG_WRITE);
-  if (!dest_file.IsValid() || !base::PathExists(file_path)) {
-    LOG(ERROR) << "Invalid destination file at path: " << file_path;
-    UpdateNearbyShareDataHandlingFail(
-        DataHandlingResult::kInvalidDestinationFilePath);
-    return base::ScopedFD();
-  }
-
-  return base::ScopedFD(dest_file.TakePlatformFile());
 }
 
 void ShareInfoFileHandler::OnFileDescriptorCreated(
@@ -299,7 +262,7 @@ void ShareInfoFileHandler::OnFileDescriptorCreated(
 
   contexts_.emplace_front();
   auto it_context = contexts_.begin();
-  *it_context = GetScopedFileSystemContext(profile_, url);
+  *it_context = GetScopedFileSystemContext(browser_context_, url);
   DCHECK(it_context->get());
 
   const file_manager::util::FileSystemURLAndHandle isolated_file_system =

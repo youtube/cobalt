@@ -60,9 +60,9 @@ static int check_purpose_timestamp_sign(const X509_PURPOSE *xp, const X509 *x,
                                         int ca);
 static int no_check(const X509_PURPOSE *xp, const X509 *x, int ca);
 
-// X509_TRUST_NONE is not a valid |X509_TRUST_*| constant. It is used by
-// |X509_PURPOSE_ANY| to indicate that it has no corresponding trust type and
-// cannot be used with |X509_STORE_CTX_set_purpose|.
+// X509_TRUST_NONE is not a valid `X509_TRUST_*` constant. It is used by
+// `X509_PURPOSE_ANY` to indicate that it has no corresponding trust type and
+// cannot be used with `X509_STORE_CTX_set_purpose`.
 #define X509_TRUST_NONE (-1)
 
 static const X509_PURPOSE xstandard[] = {
@@ -79,7 +79,7 @@ static const X509_PURPOSE xstandard[] = {
     {X509_PURPOSE_CRL_SIGN, X509_TRUST_COMPAT, check_purpose_crl_sign,
      "crlsign"},
     {X509_PURPOSE_ANY, X509_TRUST_NONE, no_check, "any"},
-    // |X509_PURPOSE_OCSP_HELPER| performs no actual checks. OpenSSL's OCSP
+    // `X509_PURPOSE_OCSP_HELPER` performs no actual checks. OpenSSL's OCSP
     // implementation relied on the caller performing EKU and KU checks.
     {X509_PURPOSE_OCSP_HELPER, X509_TRUST_COMPAT, no_check, "ocsphelper"},
     {X509_PURPOSE_TIMESTAMP_SIGN, X509_TRUST_TSA, check_purpose_timestamp_sign,
@@ -100,9 +100,9 @@ int X509_check_purpose(X509 *x, int id, int ca) {
   if (pt == nullptr) {
     return 0;
   }
-  // Historically, |check_purpose| implementations other than |X509_PURPOSE_ANY|
-  // called |check_ca|. This is redundant with the |X509_V_ERR_INVALID_CA|
-  // logic, but |X509_check_purpose| is public API, so we preserve this
+  // Historically, `check_purpose` implementations other than `X509_PURPOSE_ANY`
+  // called `check_ca`. This is redundant with the `X509_V_ERR_INVALID_CA`
+  // logic, but `X509_check_purpose` is public API, so we preserve this
   // behavior.
   if (ca && id != X509_PURPOSE_ANY && !check_ca(x)) {
     return 0;
@@ -219,7 +219,7 @@ int bssl::x509v3_cache_extensions(X509 *x) {
         impl->ex_flags |= EXFLAG_INVALID;
         impl->ex_pathlen = 0;
       } else {
-        // TODO(davidben): |ASN1_INTEGER_get| returns -1 on overflow,
+        // TODO(davidben): `ASN1_INTEGER_get` returns -1 on overflow,
         // which currently acts as if the constraint isn't present. This
         // works (an overflowing path length constraint may as well be
         // infinity), but Chromium's verifier simply treats values above
@@ -347,7 +347,7 @@ int bssl::x509v3_cache_extensions(X509 *x) {
   return (impl->ex_flags & EXFLAG_INVALID) == 0;
 }
 
-// check_ca returns one if |x| should be considered a CA certificate and zero
+// check_ca returns one if `x` should be considered a CA certificate and zero
 // otherwise.
 static int check_ca(const X509 *x) {
   // keyUsage if present should allow cert signing
@@ -370,9 +370,9 @@ int X509_check_ca(const X509 *x) {
   return check_ca(x);
 }
 
-// check_purpose returns one if |x| is a valid part of a certificate path for
-// extended key usage |required_xku| and at least one of key usages in
-// |required_kus|. |ca| indicates whether |x| is a CA or end-entity certificate.
+// check_purpose returns one if `x` is a valid part of a certificate path for
+// extended key usage `required_xku` and at least one of key usages in
+// `required_kus`. `ca` indicates whether `x` is a CA or end-entity certificate.
 static int check_purpose(const X509 *x, int ca, int required_xku,
                          int required_kus) {
   // Check extended key usage on the entire chain.
@@ -528,8 +528,8 @@ int bssl::X509_check_akid(const X509 *issuer, const AUTHORITY_KEYID *akid) {
 }
 
 uint32_t X509_get_extension_flags(X509 *x) {
-  // Ignore the return value. On failure, |impl->ex_flags| will include
-  // |EXFLAG_INVALID|.
+  // Ignore the return value. On failure, `impl->ex_flags` will include
+  // `EXFLAG_INVALID`.
   x509v3_cache_extensions(x);
   const auto *impl = FromOpaque(x);
   return impl->ex_flags;
@@ -544,7 +544,7 @@ uint32_t X509_get_key_usage(X509 *x) {
     return impl->ex_kusage;
   }
   // If there is no extension, key usage is unconstrained, so set all bits to
-  // one. Note that, although we use |UINT32_MAX|, |ex_kusage| only contains the
+  // one. Note that, although we use `UINT32_MAX`, `ex_kusage` only contains the
   // first 16 bits when the extension is present.
   return UINT32_MAX;
 }

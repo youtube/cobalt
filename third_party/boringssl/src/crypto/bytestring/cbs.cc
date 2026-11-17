@@ -190,7 +190,7 @@ static int cbs_get_length_prefixed(CBS *cbs, CBS *out, size_t len_len) {
   if (!cbs_get_u(cbs, &len, len_len)) {
     return 0;
   }
-  // If |len_len| <= 3 then we know that |len| will fit into a |size_t|, even on
+  // If `len_len` <= 3 then we know that `len` will fit into a `size_t`, even on
   // 32-bit systems.
   assert(len_len <= 3);
   return CBS_get_bytes(cbs, out, len);
@@ -277,8 +277,8 @@ int CBS_get_u64_decimal(CBS *cbs, uint64_t *out) {
   return seen_digit;
 }
 
-// parse_base128_integer reads a big-endian base-128 integer from |cbs| and sets
-// |*out| to the result. This is the encoding used in DER for both high tag
+// parse_base128_integer reads a big-endian base-128 integer from `cbs` and sets
+// `*out` to the result. This is the encoding used in DER for both high tag
 // number form and OID components.
 static int parse_base128_integer(CBS *cbs, uint64_t *out) {
   uint64_t v = 0;
@@ -413,7 +413,7 @@ static int cbs_get_any_asn1_element(CBS *cbs, CBS *out, CBS_ASN1_TAG *out_tag,
     // ITU-T X.690 section 10.1 (DER length forms) requires encoding the
     // length with the minimum number of octets. BER could, technically, have
     // 125 superfluous zero bytes. We do not attempt to handle that and still
-    // require that the length fit in a |uint32_t| for BER.
+    // require that the length fit in a `uint32_t` for BER.
     if (len64 < 128) {
       // Length should have used short-form encoding.
       if (ber_ok) {
@@ -737,8 +737,8 @@ int CBS_is_valid_asn1_oid(const CBS *cbs) {
   uint8_t v, prev = 0;
   while (CBS_get_u8(&copy, &v)) {
     // OID encodings are a sequence of minimally-encoded base-128 integers (see
-    // |parse_base128_integer|). If |prev|'s MSB was clear, it was the last byte
-    // of an integer (or |v| is the first byte). |v| is then the first byte of
+    // `parse_base128_integer`). If `prev`'s MSB was clear, it was the last byte
+    // of an integer (or `v` is the first byte). `v` is then the first byte of
     // the next integer. If first byte of an integer is 0x80, it is not
     // minimally-encoded.
     if ((prev & 0x80) == 0 && v == 0x80) {
@@ -920,10 +920,10 @@ static int CBS_parse_rfc5280_time_internal(const CBS *cbs, int is_gentime,
     case 'Z':
       break;  // We correctly have 'Z' on the end as per spec.
     case '+':
-      offset_sign = 1;
+      offset_sign = -1;
       break;  // Should not be allowed per RFC 5280.
     case '-':
-      offset_sign = -1;
+      offset_sign = 1;
       break;  // Should not be allowed per RFC 5280.
     default:
       return 0;  // Reject anything else after the time.

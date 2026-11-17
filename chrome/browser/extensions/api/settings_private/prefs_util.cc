@@ -95,7 +95,6 @@
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/supervised_user_cros_settings_provider.h"
-#include "chrome/browser/ash/system/timezone_util.h"
 #include "chrome/browser/extensions/api/settings_private/chromeos_resolve_time_zone_by_geolocation_method_short.h"
 #include "chrome/browser/extensions/api/settings_private/chromeos_resolve_time_zone_by_geolocation_on_off.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
@@ -250,6 +249,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[bookmarks::prefs::kShowBookmarkBar] =
       settings_api::PrefType::kBoolean;
+  (*s_allowlist)[bookmarks::prefs::kBookmarkBarVisibilityState] =
+      settings_api::PrefType::kNumber;
   (*s_allowlist)[bookmarks::prefs::kShowTabGroupsInBookmarkBar] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kSidePanelHorizontalAlignment] =
@@ -573,17 +574,11 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   // Clear browsing data settings.
   (*s_allowlist)[browsing_data::prefs::kDeleteBrowsingHistory] =
       settings_api::PrefType::kBoolean;
-  (*s_allowlist)[browsing_data::prefs::kDeleteBrowsingHistoryBasic] =
-      settings_api::PrefType::kBoolean;
   (*s_allowlist)[browsing_data::prefs::kDeleteDownloadHistory] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[browsing_data::prefs::kDeleteCache] =
       settings_api::PrefType::kBoolean;
-  (*s_allowlist)[browsing_data::prefs::kDeleteCacheBasic] =
-      settings_api::PrefType::kBoolean;
   (*s_allowlist)[browsing_data::prefs::kDeleteCookies] =
-      settings_api::PrefType::kBoolean;
-  (*s_allowlist)[browsing_data::prefs::kDeleteCookiesBasic] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[browsing_data::prefs::kDeletePasswords] =
       settings_api::PrefType::kBoolean;
@@ -594,10 +589,6 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[browsing_data::prefs::kDeleteHostedAppsData] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[browsing_data::prefs::kDeleteTimePeriod] =
-      settings_api::PrefType::kNumber;
-  (*s_allowlist)[browsing_data::prefs::kDeleteTimePeriodBasic] =
-      settings_api::PrefType::kNumber;
-  (*s_allowlist)[browsing_data::prefs::kLastClearBrowsingDataTab] =
       settings_api::PrefType::kNumber;
 
   // Accessibility.
@@ -1708,7 +1699,8 @@ bool PrefsUtil::IsPrefEnterpriseManaged(const std::string& pref_name) {
   // (kSystemTimezonePolicy and kSystemTimezoneAutomaticDetectionPolicy).
   if (pref_name == ash::kSystemTimezone ||
       pref_name == ash::prefs::kUserTimezone) {
-    return ash::system::IsTimezonePrefsManaged(pref_name);
+    return ash::system::IsTimezonePrefsManaged(
+        CHECK_DEREF(g_browser_process->local_state()), pref_name);
   }
 
   return IsPrivilegedCrosSetting(pref_name);

@@ -13,7 +13,8 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_consumer.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view_delegate.h"
 
-@class GradientView;
+@class FakeLocationBarView;
+@class NTPIdentityDiscButton;
 @class LayoutGuideCenter;
 @class NewTabPageColorPalette;
 @protocol NewTabPageShortcutsHandler;
@@ -23,7 +24,6 @@
 @protocol HelpCommands;
 @protocol FakeboxFocuser;
 @class OmniboxContainerView;
-@class SearchEngineLogoMediator;
 enum class SearchEngineLogoState;
 @class TabGroupIndicatorView;
 
@@ -39,54 +39,20 @@ enum class SearchEngineLogoState;
 @property(nonatomic, readonly) UIView* toolBarView;
 
 // The Identity Disc showing the current user's avatar on NTP.
-@property(nonatomic, strong) UIButton* identityDiscButton;
+@property(nonatomic, strong) NTPIdentityDiscButton* identityDiscButton;
 
 // The entrypoint for the Home customization menu.
 @property(nonatomic, strong) UIButton* customizationMenuButton;
 
-// The entrypoint for the Tools menu.
-@property(nonatomic, strong) UIButton* toolsMenuButton;
-
-// Voice search button. May be nil for some variations where MIA button takes
-// the entire available space.
-@property(nonatomic, strong, readonly) UIButton* voiceSearchButton;
-
-// The button that opens Lens. May be nil if Lens is not enabled.
-@property(nonatomic, strong, readonly) UIButton* lensButton;
-
 // The layout guide center for the current scene. Owned by this view's owning
 // view controller.
 @property(nonatomic, weak) LayoutGuideCenter* layoutGuideCenter;
-
-// Fake cancel button, used for animations. Hidden by default.
-@property(nonatomic, strong) UIView* cancelButton;
-// Fake omnibox, used for animations. Hidden by default.
-@property(nonatomic, strong) OmniboxContainerView* omnibox;
-
-// The container for the fake omnibox.
-@property(nonatomic, strong) UIView* fakeOmniboxContainer;
-
-// The accessibility button for the fake omnibox.
-@property(nonatomic, strong) UIButton* accessibilityButton;
-
-// The fake tap button used in split toolbar mode.
-@property(nonatomic, strong) UIButton* fakeTapButton;
-
-@property(nonatomic, strong)
-    NSLayoutConstraint* fakeLocationBarLeadingConstraint;
-@property(nonatomic, strong)
-    NSLayoutConstraint* fakeLocationBarTrailingConstraint;
-@property(nonatomic, strong) UIView* fakeLocationBar;
-@property(nonatomic, strong) UILabel* searchHintLabel;
 
 // View that contains tab group information.
 @property(nonatomic, weak) TabGroupIndicatorView* tabGroupIndicatorView;
 
 // Sets whether Google is the default search engine.
 - (void)setIsGoogleDefaultSearchEngine:(BOOL)isGoogleDefaultSearchEngine;
-
-// `YES` if the user is signed in.
-@property(nonatomic, assign, readonly) BOOL isSignedIn;
 
 // Name of the default search engine. Used for the omnibox placeholder text.
 @property(nonatomic, copy) NSString* placeholderText;
@@ -119,11 +85,8 @@ enum class SearchEngineLogoState;
 // Whether the NTP is currently showing.
 @property(nonatomic, assign, getter=isShowing) BOOL showing;
 
-// The mediator for the search engine logo.
-@property(nonatomic, strong) SearchEngineLogoMediator* searchEngineLogoMediator;
-
-// The logo state.
-@property(nonatomic, assign) SearchEngineLogoState logoState;
+// The search engine logo view.
+@property(nonatomic, weak) UIView* searchEngineLogoView;
 
 // Initializes the view with the Lens and customization menu badge status.
 - (instancetype)initWithUseNewBadgeForLensButton:(BOOL)useNewBadgeForLensButton
@@ -160,15 +123,6 @@ enum class SearchEngineLogoState;
                      forOffset:(CGFloat)offset
                    screenWidth:(CGFloat)screenWidth
                 safeAreaInsets:(UIEdgeInsets)safeAreaInsets;
-
-// Highlights the fake omnibox.
-- (void)setFakeboxHighlighted:(BOOL)highlighted;
-
-// Shows account disc particle error badge.
-- (void)setIdentityDiscErrorBadge;
-
-// Removes account disc particle error badge.
-- (void)removeIdentityDiscErrorBadge;
 
 // Sets the Home customization menu entrypoint with a conditional "new feature"
 // badge.

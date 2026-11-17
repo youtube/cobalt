@@ -61,12 +61,14 @@ class BackendSessionImplAndroid : public BackendSession {
   // BackendSession:
   void Append(on_device_model::mojom::AppendOptionsPtr options,
               mojo::PendingRemote<on_device_model::mojom::ContextClient> client,
+              mojo::ReportBadMessageCallback bad_message_callback,
               base::OnceClosure on_complete) override;
   void Generate(
       on_device_model::mojom::GenerateOptionsPtr input,
       mojo::PendingRemote<on_device_model::mojom::StreamingResponder> response,
       base::OnceClosure on_complete) override;
   void SizeInTokens(on_device_model::mojom::InputPtr input,
+                    mojo::ReportBadMessageCallback bad_message_callback,
                     base::OnceCallback<void(uint32_t)> callback) override;
   void Score(const std::string& text,
              base::OnceCallback<void(float)> callback) override;
@@ -93,7 +95,7 @@ class BackendSessionImplAndroid : public BackendSession {
   BackendSessionImplAndroid(
       optimization_guide::proto::ModelExecutionFeature feature,
       on_device_model::mojom::SessionParamsPtr params,
-      const std::vector<ml::InputPiece>& context_input_pieces);
+      std::vector<on_device_model::mojom::InputPiecePtr> context_input_pieces);
 
   void OnResponseOnSequence(const std::string& response);
   void OnCompleteOnSequence(GenerateResult generate_result);
@@ -111,7 +113,7 @@ class BackendSessionImplAndroid : public BackendSession {
   base::OnceCallback<void(uint32_t)> size_in_tokens_callback_;
 
   // The accumulated context of the current session.
-  std::vector<ml::InputPiece> context_input_pieces_;
+  std::vector<on_device_model::mojom::InputPiecePtr> context_input_pieces_;
 
   // The feature for which this session was created.
   const optimization_guide::proto::ModelExecutionFeature feature_;

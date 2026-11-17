@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "base/check_is_test.h"
+#include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
@@ -101,11 +102,26 @@ base::FilePath DownloadFileDetach(std::unique_ptr<DownloadFile> download_file) {
 
 base::FilePath MakeCopyOfDownloadFile(DownloadFile* download_file) {
   DCHECK(GetDownloadTaskRunner()->RunsTasksInCurrentSequence());
-  base::FilePath temp_file_path;
-  if (!base::CreateTemporaryFile(&temp_file_path))
+  base::FilePath temp_dir;
+  if (!base::GetTempDir(&temp_dir)) {
     return base::FilePath();
+  }
 
-  if (!base::CopyFile(download_file->FullPath(), temp_file_path)) {
+  base::FilePath temp_file_path;
+  base::File temp_file =
+      base::CreateAndOpenTemporaryFileInDir(temp_dir, &temp_file_path);
+  if (!temp_file.IsValid()) {
+    return base::FilePath();
+  }
+
+  base::File source_file(download_file->FullPath(),
+                         base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!source_file.IsValid()) {
+    DeleteDownloadedFile(temp_file_path);
+    return base::FilePath();
+  }
+
+  if (!base::CopyFileContents(source_file, temp_file)) {
     DeleteDownloadedFile(temp_file_path);
     return base::FilePath();
   }
@@ -599,6 +615,26 @@ void DownloadItemImpl::ValidateInsecureDownload() {
   MaybeCompleteDownload();
 }
 
+void DownloadItemImpl::ConfirmNonDangerousDownload() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(!IsDone());
+  DCHECK(!IsDangerous());
+
+  DVLOG(20) << __func__ << "() download=" << DebugString(true);
+
+  if (IsDone() || IsDangerous()) {
+    return;
+  }
+
+  is_user_confirmed_ = true;
+
+  UpdateObservers();  // TODO(asanka): This is potentially unsafe. The download
+                      // may not be in a consistent state or around at all after
+                      // invoking observers. http://crbug.com/586610
+
+  MaybeCompleteDownload();
+}
+
 void DownloadItemImpl::CopyDownload(AcquireFileCallback callback) {
   DVLOG(20) << __func__ << "() download = " << DebugString(true);
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -1062,6 +1098,10 @@ bool DownloadItemImpl::AllowAutoOpenAfterCompletion() {
   return allow_auto_open_after_completion_;
 }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+bool DownloadItemImpl::IsUserConfirmed() const {
+  return is_user_confirmed_;
+}
 
 bool DownloadItemImpl::IsDangerous() const {
   switch (danger_type_) {

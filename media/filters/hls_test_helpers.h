@@ -132,14 +132,6 @@ class MockHlsRenditionHost : public HlsRenditionHost {
  public:
   MockHlsRenditionHost();
   ~MockHlsRenditionHost() override;
-  MOCK_METHOD(void,
-              ReadKey,
-              (const hls::MediaSegment::EncryptionData&,
-               HlsDataSourceProvider::ReadCb));
-  MOCK_METHOD(void,
-              ReadManifest,
-              (const GURL&, HlsDataSourceProvider::ReadCb),
-              (override));
   MOCK_METHOD(
       void,
       ReadMediaSegment,
@@ -153,17 +145,9 @@ class MockHlsRenditionHost : public HlsRenditionHost {
 
   MOCK_METHOD(void, Quit, (HlsDemuxerStatus), (override));
 
-  MOCK_METHOD(void,
-              ReadStream,
-              (std::unique_ptr<HlsDataSourceStream>,
-               HlsDataSourceProvider::ReadCb),
-              (override));
-
   MOCK_METHOD(void, UpdateNetworkSpeed, (uint64_t), (override));
 
   MOCK_METHOD(void, SetEndOfStream, (bool), (override));
-
-  MOCK_METHOD(void, AbortPendingReads, (base::OnceClosure), (override));
 };
 
 class MockHlsRendition : public HlsRendition {
@@ -200,14 +184,14 @@ class StringHlsDataSourceStreamFactory {
  public:
   static std::unique_ptr<HlsDataSourceStream> CreateStream(
       std::string content,
-      bool taint_origin = false);
+      std::optional<hls::SecurityMetadata> info = std::nullopt);
 };
 
 class FileHlsDataSourceStreamFactory {
  public:
   static std::unique_ptr<HlsDataSourceStream> CreateStream(
       std::string file,
-      bool taint_origin = false);
+      std::optional<hls::SecurityMetadata> info = std::nullopt);
 };
 
 class MockDataSourceFactory : public DataSource::Factory {

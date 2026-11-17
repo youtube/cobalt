@@ -43,7 +43,7 @@ enum early_data_t {
 };
 
 // serialize_features adds a description of features supported by this binary to
-// |out|.  Returns true on success and false on error.
+// `out`.  Returns true on success and false on error.
 static bool serialize_features(CBB *out) {
   CBB ciphers;
   if (!CBB_add_asn1(out, &ciphers, CBS_ASN1_OCTETSTRING)) {
@@ -117,8 +117,8 @@ bool SSL_decline_handoff(SSL *ssl) {
   return true;
 }
 
-// apply_remote_features reads a list of supported features from |in| and
-// (possibly) reconfigures |ssl| to disallow the negotiation of features whose
+// apply_remote_features reads a list of supported features from `in` and
+// (possibly) reconfigures `ssl` to disallow the negotiation of features whose
 // support has not been indicated.  (This prevents the the handshake from
 // committing to features that are not supported on the handoff/handback side.)
 static bool apply_remote_features(SSL *ssl, CBS *in) {
@@ -265,7 +265,7 @@ static bool apply_remote_features(SSL *ssl, CBS *in) {
   return true;
 }
 
-// uses_disallowed_feature returns true iff |ssl| enables a feature that
+// uses_disallowed_feature returns true iff `ssl` enables a feature that
 // disqualifies it for split handshakes.
 static bool uses_disallowed_feature(const SSL *ssl) {
   return ssl->method->is_dtls || !ssl->config->cert->credentials.empty() ||
@@ -403,8 +403,8 @@ bool SSL_serialize_handback(const SSL *ssl, CBB *out) {
           hostname_len) ||
       !CBB_add_asn1_octet_string(&seq, kUnusedChannelID,
                                  sizeof(kUnusedChannelID)) ||
-      // These two fields were historically |token_binding_negotiated| and
-      // |negotiated_token_binding_param|.
+      // These two fields were historically `token_binding_negotiated` and
+      // `negotiated_token_binding_param`.
       !CBB_add_asn1_bool(&seq, 0) ||  //
       !CBB_add_asn1_uint64(&seq, 0) ||
       !CBB_add_asn1_bool(&seq, s3->hs->next_proto_neg_seen) ||
@@ -861,7 +861,7 @@ int SSL_request_handshake_hints(SSL *ssl, const uint8_t *client_hello,
   return 1;
 }
 
-// |SSL_HANDSHAKE_HINTS| is serialized as the following ASN.1 structure. We use
+// `SSL_HANDSHAKE_HINTS` is serialized as the following ASN.1 structure. We use
 // implicit tagging to make it a little more compact.
 //
 // HandshakeHints ::= SEQUENCE {

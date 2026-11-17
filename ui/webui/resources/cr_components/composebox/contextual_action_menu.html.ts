@@ -17,7 +17,7 @@ export function getHtml(this: ContextualActionMenuElement) {
         this.isInputTypeAllowed_(InputType.kBrowserTab) ? html`
         ${this.contextManagementInComposeboxEnabled_ ? html`
           <div class="share-tabs-container">
-            ${this.smartTabSharingVisible_ && this.smartTabSharingActive ? html`
+            ${this.smartTabSharingVisible && this.smartTabSharingActive ? html`
               <button class="dropdown-item"
                   id="smartTabSharingItem"
                   role="menuitemcheckbox"
@@ -54,7 +54,7 @@ export function getHtml(this: ContextualActionMenuElement) {
                   @pointerenter="${this.onShareTabsFlyoutPointerenter_}"
                   @pointerleave="${this.onShareTabsFlyoutPointerleave_}"
                   @keydown="${this.onShareTabsFlyoutKeydown_}">
-                ${this.smartTabSharingVisible_ ? html`
+                ${this.smartTabSharingVisible ? html`
                   <button class="dropdown-item"
                       id="smartTabSharingItemFlyout"
                       role="menuitemcheckbox"
@@ -181,7 +181,8 @@ export function getHtml(this: ContextualActionMenuElement) {
     ${this.inputState?.allowedTools.map(mode => {
       return html`
       <button class="dropdown-item" data-mode="${mode}"
-          role="menuitem"
+          role="menuitemradio"
+          aria-checked="${this.isToolActive_(mode)}"
           aria-label="${this.showContextMenuHeaders_ && this.getToolHeader_() ?
               `${this.getToolHeader_()}: ` : ''}${this.getToolLabel_(mode)}"
           @click="${this.onToolClick_}"
@@ -189,7 +190,11 @@ export function getHtml(this: ContextualActionMenuElement) {
         ${this.getIconForToolMode_(mode) ? html`
           <cr-icon icon="${this.getIconForToolMode_(mode)}"></cr-icon>
         ` : ''}
-        ${this.getToolLabel_(mode)}
+        <span>${this.getToolLabel_(mode)}</span>
+        ${this.isToolActive_(mode) ? html`
+          <cr-icon class="multi-tab-icon"
+              icon="cr:check"></cr-icon>
+        ` : ''}
       </button>`;
     })}
 

@@ -114,7 +114,7 @@ static const char *ssl_version_to_string(uint16_t version) {
 
 static uint16_t wire_version_to_api(uint16_t version) { return version; }
 
-// api_version_to_wire maps |version| to some representative wire version.
+// api_version_to_wire maps `version` to some representative wire version.
 static bool api_version_to_wire(uint16_t *out, uint16_t version) {
   // Check it is a real protocol version.
   uint16_t unused;
@@ -172,7 +172,7 @@ const struct {
 
 bool ssl_get_version_range(const SSL_HANDSHAKE *hs, uint16_t *out_min_version,
                            uint16_t *out_max_version) {
-  // For historical reasons, |SSL_OP_NO_DTLSv1| aliases |SSL_OP_NO_TLSv1|, but
+  // For historical reasons, `SSL_OP_NO_DTLSv1` aliases `SSL_OP_NO_TLSv1`, but
   // DTLS 1.0 should be mapped to TLS 1.1.
   uint32_t options = hs->ssl->options;
   if (SSL_is_dtls(hs->ssl)) {
@@ -196,7 +196,7 @@ bool ssl_get_version_range(const SSL_HANDSHAKE *hs, uint16_t *out_min_version,
     min_version = TLS1_3_VERSION;
   }
 
-  // The |SSL_OP_NO_*| flags disable individual protocols. This has two
+  // The `SSL_OP_NO_*` flags disable individual protocols. This has two
   // problems. First, prior to TLS 1.3, the protocol can only express a
   // contiguous range of versions. Second, a library consumer trying to set a
   // maximum version cannot disable protocol versions that get added in a future
@@ -247,7 +247,7 @@ static uint16_t ssl_version(const SSL *ssl) {
   // In early data, we report the predicted version. Note it is possible that we
   // have a predicted version and a *different* true version. This means 0-RTT
   // has been rejected, but until the reject has reported to the application and
-  // applied with |SSL_reset_early_data_reject|, we continue reporting a
+  // applied with `SSL_reset_early_data_reject`, we continue reporting a
   // self-consistent connection.
   if (SSL_in_early_data(ssl) && !ssl->server) {
     return ssl->s3->hs->early_session->ssl_version;
@@ -269,7 +269,7 @@ uint16_t ssl_protocol_version(const SSL *ssl) {
   assert(ssl->s3->version != 0);
   uint16_t version;
   if (!ssl_protocol_version_from_wire(&version, ssl->s3->version)) {
-    // |ssl->s3->version| will always be set to a valid version.
+    // `ssl->s3->version` will always be set to a valid version.
     assert(0);
     return 0;
   }
@@ -313,7 +313,7 @@ bool ssl_negotiate_version(SSL_HANDSHAKE *hs, uint8_t *out_alert,
 
     // JDK 11, prior to 11.0.2, has a buggy TLS 1.3 implementation which fails
     // to send SNI when offering 1.3 sessions. Disable TLS 1.3 for such
-    // clients. We apply this logic here rather than |ssl_supports_version| so
+    // clients. We apply this logic here rather than `ssl_supports_version` so
     // the downgrade signal continues to query the true capabilities. (The
     // workaround is a limitation of the peer's capabilities rather than our
     // own.)

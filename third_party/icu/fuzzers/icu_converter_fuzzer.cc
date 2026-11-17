@@ -14,12 +14,11 @@
 #include "third_party/icu/source/common/unicode/ucnv.h"
 #include "third_party/icu/fuzzers/fuzzer_utils.h"
 
-IcuEnvironment* env = new IcuEnvironment();
-
 template <typename T>
 using deleted_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  static IcuEnvironment env;
   UErrorCode status = U_ZERO_ERROR;
   auto rng = CreateRng(data, size);
   icu::UnicodeString str(UnicodeStringFromUtf8(data, size));

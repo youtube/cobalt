@@ -68,9 +68,9 @@ static void x509_pubkey_changed(X509_PUBKEY *pub,
   EVP_PKEY_free(pub->pkey);
   pub->pkey = nullptr;
 
-  // Re-encode the |X509_PUBKEY| to DER and parse it with EVP's APIs. If the
-  // operation fails, clear errors. An |X509_PUBKEY| whose key we cannot parse
-  // is still a valid SPKI. It just cannot be converted to an |EVP_PKEY|.
+  // Re-encode the `X509_PUBKEY` to DER and parse it with EVP's APIs. If the
+  // operation fails, clear errors. An `X509_PUBKEY` whose key we cannot parse
+  // is still a valid SPKI. It just cannot be converted to an `EVP_PKEY`.
   ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 64) || !x509_marshal_public_key(cbb.get(), pub)) {
     ERR_clear_error();
@@ -130,7 +130,7 @@ int i2d_X509_PUBKEY(const X509_PUBKEY *key, uint8_t **outp) {
 
 BSSL_NAMESPACE_BEGIN
 
-// TODO(crbug.com/42290417): Remove this when |X509| and |X509_REQ| no longer
+// TODO(crbug.com/42290417): Remove this when `X509` and `X509_REQ` no longer
 // depend on the tables.
 IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_PUBKEY, X509_PUBKEY_new, X509_PUBKEY_free,
                              CBS_ASN1_SEQUENCE, x509_parse_public_key_default,
@@ -147,9 +147,9 @@ int bssl::x509_pubkey_set1(X509_PUBKEY *key, EVP_PKEY *pkey) {
 
   CBS cbs;
   CBS_init(&cbs, CBB_data(cbb.get()), CBB_len(cbb.get()));
-  // TODO(crbug.com/42290364): Use an |EVP_PKEY_ALG| derived from |pkey|.
-  // |X509_PUBKEY_get0| does not currently work when setting, say, an
-  // |EVP_PKEY_RSA_PSS| key.
+  // TODO(crbug.com/42290364): Use an `EVP_PKEY_ALG` derived from `pkey`.
+  // `X509_PUBKEY_get0` does not currently work when setting, say, an
+  // `EVP_PKEY_RSA_PSS` key.
   return x509_parse_public_key(&cbs, key, GetDefaultEVPAlgorithms());
 }
 

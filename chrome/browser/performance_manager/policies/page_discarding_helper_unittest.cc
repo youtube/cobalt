@@ -8,7 +8,7 @@
 #include <string>
 #include <utility>
 
-#include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -47,13 +47,12 @@ class PageDiscardingHelperTest
     testing::GraphTestHarnessWithMockDiscarder::TearDown();
   }
 
-  // Convenience wrappers for DiscardEligibilityPolicy::CanDiscard().
   CanDiscardResult CanDiscard(
       const PageNode* page_node,
       DiscardReason discard_reason,
       std::vector<CannotDiscardReason>* cannot_discard_reasons = nullptr) {
     return DiscardEligibilityPolicy::GetFromGraph(graph())->CanDiscard(
-        page_node, discard_reason, kNonVisiblePagesUrgentProtectionTime,
+        page_node, discard_reason, /*ignore_recent_visibility=*/false,
         cannot_discard_reasons);
   }
 
@@ -72,7 +71,7 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesNoCandidate) {
   // When discard_protected_tabs is false, protected page can not be discarded.
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::MiB(1)),
+          memory_pressure::ReclaimTarget(base::MiBU(1)),
           /*discard_protected_tabs=*/false, DiscardReason::URGENT);
   EXPECT_FALSE(first_discarded_at.has_value());
 }
@@ -86,7 +85,7 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesDiscardProtected) {
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::MiB(1)),
+          memory_pressure::ReclaimTarget(base::MiBU(1)),
           /*discard_protected_tabs=*/true, DiscardReason::URGENT);
 
   EXPECT_TRUE(first_discarded_at.has_value());
@@ -112,7 +111,7 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesTwoCandidates) {
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::MiB(2)),
+          memory_pressure::ReclaimTarget(base::MiBU(2)),
           /*discard_protected_tabs=*/true, DiscardReason::URGENT);
   EXPECT_TRUE(first_discarded_at.has_value());
 }
@@ -139,7 +138,7 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesTwoCandidatesProtected) {
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::GiB(1)),
+          memory_pressure::ReclaimTarget(base::GiBU(1)),
           /*discard_protected_tabs=*/false, DiscardReason::URGENT);
   EXPECT_TRUE(first_discarded_at.has_value());
 }
@@ -180,7 +179,7 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesThreeCandidates) {
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::KiB(1500)),
+          memory_pressure::ReclaimTarget(base::KiBU(1500)),
           /*discard_protected_tabs=*/true, DiscardReason::URGENT);
   EXPECT_TRUE(first_discarded_at.has_value());
   histogram_tester()->ExpectBucketCount("Discarding.DiscardCandidatesCount", 3,
@@ -227,7 +226,7 @@ TEST_F(PageDiscardingHelperTest,
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::KiB(1500)),
+          memory_pressure::ReclaimTarget(base::KiBU(1500)),
           /*discard_protected_tabs=*/true, DiscardReason::URGENT);
   EXPECT_TRUE(first_discarded_at.has_value());
 }
@@ -253,7 +252,7 @@ TEST_F(PageDiscardingHelperTest, DiscardMultiplePagesNoDiscardable) {
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::MiB(10)),
+          memory_pressure::ReclaimTarget(base::MiBU(10)),
           /*discard_protected_tabs=*/true, DiscardReason::URGENT);
   EXPECT_FALSE(first_discarded_at.has_value());
 }
@@ -464,7 +463,7 @@ TEST_F(PageDiscardingHelperTest, DiscardingProtectedTabReported) {
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::KiB(1)),
+          memory_pressure::ReclaimTarget(base::KiBU(1)),
           /*discard_protected_tabs=*/true, DiscardReason::URGENT);
   EXPECT_TRUE(first_discarded_at.has_value());
 
@@ -484,7 +483,7 @@ TEST_F(PageDiscardingHelperTest, DiscardingUnprotectedTabReported) {
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::KiB(1)),
+          memory_pressure::ReclaimTarget(base::KiBU(1)),
           /*discard_protected_tabs=*/true, DiscardReason::URGENT);
   EXPECT_TRUE(first_discarded_at.has_value());
 
@@ -504,7 +503,7 @@ TEST_F(PageDiscardingHelperTest, DiscardingFocusedTabReported) {
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::KiB(1)),
+          memory_pressure::ReclaimTarget(base::KiBU(1)),
           /*discard_protected_tabs=*/true, DiscardReason::URGENT);
   EXPECT_TRUE(first_discarded_at.has_value());
 
@@ -523,7 +522,7 @@ TEST_F(PageDiscardingHelperTest, DiscardingUnfocusedTabReported) {
 
   std::optional<base::TimeTicks> first_discarded_at =
       PageDiscardingHelper::GetFromGraph(graph())->DiscardMultiplePages(
-          memory_pressure::ReclaimTarget(base::KiB(1)),
+          memory_pressure::ReclaimTarget(base::KiBU(1)),
           /*discard_protected_tabs=*/true, DiscardReason::URGENT);
   EXPECT_TRUE(first_discarded_at.has_value());
 

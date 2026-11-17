@@ -21,6 +21,7 @@
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
@@ -57,12 +58,10 @@ constexpr uint16_t kStartSequenceNumber = 33;
 constexpr uint32_t kSsrc = 725242;
 constexpr uint32_t kRtxSsrc = 12345;
 constexpr uint32_t kFlexFecSsrc = 23456;
-enum : int {
-  kTransportSequenceNumberExtensionId = 1,
-  kAbsoluteSendTimeExtensionId,
-  kTransmissionOffsetExtensionId,
-  kVideoTimingExtensionId,
-};
+constexpr RtpHeaderExtensionId kTransportSequenceNumberExtensionId(1);
+constexpr RtpHeaderExtensionId kAbsoluteSendTimeExtensionId(2);
+constexpr RtpHeaderExtensionId kTransmissionOffsetExtensionId(3);
+constexpr RtpHeaderExtensionId kVideoTimingExtensionId(4);
 
 class MockSendPacketObserver : public SendPacketObserver {
  public:

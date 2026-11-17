@@ -7,7 +7,7 @@ import 'chrome://webui-toolbar.top-chrome/app.js';
 import {assertEquals, assertGE, assertLE, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
-import {BrowserProxyImpl, OmniboxTextColor} from 'chrome://webui-toolbar.top-chrome/app.js';
+import {BrowserProxyImpl, INVALID_FOCUS_REQUEST_HANDLE, OmniboxTextColor} from 'chrome://webui-toolbar.top-chrome/app.js';
 import type {OmniboxAction, ReadonlyOmniboxElement} from 'chrome://webui-toolbar.top-chrome/app.js';
 
 class MockToolbarUiHandler extends TestBrowserProxy {
@@ -18,6 +18,16 @@ class MockToolbarUiHandler extends TestBrowserProxy {
   onOmniboxAction(action: OmniboxAction) {
     this.methodCalled('onOmniboxAction', action);
   }
+}
+
+class MockBrowserProxy extends TestBrowserProxy {
+  toolbarUIHandler: MockToolbarUiHandler = new MockToolbarUiHandler();
+
+  addFocusRequestListener() {
+    return INVALID_FOCUS_REQUEST_HANDLE;
+  }
+
+  removeFocusRequestListener() {}
 }
 
 suite('ReadonlyOmnibox', function() {
@@ -55,9 +65,20 @@ suite('ReadonlyOmnibox', function() {
     getTextInput().dispatchEvent(ev);
   }
 
+  // Tests that the bounding boxes of `first` and `second` have the same
+  // vertical bounds, and `first` is directly to the left of `second`.
+  function assertLinedUp(first: HTMLElement, second: HTMLElement): void {
+    const firstBounds = first.getBoundingClientRect();
+    const secondBounds = second.getBoundingClientRect();
+    assertEquals(firstBounds.top, secondBounds.top);
+    assertEquals(firstBounds.bottom, secondBounds.bottom);
+    assertEquals(firstBounds.right, secondBounds.left);
+  }
+
   setup(() => {
-    uiHandler = new MockToolbarUiHandler();
-    BrowserProxyImpl.setInstance({toolbarUIHandler: uiHandler} as any);
+    const browserProxy = new MockBrowserProxy();
+    uiHandler = browserProxy.toolbarUIHandler;
+    BrowserProxyImpl.setInstance(browserProxy as any);
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     omnibox = document.createElement('readonly-omnibox');
@@ -83,6 +104,7 @@ suite('ReadonlyOmnibox', function() {
         },
       ],
       inlineAutocompletion: '',
+      additionalText: '',
       selection: null,
       textIsUrl: false,
     };
@@ -96,6 +118,7 @@ suite('ReadonlyOmnibox', function() {
       uiVersion: 0,
       textPieces: [],
       inlineAutocompletion: '',
+      additionalText: '',
       selection: null,
       textIsUrl: false,
     };
@@ -121,6 +144,7 @@ suite('ReadonlyOmnibox', function() {
         },
       ],
       inlineAutocompletion: '',
+      additionalText: '',
       selection: null,
       textIsUrl: false,
     };
@@ -176,6 +200,7 @@ suite('ReadonlyOmnibox', function() {
         },
       ],
       inlineAutocompletion: '',
+      additionalText: '',
       selection: null,
       textIsUrl: false,
     };
@@ -212,6 +237,7 @@ suite('ReadonlyOmnibox', function() {
         },
       ],
       inlineAutocompletion: '',
+      additionalText: '',
       selection: null,
       textIsUrl: true,
     };
@@ -255,6 +281,7 @@ suite('ReadonlyOmnibox', function() {
         },
       ],
       inlineAutocompletion: 'les/1/',
+      additionalText: '',
       selection: {start: 1, end: 2},
       textIsUrl: true,
     };
@@ -312,6 +339,77 @@ suite('ReadonlyOmnibox', function() {
     assertEquals('', getStringSelection());
   });
 
+  test('Additional text', async () => {
+    omnibox.browserOmniboxState = {
+      browserVersion: 0,
+      uiVersion: 0,
+      textPieces: [
+        {
+          text: 'popula',
+          strikethrough: false,
+          color: OmniboxTextColor.kOmniboxText,
+        },
+      ],
+      inlineAutocompletion: 'r page',
+      additionalText: ' - uk.wikipedia.org',
+      selection: {start: 0, end: 0},
+      textIsUrl: true,
+    };
+    await microtasksFinished();
+
+    // Inline autocompletion rendered as selection.
+    assertEquals('popula', omnibox.$.textContainer.textContent);
+    assertEquals('popular page', omnibox.$.textInput.value);
+    assertEquals('r page', getStringSelection());
+    // And there is also a hidden box for inline completion (with the visible
+    // portion of the completion coming from the <input>), and a visible
+    // one for additional text.
+    assertEquals('r page', omnibox.$.inlineAutocomplete.textContent);
+    assertEquals(' - uk.wikipedia.org', omnibox.$.additionalText.textContent);
+
+    const inlineAutocompleteStyle =
+        omnibox.$.inlineAutocomplete.computedStyleMap();
+    assertEquals(
+        'hidden', inlineAutocompleteStyle.get('visibility')?.toString());
+
+    // Check that our 3 boxes are all lined up. This really wants to check
+    // against what's inside the <input>, but that doesn't seem possible.
+    assertLinedUp(omnibox.$.textContainer, omnibox.$.inlineAutocomplete);
+    assertLinedUp(omnibox.$.inlineAutocomplete, omnibox.$.additionalText);
+
+    const right1 = omnibox.$.additionalText.getBoundingClientRect().right;
+
+    // Advance completion and make sure stuff is still reasonable.
+    fakeKeyDown('r');
+    await microtasksFinished();
+    assertEquals('popular', omnibox.$.textContainer.textContent);
+    assertEquals('popular page', omnibox.$.textInput.value);
+    assertEquals(' page', getStringSelection());
+    assertEquals(' page', omnibox.$.inlineAutocomplete.textContent);
+    assertEquals(' - uk.wikipedia.org', omnibox.$.additionalText.textContent);
+    assertLinedUp(omnibox.$.textContainer, omnibox.$.inlineAutocomplete);
+    assertLinedUp(omnibox.$.inlineAutocomplete, omnibox.$.additionalText);
+    const right2 = omnibox.$.additionalText.getBoundingClientRect().right;
+
+    // And the space.
+    fakeKeyDown(' ');
+    await microtasksFinished();
+    assertEquals('popular ', omnibox.$.textContainer.textContent);
+    assertEquals('popular page', omnibox.$.textInput.value);
+    assertEquals('page', getStringSelection());
+    assertEquals('page', omnibox.$.inlineAutocomplete.textContent);
+    assertEquals(' - uk.wikipedia.org', omnibox.$.additionalText.textContent);
+    assertLinedUp(omnibox.$.textContainer, omnibox.$.inlineAutocomplete);
+    assertLinedUp(omnibox.$.inlineAutocomplete, omnibox.$.additionalText);
+    const right3 = omnibox.$.additionalText.getBoundingClientRect().right;
+
+    // If we didn't screw up the whitespace, the right edge of the box
+    // should be basically the same. (It seemed exactly the same when
+    // writing this test).
+    assertLE(Math.abs(right1 - right2), 0.1);
+    assertLE(Math.abs(right2 - right3), 0.1);
+  });
+
   test('Inline completion race vs. browser handling', async () => {
     omnibox.browserOmniboxState = {
       browserVersion: 0,
@@ -329,6 +427,7 @@ suite('ReadonlyOmnibox', function() {
         },
       ],
       inlineAutocompletion: 'les/1/',
+      additionalText: '',
       selection: {start: 1, end: 2},
       textIsUrl: true,
     };
@@ -399,6 +498,7 @@ suite('ReadonlyOmnibox', function() {
         },
       ],
       inlineAutocompletion: 'es/1/',
+      additionalText: '',
       selection: {start: 1, end: 2},
       textIsUrl: true,
     };
@@ -426,6 +526,7 @@ suite('ReadonlyOmnibox', function() {
         },
       ],
       inlineAutocompletion: 'ay',
+      additionalText: '',
       selection: {start: 1, end: 2},
       textIsUrl: true,
     };

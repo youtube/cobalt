@@ -110,7 +110,7 @@ ASN1_VALUE *ASN1_item_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
   }
 
   // If the caller supplied an output pointer, free the old one and replace it
-  // with |ret|. This differs from OpenSSL slightly in that we don't support
+  // with `ret`. This differs from OpenSSL slightly in that we don't support
   // object reuse. We run this on both success and failure. On failure, even
   // with object reuse, OpenSSL destroys the previous object.
   if (pval != nullptr) {
@@ -124,10 +124,10 @@ ASN1_VALUE *ASN1_item_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
 // tag mismatch return -1 to handle OPTIONAL
 //
 // TODO(davidben): Historically, all functions in this file had to account for
-// |*pval| containing an arbitrary existing value. This is no longer the case
-// because |ASN1_item_d2i| now always starts from NULL. As part of rewriting
+// `*pval` containing an arbitrary existing value. This is no longer the case
+// because `ASN1_item_d2i` now always starts from NULL. As part of rewriting
 // this function, take the simplified assumptions into account. Though we must
-// still account for the internal calls to |ASN1_item_ex_new|.
+// still account for the internal calls to `ASN1_item_ex_new`.
 
 static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
                             long len, const ASN1_ITEM *it, int tag, int aclass,
@@ -148,7 +148,7 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
     goto err;
   }
 
-  // Bound |len| to comfortably fit in an int. Lengths in this module often
+  // Bound `len` to comfortably fit in an int. Lengths in this module often
   // switch between int and long without overflow checks.
   if (len > INT_MAX / 2) {
     len = INT_MAX / 2;
@@ -229,7 +229,7 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
       // Check whether the function skipped an optional element.
       //
       // TODO(crbug.com/42290418): Switch the rest of this function to
-      // |asn1_ex_parse|'s calling convention.
+      // `asn1_ex_parse`'s calling convention.
       return CBS_len(&cbs) == CBS_len(&copy) ? -1 : 1;
     }
 
@@ -640,14 +640,14 @@ static ASN1_STRING *ensure_string(ASN1_VALUE **pval) {
 static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
                                      const ASN1_ITEM *it, int tag, int aclass,
                                      char opt) {
-  // Historically, |it->funcs| for primitive types contained an
-  // |ASN1_PRIMITIVE_FUNCS| table of callbacks.
+  // Historically, `it->funcs` for primitive types contained an
+  // `ASN1_PRIMITIVE_FUNCS` table of callbacks.
   assert(it->funcs == nullptr);
 
   int utype;
   assert(it->itype == ASN1_ITYPE_PRIMITIVE || it->itype == ASN1_ITYPE_MSTRING);
   if (it->itype == ASN1_ITYPE_MSTRING) {
-    // MSTRING passes utype in |tag|, normally used for implicit tagging.
+    // MSTRING passes utype in `tag`, normally used for implicit tagging.
     utype = tag;
     tag = -1;
   } else {
@@ -682,9 +682,9 @@ static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
     aclass = V_ASN1_UNIVERSAL;
   }
 
-  // All edge cases of |utype| should have been handled already. |utype| is now
-  // either a primitive |ASN1_ITEM|, handled by |DECLARE_ASN1_ITEM|, or a
-  // multistring option with a corresponding |B_ASN1_*| constant.
+  // All edge cases of `utype` should have been handled already. `utype` is now
+  // either a primitive `ASN1_ITEM`, handled by `DECLARE_ASN1_ITEM`, or a
+  // multistring option with a corresponding `B_ASN1_*` constant.
   assert(utype >= 0 && utype <= V_ASN1_MAX_UNIVERSAL);
   CBS_ASN1_TAG cbs_tag =
       (static_cast<CBS_ASN1_TAG>(aclass) << CBS_ASN1_TAG_SHIFT) |
@@ -697,7 +697,7 @@ static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
     return -1;  // Omitted OPTIONAL value.
   }
 
-  // Handle non-|ASN1_STRING| types.
+  // Handle non-`ASN1_STRING` types.
   switch (utype) {
     case V_ASN1_OBJECT: {
       UniquePtr<ASN1_OBJECT> obj(asn1_parse_object(cbs, cbs_tag));
@@ -728,7 +728,7 @@ static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
         return 0;
       }
       // TODO(crbug.com/42290221): Reject invalid BOOLEAN encodings and just
-      // call |CBS_get_asn1_bool|.
+      // call `CBS_get_asn1_bool`.
       if (CBS_len(&child) != 1) {
         OPENSSL_PUT_ERROR(ASN1, ASN1_R_BOOLEAN_IS_WRONG_LENGTH);
         return 0;
@@ -740,7 +740,7 @@ static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
     }
   }
 
-  // All other types as an |ASN1_STRING| representation.
+  // All other types as an `ASN1_STRING` representation.
   ASN1_STRING *str = ensure_string(pval);
   if (str == nullptr) {
     return 0;
@@ -761,7 +761,7 @@ static int asn1_d2i_ex_primitive_cbs(ASN1_VALUE **pval, CBS *cbs,
       return asn1_parse_utf8_string(cbs, str, cbs_tag);
     case V_ASN1_UTCTIME:
       // TODO(crbug.com/42290221): Reject timezone offsets. We need to parse
-      // invalid timestamps in |X509| objects, but that parser no longer uses
+      // invalid timestamps in `X509` objects, but that parser no longer uses
       // this code.
       return asn1_parse_utc_time(cbs, str, cbs_tag,
                                  /*allow_timezone_offset=*/1);

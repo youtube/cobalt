@@ -41,8 +41,8 @@ class PersonalContextServiceImplTest : public testing::Test {
   void SetUp() override {
     scoped_feature_list_.InitAndEnableFeatureWithParameters(
         features::kPersonalContext,
-        {{features::kContextMemoryFetchContextEndpointUrl.name,
-          "https://example.com/v1:fetchContext"},
+        {{features::kContextMemoryServiceBaseUrl.name,
+          "https://example.com/v1"},
          {features::kPersonalContextEnableFetchContext.name, "true"}});
     url_loader_factory_ =
         base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
@@ -101,6 +101,20 @@ TEST_F(PersonalContextServiceImplTest, FetchContextDelegatesToManager) {
   FetchContextResult result = future.Take();
   ASSERT_TRUE(result.response.has_value());
   ASSERT_EQ("foo response", result.response.value().value());
+}
+
+TEST_F(PersonalContextServiceImplTest, FetchPiiEntitiesReturnsFailure) {
+  base::test::TestFuture<FetchPiiEntitiesResult> future;
+
+  proto::FetchPiiEntitiesRequest request;
+  ContextMemoryRequestOptions options;
+  personal_context_service()->FetchPiiEntities(request, options,
+                                               future.GetCallback());
+
+  FetchPiiEntitiesResult result = future.Take();
+  ASSERT_FALSE(result.response.has_value());
+  EXPECT_EQ(result.response.error().error(),
+            ContextMemoryError::ExecutionError::kGenericFailure);
 }
 
 }  // namespace

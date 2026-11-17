@@ -16,6 +16,7 @@
 
 #include <atomic>
 
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
@@ -272,13 +273,14 @@ void CobaltAudioRendererSink::FillOutputAudioBuffer(int num_frames) {
   if (output_sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     float* output_buffer = reinterpret_cast<float*>(output_frame_buffer_.get());
     output_buffer += channel_offset * params_.channels();
-    bus->ToInterleaved<Float32SampleTypeTraitsNoClip>(num_frames,
-                                                      output_buffer);
+    bus->ToInterleaved<Float32SampleTypeTraitsNoClip>(base::span<float>(
+        output_buffer, static_cast<size_t>(num_frames * params_.channels())));
   } else {
     int16_t* output_buffer =
         reinterpret_cast<int16_t*>(output_frame_buffer_.get());
     output_buffer += channel_offset * params_.channels();
-    bus->ToInterleaved<SignedInt16SampleTypeTraits>(num_frames, output_buffer);
+    bus->ToInterleaved<SignedInt16SampleTypeTraits>(base::span<int16_t>(
+        output_buffer, static_cast<size_t>(num_frames * params_.channels())));
   }
 }
 

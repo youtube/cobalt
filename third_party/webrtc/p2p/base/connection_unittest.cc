@@ -25,7 +25,6 @@
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/rtc_error.h"
-#include "api/test/rtc_error_matchers.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -55,20 +54,18 @@ constexpr int kDefaultTimeout = 3000;
 const SocketAddress kLocalAddr1("192.168.1.2", 0);
 const SocketAddress kLocalAddr2("192.168.1.3", 0);
 
-constexpr int kTiebreaker1 = 11111;
-constexpr int kTiebreaker2 = 22222;
+constexpr uint64_t kTiebreaker1 = 11111;
+constexpr uint64_t kTiebreaker2 = 22222;
 
 class ConnectionTest : public ::testing::Test {
  public:
   ConnectionTest()
       : ss_(new VirtualSocketServer()),
         socket_factory_(ss_.get()) {
-    lport_ = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
-    rport_ = CreateTestPort(kLocalAddr2, "rfrag", "rpass");
+    lport_ = CreateTestPort(kLocalAddr1, "lfrag", "lpass", kTiebreaker1);
+    rport_ = CreateTestPort(kLocalAddr2, "rfrag", "rpass", kTiebreaker2);
     lport_->SetIceRole(ICEROLE_CONTROLLING);
-    lport_->SetIceTiebreaker(kTiebreaker1);
     rport_->SetIceRole(ICEROLE_CONTROLLED);
-    rport_->SetIceTiebreaker(kTiebreaker2);
 
     lport_->PrepareAddress();
     rport_->PrepareAddress();
@@ -134,6 +131,7 @@ class ConnectionTest : public ::testing::Test {
       const SocketAddress& addr,
       absl::string_view username,
       absl::string_view password,
+      uint64_t tiebreaker,
       const FieldTrialsView* field_trials = nullptr) {
     Port::PortParametersRef args = {
         .env = CreateEnvironment(field_trials),
@@ -141,7 +139,8 @@ class ConnectionTest : public ::testing::Test {
         .socket_factory = &socket_factory_,
         .network = MakeNetwork(addr),
         .ice_username_fragment = username,
-        .ice_password = password};
+        .ice_password = password,
+        .ice_tiebreaker = tiebreaker};
     auto port = std::make_unique<TestPort>(args, 0, 0);
     port->SubscribeRoleConflict([this]() { OnRoleConflict(); });
     return port;
@@ -284,10 +283,9 @@ TEST_F(ConnectionTest, SendReceiveGoogDelta) {
       [](RTCErrorOr<const StunUInt64Attribute*> error_or__ack) {});
 
   lconn->Ping(env().clock().CurrentTime(), std::move(delta));
-  ASSERT_THAT(WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
+  ASSERT_TRUE(WaitUntil([&] { return lport_->last_stun_msg(); },
                         {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                         .clock = &time_controller_}),
-              IsRtcOk());
+                         .clock = &time_controller_}));
   ASSERT_GT(lport_->last_stun_buf().size(), 0u);
   rconn->OnReadPacket(
       ReceivedIpPacket(lport_->last_stun_buf(), SocketAddress(), std::nullopt));
@@ -326,19 +324,17 @@ TEST_F(ConnectionTest, SendGoogDeltaNoReply) {
       });
 
   lconn->Ping(env().clock().CurrentTime(), std::move(delta));
-  ASSERT_THAT(WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
+  ASSERT_TRUE(WaitUntil([&] { return lport_->last_stun_msg(); },
                         {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                         .clock = &time_controller_}),
-              IsRtcOk());
+                         .clock = &time_controller_}));
   ASSERT_GT(lport_->last_stun_buf().size(), 0u);
   rconn->OnReadPacket(
       ReceivedIpPacket(lport_->last_stun_buf(), SocketAddress(), std::nullopt));
 
   time_controller_.SkipForwardBy(TimeDelta::Millis(ms));
-  ASSERT_THAT(WaitUntil([&] { return rport_->last_stun_msg(); }, IsTrue(),
+  ASSERT_TRUE(WaitUntil([&] { return rport_->last_stun_msg(); },
                         {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                         .clock = &time_controller_}),
-              IsRtcOk());
+                         .clock = &time_controller_}));
   ASSERT_GT(rport_->last_stun_buf().size(), 0u);
   lconn->OnReadPacket(
       ReceivedIpPacket(rport_->last_stun_buf(), SocketAddress(), std::nullopt));
@@ -385,10 +381,9 @@ TEST_F(ConnectionTest, TooBigDeltaIsNotSent) {
       [](RTCErrorOr<const StunUInt64Attribute*> error_or__ack) {});
 
   lconn->Ping(env().clock().CurrentTime(), std::move(delta));
-  ASSERT_THAT(WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
+  ASSERT_TRUE(WaitUntil([&] { return lport_->last_stun_msg(); },
                         {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                         .clock = &time_controller_}),
-              IsRtcOk());
+                         .clock = &time_controller_}));
   ASSERT_GT(lport_->last_stun_buf().size(), 0u);
   rconn->OnReadPacket(
       ReceivedIpPacket(lport_->last_stun_buf(), SocketAddress(), std::nullopt));

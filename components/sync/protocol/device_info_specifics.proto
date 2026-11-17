@@ -98,6 +98,12 @@ message DeviceInfoSpecifics {
 
   // The form factor of the device.
   optional SyncEnums.DeviceFormFactor device_form_factor = 20;
+
+  // Prefix of the android.os.Build.FINGERPRINT (until the first colon).
+  optional string android_os_build_fingerprint_prefix = 21;
+
+  // A name determined by the server that can be used to personalize the device.
+  optional string server_determined_model_name = 22;
 }
 
 // Feature specific information about the device that is running a sync-enabled
@@ -135,6 +141,10 @@ message FeatureSpecificFields {
   // Tracks the experimental triggering state for Glic on the device.
   optional SyncEnums.GlicExperimentalTriggeringState
       glic_experimental_triggering_state = 7;
+
+  // Tracks the experimental triggering version of Glic on the device.
+  // Optional. If not set, the state is unavailable or unsupported.
+  optional int32 glic_experimental_triggering_version = 8;
 }
 
 // Device specific information for Sharing feature. Used to send end-to-end

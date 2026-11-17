@@ -28,7 +28,6 @@
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
 #include "api/scoped_refptr.h"
-#include "api/test/rtc_error_matchers.h"
 #include "api/video_codecs/builtin_video_decoder_factory.h"
 #include "api/video_codecs/builtin_video_encoder_factory.h"
 #include "api/video_codecs/sdp_video_format.h"
@@ -441,9 +440,7 @@ TEST_F(PeerConnectionIntegrationTest, BasicOfferAnswerPayloadTypesStable) {
   // Start offer/answer exchange and wait for it to complete.
   caller()->CreateAndSetAndSignalOffer();
 
-  ASSERT_THAT(
-      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
 
   // Extract PT and codec from all media sections, and check that they
   // are stable (what was expected).

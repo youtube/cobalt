@@ -10,6 +10,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
+#include "base/containers/span.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -72,7 +73,7 @@ std::unique_ptr<syncer::EntityData> CopyToEntityData(
 // parameter is first for binding purposes.
 std::optional<syncer::ModelError> ParseLocalEntriesOnBackendSequence(
     base::Time now,
-    std::map<std::string, std::unique_ptr<SendTabToSelfEntry>>* entries,
+    SendTabToSelfBridge::SendTabToSelfEntries* entries,
     std::unique_ptr<DataTypeStore::RecordList> record_list) {
   DCHECK(entries);
   DCHECK(entries->empty());
@@ -384,7 +385,7 @@ std::vector<std::string> SendTabToSelfBridge::GetAllGuids() const {
 }
 
 const SendTabToSelfEntry* SendTabToSelfBridge::GetEntryByGUID(
-    const std::string& guid) const {
+    std::string_view guid) const {
   auto it = entries_.find(guid);
   if (it == entries_.end()) {
     return nullptr;
@@ -489,7 +490,7 @@ const SendTabToSelfEntry* SendTabToSelfBridge::SendEntry(
   return result;
 }
 
-void SendTabToSelfBridge::DismissEntry(const std::string& guid) {
+void SendTabToSelfBridge::DismissEntry(std::string_view guid) {
   SendTabToSelfEntry* entry = GetMutableEntryByGUID(guid);
   // Assure that an entry with that guid exists.
   if (!entry) {
@@ -504,18 +505,24 @@ void SendTabToSelfBridge::DismissEntry(const std::string& guid) {
 
   auto entity_data = CopyToEntityData(entry->AsLocalProto().specifics());
 
-  change_processor()->Put(guid, std::move(entity_data),
+  change_processor()->Put(std::string(guid), std::move(entity_data),
                           batch->GetMetadataChangeList());
 
-  batch->WriteData(guid, entry->AsLocalProto().SerializeAsString());
+  batch->WriteData(std::string(guid),
+                   entry->AsLocalProto().SerializeAsString());
   Commit(std::move(batch));
 }
 
-void SendTabToSelfBridge::MarkEntryOpened(const std::string& guid) {
+void SendTabToSelfBridge::MarkEntryOpened(std::string_view guid) {
   SendTabToSelfEntry* entry = GetMutableEntryByGUID(guid);
   // Assure that an entry with that guid exists.
   if (!entry) {
-    unknown_opened_entries_[guid] = clock_->Now();
+    auto it = unknown_opened_entries_.find(guid);
+    if (it != unknown_opened_entries_.end()) {
+      it->second = clock_->Now();
+    } else {
+      unknown_opened_entries_.emplace(guid, clock_->Now());
+    }
     return;
   }
 
@@ -529,10 +536,11 @@ void SendTabToSelfBridge::MarkEntryOpened(const std::string& guid) {
 
   auto entity_data = CopyToEntityData(entry->AsLocalProto().specifics());
 
-  change_processor()->Put(guid, std::move(entity_data),
+  change_processor()->Put(std::string(guid), std::move(entity_data),
                           batch->GetMetadataChangeList());
 
-  batch->WriteData(guid, entry->AsLocalProto().SerializeAsString());
+  batch->WriteData(std::string(guid),
+                   entry->AsLocalProto().SerializeAsString());
   Commit(std::move(batch));
 }
 
@@ -616,6 +624,14 @@ SendTabToSelfBridge::GetTargetDeviceInfoSortedList() {
   });
 }
 
+std::optional<TargetDeviceInfo> SendTabToSelfBridge::GetTargetDeviceInfo(
+    std::string_view cache_guid) {
+  const std::vector<TargetDeviceInfo> devices = GetTargetDeviceInfoSortedList();
+  auto it =
+      std::ranges::find(devices, cache_guid, &TargetDeviceInfo::cache_guid);
+  return it != devices.end() ? std::make_optional(*it) : std::nullopt;
+}
+
 // static
 std::unique_ptr<syncer::DataTypeStore>
 SendTabToSelfBridge::DestroyAndStealStoreForTest(
@@ -629,7 +645,7 @@ void SendTabToSelfBridge::SetLocalDeviceNameForTest(
 }
 
 void SendTabToSelfBridge::NotifyRemoteSendTabToSelfEntryAdded(
-    const std::vector<const SendTabToSelfEntry*>& new_entries) {
+    base::span<const SendTabToSelfEntry* const> new_entries) {
   if (new_entries.empty()) {
     return;
   }
@@ -661,7 +677,7 @@ void SendTabToSelfBridge::NotifyRemoteSendTabToSelfEntryAdded(
 }
 
 void SendTabToSelfBridge::NotifyRemoteSendTabToSelfEntryDeleted(
-    const std::vector<std::string>& guids) {
+    base::span<const std::string> guids) {
   if (guids.empty()) {
     return;
   }
@@ -672,7 +688,7 @@ void SendTabToSelfBridge::NotifyRemoteSendTabToSelfEntryDeleted(
 }
 
 void SendTabToSelfBridge::NotifyRemoteSendTabToSelfEntryOpened(
-    const std::vector<const SendTabToSelfEntry*>& opened_entries) {
+    base::span<const SendTabToSelfEntry* const> opened_entries) {
   if (opened_entries.empty()) {
     return;
   }
@@ -680,7 +696,6 @@ void SendTabToSelfBridge::NotifyRemoteSendTabToSelfEntryOpened(
     observer.OnEntriesOpenedRemotely(opened_entries);
   }
 }
-
 
 void SendTabToSelfBridge::OnStoreCreated(
     const std::optional<syncer::ModelError>& error,
@@ -750,7 +765,7 @@ void SendTabToSelfBridge::Commit(
 }
 
 SendTabToSelfEntry* SendTabToSelfBridge::GetMutableEntryByGUID(
-    const std::string& guid) const {
+    std::string_view guid) const {
   auto it = entries_.find(guid);
   if (it == entries_.end()) {
     return nullptr;
@@ -812,13 +827,14 @@ void SendTabToSelfBridge::DoGarbageCollection() {
 }
 
 void SendTabToSelfBridge::DeleteEntryWithBatch(
-    const std::string& guid,
+    std::string_view guid,
     DataTypeStore::WriteBatch* batch) {
   // Assure that an entry with that guid exists.
   DCHECK(GetEntryByGUID(guid) != nullptr);
   DCHECK(change_processor()->IsTrackingMetadata());
 
-  change_processor()->Delete(guid, syncer::DeletionOrigin::Unspecified(),
+  change_processor()->Delete(std::string(guid),
+                             syncer::DeletionOrigin::Unspecified(),
                              batch->GetMetadataChangeList());
 
   EraseEntryInBatch(guid, batch);
@@ -875,14 +891,19 @@ void SendTabToSelfBridge::DeleteAllEntries() {
   NotifyRemoteSendTabToSelfEntryDeleted(all_guids);
 }
 
-void SendTabToSelfBridge::EraseEntryInBatch(const std::string& guid,
+void SendTabToSelfBridge::EraseEntryInBatch(std::string_view guid,
                                             DataTypeStore::WriteBatch* batch) {
   if (mru_entry_guid_ == guid) {
     mru_entry_guid_.clear();
   }
-  entries_.erase(guid);
-  unknown_opened_entries_.erase(guid);
-  batch->DeleteData(guid);
+  if (auto it = entries_.find(guid); it != entries_.end()) {
+    entries_.erase(it);
+  }
+  if (auto it = unknown_opened_entries_.find(guid);
+      it != unknown_opened_entries_.end()) {
+    unknown_opened_entries_.erase(it);
+  }
+  batch->DeleteData(std::string(guid));
 
   commit_tracker_->OnEntryRemoved(guid);
 }

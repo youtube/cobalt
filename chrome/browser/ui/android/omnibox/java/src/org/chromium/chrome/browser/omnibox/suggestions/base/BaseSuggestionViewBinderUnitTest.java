@@ -20,6 +20,7 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.view.ContextThemeWrapper;
@@ -41,6 +42,8 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxDrawableState;
 import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties;
+import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties.PositionalMode;
+import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties.RoundSides;
 import org.chromium.chrome.browser.omnibox.suggestions.base.BaseSuggestionViewProperties.Action;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
@@ -249,8 +252,8 @@ public class BaseSuggestionViewBinderUnitTest {
 
     @Test
     public void partialSuggestionRounding() {
-        mModel.set(SuggestionCommonProperties.BG_BOTTOM_CORNER_ROUNDED, false);
-        mModel.set(SuggestionCommonProperties.BG_TOP_CORNER_ROUNDED, true);
+        mModel.set(SuggestionCommonProperties.BG_ROUND_SIDES, RoundSides.TOP_AND_BOTTOM);
+        mModel.set(SuggestionCommonProperties.BG_POSITIONAL_MODE, PositionalMode.TOP);
 
         assertTrue(mBaseView.getClipToOutline());
         // Expect the RoundedCornerOutlineProvider. Fail if it's anything else.
@@ -261,8 +264,8 @@ public class BaseSuggestionViewBinderUnitTest {
 
     @Test
     public void fullSuggestionRounding() {
-        mModel.set(SuggestionCommonProperties.BG_BOTTOM_CORNER_ROUNDED, true);
-        mModel.set(SuggestionCommonProperties.BG_TOP_CORNER_ROUNDED, true);
+        mModel.set(SuggestionCommonProperties.BG_ROUND_SIDES, RoundSides.TOP_AND_BOTTOM);
+        mModel.set(SuggestionCommonProperties.BG_POSITIONAL_MODE, PositionalMode.SINGLE);
 
         assertTrue(mBaseView.getClipToOutline());
         // Expect the RoundedCornerOutlineProvider. Fail if it's anything else.
@@ -273,10 +276,48 @@ public class BaseSuggestionViewBinderUnitTest {
 
     @Test
     public void noSuggestionRounding() {
-        mModel.set(SuggestionCommonProperties.BG_BOTTOM_CORNER_ROUNDED, false);
-        mModel.set(SuggestionCommonProperties.BG_TOP_CORNER_ROUNDED, false);
+        mModel.set(SuggestionCommonProperties.BG_ROUND_SIDES, RoundSides.TOP_AND_BOTTOM);
+        mModel.set(SuggestionCommonProperties.BG_POSITIONAL_MODE, PositionalMode.MIDDLE);
 
         assertFalse(mBaseView.getClipToOutline());
+    }
+
+    @Test
+    public void roundSidesNone_noRounding() {
+        mModel.set(SuggestionCommonProperties.BG_ROUND_SIDES, RoundSides.NONE);
+        mModel.set(SuggestionCommonProperties.BG_POSITIONAL_MODE, PositionalMode.SINGLE);
+
+        assertFalse(mBaseView.getClipToOutline());
+    }
+
+    @Test
+    public void roundSidesBottomOnly_singlePositionalMode() {
+        mModel.set(SuggestionCommonProperties.BG_ROUND_SIDES, RoundSides.BOTTOM_ONLY);
+        mModel.set(SuggestionCommonProperties.BG_POSITIONAL_MODE, PositionalMode.SINGLE);
+
+        assertTrue(mBaseView.getClipToOutline());
+        var provider = (RoundedCornerOutlineProvider) mBaseView.getOutlineProvider();
+        assertFalse(provider.isTopEdgeRounded());
+        assertTrue(provider.isBottomEdgeRounded());
+    }
+
+    @Test
+    public void roundSidesBottomOnly_topPositionalMode() {
+        mModel.set(SuggestionCommonProperties.BG_ROUND_SIDES, RoundSides.BOTTOM_ONLY);
+        mModel.set(SuggestionCommonProperties.BG_POSITIONAL_MODE, PositionalMode.TOP);
+
+        assertFalse(mBaseView.getClipToOutline());
+    }
+
+    @Test
+    public void roundSidesBottomOnly_bottomPositionalMode() {
+        mModel.set(SuggestionCommonProperties.BG_ROUND_SIDES, RoundSides.BOTTOM_ONLY);
+        mModel.set(SuggestionCommonProperties.BG_POSITIONAL_MODE, PositionalMode.BOTTOM);
+
+        assertTrue(mBaseView.getClipToOutline());
+        var provider = (RoundedCornerOutlineProvider) mBaseView.getOutlineProvider();
+        assertFalse(provider.isTopEdgeRounded());
+        assertTrue(provider.isBottomEdgeRounded());
     }
 
     @Test
@@ -440,7 +481,8 @@ public class BaseSuggestionViewBinderUnitTest {
         // Width bound by the edge edge size, height wrapping content.
         var b = Bitmap.createBitmap(/* width= */ 2, /* height= */ 1, Bitmap.Config.ALPHA_8);
 
-        OmniboxDrawableState state = OmniboxDrawableState.forFavIcon(mContext, b);
+        OmniboxDrawableState state =
+                OmniboxDrawableState.forFavIcon(new BitmapDrawable(mContext.getResources(), b));
         mModel.set(BaseSuggestionViewProperties.ICON, state);
         assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().height);
         assertEquals(smallEdgeSize, mIconView.getLayoutParams().width);
@@ -448,7 +490,7 @@ public class BaseSuggestionViewBinderUnitTest {
 
         // Variant 2: Large, wide, short icon.
         // Width bound by the edge edge size, height wrapping content.
-        state = OmniboxDrawableState.forImage(mContext, b);
+        state = OmniboxDrawableState.forImage(new BitmapDrawable(mContext.getResources(), b));
         mModel.set(BaseSuggestionViewProperties.ICON, state);
         assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().height);
         assertEquals(largeEdgeSize, mIconView.getLayoutParams().width);
@@ -458,7 +500,7 @@ public class BaseSuggestionViewBinderUnitTest {
         // Height bound by the edge edge size, width wrapping content.
         b = Bitmap.createBitmap(/* width= */ 1, /* height= */ 2, Bitmap.Config.ALPHA_8);
 
-        state = OmniboxDrawableState.forFavIcon(mContext, b);
+        state = OmniboxDrawableState.forFavIcon(new BitmapDrawable(mContext.getResources(), b));
         mModel.set(BaseSuggestionViewProperties.ICON, state);
         assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().width);
         assertEquals(smallEdgeSize, mIconView.getLayoutParams().height);
@@ -466,7 +508,7 @@ public class BaseSuggestionViewBinderUnitTest {
 
         // Variant 4: Large, narrow, tall icon.
         // Height bound by the edge edge size, width wrapping content.
-        state = OmniboxDrawableState.forImage(mContext, b);
+        state = OmniboxDrawableState.forImage(new BitmapDrawable(mContext.getResources(), b));
         mModel.set(BaseSuggestionViewProperties.ICON, state);
         assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().width);
         assertEquals(largeEdgeSize, mIconView.getLayoutParams().height);

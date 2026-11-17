@@ -190,7 +190,6 @@ public class NewTabPageTest {
         ComposeplateUtils.setIsEnabledForTesting(true);
         ComposeboxQueryControllerBridgeJni.setInstanceForTesting(mComposeboxBridgeJni);
         when(mComposeboxBridgeJni.isFuseboxEligibleForProfile(any())).thenReturn(true);
-        OmniboxFeatures.sCompactFusebox.setForTesting(true);
         mActivityTestRule.startOnBlankPage();
         TemplateUrlService originalService =
                 ThreadUtils.runOnUiThreadBlocking(
@@ -427,6 +426,15 @@ public class NewTabPageTest {
                 });
         // Ensure it is still marked as disabled once the new page is fully loaded.
         Assert.assertTrue(getUrlFocusAnimationsDisabled());
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"NewTabPage"})
+    @Restriction(DeviceFormFactor.PHONE)
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR + ":disable_on_ntp/false")
+    public void testNtpScrollListenerAttached() {
+        Assert.assertNotNull(mNtp.getScrollListenerForTesting());
     }
 
     @Test
@@ -965,6 +973,7 @@ public class NewTabPageTest {
     public void testAiModeButton_fusebox() {
         if (mActivityTestRule.getActivity().isTablet()) return;
 
+        OmniboxFeatures.sRedirectComposeplateButton.setForTesting(true);
         mActivityTestRule.skipWindowAndTabStateCleanup();
 
         View ntpLayout = mNtp.getLayout();
@@ -983,7 +992,6 @@ public class NewTabPageTest {
     public void testAiModeButton_fuseboxWithoutRedirect() {
         if (mActivityTestRule.getActivity().isTablet()) return;
 
-        OmniboxFeatures.sRedirectComposeplateButton.setForTesting(false);
         mActivityTestRule.skipWindowAndTabStateCleanup();
 
         View ntpLayout = mNtp.getLayout();

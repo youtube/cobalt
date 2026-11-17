@@ -165,6 +165,58 @@ TEST_F(CorsURLLoaderTest, ForbiddenMethods) {
   }
 }
 
+TEST_F(CorsURLLoaderTest, ForbiddenMethodOverride) {
+  const struct {
+    std::string header_name;
+    std::string header_value;
+  } kTestCases[] = {
+      {"X-HTTP-Method-Override", "TRACE"},
+      {"X-HTTP-Method-Override", "TRACK"},
+      {"X-HTTP-Method-Override", "CONNECT"},
+      {"X-HTTP-Method", "TRACE"},
+      {"X-Method-Override", "TRACE"},
+  };
+  for (const auto& test_case : kTestCases) {
+    SCOPED_TRACE(test_case.header_name);
+    SCOPED_TRACE(test_case.header_value);
+    for (const mojom::RequestMode mode :
+         {mojom::RequestMode::kSameOrigin, mojom::RequestMode::kNoCors,
+          mojom::RequestMode::kCors,
+          mojom::RequestMode::kCorsWithForcedPreflight,
+          mojom::RequestMode::kNavigate}) {
+      SCOPED_TRACE(mode);
+
+      ResetFactory(
+          url::Origin::Create(GURL("https://example.com")) /* initiator */,
+          OriginatingProcessId::browser());
+
+      ResourceRequest request;
+      request.mode = mode;
+      request.credentials_mode = mojom::CredentialsMode::kInclude;
+      request.url = GURL("https://example.com/");
+      request.request_initiator = url::Origin::Create(request.url);
+      request.method = "POST";
+      request.headers.SetHeader(test_case.header_name, test_case.header_value);
+
+      BadMessageTestHelper bad_message_helper;
+      CreateLoaderAndStart(request);
+      if (IsNetworkLoaderStarted()) {
+        RunUntilCreateLoaderAndStartCalled();
+        NotifyLoaderClientOnReceiveResponse();
+        NotifyLoaderClientOnComplete(net::OK);
+      }
+      RunUntilComplete();
+
+      EXPECT_FALSE(IsNetworkLoaderStarted());
+      EXPECT_FALSE(client().has_received_redirect());
+      EXPECT_FALSE(client().has_received_response());
+      EXPECT_TRUE(client().has_received_completion());
+      EXPECT_THAT(client().completion_status().error_code,
+                  net::test::IsError(net::ERR_INVALID_ARGUMENT));
+    }
+  }
+}
+
 TEST_F(CorsURLLoaderTest, SameOriginWithoutInitiator) {
   ResourceRequest request;
   request.mode = mojom::RequestMode::kSameOrigin;
@@ -1949,6 +2001,111 @@ TEST_F(CorsURLLoaderTest, RestrictedPrefetchSucceedsWithNIK) {
   EXPECT_TRUE(client().has_received_completion());
   EXPECT_EQ(net::OK, client().completion_status().error_code);
   EXPECT_TRUE(GetRequest().headers.HasHeader(net::HttpRequestHeaders::kOrigin));
+}
+
+TEST_F(CorsURLLoaderTest, RestrictedPrefetchRedirectUpdatesIsolationInfo) {
+  url::Origin initiator = url::Origin::Create(GURL("https://example.com"));
+  const GURL url("https://other.example.com/foo.png");
+  const GURL new_url("https://other.example.org/bar.png");
+
+  ResetFactoryParams factory_params;
+  factory_params.is_trusted = true;
+  ResetFactory(initiator, kRendererProcessId, factory_params);
+
+  ResourceRequest request;
+  request.mode = mojom::RequestMode::kCors;
+  request.credentials_mode = mojom::CredentialsMode::kOmit;
+  request.method = "GET";
+  request.url = url;
+  request.request_initiator = initiator;
+  request.load_flags |= net::LOAD_RESTRICTED_PREFETCH_FOR_MAIN_FRAME;
+  request.headers.SetHeader("x-custom", "value");
+  request.trusted_params = ResourceRequest::TrustedParams();
+
+  // Fill up the `trusted_params` NetworkAnonymizationKey member as kMainFrame.
+  url::Origin request_origin = url::Origin::Create(request.url);
+  request.trusted_params->isolation_info = net::IsolationInfo::Create(
+      net::IsolationInfo::RequestType::kMainFrame, request_origin,
+      request_origin, net::SiteForCookies());
+
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+
+  // First preflight request (OPTIONS) to `url`
+  EXPECT_EQ(1, num_created_loaders());
+  EXPECT_EQ(GetRequest().url, url);
+  EXPECT_EQ(GetRequest().method, "OPTIONS");
+
+  NotifyLoaderClientOnReceiveResponse(
+      {{"Access-Control-Allow-Origin", "https://example.com"},
+       {"Access-Control-Allow-Headers", "x-custom"}});
+  RunUntilCreateLoaderAndStartCalled();
+
+  // The actual prefetch request (GET) to `url`
+  EXPECT_EQ(2, num_created_loaders());
+  EXPECT_EQ(GetRequest().url, url);
+  EXPECT_EQ(GetRequest().method, "GET");
+
+  // Redirect actual request to `new_url`
+  net::RedirectInfo redirect_info = CreateRedirectInfo(301, "GET", new_url);
+  NotifyLoaderClientOnReceiveRedirect(
+      redirect_info, {{"Access-Control-Allow-Origin", "https://example.com"}});
+  RunUntilRedirectReceived();
+  EXPECT_TRUE(client().has_received_redirect());
+
+  ClearHasReceivedRedirect();
+  FollowRedirect();
+  RunUntilCreateLoaderAndStartCalled();
+
+  // The second preflight request (OPTIONS) to `new_url` because of the redirect
+  // cross-origin carrying the custom header.
+  EXPECT_EQ(3, num_created_loaders());
+  EXPECT_EQ(GetRequest().url, new_url);
+  EXPECT_EQ(GetRequest().method, "OPTIONS");
+
+  // The preflight check should have used the updated, correct
+  // NetworkIsolationKey: net::NetworkIsolationKey(other2.example.com,
+  // other2.example.com) instead of the stale:
+  // net::NetworkIsolationKey(other.example.com, other.example.com)
+  net::SchemefulSite expected_site(new_url);
+  net::NetworkIsolationKey expected_nik(expected_site, expected_site);
+  net::SchemefulSite stale_site(url);
+  net::NetworkIsolationKey stale_nik(stale_site, stale_site);
+
+  // The browser nulls out the Origin header after a cross-origin redirect, so
+  // Access-Control-Allow-Origin: null is required here and below.
+  NotifyLoaderClientOnReceiveResponse(
+      {{"Access-Control-Allow-Origin", "null"},
+       {"Access-Control-Allow-Headers", "x-custom"}});
+
+  RunUntilCreateLoaderAndStartCalled();
+
+  // Verify that the preflight cache now contains the entry for
+  // other.example.org under expected_nik and NOT under the stale NIK!
+  EXPECT_TRUE(
+      network_context()
+          ->cors_preflight_controller()
+          ->GetPreflightCacheForTesting()
+          .DoesEntryExistForTesting(initiator, new_url.spec(), expected_nik));
+  EXPECT_FALSE(
+      network_context()
+          ->cors_preflight_controller()
+          ->GetPreflightCacheForTesting()
+          .DoesEntryExistForTesting(initiator, new_url.spec(), stale_nik));
+
+  // The actual redirected request (GET) to `new_url`
+  EXPECT_EQ(4, num_created_loaders());
+  EXPECT_EQ(GetRequest().url, new_url);
+  EXPECT_EQ(GetRequest().method, "GET");
+
+  NotifyLoaderClientOnReceiveResponse(
+      {{"Access-Control-Allow-Origin", "null"}});
+  NotifyLoaderClientOnComplete(net::OK);
+  RunUntilComplete();
+
+  EXPECT_TRUE(client().has_received_response());
+  EXPECT_TRUE(client().has_received_completion());
+  EXPECT_EQ(net::OK, client().completion_status().error_code);
 }
 
 // Test that when a request has LOAD_RESTRICTED_PREFETCH_FOR_MAIN_FRAME but no

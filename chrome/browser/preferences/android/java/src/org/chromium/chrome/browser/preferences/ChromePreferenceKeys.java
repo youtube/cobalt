@@ -212,9 +212,17 @@ public final class ChromePreferenceKeys {
     public static final String NTP_CUSTOMIZATION_BACKGROUND_COLOR =
             "Chrome.NtpCustomization.NtpBackgroundColor";
 
+    /** The background color of NTP in dark mode. */
+    public static final String NTP_CUSTOMIZATION_BACKGROUND_COLOR_DARK =
+            "Chrome.NtpCustomization.NtpBackgroundColorDark";
+
     /** The primary color for customizing NTP. */
     public static final String NTP_CUSTOMIZATION_PRIMARY_COLOR =
             "Chrome.NtpCustomization.NtpCustomizationPrimaryColor";
+
+    /** The primary color for customizing NTP in dark mode. */
+    public static final String NTP_CUSTOMIZATION_PRIMARY_COLOR_DARK =
+            "Chrome.NtpCustomization.NtpCustomizationPrimaryColorDark";
 
     /** The NtpThemeColorId of customized color for NTP. */
     public static final String NTP_CUSTOMIZATION_THEME_COLOR_ID =
@@ -781,7 +789,7 @@ public final class ChromePreferenceKeys {
             "Chrome.Privacy.UsageAndCrashReportingPermittedByUser";
 
     // TODO(b/483043192): Remove this preference once metrics reporting migration is complete.
-    public static final String PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY =
+    public static final String PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY_LEGACY =
             "Chrome.Privacy.UsageAndCrashReportingPermittedByPolicy";
 
     /**
@@ -1192,7 +1200,9 @@ public final class ChromePreferenceKeys {
                 NTP_CUSTOMIZATION_BACKGROUND_TYPE,
                 NTP_CUSTOMIZATION_THEME_COLOR_ID,
                 NTP_CUSTOMIZATION_BACKGROUND_COLOR,
+                NTP_CUSTOMIZATION_BACKGROUND_COLOR_DARK,
                 NTP_CUSTOMIZATION_PRIMARY_COLOR,
+                NTP_CUSTOMIZATION_PRIMARY_COLOR_DARK,
                 NTP_BACKGROUND_IMAGE_PORTRAIT_INFO,
                 NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO,
                 NTP_CUSTOMIZATION_BACKGROUND_INFO,
@@ -1294,7 +1304,7 @@ public final class ChromePreferenceKeys {
                 PRICE_TRACKING_USER_MANAGED_NOTIFICATIONS_TIMESTAMPS,
                 PRIVACY_IN_SAMPLE_FOR_CRASHES,
                 PRIVACY_METRICS_REPORTING_PERMITTED_BY_USER,
-                PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY,
+                PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY_LEGACY,
                 PRIVACY_METRICS_REPORTING_LEVEL,
                 PRIVACY_METRICS_REPORTING_DISABLED_BY_POLICY,
                 PRIVACY_SHOULD_USE_METRICS_CHOICE_RESTRUCTURE,

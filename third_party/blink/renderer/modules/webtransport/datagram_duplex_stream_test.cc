@@ -25,7 +25,7 @@ namespace blink {
 
 namespace {
 
-constexpr int32_t kInitialOutgoingHighWaterMark = 1;
+constexpr uint32_t kInitialOutgoingMaxBufferedDatagrams = 1;
 
 // Tiny implementation of network::mojom::blink::WebTransport with only the
 // functionality needed for these tests.
@@ -49,6 +49,7 @@ class StubWebTransport final : public network::mojom::blink::WebTransport {
   void CreateStream(
       mojo::ScopedDataPipeConsumerHandle output_consumer,
       mojo::ScopedDataPipeProducerHandle input_producer,
+      network::mojom::blink::WebTransportStreamPriorityPtr priority,
       base::OnceCallback<void(bool, uint32_t)> callback) override {
     NOTREACHED();
   }
@@ -137,7 +138,7 @@ class ScopedDatagramDuplexStream final {
       : scoped_web_transport_(v8_testing_scope_),
         duplex_(MakeGarbageCollected<DatagramDuplexStream>(
             scoped_web_transport_.GetWebTransport(),
-            kInitialOutgoingHighWaterMark)) {}
+            kInitialOutgoingMaxBufferedDatagrams)) {}
   ScopedDatagramDuplexStream(const ScopedDatagramDuplexStream&) = delete;
   ScopedDatagramDuplexStream& operator=(const ScopedDatagramDuplexStream&) =
       delete;
@@ -158,8 +159,15 @@ TEST(DatagramDuplexStreamTest, Defaults) {
   auto* duplex = scope.Duplex();
   EXPECT_FALSE(duplex->incomingMaxAge().has_value());
   EXPECT_FALSE(duplex->outgoingMaxAge().has_value());
-  EXPECT_EQ(duplex->incomingHighWaterMark(), kDefaultIncomingHighWaterMark);
-  EXPECT_EQ(duplex->outgoingHighWaterMark(), kInitialOutgoingHighWaterMark);
+  // New attributes and deprecated aliases expose the same default values.
+  EXPECT_EQ(duplex->incomingMaxBufferedDatagrams(),
+            kMinimumMaxBufferedDatagrams);
+  EXPECT_EQ(duplex->outgoingMaxBufferedDatagrams(),
+            kInitialOutgoingMaxBufferedDatagrams);
+  EXPECT_EQ(duplex->incomingHighWaterMark(),
+            static_cast<int32_t>(kMinimumMaxBufferedDatagrams));
+  EXPECT_EQ(duplex->outgoingHighWaterMark(),
+            static_cast<int32_t>(kInitialOutgoingMaxBufferedDatagrams));
 }
 
 TEST(DatagramDuplexStreamTest, SetIncomingMaxAge) {
@@ -236,12 +244,19 @@ TEST(DatagramDuplexStreamTest, SetIncomingHighWaterMark) {
 
   duplex->setIncomingHighWaterMark(10);
   EXPECT_EQ(duplex->incomingHighWaterMark(), 10);
+  EXPECT_EQ(duplex->incomingMaxBufferedDatagrams(), 10u);
 
   duplex->setIncomingHighWaterMark(0);
-  EXPECT_EQ(duplex->incomingHighWaterMark(), 0);
+  EXPECT_EQ(duplex->incomingHighWaterMark(),
+            static_cast<int32_t>(kMinimumMaxBufferedDatagrams));
+  EXPECT_EQ(duplex->incomingMaxBufferedDatagrams(),
+            kMinimumMaxBufferedDatagrams);
 
   duplex->setIncomingHighWaterMark(-1);
-  EXPECT_EQ(duplex->incomingHighWaterMark(), 0);
+  EXPECT_EQ(duplex->incomingHighWaterMark(),
+            static_cast<int32_t>(kMinimumMaxBufferedDatagrams));
+  EXPECT_EQ(duplex->incomingMaxBufferedDatagrams(),
+            kMinimumMaxBufferedDatagrams);
 }
 
 TEST(DatagramDuplexStreamTest, SetOutgoingHighWaterMark) {
@@ -251,12 +266,67 @@ TEST(DatagramDuplexStreamTest, SetOutgoingHighWaterMark) {
 
   duplex->setOutgoingHighWaterMark(10);
   EXPECT_EQ(duplex->outgoingHighWaterMark(), 10);
+  EXPECT_EQ(duplex->outgoingMaxBufferedDatagrams(), 10u);
 
   duplex->setOutgoingHighWaterMark(0);
-  EXPECT_EQ(duplex->outgoingHighWaterMark(), 0);
+  EXPECT_EQ(duplex->outgoingHighWaterMark(),
+            static_cast<int32_t>(kMinimumMaxBufferedDatagrams));
+  EXPECT_EQ(duplex->outgoingMaxBufferedDatagrams(),
+            kMinimumMaxBufferedDatagrams);
 
   duplex->setOutgoingHighWaterMark(-1);
-  EXPECT_EQ(duplex->outgoingHighWaterMark(), 0);
+  EXPECT_EQ(duplex->outgoingHighWaterMark(),
+            static_cast<int32_t>(kMinimumMaxBufferedDatagrams));
+  EXPECT_EQ(duplex->outgoingMaxBufferedDatagrams(),
+            kMinimumMaxBufferedDatagrams);
+}
+
+TEST(DatagramDuplexStreamTest, SetIncomingMaxBufferedDatagrams) {
+  test::TaskEnvironment task_environment;
+  ScopedDatagramDuplexStream scope;
+  auto* duplex = scope.Duplex();
+
+  duplex->setIncomingMaxBufferedDatagrams(10u);
+  EXPECT_EQ(duplex->incomingMaxBufferedDatagrams(), 10u);
+
+  duplex->setIncomingMaxBufferedDatagrams(0u);
+  EXPECT_EQ(duplex->incomingMaxBufferedDatagrams(),
+            kMinimumMaxBufferedDatagrams);
+}
+
+TEST(DatagramDuplexStreamTest, SetOutgoingMaxBufferedDatagrams) {
+  test::TaskEnvironment task_environment;
+  ScopedDatagramDuplexStream scope;
+  auto* duplex = scope.Duplex();
+
+  duplex->setOutgoingMaxBufferedDatagrams(10u);
+  EXPECT_EQ(duplex->outgoingMaxBufferedDatagrams(), 10u);
+
+  duplex->setOutgoingMaxBufferedDatagrams(0u);
+  EXPECT_EQ(duplex->outgoingMaxBufferedDatagrams(),
+            kMinimumMaxBufferedDatagrams);
+}
+
+TEST(DatagramDuplexStreamTest, OldSetterUpdatesNewGetter) {
+  test::TaskEnvironment task_environment;
+  ScopedDatagramDuplexStream scope;
+  auto* duplex = scope.Duplex();
+
+  // Setting via old setter should be visible via new getter.
+  duplex->setIncomingHighWaterMark(7);
+  EXPECT_EQ(duplex->incomingMaxBufferedDatagrams(), 7u);
+  EXPECT_EQ(duplex->incomingHighWaterMark(), 7);
+
+  duplex->setOutgoingHighWaterMark(3);
+  EXPECT_EQ(duplex->outgoingMaxBufferedDatagrams(), 3u);
+  EXPECT_EQ(duplex->outgoingHighWaterMark(), 3);
+
+  // Setting via new setter should be visible via old getter.
+  duplex->setIncomingMaxBufferedDatagrams(42u);
+  EXPECT_EQ(duplex->incomingHighWaterMark(), 42);
+
+  duplex->setOutgoingMaxBufferedDatagrams(99u);
+  EXPECT_EQ(duplex->outgoingHighWaterMark(), 99);
 }
 
 TEST(DatagramDuplexStreamTest, InitialMaxDatagramSize) {

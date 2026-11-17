@@ -56,33 +56,6 @@ namespace {
 
 constexpr char kSidePanelSnapshotImageOptions[] = "=w320-h180-p-k-no-nd-mv";
 
-base::DictValue GetBackgroundInfoAsDict(
-    const GURL& background_url,
-    const std::string& attribution_line_1,
-    const std::string& attribution_line_2,
-    const GURL& action_url,
-    const std::optional<std::string>& collection_id,
-    const std::optional<std::string>& resume_token,
-    std::optional<int> refresh_timestamp) {
-  base::DictValue background_info;
-  background_info.Set(kNtpCustomBackgroundURL,
-                      base::Value(background_url.spec()));
-  background_info.Set(kNtpCustomBackgroundAttributionLine1,
-                      base::Value(attribution_line_1));
-  background_info.Set(kNtpCustomBackgroundAttributionLine2,
-                      base::Value(attribution_line_2));
-  background_info.Set(kNtpCustomBackgroundAttributionActionURL,
-                      base::Value(action_url.spec()));
-  background_info.Set(kNtpCustomBackgroundCollectionId,
-                      base::Value(collection_id.value_or("")));
-  background_info.Set(kNtpCustomBackgroundResumeToken,
-                      base::Value(resume_token.value_or("")));
-  background_info.Set(kNtpCustomBackgroundRefreshTimestamp,
-                      base::Value(refresh_timestamp.value_or(0)));
-
-  return background_info;
-}
-
 base::DictValue GetBackgroundInfoWithColor(
     const base::DictValue* background_info,
     const SkColor color) {
@@ -90,24 +63,6 @@ base::DictValue GetBackgroundInfoWithColor(
   new_background_info.Set(kNtpCustomBackgroundMainColor,
                           base::Value(static_cast<int>(color)));
   return new_background_info;
-}
-
-base::DictValue NtpCustomBackgroundDefaults() {
-  base::DictValue defaults;
-  defaults.Set(kNtpCustomBackgroundURL, base::Value(base::Value::Type::STRING));
-  defaults.Set(kNtpCustomBackgroundAttributionLine1,
-               base::Value(base::Value::Type::STRING));
-  defaults.Set(kNtpCustomBackgroundAttributionLine2,
-               base::Value(base::Value::Type::STRING));
-  defaults.Set(kNtpCustomBackgroundAttributionActionURL,
-               base::Value(base::Value::Type::STRING));
-  defaults.Set(kNtpCustomBackgroundCollectionId,
-               base::Value(base::Value::Type::STRING));
-  defaults.Set(kNtpCustomBackgroundResumeToken,
-               base::Value(base::Value::Type::STRING));
-  defaults.Set(kNtpCustomBackgroundRefreshTimestamp,
-               base::Value(base::Value::Type::INTEGER));
-  return defaults;
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -206,11 +161,12 @@ void NtpCustomBackgroundService::ResetProfilePrefs(Profile* profile) {
 }
 
 NtpCustomBackgroundService::NtpCustomBackgroundService(Profile* profile)
-    : profile_(profile),
-      pref_service_(profile_->GetPrefs()),
+    : NtpCustomBackgroundServiceBase(
+          profile->GetPrefs(),
+          NtpBackgroundServiceFactory::GetForProfile(profile)),
+      profile_(profile),
       clock_(base::DefaultClock::GetInstance()),
       background_updated_timestamp_(base::TimeTicks::Now()) {
-  background_service_ = NtpBackgroundServiceFactory::GetForProfile(profile_);
   if (background_service_)
     background_service_observation_.Observe(background_service_.get());
 
@@ -522,16 +478,6 @@ NtpCustomBackgroundService::GetCustomBackground() {
   return std::nullopt;
 }
 
-void NtpCustomBackgroundService::AddObserver(
-    NtpCustomBackgroundServiceObserver* observer) {
-  observers_.AddObserver(observer);
-}
-
-void NtpCustomBackgroundService::RemoveObserver(
-    NtpCustomBackgroundServiceObserver* observer) {
-  observers_.RemoveObserver(observer);
-}
-
 void NtpCustomBackgroundService::SetThemeDelegate(ThemeDelegate* delegate) {
   theme_delegate_ = delegate;
 }
@@ -668,11 +614,6 @@ bool NtpCustomBackgroundService::IsCustomBackgroundPrefValid() {
     return false;
 
   return GURL(background_url->GetString()).is_valid();
-}
-
-void NtpCustomBackgroundService::NotifyAboutBackgrounds() {
-  for (NtpCustomBackgroundServiceObserver& observer : observers_)
-    observer.OnCustomBackgroundImageUpdated();
 }
 
 void NtpCustomBackgroundService::UpdateCustomBackgroundPrefsWithColor(

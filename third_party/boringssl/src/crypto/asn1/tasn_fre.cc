@@ -130,8 +130,8 @@ void bssl::ASN1_template_free(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt) {
 }
 
 void bssl::ASN1_primitive_free(ASN1_VALUE **pval, const ASN1_ITEM *it) {
-  // Historically, |it->funcs| for primitive types contained an
-  // |ASN1_PRIMITIVE_FUNCS| table of callbacks.
+  // Historically, `it->funcs` for primitive types contained an
+  // `ASN1_PRIMITIVE_FUNCS` table of callbacks.
   assert(it->funcs == nullptr);
 
   int utype = it->itype == ASN1_ITYPE_MSTRING ? -1 : it->utype;

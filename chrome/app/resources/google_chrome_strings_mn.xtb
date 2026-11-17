@@ -66,6 +66,7 @@
 <translation id="1640672724030957280">Татаж байна...</translation>
 <translation id="1651617469580841801">Таныг Google Lens-г ашиглахад хуудасны гарчиг, URL, PDF зэрэг контентыг Google рүү илгээдэг. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">ChromeOS Flex-н тухай</translation>
+<translation id="1665867022636014702">Google-н санал болгосон хөтчийн тохиргоог ашиглах</translation>
 <translation id="1674870198290878346">Холбоосыг Chrome-н нууцлалтай цонхонд нээх</translation>
 <translation id="1682634494516646069">Google Chrome нь өөрийн өгөгдлийн хадгалалтын сан руу уншуулж бас бичиж чадахгүй:
 
@@ -77,7 +78,6 @@
 <translation id="177180974022074201">Chrome дахь Gemini-р туршиж үзэх</translation>
 <translation id="1786003790898721085">Та Chrome-д өөрийн <ph name="TARGET_DEVICE_NAME" />-с нэвтэрсэн эсэхээ шалгаад, дахин илгээхээр оролдоно уу.</translation>
 <translation id="1786044937610313874">Товчлолууд Chrome-д нээгддэг</translation>
-<translation id="178701303897325119">Энэ өргөтгөлийг дэмжихээ больсон. Chrome танд оронд нь үүнийг хасахыг зөвлөж байна.</translation>
 <translation id="1812689907177901597">Үүнийг унтрааснаар та Gmail зэрэг Google-н сайтуудад Chrome-д нэвтрэлгүйгээр нэвтэрч болно</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{Chrome таны хөтчийг удаашруулж буй табыг түр зогсоохыг зөвлөж байна}other{Chrome таны хөтчийг удаашруулж буй табуудыг түр зогсоохыг зөвлөж байна}}</translation>
 <translation id="1832046143430087831">Chrome-н V8 системээр сайтыг хурдасгах ч Chrome-г халдлагад арай тэсвэр багатай болгоно. Энэ тохиргоо унтраалттай байна.</translation>
@@ -95,7 +95,6 @@
 <translation id="1953553007165777902">Татаж байна... <ph name="MINUTE" /> минут үлдсэн</translation>
 <translation id="1979600810166324878">iOS-т зориулсан Chrome дээрх Сайжруулсан аюулгүй хөтчийг ашиглан явж байх зуураа илүү аюулгүй байгаарай</translation>
 <translation id="2001586581944147178">Таны интернэтийн ачаалалд хандах эрхтэй хүмүүст таны зочилдог сайтуудыг харахыг илүү хүндрэлтэй болгоно. Chrome DNS-с (Домэйн нэрийн систем) сайтын IP хаягийг хайхад аюулгүй холболт ашигладаг.</translation>
-<translation id="2008942457798486387">{NUM_EXTENSIONS,plural, =1{Энэ өргөтгөлийг дэмжихээ больсон. Chrome танд үүнийг хасахыг зөвлөж байна.}other{Эдгээр өргөтгөлийг дэмжихээ больсон. Chrome танд эдгээрийг хасахыг зөвлөж байна.}}</translation>
 <translation id="2018528049276128029">Профайл тус бүр Chrome-н өөрийн мэдээллийг агуулах бөгөөд үүнд хавчуурга, түүх, нууц үг болон бусад мэдээлэл багтана</translation>
 <translation id="2018879682492276940">Суулгаж чадсангүй. Дахин оролдоно уу.</translation>
 <translation id="2024959665595762054">Google Бүртгэлдээ Chrome-н өгөгдлийг ашиглах, хадгалахын тулд өөрийгөө мөн болохыг баталгаажуулна уу</translation>
@@ -152,6 +151,7 @@
 <translation id="2580411288591421699">Одоо ажиллаж байгаа Google Chrome-ийн хувилбарыг суурьлуулах боломжгүй. Google Chrome-оо хаагаад, дахин оролдоно уу.</translation>
 <translation id="2586406160782125153">Энэ нь төхөөрөмжөөс таны хайлтын өгөгдлийг устгах болно. Өгөгдлөө дараа нь сэргээхийн тулд Chrome-д <ph name="USER_EMAIL" />-р нэвтэрнэ үү.</translation>
 <translation id="259935314519650377">Татсан суулгагчийг завсрын санах ойд хадгалж чадсангүй. Алдаа: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
+<translation id="2608461706055011366">Энэ баримт бичгийн шуурхай тоймыг авч, Chrome дахь Gemini-р асуулт асуугаарай</translation>
 <translation id="2620436844016719705">Систем</translation>
 <translation id="263447411082773721">Нууц үг, хавчуурга, түүхээ төхөөрөмжүүд дээр төгс синк хийсээр байгаарай. Та өгөгдмөл хөтчөө Chrome болгон шинэчилж мэддэг, дуртай онцлогууддаа хялбархан хандаарай. Chrome-г шуурхай хандахад зориулж таны ажлын хэсэгт бэхэлнэ.</translation>
 <translation id="2645435784669275700">ChromeOS</translation>
@@ -159,6 +159,7 @@
 <translation id="2652691236519827073">Холбоосыг шинэ Chrome-н табад нээх</translation>
 <translation id="2665296953892887393">Google рүү эвдрэлийн тайлан болон <ph name="UMA_LINK" />-ыг илгээх замаар Google Chrome-ыг сайжруулахад туслаач</translation>
 <translation id="2668094785979141847">Google Lens-с гарахын тулд товшино уу</translation>
+<translation id="2674238339205910678">Таны бүртгэлийн нэвтрэх дэлгэрэнгүй мэдээлэл хуучирсан тул ChromeOS Flex таны Google Бүртгэлд Chrome-н өгөгдлийг хадгалж чадсангүй</translation>
 <translation id="2681444469812712297"><ph name="URL" />-г Google Chrome-д шинэ табд нээнэ үү.</translation>
 <translation id="2699790011615497488">Chrome Бета дахь Gemini-г нээх</translation>
 <translation id="2712141162840347885">Google Lens-р хайхыг хүссэн зүйлээ сонгох эсвэл Google Lens-с гарахын тулд escape дээр дарна уу</translation>
@@ -189,6 +190,7 @@
 <translation id="2945997411976714835">Суулгах үед алдаа гарлаа: Суулгагч явцыг эхлүүлж чадсангүй.</translation>
 <translation id="2969728957078202736"><ph name="PAGE_TITLE" /> - Сүлжээнд нэвтрэх - Chrome</translation>
 <translation id="2970681950995291301">Google Бүртгэлээ Chrome-с хасахын тулд Тохиргооны хуудсанд Chrome-с гарна уу</translation>
+<translation id="2976869732253036751">Утсан дээрээ Chrome-р үнэ мөшгөх мэдэгдэл аваарай</translation>
 <translation id="2991167882679440829">Таны Google Бүртгэлдээ хадгалсан нууц үг болон Chrome-н бусад өгөгдлийг энэ төхөөрөмжөөс хасна. Тэдгээрийг Chrome-д дахин ашиглахын тулд буцаж нэвтэрнэ үү.</translation>
 <translation id="2994465299455873643">Хэрэв <ph name="BROWSER_NAME" /> хуучирсан бол тухайн хөтчийг сэргээх аюулгүй арга болон шифрлэлтийн үйлчилгээгээр хангадаг. Хэрэв энэ үйлчилгээг идэвхгүй болгосон бол <ph name="BROWSER_NAME" /> шифрлэгдсэн өгөгдөлд хандах эрхээ алдаж магадгүй бөгөөд <ph name="BROWSER_NAME" /> өөрийгөө сэргээх боломжгүй болж болзошгүй.</translation>
 <translation id="3003694935412297923">Бүх ажил</translation>
@@ -241,6 +243,7 @@
 <translation id="345171907106878721">Chrome-д өөрийгөө нэмэх</translation>
 <translation id="3453763134178591239">ChromeOS-н нөхцөл</translation>
 <translation id="3503306920980160878">Энэ сайтаар таны байршлыг хуваалцахын тулд Chrome-д таны байршилд хандах зөвшөөрөл шаардлагатай</translation>
+<translation id="3539955434060988644">Холбоосыг Chrome-н нууцлалтай цонхонд нээх</translation>
 <translation id="3576528680708590453">Таны системийн админ Google Chrome-г <ph name="TARGET_URL_HOSTNAME" />-д хандахын тулд өөр хөтөч нээхээр тохируулсан байна.</translation>
 <translation id="3582972582564653026">Төхөөрөмжүүддээ Chrome-г синк хийж, хувийн болгох</translation>
 <translation id="3583751698304738917">Та <ph name="USER_EMAIL_ADDRESS" /> хаягаараа Chrome-н өөр профайлд аль хэдийн нэвтэрсэн байна</translation>
@@ -384,6 +387,7 @@
 <translation id="5127558335897923940">Хүссэн үедээ Chrome руу түргэн очихын тулд суурилуулагчдаа байлгана уу</translation>
 <translation id="5132929315877954718">Google Кромын шилдэг апп, тоглоом, өргөтгөл болон загварыг ашиглах боломжтой.</translation>
 <translation id="5139423532931106058">Chrome-н профайлаа өөрчлөх</translation>
+<translation id="5152381187352661267">Chrome-н Ур чадвар</translation>
 <translation id="5163087008893166964">Chrome-д тавтай морилно уу; хөтчийн шинэ цонхыг нээсэн</translation>
 <translation id="5166439563123238795">Chrome-д таны гарыг хянах зөвшөөрөл шаардлагатай</translation>
 <translation id="5169778651486082413">Утсан дээрээ Chrome-р нууц үгнүүдээ ашиглах</translation>
@@ -483,6 +487,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="6070348360322141662">Таны аюулгүй байдлыг сайжруулахын тулд Google Chrome таны өгөгдлийг шифрлэнэ</translation>
 <translation id="6075300983329039771">Танай байгууллага болох <ph name="MANAGER" /> таныг Chrome-д нэвтрэхийг шаардаж байна</translation>
 <translation id="6113794647360055231">Chrome илүү сайн боллоо</translation>
+<translation id="6116004140911290070">Chrome-д Ур чадварыг идэвхжүүлэх</translation>
 <translation id="6116252277240876590">Энэ хэлийг Chrome-д цэс, тохиргоо, сэрэмжлүүлэг болон бусад текстийг үзүүлэхэд ашигладаг</translation>
 <translation id="6127237283587442951">Chrome-г өгөгдмөлөөр ашиглаж, бэхлээрэй</translation>
 <translation id="6134085236017727171">Микрофоноо ашиглахын тулд <ph name="BEGIN_LINK" />системийн тохиргоонд<ph name="END_LINK" /> Chrome-д хандах эрх өгнө үү</translation>
@@ -536,6 +541,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="6497147134301593682">Chrome-г автоматаар хаасан</translation>
 <translation id="6506909944137591434">Таны эргэн тойрны 3D газрын зургийг үүсгэхийн тулд Chrome-д камерын зөвшөөрөл шаардлагатай</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> - Google Chrome Дев</translation>
+<translation id="6520608191273161151">Нэвтрэх алдааны улмаас ChromeOS Flex таны Google Бүртгэлд Chrome-н өгөгдлийг хадгалж чадсангүй</translation>
 <translation id="6520670145826811516">Байршлаа ашиглахын тулд <ph name="BEGIN_LINK" />системийн тохиргоонд<ph name="END_LINK" /> Chrome-д хандах эрх өгнө үү</translation>
 <translation id="652948702951888897">Chrome-н түүх</translation>
 <translation id="6532945796722480006">Chrome Канар дахь Gemini-г нээх</translation>
@@ -583,6 +589,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="7011190694940573312">Үйлдлийн системийн энэ хувилбарыг дэмждэггүй тул суулгалт амжилтгүй боллоо.</translation>
 <translation id="7024536598735240744">Задлахад алдаа гарлаа: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025800014283535195">Та энд Chrome-н профайлууд хооронд сэлгэх боломжтой</translation>
+<translation id="7026856149118332950">Chrome-г ажлын хэсэгтээ бэхэлж, шуурхай хандахын тулд Windows-н мэдэгдэл дэх <ph name="BEGIN_BOLD" />Тийм<ph name="END_BOLD" /> дээр товшино уу.</translation>
 <translation id="7047386856539490735">Эдгээр илэрц хэрэг болж байна уу?</translation>
 <translation id="7051685429025310665">Та ойрын үед зочлоогүй байна. Chrome <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" />-г хассан.</translation>
 <translation id="7059914902409643750">Chrome-г өөрийн болгоорой</translation>
@@ -675,6 +682,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="7890208801193284374">Нэг компьютерыг олон хэрэглэгч хуваан хэрэглэж байгаа тохиолдолд хэрэглэгч бүр өөрийн хүссэнээр Chrome-ыг тохируулж, хайлт хийх боломжтой.</translation>
 <translation id="7896673875602241923">Өмнө нь хэн нэгэн энэ компьютероос Chrome-д <ph name="ACCOUNT_EMAIL_LAST" /> бүртгэлээр нэвтэрсэн байна. Мэдээллээ тусaд нь байлгахын тулд Chrome-н шинэ хэрэглэгч үүсгэнэ үү.</translation>
 <translation id="7904985524660297937">Google Chrome дахь Gemini-г туршиж үзээрэй</translation>
+<translation id="7905880575591690197">Нэвтрэх алдааны улмаас ChromeOS таны Google Бүртгэлд Chrome-н өгөгдлийг хадгалж чадсангүй</translation>
 <translation id="7917876797003313048">Та нэвтэрсэн Google Бүртгэлүүдээ удирдах боломжтой. Таны Google Бүртгэлүүдийг Chrome хөтөч, Play Store, Gmail болон бусад дээр ашигладаг. Хэрэв та гэр бүлийн гишүүн зэрэг өөр хэн нэгний бүртгэлийг нэмэхийг хүсвэл оронд нь өөрийн <ph name="DEVICE_TYPE" />-д шинэ хүн нэмнэ үү. <ph name="LINK_BEGIN" />Нэмэлт мэдээлэл авах<ph name="LINK_END" /></translation>
 <translation id="7936702483636872823">Файл нь хуурамч бөгөөд таны төхөөрөмжид гэнэтийн өөрчлөлт хийж магадгүй тул Chrome энэ таталтыг блоклосон</translation>
 <translation id="7951272445806340501">Шинэчлэлтийг хэрэгжүүлэхийн тулд ChromeOS Flex-г дахин эхлүүлэх шаардлагатай.</translation>
@@ -748,6 +756,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="8624541899164515475">Тохиргоо, шинэ табд нээгдэнэ.</translation>
 <translation id="8625237574518804553">{0,plural, =1{Chrome-г 1 минутын дотор дахин ажиллуулна}other{Chrome-г # минутын дотор дахин ажиллуулна}}</translation>
 <translation id="8637932705841171563">Цонхоо хуваалцахын тулд Системийн тохиргоонд Chrome-д дэлгэцийн үйлдэл бичихийг зөвшөөрнө үү</translation>
+<translation id="8642497536370021917">Та Google Бүртгэлдээ Chrome-н өгөгдлийг үргэлж ашиглах, хадгалах боломжтой болохоо нягтлахын тулд өөрийгөө мөн болохыг баталгаажуулна уу</translation>
 <translation id="8656634243791296665">Chrome Dev дэх Gemini-г нээх</translation>
 <translation id="8669527147644353129">Google Chrome Туслагч</translation>
 <translation id="8679801911857917785">Энэ нь мөн таныг Chrome-ыг эхлүүлэх үед гарч ирдэг хуудсыг хянадаг.</translation>
@@ -797,6 +806,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="93760716455950538">ChromeOS Flex-г дахин эхлүүлэх</translation>
 <translation id="943390475793766444">Энэ файл аюултай байж магадгүй тул Chrome үүнийг скан хийхийг зөвлөж байна.</translation>
 <translation id="945522503751344254">Санал хүсэлт илгээх</translation>
+<translation id="973195869036269770">Таны бүртгэлийн нэвтрэх дэлгэрэнгүй мэдээлэл хуучирсан тул ChromiumOS таны Google Бүртгэлд Chrome-н өгөгдлийг хадгалж чадсангүй</translation>
 <translation id="983803489796659991">Шинэчлэлтийн серверт аппликэйшнд зориулсан ямар нэг хэш өгөгдөл байгаагүй тул суулгалт амжилтгүй болсон.</translation>
 <translation id="989369509083708165">Google Chrome таны өгөгдмөл хөтөч байна</translation>
 <translation id="989816563149873169"><ph name="SHORTCUT" /> Chrome-н профайлууд хооронд сэлгэх боломжтой</translation>

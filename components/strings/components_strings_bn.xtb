@@ -306,6 +306,7 @@
 <translation id="1458140305240870199">অন্তর্বাস</translation>
 <translation id="1458770162980644530">'এখন কিনুন, পরে পেমেন্ট করুন' পরিষেবার শর্তাবলী সংক্রান্ত স্ক্রিন। কীবোর্ড লুকানো রয়েছে।</translation>
 <translation id="1459693405370120464">আবহাওয়া</translation>
+<translation id="1460317464907341501">এই ইমেল অটোমেটিক যাচাই করবেন?</translation>
 <translation id="1461041542809785877">কর্ম সম্পাদন</translation>
 <translation id="1462245070427461050">JIS B9</translation>
 <translation id="1462951478840426066">আপনার কম্পিউটারে বিভিন্ন ফন্ট ব্যবহার করুন যাতে হাই-ফিডালিটি কন্টেন্ট তৈরি করতে পারেন</translation>
@@ -850,7 +851,6 @@
 <translation id="2316087952091171402"><ph name="UPPER_ESTIMATE" />-এর থেকে কম পরের বার ভিজিট করার সময় কিছু সাইট লোড হতে দেরি হতে পারে।</translation>
 <translation id="2316090909467242775">এই রিকভারি পাসওয়ার্ড ব্যবহার করে দেখুন</translation>
 <translation id="2316159751672436664">ChromeOS সেটিংস থেকে আপনার পছন্দ মতো অ্যাক্সেসিবিলিটি টুল বেছে নিন</translation>
-<translation id="2316887270356262533">১ MB-এর চেয়ে কম জায়গা খালি করে। পরের বার ভিজিটের সময় কিছু সাইট লোড হতে দেরি হতে পারে।</translation>
 <translation id="2317259163369394535"><ph name="DOMAIN" /> এর জন্য একটি ইউজারনেম এবং পাসওয়ার্ড প্রয়োজন।</translation>
 <translation id="2318594867107319532">শেষবার নীতি রিফ্রেশ করার টাইমস্ট্যাম্প:</translation>
 <translation id="2320564945062300737">মুখের পরিচর্যা সম্পর্কিত প্রোডাক্ট</translation>
@@ -876,6 +876,7 @@
 <translation id="2354001756790975382">অন্য বুকমার্ক</translation>
 <translation id="2355395290879513365">আপনি এই সাইটে যেসব ছবি দেখছেন, আক্রমণকারীরা সেগুলি দেখতে পেতে পারে এবং সেগুলি পরিবর্তন করে আপনাকে বোকা বানাতে পারে।</translation>
 <translation id="2356941001189392209">পুরনো টেকনোলজি ইভেন্ট হচ্ছে এমন যেসব পৃষ্ঠা আপনি দেখেন, তার URL-এর সীমিত তালিকা</translation>
+<translation id="2357312461142072202">{NUM_TABS,plural, =1{১টি ট্যাব শেয়ার করা হবে}one{{NUM_TABS}টি ট্যাব শেয়ার করা হবে}other{{NUM_TABS}টি ট্যাব শেয়ার করা হবে}}</translation>
 <translation id="2357481397660644965">আপনার ডিভাইস <ph name="DEVICE_MANAGER" />-এর মাধ্যমে এবং আপনার অ্যাকাউন্ট <ph name="ACCOUNT_MANAGER" />-এর মাধ্যমে ম্যানেজ করা হয়।</translation>
 <translation id="2359629602545592467">একাধিক</translation>
 <translation id="2359808026110333948">চালিয়ে যান</translation>
@@ -1387,6 +1388,7 @@
 <translation id="3158539265159265653">ডিস্ক</translation>
 <translation id="3162070126914310576">এই ডিভাইসটি এখন এনরোল করা যাবে না কারণ আপনার সংস্থার ইউনিট এনরোল করার প্রথমিক সীমায় পৌঁছে গেছে। সাহায্যের জন্য আপনার অ্যাডমিনিস্ট্রেটরের সাথে যোগাযোগ করুন।</translation>
 <translation id="3162559335345991374">আপনি যে ওয়াই-ফাইটি ব্যবহার করছেন সেটির জন্য অপনাকে এটির লগ-ইন পৃষ্ঠাতে যেতে হতে পরে৷</translation>
+<translation id="316542773973815724">নেভিগেশন</translation>
 <translation id="316638481603975524">ওয়েব অ্যাপ ইনস্টল করার অনুমতি চাওয়া হতে পারে</translation>
 <translation id="3166788340998560642">পরেরবার ব্যবহার করার সময় Chrome এটি <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" />-এ সেভ করার সুযোগ দেবে</translation>
 <translation id="3168744840365648658">রেডিওর সরঞ্জাম</translation>
@@ -2005,6 +2007,7 @@
 <translation id="412601465078863288">আপলোড করার সময় শেষ হয়ে গেছে</translation>
 <translation id="4127317221386336246">পোশাকের অ্যাক্সেসরিজ</translation>
 <translation id="4129401438321186435">{COUNT,plural, =1{আরও ১টি}one{অন্যান্য #টি}other{অন্যান্য #টি}}</translation>
+<translation id="4129810348470013900">কোনও সমস্যা হয়েছে। ইন্টারনেট কানেকশন ঠিক আছে কিনা দেখে আবার চেষ্টা করুন।</translation>
 <translation id="4129992181550680635">শিক্ষামূলক রিসোর্স</translation>
 <translation id="4130226655945681476">নেটওয়ার্কের তার, মডেম, এবং রাউটার পরীক্ষা করুন</translation>
 <translation id="4132448310531350254">অ্যাপ "<ph name="POLICY_IDS_LIST" />" দ্বারা রেফারেন্স দেওয়া হয়েছে এমন file_extension "<ph name="FILE_EXTENSION" />"-এর ডুপ্লিকেট হ্যান্ডলার।</translation>
@@ -3022,6 +3025,7 @@
 <translation id="5728246486828755318">উন্নত প্রিন্টারের ফিচার ব্যবহার করার অনুমতি চাইতে পারে</translation>
 <translation id="5729442113829771034">প্রারম্ভিক শৈশবের শিক্ষা</translation>
 <translation id="5730040223043577876">Chrome-এর নীতি অনুযায়ী আপনার পাসওয়ার্ড বদলে ফেলা উচিত যদি আপনি সেটি অন্য কোনও সাইটে ব্যবহার করে থাকেন।</translation>
+<translation id="5735174108294025227">যাচাই করা ইমেল আইডি এখানে দেখা যাবে</translation>
 <translation id="573555826359077410">'ফর্ম তৈরি করুন' বোতাম, Google Forms-এ চটপট নতুন ফর্ম তৈরি করতে এটি চালু করুন</translation>
 <translation id="5738385766833540397">আপনার ট্র্যাক করা প্রোডাক্টের দাম কমার বিজ্ঞপ্তি কীভাবে পাবেন তা ম্যানেজ করুন</translation>
 <translation id="5739619009927381786">পরবর্তী ধাপে আপনার স্ক্রিন আনলক করুন, সাধারণত ফিঙ্গারপ্রিন্ট ব্যবহার করে করা হয়। অথবা আপনি <ph name="BEGIN_LINK" />অন্য উপায়ে যাচাই করতে<ph name="END_LINK" /> পারেন।</translation>
@@ -3399,7 +3403,6 @@
 <translation id="633348045801643466">চেক-আউটের সময় <ph name="PAY_LATER_OPTIONS_HELP_LINK_BEGIN" />পরে পেমেন্ট করার<ph name="PAY_LATER_OPTIONS_HELP_LINK_END" /> বিকল্প দেখুন</translation>
 <translation id="6335029926534404762">অ্যাথলিট জুতো</translation>
 <translation id="6336948221660696475">ভিআর (VR) ব্যবহার করার অনুমতি নেই</translation>
-<translation id="6337133576188860026"><ph name="SIZE" />-এর চেয়ে কম জায়গা খালি করে। পরের বার যখন দেখবেন তখন কিছু সাইট লোড হতে দেরি হতে পারে।</translation>
 <translation id="6337534724793800597">নাম অনুসারে ফিল্টারগুলি বাছাই করুন</translation>
 <translation id="633770708279464947"><ph name="SECURE_DNS_SALT" /> মানটি সঠিক নয় এবং ব্যবহার করা যাবে না।</translation>
 <translation id="6338645927051849741">পাসওয়ার্ড • Google Password Manager</translation>
@@ -3757,7 +3760,6 @@
 <translation id="6893057134494550310">ল্যামিনেটিং ফয়েল</translation>
 <translation id="6893204630281237373">Chrome-এ পেমেন্ট অ্যাপ বন্ধ করতে, আপনার <ph name="BEGIN_LINK1" />পেমেন্টের সেটিংস<ph name="END_LINK1" />-এ যান</translation>
 <translation id="6895330447102777224">আপনার কার্ডটি নিশ্চিত করা হয়েছে</translation>
-<translation id="6895573608763679343"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />, <ph name="GROUP_HEADER" /> গ্রুপে <ph name="NUM_MATCHES_IN_GROUP" />টির মধ্যে <ph name="MATCH_POSITION" /> নম্বর।</translation>
 <translation id="6896758677409633944">কপি</translation>
 <translation id="6897140037006041989">ব্যবহারকারী এজেন্ট</translation>
 <translation id="6898699227549475383">সংস্থা (O)</translation>
@@ -3950,7 +3952,6 @@
 <translation id="718872491229180389">চিয়ারলিডিং</translation>
 <translation id="7188840756966467339">রিস্টার্ট করে নীতি প্রয়োগ করুন</translation>
 <translation id="7192188280913829296">"vendor_id" অ্যাট্রিবিউটও নির্দিষ্ট করতে হবে।</translation>
-<translation id="7192203810768312527"><ph name="SIZE" /> জায়গা খালি করে। পরের বার যখন দেখবেন তখন কিছু সাইট লোড হতে দেরি হতে পারে।</translation>
 <translation id="7192537357091279678">কম্পিউটার ড্রাইভ ও স্টোরেজ</translation>
 <translation id="7193661028827781021">রেফারেন্স</translation>
 <translation id="719464814642662924">Visa</translation>
@@ -4070,7 +4071,6 @@
 <translation id="7388380253839603603">গ্যাসের দাম এবং গাড়ির জ্বালানি</translation>
 <translation id="7388594495505979117">{0,plural, =1{১ মিনিট পরেই আপনার ডিভাইস রিস্টার্ট হবে}one{# মিনিট পরেই আপনার ডিভাইস রিস্টার্ট হবে}other{# মিনিট পরেই আপনার ডিভাইস রিস্টার্ট হবে}}</translation>
 <translation id="7393161616326137353">অ্যাডভেঞ্চার গেম</translation>
-<translation id="7393243238767102021"><ph name="DOMAIN" />-কে এই ইমেল অটোমেটিক যাচাই করার অনুমতি দেবেন?</translation>
 <translation id="7393475648162498734">চেক-আউটের সময় আপনার কার্ডের জন্য কোন সুবিধা ও পুরস্কার উপলভ্য আছে তা দেখুন</translation>
 <translation id="7393971683644170444">আপনার কার্ড প্রদানকারীর সাথে কানেক্ট করা হচ্ছে...</translation>
 <translation id="739728382607845710">পেমেন্ট হ্যান্ডলার আইকন</translation>
@@ -4123,7 +4123,6 @@
 <translation id="7450577240311017924">'সিঙ্ক করা ম্যানেজ করুন' বোতাম, Chrome সেটিংসে আপনি কী তথ্য সিঙ্ক করবেন তা ম্যানেজ করতে এটি চালু করুন</translation>
 <translation id="7451311239929941790">এই সমস্যা সম্পর্কে <ph name="BEGIN_LINK" />আরও জানুন<ph name="END_LINK" />।</translation>
 <translation id="745208957946308667">Dino গেম, খেলার জন্য স্পেস প্রেস করুন</translation>
-<translation id="74521886886364465"><ph name="SUGGESTION_TITLE" />, <ph name="GROUP_HEADER" /> গ্রুপে <ph name="NUM_MATCHES_IN_GROUP" />টির মধ্যে <ph name="MATCH_POSITION" /> নম্বর।</translation>
 <translation id="7453032093368223821">অন্য ডেটা ম্যানেজ করুন</translation>
 <translation id="7453849010505253492">এই সার্ভারটি প্রমাণ দিতে পারেনি যে এটি <ph name="DOMAIN" />, কারণ এটি এমন একটি নিরাপত্তা সার্টিফিকেট ব্যবহার করছে যা Chrome বা আপনার ওয়েব ট্রাফিক এনক্রিপশনের জন্য সেট করা সিস্টেম কনফিগারেশনের বিশ্বস্ত নয়। ভুল কনফিগারেশনের কারণে বা কোনও আক্রমণকারী আপনার কানেকশন ইন্টারসেপ্ট করার চেষ্টা করলে এটি হতে পারে। <ph name="BEGIN_VIEW_CERTIFICATE_LINK" />সার্টিফিকেট দেখুন<ph name="END_VIEW_CERTIFICATE_LINK" /></translation>
 <translation id="7454377933424667109">ক্লাউড অ্যাকাউন্ট</translation>

@@ -169,14 +169,14 @@ class Port(object):
     # the documentation in docs/testing/web_test_expectations.md when this list
     # changes.
     ALL_SYSTEMS = (
-        ('mac12', 'x86_64'),
-        ('mac12-arm64', 'arm64'),
         ('mac13', 'x86_64'),
         ('mac13-arm64', 'arm64'),
         ('mac14', 'x86_64'),
         ('mac14-arm64', 'arm64'),
         ('mac15', 'x86_64'),
         ('mac15-arm64', 'arm64'),
+        ('mac26', 'x86_64'),
+        ('mac26-arm64', 'arm64'),
         ('win10.20h2', 'x86'),
         ('win11-arm64', 'arm64'),
         ('win11', 'x86_64'),
@@ -189,14 +189,14 @@ class Port(object):
 
     CONFIGURATION_SPECIFIER_MACROS = {
         'mac': [
-            'mac12',
-            'mac12-arm64',
             'mac13',
             'mac13-arm64',
             'mac14',
             'mac14-arm64',
             'mac15',
             'mac15-arm64',
+            'mac26',
+            'mac26-arm64',
         ],
         'ios': ['ios26-simulator'],
         'win': ['win10.20h2', 'win11-arm64', 'win11'],

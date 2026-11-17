@@ -61,7 +61,9 @@
 #include "ui/display/screen.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/display/util/display_util.h"
+#include "ui/gfx/font_render_params_linux.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/views/widget/widget.h"
 #include "ui/wm/core/coordinate_conversion.h"
 #include "ui/wm/public/activation_client.h"
 
@@ -89,8 +91,8 @@ constexpr int kUICompositorLargeRamMemoryLimitMB = 2048;
 constexpr int kUICompositorMemoryLimitDisplaySizeThreshold = 3500;
 // The RAM capacity threshold. When the device has 16GB+ of memory,
 // configure the compositor to use a higher memory limit.
-constexpr base::ByteCount kUICompositorMemoryLimitRamCapacityThreshold =
-    base::GiB(16);
+constexpr base::ByteSize kUICompositorMemoryLimitRamCapacityThreshold =
+    base::GiBU(16);
 
 // An UMA signal for the current effective resolution/dpi is sent at this rate.
 // This keeps track of the effective resolution/dpi most used on
@@ -227,6 +229,19 @@ void RepeatingEffectiveResolutionUMA(base::RepeatingTimer* timer,
         FROM_HERE, kEffectiveResolutionRepeatingDelay,
         base::BindRepeating(&RepeatingEffectiveResolutionUMA,
                             nullptr /*timer=*/, false /*is_first_run=*/));
+  }
+}
+
+void PropagateFontRenderParamsChange(aura::Window* window) {
+  views::Widget* widget = views::Widget::GetWidgetForNativeView(window);
+  if (widget) {
+    float dsf = widget->GetLayer()->device_scale_factor();
+    // TODO(crbug.com/517630459): Use a more generic solution for updating font
+    // render params.
+    widget->DeviceScaleFactorChanged(dsf, dsf);
+  }
+  for (aura::Window* child : window->children()) {
+    PropagateFontRenderParamsChange(child);
   }
 }
 
@@ -928,6 +943,16 @@ void WindowTreeHostManager::PostDisplayConfigurationChange() {
 
   // Unpause occlusion tracking.
   scoped_pause_.reset();
+
+  // Notify all widgets only when font render parameters actually change.
+  const bool current_subpixel_rendering_enabled =
+      gfx::GetFontRenderParamsSubpixelRenderingEnabled();
+  if (subpixel_rendering_enabled_ != current_subpixel_rendering_enabled) {
+    subpixel_rendering_enabled_ = current_subpixel_rendering_enabled;
+    for (aura::Window* root : GetAllRootWindows()) {
+      PropagateFontRenderParamsChange(root);
+    }
+  }
 }
 
 ui::EventDispatchDetails WindowTreeHostManager::DispatchKeyEventPostIME(
@@ -986,7 +1011,7 @@ AshWindowTreeHost* WindowTreeHostManager::AddWindowTreeHostForDisplay(
         kUICompositorLargeDisplayMemoryLimitMB;
   }
 
-  if (base::SysInfo::AmountOfTotalPhysicalMemory().AsDeprecatedByteCount() >=
+  if (base::SysInfo::AmountOfTotalPhysicalMemory() >=
       kUICompositorMemoryLimitRamCapacityThreshold) {
     params_with_bounds.compositor_memory_limit_mb =
         kUICompositorLargeRamMemoryLimitMB;

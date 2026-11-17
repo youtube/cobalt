@@ -51,7 +51,7 @@ static_assert(SSL3_RT_MAX_ENCRYPTED_OVERHEAD >=
                   SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD,
               "max overheads are inconsistent");
 
-// |SSL_R_UNKNOWN_PROTOCOL| is no longer emitted, but continue to define it
+// `SSL_R_UNKNOWN_PROTOCOL` is no longer emitted, but continue to define it
 // to avoid downstream churn.
 OPENSSL_DECLARE_ERROR_REASON(SSL, UNKNOWN_PROTOCOL)
 
@@ -73,7 +73,7 @@ static ExDataClass g_ex_data_class_ssl(/*with_app_data=*/true);
 static ExDataClass g_ex_data_class_ssl_ctx(/*with_app_data=*/true);
 
 void ssl_reset_error_state(SSL *ssl) {
-  // Functions which use |SSL_get_error| must reset I/O and error state on
+  // Functions which use `SSL_get_error` must reset I/O and error state on
   // entry.
   ssl->s3->rwstate = SSL_ERROR_NONE;
   ERR_clear_error();
@@ -181,7 +181,7 @@ bool ssl_log_secret(const SSL *ssl, const char *label,
       !CBB_add_u8(cbb.get(), ' ') ||
       !cbb_add_hex_consttime(cbb.get(), ssl->s3->client_random) ||
       !CBB_add_u8(cbb.get(), ' ') ||
-      // Convert to hex in constant time to avoid leaking |secret|. If the
+      // Convert to hex in constant time to avoid leaking `secret`. If the
       // callback discards the data, we should not introduce side channels.
       !cbb_add_hex_consttime(cbb.get(), secret) ||
       !CBB_add_u8(cbb.get(), 0 /* NUL */) ||
@@ -212,7 +212,7 @@ void ssl_do_msg_callback(const SSL *ssl, int is_write, int content_type,
     return;
   }
 
-  // |version| is zero when calling for |SSL3_RT_HEADER| and |SSL2_VERSION| for
+  // `version` is zero when calling for `SSL3_RT_HEADER` and `SSL2_VERSION` for
   // a V2ClientHello.
   int version;
   switch (content_type) {
@@ -326,7 +326,7 @@ bool SSL_get_traffic_secrets(const SSL *ssl,
                              Span<const uint8_t> *out_read_traffic_secret,
                              Span<const uint8_t> *out_write_traffic_secret) {
   // This API is not well-defined for DTLS, where multiple epochs may be alive
-  // at once. Callers should use |SSL_get_dtls_*_traffic_secret| instead. In
+  // at once. Callers should use `SSL_get_dtls_*_traffic_secret` instead. In
   // QUIC, the application is already handed the traffic secret.
   if (SSL_is_dtls(ssl) || SSL_is_quic(ssl)) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -485,7 +485,7 @@ ssl_st::ssl_st(SSLContext *ctx_arg)
 
 ssl_st::~ssl_st() {
   CRYPTO_free_ex_data(&g_ex_data_class_ssl, &ex_data);
-  // |config| refers to |this|, so we must release it earlier.
+  // `config` refers to `this`, so we must release it earlier.
   config.reset();
   if (method != nullptr) {
     method->ssl_free(this);
@@ -865,7 +865,7 @@ static int ssl_read_impl(SSL *ssl) {
     }
 
     // Complete the current handshake, if any. False Start will cause
-    // |SSL_do_handshake| to return mid-handshake, so this may require multiple
+    // `SSL_do_handshake` to return mid-handshake, so this may require multiple
     // iterations.
     while (!ssl_can_read(ssl)) {
       int ret = SSL_do_handshake(ssl);
@@ -1024,7 +1024,7 @@ int SSL_shutdown(SSL *ssl) {
   }
 
   // If we are in the middle of a handshake, silently succeed. Consumers often
-  // call this function before |SSL_free|, whether the handshake succeeded or
+  // call this function before `SSL_free`, whether the handshake succeeded or
   // not. We assume the caller has already handled failed handshakes.
   if (SSL_in_init(ssl)) {
     return 1;
@@ -1142,10 +1142,11 @@ void SSL_reset_early_data_reject(SSL *ssl) {
   hs->in_early_data = false;
   hs->early_session.reset();
 
-  // Discard any unfinished writes from the perspective of |SSL_write|'s
+  // Discard any unfinished writes from the perspective of `SSL_write`'s
   // retry. The handshake will transparently flush out the pending record
   // (discarded by the server) to keep the framing correct.
   ssl->s3->pending_write = {};
+  ssl->s3->unreported_bytes_written = 0;
 }
 
 enum ssl_early_data_reason_t SSL_get_early_data_reason(const SSL *ssl) {
@@ -1386,7 +1387,7 @@ void SSL_CTX_set1_buffer_pool(SSL_CTX *ctx, CRYPTO_BUFFER_POOL *pool) {
 }
 
 void SSL_CTX_set0_buffer_pool(SSL_CTX *ctx, CRYPTO_BUFFER_POOL *pool) {
-  // Historically, |CRYPTO_BUFFER_POOL| was not reference-counted and this
+  // Historically, `CRYPTO_BUFFER_POOL` was not reference-counted and this
   // function saved a non-owning pointer, expecting the caller to maintain a
   // lifetime relationship between the two objects. Now that pools are
   // reference-counted, the compatible behavior is to treat it as set0 rather
@@ -1614,7 +1615,7 @@ int SSL_has_pending(const SSL *ssl) {
 }
 
 static bool has_cert_and_key(const SSLCredential *cred) {
-  // TODO(davidben): If |cred->key_method| is set, that should be fine too.
+  // TODO(davidben): If `cred->key_method` is set, that should be fine too.
   if (cred->privkey == nullptr) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_NO_PRIVATE_KEY_ASSIGNED);
     return false;
@@ -2201,8 +2202,8 @@ const char *SSL_get_servername(const SSL *ssl, const int type) {
     return nullptr;
   }
 
-  // Historically, |SSL_get_servername| was also the configuration getter
-  // corresponding to |SSL_set_tlsext_host_name|.
+  // Historically, `SSL_get_servername` was also the configuration getter
+  // corresponding to `SSL_set_tlsext_host_name`.
   if (ssl->hostname != nullptr) {
     return ssl->hostname.get();
   }
@@ -2318,7 +2319,7 @@ int SSL_select_next_proto(uint8_t **out, uint8_t *out_len, const uint8_t *peer,
   *out = nullptr;
   *out_len = 0;
 
-  // Both |peer| and |supported| must be valid protocol lists, but |peer| may be
+  // Both `peer` and `supported` must be valid protocol lists, but `peer` may be
   // empty in NPN.
   auto peer_span = Span(peer, peer_len);
   auto supported_span = Span(supported, supported_len);
@@ -2339,7 +2340,7 @@ int SSL_select_next_proto(uint8_t **out, uint8_t *out_len, const uint8_t *peer,
       // This function is not const-correct for compatibility with existing
       // callers.
       *out = const_cast<uint8_t *>(CBS_data(&proto));
-      // A u8 length prefix will fit in |uint8_t|.
+      // A u8 length prefix will fit in `uint8_t`.
       *out_len = static_cast<uint8_t>(CBS_len(&proto));
       return OPENSSL_NPN_NEGOTIATED;
     }
@@ -2362,7 +2363,7 @@ int SSL_select_next_proto(uint8_t **out, uint8_t *out_len, const uint8_t *peer,
 
 void SSL_get0_next_proto_negotiated(const SSL *ssl, const uint8_t **out_data,
                                     unsigned *out_len) {
-  // NPN protocols have one-byte lengths, so they must fit in |unsigned|.
+  // NPN protocols have one-byte lengths, so they must fit in `unsigned`.
   assert(ssl->s3->next_proto_negotiated.size() <= UINT_MAX);
   *out_data = ssl->s3->next_proto_negotiated.data();
   *out_len = static_cast<unsigned>(ssl->s3->next_proto_negotiated.size());
@@ -2430,7 +2431,7 @@ void SSL_get0_alpn_selected(const SSL *ssl, const uint8_t **out_data,
   } else {
     protocol = ssl->s3->alpn_selected;
   }
-  // ALPN protocols have one-byte lengths, so they must fit in |unsigned|.
+  // ALPN protocols have one-byte lengths, so they must fit in `unsigned`.
   assert(protocol.size() < UINT_MAX);
   *out_data = protocol.data();
   *out_len = static_cast<unsigned>(protocol.size());
@@ -2637,12 +2638,12 @@ void SSL_set_shutdown(SSL *ssl, int mode) {
 int SSL_get_shutdown(const SSL *ssl) {
   int ret = 0;
   if (ssl->s3->read_shutdown != ssl_shutdown_none) {
-    // Historically, OpenSSL set |SSL_RECEIVED_SHUTDOWN| on both close_notify
+    // Historically, OpenSSL set `SSL_RECEIVED_SHUTDOWN` on both close_notify
     // and fatal alert.
     ret |= SSL_RECEIVED_SHUTDOWN;
   }
   if (ssl->s3->write_shutdown == ssl_shutdown_close_notify) {
-    // Historically, OpenSSL set |SSL_SENT_SHUTDOWN| on only close_notify.
+    // Historically, OpenSSL set `SSL_SENT_SHUTDOWN` on only close_notify.
     ret |= SSL_SENT_SHUTDOWN;
   }
   return ret;
@@ -2753,8 +2754,8 @@ void *SSL_CTX_get_ex_data(const SSL_CTX *ctx, int idx) {
 }
 
 int SSL_want(const SSL *ssl) {
-  // Historically, OpenSSL did not track |SSL_ERROR_ZERO_RETURN| as an |rwstate|
-  // value. We do, but map it back to |SSL_ERROR_NONE| to preserve the original
+  // Historically, OpenSSL did not track `SSL_ERROR_ZERO_RETURN` as an `rwstate`
+  // value. We do, but map it back to `SSL_ERROR_NONE` to preserve the original
   // behavior.
   return ssl->s3->rwstate == SSL_ERROR_ZERO_RETURN ? SSL_ERROR_NONE
                                                    : ssl->s3->rwstate;
@@ -2969,7 +2970,7 @@ int SSL_was_key_usage_invalid(const SSL *ssl) {
 void SSL_set_renegotiate_mode(SSL *ssl, enum ssl_renegotiate_mode_t mode) {
   ssl->renegotiate_mode = mode;
 
-  // Check if |ssl_can_renegotiate| has changed and the configuration may now be
+  // Check if `ssl_can_renegotiate` has changed and the configuration may now be
   // shed. HTTP clients may initially allow renegotiation for HTTP/1.1, and then
   // disable after the handshake once the ALPN protocol is known to be HTTP/2.
   ssl_maybe_shed_handshake_config(ssl);
@@ -3022,7 +3023,7 @@ int SSL_is_dtls_handshake_idle(const SSL *ssl) {
 
   return !SSL_in_init(ssl) &&
          // No unacknowledged messages in DTLS 1.3. In DTLS 1.2, there no ACKs
-         // and we currently never clear |outgoing_messages| on the side that
+         // and we currently never clear `outgoing_messages` on the side that
          // speaks last.
          (ssl_protocol_version(ssl) < TLS1_3_VERSION ||
           ssl->d1->outgoing_messages.empty()) &&
@@ -3073,7 +3074,7 @@ uint64_t SSL_get_dtls_read_sequence(const SSL *ssl, uint16_t epoch) {
     // Increment to get to an available sequence number.
     max_seq_num++;
   } else {
-    // If |max_seq_num| was available, the bitmap must have been empty.
+    // If `max_seq_num` was available, the bitmap must have been empty.
     assert(max_seq_num == 0);
   }
   return max_seq_num;
@@ -3231,7 +3232,7 @@ int SSL_clear(SSL *ssl) {
     return 0;  // SSL_clear may not be used after shedding config.
   }
 
-  // In OpenSSL, reusing a client |SSL| with |SSL_clear| causes the previously
+  // In OpenSSL, reusing a client `SSL` with `SSL_clear` causes the previously
   // established session to be offered the next time around. wpa_supplicant
   // depends on this behavior, so emulate it.
   UniquePtr<SSL_SESSION> session;
@@ -3333,7 +3334,7 @@ SSL_SESSION *SSL_process_tls13_new_session_ticket(SSL *ssl, const uint8_t *buf,
 
   UniquePtr<SSL_SESSION> session = tls13_create_session_with_ticket(ssl, &body);
   if (!session) {
-    // |tls13_create_session_with_ticket| puts the correct error.
+    // `tls13_create_session_with_ticket` puts the correct error.
     return nullptr;
   }
   return session.release();
@@ -3478,7 +3479,7 @@ static int Configure(SSLContext *ctx) {
 static int Configure(SSL *ssl) {
   ssl->config->compliance_policy = ssl_compliance_policy_fips_202205;
 
-  // See |Configure(SSL_CTX)|, above, for reasoning.
+  // See `Configure(SSL_CTX)`, above, for reasoning.
   return SSL_set_min_proto_version(ssl, TLS1_2_VERSION) &&
          SSL_set_max_proto_version(ssl, TLS1_3_VERSION) &&
          SSL_set_strict_cipher_list(ssl, kTLS12Ciphers) &&

@@ -40,6 +40,7 @@
 -api/numerics/samples_stats_counter_unittest.cc
 -api/rtc_error.cc
 -api/rtp_packet_info.cc
+-api/stats/rtcstats_objects.cc
 -api/video/i010_buffer.cc
 -api/video/i210_buffer.cc
 -api/video/i410_buffer.cc
@@ -617,7 +618,6 @@
 -rtc_tools/video_replay.cc
 -stats/rtc_stats_report_unittest.cc
 -stats/rtc_stats_unittest.cc
--stats/rtcstats_objects.cc
 -stats/test/rtc_test_stats.cc
 -test/call_test.cc
 -test/direct_transport.cc

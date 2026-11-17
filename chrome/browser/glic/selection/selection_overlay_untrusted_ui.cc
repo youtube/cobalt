@@ -10,6 +10,7 @@
 #include "chrome/browser/glic/selection/selection_overlay_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/lens/lens_overlay_colors.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
@@ -50,6 +51,13 @@ SelectionOverlayUntrustedUI::SelectionOverlayUntrustedUI(content::WebUI* web_ui)
   html_source->AddInteger("tapRegionWidth", 300);
   html_source->AddBoolean("enableGradientRegionStroke", false);
   html_source->AddBoolean("enableWhiteRegionStroke", true);
+  html_source->AddInteger("lineSelectionStrokeWidth", 40);
+  html_source->AddInteger("colorLineSelectionGradient1",
+                          lens::kColorLineSelectionGradient1);
+  html_source->AddInteger("colorLineSelectionGradient2",
+                          lens::kColorLineSelectionGradient2);
+  html_source->AddInteger("colorLineSelectionGradient3",
+                          lens::kColorLineSelectionGradient3);
   html_source->AddBoolean("enableRegionSelectedGlow", true);
   html_source->AddInteger("sliderChangedTimeout", 1000);
   html_source->AddBoolean("cornerSlidersEnabled", true);
@@ -88,6 +96,9 @@ SelectionOverlayUntrustedUI::SelectionOverlayUntrustedUI(content::WebUI* web_ui)
   html_source->AddLocalizedString("close", IDS_CLOSE);
   html_source->AddResourcePath("glic_region_selection_cursor_icon.svg",
                                IDR_GLIC_REGION_SELECTION_CURSOR_ICON);
+  html_source->AddBoolean(
+      "lineSelection",
+      base::FeatureList::IsEnabled(features::kGlicRegionSelectionLine));
 
   // TODO(b/489801993): Refactor shared resources into a common directory to
   // avoid manual path concatenation for Lens and the Glic selection overlay.

@@ -2526,6 +2526,11 @@ class AssemblerOpInterface : public Next {
         ConstantOp::Kind::kRelocatableWasmIndirectCallTarget, function_index);
   }
 
+  V<WordPtr> RelocatableWasmCodePointer() {
+    return ReduceIfReachableConstant(
+        ConstantOp::Kind::kRelocatableWasmCodePointer, uint64_t{0});
+  }
+
   V<Context> NoContextConstant() {
     return V<Context>::Cast(SmiConstant(Smi::FromInt(Context::kNoContext)));
   }
@@ -3018,6 +3023,20 @@ class AssemblerOpInterface : public Next {
     return LoadProtectedPointerField(
         array, LoadOp::Kind::TaggedBase(),
         ProtectedFixedArray::OffsetOfElementAt(index));
+  }
+
+  V<Object> LoadTrustedFixedArrayElement(V<TrustedFixedArray> array,
+                                         V<WordPtr> index) {
+    return Load(array, index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                TrustedFixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+  }
+
+  V<Object> LoadTrustedFixedArrayElement(V<TrustedFixedArray> array,
+                                         int index) {
+    return Load(array, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                TrustedFixedArray::OffsetOfElementAt(index));
   }
 
   V<Word32> DecodeWord32(V<Word32> word32, uint32_t shift, uint32_t mask) {

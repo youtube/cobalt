@@ -121,19 +121,20 @@ the PT of the codec it refers to.
 The redesign is now largely implemented for both audio and video codecs when the
 `WebRTC-PayloadTypesInTransport` field trial is enabled. Key milestones reached:
 
-- **Bifurcated Negotiation Logic:** `CodecVendor` now has separate paths for
-  legacy and redesigned PT allocation. The redesigned path uses
-  `CodecConfiguration` and `MergeCodecsFromConfigurations` for all media types.
-- **Unified Resiliency Expansion:** Late expansion of RTX, RED, ULPFEC, and
-  FlexFEC is handled uniformly in `pc/codec_vendor.cc`.
-- **Audio/Video RED Collision:** Fixed by enforcing media type equality in
-  matching rules.
-- **MID Recycling:** Correctly handled with media type validation, preventing
-  invalid codec merging when MIDs are reused.
-- **Stable PT Assignment:** Verified to maintain payload type stability across
-  renegotiations and codec preference changes.
-- **Conventional RTX Assignment:** RTX PTs now default to `Primary_PT + 1` to
-  maintain backwards compatibility with legacy expectations.
+-   **Bifurcated Negotiation Logic:** `CodecVendor` now has separate paths for
+    legacy and redesigned PT allocation. The redesigned path uses
+    `CodecConfiguration` and `MergeCodecsFromConfigurations` for all media
+    types.
+-   **Unified Resiliency Expansion:** Late expansion of RTX, RED, ULPFEC, and
+    FlexFEC is handled uniformly in `pc/codec_vendor.cc`.
+-   **Audio/Video RED Collision:** Fixed by enforcing media type equality in
+    matching rules.
+-   **MID Recycling:** Correctly handled with media type validation, preventing
+    invalid codec merging when MIDs are reused.
+-   **Stable PT Assignment:** Verified to maintain payload type stability across
+    renegotiations and codec preference changes.
+-   **Conventional RTX Assignment:** RTX PTs now default to `Primary_PT + 1` to
+    maintain backwards compatibility with legacy expectations.
 
 The implementation is verified by a dedicated suite of integration tests in
 `pc/codec_vendor_redesign_unittest.cc`.
@@ -148,22 +149,22 @@ assigned payload types.
 
 Introduced in `pc/codec_configuration.h`:
 
-- **`ResiliencyInfo`**: Encapsulates the redundancy requirements (RTX, RED,
-  ULPFEC, FlexFEC).
-- **`CodecConfiguration`**: Stores codec attributes and their associated
-  `ResiliencyInfo`. This allows the engine to express capabilities without
-  pre-assigning payload types.
+-   **`ResiliencyInfo`**: Encapsulates the redundancy requirements (RTX, RED,
+    ULPFEC, FlexFEC).
+-   **`CodecConfiguration`**: Stores codec attributes and their associated
+    `ResiliencyInfo`. This allows the engine to express capabilities without
+    pre-assigning payload types.
 
 ### 2. Unified Codec Collection
 
 `TypedCodecVendor` handles the bifurcated collection path:
 
-- **Redesigned Path**: Collects `CodecConfiguration` objects from the media
-  engine factories. It also performs a "legacy expansion" to populate the
-  internal `codecs()` list for compatibility with existing code that expects
-  pre-assigned PTs.
-- **Legacy Path**: Continues to use the engine's `LegacySendCodecs` /
-  `LegacyRecvCodecs` methods.
+-   **Redesigned Path**: Collects `CodecConfiguration` objects from the media
+    engine factories. It also performs a "legacy expansion" to populate the
+    internal `codecs()` list for compatibility with existing code that expects
+    pre-assigned PTs.
+-   **Legacy Path**: Continues to use the engine's `LegacySendCodecs` /
+    `LegacyRecvCodecs` methods.
 
 ### 3. Late Expansion and Parameter Linking
 
@@ -177,7 +178,8 @@ media types:
 3.  Links redundancy codecs to the primary PT (e.g., setting the `apt` parameter
     for RTX).
 
-**Current Status:** RTX and RED linking are fully unified. RED linking for audio has been refactored into the unified expansion logic in `MergeRedCodec`.
+**Current Status:** RTX and RED linking are fully unified. RED linking for audio
+has been refactored into the unified expansion logic in `MergeRedCodec`.
 
 ## Testing Strategy
 
@@ -195,11 +197,30 @@ Feedback Loop" strategy is used:
     the field trial flag to ensure there are no regressions, and then either ask
     to commit this set of changes or loop back to step 1.
 
+### Canary Branch Strategy
+
+To ensure that no unit tests are missed, a "canary branch" approach is used.
+
+1.  **Canary Branch (`pt-enable`)**: Maintain a branch where the field trial is
+    forced enabled by default. This branch is used to run the full WebRTC test
+    suite (especially `rtc_pc_unittests` and `peerconnection_unittests`) to
+    identify all edge cases and legacy behaviors that the redesign logic doesn't
+    yet handle.
+2.  **Reproduction and Isolation**: When a failure is identified on the canary
+    branch, the specific test case is cloned or ported into a specialized
+    integration test file (`pc/codec_vendor_redesign_unittest.cc`) on the
+    implementation branch. This allows for focused debugging and ensures the
+    failure is reproducible in a clean environment with the trial explicitly
+    enabled.
+3.  **Surgical Fixes**: Fixes are developed and verified on the implementation
+    branch using the isolated tests.
+4.  **Full Re-verification**: Once the implementation branch is stable, the
+    canary branch is rebased to include the fixes, and the full test suite is
+    run again to ensure no remaining failures and to catch new regressions.
+
 ## Backwards Compatibility for Unit Testing
 
-Test helpers like `CodecLookupHelperForTesting` are used in legacy unit tests
-to "pre-seed" the `FakePayloadTypeSuggester` with hardcoded PT expectations.
-This allows tests that depend on specific PT values to pass while the
-underlying allocation logic transitions to a more generic, transport-aware
-strategy.
-
+Test helpers like `CodecLookupHelperForTesting` are used in legacy unit tests to
+"pre-seed" the `FakePayloadTypeSuggester` with hardcoded PT expectations. This
+allows tests that depend on specific PT values to pass while the underlying
+allocation logic transitions to a more generic, transport-aware strategy.

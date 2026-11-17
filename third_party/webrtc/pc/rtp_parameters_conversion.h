@@ -12,11 +12,11 @@
 #define PC_RTP_PARAMETERS_CONVERSION_H_
 
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "api/rtp_parameters.h"
 #include "media/base/codec.h"
-#include "pc/session_description.h"
 
 namespace webrtc {
 
@@ -39,7 +39,7 @@ RtpCodecCapability ToRtpCodecCapability(const Codec& cricket_codec);
 
 RtpCapabilities ToRtpCapabilities(
     const std::vector<Codec>& cricket_codecs,
-    const RtpHeaderExtensions& cricket_extensions);
+    std::span<const RtpHeaderExtensionCapability> extensions);
 
 }  // namespace webrtc
 

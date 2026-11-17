@@ -268,7 +268,8 @@ class VideoReceiveStream2Test : public ::testing::TestWithParam<bool> {
       video_receive_stream_->UnregisterFromTransport();
       video_receive_stream_ = nullptr;
     }
-    timing_ = new VCMTiming(&env_.clock(), env_.field_trials());
+    timing_ = new VCMTiming(&env_.clock(), env_.field_trials(),
+                            TimeDelta::Millis(config_.render_delay_ms));
     video_receive_stream_ = std::make_unique<internal::VideoReceiveStream2>(
         env_, &fake_call_, kDefaultNumCpuCores, &packet_router_, config_.Copy(),
         &call_stats_, absl::WrapUnique(timing_), &nack_periodic_processor_,

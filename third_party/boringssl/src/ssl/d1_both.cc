@@ -45,14 +45,14 @@ static const unsigned int kMinMTU = 256 - 28;
 // the underlying BIO supplies one.
 static const unsigned int kDefaultMTU = 1500 - 28;
 
-// BitRange returns a |uint8_t| with bits |start|, inclusive, to |end|,
+// BitRange returns a `uint8_t` with bits `start`, inclusive, to `end`,
 // exclusive, set.
 static uint8_t BitRange(size_t start, size_t end) {
   assert(start <= end && end <= 8);
   return static_cast<uint8_t>(~((1u << start) - 1) & ((1u << end) - 1));
 }
 
-// FirstUnmarkedRangeInByte returns the first unmarked range in bits |b|.
+// FirstUnmarkedRangeInByte returns the first unmarked range in bits `b`.
 static DTLSMessageBitmap::Range FirstUnmarkedRangeInByte(uint8_t b) {
   size_t start, end;
   for (start = 0; start < 8; start++) {
@@ -106,8 +106,8 @@ void DTLSMessageBitmap::MarkRange(size_t start, size_t end) {
     }
   }
 
-  // Maintain the |first_unmarked_byte_| invariant. This work is amortized
-  // across all |MarkRange| calls.
+  // Maintain the `first_unmarked_byte_` invariant. This work is amortized
+  // across all `MarkRange` calls.
   while (first_unmarked_byte_ < bytes_.size() &&
          bytes_[first_unmarked_byte_] == 0xff) {
     first_unmarked_byte_++;
@@ -130,7 +130,7 @@ DTLSMessageBitmap::Range DTLSMessageBitmap::NextUnmarkedRange(
     return Range{0, 0};
   }
 
-  // Look at the bits from |start| up to a byte boundary.
+  // Look at the bits from `start` up to a byte boundary.
   uint8_t byte = bytes_[idx] | BitRange(0, start & 7);
   if (byte == 0xff) {
     // Nothing unmarked at this byte. Keep searching for an unmarked bit.
@@ -217,8 +217,8 @@ static bool dtls1_is_current_message_complete(const SSL *ssl) {
 }
 
 // dtls1_get_incoming_message returns the incoming message corresponding to
-// |msg_hdr|. If none exists, it creates a new one and inserts it in the
-// queue. Otherwise, it checks |msg_hdr| is consistent with the existing one. It
+// `msg_hdr`. If none exists, it creates a new one and inserts it in the
+// queue. Otherwise, it checks `msg_hdr` is consistent with the existing one. It
 // returns NULL on failure. The caller does not take ownership of the result.
 static DTLSIncomingMessage *dtls1_get_incoming_message(
     SSL *ssl, uint8_t *out_alert, const struct hm_header_st *msg_hdr) {
@@ -289,9 +289,9 @@ bool dtls1_process_handshake_fragments(SSL *ssl, uint8_t *out_alert,
     if (record_number.epoch() != ssl->d1->read_epoch.epoch ||
         ssl->d1->next_read_epoch != nullptr) {
       // New messages can only arrive in the latest epoch. This can fail if the
-      // record came from |prev_read_epoch|, or if it came from |read_epoch| but
-      // |next_read_epoch| exists. (It cannot come from |next_read_epoch|
-      // because |next_read_epoch| becomes |read_epoch| once it receives a
+      // record came from `prev_read_epoch`, or if it came from `read_epoch` but
+      // `next_read_epoch` exists. (It cannot come from `next_read_epoch`
+      // because `next_read_epoch` becomes `read_epoch` once it receives a
       // record.)
       OPENSSL_PUT_ERROR(SSL, SSL_R_EXCESS_HANDSHAKE_DATA);
       *out_alert = SSL_AD_UNEXPECTED_MESSAGE;
@@ -462,7 +462,7 @@ void dtls1_next_message(SSL *ssl) {
   }
   ssl->s3->has_message = false;
   // If we previously sent a flight, mark it as having a reply, so
-  // |on_handshake_complete| can manage post-handshake retransmission.
+  // `on_handshake_complete` can manage post-handshake retransmission.
   if (ssl->d1->outgoing_messages_complete) {
     ssl->d1->flight_has_reply = true;
   }
@@ -548,7 +548,7 @@ void dtls_clear_unused_write_epochs(SSL *ssl) {
 }
 
 bool dtls1_init_message(const SSL *ssl, CBB *cbb, CBB *body, uint8_t type) {
-  // Pick a modest size hint to save most of the |realloc| calls.
+  // Pick a modest size hint to save most of the `realloc` calls.
   if (!CBB_init(cbb, 64) ||                                   //
       !CBB_add_u8(cbb, type) ||                               //
       !CBB_add_u24(cbb, 0 /* length (filled in later) */) ||  //
@@ -613,7 +613,7 @@ static bool add_outgoing(SSL *ssl, bool is_ccs, Array<uint8_t> data) {
     return false;
   }
 
-  // This should not fail if |SSL_MAX_HANDSHAKE_FLIGHT| was sized correctly.
+  // This should not fail if `SSL_MAX_HANDSHAKE_FLIGHT` was sized correctly.
   //
   // TODO(crbug.com/42290594): This can currently fail in DTLS 1.3. The caller
   // can configure how many tickets to send, up to kMaxTickets. Additionally, if
@@ -644,9 +644,9 @@ bool dtls1_add_change_cipher_spec(SSL *ssl) {
 // dtls1_update_mtu updates the current MTU from the BIO, ensuring it is above
 // the minimum.
 static void dtls1_update_mtu(SSL *ssl) {
-  // TODO(davidben): No consumer implements |BIO_CTRL_DGRAM_SET_MTU| and the
-  // only |BIO_CTRL_DGRAM_QUERY_MTU| implementation could use
-  // |SSL_set_mtu|. Does this need to be so complex?
+  // TODO(davidben): No consumer implements `BIO_CTRL_DGRAM_SET_MTU` and the
+  // only `BIO_CTRL_DGRAM_QUERY_MTU` implementation could use
+  // `SSL_set_mtu`. Does this need to be so complex?
   if (ssl->d1->mtu < dtls1_min_mtu() &&
       !(SSL_get_options(ssl) & SSL_OP_NO_QUERY_MTU)) {
     long mtu = BIO_ctrl(ssl->wbio.get(), BIO_CTRL_DGRAM_QUERY_MTU, 0, nullptr);
@@ -668,14 +668,14 @@ enum seal_result_t {
   seal_flush,
 };
 
-// seal_next_record seals one record's worth of messages to |out| and advances
-// |ssl|'s internal state past the data that was sealed. If progress was made,
-// it returns |seal_flush| or |seal_continue| and sets
-// |*out_len| to the number of bytes written.
+// seal_next_record seals one record's worth of messages to `out` and advances
+// `ssl`'s internal state past the data that was sealed. If progress was made,
+// it returns `seal_flush` or `seal_continue` and sets
+// `*out_len` to the number of bytes written.
 //
 // If the function stopped because the next message could not be combined into
-// this record, it returns |seal_continue| and the caller should loop again.
-// Otherwise, it returns |seal_flush| and the packet is complete (either because
+// this record, it returns `seal_continue` and the caller should loop again.
+// Otherwise, it returns `seal_flush` and the packet is complete (either because
 // there are no more messages or the packet is full).
 static seal_result_t seal_next_record(SSL *ssl, Span<uint8_t> out,
                                       size_t *out_len) {
@@ -741,7 +741,7 @@ static seal_result_t seal_next_record(SSL *ssl, Span<uint8_t> out,
       break;
     }
 
-    // Decode |msg|'s header.
+    // Decode `msg`'s header.
     CBS cbs(msg.data), body_cbs;
     struct hm_header_st hdr;
     if (!dtls1_parse_fragment(&cbs, &hdr, &body_cbs) ||  //
@@ -844,8 +844,8 @@ packet_full:
   return should_continue ? seal_continue : seal_flush;
 }
 
-// seal_next_packet writes as much of the next flight as possible to |out| and
-// advances |ssl->d1->outgoing_written| and |ssl->d1->outgoing_offset| as
+// seal_next_packet writes as much of the next flight as possible to `out` and
+// advances `ssl->d1->outgoing_written` and `ssl->d1->outgoing_offset` as
 // appropriate.
 static bool seal_next_packet(SSL *ssl, Span<uint8_t> out, size_t *out_len) {
   size_t total = 0;
@@ -913,13 +913,13 @@ static int send_flight(SSL *ssl) {
     }
 
     if (packet_len != 0) {
-      int bio_ret = BIO_write(ssl->wbio.get(), packet.data(), packet_len);
-      if (bio_ret <= 0) {
+      if (!BIO_write_ex(ssl->wbio.get(), packet.data(), packet_len,
+                        /*out_written=*/nullptr)) {
         // Retry this packet the next time around.
         ssl->d1->outgoing_written = old_written;
         ssl->d1->outgoing_offset = old_offset;
         ssl->s3->rwstate = SSL_ERROR_WANT_WRITE;
-        return bio_ret;
+        return -1;
       }
     }
   }
@@ -1007,11 +1007,10 @@ static int send_ack(SSL *ssl) {
 
   ssl_do_msg_callback(ssl, /*is_write=*/1, SSL3_RT_ACK, CBBAsSpan(&cbb));
 
-  int bio_ret =
-      BIO_write(ssl->wbio.get(), record, static_cast<int>(record_len));
-  if (bio_ret <= 0) {
+  if (!BIO_write_ex(ssl->wbio.get(), record, record_len,
+                    /*out_written=*/nullptr)) {
     ssl->s3->rwstate = SSL_ERROR_WANT_WRITE;
-    return bio_ret;
+    return -1;
   }
 
   ssl->d1->pending_flush = true;

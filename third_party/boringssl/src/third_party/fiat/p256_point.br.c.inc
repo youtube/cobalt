@@ -110,3 +110,57 @@ static inline void p256_point_add_vartime_if_doubling(br_word_t p_out, br_word_t
   }
   br_memcpy(p_out, p_sel, (br_word_t)96);
 }
+
+static inline br_word_t p256_point_add_affine_nz_nz_neq(br_word_t p_out, br_word_t p_P, br_word_t p_Q) {
+  br_word_t z1z1, Hsqr, ok, different_x, different_y, u2, Hcub, r, h, s2;
+  uint8_t _br_stackalloc_z1z1[32] = {0}; z1z1 = (br_word_t)&_br_stackalloc_z1z1;
+  uint8_t _br_stackalloc_u2[32] = {0}; u2 = (br_word_t)&_br_stackalloc_u2;
+  uint8_t _br_stackalloc_h[32] = {0}; h = (br_word_t)&_br_stackalloc_h;
+  uint8_t _br_stackalloc_s2[32] = {0}; s2 = (br_word_t)&_br_stackalloc_s2;
+  uint8_t _br_stackalloc_r[32] = {0}; r = (br_word_t)&_br_stackalloc_r;
+  uint8_t _br_stackalloc_Hsqr[32] = {0}; Hsqr = (br_word_t)&_br_stackalloc_Hsqr;
+  uint8_t _br_stackalloc_Hcub[32] = {0}; Hcub = (br_word_t)&_br_stackalloc_Hcub;
+  p256_coord_sqr(z1z1, (p_P+32)+32);
+  p256_coord_mul(u2, p_Q, z1z1);
+  p256_coord_sub(h, u2, p_P);
+  p256_coord_mul(s2, (p_P+32)+32, z1z1);
+  p256_coord_mul((p_out+32)+32, h, (p_P+32)+32);
+  p256_coord_mul(s2, s2, p_Q+32);
+  p256_coord_sub(r, s2, p_P+32);
+  p256_coord_sqr(Hsqr, h);
+  p256_coord_sqr(p_out, r);
+  p256_coord_mul(Hcub, Hsqr, h);
+  p256_coord_mul(u2, p_P, Hsqr);
+  different_x = p256_coord_nonzero(Hcub);
+  different_y = p256_coord_nonzero(p_out);
+  ok = br_value_barrier(different_x|different_y);
+  p256_coord_sub(p_out, p_out, Hcub);
+  p256_coord_sub(p_out, p_out, u2);
+  p256_coord_sub(p_out, p_out, u2);
+  p256_coord_sub(h, u2, p_out);
+  p256_coord_mul(s2, Hcub, p_P+32);
+  p256_coord_mul(h, h, r);
+  p256_coord_sub(p_out+32, h, s2);
+  return ok;
+}
+
+static inline void p256_point_add_affinenz_conditional_vartime_if_doubling(br_word_t p_out, br_word_t p_P, br_word_t p_Q, br_word_t c) {
+  br_word_t nzQ, p_tmp, zeroP, zeroQ, ok, p_buf;
+  zeroP = p256_point_iszero(p_P);
+  nzQ = br_broadcast_nonzero(c);
+  zeroQ = ~nzQ;
+  uint8_t _br_stackalloc_p_tmp[96] = {0}; p_tmp = (br_word_t)&_br_stackalloc_p_tmp;
+  ok = p256_point_add_affine_nz_nz_neq(p_tmp, p_P, p_Q);
+  ok = br_declassify((zeroP|zeroQ)|ok);
+  uint8_t _br_stackalloc_p_buf[96] = {0}; p_buf = (br_word_t)&_br_stackalloc_p_buf;
+  br_memset(p_buf, (br_word_t)0, (br_word_t)3*32);
+  br_memcxor(p_buf, p_tmp, (br_word_t)3*32, (~zeroP)&(~zeroQ));
+  br_memcxor(p_buf, p_P, (br_word_t)3*32, (~zeroP)&zeroQ);
+  br_memcxor(p_buf, p_Q, (br_word_t)3*32, zeroP&(~zeroQ));
+  if (ok) {
+    /*skip*/
+  } else {
+    p256_point_double(p_buf, p_P);
+  }
+  br_memcpy(p_out, p_buf, (br_word_t)96);
+}

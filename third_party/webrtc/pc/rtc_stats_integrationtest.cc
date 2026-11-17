@@ -1083,10 +1083,9 @@ TEST_F(RTCStatsIntegrationTest, GetStatsFromCallee) {
            inbound_stats.front()->round_trip_time.has_value() &&
            inbound_stats.front()->round_trip_time_measurements.has_value();
   };
-  EXPECT_THAT(
+  EXPECT_TRUE(
       WaitUntil([&] { return GetStatsReportAndReturnTrueIfRttIsDefined(); },
-                IsTrue(), {.timeout = TimeDelta::Millis(kMaxWaitMs)}),
-      IsRtcOk());
+                {.timeout = TimeDelta::Millis(kMaxWaitMs)}));
   RTCStatsReportVerifier(report.get()).VerifyReport({});
 }
 
@@ -1391,15 +1390,13 @@ TEST_F(RTCStatsRtpLifetimeTest, AudioInboundRtpMissingBeforeFirstPacket) {
   callee_->AwaitAddRemoteIceCandidates();
 
   // Nothing is preventing packets from flowing, wait for inbound-rtp to appear.
-  EXPECT_THAT(WaitUntil(
-                  [&] {
-                    report = GetStats(callee_->pc());
-                    inbound_rtps =
-                        report->GetStatsOfType<RTCInboundRtpStreamStats>();
-                    return !inbound_rtps.empty();
-                  },
-                  IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil(
+      [&] {
+        report = GetStats(callee_->pc());
+        inbound_rtps = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+        return !inbound_rtps.empty();
+      },
+      {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}));
   ASSERT_THAT(inbound_rtps, SizeIs(1));
   EXPECT_GT(inbound_rtps[0]->packets_received.value_or(0), 0u);
 }
@@ -1426,15 +1423,13 @@ TEST_F(RTCStatsRtpLifetimeTest, VideoInboundRtpMissingBeforeFirstPacket) {
   callee_->AwaitAddRemoteIceCandidates();
 
   // Nothing is preventing packets from flowing, wait for inbound-rtp to appear.
-  EXPECT_THAT(WaitUntil(
-                  [&] {
-                    report = GetStats(callee_->pc());
-                    inbound_rtps =
-                        report->GetStatsOfType<RTCInboundRtpStreamStats>();
-                    return !inbound_rtps.empty();
-                  },
-                  IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil(
+      [&] {
+        report = GetStats(callee_->pc());
+        inbound_rtps = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+        return !inbound_rtps.empty();
+      },
+      {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}));
   ASSERT_THAT(inbound_rtps, SizeIs(1));
   EXPECT_GT(inbound_rtps[0]->packets_received.value_or(0), 0u);
 }
@@ -1478,15 +1473,13 @@ TEST_F(RTCStatsRtpLifetimeTest, InboundRtpForEarlyMedia) {
   //   scope of this stats test.
   scoped_refptr<const RTCStatsReport> report;
   std::vector<const RTCInboundRtpStreamStats*> inbound_rtps;
-  EXPECT_THAT(WaitUntil(
-                  [&] {
-                    report = GetStats(caller_->pc());
-                    inbound_rtps =
-                        report->GetStatsOfType<RTCInboundRtpStreamStats>();
-                    return !inbound_rtps.empty();
-                  },
-                  IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil(
+      [&] {
+        report = GetStats(caller_->pc());
+        inbound_rtps = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+        return !inbound_rtps.empty();
+      },
+      {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}));
   ASSERT_THAT(inbound_rtps, SizeIs(1));
   EXPECT_GT(inbound_rtps[0]->packets_received.value_or(0), 0u);
 }

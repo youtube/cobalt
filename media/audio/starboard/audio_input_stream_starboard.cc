@@ -189,8 +189,7 @@ void AudioInputStreamStarboard::ReadAudio() {
     DCHECK_LE(frames_in_buffer_, params_.frames_per_buffer());
 
     if (frames_in_buffer_ == params_.frames_per_buffer()) {
-      audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(
-          buffer_.data(), params_.frames_per_buffer());
+      audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(buffer_);
 
       callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
       frames_in_buffer_ = 0;

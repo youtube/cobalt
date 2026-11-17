@@ -69,7 +69,6 @@ set(
   crypto/fipsmodule/ec/ec_montgomery.cc.inc
   crypto/fipsmodule/ec/felem.cc.inc
   crypto/fipsmodule/ec/oct.cc.inc
-  crypto/fipsmodule/ec/p256-nistz.cc.inc
   crypto/fipsmodule/ec/p256.cc.inc
   crypto/fipsmodule/ec/scalar.cc.inc
   crypto/fipsmodule/ec/simple.cc.inc
@@ -679,7 +678,7 @@ set(
   crypto/fipsmodule/ec/builtin_curves.h
   crypto/fipsmodule/ec/internal.h
   crypto/fipsmodule/ec/p256-nistz-table.h
-  crypto/fipsmodule/ec/p256-nistz.h
+  crypto/fipsmodule/ec/p256_internal.h
   crypto/fipsmodule/ec/p256_table.h
   crypto/fipsmodule/ecdsa/internal.h
   crypto/fipsmodule/entropy/internal.h
@@ -726,7 +725,6 @@ set(
   third_party/fiat/p256_32.h
   third_party/fiat/p256_64.h
   third_party/fiat/p256_64_msvc.h
-  third_party/fiat/p256_field.c.inc
   third_party/fiat/p256_field_32.br.c.inc
   third_party/fiat/p256_field_64.br.c.inc
   third_party/fiat/p256_point.br.c.inc
@@ -809,7 +807,6 @@ set(
   crypto/fipsmodule/bn/bn_test.cc
   crypto/fipsmodule/cmac/cmac_test.cc
   crypto/fipsmodule/ec/ec_test.cc
-  crypto/fipsmodule/ec/p256-nistz_test.cc
   crypto/fipsmodule/ec/p256_test.cc
   crypto/fipsmodule/ecdsa/ecdsa_test.cc
   crypto/fipsmodule/entropy/jitter_test.cc
@@ -927,7 +924,7 @@ set(
   crypto/fipsmodule/cmac/cavp_aes192_cmac_tests.txt
   crypto/fipsmodule/cmac/cavp_aes256_cmac_tests.txt
   crypto/fipsmodule/ec/ec_scalar_base_mult_tests.txt
-  crypto/fipsmodule/ec/p256-nistz_tests.txt
+  crypto/fipsmodule/ec/p256-tests.txt
   crypto/fipsmodule/ecdsa/ecdsa_sign_tests.txt
   crypto/fipsmodule/ecdsa/ecdsa_verify_tests.txt
   crypto/fipsmodule/keccak/keccak_tests.txt
@@ -2382,6 +2379,14 @@ set(
   pki/testdata/path_builder_unittest/mtc/leaf.pem
   pki/testdata/path_builder_unittest/mtc/mtc-ica.pem
   pki/testdata/path_builder_unittest/mtc/mtc-leaf.pem
+  pki/testdata/path_builder_unittest/mtc_plants04/leaf.pem
+  pki/testdata/path_builder_unittest/mtc_plants04/mtc-ica.pem
+  pki/testdata/path_builder_unittest/mtc_plants04/mtc-leaf-standalone-3cosigners.pem
+  pki/testdata/path_builder_unittest/mtc_plants04/mtc-leaf-standalone-cosigner_wrong_order.pem
+  pki/testdata/path_builder_unittest/mtc_plants04/mtc-leaf-standalone-duplicate_ca_signer.pem
+  pki/testdata/path_builder_unittest/mtc_plants04/mtc-leaf-standalone-no_ca_signer.pem
+  pki/testdata/path_builder_unittest/mtc_plants04/mtc-leaf-standalone.pem
+  pki/testdata/path_builder_unittest/mtc_plants04/mtc-leaf.pem
   pki/testdata/path_builder_unittest/multi-root-A-by-B.pem
   pki/testdata/path_builder_unittest/multi-root-B-by-C.pem
   pki/testdata/path_builder_unittest/multi-root-B-by-F.pem

@@ -716,7 +716,8 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
     auto transceiver = RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
         signaling_thread_,
         make_ref_counted<RtpTransceiver>(env_, media_type, context_.get(),
-                                         &codec_lookup_helper_, nullptr));
+                                         &codec_lookup_helper_, nullptr,
+                                         AudioOptions(), VideoOptions()));
     transceiver->internal()->set_current_direction(
         RtpTransceiverDirection::kSendRecv);
     if (!mid.empty()) {

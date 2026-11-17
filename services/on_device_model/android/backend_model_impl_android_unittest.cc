@@ -4,7 +4,10 @@
 
 #include "services/on_device_model/android/backend_model_impl_android.h"
 
+#include <variant>
+
 #include "base/functional/callback_helpers.h"
+#include "base/notreached.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/task_environment.h"
@@ -17,6 +20,7 @@
 #include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace on_device_model {
 namespace {
@@ -26,6 +30,30 @@ using ::testing::ElementsAre;
 constexpr optimization_guide::proto::ModelExecutionFeature kFeature =
     optimization_guide::proto::ModelExecutionFeature::
         MODEL_EXECUTION_FEATURE_SCAM_DETECTION;
+
+mojom::InputPiecePtr MakeMojomInputPiece(ml::InputPiece piece) {
+  return std::visit(
+      absl::Overload{
+          [](ml::Token token) { return mojom::InputPiece::NewToken(token); },
+          [](std::string text) {
+            return mojom::InputPiece::NewText(std::move(text));
+          },
+          [](auto&&) -> mojom::InputPiecePtr {
+            NOTREACHED();
+            return nullptr;
+          },
+      },
+      std::move(piece));
+}
+
+mojom::InputPtr MakeMojomInput(std::vector<ml::InputPiece> input) {
+  auto mojom_input = mojom::Input::New();
+  mojom_input->pieces.reserve(input.size());
+  for (auto& piece : input) {
+    mojom_input->pieces.push_back(MakeMojomInputPiece(std::move(piece)));
+  }
+  return mojom_input;
+}
 
 class TestContextClient : public mojom::ContextClient {
  public:
@@ -68,7 +96,7 @@ class BackendModelImplAndroidTest : public testing::Test {
 
   mojom::AppendOptionsPtr MakeInput(std::vector<ml::InputPiece> input) {
     auto options = mojom::AppendOptions::New();
-    options->input = mojom::Input::New(std::move(input));
+    options->input = MakeMojomInput(std::move(input));
     return options;
   }
 
@@ -115,6 +143,7 @@ TEST_F(BackendModelImplAndroidTest, AppendAndGenerate) {
     pieces.push_back("mock system input");
     pieces.push_back(ml::Token::kEnd);
     session->Append(MakeInput(std::move(pieces)), /*client=*/{},
+                    /*bad_message_callback=*/base::DoNothing(),
                     /*on_complete=*/base::DoNothing());
   }
   {
@@ -123,12 +152,14 @@ TEST_F(BackendModelImplAndroidTest, AppendAndGenerate) {
     pieces.push_back("mock user input");
     pieces.push_back(ml::Token::kEnd);
     session->Append(MakeInput(std::move(pieces)), /*client=*/{},
+                    /*bad_message_callback=*/base::DoNothing(),
                     /*on_complete=*/base::DoNothing());
   }
   {
     std::vector<ml::InputPiece> pieces;
     pieces.push_back(ml::Token::kModel);
     session->Append(MakeInput(std::move(pieces)), /*client=*/{},
+                    /*bad_message_callback=*/base::DoNothing(),
                     /*on_complete=*/base::DoNothing());
   }
 
@@ -184,6 +215,7 @@ TEST_F(BackendModelImplAndroidTest, ContextIsNotClearedOnNewGenerate) {
     std::vector<ml::InputPiece> pieces;
     pieces.push_back("mock input");
     session->Append(MakeInput(std::move(pieces)), /*client=*/{},
+                    /*bad_message_callback=*/base::DoNothing(),
                     /*on_complete=*/base::DoNothing());
   }
 
@@ -223,6 +255,7 @@ TEST_F(BackendModelImplAndroidTest, GenerateCallbacksOnDifferentThread) {
     std::vector<ml::InputPiece> pieces;
     pieces.push_back("mock input");
     session->Append(MakeInput(std::move(pieces)), /*client=*/{},
+                    /*bad_message_callback=*/base::DoNothing(),
                     /*on_complete=*/base::DoNothing());
   }
 
@@ -272,6 +305,7 @@ TEST_F(BackendModelImplAndroidTest, CloneSession) {
     std::vector<ml::InputPiece> pieces;
     pieces.push_back("mock input");
     session->Append(MakeInput(std::move(pieces)), /*client=*/{},
+                    /*bad_message_callback=*/base::DoNothing(),
                     /*on_complete=*/base::DoNothing());
   }
 
@@ -296,6 +330,7 @@ TEST_F(BackendModelImplAndroidTest, CloneSession) {
     std::vector<ml::InputPiece> pieces;
     pieces.push_back(" more context");
     session->Append(MakeInput(std::move(pieces)), /*client=*/{},
+                    /*bad_message_callback=*/base::DoNothing(),
                     /*on_complete=*/base::DoNothing());
   }
   {
@@ -330,7 +365,8 @@ TEST_F(BackendModelImplAndroidTest, SizeInTokensWithTextInput) {
   pieces.push_back("test input string");
 
   base::test::TestFuture<uint32_t> future;
-  session->SizeInTokens(mojom::Input::New(std::move(pieces)),
+  session->SizeInTokens(MakeMojomInput(std::move(pieces)),
+                        /*bad_message_callback=*/base::DoNothing(),
                         future.GetCallback());
 
   // The mock counts characters in text, so "test input string" = 17 chars.
@@ -350,7 +386,8 @@ TEST_F(BackendModelImplAndroidTest, SizeInTokensWithTokenInput) {
   pieces.push_back(ml::Token::kEnd);
 
   base::test::TestFuture<uint32_t> future;
-  session->SizeInTokens(mojom::Input::New(std::move(pieces)),
+  session->SizeInTokens(MakeMojomInput(std::move(pieces)),
+                        /*bad_message_callback=*/base::DoNothing(),
                         future.GetCallback());
 
   // The output is "<system>system message<end>" total characters is 27.
@@ -370,7 +407,8 @@ TEST_F(BackendModelImplAndroidTest, SizeInTokensCallbackOnDifferentThread) {
   pieces.push_back("test input on different thread");
 
   base::test::TestFuture<uint32_t> future;
-  session->SizeInTokens(mojom::Input::New(std::move(pieces)),
+  session->SizeInTokens(MakeMojomInput(std::move(pieces)),
+                        /*bad_message_callback=*/base::DoNothing(),
                         future.GetCallback());
 
   // The mock counts characters in text,
@@ -389,6 +427,7 @@ TEST_F(BackendModelImplAndroidTest, AppendBindsContextClient) {
   std::vector<ml::InputPiece> pieces;
   pieces.push_back("mock input");
   session->Append(MakeInput(std::move(pieces)), context_client.BindRemote(),
+                  /*bad_message_callback=*/base::DoNothing(),
                   /*on_complete=*/base::DoNothing());
   // The context client should receive the OnComplete callback with count 0 for
   // tokens processed.

@@ -16,9 +16,9 @@
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
 #include "content/browser/child_process_security_policy_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "content/browser/interest_group/interest_group_features.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/debug_urls.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -613,7 +613,7 @@ void Navigator::DidNavigate(
       view_transition_commit_info, navigation_request->GetURL(),
       is_backward_navigation);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
   // Reset the old frame host's weak pointer to auction initiator page when it
   // is a cross-document navigation and the frame does not go into bfcache.
   if ((base::FeatureList::IsEnabled(features::kDetectInconsistentPageImpl)) &&
@@ -621,7 +621,7 @@ void Navigator::DidNavigate(
       !old_frame_host->IsInBackForwardCache()) {
     old_frame_host->set_auction_initiator_page(nullptr);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
   // The main frame, same site, and cross-site navigation checks for user
   // activation mirror the checks in DocumentLoader::CommitNavigation() (note:
@@ -1723,6 +1723,17 @@ Navigator::GetNavigationEntryForRendererInitiatedNavigation(
       common_params.navigation_type));
   entry->SetIsOverridingUserAgent(override_user_agent);
   controller_.SetPendingEntry(std::move(entry));
+
+  // If the embedder's OverrideNavigationParams flipped this entry's
+  // is_renderer_initiated bit to false (e.g., for an NTP navigation that
+  // gets overridden to look browser-initiated), the INVALIDATE_TYPE_URL
+  // notification in SetPendingEntry was skipped because it is gated on
+  // is_renderer_initiated(). Fire it here so the omnibox can reflect the
+  // destination URL during the pending navigation, rather than displaying
+  // stale text until commit.
+  if (!controller_.GetPendingEntry()->is_renderer_initiated()) {
+    delegate_->NotifyChangedNavigationState(INVALIDATE_TYPE_URL);
+  }
 
   return controller_.GetPendingEntry();
 }

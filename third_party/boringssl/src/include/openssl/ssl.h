@@ -616,6 +616,11 @@ OPENSSL_EXPORT int SSL_version(const SSL *ssl);
 // client's.
 #define SSL_OP_CIPHER_SERVER_PREFERENCE 0x00400000L
 
+// SSL_OP_ALL is the set of options that are enabled by default. It is safe, but
+// not necessary, to pass this value to `SSL_CTX_set_options`.
+// TODO(crbug.com/41393419): Disable SSL_OP_LEGACY_SERVER_CONNECT by default.
+#define SSL_OP_ALL SSL_OP_LEGACY_SERVER_CONNECT
+
 // The following flags toggle individual protocol versions. This is deprecated.
 // Use `SSL_CTX_set_min_proto_version` and `SSL_CTX_set_max_proto_version`
 // instead.
@@ -4680,9 +4685,9 @@ OPENSSL_EXPORT int SSL_ECH_KEYS_marshal_retry_configs(const SSL_ECH_KEYS *keys,
 // rotate keys in a long-lived server process.
 //
 // The configured ECHConfig values should also be advertised out-of-band via DNS
-// (see draft-ietf-dnsop-svcb-https). Before advertising an ECHConfig in DNS,
-// deployments should ensure all instances of the service are configured with
-// the ECHConfig and corresponding private key.
+// (see RFC 9848). Before advertising an ECHConfig in DNS, deployments should
+// ensure all instances of the service are configured with the ECHConfig and
+// corresponding private key.
 //
 // Only the most recent fully-deployed ECHConfigs should be advertised in DNS.
 // `keys` may contain a newer set if those ECHConfigs are mid-deployment. It
@@ -5884,7 +5889,6 @@ DEFINE_STACK_OF(SSL_COMP)
 #define SSL_MODE_RELEASE_BUFFERS 0
 #define SSL_MODE_SEND_CLIENTHELLO_TIME 0
 #define SSL_MODE_SEND_SERVERHELLO_TIME 0
-#define SSL_OP_ALL 0
 #define SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION 0
 #define SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS 0
 #define SSL_OP_EPHEMERAL_RSA 0

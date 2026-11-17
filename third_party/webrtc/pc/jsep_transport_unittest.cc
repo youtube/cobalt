@@ -496,9 +496,8 @@ TEST_P(JsepTransport2WithRtcpMux, VerifyCertificateFingerprint) {
         &digest_algorithm));
     ASSERT_FALSE(digest_algorithm.empty());
     std::unique_ptr<SSLFingerprint> good_fingerprint =
-        SSLFingerprint::CreateUnique(digest_algorithm,
-                                     *certificate->identity());
-    ASSERT_NE(nullptr, good_fingerprint);
+        SSLFingerprint::Create(digest_algorithm, *certificate->identity());
+    ASSERT_NE(good_fingerprint, nullptr);
 
     EXPECT_TRUE(jsep_transport_
                     ->VerifyCertificateFingerprint(certificate.get(),

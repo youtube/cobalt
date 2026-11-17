@@ -40,6 +40,10 @@ BASE_EXPORT std::string device_name();
 // For testing use only.
 BASE_EXPORT void set_is_xr_for_testing();
 BASE_EXPORT void reset_is_xr_for_testing();
+BASE_EXPORT void set_is_desktop_for_testing(bool is_desktop);
+BASE_EXPORT void reset_is_desktop_for_testing();
+BASE_EXPORT void set_is_foldable_for_testing(bool is_foldable);
+BASE_EXPORT void reset_is_foldable_for_testing();
 }  // namespace base::android::device_info
 
 #endif  // BASE_ANDROID_DEVICE_INFO_H_

@@ -15,6 +15,7 @@
 #include <variant>
 
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -43,6 +44,7 @@ class QUICHE_EXPORT MoqtDataStreamType {
   static constexpr uint64_t kExtensions = 0x01;
   static constexpr uint64_t kEndOfGroup = 0x08;
   static constexpr uint64_t kDefaultPriority = 0x20;
+  static constexpr uint64_t kHasFirstObject = 0x40;
   // These two cannot simultaneously be true;
   static constexpr uint64_t kFirstObjectId = 0x02;
   static constexpr uint64_t kSubgroupId = 0x04;
@@ -58,7 +60,7 @@ class QUICHE_EXPORT MoqtDataStreamType {
       return std::nullopt;
     }
     if (value > (kSubgroup | kExtensions | kEndOfGroup | kDefaultPriority |
-                 kFirstObjectId | kSubgroupId)) {
+                 kFirstObjectId | kSubgroupId | kHasFirstObject)) {
       // Reserved bits.
       return std::nullopt;
     }
@@ -69,11 +71,9 @@ class QUICHE_EXPORT MoqtDataStreamType {
   }
   static MoqtDataStreamType Fetch() { return MoqtDataStreamType(kFetch); }
   static MoqtDataStreamType Padding() { return MoqtDataStreamType(kPadding); }
-  static MoqtDataStreamType Subgroup(uint64_t subgroup_id,
-                                     uint64_t first_object_id,
-                                     bool no_extension_headers,
-                                     bool default_priority,
-                                     bool end_of_group = false) {
+  static MoqtDataStreamType Subgroup(
+      uint64_t subgroup_id, uint64_t first_object_id, bool no_extension_headers,
+      bool default_priority, bool has_first_object, bool end_of_group = false) {
     uint64_t value = kSubgroup;
     if (!no_extension_headers) {
       value |= kExtensions;
@@ -83,6 +83,9 @@ class QUICHE_EXPORT MoqtDataStreamType {
     }
     if (default_priority) {
       value |= kDefaultPriority;
+    }
+    if (has_first_object) {
+      value |= kHasFirstObject;
     }
     if (subgroup_id == 0) {
       return MoqtDataStreamType(value);
@@ -115,6 +118,9 @@ class QUICHE_EXPORT MoqtDataStreamType {
   }
   bool HasDefaultPriority() const {
     return IsSubgroup() && (value_ & kDefaultPriority);
+  }
+  bool HasFirstObject() const {
+    return IsSubgroup() && (value_ & kHasFirstObject);
   }
 
   uint64_t value() const { return value_; }
@@ -214,8 +220,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kFetchOk = 0x18,
   kRequestsBlocked = 0x1a,
   kPublish = 0x1d,
-  kClientSetup = 0x20,
-  kServerSetup = 0x21,
+  kSetup = 0x2f00,
 
   // QUICHE-specific extensions.
 
@@ -231,12 +236,7 @@ struct SubgroupPriority {
   auto operator<=>(const SubgroupPriority&) const = default;
 };
 
-// TODO(martinduke): Collapse both Setup messages into SetupParameters.
-struct QUICHE_EXPORT MoqtClientSetup {
-  SetupParameters parameters;
-};
-
-struct QUICHE_EXPORT MoqtServerSetup {
+struct QUICHE_EXPORT MoqtSetup {
   SetupParameters parameters;
 };
 
@@ -257,7 +257,8 @@ struct QUICHE_EXPORT MoqtObject {
   MoqtPriority publisher_priority;
   std::string extension_headers;  // Raw, unparsed extension headers.
   MoqtObjectStatus object_status;
-  std::optional<uint64_t> subgroup_id;  // Only for subgroup objects.
+  std::optional<uint64_t> subgroup_id;           // Only for subgroup objects.
+  std::optional<bool> first_object_in_subgroup;  // Only for subgroup objects.
   uint64_t payload_length;
 };
 
@@ -538,7 +539,7 @@ struct QUICHE_EXPORT MoqtObjectAck {
 
 // Returns false if the parameters cannot be in |message type|.
 MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
-                                          MoqtMessageType message_type,
+                                          quic::Perspective sender_perspective,
                                           bool webtrans);
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);

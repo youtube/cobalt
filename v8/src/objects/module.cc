@@ -110,7 +110,7 @@ void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
   DCHECK_IMPLIES(isolate->is_catchable_by_javascript(error),
                  IsTheHole(exception()));
   DCHECK(!IsTheHole(error));
-  if (IsSourceTextModule(this)) {
+  if (Is<SourceTextModule>(this)) {
     // Revert to minimal SFI in case we have already been instantiating or
     // evaluating.
     auto self = Cast<SourceTextModule>(this);
@@ -161,8 +161,8 @@ void Module::Reset(Isolate* isolate, DirectHandle<Module> module) {
   // The namespace object cannot exist, because it would have been created
   // by RunInitializationCode, which is called only after this module's SCC
   // succeeds instantiation.
-  DCHECK(!IsJSModuleNamespace(module->module_namespace()) &&
-         !IsJSModuleNamespace(module->deferred_module_namespace()));
+  DCHECK(IsUndefined(module->module_namespace()) &&
+         IsUndefined(module->deferred_module_namespace()));
   const uint32_t export_count =
       IsSourceTextModule(*module)
           ? Cast<SourceTextModule>(*module)
@@ -593,7 +593,7 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
 
   // Only SourceTextModules may be async.
-  if (!IsSourceTextModule(this)) return false;
+  if (!Is<SourceTextModule>(this)) return false;
   Tagged<SourceTextModule> root = Cast<SourceTextModule>(this);
   DCHECK_GE(root->status(), kLinked);
 

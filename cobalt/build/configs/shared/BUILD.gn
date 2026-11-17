@@ -21,13 +21,13 @@ declare_args() {
 }
 
 declare_args() {
-  chromium_milestone_le_150 = chromium_milestone <= 150
+  chromium_milestone_le_153 = chromium_milestone <= 153
 }
 
 config("global_defines_shared") {
   defines = [
     "CHROMIUM_MILESTONE=$chromium_milestone",
-    "CHROMIUM_MILESTONE_LE_150=$chromium_milestone_le_150",
+    "CHROMIUM_MILESTONE_LE_153=$chromium_milestone_le_153",
   ]
   if (enable_privacy_sandbox_apis) {
     defines += [ "ENABLE_BUILDFLAG_ENABLE_PRIVACY_SANDBOX_APIS" ]

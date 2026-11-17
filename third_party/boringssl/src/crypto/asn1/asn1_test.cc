@@ -55,10 +55,10 @@ static std::string_view ASN1StringToStringView(const ASN1_STRING *str) {
   return BytesAsStringView(ASN1StringToBytes(str));
 }
 
-// |obj| and |i2d_func| require different template parameters because C++ may
-// deduce, say, |ASN1_STRING*| via |obj| and |const ASN1_STRING*| via
-// |i2d_func|. Template argument deduction then fails. The language is not able
-// to resolve this by observing that |const ASN1_STRING*| works for both.
+// `obj` and `i2d_func` require different template parameters because C++ may
+// deduce, say, `ASN1_STRING*` via `obj` and `const ASN1_STRING*` via
+// `i2d_func`. Template argument deduction then fails. The language is not able
+// to resolve this by observing that `const ASN1_STRING*` works for both.
 template <typename T, typename U>
 void TestSerialize(T obj, int (*i2d_func)(U a, uint8_t **pp),
                    Span<const uint8_t> expected) {
@@ -112,11 +112,11 @@ TEST(ASN1Test, Integer) {
   struct {
     // der is the DER encoding of the INTEGER, including the tag and length.
     std::vector<uint8_t> der;
-    // type and data are the corresponding fields of the |ASN1_STRING|
+    // type and data are the corresponding fields of the `ASN1_STRING`
     // representation.
     int type;
     std::vector<uint8_t> data;
-    // bn_asc is the |BIGNUM| representation, as parsed by the |BN_asc2bn|
+    // bn_asc is the `BIGNUM` representation, as parsed by the `BN_asc2bn`
     // function.
     const char *bn_asc;
   } kTests[] = {
@@ -283,13 +283,13 @@ TEST(ASN1Test, Integer) {
     // method used and is only retained to aid debugging.
     std::map<std::string, UniquePtr<ASN1_INTEGER>> objs;
 
-    // Construct |ASN1_INTEGER| by setting the type and data manually.
+    // Construct `ASN1_INTEGER` by setting the type and data manually.
     UniquePtr<ASN1_INTEGER> by_data(ASN1_STRING_type_new(t.type));
     ASSERT_TRUE(by_data);
     ASSERT_TRUE(ASN1_STRING_set(by_data.get(), t.data.data(), t.data.size()));
     objs["data"] = std::move(by_data);
 
-    // Construct |ASN1_INTEGER| from a |BIGNUM|.
+    // Construct `ASN1_INTEGER` from a `BIGNUM`.
     BIGNUM *bn_raw = nullptr;
     ASSERT_TRUE(BN_asc2bn(&bn_raw, t.bn_asc));
     UniquePtr<BIGNUM> bn(bn_raw);
@@ -297,7 +297,7 @@ TEST(ASN1Test, Integer) {
     ASSERT_TRUE(by_bn);
     objs["bn"] = std::move(by_bn);
 
-    // Construct |ASN1_INTEGER| from decoding.
+    // Construct `ASN1_INTEGER` from decoding.
     const uint8_t *ptr = t.der.data();
     UniquePtr<ASN1_INTEGER> by_der(
         d2i_ASN1_INTEGER(nullptr, &ptr, t.der.size()));
@@ -305,7 +305,7 @@ TEST(ASN1Test, Integer) {
     EXPECT_EQ(ptr, t.der.data() + t.der.size());
     objs["der"] = std::move(by_der);
 
-    // Construct |ASN1_INTEGER| from various C types, if it fits.
+    // Construct `ASN1_INTEGER` from various C types, if it fits.
     bool fits_in_long = false, fits_in_i64 = false, fits_in_u64 = false;
     uint64_t u64 = 0;
     int64_t i64 = 0;
@@ -351,14 +351,14 @@ TEST(ASN1Test, Integer) {
       }
     }
 
-    // Default construction should return the zero |ASN1_INTEGER|.
+    // Default construction should return the zero `ASN1_INTEGER`.
     if (BN_is_zero(bn.get())) {
       UniquePtr<ASN1_INTEGER> by_default(ASN1_INTEGER_new());
       ASSERT_TRUE(by_default);
       objs["default"] = std::move(by_default);
     }
 
-    // Test that every |ASN1_INTEGER| constructed behaves as expected.
+    // Test that every `ASN1_INTEGER` constructed behaves as expected.
     for (const auto &pair : objs) {
       // The fields should be as expected.
       SCOPED_TRACE(pair.first);
@@ -399,7 +399,7 @@ TEST(ASN1Test, Integer) {
       }
 
       // All variations of integers should compare as equal to each other, as
-      // strings or integers. (Functions like |ASN1_TYPE_cmp| rely on
+      // strings or integers. (Functions like `ASN1_TYPE_cmp` rely on
       // string-based comparison.)
       for (const auto &pair2 : objs) {
         SCOPED_TRACE(pair2.first);
@@ -408,7 +408,7 @@ TEST(ASN1Test, Integer) {
       }
     }
 
-    // Although our parsers will never output non-minimal |ASN1_INTEGER|s, it is
+    // Although our parsers will never output non-minimal `ASN1_INTEGER`s, it is
     // possible to construct them manually. They should encode correctly.
     std::vector<uint8_t> data = t.data;
     const int kMaxExtraBytes = 5;
@@ -437,7 +437,7 @@ TEST(ASN1Test, Integer) {
           d2i_ASN1_INTEGER(nullptr, &ptr, kTests[j].der.size()));
       ASSERT_TRUE(b);
 
-      // |ASN1_INTEGER_cmp| should compare numerically. |ASN1_STRING_cmp| does
+      // `ASN1_INTEGER_cmp` should compare numerically. `ASN1_STRING_cmp` does
       // not but should preserve equality.
       if (i < j) {
         EXPECT_LT(ASN1_INTEGER_cmp(a.get(), b.get()), 0);
@@ -470,7 +470,7 @@ TEST(ASN1Test, Integer) {
     EXPECT_FALSE(integer);
   }
 
-  // Callers expect |ASN1_INTEGER_get| and |ASN1_ENUMERATED_get| to return zero
+  // Callers expect `ASN1_INTEGER_get` and `ASN1_ENUMERATED_get` to return zero
   // given NULL.
   EXPECT_EQ(0, ASN1_INTEGER_get(nullptr));
   EXPECT_EQ(0, ASN1_ENUMERATED_get(nullptr));
@@ -551,7 +551,7 @@ TEST(ASN1Test, SerializeEmbeddedBoolean) {
   TestSerialize(val.get(), i2d_BASIC_CONSTRAINTS, kLeaf);
 
   // TRUE should always be encoded as 0xff, independent of what value the caller
-  // placed in the |ASN1_BOOLEAN|.
+  // placed in the `ASN1_BOOLEAN`.
   static const uint8_t kCA[] = {0x30, 0x03, 0x01, 0x01, 0xff};
   val->ca = 0xff;
   TestSerialize(val.get(), i2d_BASIC_CONSTRAINTS, kCA);
@@ -621,7 +621,7 @@ TEST(ASN1Test, ASN1Type) {
       // [0] { UTF8String { "a" } }
       {V_ASN1_OTHER, {0xa0, 0x03, 0x0c, 0x01, 0x61}},
       // [UNIVERSAL 128] { `00` }
-      // Unknown universal tags are parsed as |V_ASN1_OTHER|.
+      // Unknown universal tags are parsed as `V_ASN1_OTHER`.
       {V_ASN1_OTHER, {0x1f, 0x81, 0x00, 0x01, 0x00}},
   };
   for (const auto &t : kTests) {
@@ -666,11 +666,11 @@ TEST(ASN1Test, ASN1Type) {
   const std::vector<uint8_t> kInvalidTests[] = {
       // Tag [UNIVERSAL 258] should be rejected.
       //
-      // Historically, unknown universal tags were represented in |ASN1_TYPE| as
-      // |ASN1_STRING|s with the type matching the tag number. This can collide
-      // with |V_ASN_NEG|, which was one of the causes of CVE-2016-2108. (258
-      // matches |V_ASN1_NEG_INTEGER|.) We now represent unsupported values with
-      // |V_ASN1_OTHER|, but retain the |V_ASN1_MAX_UNIVERSAL| limit.
+      // Historically, unknown universal tags were represented in `ASN1_TYPE` as
+      // `ASN1_STRING`s with the type matching the tag number. This can collide
+      // with `V_ASN_NEG`, which was one of the causes of CVE-2016-2108. (258
+      // matches `V_ASN1_NEG_INTEGER`.) We now represent unsupported values with
+      // `V_ASN1_OTHER`, but retain the `V_ASN1_MAX_UNIVERSAL` limit.
       {0x1f, 0x82, 0x02, 0x01, 0x00},
       // Tag [UNIVERSAL 2^35-1] will not fit in an int and should not
       // overflow.
@@ -720,7 +720,7 @@ TEST(ASN1Test, ASN1Type) {
   }
 }
 
-// Test that reading |value.ptr| from a FALSE |ASN1_TYPE| behaves correctly. The
+// Test that reading `value.ptr` from a FALSE `ASN1_TYPE` behaves correctly. The
 // type historically supported this, so maintain the invariant in case external
 // code relies on it.
 TEST(ASN1Test, UnusedBooleanBits) {
@@ -732,7 +732,7 @@ TEST(ASN1Test, UnusedBooleanBits) {
   EXPECT_EQ(V_ASN1_OCTET_STRING, val->type);
   EXPECT_TRUE(val->value.ptr);
 
-  // Set |val| to a BOOLEAN containing FALSE.
+  // Set `val` to a BOOLEAN containing FALSE.
   ASN1_TYPE_set(val.get(), V_ASN1_BOOLEAN, nullptr);
   EXPECT_EQ(V_ASN1_BOOLEAN, val->type);
   EXPECT_FALSE(val->value.ptr);
@@ -749,12 +749,12 @@ TEST(ASN1Test, ParseASN1Object) {
   // OBJECT_IDENTIFIER { 1.3.101.112 }
   static const uint8_t kDER[] = {0x06, 0x03, 0x2b, 0x65, 0x70};
   const uint8_t *ptr = kDER;
-  // Parse an |ASN1_OBJECT| with object reuse.
+  // Parse an `ASN1_OBJECT` with object reuse.
   EXPECT_TRUE(d2i_ASN1_OBJECT(&obj, &ptr, sizeof(kDER)));
   EXPECT_EQ(NID_ED25519, OBJ_obj2nid(obj));
   ASN1_OBJECT_free(obj);
 
-  // Repeat the test, this time overriding a static |ASN1_OBJECT|. It should
+  // Repeat the test, this time overriding a static `ASN1_OBJECT`. It should
   // detect this and construct a new one.
   obj = OBJ_nid2obj(NID_rsaEncryption);
   ptr = kDER;
@@ -872,7 +872,7 @@ TEST(ASN1Test, SetBit) {
   EXPECT_EQ(0, ASN1_BIT_STRING_get_bit(val.get(), 0));
   EXPECT_EQ(0, ASN1_BIT_STRING_get_bit(val.get(), 100));
 
-  // Set a few bits via |ASN1_BIT_STRING_set_bit|.
+  // Set a few bits via `ASN1_BIT_STRING_set_bit`.
   ASSERT_TRUE(ASN1_BIT_STRING_set_bit(val.get(), 0, 1));
   ASSERT_TRUE(ASN1_BIT_STRING_set_bit(val.get(), 1, 1));
   ASSERT_TRUE(ASN1_BIT_STRING_set_bit(val.get(), 2, 0));
@@ -933,7 +933,7 @@ TEST(ASN1Test, SetBit) {
   EXPECT_EQ(0, ASN1_BIT_STRING_get_bit(val.get(), 63));
   EXPECT_EQ(0, ASN1_BIT_STRING_get_bit(val.get(), 64));
 
-  // |ASN1_BIT_STRING_set_bit| also truncates when starting from a parsed
+  // `ASN1_BIT_STRING_set_bit` also truncates when starting from a parsed
   // string.
   const uint8_t *ptr = kBitStringLong;
   val.reset(d2i_ASN1_BIT_STRING(nullptr, &ptr, sizeof(kBitStringLong)));
@@ -952,7 +952,7 @@ TEST(ASN1Test, SetBit) {
   val.reset(d2i_ASN1_BIT_STRING(nullptr, &ptr, sizeof(kBitString10010)));
   ASSERT_TRUE(val);
   TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitString10010);
-  // But |ASN1_BIT_STRING_set_bit| will truncate it even if otherwise a no-op.
+  // But `ASN1_BIT_STRING_set_bit` will truncate it even if otherwise a no-op.
   ASSERT_TRUE(ASN1_BIT_STRING_set_bit(val.get(), 0, 1));
   TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitString1001);
   EXPECT_EQ(1, ASN1_BIT_STRING_get_bit(val.get(), 0));
@@ -1010,7 +1010,7 @@ TEST(ASN1Test, SetBitString) {
   EXPECT_FALSE(set1(val.get(), {0x00, 0x00}, -1));
   EXPECT_FALSE(set1(val.get(), {}, 1));
 
-  // |ASN1_STRING_set| and |ASN1_STRING_set0| should clear the count of unused
+  // `ASN1_STRING_set` and `ASN1_STRING_set0` should clear the count of unused
   // bits, rather then carry it over.
   ASSERT_TRUE(set1(val.get(), {0xf0}, 4));
   static const uint8_t kBytes[] = {0x00, 0x01, 0x02};
@@ -1223,7 +1223,7 @@ TEST(ASN1Test, TimeSetString) {
   EXPECT_EQ(V_ASN1_GENERALIZEDTIME, ASN1_STRING_type(s.get()));
   EXPECT_EQ("19700101000000Z", ASN1StringToStringView(s.get()));
 
-  // |ASN1_TIME_set_string| accepts either format. It relies on there being no
+  // `ASN1_TIME_set_string` accepts either format. It relies on there being no
   // overlap between the two.
   ASSERT_TRUE(ASN1_TIME_set_string(s.get(), "700101000000Z"));
   EXPECT_EQ(V_ASN1_UTCTIME, ASN1_STRING_type(s.get()));
@@ -1233,7 +1233,7 @@ TEST(ASN1Test, TimeSetString) {
   EXPECT_EQ(V_ASN1_GENERALIZEDTIME, ASN1_STRING_type(s.get()));
   EXPECT_EQ("19700101000000Z", ASN1StringToStringView(s.get()));
 
-  // |ASN1_TIME_set_string_X509| behaves similarly except it additionally
+  // `ASN1_TIME_set_string_X509` behaves similarly except it additionally
   // converts GeneralizedTime to UTCTime if it fits.
   ASSERT_TRUE(ASN1_TIME_set_string_X509(s.get(), "700101000000Z"));
   EXPECT_EQ(V_ASN1_UTCTIME, ASN1_STRING_type(s.get()));
@@ -1274,7 +1274,7 @@ TEST(ASN1Test, TimeSetString) {
   EXPECT_TRUE(ASN1_GENERALIZEDTIME_set_string(nullptr, "19700101000000Z"));
   EXPECT_TRUE(ASN1_TIME_set_string(nullptr, "19700101000000Z"));
   EXPECT_TRUE(ASN1_TIME_set_string_X509(nullptr, "19700101000000Z"));
-  // Test an input |ASN1_TIME_set_string_X509| won't convert to UTCTime.
+  // Test an input `ASN1_TIME_set_string_X509` won't convert to UTCTime.
   EXPECT_TRUE(ASN1_GENERALIZEDTIME_set_string(nullptr, "20500101000000Z"));
   EXPECT_TRUE(ASN1_TIME_set_string(nullptr, "20500101000000Z"));
   EXPECT_TRUE(ASN1_TIME_set_string_X509(nullptr, "20500101000000Z"));
@@ -1301,13 +1301,13 @@ TEST(ASN1Test, UTCTimeZoneOffsets) {
   EXPECT_EQ("700101000000Z", ASN1StringToStringView(s.get()));
 
   // UTCTIME_set_string should not allow a timezone offset
-  EXPECT_FALSE(ASN1_UTCTIME_set_string(s.get(), "700101000000-0400"));
+  EXPECT_FALSE(ASN1_UTCTIME_set_string(s.get(), "700101000000+0400"));
 
   // Forcibly construct a utc time with a timezone offset.
-  ASSERT_TRUE(ASN1_STRING_set(s.get(), "700101000000-0400",
-                              strlen("700101000000-0400")));
+  ASSERT_TRUE(ASN1_STRING_set(s.get(), "700101000000+0400",
+                              strlen("700101000000+0400")));
   EXPECT_EQ(V_ASN1_UTCTIME, ASN1_STRING_type(s.get()));
-  EXPECT_EQ("700101000000-0400", ASN1StringToStringView(s.get()));
+  EXPECT_EQ("700101000000+0400", ASN1StringToStringView(s.get()));
 
   // check is expected to be valid with timezone offsets
   ASSERT_TRUE(ASN1_UTCTIME_check(s.get()));
@@ -1326,7 +1326,7 @@ TEST(ASN1Test, UTCTimeZoneOffsets) {
   // This should be the correct value
   // EXPECT_EQ("19691231200000Z", ASN1StringToStringView(g.get()));
   // But this function currently generates invalid times.
-  EXPECT_EQ("19700101000000-0400", ASN1StringToStringView(g.get()));
+  EXPECT_EQ("19700101000000+0400", ASN1StringToStringView(g.get()));
   // Force this to be a generalized time the same as our utc time
   EXPECT_TRUE(ASN1_GENERALIZEDTIME_set_string(g.get(), "19691231200000Z"));
 
@@ -1462,7 +1462,7 @@ TEST(ASN1Test, StringPrintEx) {
     std::string expected;
   } kTests[] = {
       // A string like "hello" is never escaped or quoted.
-      // |ASN1_STRFLGS_ESC_QUOTE| only introduces quotes when needed. Note
+      // `ASN1_STRFLGS_ESC_QUOTE` only introduces quotes when needed. Note
       // OpenSSL interprets T61String as Latin-1.
       {V_ASN1_T61STRING, StringToVector("hello"), 0, 0, "hello"},
       {V_ASN1_T61STRING, StringToVector("hello"), 0,
@@ -1551,7 +1551,7 @@ TEST(ASN1Test, StringPrintEx) {
        ASN1_STRFLGS_ESC_MSB,
        "a\\80\\U0100\\W00010000"},
 
-      // |ASN1_STRFLGS_UTF8_CONVERT| normalizes everything to UTF-8 and then
+      // `ASN1_STRFLGS_UTF8_CONVERT` normalizes everything to UTF-8 and then
       // escapes individual bytes.
       {V_ASN1_IA5STRING, StringToVector("a\x80"), 0,
        ASN1_STRFLGS_ESC_MSB | ASN1_STRFLGS_UTF8_CONVERT, "a\\C2\\80"},
@@ -1600,7 +1600,7 @@ TEST(ASN1Test, StringPrintEx) {
       {-1, {0xff}, 0, 0, "\xff"},
       {100, {0xff}, 0, 0, "\xff"},
 
-      // |ASN1_STRFLGS_UTF8_CONVERT| still converts these bytes to UTF-8.
+      // `ASN1_STRFLGS_UTF8_CONVERT` still converts these bytes to UTF-8.
       //
       // TODO(davidben): This seems like a bug. Although it's unclear because
       // the non-RFC-2253 options aren't especially sound. Can we just remove
@@ -1609,18 +1609,18 @@ TEST(ASN1Test, StringPrintEx) {
       {-1, {0xff}, 0, ASN1_STRFLGS_UTF8_CONVERT, "\xc3\xbf"},
       {100, {0xff}, 0, ASN1_STRFLGS_UTF8_CONVERT, "\xc3\xbf"},
 
-      // |ASN1_STRFLGS_IGNORE_TYPE| causes the string type to be ignored, so it
+      // `ASN1_STRFLGS_IGNORE_TYPE` causes the string type to be ignored, so it
       // is always treated as a byte string, even if it is not a valid encoding.
       {V_ASN1_UTF8STRING, {0xff}, 0, ASN1_STRFLGS_IGNORE_TYPE, "\xff"},
       {V_ASN1_BMPSTRING, {0xff}, 0, ASN1_STRFLGS_IGNORE_TYPE, "\xff"},
       {V_ASN1_UNIVERSALSTRING, {0xff}, 0, ASN1_STRFLGS_IGNORE_TYPE, "\xff"},
 
-      // |ASN1_STRFLGS_SHOW_TYPE| prepends the type name.
+      // `ASN1_STRFLGS_SHOW_TYPE` prepends the type name.
       {V_ASN1_UTF8STRING, {'a'}, 0, ASN1_STRFLGS_SHOW_TYPE, "UTF8STRING:a"},
       {-1, {'a'}, 0, ASN1_STRFLGS_SHOW_TYPE, "(unknown):a"},
       {100, {'a'}, 0, ASN1_STRFLGS_SHOW_TYPE, "(unknown):a"},
 
-      // |ASN1_STRFLGS_DUMP_ALL| and |ASN1_STRFLGS_DUMP_UNKNOWN| cause
+      // `ASN1_STRFLGS_DUMP_ALL` and `ASN1_STRFLGS_DUMP_UNKNOWN` cause
       // non-string types to be printed in hex, though without the DER wrapper
       // by default.
       {V_ASN1_UTF8STRING, StringToVector("\xe2\x98\x83"), 0,
@@ -1632,7 +1632,7 @@ TEST(ASN1Test, StringPrintEx) {
       {V_ASN1_OCTET_STRING, StringToVector("\xe2\x98\x83"), 0,
        ASN1_STRFLGS_DUMP_ALL, "#E29883"},
 
-      // |ASN1_STRFLGS_DUMP_DER| includes the entire element.
+      // `ASN1_STRFLGS_DUMP_DER` includes the entire element.
       {V_ASN1_UTF8STRING, StringToVector("\xe2\x98\x83"), 0,
        ASN1_STRFLGS_DUMP_ALL | ASN1_STRFLGS_DUMP_DER, "#0C03E29883"},
       {V_ASN1_OCTET_STRING, StringToVector("\xe2\x98\x83"), 0,
@@ -1678,11 +1678,11 @@ TEST(ASN1Test, StringPrintEx) {
     ASSERT_TRUE(ASN1_STRING_set(str.get(), t.data.data(), t.data.size()));
     str->flags = t.str_flags;
 
-    // If the |BIO| is null, it should measure the size.
+    // If the `BIO` is null, it should measure the size.
     int len = ASN1_STRING_print_ex(nullptr, str.get(), t.flags);
     EXPECT_EQ(len, static_cast<int>(t.expected.size()));
 
-    // Measuring the size should also work for the |FILE| version
+    // Measuring the size should also work for the `FILE` version
     len = ASN1_STRING_print_ex_fp(nullptr, str.get(), t.flags);
     EXPECT_EQ(len, static_cast<int>(t.expected.size()));
 
@@ -1738,12 +1738,12 @@ TEST(ASN1Test, StringPrintEx) {
     ASSERT_TRUE(ASN1_STRING_set(str.get(), t.data.data(), t.data.size()));
     str->flags = t.str_flags;
 
-    // If the |BIO| is null, it should measure the size.
+    // If the `BIO` is null, it should measure the size.
     int len = ASN1_STRING_print_ex(nullptr, str.get(), t.flags);
     EXPECT_EQ(len, -1);
     ERR_clear_error();
 
-    // Measuring the size should also work for the |FILE| version
+    // Measuring the size should also work for the `FILE` version
     len = ASN1_STRING_print_ex_fp(nullptr, str.get(), t.flags);
     EXPECT_EQ(len, -1);
     ERR_clear_error();
@@ -1975,7 +1975,7 @@ TEST(ASN1Test, MBString) {
 }
 
 TEST(ASN1Test, StringByNID) {
-  // |ASN1_mbstring_*| tests above test most of the interactions with |inform|,
+  // `ASN1_mbstring_*` tests above test most of the interactions with `inform`,
   // so all tests below use UTF-8.
   const struct {
     int nid;
@@ -2127,7 +2127,7 @@ TEST(ASN1Test, StringByCustomNID) {
   EXPECT_FALSE(str);
   ERR_clear_error();
 
-  // Without |STABLE_NO_MASK|, we always pick UTF8String. -1 means there is no
+  // Without `STABLE_NO_MASK`, we always pick UTF8String. -1 means there is no
   // length limit.
   ASSERT_TRUE(ASN1_STRING_TABLE_add(nid2, -1, -1, DIRSTRING_TYPE, 0));
   str.reset(ASN1_STRING_set_by_NID(nullptr,
@@ -2190,17 +2190,17 @@ TEST(ASN1Test, InvalidChoice) {
   ASSERT_TRUE(name);
   // CHOICE types are initialized with an invalid selector.
   EXPECT_EQ(-1, name->type);
-  // |name| should fail to encode.
+  // `name` should fail to encode.
   EXPECT_EQ(-1, i2d_GENERAL_NAME(name.get(), nullptr));
 
-  // The error should be propagated through types containing |name|.
+  // The error should be propagated through types containing `name`.
   UniquePtr<GENERAL_NAMES> names(GENERAL_NAMES_new());
   ASSERT_TRUE(names);
   EXPECT_TRUE(PushToStack(names.get(), std::move(name)));
   EXPECT_EQ(-1, i2d_GENERAL_NAMES(names.get(), nullptr));
 }
 
-// Encoding NID-only |ASN1_OBJECT|s should fail.
+// Encoding NID-only `ASN1_OBJECT`s should fail.
 TEST(ASN1Test, InvalidObject) {
   EXPECT_EQ(-1, i2d_ASN1_OBJECT(OBJ_nid2obj(NID_kx_ecdhe), nullptr));
 
@@ -2211,7 +2211,7 @@ TEST(ASN1Test, InvalidObject) {
   EXPECT_EQ(-1, i2d_X509_ALGOR(alg.get(), nullptr));
 }
 
-// Encoding invalid |ASN1_TYPE|s should fail. |ASN1_TYPE|s are
+// Encoding invalid `ASN1_TYPE`s should fail. `ASN1_TYPE`s are
 // default-initialized to an invalid type.
 TEST(ASN1Test, EncodeInvalidASN1Type) {
   UniquePtr<ASN1_TYPE> obj(ASN1_TYPE_new());
@@ -2220,7 +2220,7 @@ TEST(ASN1Test, EncodeInvalidASN1Type) {
   EXPECT_EQ(-1, i2d_ASN1_TYPE(obj.get(), nullptr));
 
   // The historical in-memory representation of [UNIVERSAL 128] was for both
-  // |obj->type| and |obj->value.asn1_string->type| to be 128. This is no longer
+  // `obj->type` and `obj->value.asn1_string->type` to be 128. This is no longer
   // used and should be rejected by the encoder.
   obj.reset(ASN1_TYPE_new());
   ASSERT_TRUE(obj);
@@ -2245,7 +2245,7 @@ TEST(ASN1Test, InvalidMSTRING) {
 }
 
 TEST(ASN1Test, TypeMismatch) {
-  // Pack PSS parameters into an |ASN1_STRING|. This makes an OCTET STRING.
+  // Pack PSS parameters into an `ASN1_STRING`. This makes an OCTET STRING.
   UniquePtr<RSA_PSS_PARAMS> pss(RSA_PSS_PARAMS_new());
   ASSERT_TRUE(pss);
   UniquePtr<ASN1_STRING> str(
@@ -2253,8 +2253,8 @@ TEST(ASN1Test, TypeMismatch) {
   ASSERT_TRUE(str);
   EXPECT_EQ(ASN1_STRING_type(str.get()), V_ASN1_OCTET_STRING);
 
-  // Pass this to |X509_ALGOR_set0| as a |V_ASN1_SEQUENCE|, which uses the
-  // |ASN1_TYPE_set0| calling convention. This leads to an ambiguous state:
+  // Pass this to `X509_ALGOR_set0` as a `V_ASN1_SEQUENCE`, which uses the
+  // `ASN1_TYPE_set0` calling convention. This leads to an ambiguous state:
   // whether this should be a SEQUENCE or OCTET STRING value.
   UniquePtr<X509_ALGOR> alg(X509_ALGOR_new());
   ASSERT_TRUE(alg);
@@ -2269,25 +2269,25 @@ TEST(ASN1Test, TypeMismatch) {
   //   SEQUENCE {}
   // }
   //
-  // TODO(davidben): This currently works because |asn1_marshal_any| is careful
-  // to use the |ASN1_TYPE|-level type rather than the |ASN1_STRING|-level type.
-  // Should we also make |ASN1_TYPE_set0| fix the |ASN1_STRING| so fewer
-  // |ASN1_TYPE|s break invariants?
+  // TODO(davidben): This currently works because `asn1_marshal_any` is careful
+  // to use the `ASN1_TYPE`-level type rather than the `ASN1_STRING`-level type.
+  // Should we also make `ASN1_TYPE_set0` fix the `ASN1_STRING` so fewer
+  // `ASN1_TYPE`s break invariants?
   static const uint8_t kExpected[] = {0x30, 0x0d, 0x06, 0x09, 0x2a,
                                       0x86, 0x48, 0x86, 0xf7, 0x0d,
                                       0x01, 0x01, 0x0a, 0x30, 0x00};
   TestSerialize(alg.get(), i2d_X509_ALGOR, kExpected);
 
-  // Even if |X509_ALGOR_set0| is fixed to maintain invariants, enough types are
+  // Even if `X509_ALGOR_set0` is fixed to maintain invariants, enough types are
   // publicly exposed that we should make sure we handle the invalid state. This
   // test is currently a no-op, but will not be if the above TODO is resolved.
   alg->parameter->value.asn1_string->type = V_ASN1_OCTET_STRING;
   TestSerialize(alg.get(), i2d_X509_ALGOR, kExpected);
 
   // Repeat the test for a UTF8String parameter that, somehow, was constructed
-  // from an |ASN1_STRING| with the wrong type. This is much less likely than
-  // the |ASN1_item_pack| API flow for making a |V_ASN1_SEQUENCE|, but we should
-  // still be consistent about preferring the |ASN1_TYPE| or |ASN1_STRING| type
+  // from an `ASN1_STRING` with the wrong type. This is much less likely than
+  // the `ASN1_item_pack` API flow for making a `V_ASN1_SEQUENCE`, but we should
+  // still be consistent about preferring the `ASN1_TYPE` or `ASN1_STRING` type
   // value.
   UniquePtr<ASN1_OCTET_STRING> utf8(ASN1_OCTET_STRING_new());
   ASSERT_TRUE(utf8);
@@ -2314,7 +2314,7 @@ TEST(ASN1Test, StringTableSorted) {
 }
 
 TEST(ASN1Test, Null) {
-  // An |ASN1_NULL| is an opaque, non-null pointer. It is an arbitrary signaling
+  // An `ASN1_NULL` is an opaque, non-null pointer. It is an arbitrary signaling
   // value and does not need to be freed. (If the pointer is null, this is an
   // omitted OPTIONAL NULL.)
   EXPECT_NE(nullptr, ASN1_NULL_new());
@@ -2338,7 +2338,7 @@ TEST(ASN1Test, Null) {
   enc = nullptr;
 
   // Although the standalone representation of NULL is a non-null pointer, the
-  // |ASN1_TYPE| representation is a null pointer.
+  // `ASN1_TYPE` representation is a null pointer.
   ptr = kNull;
   UniquePtr<ASN1_TYPE> null_type(d2i_ASN1_TYPE(nullptr, &ptr, sizeof(kNull)));
   ASSERT_TRUE(null_type);
@@ -2416,7 +2416,7 @@ TEST(ASN1Test, StringCmp) {
     int flags;
     bool equals_previous;
   };
-  // kInputs is a list of |ASN1_STRING| parameters, in sorted order. The input
+  // kInputs is a list of `ASN1_STRING` parameters, in sorted order. The input
   // should be sorted by bit length, then data, then type.
   const Input kInputs[] = {
       {V_ASN1_BIT_STRING, {}, ASN1_STRING_FLAG_BITS_LEFT | 0, false},
@@ -2785,15 +2785,15 @@ TEST(ASN1Test, POSIXTime) {
 TEST(ASN1Test, LargeString) {
   UniquePtr<ASN1_STRING> str(ASN1_STRING_type_new(V_ASN1_OCTET_STRING));
   ASSERT_TRUE(str);
-  // Very large strings should be rejected by |ASN1_STRING_set|. Strictly
+  // Very large strings should be rejected by `ASN1_STRING_set`. Strictly
   // speaking, this is an invalid call because the buffer does not have that
-  // much size available. |ASN1_STRING_set| should cleanly fail before it
+  // much size available. `ASN1_STRING_set` should cleanly fail before it
   // crashes, and actually allocating 512 MiB in a test is likely to break.
   char b = 0;
   EXPECT_FALSE(ASN1_STRING_set(str.get(), &b, INT_MAX / 4));
 
 #if defined(OPENSSL_64_BIT)
-  // |ASN1_STRING_set| should tolerate lengths that exceed |int| without
+  // `ASN1_STRING_set` should tolerate lengths that exceed `int` without
   // overflow.
   EXPECT_FALSE(ASN1_STRING_set(str.get(), &b, 1 + (ossl_ssize_t{1} << 48)));
 #endif
@@ -2806,7 +2806,7 @@ static auto TimeToTuple(const tm &t) {
 
 TEST(ASN1Test, TimeOverflow) {
   // Input time is out of range and may overflow internal calculations to shift
-  // |tm_year| and |tm_mon| to a more normal value.
+  // `tm_year` and `tm_mon` to a more normal value.
   tm overflow_year = {};
   overflow_year.tm_year = INT_MAX - 1899;
   overflow_year.tm_mday = 1;
@@ -2872,7 +2872,7 @@ TEST(ASN1Test, TimeOverflow) {
                                  -kValidTimeRange - 24 * 3600));
   EXPECT_EQ(TimeToTuple(copy), TimeToTuple(min_time));
 
-  // Make sure the internal calculations for |OPENSSL_gmtime_adj| stay in
+  // Make sure the internal calculations for `OPENSSL_gmtime_adj` stay in
   // bounds.
   copy = max_time;
   EXPECT_FALSE(OPENSSL_gmtime_adj(&copy, INT_MAX, LONG_MAX));
@@ -2881,7 +2881,7 @@ TEST(ASN1Test, TimeOverflow) {
 }
 
 // The ASN.1 macros do not work on Windows shared library builds, where usage of
-// |OPENSSL_EXPORT| is a bit stricter.
+// `OPENSSL_EXPORT` is a bit stricter.
 #if !defined(OPENSSL_WINDOWS) || !defined(BORINGSSL_SHARED_LIBRARY)
 
 typedef struct asn1_linked_list_st {
@@ -2935,7 +2935,7 @@ TEST(ASN1Test, Recursive) {
   list = d2i_ASN1_LINKED_LIST(nullptr, &ptr, len);
   EXPECT_FALSE(list);
   // Note checking the error queue here does not work. The error "stack trace"
-  // is too deep, so the |ASN1_R_NESTED_TOO_DEEP| entry drops off the queue.
+  // is too deep, so the `ASN1_R_NESTED_TOO_DEEP` entry drops off the queue.
   ASN1_LINKED_LIST_free(list);
 }
 
@@ -3045,7 +3045,7 @@ DECLARE_ASN1_FUNCTIONS(BOOLEANS)
 ASN1_SEQUENCE(BOOLEANS) = {
     ASN1_SIMPLE(BOOLEANS, required, ASN1_BOOLEAN),
     ASN1_IMP_OPT(BOOLEANS, optional, ASN1_BOOLEAN, 1),
-    // Although not actually optional, |ASN1_TBOOLEAN| and |ASN1_FBOOLEAN| need
+    // Although not actually optional, `ASN1_TBOOLEAN` and `ASN1_FBOOLEAN` need
     // to be marked optional in the template.
     ASN1_IMP_OPT(BOOLEANS, default_true, ASN1_TBOOLEAN, 2),
     ASN1_IMP_OPT(BOOLEANS, default_false, ASN1_FBOOLEAN, 3),
@@ -3060,7 +3060,7 @@ TEST(ASN1Test, OptionalAndDefaultBooleans) {
   // TRUE, FALSE.
   //
   // TODO(davidben): Is the first one a bug? It seems more consistent for a
-  // required BOOLEAN default to FALSE. |FOO_new| typically default-initializes
+  // required BOOLEAN default to FALSE. `FOO_new` typically default-initializes
   // fields valid states. (Though there are exceptions. CHOICE, ANY, and OBJECT
   // IDENTIFIER are default-initialized to something invalid.)
   obj.reset(BOOLEANS_new());
@@ -3070,7 +3070,7 @@ TEST(ASN1Test, OptionalAndDefaultBooleans) {
   EXPECT_EQ(obj->default_true, ASN1_BOOLEAN_TRUE);
   EXPECT_EQ(obj->default_false, ASN1_BOOLEAN_FALSE);
 
-  // Trying to serialize this should fail, because |obj->required| is omitted.
+  // Trying to serialize this should fail, because `obj->required` is omitted.
   EXPECT_EQ(-1, i2d_BOOLEANS(obj.get(), nullptr));
 
   // Otherwise, this object is serializable. Most fields are omitted, due to

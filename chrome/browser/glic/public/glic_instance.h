@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_GLIC_PUBLIC_GLIC_INSTANCE_H_
 #define CHROME_BROWSER_GLIC_PUBLIC_GLIC_INSTANCE_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/callback_list.h"
@@ -12,8 +13,9 @@
 #include "base/observer_list_types.h"
 #include "base/scoped_observation_traits.h"
 #include "base/time/time.h"
-#include "base/types/strong_alias.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_instance_id.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
 class BrowserWindowInterface;
@@ -29,22 +31,6 @@ namespace glic {
 
 class GlicActorTaskManager;
 class Host;
-
-// Instance IDs are created in the form `<index>-<64-bit-random-int>`.
-// The index is an indicator of how many instances have been created by the
-// profile since Chrome start. The random number is included so that instance
-// IDs can be loaded from disk when restoring tabs after a browser restart.
-class InstanceId : public base::StrongAlias<class InstanceIdTag, std::string> {
- public:
-  using Base = base::StrongAlias<class InstanceIdTag, std::string>;
-  using Base::Base;
-
-  static InstanceId Create(uint64_t glic_instance_coordinator_id,
-                           uint32_t index);
-  static InstanceId CreateNullId() { return InstanceId(""); }
-  // Returns true if the instance ID is valid and not null.
-  bool IsValid() const { return !Base::value().empty(); }
-};
 
 struct ConversationInfo {
   ConversationInfo();
@@ -77,11 +63,6 @@ class GlicInstance {
   // Returns the current panel state.
   virtual mojom::PanelState GetPanelState() = 0;
 
-  // Register for this callback to detect UI changes to the instance.
-  using StateChangeCallback = base::RepeatingCallback<void(bool)>;
-  virtual base::CallbackListSubscription RegisterStateChange(
-      StateChangeCallback callback) = 0;
-
   // TODO(b/501233062): Remove from the public interface once the existing
   // user has migrated away from the API.
   using DestructionCallback = base::OnceCallback<void(GlicInstance*)>;
@@ -112,6 +93,10 @@ class GlicInstance {
 
   // Gets the window size of the active embedder.
   virtual gfx::Size GetPanelSize() = 0;
+
+  // Gets the invoke target that points at the currently active embedder for the
+  // instance. If there is no active embedder, uses fallback_surface.
+  virtual Target GetInvokeTarget(Target::Surface fallback_surface) = 0;
 
   // Get this instance's unique identifier.
   virtual const InstanceId& id() const = 0;

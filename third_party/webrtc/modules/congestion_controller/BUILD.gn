@@ -52,6 +52,7 @@ if (rtc_include_tests) {
     deps = [
       ":congestion_controller",
       "../../api:field_trials",
+      "../../api:rtp_header_extension_id",
       "../../api:rtp_parameters",
       "../../api/environment:environment_factory",
       "../../api/test/network_emulation",

@@ -27,6 +27,7 @@
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_event_log/rtc_event_log.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
@@ -580,7 +581,7 @@ TEST_F(VideoSendStreamImplTest, UpdatesObserverOnConfigurationChange) {
   const bool kSuspend = false;
   config_.suspend_below_min_bitrate = kSuspend;
   config_.rtp.extensions.emplace_back(RtpExtension::kTransportSequenceNumberUri,
-                                      1);
+                                      RtpHeaderExtensionId(1));
   config_.rtp.ssrcs.emplace_back(1);
   config_.rtp.ssrcs.emplace_back(2);
 
@@ -643,7 +644,7 @@ TEST_F(VideoSendStreamImplTest, UpdatesObserverOnConfigurationChangeWithAlr) {
   const bool kSuspend = false;
   config_.suspend_below_min_bitrate = kSuspend;
   config_.rtp.extensions.emplace_back(RtpExtension::kTransportSequenceNumberUri,
-                                      1);
+                                      RtpHeaderExtensionId(1));
   config_.periodic_alr_bandwidth_probing = true;
   config_.rtp.ssrcs.emplace_back(1);
   config_.rtp.ssrcs.emplace_back(2);
@@ -767,7 +768,7 @@ TEST_F(VideoSendStreamImplTest, SetsScreensharePacingFactorWithFeedback) {
       SetFieldTrial(AlrExperimentSettings::kScreenshareProbingBweExperimentName,
                     kAlrProbingExperimentValue);
 
-  constexpr int kId = 1;
+  constexpr RtpHeaderExtensionId kId(1);
   config_.rtp.extensions.emplace_back(RtpExtension::kTransportSequenceNumberUri,
                                       kId);
   EXPECT_CALL(transport_controller_,
@@ -1112,7 +1113,7 @@ TEST_F(VideoSendStreamImplTest, CallsVideoStreamEncoderOnBitrateUpdate) {
   const bool kSuspend = false;
   config_.suspend_below_min_bitrate = kSuspend;
   config_.rtp.extensions.emplace_back(RtpExtension::kTransportSequenceNumberUri,
-                                      1);
+                                      RtpHeaderExtensionId(1));
   auto vss_impl = CreateVideoSendStreamImpl(TestVideoEncoderConfig());
 
   vss_impl->Start();
@@ -1230,7 +1231,7 @@ TEST_F(VideoSendStreamImplTest, DisablesPaddingOnPausedEncoder) {
   const bool kSuspend = false;
   config_.suspend_below_min_bitrate = kSuspend;
   config_.rtp.extensions.emplace_back(RtpExtension::kTransportSequenceNumberUri,
-                                      1);
+                                      RtpHeaderExtensionId(1));
   VideoStream qvga_stream;
   qvga_stream.width = 320;
   qvga_stream.height = 180;
@@ -1330,7 +1331,7 @@ TEST_F(VideoSendStreamImplTest, ConfiguresBitratesForSvc) {
     const bool kSuspend = false;
     config_.suspend_below_min_bitrate = kSuspend;
     config_.rtp.extensions.emplace_back(
-        RtpExtension::kTransportSequenceNumberUri, 1);
+        RtpExtension::kTransportSequenceNumberUri, RtpHeaderExtensionId(1));
     config_.periodic_alr_bandwidth_probing = test_config.alr;
     auto vss_impl = CreateVideoSendStreamImpl(TestVideoEncoderConfig(
         test_config.screenshare

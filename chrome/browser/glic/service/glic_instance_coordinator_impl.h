@@ -113,6 +113,8 @@ class GlicInstanceCoordinatorImpl
 
   bool IsAnyPanelShowing() const override;
   bool IsConversationPresent(const std::string& conversation_id) const override;
+  GlicInstanceCoordinator::ActivateTabResult ActivateTabWithConversation(
+      const std::string& conversation_id) override;
   // GlicInstanceCoordinator implementation
   GlicInstance* GetInstanceForTab(const tabs::TabInterface* tab) const override;
   GlicInstance* GetInstanceWithGlicWebContents(
@@ -193,6 +195,9 @@ class GlicInstanceCoordinatorImpl
   std::string DescribeForTesting();
   std::vector<GlicInstanceImpl*> GetInstancesForTesting();
   GlicInstanceCoordinatorMetrics& GetMetricsForTesting() { return metrics_; }
+  InstanceIndependentHotkeyManager* GetHotkeyManagerForTesting() {
+    return hotkey_manager_.get();
+  }
 
   // Testing support. These methods should not be added to the public interface.
   GlicInstanceImpl* GetInstanceImplFor(const InstanceId& id) const;
@@ -241,7 +246,7 @@ class GlicInstanceCoordinatorImpl
   void OnMemoryPressure(base::MemoryPressureLevel level) override;
   void ApplyMaxAwakeInstancesLimit();
 
-  void RemoveInstance(GlicInstanceImpl* instance) override;
+  void RemoveInstance(InstanceId id) override;
 
   void NotifyActiveInstanceChanged();
   void ComputeContentAccessIndicator();

@@ -263,6 +263,7 @@
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
 #include "third_party/blink/renderer/core/scroll/scrollable_area.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
+#include "third_party/blink/renderer/core/skeleton/skeleton_loader.h"
 #include "third_party/blink/renderer/core/speculation_rules/document_speculation_rules.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/style/style_interest_delay.h"
@@ -284,6 +285,7 @@
 #include "third_party/blink/renderer/core/xlink_names.h"
 #include "third_party/blink/renderer/core/xml_names.h"
 #include "third_party/blink/renderer/platform/bindings/dom_data_store.h"
+#include "third_party/blink/renderer/platform/bindings/dom_wrapper_world.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_dom_activity_logger.h"
@@ -1942,11 +1944,11 @@ bool Element::InterestGained(Element* target, InterestState state) {
     if (existing_invoker == this) {
       // Case 1.
       auto* invoker_data = GetInvokerData();
-      CHECK(!invoker_data->HasInterestGainedTask());
       if (state == InterestState::kExplicitInterest) {
         DCHECK_NE(invoker_data->GetInterestState(), InterestState::kNoInterest);
         ChangeInterestState(target, state);
       }
+      CHECK(!invoker_data->HasInterestGainedTask());
       invoker_data->CancelInterestLostTask();
       return false;
     } else {
@@ -4494,6 +4496,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
       if (ElementAnimations* element_animations =
               data->GetElementAnimations()) {
         element_animations->CssAnimations().Cancel();
+        element_animations->CssImageAnimations().Clear();
       }
     }
 
@@ -4535,9 +4538,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
   // We do this outside of the OverscrollCommandTargets check since we could,
   // for instance, remove the element's id first and then remove it from the
   // DOM.
-  if (auto* container = GetOverscrollContainer()) {
-    container->GetOverscrollAreaTracker()->RemoveOverscroll(this);
-  }
+  DetachOverscroll();
 
   // Remove all of the overscroll areas from this tracker.
   if (auto* tracker = GetOverscrollAreaTracker()) {
@@ -4724,6 +4725,7 @@ void Element::DetachLayoutTree(bool performing_reattach) {
 
   if (ElementRareDataVector* data = RareData()) {
     if (!performing_reattach) {
+      DetachOverscroll();
       data->ClearPseudoElements();
       data->ClearContainerQueryData();
       data->ClearOutOfFlowData();
@@ -4738,6 +4740,7 @@ void Element::DetachLayoutTree(bool performing_reattach) {
       if (!performing_reattach) {
         DocumentLifecycle::DetachScope will_detach(GetDocument().Lifecycle());
         element_animations->CssAnimations().Cancel();
+        element_animations->CssImageAnimations().Clear();
         element_animations->SetAnimationStyleChange(false);
       }
       element_animations->RestartAnimationOnCompositor();
@@ -4792,6 +4795,20 @@ void Element::DetachLayoutTree(bool performing_reattach) {
 
   if (context) {
     context->DetachLayoutTree();
+  }
+}
+
+void Element::DetachDescendantsNeedingReattachDuringSkip() {
+  for (Node* child = FlatTreeTraversal::FirstChild(*this); child;
+       child = FlatTreeTraversal::NextSibling(*child)) {
+    if (child->GetForceReattachLayoutTree()) {
+      child->DetachLayoutTree();
+      child->SetForceReattachLayoutTree();
+    } else if (child->ChildNeedsStyleRecalc()) {
+      if (auto* child_element = DynamicTo<Element>(child)) {
+        child_element->DetachDescendantsNeedingReattachDuringSkip();
+      }
+    }
   }
 }
 
@@ -5117,6 +5134,7 @@ void Element::RecalcStyle(const StyleRecalcChange change,
   child_change = display_lock_style_scope.DidUpdateSelfStyle(child_change);
   if (!display_lock_style_scope.ShouldUpdateChildStyle()) {
     display_lock_style_scope.NotifyChildStyleRecalcWasBlocked(child_change);
+    DetachDescendantsNeedingReattachDuringSkip();
     if (HasCustomStyleCallbacks()) {
       DidRecalcStyle(child_change);
     }
@@ -5267,6 +5285,13 @@ void Element::RecalcStyle(const StyleRecalcChange change,
     // View transitions ignore the ComputedStyle bits and check
     // ViewTransitionUtils::GetTransition(*this).
     UpdateTransitionPseudoElements(child_change, child_recalc_context);
+
+    if (RuntimeEnabledFeatures::DeclarativeSkeletonsEnabled() &&
+        IsDocumentElement()) {
+      // ::skeleton is created based on an available skeleton from
+      // SkeletonLoader and does not rely on bits on ComputedStyle.
+      UpdateSkeleton(child_change, child_recalc_context);
+    }
 
     if (need_to_check_pseudos) {
       UpdatePseudoElement(kPseudoIdAfter, child_change, child_recalc_context);
@@ -5545,11 +5570,7 @@ StyleRecalcChange Element::RecalcOwnStyle(
   if (GetOverscrollContainer() &&
       (!new_style || !new_style->IsInternalOverscrollPositionAuto() ||
        GetOverscrollContainer() != style_recalc_context.overscroll_container)) {
-    auto* tracker = GetOverscrollContainer()->GetOverscrollAreaTracker();
-    // We should've created a tracker when we set the GetOverscrollContainer on
-    // `this`.
-    CHECK(tracker);
-    tracker->RemoveOverscroll(this);
+    DetachOverscroll();
     // We may need to remove this element's ::-internal-overscroll-area-parent.
     child_change =
         child_change.EnsureAtLeast(StyleRecalcChange::kUpdatePseudoElements);
@@ -5579,6 +5600,7 @@ StyleRecalcChange Element::RecalcOwnStyle(
         // cancel itself in this case.
         if (base_is_display_none) {
           element_animations->CssAnimations().Cancel();
+          element_animations->CssImageAnimations().Clear();
         }
       }
       data = data->SetContainerQueryEvaluator(nullptr);
@@ -5957,6 +5979,7 @@ void Element::RebuildLayoutTree(WhitespaceAttacher& whitespace_attacher) {
       child_attacher = &whitespace_attacher;
     }
     RebuildTransitionLayoutTree(*child_attacher);
+    RebuildPseudoElementLayoutTree(kPseudoIdSkeleton, *child_attacher);
     RebuildOverscrollAreaLayoutTree(*child_attacher);
     if (has_pseudo_elements) {
       RebuildPseudoElementLayoutTree(kPseudoIdInterestButton, *child_attacher);
@@ -7351,7 +7374,8 @@ CustomElementDefinition* Element::GetCustomElementDefinition() const {
   return nullptr;
 }
 
-CustomElementRegistry* Element::customElementRegistry() const {
+CustomElementRegistry* Element::customElementRegistry(
+    ScriptState* script_state) const {
   // If scoped registry is not exercised at all in the document,
   // we can avoid the rare data lookup and just return the tree scope's
   // registry.
@@ -7359,11 +7383,18 @@ CustomElementRegistry* Element::customElementRegistry() const {
       GetDocument().ScopedCustomElementRegistryUsed()) {
     if (const ElementRareDataVector* data = RareData()) {
       if (data->HasCustomElementRegistrySet()) {
-        return data->GetCustomElementRegistry();
+        CustomElementRegistry* registry = data->GetCustomElementRegistry();
+        // A null script_state indicates an internal call that bypasses the
+        // world check.
+        if (script_state && registry &&
+            script_state->World().GetWorldId() != registry->GetWorldId()) {
+          return nullptr;
+        }
+        return registry;
       }
     }
   }
-  return GetTreeScope().customElementRegistry();
+  return GetTreeScope().customElementRegistry(script_state);
 }
 
 void Element::SetCustomElementRegistry(CustomElementRegistry* registry,
@@ -8504,7 +8535,7 @@ void Element::UpdateSelectionOnFocus(
     // When focusing an editable element in an iframe, don't reset the selection
     // if it already contains a selection.
     if (this == frame->Selection()
-                    .ComputeVisibleSelectionInDOMTreeDeprecated()
+                    .ComputeVisibleSelectionInDomTreeDeprecated()
                     .RootEditableElement()) {
       if (!options->preventScroll()) {
         frame->Selection().RevealSelection();
@@ -10285,6 +10316,17 @@ bool Element::ShouldStoreComputedStyle(const ComputedStyle& style) const {
     return true;
   }
 
+  if (IsSkeletonPseudoElement()) {
+    // The ::skeleton pseudo element does not create a layout box, but it has
+    // a set of initial styles to make sure style recalc traverses into its
+    // shadow tree which contains the DOM tree for rendering the skeleton.
+    // We could probably have forced it to be display:contents to return true
+    // for the last condition in this function, but then an explicit inherit of
+    // the display property for the skeleton DOM root element would have
+    // computed to 'contents'.
+    return true;
+  }
+
   if (IsPseudoElement() && style.Display() == EDisplay::kNone) {
     if (const ComputedStyle* base = style.GetBaseComputedStyle()) {
       if (base->Display() != EDisplay::kNone) {
@@ -10586,6 +10628,38 @@ void Element::UpdateColumnPseudoElements(const StyleRecalcChange change,
   for (ColumnPseudoElement* column : *columns) {
     if (change.ShouldUpdatePseudoElement(*column)) {
       column->RecalcStyle(change, context);
+    }
+  }
+}
+
+void Element::ClearSkeletonPseudo() {
+  if (GetPseudoElement(kPseudoIdSkeleton)) {
+    ClearPseudoElement(kPseudoIdSkeleton);
+    // Normally, pseudo elements are added/removed during style recalc,
+    // which means we do not need to notify the StyleEngine about traversal
+    // roots being removed. The ::skeleton pseudo, however is synchronously
+    // created/destroyed outside of the lifecycle update and need to notify
+    // the StyleEngine like DOM removals.
+    GetDocument().GetStyleEngine().ChildrenRemoved(*this);
+  }
+}
+
+PseudoElement& Element::EnsureSkeletonPseudo() {
+  CHECK(RuntimeEnabledFeatures::DeclarativeSkeletonsEnabled());
+  ClearSkeletonPseudo();
+  PseudoElement* pseudo_element =
+      PseudoElement::Create(this, kPseudoIdSkeleton);
+  data_ = EnsureRareData().SetPseudoElement(kPseudoIdSkeleton, pseudo_element);
+  pseudo_element->InsertedInto(*this);
+  pseudo_element->SetStyleChangeOnInsertion();
+  return *pseudo_element;
+}
+
+void Element::UpdateSkeleton(const StyleRecalcChange change,
+                             const StyleRecalcContext& context) {
+  if (PseudoElement* skeleton_pseudo = GetPseudoElement(kPseudoIdSkeleton)) {
+    if (change.ShouldUpdatePseudoElement(*skeleton_pseudo)) {
+      skeleton_pseudo->RecalcStyle(change, context);
     }
   }
 }
@@ -12608,6 +12682,7 @@ void Element::ChangeInterestState(Element* target, InterestState new_state) {
       DCHECK_EQ(invoker_data->ActiveInterestTarget(), target);
     }
     invoker_data->SetInterestState(new_state);
+    invoker_data->CancelInterestGainedTask();
   }
   PseudoStateChanged(CSSSelector::kPseudoInterestSource);
   if (target) {
@@ -13945,6 +14020,14 @@ void Element::SetOverscrollContainer(Element* element) {
 void Element::ClearOverscrollContainer() {
   if (ElementRareDataVector* data = RareData()) {
     data->ClearOverscrollContainer();
+  }
+}
+
+void Element::DetachOverscroll() {
+  if (auto* container = GetOverscrollContainer()) {
+    auto* tracker = container->GetOverscrollAreaTracker();
+    CHECK(tracker);
+    tracker->RemoveOverscroll(this);
   }
 }
 

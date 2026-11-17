@@ -10,7 +10,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/types/expected.h"
+#include "base/values.h"
 #include "content/browser/webid/delegation/dns_request.h"
 #include "content/browser/webid/delegation/email_verifier_network_request_manager.h"
 #include "content/browser/webid/delegation/evt_verifier.h"
@@ -50,7 +53,8 @@ using TokenResultOrError = base::RefCountedData<
     base::expected<EmailVerifierNetworkRequestManager::TokenResult,
                    blink::mojom::EmailVerificationRequestResult>>;
 using JwksResultOrError = base::RefCountedData<
-    base::expected<base::Value, blink::mojom::EmailVerificationRequestResult>>;
+    base::expected<base::DictValue,
+                   blink::mojom::EmailVerificationRequestResult>>;
 // Performs the email verification process, which involves making a DNS TXT
 // record request to determine the issuer, and then fetching a token from the
 // issuer.
@@ -58,6 +62,20 @@ using JwksResultOrError = base::RefCountedData<
 // to outlive it.
 class CONTENT_EXPORT EmailVerificationRequest {
  public:
+  class Observer : public base::CheckedObserver {
+   public:
+    ~Observer() override = default;
+    virtual void OnIsVerifiableStart(EmailVerificationRequest* request) {}
+    virtual void OnIsVerifiableComplete(
+        EmailVerificationRequest* request,
+        blink::mojom::EmailVerificationRequestResult status) = 0;
+    virtual void OnVerifyStart(EmailVerificationRequest* request) {}
+    virtual void OnVerifyComplete(
+        EmailVerificationRequest* request,
+        blink::mojom::EmailVerificationRequestResult status) = 0;
+    virtual void OnRequestDestroyed(EmailVerificationRequest* request) {}
+  };
+
   explicit EmailVerificationRequest(RenderFrameHostImpl& render_frame_host);
   EmailVerificationRequest(
       std::unique_ptr<EmailVerifierNetworkRequestManager> network_manager,
@@ -68,6 +86,9 @@ class CONTENT_EXPORT EmailVerificationRequest {
 
   EmailVerificationRequest(const EmailVerificationRequest&) = delete;
   EmailVerificationRequest& operator=(const EmailVerificationRequest&) = delete;
+
+  virtual void AddObserver(Observer* observer);
+  virtual void RemoveObserver(Observer* observer);
 
   // Checks if the given `email` is verifiable. This also checks if the user is
   // logged in to the issuer.
@@ -81,7 +102,8 @@ class CONTENT_EXPORT EmailVerificationRequest {
 
  private:
   sdjwt::Jwt CreateRequestToken(const std::string& email,
-                                const sdjwt::Jwk& public_key);
+                                const sdjwt::Jwk& public_key,
+                                const url::Origin& issuer);
   void OnDnsRequestComplete(
       const std::string& email,
       EmailVerifier::IsVerifiableCallback callback,
@@ -130,12 +152,14 @@ class CONTENT_EXPORT EmailVerificationRequest {
       std::optional<std::string> response,
       blink::mojom::EmailVerificationRequestResult status);
 
-  void AddDevToolsIssue(blink::mojom::EmailVerificationRequestResult status);
+  void MaybeAddDevToolsIssue(
+      blink::mojom::EmailVerificationRequestResult status);
 
   std::unique_ptr<DnsRequest> dns_request_;
   std::unique_ptr<EmailVerifierNetworkRequestManager> network_manager_;
   std::unique_ptr<IdpNetworkRequestManager> idp_network_manager_;
   base::WeakPtr<RenderFrameHostImpl> render_frame_host_;
+  base::ObserverList<Observer> observers_;
 
   base::WeakPtrFactory<EmailVerificationRequest> weak_ptr_factory_{this};
 };

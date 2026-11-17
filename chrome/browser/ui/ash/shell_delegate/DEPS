@@ -11,12 +11,12 @@ include_rules = [
   "+chrome/browser/ash/arc/locked_fullscreen/arc_locked_fullscreen_manager.h",
   "+chrome/browser/ash/file_manager",
   "+chrome/browser/ash/multidevice_setup",
-  "+chrome/browser/ash/profiles",
   "+chrome/browser/ash/scanner",
   "+chrome/browser/browser_process.h",
   "+chrome/browser/browser_process_platform_part_ash.h",
   "+chrome/browser/feedback",
   "+chrome/browser/nearby_sharing",
+  "+chrome/browser/picture_in_picture",
   "+chrome/browser/profiles",
   "+chrome/browser/sessions",
   "+chrome/browser/ui/ash/accelerator",
@@ -52,7 +52,7 @@ include_rules = [
 
 specific_include_rules = {
   # TODO(crbug.com/403153076): This should be removed along with browser_process.h.
-  "chrome_shell_delegate.cc": [
+  "chrome_shell_delegate\\.cc": [
     "+chrome/browser/global_features.h",
     "+chrome/browser/ui/unload_controller.h",
   ],

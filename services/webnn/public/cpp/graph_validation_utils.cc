@@ -32,9 +32,6 @@ namespace webnn {
 
 namespace {
 
-// Used by concat/split to validate operand count limit.
-constexpr uint32_t kMaxValidTensorCount = 8192;
-
 struct Conv2dInputOutputInfo {
   uint32_t batches;
   uint32_t channels;
@@ -2368,7 +2365,7 @@ base::expected<OperandDescriptor, std::string> ValidatePool2dAndInferOutput(
                     ceil_output_width)));
     }
   } else {
-    switch (attributes.rounding_type) {
+    switch (attributes.output_shape_rounding) {
       case RoundingType::kFloor:
         output_height = floor_output_height;
         output_width = floor_output_width;

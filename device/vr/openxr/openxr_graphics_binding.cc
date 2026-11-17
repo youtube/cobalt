@@ -376,6 +376,36 @@ void OpenXrGraphicsBinding::PopulateSharedImageData(
   frame_data.composition_layers_data = std::move(layers);
 }
 
+std::vector<scoped_refptr<gpu::ClientSharedImage>>
+OpenXrGraphicsBinding::EndSharedImagesExport(
+    const std::vector<device::mojom::XRLayerUpdatePtr>& layers,
+    std::vector<gpu::SyncToken>& out_sync_tokens) {
+  std::vector<scoped_refptr<gpu::ClientSharedImage>> shared_images;
+
+  if (layers_sequence_.empty()) {
+    if (base_layer_) {
+      CHECK_EQ(layers.size(), 1u);
+      shared_images.emplace_back(
+          base_layer_->GetActiveSwapchainImage()->shared_image);
+      out_sync_tokens.emplace_back(shared_images.back()->EndExport(
+          std::move(layers[0]->shared_image_export_result)));
+    }
+  } else {
+    for (auto& layer : layers) {
+      LayerId layer_id = layer->layer_id;
+      auto layer_it = layers_.find(layer_id);
+      if (layer_it != layers_.end()) {
+        auto shared_image =
+            layer_it->second->GetActiveSwapchainImage()->shared_image;
+        out_sync_tokens.emplace_back(shared_image->EndExport(
+            std::move(layer->shared_image_export_result)));
+        shared_images.push_back(std::move(shared_image));
+      }
+    }
+  }
+  return shared_images;
+}
+
 bool OpenXrGraphicsBinding::Render(
     const scoped_refptr<viz::ContextProvider>& context_provider,
     const std::vector<LayerId>& updated_layers) {

@@ -307,9 +307,8 @@ public class NewTabPage
                 }
 
                 mOmniboxStub.beginInput(
-                        new AutocompleteInput()
+                        new AutocompleteInput(focusReason)
                                 .setUserText(pastedText)
-                                .setFocusReason(focusReason)
                                 .setRequestType(requestType)
                                 .setAutocompleteState(autocompleteState));
             }
@@ -478,6 +477,11 @@ public class NewTabPage
                     @Override
                     public void onHidden(Tab tab, @TabHidingType int type) {
                         if (mIsLoaded) recordNtpHidden();
+                    }
+
+                    @Override
+                    public void onContentChanged(Tab tab) {
+                        updateNtpScrollListener(true);
                     }
                 };
         mTab.addObserver(mTabObserver);
@@ -1216,6 +1220,10 @@ public class NewTabPage
 
     public NewTabPageManager getNewTabPageManagerForTesting() {
         return mNewTabPageManager;
+    }
+
+    public RecyclerView.@Nullable OnScrollListener getScrollListenerForTesting() {
+        return mNtpScrollListener;
     }
 
     public TileGroup.Delegate getTileGroupDelegateForTesting() {

@@ -134,7 +134,7 @@ X509 *X509_parse_with_algorithms(CRYPTO_BUFFER *buf,
       return nullptr;
     }
     // The version must be one of v1(0), v2(1), or v3(2).
-    // TODO(https://crbug.com/42290225): Also reject |X509_VERSION_1|. v1 is
+    // TODO(https://crbug.com/42290225): Also reject `X509_VERSION_1`. v1 is
     // DEFAULT, so DER requires it be omitted.
     if (version != X509_VERSION_1 && version != X509_VERSION_2 &&
         version != X509_VERSION_3) {
@@ -227,8 +227,8 @@ static UniquePtr<X509> x509_parse(CBS *cbs) {
 int bssl::x509_marshal_tbs_cert(CBB *cbb, const X509 *x509) {
   auto *impl = FromOpaque(x509);
   if (impl->buf != nullptr) {
-    // Replay the saved TBSCertificate from the |CRYPTO_BUFFER|, to verify
-    // exactly what we parsed. The |CRYPTO_BUFFER| contains the full
+    // Replay the saved TBSCertificate from the `CRYPTO_BUFFER`, to verify
+    // exactly what we parsed. The `CRYPTO_BUFFER` contains the full
     // Certificate, so we need to find the TBSCertificate portion.
     CBS cbs, cert, tbs;
     CRYPTO_BUFFER_init_CBS(impl->buf, &cbs);

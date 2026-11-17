@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
+#include "chrome/browser/ui/views/page_action/page_action_view_interface.h"
 #include "chrome/browser/ui/views/promos/ios_promo_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
@@ -491,15 +492,21 @@ std::unique_ptr<views::View> IOSPromoBubble::CreateImageAndBodyTextView(
     BubbleType bubble_type) {
   views::Builder<views::View> image_view;
   if (!ios_promo_config.promo_image.IsEmpty()) {
+    const int corner_radius =
+        views::LayoutProvider::Get()->GetCornerRadiusMetric(
+            views::Emphasis::kHigh);
     auto image_view_builder =
         views::Builder<views::ImageView>()
             .SetID(IOSPromoConstants::kImageViewID)
             .SetImage(ios_promo_config.promo_image)
             .SetImageSize(gfx::Size(IOSPromoConstants::kImageSize,
                                     IOSPromoConstants::kImageSize))
-            .SetCornerRadius(
-                views::LayoutProvider::Get()->GetCornerRadiusMetric(
-                    views::Emphasis::kHigh));
+            // The QR code images have a border thickness of 1. Adjust the
+            // corner radius to accommodate for the different inner rounding
+            // when the QR code is shown.
+            .SetCornerRadius(bubble_type == BubbleType::kQRCode
+                                 ? corner_radius - 1
+                                 : corner_radius);
 
     if (bubble_type == BubbleType::kQRCode) {
       image_view_builder.SetAccessibleName(
@@ -552,7 +559,7 @@ std::unique_ptr<views::View> IOSPromoBubble::CreateImageAndBodyTextView(
 // static
 void IOSPromoBubble::ShowPromoBubble(
     Anchor anchor,
-    views::Button* highlighted_button,
+    page_actions::PageActionViewInterface* highlighted_button,
     std::optional<ui::ElementIdentifier> highlighted_element,
     Profile* profile,
     PromoType promo_type,

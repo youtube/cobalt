@@ -15,20 +15,9 @@ group("stats") {
 rtc_library("rtc_stats") {
   visibility = [ "*" ]
   cflags = []
-  sources = [
-    "attribute.cc",
-    "rtc_stats.cc",
-    "rtc_stats_report.cc",
-    "rtcstats_objects.cc",
-  ]
+  sources = []
 
-  deps = [
-    "../api:rtc_stats_api",
-    "../api:scoped_refptr",
-    "../api/units:timestamp",
-    "../rtc_base:checks",
-    "../rtc_base:stringutils",
-  ]
+  deps = [ "../api:rtc_stats_api" ]
 }
 
 rtc_library("rtc_stats_test_utils") {

@@ -181,10 +181,9 @@ OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_x25519(void);
 // The `EVP_PKEY_id` value is `EVP_PKEY_ED25519`.
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ed25519(void);
 
-// EVP_pkey_ml_dsa_* implement ML-DSA keys, encoded as in
-// draft-ietf-lamps-dilithium-certificates. The `EVP_PKEY_id` values are
-// `EVP_PKEY_ML_DSA_*`. In the private key representation, only the "seed" form
-// is serialized or parsed.
+// EVP_pkey_ml_dsa_* implement ML-DSA keys, encoded as in RFC 9881. The
+// `EVP_PKEY_id` values are `EVP_PKEY_ML_DSA_*`. In the private key
+// representation, only the "seed" form is serialized or parsed.
 //
 // To configure OpenSSL to output the standard "seed" form, configure the
 // "ml-dsa.output_formats" provider parameter so that "seed-only" is first. This

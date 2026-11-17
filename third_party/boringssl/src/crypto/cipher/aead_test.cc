@@ -951,7 +951,7 @@ TEST_P(PerAEADTest, CleanupAfterInitFailure) {
       9999 /* a silly tag length to trigger an error */, nullptr /* ENGINE */));
   ERR_clear_error();
 
-  // Calling _cleanup on an |EVP_AEAD_CTX| after a failed _init should be a
+  // Calling _cleanup on an `EVP_AEAD_CTX` after a failed _init should be a
   // no-op.
   EVP_AEAD_CTX_cleanup(&ctx);
 }
@@ -1261,7 +1261,7 @@ TEST_P(PerAEADTest, InvalidNonceLength) {
 }
 
 #if defined(SUPPORTS_ABI_TEST)
-// CHECK_ABI can't pass enums, i.e. |evp_aead_seal| and |evp_aead_open|. Thus
+// CHECK_ABI can't pass enums, i.e. `evp_aead_seal` and `evp_aead_open`. Thus
 // these two wrappers.
 static int aead_ctx_init_for_seal(EVP_AEAD_CTX *ctx, const EVP_AEAD *aead,
                                   const uint8_t *key, size_t key_len) {

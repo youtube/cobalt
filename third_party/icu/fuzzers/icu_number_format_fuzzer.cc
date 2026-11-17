@@ -8,10 +8,9 @@
 #include "third_party/icu/fuzzers/fuzzer_utils.h"
 #include "third_party/icu/source/i18n/unicode/numfmt.h"
 
-IcuEnvironment* env = new IcuEnvironment();
-
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  static IcuEnvironment env;
   UErrorCode status = U_ZERO_ERROR;
 
   auto rng = CreateRng(data, size);

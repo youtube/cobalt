@@ -12,7 +12,7 @@
 
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
@@ -21,22 +21,14 @@
 #include "content/public/browser/browser_thread.h"
 
 class GURL;
-class Profile;
-
-namespace storage {
-class FileSystemContext;
-class FileSystemURL;
-}  // namespace storage
 
 namespace content {
 class BrowserContext;
-}  // namespace content
+}
 
-namespace file_manager {
-namespace util {
-struct FileSystemURLAndHandle;
-}  // namespace util
-}  // namespace file_manager
+namespace storage {
+class FileSystemContext;
+}  // namespace storage
 
 namespace arc {
 
@@ -49,8 +41,7 @@ namespace arc {
 // separate task.  This class is created on the UI thread but deleted on the
 // IO thread.  FileShareConfig is a convenience subclass for containing related
 // files information needed to create a Chrome share intent.
-class ShareInfoFileHandler
-    : public base::RefCountedThreadSafe<ShareInfoFileHandler> {
+class ShareInfoFileHandler {
  public:
   // Signifies whether all shared files have started streaming successfully.
   using StartedCallback = base::OnceCallback<void(void)>;
@@ -62,13 +53,13 @@ class ShareInfoFileHandler
   // |value| is a percentage from 0 to 1 in double format (e.g. 0.50 for 50%).
   using ProgressBarUpdateCallback = base::RepeatingCallback<void(double value)>;
 
-  // |profile| is the current user profile.
+  // |browser_context| is the current browser context.
   // |share_info| represents the data being shared.
   // |directory| is the top level share directory. The owner of this class
   // object will be required to clean up |directory| including any
   // subdirectories and files within it.
   // |task_runner| is used for any cleanup which requires disk IO.
-  ShareInfoFileHandler(Profile* profile,
+  ShareInfoFileHandler(content::BrowserContext* browser_context,
                        mojom::ShareIntentInfo* share_info,
                        base::FilePath directory,
                        scoped_refptr<base::SequencedTaskRunner> task_runner);
@@ -76,10 +67,7 @@ class ShareInfoFileHandler
   ShareInfoFileHandler(const ShareInfoFileHandler&) = delete;
   ShareInfoFileHandler& operator=(const ShareInfoFileHandler&) = delete;
 
-  // Returns FileSystemURL for a given |context| and |url|.
-  static file_manager::util::FileSystemURLAndHandle GetFileSystemURL(
-      content::BrowserContext* context,
-      const GURL& url);
+  ~ShareInfoFileHandler();
 
   const std::vector<base::FilePath>& GetFilePaths() const;
   const std::vector<std::string>& GetMimeTypes() const;
@@ -102,18 +90,8 @@ class ShareInfoFileHandler
                            ProgressBarUpdateCallback update_callback);
 
  private:
-  friend class base::RefCountedThreadSafe<ShareInfoFileHandler>;
-
-  ~ShareInfoFileHandler();
-
-  // Create local unique share directory for cache files.
-  base::FilePath CreateShareDirectory();
-
   // Called when share directory path is created and can start streaming files.
   void OnShareDirectoryPathCreated(base::FilePath share_dir);
-
-  // Create file with create and write flags and return scoped fd.
-  base::ScopedFD CreateFileForWrite(const base::FilePath& file_path);
 
   // Called when destination file descriptor is created and ready for file
   // contents to be streamed into it.
@@ -176,8 +154,8 @@ class ShareInfoFileHandler
   // Track whether a file sharing flow has started .
   bool file_sharing_started_ = false;
 
-  // Unowned pointer to profile.
-  const raw_ptr<Profile> profile_;
+  // Unowned pointer to browser context.
+  const raw_ptr<content::BrowserContext> browser_context_;
 
   // Runner for tasks that may require disk IO.
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;

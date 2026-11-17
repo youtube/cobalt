@@ -557,7 +557,7 @@ bool ImportDHKey(FileTest *t, KeyMap *key_map) {
   if (dh == nullptr || !DH_set0_pqg(dh.get(), p.get(), q.get(), g.get())) {
     return false;
   }
-  // |DH_set0_pqg| takes ownership on success.
+  // `DH_set0_pqg` takes ownership on success.
   p.release();
   q.release();
   g.release();
@@ -565,7 +565,7 @@ bool ImportDHKey(FileTest *t, KeyMap *key_map) {
   if (!DH_set0_key(dh.get(), pub_key.get(), priv_key.get())) {
     return false;
   }
-  // |DH_set0_key| takes ownership on success.
+  // `DH_set0_key` takes ownership on success.
   pub_key.release();
   priv_key.release();
 
@@ -581,7 +581,7 @@ bool ImportDHKey(FileTest *t, KeyMap *key_map) {
   return true;
 }
 
-// SetupContext configures |ctx| based on attributes in |t|, with the exception
+// SetupContext configures `ctx` based on attributes in `t`, with the exception
 // of the signing digest which must be configured externally.
 bool SetupContext(FileTest *t, const KeyMap *key_map, EVP_PKEY_CTX *ctx) {
   if (t->HasAttribute("RSAPadding")) {
@@ -612,7 +612,7 @@ bool SetupContext(FileTest *t, const KeyMap *key_map, EVP_PKEY_CTX *ctx) {
     if (!t->GetBytes(&label, "OAEPLabel")) {
       return false;
     }
-    // For historical reasons, |EVP_PKEY_CTX_set0_rsa_oaep_label| expects to be
+    // For historical reasons, `EVP_PKEY_CTX_set0_rsa_oaep_label` expects to be
     // take ownership of the input.
     bssl::UniquePtr<uint8_t> buf(reinterpret_cast<uint8_t *>(
         OPENSSL_memdup(label.data(), label.size())));
@@ -1361,7 +1361,7 @@ TEST(EVPTest, WycheproofEd25519) {
 //
 // * We can't yet run the signing tests with external entropy.
 //
-// When/if we add |EVP_PKEY|-based APIs for those, we may be able to remove the
+// When/if we add `EVP_PKEY`-based APIs for those, we may be able to remove the
 // low-level copy.
 
 TEST(EVPTest, WycheproofMLDSA44) {
@@ -1559,7 +1559,7 @@ void RunWycheproofOAEPTest(const char *path) {
     ASSERT_TRUE(label_copy || label.empty());
     ASSERT_TRUE(
         EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, label_copy.get(), label.size()));
-    // |EVP_PKEY_CTX_set0_rsa_oaep_label| takes ownership on success.
+    // `EVP_PKEY_CTX_set0_rsa_oaep_label` takes ownership on success.
     label_copy.release();
   });
 }

@@ -30,7 +30,6 @@ namespace autofill {
 class AddressNormalizer;
 class AutofillProfile;
 class PersonalDataManager;
-class RegionDataLoader;
 }  // namespace autofill
 
 namespace content {
@@ -149,8 +148,6 @@ class PaymentRequestState : public PaymentAppFactory::Delegate,
   void SetCanMakePaymentEvenWithoutApps() override;
   base::WeakPtr<CSPChecker> GetCSPChecker() override;
   void SetOptOutOffered() override;
-  std::optional<base::UnguessableToken> GetChromeOSTWAInstanceId()
-      const override;
 
   // PaymentResponseHelper::Delegate
   void OnPaymentResponseReady(
@@ -178,9 +175,6 @@ class PaymentRequestState : public PaymentAppFactory::Delegate,
 
   // Resets pending MethodsSupportedCallback after abort.
   void OnAbort();
-
-  // Returns authenticated user email, or empty string.
-  std::string GetAuthenticatedEmail() const;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -271,7 +265,6 @@ class PaymentRequestState : public PaymentAppFactory::Delegate,
 
   const std::string& GetApplicationLocale();
   autofill::PersonalDataManager* GetPersonalDataManager();
-  autofill::RegionDataLoader* GetRegionDataLoader();
 
   PaymentsProfileComparator* profile_comparator() {
     return &profile_comparator_;

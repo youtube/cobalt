@@ -307,7 +307,7 @@ int DH_generate_parameters_ex(DH *dh, int prime_bits, int generator,
     return 0;
   }
 
-  // Make sure |dh| has the necessary elements
+  // Make sure `dh` has the necessary elements
   auto *impl = FromOpaque(dh);
   if (impl->p == nullptr) {
     impl->p.reset(BN_new());

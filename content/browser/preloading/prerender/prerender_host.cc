@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "base/check_is_test.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
@@ -23,6 +24,7 @@
 #include "content/browser/client_hints/client_hints.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/preloading/prefetch/no_vary_search_helper.h"
+#include "content/browser/preloading/preload_activation_report_manager.h"
 #include "content/browser/preloading/preloading_attempt_impl.h"
 #include "content/browser/preloading/preloading_trigger_type_impl.h"
 #include "content/browser/preloading/prerender/devtools_prerender_attempt.h"
@@ -50,6 +52,7 @@
 #include "content/public/common/referrer.h"
 #include "net/base/load_flags.h"
 #include "net/http/http_request_headers.h"
+#include "services/network/public/cpp/headers_matcher.h"
 #include "services/network/public/mojom/supports_loading_mode.mojom.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/common/client_hints/enabled_client_hints.h"
@@ -164,6 +167,25 @@ std::string SerializeHttpRequestHeaders(
 PrerenderHostId NextPrerenderHostId() {
   static PrerenderHostId::Generator generator;
   return generator.GenerateNextId();
+}
+
+GURL FindActivationBeaconURL(NavigationRequest& navigation_request) {
+  std::optional<GURL> endpoint;
+  if (navigation_request.response() &&
+      navigation_request.response()->parsed_headers &&
+      navigation_request.response()
+          ->parsed_headers->prefetch_activation_beacon_endpoint) {
+    endpoint = *navigation_request.response()
+                    ->parsed_headers->prefetch_activation_beacon_endpoint;
+  }
+
+  if (endpoint && endpoint->is_valid() &&
+      url::Origin::Create(*endpoint).IsSameOriginWith(
+          url::Origin::Create(navigation_request.GetURL()))) {
+    return *endpoint;
+  }
+
+  return GURL();
 }
 
 }  // namespace
@@ -351,6 +373,39 @@ FrameTreeNodeId PrerenderHost::GetFrameTreeNodeIdForId(PrerenderHostId id) {
   return it->second;
 }
 
+namespace {
+
+struct CaseInsensitiveCompare {
+  constexpr bool operator()(std::string_view a, std::string_view b) const {
+    return base::CompareCaseInsensitiveASCII(a, b) < 0;
+  }
+};
+
+constexpr auto kIgnoredHeaders =
+    base::MakeFixedFlatSet<std::string_view, CaseInsensitiveCompare>({
+        // `prerender_headers` contains the "Sec-Purpose: prefetch;prerender" to
+        // notify servers of prerender requests, while
+        // `potential_activation_headers` doesn't contain it. Ignore it so that
+        // activation works with the header. Ditto for "Sec-Speculation-Tags".
+        blink::kSecPurposeHeaderName,
+        blink::kSecSpeculationTagsHeaderName,
+
+        "rtt",
+        "downlink",
+        "ect",
+
+        // The viewport size of the initiator page can be changed during
+        // prerendering. See also https://crbug.com/1401244.
+        "viewport-width",
+        "sec-ch-viewport-width",
+
+        // Don't need to handle "viewport-height" as it is not defined in the
+        // specs.
+        "sec-ch-viewport-height",
+    });
+
+}  // namespace
+
 // static
 bool PrerenderHost::AreHttpRequestHeadersCompatible(
     const std::string& potential_activation_headers_str,
@@ -373,69 +428,42 @@ bool PrerenderHost::AreHttpRequestHeadersCompatible(
       potential_activation_additional_headers_str);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  // `prerender_headers` contains the "Sec-Purpose: prefetch;prerender" to
-  // notify servers of prerender requests, while `potential_activation_headers`
-  // doesn't contain it. Remove "Sec-Purpose" matching from consideration so
-  // that activation works with the header.
-  prerender_headers.RemoveHeader(blink::kSecPurposeHeaderName);
-  potential_activation_headers.RemoveHeader(blink::kSecPurposeHeaderName);
-  // Ditto for "Sec-Speculation-Tags".
-  prerender_headers.RemoveHeader(blink::kSecSpeculationTagsHeaderName);
   CHECK(!potential_activation_headers.HasHeader(
       blink::kSecSpeculationTagsHeaderName));
 
-  prerender_headers.RemoveHeader("RTT");
-  potential_activation_headers.RemoveHeader("RTT");
-  prerender_headers.RemoveHeader("Downlink");
-  potential_activation_headers.RemoveHeader("Downlink");
-  prerender_headers.RemoveHeader("ECT");
-  potential_activation_headers.RemoveHeader("ECT");
+  const auto should_ignore = [allow_x_header_mismatch,
+                              trigger_type](const std::string& lowered_key) {
+    // Ignore X-Geo header for embedder triggers (e.g. search prefetch) as it
+    // can change easily.
+    // TODO(crbug.com/40244149): Instead of handling headers added by embedders
+    // specifically, prerender should expose an interface to embedders to set
+    // url parameters.
+    if (trigger_type == PreloadingTriggerType::kEmbedder &&
+        lowered_key == "x-geo") {
+      return true;
+    }
 
-  // TODO(crbug.com/40244149): Instead of handling headers added by
-  // embedders specifically, prerender should expose an interface to embedders
-  // to set url parameters.
-  // Remove X-Geo header for embedder triggers (e.g. search prefetch) as it can
-  // change easily.
-  if (trigger_type == PreloadingTriggerType::kEmbedder) {
-    prerender_headers.RemoveHeader("X-Geo");
-    potential_activation_headers.RemoveHeader("X-Geo");
+    // Allow mismatches on `X-` headers. Currently this is allowed only on the
+    // WebView.
+    // TODO(crbug.com/40244149): Expand this to other platforms and
+    // non-x-headers.
+    if (allow_x_header_mismatch && lowered_key.starts_with("x-")) {
+      return true;
+    }
+
+    return kIgnoredHeaders.contains(lowered_key);
+  };
+
+  auto mismatched_headers = network::MatchHttpRequestHeaders(
+      prerender_headers, potential_activation_headers,
+      network::MatchHttpRequestHeadersValueOption::kEqualsCaseInsensitiveASCII,
+      should_ignore);
+
+  if (mismatched_headers.empty()) {
+    return true;
   }
-
-  // Remove the viewport headers as the viewport size of the initiator page can
-  // be changed during prerendering. See also https://crbug.com/1401244.
-  prerender_headers.RemoveHeader("viewport-width");
-  potential_activation_headers.RemoveHeader("viewport-width");
-  prerender_headers.RemoveHeader("sec-ch-viewport-width");
-  potential_activation_headers.RemoveHeader("sec-ch-viewport-width");
-  // Don't need to handle "viewport-height" as it is not defined in the specs.
-  prerender_headers.RemoveHeader("sec-ch-viewport-height");
-  potential_activation_headers.RemoveHeader("sec-ch-viewport-height");
-
-  // Allow mismatches on `X-` headers. Currently this is allowed only on the
-  // WebView.
-  // TODO(crbug.com/40244149): Expand this to other platforms and non-x-headers.
-  if (allow_x_header_mismatch) {
-    absl::flat_hash_set<std::string> headers_to_be_removed;
-    for (net::HttpRequestHeaders::Iterator it(prerender_headers);
-         it.GetNext();) {
-      if (it.name().starts_with("X-") || it.name().starts_with("x-")) {
-        headers_to_be_removed.insert(it.name());
-      }
-    }
-    for (net::HttpRequestHeaders::Iterator it(potential_activation_headers);
-         it.GetNext();) {
-      if (it.name().starts_with("X-") || it.name().starts_with("x-")) {
-        headers_to_be_removed.insert(it.name());
-      }
-    }
-    for (const std::string& name : headers_to_be_removed) {
-      prerender_headers.RemoveHeader(name);
-      potential_activation_headers.RemoveHeader(name);
-    }
-  }
-
-  return PrerenderHost::IsActivationHeaderMatch(potential_activation_headers,
-                                                prerender_headers, reason);
+  reason.SetPrerenderMismatchedHeaders(std::move(mismatched_headers));
+  return false;
 }
 
 // static
@@ -517,82 +545,6 @@ PrerenderHost::PrerenderHost(
     CHECK_IS_TEST();
     std::move(GetHostCreationCallback()).Run(prerender_host_id_);
   }
-}
-
-// static
-bool PrerenderHost::IsActivationHeaderMatch(
-    const net::HttpRequestHeaders& potential_activation_headers,
-    const net::HttpRequestHeaders& prerender_headers,
-    PrerenderCancellationReason& reason) {
-  // Normalize the headers.
-  using HeaderPair = net::HttpRequestHeaders::HeaderKeyValuePair;
-  auto cmp = [](const HeaderPair& a, const HeaderPair& b) {
-    return a.key < b.key;
-  };
-  auto lower_case = [](HeaderPair& x) { x.key = base::ToLowerASCII(x.key); };
-  auto same_predicate = [](const HeaderPair& a, const HeaderPair& b) {
-    return a.key == b.key && base::EqualsCaseInsensitiveASCII(a.value, b.value);
-  };
-
-  std::vector<HeaderPair> potential_header_list(
-      potential_activation_headers.GetHeaderVector());
-  std::vector<HeaderPair> prerender_header_list(
-      prerender_headers.GetHeaderVector());
-  std::for_each(potential_header_list.begin(), potential_header_list.end(),
-                lower_case);
-  std::for_each(prerender_header_list.begin(), prerender_header_list.end(),
-                lower_case);
-  std::sort(potential_header_list.begin(), potential_header_list.end(), cmp);
-  std::sort(prerender_header_list.begin(), prerender_header_list.end(), cmp);
-
-  std::unique_ptr<std::vector<PrerenderMismatchedHeaders>> mismatched_headers =
-      std::make_unique<std::vector<PrerenderMismatchedHeaders>>();
-
-  auto prerender_header_list_it = prerender_header_list.begin();
-  auto potential_header_list_it = potential_header_list.begin();
-
-  while (prerender_header_list_it != prerender_header_list.end() &&
-         potential_header_list_it != potential_header_list.end()) {
-    if (same_predicate(*prerender_header_list_it, *potential_header_list_it)) {
-      prerender_header_list_it++;
-      potential_header_list_it++;
-    } else if (prerender_header_list_it->key == potential_header_list_it->key) {
-      mismatched_headers->emplace_back(prerender_header_list_it->key,
-                                       prerender_header_list_it->value,
-                                       potential_header_list_it->value);
-      prerender_header_list_it++;
-      potential_header_list_it++;
-    } else if (prerender_header_list_it->key < potential_header_list_it->key) {
-      mismatched_headers->emplace_back(prerender_header_list_it->key,
-                                       prerender_header_list_it->value,
-                                       std::nullopt);
-      prerender_header_list_it++;
-    } else {
-      mismatched_headers->emplace_back(potential_header_list_it->key,
-                                       std::nullopt,
-                                       potential_header_list_it->value);
-      potential_header_list_it++;
-    }
-  }
-
-  while (prerender_header_list_it != prerender_header_list.end()) {
-    mismatched_headers->emplace_back(prerender_header_list_it->key,
-                                     prerender_header_list_it->value,
-                                     std::nullopt);
-    prerender_header_list_it++;
-  }
-
-  while (potential_header_list_it != potential_header_list.end()) {
-    mismatched_headers->emplace_back(potential_header_list_it->key,
-                                     std::nullopt,
-                                     potential_header_list_it->value);
-    potential_header_list_it++;
-  }
-  if (mismatched_headers->empty()) {
-    return true;
-  }
-  reason.SetPrerenderMismatchedHeaders(std::move(mismatched_headers));
-  return false;
 }
 
 PrerenderHost::~PrerenderHost() {
@@ -756,6 +708,10 @@ void PrerenderHost::ReadyToCommitNavigation(
           navigation_request->GetRenderFrameHost(),
           blink::mojom::WebFeature::kPrerender2CrossOriginIframes);
     }
+
+    if (base::FeatureList::IsEnabled(features::kPrerenderActivationBeacon)) {
+      activation_beacon_url_ = FindActivationBeaconURL(*navigation_request);
+    }
   }
   if (!has_no_vary_search_with_parse_error_header) {
     CHECK(!no_vary_search_.has_value());
@@ -842,6 +798,14 @@ std::unique_ptr<StoredPage> PrerenderHost::Activate(
 
   CHECK(is_ready_for_activation_);
   is_ready_for_activation_ = false;
+
+  if (base::FeatureList::IsEnabled(features::kPrerenderActivationBeacon) &&
+      !activation_beacon_url_.is_empty()) {
+    auto* manager =
+        PreloadActivationReportManager::GetOrCreateForBrowserContext(
+            web_contents_->GetBrowserContext());
+    manager->ReportActivation(activation_beacon_url_, &*web_contents_);
+  }
 
   FrameTree& target_frame_tree = web_contents_->GetPrimaryFrameTree();
 
@@ -1767,6 +1731,7 @@ bool PrerenderHost::ShouldAbortNavigationBecausePrefetchUnavailable() const {
         // Prefetch is not available for HTTP, but prerender is available
         // for HTTPS/HTTP.
       case PreloadingEligibility::kSchemeIsNotHttps:
+      case PreloadingEligibility::kBlockedByConnectionAllowlist:
         return true;
       case PreloadingEligibility::kEligible:
       case PreloadingEligibility::kUnspecified:

@@ -8,11 +8,14 @@
 
 #import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
+#import "base/strings/sys_string_conversions.h"
 #import "components/image_fetcher/core/image_data_fetcher.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
+#import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_drive_result.h"
+#import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_presenter.h"
 #import "ios/chrome/browser/drive/model/drive_list.h"
 #import "ios/chrome/browser/drive/model/drive_service_factory.h"
 #import "ios/chrome/browser/drive_file_picker/coordinator/browse_drive_file_picker_coordinator.h"
@@ -73,11 +76,14 @@
   DriveFilePickerMetricsHelper* _metricsHelper;
   // Gesture recognizer to properly handle tap-to-dismiss.
   UITapGestureRecognizer* _tapToDismissGestureRecognizer;
+  // Whether the coordinator is launched from/for the Composebox.
+  BOOL _forComposebox;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
-                                  webState:(web::WebState*)webState {
+                                  webState:(web::WebState*)webState
+                             forComposebox:(BOOL)forComposebox {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
     CHECK(browser);
@@ -87,6 +93,7 @@
     CHECK(webState);
     _webState = webState->GetWeakPtr();
     _presentationControllerShouldDismiss = YES;
+    _forComposebox = forComposebox;
   }
   return self;
 }
@@ -107,6 +114,7 @@
            initWithWebState:_webState.get()
                     options:DriveFilePickerOptions::Default()
                      isRoot:YES
+              forComposebox:_forComposebox
             identityManager:IdentityManagerFactory::GetForProfile(profile)
       authenticationService:authenticationService];
   _mediator.delegate = self;
@@ -215,6 +223,7 @@
                                    options:options
                              metricsHelper:_metricsHelper];
   _childBrowseCoordinator.delegate = self;
+  _childBrowseCoordinator.forComposebox = _forComposebox;
   [_childBrowseCoordinator start];
 }
 
@@ -246,6 +255,30 @@
       (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE);
 }
 
+- (void)mediator:(DriveFilePickerMediator*)mediator
+    didPickDriveItems:(const std::vector<DriveItem>&)driveItems {
+  CHECK(_forComposebox);
+  CHECK(self.composeboxDelegate);
+
+  NSMutableArray<ComposeboxPickerDriveResult*>* results =
+      [NSMutableArray array];
+  for (const DriveItem& item : driveItems) {
+    ComposeboxPickerDriveResult* result =
+        [[ComposeboxPickerDriveResult alloc] init];
+    result.identifier = item.identifier;
+    result.fileName = item.name;
+    result.mimeType = item.mime_type;
+    [results addObject:result];
+  }
+  // Pass nil for the presenter because this coordinator manages its own
+  // asynchronous dismissal, and the presenter reference is unused by the
+  // delegate.
+  [self.composeboxDelegate composeboxPickerPresenter:nil
+                                   didPickDriveItems:results];
+
+  [self stopAnimated];
+}
+
 #pragma mark - BrowseDriveFilePickerCoordinatorDelegate
 
 - (void)coordinatorShouldStop:(ChromeCoordinator*)coordinator {
@@ -267,6 +300,12 @@
 - (void)coordinator:(ChromeCoordinator*)coordinator
     didAllowDismiss:(BOOL)allowDismiss {
   _presentationControllerShouldDismiss = allowDismiss;
+}
+
+- (void)coordinator:(ChromeCoordinator*)coordinator
+    didPickDriveItems:(const std::vector<DriveItem>&)driveItems {
+  CHECK(_forComposebox);
+  [self mediator:nil didPickDriveItems:driveItems];
 }
 
 #pragma mark - UIGestureRecognizerDelegate
@@ -321,7 +360,12 @@
   [_mediator
       setCollection:DriveFilePickerCollection::GetRoot(_currentIdentity)];
   _mediator.consumer = _viewController;
-  _mediator.metricsHelper = _metricsHelper;
+  // Since the Composebox flow bypasses local downloads completely and records
+  // its own native metrics, the mediator does not need the metrics helper in
+  // Composebox mode.
+  if (!_forComposebox) {
+    _mediator.metricsHelper = _metricsHelper;
+  }
 
   // Add tap gesture recognizer to window, to handle tap-to-dismiss.
   _tapToDismissGestureRecognizer = [[UITapGestureRecognizer alloc]

@@ -312,6 +312,13 @@ https://chromeenterprise.google/policies/url-patterns/ * ไม่ใช่ค�
 <translation id="1214639335214075459">เปิดใช้การถอดรหัสวิดีโอฮาร์ดแวร์ GPU</translation>
 <translation id="1214942205301731697">ไม่อนุญาตให้ใช้โหมดนักพัฒนาซอฟต์แวร์ในหน้าส่วนขยาย</translation>
 <translation id="1216919699175573511">เปิดใช้การสนับสนุน Signed HTTP Exchange (SXG)</translation>
+<translation id="1217033439268053263">นโยบายนี้เลิกใช้งานแล้ว ลองใช้ <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> ซึ่งจะลบล้างนโยบายนี้และช่วยให้ปรับแต่งการตั้งค่าได้ละเอียดยิ่งขึ้น
+
+      บังคับใช้โหมดที่จำกัดปานกลางใน <ph name="YOUTUBE_PRODUCT_NAME" /> และป้องกันไม่ให้ผู้ใช้เปลี่ยนการตั้งค่านี้
+
+      หากเปิดใช้การตั้งค่านี้ ระบบจะบังคับใช้โหมดที่จำกัดปานกลางเป็นอย่างน้อยใน <ph name="YOUTUBE_PRODUCT_NAME" /> อยู่เสมอ
+
+      หากปิดใช้การตั้งค่านี้หรือไม่ได้ตั้งค่า <ph name="PRODUCT_NAME" /> จะไม่บังคับใช้โหมดที่จำกัดใน <ph name="YOUTUBE_PRODUCT_NAME" /> แต่นโยบายภายนอก เช่น นโยบายของ <ph name="YOUTUBE_PRODUCT_NAME" /> อาจยังคงบังคับใช้โหมดที่จำกัด</translation>
 <translation id="1219027971768347970">ใช้การกำหนดค่าเริ่มต้นกับแซนด์บ็อกซ์เสียง</translation>
 <translation id="1219036692926668273">ใช้อัลกอริทึม <ph name="HAPPY_EYEBALLS_V3" /></translation>
 <translation id="1221359380862872747">โหลด URL ที่ระบุเมื่อลงชื่อเข้าใช้การสาธิต</translation>
@@ -472,6 +479,7 @@ https://chromeenterprise.google/policies/url-patterns/ * ไม่ใช่ค�
       หากเปิดใช้นโยบายนี้ ระบบจะเปิดใช้แป้นพิมพ์ลัดสากลที่ปรับปรุงแล้ว
       หากไม่ได้ตั้งค่า นโยบายนี้จะเปิดใช้สำหรับอุปกรณ์ที่มีการจัดการและเปิดใช้สำหรับอุปกรณ์ของผู้บริโภค
       โปรดทราบว่านี่เป็นเพียงนโยบายชั่วคราวเพื่ออนุญาตให้ผู้ใช้ที่มีการจัดการยังคงสามารถใช้แป้นพิมพ์ลัดแบบเดิมที่เลิกใช้งานแล้ว ระบบจะเลิกใช้งานนโยบายนี้หลังจากมีแป้นพิมพ์ลัดที่กำหนดเอง</translation>
+<translation id="1359459742455216057">ตัวระบุที่ไม่ซ้ำกันสำหรับแอป <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /></translation>
 <translation id="1361661842732478894">แสดงปุ่มหน้าแรกในแถบเครื่องมือ</translation>
 <translation id="1363275621236827384">เปิดใช้คำค้นหาไปยังเซิร์ฟเวอร์ Quirks สำหรับโปรไฟล์ฮาร์ดแวร์</translation>
 <translation id="1363839375295535439">การตั้งค่านโยบายเป็น "เปิดใช้" หรือไม่ได้ตั้งค่าจะเป็นการเปิดใช้แซนด์บ็อกซ์ LPAC สำหรับบริการด้านการพิมพ์เมื่อการกำหนดค่าของระบบรองรับ
@@ -551,6 +559,7 @@ https://chromeenterprise.google/policies/url-patterns/ * ไม่ใช่ค�
 <translation id="1417888712677507140">บล็อกกล่องโต้ตอบ JavaScript ที่เกิดจากเฟรมย่อยที่เป็นต้นทางเฟรมอื่น</translation>
 <translation id="1418387035898607074">ข้ามการตรวจสอบของ Google Safe Browsing สำหรับไฟล์ที่ดาวน์โหลดจากแหล่งที่มาที่เชื่อถือได้</translation>
 <translation id="1419020637569060510">เพิ่มข้อจำกัดในการใช้งานบัญชีที่จัดการในฐานะบัญชีรองบน Chrome OS</translation>
+<translation id="1423311643274506889">บังคับใช้ฟีเจอร์ค้นหาปลอดภัยใน Google Search และโหมดที่จำกัดปานกลางเป็นอย่างน้อยใน <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="1423359855587524289">หากตั้งค่านโยบายเป็น "เปิดใช้งานแล้ว" หรือไม่ได้ตั้งค่าไว้ แอปอาจใช้การอนุญาตการแจ้งเตือน "ที่จัดสรรไว้" ของ iOS เพื่อแสดงการแจ้งเตือนในศูนย์การแจ้งเตือนของ iOS
 
 หากตั้งค่านโยบายเป็น "ปิดใช้งานแล้ว" แอปจะไม่ใช้การแจ้งเตือนที่จัดสรรไว้</translation>
@@ -2111,6 +2120,7 @@ URL ต้องเป็นรูปแบบมาตรฐาน เช่น
 <translation id="2393862222659066027">เปิดรายการ URL และคืนค่าเซสชันล่าสุด</translation>
 <translation id="239416486107542256">การตั้งค่า F11 ใช้แป้นพิมพ์ลัดที่มีแป้นกดร่วม Ctrl และ Shift</translation>
 <translation id="2394429297128584919">ไม่อนุญาตให้หน้าเว็บส่งคำขอ XHR พร้อมกันในระหว่างการปิดหน้าเว็บ</translation>
+<translation id="2398817690049129302">บังคับใช้โหมดความปลอดภัยของ <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="2399987589969059485">การกำหนดค่านโยบายนี้จะอนุญาตให้ระบุรูปแบบที่อนุญาตให้ใช้ใน <ph name="PRODUCT_NAME" />
 
       รูปแบบต่างๆ เป็นวิธีที่ช่วยให้เสนอการแก้ไข <ph name="PRODUCT_NAME" /> ได้โดยไม่ต้องส่งเบราว์เซอร์เวอร์ชันใหม่ด้วยการเลือกเปิดหรือปิดใช้ฟีเจอร์ที่มีอยู่แล้ว ดูข้อมูลเพิ่มเติมได้ที่ https://support.google.com/chrome/a?p=Manage_the_Chrome_variations_framework
@@ -2226,6 +2236,14 @@ Web Worker สามารถสร้างได้โดยใช้ URL ข�
 
       ควรระบุค่าของนโยบายเป็นวัน</translation>
 <translation id="2466131534462628618">การตรวจสอบสิทธิ์ของแคพทีฟพอร์ทัลจะข้ามพร็อกซีไป</translation>
+<translation id="246680587517417824">https://github.com/WICG/service-worker-auto-preload
+ฟีเจอร์ ServiceWorkerAutoPreload จะส่งคำขอเครือข่ายสำหรับทรัพยากรหลักในเวลาเดียวกันกับที่เริ่มกระบวนการเริ่มต้นระบบ ServiceWorker
+
+การตั้งค่านโยบายเป็น "เปิดใช้" หรือไม่ตั้งค่าจะทำให้ <ph name="PRODUCT_NAME" /> เปิดใช้ ServiceWorkerAutoPreload ระบบจะส่งคำขอไปยังส่วนต่างๆ โดยอัตโนมัติขณะเริ่มต้น ServiceWorker ในบางสถานการณ์ เช่น ServiceWorker ไม่ทำงาน
+
+หากปิดใช้แล้ว <ph name="PRODUCT_NAME" /> จะไม่เปิดใช้ ServiceWorkerAutoPreload คำขอไปยังส่วนต่างๆ จะถูกส่งเสมอหลังจากเริ่มต้น Service Worker
+
+นโยบายนี้เป็นมาตรการชั่วคราวเพื่อควบคุมฟีเจอร์และจะถูกนำออกใน M154</translation>
 <translation id="2467181864598429837">ลักษณะการทำงานเริ่มต้นของเบราว์เซอร์</translation>
 <translation id="2467896267442150508">ระยะเวลาที่เกิดขึ้นนานสุด 1 สัปดาห์ หากเวลาเริ่มต้นเกิดขึ้นหลังเวลาสิ้นสุด ระยะเวลาจะวนกลับมาใหม่</translation>
 <translation id="2475594733565572760">นโยบายนี้จะกำหนดการตั้งค่าเริ่มต้นสำหรับฟีเจอร์ Generative AI ที่ครอบคลุมทั้งหมด เช่น หากตั้งค่านโยบายนี้เป็นค่า 1 จะทำให้ 1 เป็นการตั้งค่าเริ่มต้นสำหรับฟีเจอร์ Generative AI ที่ครอบคลุมทั้งหมด การดำเนินการนี้จะไม่ส่งผลต่อการตั้งค่านโยบายด้วยตนเอง การตั้งค่านี้จะกำหนดค่าเริ่มต้นสำหรับฟีเจอร์ Generative AI ที่ครอบคลุมใน Chrome ดูรายการฟีเจอร์ที่ครอบคลุมได้ที่ https://support.google.com/chrome/a?p=generative_ai_settings
@@ -2570,6 +2588,7 @@ Web Worker สามารถสร้างได้โดยใช้ URL ข�
 ดูข้อจำกัดของ <ph name="PRIVATE_NETWORK_ACCESS" /> ได้ที่ https://wicg.github.io/private-network-access/</translation>
 <translation id="2600005880585324062">ให้ <ph name="PRODUCT_NAME" /> ตัดสินใจว่าจะแยกต้นทางใดออกจากต้นทางอื่นๆ ในเว็บไซต์เดียวกัน</translation>
 <translation id="26023406105317310">กำหนดค่าบัญชี Kerberos</translation>
+<translation id="2603163741218691337">ไม่จำกัดการลบคุกกี้ <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="2603237557651009842">บล็อก WebPrinting API ในเว็บไซต์เหล่านี้</translation>
 <translation id="2603382859270873566">เปิดใช้การรองรับ PPB_VideoDecoder(Dev) API</translation>
 <translation id="2604182581880595781">กำหนดค่านโยบายที่เกี่ยวข้องกับพื้นที่แชร์ไฟล์ของเครือข่าย</translation>
@@ -3344,6 +3363,7 @@ Web Worker สามารถสร้างได้โดยใช้ URL ข�
 <translation id="3142410959002029864">การตั้งค่านโยบายนี้จะลบล้างโหมดการพิมพ์ 2 ด้านเริ่มต้น หากโหมดนี้ไม่พร้อมใช้งาน ระบบจะเพิกเฉยต่อนโยบายนี้</translation>
 <translation id="3143203373436771188">เมื่อไปยังเอกสาร Office ที่จัดการโดย <ph name="BASIC_EDITOR_NAME" /> ให้เปิดเอกสารเหล่านั้นใน <ph name="BASIC_EDITOR_NAME" /></translation>
 <translation id="3144173889708944482">หากมีการเลือก <ph name="PRINTERS_BLOCKLIST" /> ไว้สำหรับ <ph name="DEVICE_PRINTERS_ACCESS_MODE_POLICY_NAME" /> การตั้งค่า <ph name="DEVICE_PRINTERS_BLOCKLIST_POLICY_NAME" /> จะระบุเครื่องพิมพ์ที่ผู้ใช้จะใช้ไม่ได้ เครื่องพิมพ์ทั้งหมดจะพร้อมให้ผู้ใช้นำมาใช้งาน ยกเว้นเครื่องที่มีรหัสตามที่ระบุไว้ในนโยบายนี้ รหัสดังกล่าวต้องตรงกับช่อง <ph name="ID_FIELD" /> หรือ <ph name="GUID_FIELD" /> ในไฟล์ที่ระบุไว้ใน <ph name="DEVICE_PRINTERS_POLICY_NAME" /></translation>
+<translation id="3144419820067745871"><ph name="YOUTUBE_PRODUCT_NAME" /> (รองรับตั้งแต่เวอร์ชัน 135)</translation>
 <translation id="3146711617256415776">ไม่อนุญาตเสียงของการอ่านออกเสียงข้อความของเครือข่ายที่ปรับปรุงเมื่อใช้ "เลือกเพื่อให้อ่าน"</translation>
 <translation id="315013437951136266">เปิดใช้ฟีเจอร์ <ph name="IP_PROTECTION_NAME" /></translation>
 <translation id="3150351525324499342">ไม่แสดงไอคอน "<ph name="PRODUCT_NAME" />" ในแถบเครื่องมือโดยค่าเริ่มต้น แต่ให้ผู้ใช้เลือก</translation>
@@ -4200,6 +4220,7 @@ URL ทางลัดต้องไม่ซ้ำกัน
 นโยบายนี้เลิกใช้งานไปแล้วตั้งแต่ <ph name="PRODUCT_NAME" /> เวอร์ชัน 144 พร้อมกับการเลิกใช้งาน Protected Audience API</translation>
 <translation id="3733014427925403568">วันในสัปดาห์ที่เริ่มต้นและสิ้นสุดระยะเวลา</translation>
 <translation id="3736879847913515635">เปิดใช้การเพิ่มบุคคลในการจัดการผู้ใช้</translation>
+<translation id="3741204225338304131">บังคับใช้โหมดที่จำกัดระดับ <ph name="YOUTUBE_PRODUCT_NAME" /> เป็นอย่างน้อย</translation>
 <translation id="3744984310825999317">อนุญาตให้ <ph name="PEPPER_NAME" /> ใช้เครื่องมือถอดรหัสใหม่สำหรับการถอดรหัสวิดีโอที่มีการเร่งฮาร์ดแวร์</translation>
 <translation id="3749259744154402564">ไม่รองรับ</translation>
 <translation id="3749511622128647337">ปิดใช้เอาต์พุตเสียง</translation>
@@ -4269,6 +4290,7 @@ URL ทางลัดต้องไม่ซ้ำกัน
 <translation id="3778689139323007309">ตรวจสอบการเพิกถอนใบรับรองเซิร์ฟเวอร์ที่ได้รับการรับรองว่าใช้ได้โดยใบรับรอง CA ที่ติดตั้งไว้ในเครื่องอยู่เสมอ</translation>
 <translation id="3780152581321609624">รวมพอร์ตที่ไม่ใช่แบบมาตรฐานใน Kerberos SPN</translation>
 <translation id="3785423718413114598">ไม่อนุญาตให้ใช้ฟีเจอร์ GenAI</translation>
+<translation id="378626615843371785">กำหนดการตั้งค่า <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> (เบต้า)</translation>
 <translation id="3788155044604525647">Direct Sockets API ช่วยให้สื่อสารกับอุปกรณ์ปลายทางที่กำหนดเองได้โดยใช้ TCP และ UDP
 โปรดดูรายละเอียดที่ https://github.com/WICG/direct-sockets
 
@@ -4778,6 +4800,7 @@ URL ทางลัดต้องไม่ซ้ำกัน
 <translation id="4136603825567209889">เปิดใช้การรายงานข้อมูลระบุตัวตนของผู้ใช้</translation>
 <translation id="4138655880188755661">การจำกัดเวลา</translation>
 <translation id="4140646780789794190">ปิดใช้การแชร์ข้อมูลการวินิจฉัยไปยัง PluginVm</translation>
+<translation id="4141430435877011529">หลายภูมิภาคหรือตำแหน่งของแอป <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> ดูข้อมูลเพิ่มเติมเกี่ยวกับตำแหน่งของ <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> ได้ที่ https://docs.cloud.google.com/gemini/enterprise/docs/locations</translation>
 <translation id="4144417751555442768">Generative AI</translation>
 <translation id="4145383150978634398">กำหนดให้ผู้ใช้สามารถใช้โหมดเดสก์ท็อปแบบรวมหลายหน้าจอ</translation>
 <translation id="4146319954420095470">(คำเตือน ทรัพยากร Dependency นี้จะถูกยกเลิกในเร็วๆ นี้ โปรดเริ่มใช้ <ph name="GLS_POLICY_NAME" /> แทน) หากตั้งค่านโยบายนี้เป็น <ph name="BLOCK_GEOLOCATION_SETTING" /> บริการของระบบของ <ph name="PRODUCT_OS_NAME" /> และแอป Android จะเข้าถึงข้อมูลตำแหน่งไม่ได้ หากคุณตั้งค่านโยบายนี้เป็นค่าอื่นๆ หรือไม่ได้ตั้งค่า ระบบจะขอให้ผู้ใช้อนุญาตเมื่อแอป Android ต้องการเข้าถึงข้อมูลตำแหน่ง</translation>
@@ -5523,6 +5546,7 @@ URL ทางลัดต้องไม่ซ้ำกัน
       ดูข้อมูลโดยละเอียดเกี่ยวกับรูปแบบ <ph name="URL_LABEL" /> ที่ถูกต้องได้ที่ https://chromeenterprise.google/policies/url-patterns <ph name="WILDCARD_VALUE" /> ไม่ใช่ค่าที่ยอมรับสำหรับนโยบายนี้</translation>
 <translation id="4624417808625504735">บล็อก JavaScript ไม่ให้ใช้ JIT ในเว็บไซต์เหล่านี้</translation>
 <translation id="46321462262887935">ใช้ปุ่มแถวบนสุดเป็นปุ่มฟังก์ชัน แต่ผู้ใช้จะแก้ไขได้</translation>
+<translation id="4635757219046879316">บังคับใช้โหมดที่จำกัดปานกลางใน <ph name="YOUTUBE_PRODUCT_NAME" /> เป็นอย่างน้อย</translation>
 <translation id="4636354638176939375">ปิดการสร้างผู้ใช้ภายใต้การควบคุมดูแล</translation>
 <translation id="4637701328641064644">นโยบายนี้ควบคุมว่าจะมีการแบ่งพาร์ติชัน URL ของ BLOB ในระหว่างการดึงข้อมูลและไปยังส่วนต่างๆ หรือไม่
 หากตั้งค่านโยบายนี้เป็น "เปิดใช้" หรือไม่ได้ตั้งค่า ระบบจะแบ่งพาร์ติชัน URL ของ BLOB
@@ -6095,6 +6119,7 @@ https://chromeenterprise.google/policies/url-patterns
 
       ดูการปักหมุดแอปไว้ที่แถบ <ph name="PRODUCT_OS_NAME" /> ที่ <ph name="PINNED_LAUNCHER_APPS_POLICY_NAME" /></translation>
 <translation id="494613465159630803">Cast Receiver</translation>
+<translation id="4947257516265472776">บังคับใช้โหมดที่จำกัดอย่างเข้มงวดสำหรับ <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="494924690085329212">รีบูตเมื่อผู้ใช้ออกจากระบบหาก Android เริ่มต้นแล้ว</translation>
 <translation id="4950447493143157880">ไม่ใช้ไคลเอ็นต์ DNS ในตัว</translation>
 <translation id="4953541641325278286">ไม่อนุญาตให้เว็บไซต์ใดๆ ตรวจหาสถานะที่ไม่ได้ใช้งานของผู้ใช้</translation>
@@ -6717,6 +6742,13 @@ https://chromeenterprise.google/policies/url-patterns/ * ไม่ใช่ค�
       หากมีการกำหนดพร็อพเพอร์ตี้ <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> ในคำขอ <ph name="GET_DISPLAY_MEDIA_SET_NAME" /> ระบบจะจับภาพบริเวณหน้าจอทั้งหมดโดยอัตโนมัติและไม่ต้องมีการให้สิทธิ์จากผู้ใช้อย่างชัดแจ้ง
       หากไม่ได้ตั้งค่านโยบาย <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> จะใช้ไม่ได้กับเว็บแอปพลิเคชัน
 เพื่อปรับปรุงด้านความเป็นส่วนตัว ตั้งแต่ <ph name="PRODUCT_NAME" /> เวอร์ชัน 116 เป็นต้นไป นโยบายนี้จะไม่รองรับการรีเฟรชแบบไดนามิกอีกต่อไป ดังนั้น ผู้ใช้จึงมั่นใจได้ว่าจะไม่มีหน้าอื่นเพิ่มเติมที่จะจับภาพหน้าจอได้หลังจากเข้าสู่ระบบ หากไม่ได้รับอนุญาตไว้แล้วเมื่อเริ่มต้นเซสชัน</translation>
+<translation id="5351894784463048975">นโยบายนี้เลิกใช้งานไปแล้ว โปรดใช้ <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> และ <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> แทน ระบบจะไม่สนใจนโยบายนี้หากมีการตั้งค่านโยบาย <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" />, <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> หรือ <ph name="FORCE_YOUTUBE_SAFETY_MODE_POLICY_NAME" /> (เลิกใช้งานแล้ว)
+
+      บังคับให้การค้นหาใน "Google ค้นเว็บ" ต้องใช้งาน "ค้นหาปลอดภัย" และป้องกันไม่ให้ผู้ใช้เปลี่ยนการตั้งค่านี้ การตั้งค่านี้ยังบังคับใช้โหมดที่จำกัดปานกลางใน <ph name="YOUTUBE_PRODUCT_NAME" /> ด้วย
+
+      หากคุณเปิดใช้การตั้งค่านี้ ระบบจะใช้งาน "ค้นหาปลอดภัย" ใน Google Search และโหมดที่จำกัดปานกลางใน <ph name="YOUTUBE_PRODUCT_NAME" /> เสมอ
+
+      หากคุณปิดใช้การตั้งค่านี้หรือไม่ได้ตั้งค่า ระบบจะไม่บังคับใช้ "ค้นหาปลอดภัย" ใน Google Search และโหมดที่จำกัดใน <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="5361167871898066799">ควบคุมฟีเจอร์การแก้ไขอัตโนมัติบนแป้นพิมพ์จริง</translation>
 <translation id="5361708558735884308">การตั้งค่านโยบายจะให้สิทธิ์เข้าถึง URL ที่ระบุไว้ โดยเป็นข้อยกเว้นของ <ph name="URL_BLOCKLIST_POLICY_NAME" /> ดูรูปแบบของรายการในลิสต์นี้ได้จากคำอธิบายของนโยบายดังกล่าว ตัวอย่างเช่น การตั้งค่า <ph name="URL_BLOCKLIST_POLICY_NAME" /> เป็น * จะบล็อกคำขอทั้งหมด และคุณจะใช้นโยบายนี้เพื่ออนุญาตการเข้าถึงรายการ URL ที่จำกัดไว้ได้ ตลอดจนใช้ในการเปิดข้อยกเว้นให้แก่บางรูปแบบ โดเมนย่อยของโดเมนอื่นๆ พอร์ต หรือเส้นทางที่เฉพาะเจาะจง โดยใช้รูปแบบที่ระบุไว้ที่ ( https://support.google.com/chrome/a?p=url_blocklist_filter_format ) ตัวกรองที่เฉพาะเจาะจงมากที่สุดจะเป็นตัวกำหนดว่า URL หนึ่งๆ ถูกบล็อกหรือได้รับอนุญาต นโยบาย <ph name="URL_ALLOWLIST_POLICY_NAME" /> จะมีความสำคัญเหนือ <ph name="URL_BLOCKLIST_POLICY_NAME" /> นโยบายนี้ระบุรายการได้ไม่เกิน 1,000 รายการ
 
@@ -7028,6 +7060,7 @@ https://chromeenterprise.google/policies/url-patterns/ * ไม่ใช่ค�
 
       ดูข้อมูลโดยละเอียดเกี่ยวกับรูปแบบ URL ที่ถูกต้องได้ที่ https://chromeenterprise.google/policies/url-patterns/</translation>
 <translation id="554903022911579950">Kerberos</translation>
+<translation id="5549325536554939195">บังคับใช้โหมดที่จำกัดปานกลางเป็นอย่างน้อยใน <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="555022085242359084">เปิดใช้โหมดคอนทราสต์สูงในหน้าจอการเข้าสู่ระบบ</translation>
 <translation id="555077880566103058">อนุญาตให้ทุกเว็บไซต์เรียกใช้ปลั๊กอิน <ph name="FLASH_PLUGIN_NAME" /> โดยอัตโนมัติ</translation>
 <translation id="5555361544583789006">การตั้งค่านโยบายเป็น "จริง" หรือไม่ได้ตั้งค่าทำให้ <ph name="PRODUCT_NAME" /> แสดงข้อมูลสินค้าเป็นเนื้อหาแบบเต็มแท็บแก่ผู้ใช้
@@ -7491,6 +7524,15 @@ https://chromeenterprise.google/policies/url-patterns/ * ไม่ใช่ค�
       ในที่นี้ ค่า <ph name="CHROMEOS_VERSION_PROPERTY_NAME" /> อาจหมายถึงเวอร์ชันที่เจาะจง เช่น "13305.0.0" หรือตัวเลขนำหน้าเวอร์ชัน เช่น "13305"
       ค่า <ph name="WARNING_PERIOD_PROPERTY_NAME" /> และ <ph name="AUE_WARNING_PERIOD_PROPERTY_NAME" /> เป็นค่าที่ไม่บังคับและกำหนดให้ระบุเป็นจำนวนวัน ค่าเริ่มต้นคือ 0 วันซึ่งหมายความว่าไม่มีช่วงเวลาเตือน
       <ph name="UNMANAGED_USER_RESTRICTED_PROPERTY_NAME" /> เป็นพร็อพเพอร์ตี้ที่ไม่บังคับโดยมีค่าเริ่มต้นเป็น "เท็จ"</translation>
+<translation id="5876812185674131521">ป้องกันการลบคุกกี้ <ph name="YOUTUBE_PRODUCT_NAME" /> ด้วยตนเอง
+
+นโยบายนี้มีจุดประสงค์เพื่อป้องกันไม่ให้ผู้ใช้เข้าถึง <ph name="YOUTUBE_PRODUCT_NAME" /> ที่ไม่ได้รับอนุญาตหลังจากลบคุกกี้ <ph name="YOUTUBE_PRODUCT_NAME" /> ด้วยตนเองจากหน้าการตั้งค่าเว็บไซต์
+
+การตั้งค่านโยบายเป็น "เปิดใช้" จะป้องกันไม่ให้ลบคุกกี้ <ph name="YOUTUBE_PRODUCT_NAME" /> ด้วยตนเอง
+
+การตั้งค่านโยบายเป็น "ปิดใช้" หรือไม่ได้ตั้งค่าจะอนุญาตให้ลบคุกกี้ของ <ph name="YOUTUBE_PRODUCT_NAME" /> ได้ตามปกติ
+
+หมายเหตุ: นโยบายนี้ป้องกันการลบด้วยตนเองจาก UI การตั้งค่าเว็บไซต์เท่านั้น แต่จะไม่ป้องกันการลบอัตโนมัติโดยนโยบาย <ph name="CLEAR_BROWSING_DATA_ON_EXIT_LIST_POLICY_NAME" /> หรือ <ph name="BROWSING_DATA_LIFETIME_POLICY_NAME" /> นอกจากนี้ หากเปิดใช้นโยบาย <ph name="ALLOW_DELETING_BROWSER_HISTORY_POLICY_NAME" /> ผู้ใช้จะยังล้างคุกกี้ทั้งหมดได้ผ่านกล่องโต้ตอบล้างข้อมูลการท่องเว็บ</translation>
 <translation id="5879014913445067283">ควบคุมการค้นหาพื้นที่แชร์ไฟล์ของเครือข่ายผ่าน <ph name="NETBIOS_NAME" /></translation>
 <translation id="588135807064822874">เปิดใช้ฟีเจอร์แตะเพื่อค้นหา</translation>
 <translation id="5882345429632338713">หน่วงเวลาก่อนเปิดเบราว์เซอร์สำรอง (มิลลิวินาที)</translation>
@@ -7734,6 +7776,7 @@ https://chromeenterprise.google/policies/url-patterns/ * ไม่ใช่ค�
 <translation id="6035597431797865964">อนุญาตให้เซสชันผู้เยี่ยมชมที่มีการจัดการคงพร็อพเพอร์ตี้การแสดงผลไว้</translation>
 <translation id="6036459377708946958">วันที่ของเดือน [1-31] ที่ต้องการตรวจหาอัปเดต โดยตีความในเขตเวลาท้องถิ่นของอุปกรณ์ ใช้เมื่อ "frequency" เท่ากับ "MONTHLY" เท่านั้น หากต้องการระบุจำนวนที่มากกว่าจำนวนวันสูงสุดในเดือนหนึ่งๆ ให้เลือกวันสุดท้ายของเดือน</translation>
 <translation id="6036523166753287175">เปิดใช้งานไฟร์วอลล์ Traversal จากโฮสต์สำหรับการเข้าถึงระยะไกล</translation>
+<translation id="6037328895573728112">จำกัดการลบคุกกี้ <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="603768430528561926">การตั้งค่านโยบายเป็น "เปิดใช้" หรือไม่ได้ตั้งค่าจะทำให้ผู้ใช้อุปกรณ์ระดับองค์กรแลกรับข้อเสนอผ่านการลงทะเบียน <ph name="PRODUCT_OS_NAME" /> ได้
 
       การตั้งค่านโยบายเป็น "ปิดใช้" หมายความว่าผู้ใช้จะแลกข้อรับเสนอเหล่านี้ไม่ได้</translation>
@@ -8443,6 +8486,7 @@ Use Case ทั่วไปของนโยบายนี้คือกา�
 หากตั้งค่าเป็น "ปิดใช้" <ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /> จะใช้งานไม่ได้ในหน้าเว็บทุกหน้า
 
 ความสามารถของ GenAI ที่เป็นส่วนหนึ่งของฟีเจอร์นี้ไม่พร้อมใช้งานสำหรับบัญชี Education หรือ Enterprise</translation>
+<translation id="6466693757921765054">นโยบายนี้ไม่มีผลกับแอป <ph name="ANDROID_NAME" /> <ph name="YOUTUBE_PRODUCT_NAME" /> หากต้องการบังคับใช้โหมดปลอดภัยใน <ph name="YOUTUBE_PRODUCT_NAME" /> ควรไม่อนุญาตให้ติดตั้งแอป <ph name="ANDROID_NAME" /> <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="6467613372414922590">อนุญาตให้ใช้โฮสต์การรับส่งข้อความดั้งเดิมระดับผู้ใช้ (ติดตั้งโดยไม่มีสิทธิ์ของผู้ดูแลระบบ)</translation>
 <translation id="6467707081687600148">กำหนดเวลารีบูตอัตโนมัติหลังจากใช้การอัปเดต <ph name="PRODUCT_OS_NAME" /> แล้ว
 
@@ -8864,6 +8908,7 @@ Use Case ทั่วไปของนโยบายนี้คือกา�
 
 สำหรับ <ph name="PRODUCT_NAME" /> นโยบายนี้จะมีผลเมื่อลงทะเบียนเครื่องด้วย <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> เท่านั้น
 และสำหรับ <ph name="PRODUCT_OS_NAME" /> นโยบายนี้จะมีผลเสมอ</translation>
+<translation id="6714333117401088746">รหัสของโปรเจ็กต์ <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> ที่สอดคล้องกับอินสแตนซ์ <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> ที่จะเปิดใช้งาน</translation>
 <translation id="6720330829631914048">ชั่วโมงที่ผ่านไปตั้งแต่เริ่มวันใน (รูปแบบ 24 ชั่วโมง)</translation>
 <translation id="6720862827454058309">ลบล้างการแมปพื้นที่ที่อยู่ IP</translation>
 <translation id="6721252203593581486">WebSQL ในบริบทของบุคคลที่สาม (เช่น iframe ข้ามเว็บไซต์) จะปิดอยู่โดยค่าเริ่มต้นตั้งแต่ M97 และจะถูกนำออกโดยสมบูรณ์ใน M101
@@ -8941,6 +8986,7 @@ Use Case ทั่วไปของนโยบายนี้คือกา�
 
       การใช้ chrome://flags รวมถึงการปิดและเปิดฟีเจอร์ของเบราว์เซอร์ด้วยวิธีการอื่นใดจะยังคงมีลักษณะการทำงานตามที่คาดไว้ไม่ว่าจะมีการ "เปิดใช้" หรือ "ปิดใช้" นโยบายนี้</translation>
 <translation id="6794273802619210652">เปิดใช้ฟีเจอร์การช่วยเหลือพิเศษสำหรับการควบคุมด้วยใบหน้า</translation>
+<translation id="6795338611092628062">ไม่บังคับใช้ฟีเจอร์ค้นหาปลอดภัยใน Google Search หรือโหมดที่จำกัดของ <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="6795485990775913659">อนุญาตให้พิมพ์เท่านั้นเมื่อไม่มี PIN</translation>
 <translation id="6796215185873669533">ใช้การตั้งค่าเบราว์เซอร์เป็นค่าเริ่มต้นสำหรับเวอร์ชันสตริงของ User-Agent</translation>
 <translation id="6800181452282128474">ไม่ส่งคำค้นหาไปยังเซิร์ฟเวอร์ Quirks</translation>
@@ -9270,6 +9316,13 @@ https://chromeenterprise.google/policies/url-patterns/ * ไม่ใช่ค�
        ไม่ต้องตั้งค่านโยบายนี้หากได้เลือกโหมดอื่นสำหรับการตั้งค่านโยบายพร็อกซีแล้ว
 
        หมายเหตุ: ดูตัวอย่างโดยละเอียดได้ที่ The Chromium Projects ( https://www.chromium.org/developers/design-documents/network-settings#TOC-Command-line-options-for-proxy-sett )</translation>
+<translation id="7001463504545085491">การตั้งค่านโยบายจะบังคับใช้โหมดที่จำกัดขั้นต่ำใน <ph name="YOUTUBE_PRODUCT_NAME" /> และป้องกันไม่ให้ผู้ใช้เลือกโหมดที่จำกัดต่ำกว่านี้ หากตั้งค่านี้เป็น
+
+      * "เข้มงวด" ระบบจะใช้โหมดที่จำกัดเข้มงวดใน <ph name="YOUTUBE_PRODUCT_NAME" /> เสมอ
+
+      * "ปานกลาง" ผู้ใช้อาจเลือกได้เฉพาะโหมดที่จำกัดปานกลางและโหมดที่จำกัดเข้มงวดใน <ph name="YOUTUBE_PRODUCT_NAME" /> แต่จะปิดใช้โหมดที่จำกัดไม่ได้
+
+      * "ปิด" หรือไม่ได้ตั้งค่า Chrome จะไม่บังคับใช้โหมดที่จำกัดใน <ph name="YOUTUBE_PRODUCT_NAME" /> แต่นโยบายภายนอก เช่น นโยบายของ <ph name="YOUTUBE_PRODUCT_NAME" /> อาจยังคงบังคับใช้โหมดที่จำกัด</translation>
 <translation id="7001915679435065291">การตั้งค่านโยบายเป็น 1 จะให้ทุกเว็บไซต์แสดงรูปภาพได้ การตั้งค่านโยบายเป็น 2 จะปฏิเสธไม่ให้แสดงรูปภาพ
 
 การไม่ตั้งค่าจะอนุญาตให้แสดงรูปภาพ แต่ผู้ใช้เปลี่ยนการตั้งค่านี้ได้</translation>
@@ -9676,6 +9729,7 @@ https://chromeenterprise.google/policies/url-patterns
 <translation id="7179187054027029272">การตั้งค่านโยบายเป็น "จริง" หรือไม่ได้ตั้งค่าหมายความว่าผู้ใช้ แอป หรือส่วนขยายที่มีสิทธิ์ที่เหมาะสมจะเข้าสู่โหมดเต็มหน้าจอ (ซึ่งแสดงเฉพาะเนื้อหาเว็บ) ได้
 
       การตั้งค่านโยบายเป็น "เท็จ" หมายความว่าผู้ใช้ แอป หรือส่วนขยายจะเข้าสู่โหมดเต็มหน้าจอไม่ได้</translation>
+<translation id="7180529638251181928">ไม่บังคับใช้โหมดที่จำกัดใน <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="718126088895133062">นโยบายนี้ระบุ User ID การอนุญาตให้ใช้สิทธิของ <ph name="PLUGIN_VM_NAME" /> สำหรับอุปกรณ์นี้</translation>
 <translation id="7185078796915954712">TLS 1.3</translation>
 <translation id="7185630966939835143">ใช้บริการเว็บของ Google เพื่อช่วยแก้ไขข้อผิดพลาดของการสะกดคำ</translation>
@@ -10162,6 +10216,15 @@ URL ที่ตรงกับทั้งรายการที่อนุ�
 
 การไม่ตั้งค่านโยบายจะเชื่อมต่อ <ph name="PRODUCT_NAME" /> กับอุปกรณ์แคสต์เฉพาะในที่อยู่ RFC1918/RFC4193 เท่านั้น เว้นเสียแต่ว่ามีการเปิดใช้ฟีเจอร์ CastAllowAllIPs</translation>
 <translation id="7534199150025803530">นโยบายนี้ไม่มีผลต่อแอป Google ไดรฟ์ของ Android หากต้องการป้องกันการใช้ Google ไดรฟ์ผ่านการเชื่อมต่อเครือข่ายมือถือ คุณต้องยกเลิกการอนุญาตให้ติดตั้งแอป Google ไดรฟ์ของ Android</translation>
+<translation id="7537404002861344834">กำหนดการตั้งค่าการเชื่อมต่อสำหรับ <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> เพื่อปรับปรุงคำตอบสำหรับฟีเจอร์ Gemini ใน Chrome
+
+หากตั้งค่านโยบายนี้ไว้ ระบบจะใช้ <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> เพื่อปรับปรุงคำตอบของ Gemini ใน Chrome สำหรับผู้ใช้ที่ลงชื่อเข้าใช้ด้วยบัญชีที่มีการจัดการซึ่งเชื่อมโยงกับรหัสโปรเจ็กต์และรหัสแอปที่ระบุ <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> จะไม่พร้อมใช้งานสำหรับโปรไฟล์ที่ลงชื่อเข้าใช้ด้วยบัญชีส่วนบุคคล
+
+หากไม่ได้ตั้งค่านโยบาย ระบบจะไม่ใช้ <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> เพื่อปรับปรุงคำตอบของ Gemini ใน Chrome
+
+โปรดทราบว่านโยบายนี้ไม่ได้ควบคุมการผสานรวม <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> ทั่วไป ซึ่งควบคุมได้ด้วยนโยบาย <ph name="GEMINI_SETTINGS_POLICY_NAME" />
+
+การตั้งค่าทั้งหมดของนโยบายนี้ต้องตรงกับการกำหนดค่าของโปรเจ็กต์ <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> ในคอนโซล <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> การตั้งค่าที่ไม่ตรงกันจะทำให้เกิดการทำงานที่ไม่คาดคิดขณะใช้ <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /></translation>
 <translation id="7538583957913002726">นโยบายนี้จะตั้งค่าเป็น "เปิดใช้" โดยค่าเริ่มต้น ซึ่งควบคุมให้อุปกรณ์ที่ลงทะเบียนไว้รายงานชื่อรุ่น สถาปัตยกรรม และความเร็วนาฬิกาสูงสุดของ CPU (รวมถึงการใช้งานและอุณหภูมิของ CPU สำหรับรุ่น M96 ขึ้นไป)
 
       การตั้งค่านโยบายเป็น "ปิดใช้" จะทำให้อุปกรณ์ที่ลงทะเบียนไว้ไม่รายงานข้อมูล CPU
@@ -11206,6 +11269,7 @@ URL ที่ตรงกับทั้งรายการที่อนุ�
 <translation id="82530263956734297">รหัสส่วนขยายที่ได้รับการยกเว้นจากรายการที่บล็อก</translation>
 <translation id="8254749125469750814">ไม่ต้องตรวจสอบว่าติดตั้งส่วนขยายด้วยบริการระบบคลาวด์ได้หรือไม่</translation>
 <translation id="8256006033157034334">เราเลิกใช้งานและไม่รองรับนโยบายนี้แล้ว โปรดใช้ <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" /> แทน</translation>
+<translation id="8256324351037372224">ไม่บังคับใช้โหมดที่จำกัดของ <ph name="YOUTUBE_PRODUCT_NAME" /></translation>
 <translation id="8256688113167012935">ควบคุมชื่อบัญชี <ph name="PRODUCT_OS_NAME" /> ที่แสดงในหน้าลงชื่อเข้าใช้สำหรับบัญชีภายในอุปกรณ์ที่เกี่ยวข้องกัน
 
       หากตั้งค่านโยบายนี้ หน้าลงชื่อเข้าใช้จะใช้ข้อมูลที่ระบุในตัวเลือกการลงชื่อเข้าใช้แบบรูปภาพสำหรับบัญชีภายในอุปกรณ์ที่เกี่ยวข้อง

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/omnibox/omnibox_context_menu.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "base/functional/callback_forward.h"
@@ -22,16 +23,23 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/menus/simple_menu_model.h"
+#include "ui/views/controls/menu/menu_config.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/controls/menu/menu_model_adapter.h"
 #include "ui/views/controls/menu/menu_runner.h"
+#include "ui/views/controls/menu/menu_scroll_view_container.h"
 #include "ui/views/controls/menu/submenu_view.h"
+#include "ui/views/view_shadow.h"
 
 namespace {
 // New main menu width.
 constexpr int kMainMenuWidthWithSubmenuEnabled = 240;
 // Default menu width for all menus, unless specified.
 constexpr int kDefaultMenuWidth = 320;
+// Maximum height of tab sub menu before scroll is activated.
+constexpr int kMaxTabSubMenuHeight = 344;
+// The shadow variation to use for `ViewShadow`
+constexpr int kShadowOption = 3;
 }  // namespace
 
 OmniboxContextMenu::OmniboxContextMenu(views::Widget* parent_widget,
@@ -62,7 +70,9 @@ OmniboxContextMenu::OmniboxContextMenu(views::Widget* parent_widget,
             menu_model, i, menu_, menu_model->GetCommandIdAt(i));
     if (item) {
       // Add margins between menu items if they exist:
-      item->set_vertical_margin(6);
+      // With icon size 16px per command ID/row, this results
+      // in rows that are 34px tall.
+      item->set_vertical_margin(9);
     }
     // If the top-level item is a real submenu container, recursively append its
     // underlying child items (tabs) to ensure the menu tree is fully populated.
@@ -71,11 +81,13 @@ OmniboxContextMenu::OmniboxContextMenu(views::Widget* parent_widget,
       CHECK(submodel);
       for (size_t j = 0; j < submodel->GetItemCount(); ++j) {
         // Add margins between submenu items:
+        // With icon size 16px per command ID/row, this results
+        // in rows that are 34px tall.
         views::MenuItemView* subitem =
             views::MenuModelAdapter::AppendMenuItemFromModel(
                 submodel, j, item, submodel->GetCommandIdAt(j));
         if (subitem) {
-          subitem->set_vertical_margin(6);
+          subitem->set_vertical_margin(9);
         }
       }
     }
@@ -83,12 +95,51 @@ OmniboxContextMenu::OmniboxContextMenu(views::Widget* parent_widget,
 }
 
 int OmniboxContextMenu::GetMaxWidthForMenu(views::MenuItemView* menu) {
-  if (!base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox)) {
+  if (!base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) ||
+      !base::FeatureList::IsEnabled(omnibox::kContextManagementInOmnibox)) {
     return kDefaultMenuWidth;
   }
   // If is top level menu, return main menu's width;
   // otherwise it is the submenu, so return submenu's (default width).
-  return (menu == menu_) ? kMainMenuWidthWithSubmenuEnabled : kDefaultMenuWidth;
+  int width =
+      (menu == menu_) ? kMainMenuWidthWithSubmenuEnabled : kDefaultMenuWidth;
+  // The context menu has drop shadow and borders drawn. Ensure that
+  // those are not taken into account when calculating the minimum width.
+  if (menu->HasSubmenu() && menu->GetSubmenu()->GetScrollViewContainer()) {
+    width += menu->GetSubmenu()
+                 ->GetScrollViewContainer()
+                 ->outside_border_insets()
+                 .width();
+  }
+  return width;
+}
+void OmniboxContextMenu::WillShowMenu(views::MenuItemView* menu) {
+  // For both tabs and regular context menu:
+  if (menu == menu_ ||
+      menu->GetCommand() == IDC_OMNIBOX_CONTEXT_SHARED_TABS_SUBMENU) {
+    auto* scroll_container = menu->GetSubmenu()->GetScrollViewContainer();
+    if (scroll_container) {
+      if (menu->GetCommand() == IDC_OMNIBOX_CONTEXT_SHARED_TABS_SUBMENU) {
+        // Set up scroll capabilities for tabs submenu right before it is
+        // rendered. Scroll is set up to start when max height is exceeded.
+        gfx::Size pref_size = scroll_container->GetPreferredSize({});
+        pref_size.set_height(
+            std::min(pref_size.height(), kMaxTabSubMenuHeight));
+        scroll_container->SetPreferredSize(pref_size);
+      }
+
+      // Add elevation shadow based on variation option `kShadowOption`
+      // for both tabs submenu and context menu.
+      if (!view_shadows_.contains(scroll_container)) {
+        auto shadow = std::make_unique<views::ViewShadow>(scroll_container,
+                                                          kShadowOption);
+        int corner_radius = views::MenuConfig::instance().CornerRadiusForMenu(
+            menu->GetMenuController());
+        shadow->SetRoundedCornerRadius(corner_radius);
+        view_shadows_[scroll_container] = std::move(shadow);
+      }
+    }
+  }
 }
 
 OmniboxContextMenu::~OmniboxContextMenu() {
@@ -103,16 +154,18 @@ OmniboxContextMenu::~OmniboxContextMenu() {
 void OmniboxContextMenu::RunMenuAt(const gfx::Point& point,
                                    ui::mojom::MenuSourceType source_type) {
   if (menu_ && menu_->HasSubmenu()) {
-    if (base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox)) {
-      // Set menu smaller if there is a submenu. Submenu will have default
-      // width.
+    if (base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) &&
+        base::FeatureList::IsEnabled(omnibox::kContextManagementInOmnibox)) {
+      // Set main menu to the narrower width when a submenu is enabled.
       menu_->GetSubmenu()->set_minimum_preferred_width(
           kMainMenuWidthWithSubmenuEnabled);
-      views::MenuItemView* tab_submenu_item =
-          menu_->GetMenuItemByID(IDC_OMNIBOX_CONTEXT_SHARED_TABS_SUBMENU);
-      if (tab_submenu_item && tab_submenu_item->HasSubmenu()) {
-        tab_submenu_item->GetSubmenu()->set_minimum_preferred_width(
-            kDefaultMenuWidth);
+      // Apply preferred width to each submenu width; this is more robust
+      // than applying the width to the submenu itself or a command ID, which
+      // causes the width of submenu items to be incorrect.
+      for (views::MenuItemView* item : menu_->GetSubmenu()->GetMenuItems()) {
+        if (item->HasSubmenu()) {
+          item->GetSubmenu()->set_minimum_preferred_width(kDefaultMenuWidth);
+        }
       }
     } else {
       menu_->GetSubmenu()->set_minimum_preferred_width(kDefaultMenuWidth);
@@ -183,6 +236,7 @@ bool OmniboxContextMenu::IsCommandVisible(int command_id) const {
 }
 
 void OmniboxContextMenu::OnMenuClosed(views::MenuItemView* menu) {
+  view_shadows_.clear();
   if (on_menu_closed_) {
     on_menu_closed_.Run();
   }

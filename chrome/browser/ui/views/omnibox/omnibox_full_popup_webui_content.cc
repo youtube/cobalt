@@ -32,6 +32,17 @@ OmniboxFullPopupWebUIContent::OmniboxFullPopupWebUIContent(
 
 OmniboxFullPopupWebUIContent::~OmniboxFullPopupWebUIContent() = default;
 
+bool OmniboxFullPopupWebUIContent::EscClosesUI() const {
+  return false;
+}
+
+void OmniboxFullPopupWebUIContent::CloseUI() {
+  controller()->client()->FocusWebContents();
+  controller()->edit_model()->OnKillFocus();
+
+  OmniboxPopupWebUIBaseContent::CloseUI();
+}
+
 // TODO(b/504668887): If necessary, copy `OmniboxAimPopupWebUIContent::Clear()`
 // implementation here to deal with tab state restoration issue(s) when the user
 // creates a new tab while there's an in-progress text input in the popup.
@@ -44,42 +55,6 @@ std::string_view OmniboxFullPopupWebUIContent::GetMetricPrefix() const {
 // `OmniboxAimPopupWebUIContent::UpdateLocationBarFocusForScreenReader()`
 // implementation to here to deal with potential popup focus issue(s) when a
 // screenreader is being used.
-
-void OmniboxFullPopupWebUIContent::OnActiveTabChanged(
-    content::WebContents* new_contents) {
-  if (!new_contents ||
-      !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)) {
-    CloseUI();
-    return;
-  }
-
-  auto* handler = popup_handler();
-  if (new_contents) {
-    auto* state = static_cast<OmniboxState*>(
-        new_contents->GetUserData(OmniboxTabHelper::kOmniboxStateKey));
-    if (state) {
-      controller()->edit_model()->RestoreState(&state->model_state);
-      if (handler) {
-        handler->SetInputText(base::UTF16ToUTF8(state->model_state.user_text));
-      }
-      if (state->model_state.user_input_in_progress) {
-        controller()->popup_state_manager()->SetPopupState(
-            OmniboxPopupState::kFull);
-      } else {
-        controller()->popup_state_manager()->SetPopupState(
-            OmniboxPopupState::kNone);
-      }
-    } else {
-      if (handler) {
-        handler->SetInputText("");
-      }
-      controller()->edit_model()->Revert();
-      controller()->edit_model()->OnChanged();
-      controller()->popup_state_manager()->SetPopupState(
-          OmniboxPopupState::kNone);
-    }
-  }
-}
 
 // Override of WebUIContentsWrapper::Host::HandleContextMenu. This mirrors
 // content::WebContentsDelegate::HandleContextMenu, which is called by the

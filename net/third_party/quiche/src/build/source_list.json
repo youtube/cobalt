@@ -42,6 +42,7 @@
     "quiche/common/print_elements.h",
     "quiche/common/quiche_buffer_allocator.h",
     "quiche/common/quiche_callbacks.h",
+    "quiche/common/quiche_checked_math.h",
     "quiche/common/quiche_circular_deque.h",
     "quiche/common/quiche_cord_utils.h",
     "quiche/common/quiche_crypto_logging.h",
@@ -1138,6 +1139,7 @@
     "quiche/common/print_elements_test.cc",
     "quiche/common/quiche_buffer_allocator_test.cc",
     "quiche/common/quiche_callbacks_test.cc",
+    "quiche/common/quiche_checked_math_test.cc",
     "quiche/common/quiche_circular_deque_test.cc",
     "quiche/common/quiche_cord_utils_test.cc",
     "quiche/common/quiche_data_reader_test.cc",
@@ -1395,6 +1397,7 @@
     "quiche/quic/tools/connect_tunnel_test.cc",
     "quiche/quic/tools/connect_udp_tunnel_test.cc",
     "quiche/quic/tools/quic_memory_cache_backend_test.cc",
+    "quiche/quic/tools/quic_simple_client_session_test.cc",
     "quiche/quic/tools/quic_tcp_like_trace_converter_test.cc",
     "quiche/quic/tools/simple_ticket_crypter_test.cc",
     "quiche/web_transport/encapsulated/encapsulated_web_transport_test.cc",
@@ -1580,6 +1583,7 @@
   "moqt_hdrs": [
     "quiche/quic/moqt/moqt_bidi_stream.h",
     "quiche/quic/moqt/moqt_bitrate_adjuster.h",
+    "quiche/quic/moqt/moqt_control_message_queue.h",
     "quiche/quic/moqt/moqt_error.h",
     "quiche/quic/moqt/moqt_fetch_task.h",
     "quiche/quic/moqt/moqt_framer.h",
@@ -1618,6 +1622,7 @@
   "moqt_srcs": [
     "quiche/quic/moqt/moqt_bidi_stream.cc",
     "quiche/quic/moqt/moqt_bitrate_adjuster.cc",
+    "quiche/quic/moqt/moqt_control_message_queue.cc",
     "quiche/quic/moqt/moqt_error.cc",
     "quiche/quic/moqt/moqt_framer.cc",
     "quiche/quic/moqt/moqt_key_value_pair.cc",
@@ -1653,6 +1658,7 @@
   "moqt_test_srcs": [
     "quiche/quic/moqt/moqt_bidi_stream_test.cc",
     "quiche/quic/moqt/moqt_bitrate_adjuster_test.cc",
+    "quiche/quic/moqt/moqt_control_message_queue_test.cc",
     "quiche/quic/moqt/moqt_framer_test.cc",
     "quiche/quic/moqt/moqt_integration_test.cc",
     "quiche/quic/moqt/moqt_key_value_pair_test.cc",

@@ -550,7 +550,7 @@ class RenderFrameHostManagerTest
             entry->extra_headers(), frame_entry, entry, is_form_submission,
             nullptr /* navigation_ui_data */, std::nullopt /* impression */,
             false /* started_with_transient_activation */,
-            false /* started_by_ad */, false /* is_pdf */);
+            false /* started_by_ad */, EmbedderIsolationInfo::Mode::kNone);
 
     // Simulates request creation that triggers the 1st internal call to
     // GetFrameHostForNavigation.
@@ -588,6 +588,19 @@ class RenderFrameHostManagerTest
           cross_browsing_context_group_openers) {
     node->render_manager()->CollectOpenerFrameTrees(
         site_instance_group, opener_frame_trees, nodes_with_back_links);
+  }
+
+  // Exposes RenderFrameHostManager::CanUseSourceSiteInstance for testing.
+  bool CanUseSourceSiteInstance(
+      RenderFrameHostManager* render_manager,
+      const UrlInfo& dest_url_info,
+      SiteInstanceImpl* source_instance,
+      bool was_server_redirect,
+      NavigationRequest::ErrorPageProcess error_page_process,
+      std::string* reason) {
+    return render_manager->CanUseSourceSiteInstance(
+        dest_url_info, source_instance, was_server_redirect, error_page_process,
+        reason);
   }
 
  private:
@@ -3458,8 +3471,7 @@ TEST_P(RenderFrameHostManagerTest, NavigateFromDeadRendererToWebUI) {
           false /* was_opener_suppressed */, entry.extra_headers(), frame_entry,
           &entry, false /* is_form_submission */,
           nullptr /* navigation_ui_data */, std::nullopt /* impression */,
-          false /* is_pdf */
-      );
+          EmbedderIsolationInfo::Mode::kNone);
   frame_tree_node->TakeNavigationRequest(std::move(navigation_request));
 
   // The initial non-live RenderFrameHost should be reused for the WebUI
@@ -3847,6 +3859,89 @@ TEST_P(RenderFrameHostManagerTest,
   EXPECT_FALSE(main_test_rfh()->frame_tree_node()->navigation_request());
 }
 
+// Regression test for a crash where a stale RenderViewHost remained in the
+// FrameTree map after its root proxy was cleaned up, leading to a CHECK
+// failure in IsRenderFrameLive() during subsequent subframe creation.
+// The fix adds DisallowReuse() in CheckIfSiteInstanceGroupIsUnused before
+// proxy deletion.
+TEST_P(RenderFrameHostManagerTestWithSiteIsolation,
+       RVHUnregisteredWhenProxyDeletedOnZeroActiveFrames) {
+  const GURL kUrlA("http://a.com/");
+  const GURL kUrlB("http://b.com/");
+
+  constexpr auto kOwnerType = blink::FrameOwnerElementType::kIframe;
+
+  // Navigate main frame to site A.
+  contents()->NavigateAndCommit(kUrlA);
+
+  // Create a child iframe.
+  TestRenderFrameHost* main_rfh = contents()->GetPrimaryMainFrame();
+  main_rfh->OnCreateChildFrame(
+      main_rfh->GetProcess()->GetNextRoutingID(),
+      TestRenderFrameHost::CreateStubFrameRemote(),
+      TestRenderFrameHost::CreateStubBrowserInterfaceBrokerReceiver(),
+      TestRenderFrameHost::CreateStubPolicyContainerBindParams(),
+      TestRenderFrameHost::CreateStubAssociatedInterfaceProviderReceiver(),
+      blink::mojom::TreeScopeType::kDocument, "child_frame", "uniqueName1",
+      false, blink::LocalFrameToken(), base::UnguessableToken::Create(),
+      blink::DocumentToken(), blink::FramePolicy(),
+      blink::mojom::FrameOwnerProperties(), kOwnerType, ukm::kInvalidSourceId);
+
+  FrameTreeNode* child_node =
+      contents()->GetPrimaryFrameTree().root()->child_at(0);
+  ASSERT_TRUE(child_node);
+
+  // Navigate child iframe cross-site to B. This creates an RVH for B's
+  // SiteInstanceGroup and a root proxy for B in the main frame's
+  // BrowsingContextState.
+  NavigationSimulator::NavigateAndCommitFromDocument(
+      kUrlB, child_node->current_frame_host());
+
+  TestRenderFrameHost* child_rfh =
+      static_cast<TestRenderFrameHost*>(child_node->current_frame_host());
+  SiteInstanceGroup* group_b = child_rfh->GetSiteInstance()->group();
+
+  // Keep the SiteInstance and RVH alive via scoped_refptr so that the RVH
+  // is not destroyed by ref-counting alone — this isolates the test to
+  // verify that DisallowReuse() explicitly unregisters the RVH from the
+  // FrameTree map.
+  scoped_refptr<SiteInstanceImpl> site_instance_b =
+      child_rfh->GetSiteInstance();
+  scoped_refptr<RenderViewHostImpl> rvh_b =
+      contents()->GetPrimaryFrameTree().GetRenderViewHost(group_b);
+  ASSERT_TRUE(rvh_b);
+  EXPECT_TRUE(rvh_b->IsRenderViewLive());
+
+  // Verify root proxy for group B exists.
+  auto* root_bcs = contents()
+                       ->GetPrimaryFrameTree()
+                       .root()
+                       ->current_frame_host()
+                       ->browsing_context_state()
+                       .get();
+  ASSERT_TRUE(root_bcs->GetRenderFrameProxyHost(group_b));
+
+  // Navigate child back to A. This causes the child RFH in group B to be
+  // destroyed, which triggers DecrementActiveFrameCount for group B.
+  // When the active frame count reaches zero, ActiveFrameCountIsZero is
+  // called on BrowsingContextState, which calls
+  // CheckIfSiteInstanceGroupIsUnused → DeleteRenderFrameProxyHost.
+  // With the fix, DisallowReuse() is called before proxy deletion,
+  // unregistering the RVH from the FrameTree map.
+  NavigationSimulator::NavigateAndCommitFromDocument(
+      kUrlA, child_node->current_frame_host());
+
+  // The root proxy for group B should have been deleted.
+  EXPECT_FALSE(root_bcs->GetRenderFrameProxyHost(group_b));
+
+  // With the fix, the RVH should no longer be in the FrameTree map.
+  // Our scoped_refptr keeps the RVH object alive, but DisallowReuse()
+  // should have unregistered it. Without the fix, the RVH remains in
+  // the map in an inconsistent state (not live, no proxy), which can
+  // cause a CHECK failure when a subsequent navigation tries to reuse it.
+  EXPECT_FALSE(contents()->GetPrimaryFrameTree().GetRenderViewHost(group_b));
+}
+
 // Run tests with BackForwardCache.
 class RenderFrameHostManagerTestWithBackForwardCache
     : public RenderFrameHostManagerTest,
@@ -3946,6 +4041,97 @@ TEST_P(RenderFrameHostManagerTest,
   EXPECT_NE(foo_site_info, main_test_rfh()->GetSiteInstance()->GetSiteInfo());
 
   SetBrowserClientForTesting(regular_client);
+}
+
+// Verifies that `CanUseSourceSiteInstance()` rejects a non-MIME-handler
+// destination when the source `SiteInstance` carries a unique-instance
+// `EmbedderIsolationInfo`. A MIME handler instance must never share a
+// `SiteInstance` with non-handler content.
+TEST_P(RenderFrameHostManagerTest,
+       CanUseSourceSiteInstance_HandlerToNonHandler) {
+  // Navigate to a non-handler page so the manager has a current
+  // RenderFrameHost / FrameTreeNode wired up.
+  const GURL kSiteUrl("https://example.com/");
+  NavigationSimulator::NavigateAndCommitFromBrowser(contents(), kSiteUrl);
+
+  RenderFrameHostManager* render_manager =
+      contents()->GetPrimaryFrameTree().root()->render_manager();
+
+  // Build a source SiteInstance whose SiteInfo carries a valid isolation id.
+  const int64_t kIsolationId = 42;
+  scoped_refptr<SiteInstanceImpl> source_instance =
+      SiteInstanceImpl::CreateForUrlInfo(
+          browser_context(),
+          UrlInfo(UrlInfoInit(kSiteUrl).WithEmbedderIsolationInfo(
+              EmbedderIsolationInfo::CreateForUniqueInstance(kIsolationId))),
+          /*is_guest=*/false, /*is_fenced=*/false,
+          /*is_fixed_storage_partition=*/false);
+  // Sanity-check the setup so a silent miss can't masquerade as a
+  // pass.
+  ASSERT_TRUE(source_instance->GetSiteInfo()
+                  .embedder_isolation_info()
+                  .is_unique_instance());
+
+  // about:srcdoc satisfies the early IsAbout() gate at the top of
+  // `CanUseSourceSiteInstance()` so the mismatch check below runs.
+  // Destination carries no isolation id.
+  UrlInfo dest_url_info{UrlInfoInit(GURL(url::kAboutSrcdocURL))};
+
+  std::string reason;
+  EXPECT_FALSE(CanUseSourceSiteInstance(
+      render_manager, dest_url_info, source_instance.get(),
+      /*was_server_redirect=*/false,
+      NavigationRequest::ErrorPageProcess::kNotErrorPage, &reason));
+  EXPECT_NE(std::string::npos,
+            reason.find("(mime-handler-isolation-id-mismatched)"))
+      << "actual reason: " << reason;
+}
+
+// Verifies that `CanUseSourceSiteInstance()` rejects a destination whose
+// unique-instance id differs from the source instance's id, even when both
+// source and destination carry a unique-instance EmbedderIsolationInfo.
+// Two simultaneous handler instances must run in distinct processes.
+TEST_P(RenderFrameHostManagerTest,
+       CanUseSourceSiteInstance_DifferentIsolationIds) {
+  const GURL kSiteUrl("https://example.com/");
+  NavigationSimulator::NavigateAndCommitFromBrowser(contents(), kSiteUrl);
+
+  RenderFrameHostManager* render_manager =
+      contents()->GetPrimaryFrameTree().root()->render_manager();
+
+  // Source: valid isolation id = 42.
+  const int64_t kSourceIsolationId = 42;
+  scoped_refptr<SiteInstanceImpl> source_instance =
+      SiteInstanceImpl::CreateForUrlInfo(
+          browser_context(),
+          UrlInfo(UrlInfoInit(kSiteUrl).WithEmbedderIsolationInfo(
+              EmbedderIsolationInfo::CreateForUniqueInstance(
+                  kSourceIsolationId))),
+          /*is_guest=*/false, /*is_fenced=*/false,
+          /*is_fixed_storage_partition=*/false);
+  ASSERT_EQ(kSourceIsolationId, source_instance->GetSiteInfo()
+                                    .embedder_isolation_info()
+                                    .instance_id()
+                                    .value());
+
+  // about:srcdoc satisfies the early IsAbout() gate at the top of
+  // `CanUseSourceSiteInstance()` so the mismatch check below runs.
+  // Destination carries a valid isolation id, but different from the
+  // source.
+  const int64_t kDestIsolationId = 99;
+  UrlInfo dest_url_info(UrlInfoInit(GURL(url::kAboutSrcdocURL))
+                            .WithEmbedderIsolationInfo(
+                                EmbedderIsolationInfo::CreateForUniqueInstance(
+                                    kDestIsolationId)));
+
+  std::string reason;
+  EXPECT_FALSE(CanUseSourceSiteInstance(
+      render_manager, dest_url_info, source_instance.get(),
+      /*was_server_redirect=*/false,
+      NavigationRequest::ErrorPageProcess::kNotErrorPage, &reason));
+  EXPECT_NE(std::string::npos,
+            reason.find("(mime-handler-isolation-id-mismatched)"))
+      << "actual reason: " << reason;
 }
 
 class AdTaggingSimulator : public WebContentsObserver {

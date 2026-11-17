@@ -73,7 +73,6 @@
 #include "content/public/test/url_loader_interceptor.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
-#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/clipboard/clipboard.h"
@@ -176,7 +175,7 @@ class OmniboxViewViewsTest : public InProcessBrowserTest {
   void Click(ui_controls::MouseButton button,
              const gfx::Point& press_location,
              const gfx::Point& release_location) {
-    auto browser_window = browser()->window()->GetNativeWindow();
+    auto browser_window = browser()->GetWindow()->GetNativeWindow();
     ASSERT_TRUE(
         ui_test_utils::SendMouseMoveSync(press_location, browser_window));
     ASSERT_TRUE(ui_test_utils::SendMouseEventsSync(button, ui_controls::DOWN));
@@ -222,7 +221,7 @@ class OmniboxViewViewsTest : public InProcessBrowserTest {
   }
 
   gfx::NativeWindow GetRootWindow() const {
-    gfx::NativeWindow native_window = browser()->window()->GetNativeWindow();
+    gfx::NativeWindow native_window = browser()->GetWindow()->GetNativeWindow();
 #if defined(USE_AURA)
     native_window = native_window->GetRootWindow();
 #endif
@@ -1008,8 +1007,6 @@ class OmniboxViewViewsUIATest : public OmniboxViewViewsTest {
   }
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_{::features::kUiaProvider};
-
   std::unique_ptr<content::ScopedAccessibilityMode> scoped_accessibility_mode_;
 };
 
@@ -1036,8 +1033,11 @@ IN_PROC_BROWSER_TEST_F(OmniboxViewViewsUIATest, AccessibleOmnibox) {
                    ->GetOmniboxController()
                    ->IsPopupOpen());
 
-  HWND window_handle =
-      browser()->window()->GetNativeWindow()->GetHost()->GetAcceleratedWidget();
+  HWND window_handle = browser()
+                           ->GetWindow()
+                           ->GetNativeWindow()
+                           ->GetHost()
+                           ->GetAcceleratedWidget();
   UiaAccessibilityWaiterInfo info = {window_handle, L"textbox",
                                      L"Address and search bar",
                                      ax::mojom::Event::kControlsChanged};
@@ -1208,7 +1208,6 @@ class OmniboxViewViewsIMETest : public OmniboxViewViewsTest {
   OmniboxMockInputMethod* GetInputMethod() const { return input_method_; }
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_{::features::kUiaProvider};
   raw_ptr<OmniboxMockInputMethod, AcrossTasksDanglingUntriaged> input_method_ =
       nullptr;
 };
@@ -1943,7 +1942,7 @@ class OmniboxViewViewsDumpAccessibilityEventsTest
   }
 
   gfx::NativeWindow GetTargetNativeWindow() const override {
-    return browser()->window()->GetNativeWindow();
+    return browser()->GetWindow()->GetNativeWindow();
   }
 
   views::View* GetTargetRootView() const override {

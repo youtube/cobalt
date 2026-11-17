@@ -306,6 +306,7 @@
 <translation id="1458140305240870199">Нижнее белье</translation>
 <translation id="1458770162980644530">Экран с условиями покупки в рассрочку. Клавиатура скрыта.</translation>
 <translation id="1459693405370120464">Погода</translation>
+<translation id="1460317464907341501">Подтверждать этот адрес электронной почты автоматически?</translation>
 <translation id="1461041542809785877">Производительность</translation>
 <translation id="1462245070427461050">JIS B9</translation>
 <translation id="1462951478840426066">Использование шрифтов на компьютере для создания высококачественного контента.</translation>
@@ -849,7 +850,6 @@
 <translation id="2316087952091171402">Менее <ph name="UPPER_ESTIMATE" />. Возможно, некоторые сайты будут загружаться медленнее, когда вы откроете их в следующий раз.</translation>
 <translation id="2316090909467242775">Попробуйте этот пароль для восстановления</translation>
 <translation id="2316159751672436664">Персонализировать инструменты специальных возможностей в настройках Chrome OS</translation>
-<translation id="2316887270356262533">Освободится менее 1 МБ пространства. При следующем вашем посещении некоторые сайты могут загружаться медленнее.</translation>
 <translation id="2317259163369394535">Для доступа к домену <ph name="DOMAIN" /> необходимо указать имя пользователя и пароль.</translation>
 <translation id="2318594867107319532">Последняя временная метка правила:</translation>
 <translation id="2320564945062300737">Товары для ухода за лицом</translation>
@@ -1387,6 +1387,7 @@
 <translation id="3158539265159265653">Диск</translation>
 <translation id="3162070126914310576">Сейчас это устройство нельзя зарегистрировать, так как ваше организационное подразделение достигло начального лимита на регистрацию. Обратитесь за помощью к администратору.</translation>
 <translation id="3162559335345991374">Возможно, вам нужно перейти на страницу входа сети Wi-Fi.</translation>
+<translation id="316542773973815724">Навигация</translation>
 <translation id="316638481603975524">Может запрашивать разрешение на установку веб-приложений</translation>
 <translation id="3166788340998560642">Chrome предложит сохранить их в сервисе "<ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" />", когда вы в следующий раз укажете эти сведения.</translation>
 <translation id="3168744840365648658">Радиотехника</translation>
@@ -2004,6 +2005,7 @@
 <translation id="412601465078863288">Превышено время ожидания</translation>
 <translation id="4127317221386336246">Аксессуары</translation>
 <translation id="4129401438321186435">{COUNT,plural, =1{ещё 1 вариант}one{ещё # вариант}few{ещё # варианта}many{ещё # вариантов}other{ещё # варианта}}</translation>
+<translation id="4129810348470013900">Произошла ошибка. Проверьте подключение к интернету и повторите попытку.</translation>
 <translation id="4129992181550680635">Образовательные ресурсы</translation>
 <translation id="4130226655945681476">Проверьте сетевые кабели, модем и маршрутизатор.</translation>
 <translation id="4132448310531350254">Для расширения <ph name="FILE_EXTENSION" /> обнаружено несколько обработчиков по умолчанию: <ph name="POLICY_IDS_LIST" />.</translation>
@@ -3021,6 +3023,7 @@
 <translation id="5728246486828755318">Может запрашивать разрешение на использование дополнительных возможностей принтера</translation>
 <translation id="5729442113829771034">Дошкольное образование</translation>
 <translation id="5730040223043577876">Chrome рекомендует сбросить пароль, если вы использовали его на других сайтах.</translation>
+<translation id="5735174108294025227">Здесь появятся подтвержденные адреса электронной почты.</translation>
 <translation id="573555826359077410">Кнопка "Создать форму". Нажмите ее, чтобы быстро создать форму Google.</translation>
 <translation id="5738385766833540397">Выберите, куда будут приходить оповещения о скидках на отслеживаемые товары.</translation>
 <translation id="5739619009927381786">На следующем шаге разблокируйте экран, например с помощью отпечатка пальца. Также можно <ph name="BEGIN_LINK" />подтвердить платеж другим способом<ph name="END_LINK" />.</translation>
@@ -3399,7 +3402,6 @@
 <translation id="633348045801643466">Показывать <ph name="PAY_LATER_OPTIONS_HELP_LINK_BEGIN" />варианты рассрочки<ph name="PAY_LATER_OPTIONS_HELP_LINK_END" /> при оформлении покупки</translation>
 <translation id="6335029926534404762">Спортивная обувь</translation>
 <translation id="6336948221660696475">Запрос на использование VR отклонен</translation>
-<translation id="6337133576188860026">Освободится менее <ph name="SIZE" /> пространства. При следующем вашем посещении некоторые сайты могут загружаться медленнее.</translation>
 <translation id="6337534724793800597">Фильтровать по названию</translation>
 <translation id="633770708279464947">Значение строки <ph name="SECURE_DNS_SALT" /> недопустимо и не будет использовано.</translation>
 <translation id="6338645927051849741">Пароль • Google Менеджер паролей</translation>
@@ -3757,7 +3759,6 @@
 <translation id="6893057134494550310">Пленка для ламинирования</translation>
 <translation id="6893204630281237373">Чтобы отключить платежное приложение в Chrome, откройте <ph name="BEGIN_LINK1" />платежные настройки<ph name="END_LINK1" />.</translation>
 <translation id="6895330447102777224">Ваша карта подтверждена</translation>
-<translation id="6895573608763679343"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />, <ph name="MATCH_POSITION" /> из <ph name="NUM_MATCHES_IN_GROUP" /> в группе "<ph name="GROUP_HEADER" />".</translation>
 <translation id="6896758677409633944">Скопировать</translation>
 <translation id="6897140037006041989">User Agent</translation>
 <translation id="6898699227549475383">Организация (O)</translation>
@@ -3950,7 +3951,6 @@
 <translation id="718872491229180389">Чирлидинг</translation>
 <translation id="7188840756966467339">Перезапустить браузер и применить правила</translation>
 <translation id="7192188280913829296">Необходимо заполнить поле "vendor_id".</translation>
-<translation id="7192203810768312527">Освободится <ph name="SIZE" /> пространства. При следующем вашем посещении некоторые сайты могут загружаться медленнее.</translation>
 <translation id="7192537357091279678">Компьютерные устройства хранения данных</translation>
 <translation id="7193661028827781021">Справочные ресурсы</translation>
 <translation id="719464814642662924">Visa</translation>
@@ -4070,7 +4070,6 @@
 <translation id="7388380253839603603">Цены на топливо и заправка транспортных средств</translation>
 <translation id="7388594495505979117">{0,plural, =1{Устройство перезапустится через 1 минуту}one{Устройство перезапустится через # минуту}few{Устройство перезапустится через # минуты}many{Устройство перезапустится через # минут}other{Устройство перезапустится через # минуты}}</translation>
 <translation id="7393161616326137353">Приключенческие игры</translation>
-<translation id="7393243238767102021">Разрешить <ph name="DOMAIN" /> автоматически подтверждать этот адрес электронной почты?</translation>
 <translation id="7393475648162498734">При оформлении покупок показывать, какие бонусы и преимущества дают карты</translation>
 <translation id="7393971683644170444">Устанавливается соединение с эмитентом карты…</translation>
 <translation id="739728382607845710">Значок обработчика платежа</translation>
@@ -4123,7 +4122,6 @@
 <translation id="7450577240311017924">Кнопка "Настройки синхронизации". Нажмите ее, чтобы задать параметры синхронизации в настройках Chrome.</translation>
 <translation id="7451311239929941790"><ph name="BEGIN_LINK" />Узнайте больше<ph name="END_LINK" /> об этой проблеме.</translation>
 <translation id="745208957946308667">Игра Chrome Dino. Чтобы начать, нажмите Пробел.</translation>
-<translation id="74521886886364465"><ph name="SUGGESTION_TITLE" />, <ph name="MATCH_POSITION" /> из <ph name="NUM_MATCHES_IN_GROUP" /> в группе "<ph name="GROUP_HEADER" />".</translation>
 <translation id="7453032093368223821">Изменить другие данные</translation>
 <translation id="7453849010505253492">Мы не смогли убедиться в подлинности сервера <ph name="DOMAIN" />, так как браузер Chrome или система шифрования веб-трафика считает предоставленный им сертификат безопасности ненадежным. Возможно, сервер настроен неправильно или кто-то пытается перехватить ваши данные. <ph name="BEGIN_VIEW_CERTIFICATE_LINK" />Показать сертификат<ph name="END_VIEW_CERTIFICATE_LINK" /></translation>
 <translation id="7454377933424667109">Аккаунт Google Cloud</translation>
@@ -4585,7 +4583,7 @@
 <translation id="8163866351304776260">Четыре отверстия слева</translation>
 <translation id="8164078261547504572">Хотите получать электронные письма о снижении цен?</translation>
 <translation id="8169175551046720804">Ключи <ph name="DATA_CONTROLS_KEYS" /> невозможно добавить в тот же словарь.</translation>
-<translation id="8174047975335711832">Сведения об устройстве</translation>
+<translation id="8174047975335711832">Информация об устройстве</translation>
 <translation id="8175053171643471349">Настроить карты постоянного клиента</translation>
 <translation id="8175796834047840627">Chrome предлагает вам сохранить карты в аккаунте Google, поскольку вы вошли в систему. Этот параметр можно изменить в разделе настроек.</translation>
 <translation id="8176440868214972690">Администратор устройства отправил на следующие веб-сайты некоторые данные, такие как настройки и правила.</translation>

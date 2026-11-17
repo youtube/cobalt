@@ -132,15 +132,12 @@ class DtlsSrtpTransportIntegrationTest : public ::testing::Test {
     client_ice_transport_->SetDestination(server_ice_transport_.get());
 
     // Wait for the DTLS connection to be up.
-    EXPECT_THAT(WaitUntil(
-                    [&] {
-                      return client_dtls_transport_->writable() &&
-                             server_dtls_transport_->writable();
-                    },
-                    IsTrue(),
-                    {.timeout = TimeDelta::Millis(kTimeout),
-                     .clock = &time_controller_}),
-                IsRtcOk());
+    EXPECT_TRUE(WaitUntil(
+        [&] {
+          return client_dtls_transport_->writable() &&
+                 server_dtls_transport_->writable();
+        },
+        {.timeout = TimeDelta::Millis(kTimeout), .clock = &time_controller_}));
     EXPECT_EQ(client_dtls_transport_->dtls_state(),
               DtlsTransportState::kConnected);
     EXPECT_EQ(server_dtls_transport_->dtls_state(),

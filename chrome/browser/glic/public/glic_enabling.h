@@ -14,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/types/expected.h"
+#include "base/types/pass_key.h"
 #include "base/values.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_user_status_fetcher.h"
@@ -126,6 +127,8 @@ enum class RequiredExperimentalOptIn {
 // Finally, an eligible profile may be Glic-Enabled. In this state, Glic UI is
 // visible and usable by the user. This state can change at runtime so Glic
 // entry points should depend on this state.
+class GlicKeyedService;
+
 class GlicEnabling final : public signin::IdentityManager::Observer,
                            public subscription_eligibility::
                                SubscriptionEligibilityService::Observer {
@@ -271,6 +274,10 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
     // Whether share image functionality is allowed for this account type.
     bool share_image_allowed : 1 = true;
 
+    // Settings for Gemini Enterprise.
+    std::optional<glic::mojom::GeminiEnterpriseSettings>
+        gemini_enterprise_settings;
+
     // LINT.IfChange(FeatureDisabledReason)
     enum class FeatureDisabledReason {
       kFeatureFlagDisabled = 0,
@@ -294,12 +301,10 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
     };
 
     // Record the state of this struct to UMA.
-    void RecordStartupMetrics() const { RecordMetrics("Startup"); }
-    void RecordSteadyStateMetrics() const { RecordMetrics("SteadyState"); }
+    void RecordStartupMetrics() const;
+    void RecordSteadyStateMetrics() const;
 
-    bool IsProfileEligible() const {
-      return feature_enabled && is_regular_profile;
-    }
+    bool IsProfileEligible() const;
 
     // Returns true if Glic is fully enabled and allowed to run on this profile.
     // Unlike `GlicEnabling::IsProfileEligible()`, this is a dynamic check that
@@ -307,37 +312,11 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
     // the user is signed in, active user account capabilities (e.g.,
     // GAIA/Gemini capabilities), rollout groups, enterprise policies, and
     // location filters.
-    bool IsEnabled() const {
-      bool base_checks = IsProfileEligible() && is_rolled_out &&
-                         primary_account_is_capable && !DisallowedByAdmin() &&
-                         allowed_by_remote_other;
+    bool IsEnabled() const;
 
-      if (!base_checks) {
-        return false;
-      }
+    bool IsEnabledAndConsented() const;
 
-      return allowed_by_country_filter && allowed_by_locale_filter;
-    }
-
-    bool IsEnabledAndConsented() const {
-      return IsEnabled() && fre_is_consented;
-    }
-
-    bool ShouldShowSettingsPage() const {
-      const bool show_ai_settings_for_testing = base::FeatureList::IsEnabled(
-          optimization_guide::features::kAiSettingsPageForceAvailable);
-
-      // If the feature is disabled by enterprise policy, the settings page
-      // should be shown (it will be shown in a policy-disabled state) only if
-      // all other non-enterprise conditions are met: the account has all
-      // appropriate permissions and has previously completed the FRE before the
-      // policy went into effect. The settings page should also be shown if the
-      // settings testing flag is enabled.
-      return show_ai_settings_for_testing ||
-             (IsProfileEligible() && is_rolled_out &&
-              primary_account_is_capable && allowed_by_remote_other &&
-              fre_is_consented);
-    }
+    bool ShouldShowSettingsPage() const;
 
     // Returns true if the Glic button/entrypoint should be dynamically visible
     // in the UI at the current moment.
@@ -354,28 +333,15 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
     //
     // Always returns false if the Glic feature is disabled by feature flag,
     // enterprise admin policy, or if the user is not in the rollout group.
-    bool ShouldShowGlicButton() const {
-      if (!feature_flag_enabled) {
-        return false;
-      }
-      if (IsEnabled()) {
-        return true;
-      }
-      if (anchor_entrypoint_override_active) {
-        return !DisallowedByAdmin() && is_rolled_out;
-      }
-      return false;
-    }
+    bool ShouldShowGlicButton() const;
 
-    bool EligibleForLive() const { return IsProfileEligible() && live_allowed; }
+    bool EligibleForLive() const;
 
-    bool EligibleForShareImage() const {
-      return IsProfileEligible() && share_image_allowed;
-    }
+    bool EligibleForShareImage() const;
 
-    bool DisallowedByAdmin() const {
-      return !allowed_by_chrome_policy || !allowed_by_remote_admin;
-    }
+    bool EligibleForGeminiEnterpriseSettings() const;
+
+    bool DisallowedByAdmin() const;
 
    private:
     // `suffix` should be either "Startup" or "SteadyState".
@@ -384,8 +350,13 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
   };
   static ProfileEnablement EnablementForProfile(Profile* profile);
 
-  explicit GlicEnabling(Profile* profile,
-                        ProfileAttributesStorage* profile_attributes_storage);
+  static std::unique_ptr<GlicEnabling> CreateForTesting(
+      Profile* profile,
+      ProfileAttributesStorage* profile_attributes_storage);
+
+  GlicEnabling(base::PassKey<GlicKeyedService, GlicEnabling> pass_key,
+               Profile* profile,
+               ProfileAttributesStorage* profile_attributes_storage);
   ~GlicEnabling() override;
 
   // Returns true if the given profile is allowed to use Glic. This is the
@@ -423,6 +394,9 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
   // Sets the FRE status.
   void SetCompletedFre(prefs::FreStatus status);
 
+  // Whether the Web Actuation Toggle (Auto Browse) should be shown in Settings.
+  bool ShouldShowWebActuationToggle() const;
+
   // Returns whether user enabled actuation on web.
   bool GetUserEnabledActuationOnWeb() const;
   // Returns true if the user enabled actuation on web pref is at its default
@@ -448,6 +422,10 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
   // Returns the state of experimental triggering.
   syncer::DeviceInfo::GlicExperimentalTriggeringState
   GetExperimentalTriggeringState() const;
+
+  // Returns the version of the Glic experimental triggering protocol
+  // supported by the current client, or std::nullopt if unavailable.
+  std::optional<int> GetExperimentalTriggeringVersion() const;
 
   // Returns the required opt-in state for experimental triggering.
   RequiredExperimentalOptIn GetRequiredExperimentalOptIn() const;

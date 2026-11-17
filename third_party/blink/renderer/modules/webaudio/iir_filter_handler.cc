@@ -52,11 +52,12 @@ void IIRFilterHandler::GetFrequencyResponse(
   DCHECK(!mag_response.empty());
   DCHECK(!phase_response.empty());
 
-  Vector<float> frequency(frequency_hz.size());
+  const wtf_size_t size = base::checked_cast<wtf_size_t>(frequency_hz.size());
+  Vector<float> frequency(size);
 
   // Convert from frequency in Hz to normalized frequency (0 -> 1),
   // with 1 equal to the Nyquist frequency.
-  for (size_t k = 0; k < frequency_hz.size(); ++k) {
+  for (wtf_size_t k = 0; k < size; ++k) {
     frequency[k] = frequency_hz[k] / nyquist_frequency_;
   }
 
@@ -249,7 +250,7 @@ bool IIRFilterHandler::HasNonFiniteOutput() const {
 
   for (wtf_size_t k = 0; k < output_bus->NumberOfChannels(); ++k) {
     AudioChannel* channel = output_bus->Channel(k);
-    if (channel->length() > 0 && !std::isfinite(channel->Data()[0])) {
+    if (channel->length() > 0 && !std::isfinite(channel->Span()[0])) {
       return true;
     }
   }

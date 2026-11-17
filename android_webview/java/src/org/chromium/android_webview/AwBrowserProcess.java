@@ -214,11 +214,8 @@ public final class AwBrowserProcess {
      * <p>Note: it is up to the caller to ensure this is only called once.
      *
      * @param callback This is triggered when the async startup completes.
-     * @param shouldScheduleFlushStartupTasks Whether to post a task to flush the startup tasks
-     *     instead of letting them complete asynchronously
      */
-    public static void triggerAsyncBrowserProcess(
-            StartupCallback callback, boolean shouldScheduleFlushStartupTasks) {
+    public static void triggerAsyncBrowserProcess(StartupCallback callback) {
         ThreadUtils.assertOnUiThread();
         try (DualTraceEvent e2 =
                 DualTraceEvent.scoped("AwBrowserProcess.startBrowserProcessAsync")) {
@@ -228,7 +225,7 @@ public final class AwBrowserProcess {
                             /* startGpuProcess= */ false,
                             /* startMinimalBrowser= */ false,
                             /* singleProcess= */ !isMultiProcess(),
-                            /* scheduleFlushStartupTasks= */ shouldScheduleFlushStartupTasks,
+                            /* scheduleFlushStartupTasks= */ false,
                             callback);
         }
     }
@@ -725,8 +722,8 @@ public final class AwBrowserProcess {
             if (metricServiceEnabledOnlySdkRuntime) {
                 AwMetricsLogUploader uploader = new AwMetricsLogUploader();
                 // Open a connection during startup while connecting to other services such as
-                // ComponentsProviderService and VariationSeedServer to try to avoid spinning the
-                // nonembedded ":webview_service" twice.
+                // VariationSeedServer to try to avoid spinning the nonembedded ":webview_service"
+                // twice.
                 uploader.initialize();
                 AndroidMetricsLogConsumer consumer =
                         useCppFiltering ? uploader : new MetricsFilteringDecorator(uploader);

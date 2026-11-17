@@ -43,6 +43,8 @@ This document collects links to useful references. It is currently incomplete, b
    * PKCS#1 v1.5 with SHA-2 in X.509
    * RSA-PSS in X.509
 * [Algorithm Identifiers for Ed25519 and X25519 (RFC 8410)](https://www.rfc-editor.org/rfc/rfc8410.html)
+* [Algorithm Identifiers for ML-DSA (RFC 9881)](https://www.rfc-editor.org/rfc/rfc9881.html)
+* [Algorithm Identifiers for ML-KEM (RFC 9935)](https://www.rfc-editor.org/rfc/rfc9935.html)
 
 ## TLS
 

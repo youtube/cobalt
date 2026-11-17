@@ -635,6 +635,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/consent_auditor",
     "//chrome/browser/content_index",
     "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/context_hub",
     "//chrome/browser/contextual_cueing",
     "//chrome/browser/contextual_search",
     "//chrome/browser/contextual_tasks",
@@ -699,6 +700,8 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/privacy",
     "//chrome/browser/privacy_sandbox:headers",
     "//chrome/browser/privacy_sandbox/notice:factory",
+    "//chrome/browser/private_ai",
+    "//chrome/browser/private_insights",
     "//chrome/browser/push_messaging",
     "//chrome/browser/reading_list",
     "//chrome/browser/reduce_accept_language",
@@ -716,6 +719,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/sessions",
     "//chrome/browser/sharing",
     "//chrome/browser/signin",
+    "//chrome/browser/site_cookie_provider",
     "//chrome/browser/speech",
     "//chrome/browser/ssl",
     "//chrome/browser/storage",
@@ -762,6 +766,7 @@ source_set("profiles_extra_parts_impl") {
     "//components/policy/content:safe_sites_navigation_throttle",
     "//components/safe_browsing/core/common:features",
     "//components/signin/public/base",
+    "//components/site_cookie_provider",
     "//components/site_engagement/content",
     "//components/spellcheck:buildflags",
     "//components/sync/base:features",
@@ -804,7 +809,6 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/media/router/discovery/access_code:access_code_sink_service",
       "//chrome/browser/metrics/critical_user_journeys",
       "//chrome/browser/new_tab_page",
-      "//chrome/browser/private_ai",
       "//chrome/browser/profile_resetter",
       "//chrome/browser/record_replay",
       "//chrome/browser/record_replay:impl",
@@ -818,6 +822,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/ui/global_media_controls",
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/media_router",
+      "//chrome/browser/ui/omnibox",
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/read_anything",
       "//chrome/browser/ui/tabs/saved_tab_groups",
@@ -868,7 +873,10 @@ source_set("profiles_extra_parts_impl") {
   }
 
   if (is_win || is_mac || is_linux || is_chromeos) {
-    deps += [ "//chrome/browser/multistep_filter" ]
+    deps += [
+      "//chrome/browser/enterprise/network_header_injection",
+      "//chrome/browser/multistep_filter",
+    ]
   }
 
   if (is_win || is_mac || is_linux) {

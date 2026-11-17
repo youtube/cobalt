@@ -11,6 +11,7 @@
 #include "pc/rtp_parameters_conversion.h"
 
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -18,7 +19,6 @@
 #include "api/rtp_parameters.h"
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
-#include "pc/session_description.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {
@@ -102,9 +102,9 @@ RtpCodecCapability ToRtpCodecCapability(const Codec& cricket_codec) {
   return codec;
 }
 
-RtpCapabilities ToRtpCapabilities(
-    const std::vector<Codec>& cricket_codecs,
-    const RtpHeaderExtensions& cricket_extensions) {
+namespace {
+RtpCapabilities ToRtpCapabilitiesWithoutExtensions(
+    const std::vector<Codec>& cricket_codecs) {
   RtpCapabilities capabilities;
   bool have_red = false;
   bool have_ulpfec = false;
@@ -138,10 +138,6 @@ RtpCapabilities ToRtpCapabilities(
     }
     capabilities.codecs.push_back(codec_capability);
   }
-  for (const RtpExtension& cricket_extension : cricket_extensions) {
-    capabilities.header_extensions.emplace_back(cricket_extension.uri,
-                                                cricket_extension.id);
-  }
   if (have_red) {
     capabilities.fec.push_back(FecMechanism::RED);
   }
@@ -151,6 +147,16 @@ RtpCapabilities ToRtpCapabilities(
   if (have_flexfec) {
     capabilities.fec.push_back(FecMechanism::FLEXFEC);
   }
+  return capabilities;
+}
+}  // namespace
+
+RtpCapabilities ToRtpCapabilities(
+    const std::vector<Codec>& cricket_codecs,
+    std::span<const RtpHeaderExtensionCapability> extensions) {
+  RtpCapabilities capabilities =
+      ToRtpCapabilitiesWithoutExtensions(cricket_codecs);
+  capabilities.header_extensions.assign(extensions.begin(), extensions.end());
   return capabilities;
 }
 

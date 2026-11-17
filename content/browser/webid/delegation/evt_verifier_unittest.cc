@@ -7,20 +7,18 @@
 #include "base/base64url.h"
 #include "base/json/json_reader.h"
 #include "base/test/task_environment.h"
-#include "base/test/test_future.h"
 #include "content/browser/webid/delegation/jwt_signer.h"
 #include "content/browser/webid/delegation/sd_jwt.h"
 #include "crypto/keypair.h"
 #include "crypto/sha2.h"
-#include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace content::webid {
 
 class EvtVerifierTest : public testing::Test {
  protected:
   base::test::TaskEnvironment task_environment_;
-  data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
 };
 
 TEST_F(EvtVerifierTest, SuccessfulVerification) {
@@ -113,12 +111,110 @@ TEST_F(EvtVerifierTest, SuccessfulVerification) {
   std::string full_token = evt_string + kb_jwt.Serialize().value();
 
   // 7. Verify
-  base::test::TestFuture<EvtVerifier::Result> future;
-  EvtVerifier::Verify(full_token, url::Origin::Create(GURL(kIssuerUrl)),
-                      std::move(jwks), url::Origin::Create(GURL(kRpOrigin)),
-                      kEmail, kNonce, browser_jwk, future.GetCallback());
+  EvtVerifier::Result result = EvtVerifier::Verify(
+      full_token, url::Origin::Create(GURL(kIssuerUrl)), jwks,
+      url::Origin::Create(GURL(kRpOrigin)), kEmail, kNonce, browser_jwk);
 
-  EXPECT_EQ(future.Get(), EvtVerifier::Result::kVerified);
+  EXPECT_EQ(result, EvtVerifier::Result::kVerified);
+}
+
+TEST_F(EvtVerifierTest, CaseInsensitiveEmailMatch) {
+  const std::string kEmail = "test@example.com";
+  const std::string kEmailMixedCase = "TeSt@ExAmPlE.CoM";
+  const std::string kNonce = "test_nonce";
+  const std::string kRpOrigin = "https://rp.example.com";
+  const std::string kIssuerUrl = "https://issuer.example.com";
+
+  // 1. Generate Keys
+  auto issuer_key = crypto::keypair::PrivateKey::GenerateEd25519();
+  auto issuer_pub_bytes = crypto::keypair::PublicKey::FromPrivateKey(issuer_key)
+                              .ToEd25519PublicKey();
+
+  auto browser_key = crypto::keypair::PrivateKey::GenerateEd25519();
+  auto browser_pub_bytes =
+      crypto::keypair::PublicKey::FromPrivateKey(browser_key)
+          .ToEd25519PublicKey();
+
+  // 2. Construct JWKS for Issuer
+  base::DictValue jwks;
+  base::ListValue keys;
+  base::DictValue key_dict;
+  key_dict.Set("kty", "OKP");
+  key_dict.Set("crv", "Ed25519");
+  key_dict.Set("kid", "test_kid");
+  std::string x_b64;
+  base::Base64UrlEncode(issuer_pub_bytes,
+                        base::Base64UrlEncodePolicy::OMIT_PADDING, &x_b64);
+  key_dict.Set("x", x_b64);
+  keys.Append(std::move(key_dict));
+  jwks.Set("keys", std::move(keys));
+
+  // 3. Construct Browser JWK for cnf claim
+  sdjwt::Jwk browser_jwk;
+  browser_jwk.kty = "OKP";
+  browser_jwk.crv = "Ed25519";
+  base::Base64UrlEncode(browser_pub_bytes,
+                        base::Base64UrlEncodePolicy::OMIT_PADDING,
+                        &browser_jwk.x);
+
+  // 4. Construct and Sign EVT
+  sdjwt::SdJwt token;
+  sdjwt::Header h;
+  h.typ = "evp+sd-jwt";
+  h.alg = "EdDSA";
+  h.kid = "test_kid";
+
+  sdjwt::Payload p;
+  p.iss = kIssuerUrl;
+  p.email = kEmail;
+  p.email_verified = true;
+  p.iat = base::Time::Now();
+  sdjwt::ConfirmationKey cnf;
+  cnf.jwk = browser_jwk;
+  p.cnf = cnf;
+
+  auto issuer_signer = sdjwt::CreateJwtSigner(issuer_key);
+  sdjwt::Jwt issued_jwt;
+  issued_jwt.header = *h.ToJson();
+  issued_jwt.payload = *p.ToJson();
+  ASSERT_TRUE(issued_jwt.Sign(std::move(issuer_signer)));
+  token.jwt = issued_jwt;
+
+  std::string evt_string = token.Serialize();
+
+  // 5. Construct and Sign KB-JWT
+  sdjwt::Header kb_header;
+  kb_header.alg = "EdDSA";
+  kb_header.typ = "kb+jwt";
+
+  sdjwt::Payload kb_payload;
+  kb_payload.aud = kRpOrigin;
+  kb_payload.nonce = kNonce;
+  kb_payload.iat = base::Time::Now();
+
+  std::string sd_jwt_sha256 = crypto::SHA256HashString(evt_string);
+  std::string sd_hash;
+  base::Base64UrlEncode(sd_jwt_sha256,
+                        base::Base64UrlEncodePolicy::OMIT_PADDING, &sd_hash);
+  kb_payload.sd_hash = sdjwt::Base64String(sd_hash);
+
+  sdjwt::Jwt kb_jwt;
+  kb_jwt.header = *kb_header.ToJson();
+  kb_jwt.payload = *kb_payload.ToJson();
+
+  auto browser_signer = sdjwt::CreateJwtSigner(browser_key);
+  ASSERT_TRUE(kb_jwt.Sign(std::move(browser_signer)));
+
+  // 6. Combine Tokens
+  std::string full_token = evt_string + kb_jwt.Serialize().value();
+
+  // 7. Verify
+  EvtVerifier::Result result =
+      EvtVerifier::Verify(full_token, url::Origin::Create(GURL(kIssuerUrl)),
+                          jwks, url::Origin::Create(GURL(kRpOrigin)),
+                          kEmailMixedCase, kNonce, browser_jwk);
+
+  EXPECT_EQ(result, EvtVerifier::Result::kVerified);
 }
 
 TEST_F(EvtVerifierTest, ExpiredEvtRejected) {
@@ -199,13 +295,12 @@ TEST_F(EvtVerifierTest, ExpiredEvtRejected) {
 
   std::string full_token = evt_string + kb_jwt.Serialize().value();
 
-  base::test::TestFuture<EvtVerifier::Result> future;
-  EvtVerifier::Verify(
-      full_token, url::Origin::Create(GURL("https://issuer.example.com")),
-      std::move(jwks), url::Origin::Create(GURL("https://rp.example.com")),
-      "test@example.com", "test_nonce", browser_jwk, future.GetCallback());
+  EvtVerifier::Result result = EvtVerifier::Verify(
+      full_token, url::Origin::Create(GURL("https://issuer.example.com")), jwks,
+      url::Origin::Create(GURL("https://rp.example.com")), "test@example.com",
+      "test_nonce", browser_jwk);
 
-  EXPECT_NE(future.Get(), EvtVerifier::Result::kVerified);
+  EXPECT_NE(result, EvtVerifier::Result::kVerified);
 }
 
 TEST_F(EvtVerifierTest, ExpiredKbRejected) {
@@ -286,13 +381,12 @@ TEST_F(EvtVerifierTest, ExpiredKbRejected) {
 
   std::string full_token = evt_string + kb_jwt.Serialize().value();
 
-  base::test::TestFuture<EvtVerifier::Result> future;
-  EvtVerifier::Verify(
-      full_token, url::Origin::Create(GURL("https://issuer.example.com")),
-      std::move(jwks), url::Origin::Create(GURL("https://rp.example.com")),
-      "test@example.com", "test_nonce", browser_jwk, future.GetCallback());
+  EvtVerifier::Result result = EvtVerifier::Verify(
+      full_token, url::Origin::Create(GURL("https://issuer.example.com")), jwks,
+      url::Origin::Create(GURL("https://rp.example.com")), "test@example.com",
+      "test_nonce", browser_jwk);
 
-  EXPECT_NE(future.Get(), EvtVerifier::Result::kVerified);
+  EXPECT_NE(result, EvtVerifier::Result::kVerified);
 }
 
 TEST_F(EvtVerifierTest, MismatchedIssuerRejected) {
@@ -373,13 +467,12 @@ TEST_F(EvtVerifierTest, MismatchedIssuerRejected) {
 
   std::string full_token = evt_string + kb_jwt.Serialize().value();
 
-  base::test::TestFuture<EvtVerifier::Result> future;
-  EvtVerifier::Verify(
+  EvtVerifier::Result result = EvtVerifier::Verify(
       full_token, url::Origin::Create(GURL("https://mismatched.example.com")),
-      std::move(jwks), url::Origin::Create(GURL("https://rp.example.com")),
-      "test@example.com", "test_nonce", browser_jwk, future.GetCallback());
+      jwks, url::Origin::Create(GURL("https://rp.example.com")),
+      "test@example.com", "test_nonce", browser_jwk);
 
-  EXPECT_NE(future.Get(), EvtVerifier::Result::kVerified);
+  EXPECT_NE(result, EvtVerifier::Result::kVerified);
 }
 
 TEST_F(EvtVerifierTest, VerificationFallbackWhenKidMissing) {
@@ -492,12 +585,11 @@ TEST_F(EvtVerifierTest, VerificationFallbackWhenKidMissing) {
   std::string full_token = evt_string + kb_jwt.Serialize().value();
 
   // 7. Verify
-  base::test::TestFuture<EvtVerifier::Result> future;
-  EvtVerifier::Verify(full_token, url::Origin::Create(GURL(kIssuerUrl)),
-                      std::move(jwks), url::Origin::Create(GURL(kRpOrigin)),
-                      kEmail, kNonce, browser_jwk, future.GetCallback());
+  EvtVerifier::Result result = EvtVerifier::Verify(
+      full_token, url::Origin::Create(GURL(kIssuerUrl)), jwks,
+      url::Origin::Create(GURL(kRpOrigin)), kEmail, kNonce, browser_jwk);
 
-  EXPECT_EQ(future.Get(), EvtVerifier::Result::kVerified);
+  EXPECT_EQ(result, EvtVerifier::Result::kVerified);
 }
 
 TEST_F(EvtVerifierTest, VerificationFallbackWhenKidEmpty) {
@@ -610,12 +702,11 @@ TEST_F(EvtVerifierTest, VerificationFallbackWhenKidEmpty) {
   std::string full_token = evt_string + kb_jwt.Serialize().value();
 
   // 7. Verify
-  base::test::TestFuture<EvtVerifier::Result> future;
-  EvtVerifier::Verify(full_token, url::Origin::Create(GURL(kIssuerUrl)),
-                      std::move(jwks), url::Origin::Create(GURL(kRpOrigin)),
-                      kEmail, kNonce, browser_jwk, future.GetCallback());
+  EvtVerifier::Result result = EvtVerifier::Verify(
+      full_token, url::Origin::Create(GURL(kIssuerUrl)), jwks,
+      url::Origin::Create(GURL(kRpOrigin)), kEmail, kNonce, browser_jwk);
 
-  EXPECT_EQ(future.Get(), EvtVerifier::Result::kVerified);
+  EXPECT_EQ(result, EvtVerifier::Result::kVerified);
 }
 
 }  // namespace content::webid

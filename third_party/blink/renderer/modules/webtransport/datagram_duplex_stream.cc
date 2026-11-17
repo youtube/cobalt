@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/modules/webtransport/datagram_duplex_stream.h"
 
+#include <algorithm>
+
 namespace blink {
 
 void DatagramDuplexStream::setIncomingMaxAge(std::optional<double> max_age) {
@@ -22,16 +24,22 @@ void DatagramDuplexStream::setOutgoingMaxAge(std::optional<double> max_age) {
   }
 }
 
-void DatagramDuplexStream::setIncomingHighWaterMark(int high_water_mark) {
-  if (high_water_mark >= 0) {
-    incoming_high_water_mark_ = high_water_mark;
-  }
+void DatagramDuplexStream::setIncomingMaxBufferedDatagrams(uint32_t value) {
+  incoming_max_buffered_datagrams_ =
+      std::max(value, kMinimumMaxBufferedDatagrams);
 }
 
-void DatagramDuplexStream::setOutgoingHighWaterMark(int high_water_mark) {
-  if (high_water_mark >= 0) {
-    outgoing_high_water_mark_ = high_water_mark;
-  }
+void DatagramDuplexStream::setOutgoingMaxBufferedDatagrams(uint32_t value) {
+  outgoing_max_buffered_datagrams_ =
+      std::max(value, kMinimumMaxBufferedDatagrams);
+}
+
+void DatagramDuplexStream::setIncomingHighWaterMark(int32_t value) {
+  setIncomingMaxBufferedDatagrams(base::saturated_cast<uint32_t>(value));
+}
+
+void DatagramDuplexStream::setOutgoingHighWaterMark(int32_t value) {
+  setOutgoingMaxBufferedDatagrams(base::saturated_cast<uint32_t>(value));
 }
 
 }  // namespace blink

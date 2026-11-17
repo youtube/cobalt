@@ -12,6 +12,7 @@
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_state_observer.h"
+#include "ash/wm/window_util.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -77,6 +78,9 @@ class FrameViewAshImmersiveHelper : public WindowStateObserver,
 
     immersive_fullscreen_controller_ =
         std::make_unique<ImmersiveFullscreenController>();
+    immersive_fullscreen_controller_->SetImmersiveModeChangedCallback(
+        base::BindRepeating(&ash::window_util::UpdateUiForImmersiveFullscreen));
+
     custom_frame_view->InitImmersiveFullscreenControllerForView(
         immersive_fullscreen_controller_.get());
   }
@@ -608,6 +612,10 @@ void FrameViewAsh::UpdateDefaultFrameColors() {
 }
 
 void FrameViewAsh::PaintAsActiveChanged() {
+  if (widget_->GetNativeWindow()->is_destroying()) {
+    return;
+  }
+
   header_view_->GetFrameHeader()->SetPaintAsActive(ShouldPaintAsActive());
   widget_->non_client_view()->DeprecatedLayoutImmediately();
 }

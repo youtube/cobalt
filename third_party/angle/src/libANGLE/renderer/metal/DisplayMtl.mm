@@ -468,6 +468,7 @@ egl::Error DisplayMtl::makeCurrent(egl::Display *display,
 
 void DisplayMtl::generateExtensions(egl::DisplayExtensions *outExtensions) const
 {
+    outExtensions->createContextRobustness    = true;
     outExtensions->iosurfaceClientBuffer      = true;
     outExtensions->surfacelessContext         = true;
     outExtensions->noConfigContext            = true;
@@ -1057,6 +1058,8 @@ void DisplayMtl::initializeExtensions() const
     mNativeExtensions.pixelBufferObjectNV = true;
 
     mNativeExtensions.packReverseRowOrderANGLE = true;
+
+    mNativeExtensions.framebufferFlipYMESA = true;
 
     if (mFeatures.hasEvents.enabled)
     {

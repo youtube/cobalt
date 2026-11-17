@@ -65,6 +65,7 @@
 #include "net/quic/web_transport_error.h"
 #include "net/ssl/ssl_info.h"
 #include "services/network/public/cpp/devtools_observer_util.h"
+#include "services/network/public/cpp/headers_matcher.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/mojom/devtools_observer.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -1076,7 +1077,8 @@ void DidUpdatePrerenderStatus(
     PreloadingTriggeringOutcome status,
     std::optional<PrerenderFinalStatus> prerender_status,
     std::optional<std::string> disallowed_mojo_interface,
-    const std::vector<PrerenderMismatchedHeaders>* mismatched_headers) {
+    const std::vector<network::MismatchedHttpRequestHeader>*
+        mismatched_headers) {
   auto* ftn = FrameTreeNode::GloballyFindByID(initiator_frame_tree_node_id);
   // ftn will be null if this is browser-initiated, which has no initiator.
   if (!ftn) {
@@ -1979,7 +1981,7 @@ void OnAuctionWorkletNetworkRequestComplete(
                    status);
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 bool NeedInterestGroupAuctionEvents(FrameTreeNodeId frame_tree_node_id) {
   FrameTreeNode* ftn = FrameTreeNode::GloballyFindByID(frame_tree_node_id);
   if (!ftn) {
@@ -2020,7 +2022,7 @@ void OnInterestGroupAuctionNetworkRequestCreated(
                        NotifyInterestGroupAuctionNetworkRequestCreated,
                    type, request_id, devtools_auction_ids);
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
 void OnNavigationRequestWillBeSent(
     const NavigationRequest& navigation_request) {

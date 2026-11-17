@@ -131,7 +131,7 @@ SourceBufferState::SourceBufferState(
       stream_parser_(std::move(stream_parser)),
       frame_processor_(std::move(frame_processor)),
       create_demuxer_stream_cb_(std::move(create_demuxer_stream_cb)),
-      media_log_(media_log),
+      media_log_(MediaLog::CloneSafely(media_log)),
       state_(UNINITIALIZED) {
   DCHECK(create_demuxer_stream_cb_);
   DCHECK(frame_processor_);
@@ -554,7 +554,7 @@ void SourceBufferState::InitializeParser(
                           base::Unretained(this)),
       base::BindRepeating(&SourceBufferState::OnEndOfMediaSegment,
                           base::Unretained(this)),
-      media_log_);
+      media_log_.get());
 }
 
 bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
@@ -652,7 +652,7 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
-                                           media_log_);
+                                           media_log_.get());
     } else if (track->type() == MediaTrack::Type::kVideo) {
       VideoDecoderConfig video_config = tracks->getVideoConfig(track_id);
       DVLOG(1) << "Video track_id=" << track_id
@@ -739,7 +739,7 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       video_config.set_mime_type(mime_type_);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
-                                           media_log_);
+                                           media_log_.get());
     } else {
       MEDIA_LOG(ERROR, media_log_) << "Error: unsupported media track type "
                                    << std::to_underlying(track->type());

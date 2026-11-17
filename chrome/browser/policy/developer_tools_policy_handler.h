@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_POLICY_DEVELOPER_TOOLS_POLICY_HANDLER_H_
 
 #include "components/policy/core/browser/configuration_policy_handler.h"
+#include "components/policy/core/browser/developer_tools_availability.h"
 #include "extensions/buildflags/buildflags.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -27,20 +28,6 @@ class DeveloperToolsPolicyHandler : public ConfigurationPolicyHandler {
       delete;
   ~DeveloperToolsPolicyHandler() override;
 
-  // Developer tools availability as set by policy. The values must match the
-  // 'DeveloperToolsAvailability' policy definition.
-  enum class Availability {
-    // Default: Developer tools are allowed, except for policy-installed
-    // extensions and, if this is a managed profile, component extensions.
-    kDisallowedForForceInstalledExtensions = 0,
-    // Developer tools allowed in all contexts.
-    kAllowed = 1,
-    // Developer tools disallowed in all contexts.
-    kDisallowed = 2,
-    // Maximal valid value for range checking.
-    kMaxValue = kDisallowed
-  };
-
   // ConfigurationPolicyHandler methods:
   bool CheckPolicySettings(const policy::PolicyMap& policies,
                            policy::PolicyErrorMap* errors) override;
@@ -48,7 +35,7 @@ class DeveloperToolsPolicyHandler : public ConfigurationPolicyHandler {
                            PrefValueMap* prefs) override;
 
   // Returns the effective developer tools availability for the profile.
-  static Availability GetEffectiveAvailability(Profile* profile);
+  static DeveloperToolsAvailability GetEffectiveAvailability(Profile* profile);
 
  private:
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)

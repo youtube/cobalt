@@ -231,17 +231,11 @@
   <message name="IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON_SUBLABEL" desc="Sublabel describing that this link allows the user to view and manage their activity relating to Gemini Apps." formatter_data="android_java">
     View and manage your Gemini Apps activity
   </message>
-  <message name="IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON_URL" translateable="false" desc="URL to navigate when clicking the 'manage your activity' button." formatter_data="android_java">
-    https://myactivity.google.com/product/gemini?utm_source=gemini
-  </message>
   <message name="IDS_SETTINGS_GLIC_EXTENSIONS_BUTTON" desc="Name of the Gemini Extensions link out." formatter_data="android_java">
     Manage connected apps
   </message>
   <message name="IDS_SETTINGS_GLIC_EXTENSIONS_BUTTON_SUBLABEL" desc="Sublabel describing that this link allows the user to manage Gemini connected apps." formatter_data="android_java">
     Manage which apps Gemini connects to
-  </message>
-  <message name="IDS_SETTINGS_GLIC_EXTENSIONS_BUTTON_URL" translateable="false" desc="URL to navigate when clicking the 'manage connected apps' button." formatter_data="android_java">
-    https://gemini.google.com/apps
   </message>
   <message name="IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_WHEN_ON_1" desc="First point in the 'when on' column of the 'tab access' expando">
     You can easily ask Gemini questions about your current tab as you browse
@@ -374,7 +368,7 @@
   </message>
 
    <!-- Screenpicker Menu String -->
-  <message name="IDS_GLIC_SCREEN_PICKER_REQUESTER" desc="Text shown on screen picker dialog that indicates the requesting source is Gemini." translateable="false">
+  <message name="IDS_GLIC_SCREEN_PICKER_REQUESTER" desc="Text shown on screen picker dialog that indicates the requesting source is Gemini.">
     Gemini
   </message>
   <message name="IDS_GLIC_SCREEN_PICKER_HEADLINE" desc="Title of the Gemini screen picker dialog used for specifying which screen to capture.">
@@ -475,7 +469,7 @@
   </message>
 
   <!-- Shortcut IPH -->
-  <message name="IDS_GLIC_SHORTCUT_IPH_TEXT_TEMPLATE" desc="Placeholder for string to be shown for IPH informing users about Glic keyboard shortcut." translateable="false">
+  <message name="IDS_GLIC_SHORTCUT_IPH_TEXT_TEMPLATE" desc="Placeholder for string to be shown for IPH informing users about Glic keyboard shortcut.">
     <ph name="message">$1<ex>Use Ctrl+⌘+G to open Gemini in Chrome</ex></ph>
   </message>
   <message name="IDS_GLIC_SHORTCUT_IPH_TEXT" desc="Title for a promo pointing to the Gemini icon in Chrome. It informs the user about a keyboard shortcut for quicly opening Gemini in Chrome.">
@@ -499,6 +493,20 @@
   </message>
   <message name="IDS_EDUCATIONAL_TIP_GLIC_DISMISS_BUTTON" desc="Dismiss button text for the Glic educational tip card." formatter_data="android_java">
     No, thanks
+  </message>
+
+  <!-- Glic Bottom Sheet Interruption Dialog -->
+  <message name="IDS_GLIC_END_TASK_CONFIRMATION_TITLE" desc="Title for the dialog asking the user to confirm interrupting the current Gemini agent task." formatter_data="android_java">
+    End task to continue
+  </message>
+  <message name="IDS_GLIC_END_TASK_CONFIRMATION_DESCRIPTION" desc="Description for the dialog asking the user to confirm interrupting the current Gemini agent task." formatter_data="android_java">
+    This will end the task that Gemini is currently working on.
+  </message>
+  <message name="IDS_GLIC_END_TASK_CONFIRMATION_CANCEL" desc="Button text to cancel opening the new sheet and keep the current Gemini task running." formatter_data="android_java">
+    Cancel
+  </message>
+  <message name="IDS_GLIC_END_TASK_CONFIRMATION_YES" desc="Button text to confirm interrupting the current Gemini task and open the new sheet." formatter_data="android_java">
+    Yes, end task
   </message>
 
   <!-- Tab bottom sheet -->
@@ -525,5 +533,14 @@
   </message>
   <message name="IDS_GLIC_TASK_PAUSED_DESCRIPTION" desc="Subtitle description of the snackbar message shown when a Glic task is paused due to window resizing.">
     Increase window size to resume task
+  </message>
+  <message name="IDS_GLIC_BOTTOM_SHEET_CLOSED_A11Y_LABEL" desc="Accessibility announcement when the Gemini Bottom Sheet is closed." formatter_data="android_java" is_accessibility_with_no_ui="true">
+    Gemini Bottom Sheet closed.
+  </message>
+  <message name="IDS_GLIC_BOTTOM_SHEET_HALF_HEIGHT_A11Y_LABEL" desc="Accessibility announcement when the Gemini Bottom Sheet is opened to half height." formatter_data="android_java" is_accessibility_with_no_ui="true">
+    Gemini Bottom Sheet at half height.
+  </message>
+  <message name="IDS_GLIC_BOTTOM_SHEET_FULL_HEIGHT_A11Y_LABEL" desc="Accessibility announcement when the Gemini Bottom Sheet is opened to full height." formatter_data="android_java" is_accessibility_with_no_ui="true">
+    Gemini Bottom Sheet at full height
   </message>
 </grit-part>

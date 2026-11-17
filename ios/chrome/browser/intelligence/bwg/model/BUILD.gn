@@ -28,10 +28,13 @@ source_set("model") {
     "gemini_suggestion_handler.h",
     "gemini_suggestion_handler.mm",
     "gemini_tab_picker_delegate.h",
+    "gemini_tab_picker_handler.h",
+    "gemini_tab_picker_handler.mm",
     "gemini_view_state_delegate.h",
   ]
   deps = [
     ":tab_helper",
+    "//components/actor/public/mojom:mojo_bindings",
     "//ios/chrome/app/strings:ios_strings",
     "//ios/chrome/browser/intelligence/actor/model",
     "//ios/chrome/browser/intelligence/actor/public:actor_types",
@@ -259,6 +262,7 @@ source_set("unit_tests") {
     "gemini_startup_configuration_unittest.mm",
     "gemini_suggestion_handler_unittest.mm",
     "gemini_tab_helper_unittest.mm",
+    "gemini_tab_picker_handler_unittest.mm",
     "gemini_view_state_change_handler_unittest.mm",
   ]
   deps = [
@@ -271,6 +275,7 @@ source_set("unit_tests") {
     ":tab_helper",
     "//base",
     "//base/test:test_support",
+    "//components/actor/public/mojom:mojo_bindings",
     "//components/favicon/core",
     "//components/favicon/ios",
     "//components/feature_engagement/public",

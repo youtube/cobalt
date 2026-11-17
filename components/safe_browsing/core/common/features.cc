@@ -148,6 +148,9 @@ const base::FeatureParam<bool> kCsdImageEmbeddingMatchWithIntelligentScan{
 
 BASE_FEATURE(kClientSideDetectionKillswitch, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kClientSideDetectionLocalResourceCheckFix,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kClientSideDetectionNewObservers,
              base::FEATURE_DISABLED_BY_DEFAULT);
 constexpr base::FeatureParam<double> kCsdClassificationDelay{
@@ -299,12 +302,12 @@ constexpr base::FeatureParam<std::string> kHashPrefixRealTimeLookupsRelayUrl{
     &kHashPrefixRealTimeLookups,
     "SafeBrowsingHashPrefixRealTimeLookupsRelayUrl",
     /*default_value=*/
-    "https://google-ohttp-relay-safebrowsing.fastly-edge.com/"};
+    "https://ohttp-relay-safebrowsing-chrome.google.fastly-edge.com/"};
 constexpr base::FeatureParam<std::string> kHashPrefixRealTimeLookupsKeyFetchUrl{
     &kHashPrefixRealTimeLookups,
     "SafeBrowsingHashPrefixRealTimeLookupsKeyFetchUrl",
     /*default_value=*/
-    "https://safebrowsingohttpgateway.googleapis.com/v1/ohttp/hpkekeyconfig"};
+    "https://www.gstatic.com/ohttp_gateway/hpke_public_keys/sbc_prod"};
 constexpr base::FeatureParam<std::string>
     kHashPrefixRealTimeLookupsKeyFetchKeyTypeHeader{
         &kHashPrefixRealTimeLookups,
@@ -455,6 +458,7 @@ base::ListValue GetFeatureStatusList() {
       &kClientSideDetectionForcedLlamaRedirectChainKillswitch,
       &kClientSideDetectionImageEmbeddingMatch,
       &kClientSideDetectionKillswitch,
+      &kClientSideDetectionLocalResourceCheckFix,
       &kClientSideDetectionRedirectChainKillswitch,
       &kCreateNotificationsAcceptedClientSafeBrowsingReports,
       &kDelayedWarnings,

@@ -228,9 +228,8 @@ TEST_F(AtMemoryManagerTest,
 
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       search_callback;
-  EXPECT_CALL(mock_query_service(),
-              Query(std::u16string_view(u"query"), /*full_search=*/true, _))
-      .WillOnce(SaveArg<2>(&search_callback));
+  EXPECT_CALL(mock_query_service(), Query(std::u16string_view(u"query"), _))
+      .WillOnce(SaveArg<1>(&search_callback));
 
   // Expect that executing the query immediately clears suggestions.
   EXPECT_CALL(update_callback, Run(testing::IsEmpty(),
@@ -455,8 +454,8 @@ TEST_F(AtMemoryManagerTest, FiltersSpiiInInsecureContext) {
 
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       search_callback;
-  EXPECT_CALL(mock_query_service(), Query(std::u16string_view(u"query"), _, _))
-      .WillOnce(SaveArg<2>(&search_callback));
+  EXPECT_CALL(mock_query_service(), Query(std::u16string_view(u"query"), _))
+      .WillOnce(SaveArg<1>(&search_callback));
 
   std::vector<Suggestion> resulting_suggestions;
   EXPECT_CALL(update_callback,
@@ -509,8 +508,8 @@ TEST_F(AtMemoryManagerTest, KeepsSpiiInSecureContext) {
 
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       search_callback;
-  EXPECT_CALL(mock_query_service(), Query(std::u16string_view(u"query"), _, _))
-      .WillOnce(SaveArg<2>(&search_callback));
+  EXPECT_CALL(mock_query_service(), Query(std::u16string_view(u"query"), _))
+      .WillOnce(SaveArg<1>(&search_callback));
 
   std::vector<Suggestion> resulting_suggestions;
   EXPECT_CALL(update_callback,
@@ -694,11 +693,13 @@ TEST_F(AtMemoryManagerTest, FillOverlappingPopups) {
 }
 
 // Tests that the personal context notice is appended when the feature is
-// enabled.
-TEST_F(AtMemoryManagerTest, SendSuggestions_FeatureEnabled_AppendsNotice) {
+// enabled and the user needs to see the notice.
+TEST_F(AtMemoryManagerTest, PersonalContextEnabled_AppendsNoticeSuggestion) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
       personal_context::features::kPersonalContextFirstRunNoticePhase2);
+
+  autofill_client().set_should_show_personal_context_autofill_notice(true);
 
   base::MockCallback<AtMemoryManager::UpdateSuggestionsCallback>
       update_callback;
@@ -719,9 +720,34 @@ TEST_F(AtMemoryManagerTest, SendSuggestions_FeatureEnabled_AppendsNotice) {
 }
 
 // Tests that the personal context notice is not appended when the feature is
+// enabled but the user does not need to see the notice.
+TEST_F(AtMemoryManagerTest,
+       PersonalContextEnabled_DoesNotAppendNoticeSuggestion) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      personal_context::features::kPersonalContextFirstRunNoticePhase2);
+
+  autofill_client().set_should_show_personal_context_autofill_notice(false);
+
+  base::MockCallback<AtMemoryManager::UpdateSuggestionsCallback>
+      update_callback;
+  manager().OnPopupShown(AutofillSuggestionTriggerSource::kAtMemory,
+                         /*is_context_secure=*/true, update_callback.Get());
+
+  std::vector<Suggestion> suggestions;
+  EXPECT_CALL(update_callback,
+              Run(_, AutofillSuggestionTriggerSource::kAtMemory))
+      .WillOnce(SaveArg<0>(&suggestions));
+
+  manager().OnFilterChanged(u"");
+
+  EXPECT_TRUE(suggestions.empty());
+}
+
+// Tests that the personal context notice is not appended when the feature is
 // disabled.
 TEST_F(AtMemoryManagerTest,
-       SendSuggestions_FeatureDisabled_DoesNotAppendNotice) {
+       PersonalContextDisabled_DoesNotAppendNoticeSuggestion) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
       personal_context::features::kPersonalContextFirstRunNoticePhase2);

@@ -130,7 +130,7 @@ bool CanMouseDownStartSelect(Node* node) {
 
 PositionInFlatTreeWithAffinity PositionWithAffinityOfHitTestResult(
     const HitTestResult& hit_test_result) {
-  return FromPositionInDOMTree<EditingInFlatTreeStrategy>(
+  return FromPositionInDomTree<EditingInFlatTreeStrategy>(
       hit_test_result.GetPosition());
 }
 
@@ -620,12 +620,12 @@ WebInputEventResult SelectionController::UpdateSelectionForMouseDrag(
   const PositionWithAffinity& raw_target_position =
       Selection().SelectionHasFocus()
           ? PositionRespectingEditingBoundary(
-                Selection().ComputeVisibleSelectionInDOMTree().Start(),
+                Selection().ComputeVisibleSelectionInDomTree().Start(),
                 hit_test_result)
           : PositionWithAffinity();
   const PositionInFlatTreeWithAffinity target_position =
       CreateVisiblePosition(
-          FromPositionInDOMTree<EditingInFlatTreeStrategy>(raw_target_position))
+          FromPositionInDomTree<EditingInFlatTreeStrategy>(raw_target_position))
           .ToPositionWithAffinity();
 
   // Don't modify the selection if we're not on a node.
@@ -1000,7 +1000,7 @@ void SelectionController::SetNonDirectionalSelectionIfNeeded(
   if (selection_remains_the_same)
     return;
   Selection().SetSelection(
-      ConvertToSelectionInDOMTree(selection_in_flat_tree),
+      ConvertToSelectionInDomTree(selection_in_flat_tree),
       SetSelectionOptions::Builder(set_selection_options)
           .SetShouldCloseTyping(true)
           .SetShouldClearTypingStyle(true)
@@ -1052,7 +1052,7 @@ bool SelectionController::HandleDoubleClick(
   if (event.Event().button != WebPointerProperties::Button::kLeft)
     return false;
 
-  if (Selection().ComputeVisibleSelectionInDOMTreeDeprecated().IsRange()) {
+  if (Selection().ComputeVisibleSelectionInDomTreeDeprecated().IsRange()) {
     // A double-click when range is already selected
     // should not change the selection.  So, do not call
     // SelectClosestWordFromMouseEvent, but do set
@@ -1156,7 +1156,7 @@ bool SelectionController::HandleMousePressEvent(
     mouse_down_allows_multi_click_ =
         !event.Event().FromTouch() ||
         IsEditablePosition(
-            Selection().ComputeVisibleSelectionInDOMTreeDeprecated().Start());
+            Selection().ComputeVisibleSelectionInDomTreeDeprecated().Start());
   }
 
   if (event.Event().click_count >= 3)
@@ -1223,7 +1223,7 @@ bool SelectionController::HandleMouseReleaseEvent(
       selection_state_ != SelectionState::kExtendedSelection &&
       drag_start_pos == PhysicalOffset(gfx::ToFlooredPoint(
                             event.Event().PositionInRootFrame())) &&
-      Selection().ComputeVisibleSelectionInDOMTreeDeprecated().IsRange() &&
+      Selection().ComputeVisibleSelectionInDomTreeDeprecated().IsRange() &&
       event.Event().button != WebPointerProperties::Button::kRight) {
     // TODO(editing-dev): Use of UpdateStyleAndLayout
     // needs to be audited.  See http://crbug.com/590369 for more details.
@@ -1245,7 +1245,7 @@ bool SelectionController::HandleMouseReleaseEvent(
     if (Selection().ComputeVisibleSelectionInFlatTree() !=
         CreateVisibleSelection(new_selection)) {
       Selection().SetSelectionAndEndTyping(
-          ConvertToSelectionInDOMTree(new_selection));
+          ConvertToSelectionInDomTree(new_selection));
     }
 
     handled = true;
@@ -1370,7 +1370,7 @@ void SelectionController::UpdateSelectionForContextMenuEvent(
       // easier to use the contextual menu items available for text selections.
       // But only if we're above text.
       !(Selection()
-            .ComputeVisibleSelectionInDOMTreeDeprecated()
+            .ComputeVisibleSelectionInDomTreeDeprecated()
             .IsContentEditable() ||
         (hit_test_result.InnerNode() &&
          hit_test_result.InnerNode()->IsTextNode()))) {
@@ -1431,7 +1431,7 @@ void SelectionController::PassMousePressEventToSubframe(
     Selection().SetSelectionAndEndTyping(SelectionInDOMTree());
     return;
   }
-  Selection().SetSelectionAndEndTyping(ConvertToSelectionInDOMTree(
+  Selection().SetSelectionAndEndTyping(ConvertToSelectionInDomTree(
       SelectionInFlatTree::Builder().Collapse(visible_pos).Build()));
 }
 

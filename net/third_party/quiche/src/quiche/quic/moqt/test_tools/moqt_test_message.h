@@ -19,6 +19,7 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -27,7 +28,9 @@
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/moq_varint.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
 
 namespace moqt::test {
@@ -68,15 +71,18 @@ inline std::vector<MoqtFetchSerialization> AllMoqtFetchSerializations() {
 
 inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
   std::vector<MoqtDataStreamType> types;
+  types.reserve(256);
   types.push_back(MoqtDataStreamType::Fetch());
   uint64_t first_object_id = 1;
   for (uint64_t subgroup_id : {0, 1, 2}) {
     for (bool no_extension_headers : {true, false}) {
       for (bool default_priority : {true, false}) {
-        for (bool end_of_group : {false, true}) {
-          types.push_back(MoqtDataStreamType::Subgroup(
-              subgroup_id, first_object_id, no_extension_headers,
-              default_priority, end_of_group));
+        for (bool has_first_object : {true, false}) {
+          for (bool end_of_group : {false, true}) {
+            types.push_back(MoqtDataStreamType::Subgroup(
+                subgroup_id, first_object_id, no_extension_headers,
+                default_priority, has_first_object, end_of_group));
+          }
         }
       }
     }
@@ -106,14 +112,15 @@ class QUICHE_NO_EXPORT TestMessageBase {
  public:
   virtual ~TestMessageBase() = default;
 
-  using MessageStructuredData = std::variant<
-      MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtRequestOk,
-      MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe,
-      MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace,
-      MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
-      MoqtGoAway, MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch,
-      MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
-      MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
+  using MessageStructuredData =
+      std::variant<MoqtSetup, MoqtObject, MoqtRequestOk, MoqtRequestError,
+                   MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe,
+                   MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace,
+                   MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel,
+                   MoqtTrackStatus, MoqtGoAway, MoqtSubscribeNamespace,
+                   MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
+                   MoqtRequestsBlocked, MoqtPublish, MoqtNamespace,
+                   MoqtNamespaceDone, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -140,12 +147,12 @@ class QUICHE_NO_EXPORT TestMessageBase {
   // This will cause a parsing error. Do not call this on Object Messages.
   void DecreasePayloadLengthByOne() {
     size_t length_offset =
-        0x1 << ((static_cast<uint8_t>(wire_image_[0]) & 0xc0) >> 6);
+        quiche::GetMoqVarintLengthForFirstByte(wire_image_[0]);
     wire_image_[length_offset + 1]--;
   }
   void IncreasePayloadLengthByOne() {
     size_t length_offset =
-        0x1 << ((static_cast<uint8_t>(wire_image_[0]) & 0xc0) >> 6);
+        quiche::GetMoqVarintLengthForFirstByte(wire_image_[0]);
     wire_image_[length_offset + 1]++;
     set_wire_image_size(wire_image_size_ + 1);
   }
@@ -177,18 +184,18 @@ class QUICHE_NO_EXPORT TestMessageBase {
     quic::QuicDataWriter writer(sizeof(new_wire_image), new_wire_image);
     size_t length_field = 0;
     if (is_control_message) {
-      uint8_t type_length = static_cast<uint8_t>(reader.PeekVarInt62Length());
+      std::optional<size_t> type_length_raw = reader.PeekMoqVarIntLength();
+      uint8_t type_length =
+          *type_length_raw;  // NOLINT(bugprone-unchecked-optional-access)
       uint64_t type;
-      reader.ReadVarInt62(&type);
+      reader.ReadMoqVarInt(&type);
       if (type_length == 1) {
         // Expand the message type.
         type_length = next_varint_len;
-        writer.WriteVarInt62WithForcedLength(
-            type, static_cast<quiche::QuicheVariableLengthIntegerLength>(
-                      type_length));
+        (void)quiche::WriteMoqVarintWithCustomLength(writer, type, type_length);
         next_varint_len = 4;
       } else {
-        writer.WriteVarInt62(type);
+        writer.WriteMoqVarInt(type);
       }
       length_field = writer.length();
       uint16_t size;
@@ -204,10 +211,9 @@ class QUICHE_NO_EXPORT TestMessageBase {
         continue;
       }
       uint64_t value;
-      reader.ReadVarInt62(&value);
-      writer.WriteVarInt62WithForcedLength(
-          value, static_cast<quiche::QuicheVariableLengthIntegerLength>(
-                     next_varint_len));
+      reader.ReadMoqVarInt(&value);
+      (void)quiche::WriteMoqVarintWithCustomLength(writer, value,
+                                                   next_varint_len);
       next_varint_len *= 2;
       if (next_varint_len == 16) {
         next_varint_len = 2;
@@ -272,15 +278,16 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
   }
 
  protected:
-  MoqtObject object_ = {
-      /*track_alias=*/4,
-      /*group_id*/ 5,
-      /*object_id=*/6,
-      /*publisher_priority=*/7,
-      std::string(kDefaultExtensionBlob),
-      /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/8,
-      /*payload_length=*/3,
+  MoqtObject object_{
+      .track_alias = 4,
+      .group_id = 5,
+      .object_id = 6,
+      .publisher_priority = 7,
+      .extension_headers = std::string(kDefaultExtensionBlob),
+      .object_status = MoqtObjectStatus::kNormal,
+      .subgroup_id = 8,
+      .first_object_in_subgroup = false,
+      .payload_length = 3,
   };
 };
 
@@ -304,7 +311,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     object_.subgroup_id = std::nullopt;
     quic::QuicDataWriter writer(sizeof(raw_packet_),
                                 reinterpret_cast<char*>(raw_packet_));
-    EXPECT_TRUE(writer.WriteVarInt62(datagram_type.value()));
+    EXPECT_TRUE(writer.WriteMoqVarInt(datagram_type.value()));
     EXPECT_TRUE(writer.WriteStringPiece(kRawAliasGroup));
     if (datagram_type.has_object_id()) {
       EXPECT_TRUE(writer.WriteStringPiece(kRawObject));
@@ -317,7 +324,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     }
     if (datagram_type.has_status()) {
       EXPECT_TRUE(
-          writer.WriteVarInt62(static_cast<uint64_t>(object_.object_status)));
+          writer.WriteMoqVarInt(static_cast<uint64_t>(object_.object_status)));
     } else {
       EXPECT_TRUE(writer.WriteStringPiece(kRawPayload));
     }
@@ -373,7 +380,7 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
     // Build raw_packet_ from the type.
     quic::QuicDataWriter writer(sizeof(raw_packet_), raw_packet_);
     EXPECT_TRUE(
-        writer.WriteVarInt62(type.value()) &&
+        writer.WriteMoqVarInt(type.value()) &&
         writer.WriteBytes(kRawBeginning.data(), kRawBeginning.length()));
     if (type.IsSubgroupPresent()) {
       EXPECT_TRUE(
@@ -456,7 +463,7 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
     }
     object_.object_id = 9;
     quic::QuicDataWriter writer(sizeof(raw_packet_), raw_packet_);
-    EXPECT_TRUE(writer.WriteVarInt62(2));  // Object ID delta - 1
+    EXPECT_TRUE(writer.WriteMoqVarInt(2));  // Object ID delta - 1
     if (type.AreExtensionHeadersPresent()) {
       EXPECT_TRUE(
           writer.WriteBytes(kRawExtensions.data(), kRawExtensions.length()));
@@ -522,9 +529,6 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
   StreamMiddlerFetchMessage(MoqtFetchSerialization serialization)
       : ObjectMessage(), serialization_(serialization) {
     size_t length = 0;
-    if (serialization.is_datagram()) {  // Two byte varint.
-      raw_packet_[length++] = 0x40;
-    }
     raw_packet_[length++] = static_cast<uint8_t>(serialization.value());
     if (serialization.has_group_id()) {
       raw_packet_[length++] = 0x06;  // group ID
@@ -605,15 +609,15 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       // Should not send PATH or AUTHORITY.
       client_setup_.parameters.path = std::nullopt;
       client_setup_.parameters.authority = std::nullopt;
-      raw_packet_[2] -= 17;   // adjust payload length
-      raw_packet_[3] = 0x02;  // only two parameters
+      raw_packet_[3] -= 17;   // adjust payload length
+      raw_packet_[4] = 0x02;  // only two parameters
       // Move MaxRequestId up in the packet.
-      memmove(raw_packet_ + 4, raw_packet_ + 10, 2);
+      memmove(raw_packet_ + 5, raw_packet_ + 11, 2);
       // Move MoqtImplementation up in the packet.
-      memmove(raw_packet_ + 6, raw_packet_ + 23,
+      memmove(raw_packet_ + 7, raw_packet_ + 24,
               kTestImplementationString.length() + 2);
-      raw_packet_[4] = 0x02;  // Diff from 0.
-      raw_packet_[6] = 0x05;  // Diff from 2.
+      raw_packet_[5] = 0x02;  // Diff from 0.
+      raw_packet_[7] = 0x05;  // Diff from 2.
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -621,7 +625,7 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   }
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtClientSetup>(values);
+    auto cast = std::get<MoqtSetup>(values);
     if (cast.parameters != client_setup_.parameters) {
       QUIC_LOG(INFO) << "CLIENT_SETUP parameter mismatch";
       return false;
@@ -646,8 +650,8 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   // string parameters in order. Unfortunately, this means that
   // kMoqtImplementation goes last even though it is always present, while
   // kPath and KAuthority aren't.
-  uint8_t raw_packet_[53] = {
-      0x20, 0x00, 0x32,                    // type, length
+  uint8_t raw_packet_[54] = {
+      0xaf, 0x00, 0x00, 0x32,              // type, length
       0x04,                                // 4 parameters
       0x01, 0x04, 0x70, 0x61, 0x74, 0x68,  // path = "path"
       0x01, 0x32,                          // max_request_id = 50
@@ -657,7 +661,7 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       0x02, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65, 0x73, 0x74, 0x20, 0x49,
       0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
       0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
-  MoqtClientSetup client_setup_ = {
+  MoqtSetup client_setup_ = {
       SetupParameters("path", "authority", 50),
   };
 };
@@ -670,7 +674,7 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtServerSetup>(values);
+    auto cast = std::get<MoqtSetup>(values);
     if (cast.parameters != server_setup_.parameters) {
       QUIC_LOG(INFO) << "SERVER_SETUP parameter mismatch";
       return false;
@@ -685,15 +689,15 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[36] = {0x21, 0x00, 0x21,  // type, length
-                             0x02,              // two parameters
-                             0x02, 0x32,        // max_subscribe_id = 50
+  uint8_t raw_packet_[37] = {0xaf, 0x00, 0x00, 0x21,  // type, length
+                             0x02,                    // two parameters
+                             0x02, 0x32,              // max_subscribe_id = 50
                              // moqt_implementation:
                              0x05, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
                              0x73, 0x74, 0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65,
                              0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
                              0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
-  MoqtServerSetup server_setup_ = {
+  MoqtSetup server_setup_ = {
       SetupParameters(50),
   };
 };
@@ -741,7 +745,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
       0x06,                                      // 6 parameters
-      0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
+      0x02, 0xa7, 0x10,                          // delivery_timeout = 10000 ms
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
       0x0d, 0x01,                                // forward = true
       0x10, 0x20,                                // subscriber_priority = 0x20
@@ -811,8 +815,8 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       0x08, 0x03,                          // expires = 3
       0x01, 0x02, 0x0c, 0x14,              // largest_location = (12, 20)
       // Extensions
-      0x02, 0x67, 0x10,  // delivery_timeout = 10000
-      0x02, 0x67, 0x10,  // max_cache_duration = 10000
+      0x02, 0xa7, 0x10,  // delivery_timeout = 10000
+      0x02, 0xa7, 0x10,  // max_cache_duration = 10000
       0x1e, 0x02         // default_publisher_group_order = 2
   };
 };
@@ -863,7 +867,7 @@ class QUICHE_NO_EXPORT RequestErrorMessage : public TestMessageBase {
       0x05, 0x00, 0x08,
       0x02,                    // request_id = 2
       0x11,                    // error_code = 17
-      0x67, 0x11,              // retry_interval = 10000 ms
+      0xa7, 0x11,              // retry_interval = 10000 ms
       0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
   };
 };
@@ -891,7 +895,10 @@ class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[4] = {
-      0x0a, 0x00, 0x01, 0x03,  // request_id = 3
+      0x0a,
+      0x00,
+      0x01,
+      0x03,  // request_id = 3
   };
 
   MoqtUnsubscribe unsubscribe_ = {
@@ -986,10 +993,10 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
   uint8_t raw_packet_[20] = {
       0x02, 0x00, 0x11, 0x02, 0x00,        // request IDs 2 and 0
       0x04,                                // Four parameters
-      0x02, 0x67, 0x10,                    // delivery_timeout = 10000
+      0x02, 0xa7, 0x10,                    // delivery_timeout = 10000
       0x0e, 0x01,                          // forward = true
-      0x10, 0x40, 0xaa,                    // subscriber_priority = 0xaa
-      0x01, 0x04, 0x04, 0x03, 0x01, 0x05,  // Absolute Range: (3, 1) to 5.
+      0x10, 0x80, 0xaa,                    // subscriber_priority = 0xaa
+      0x01, 0x04, 0x04, 0x03, 0x01, 0x02,  // Absolute Range: (3, 1) to 5
   };
 
   MoqtRequestUpdate request_update_ = {
@@ -1600,7 +1607,7 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       0x00,              // end_of_track = false
       0x05, 0x04,        // end_location = 5, 3
       0x00,              // no parameters
-      0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
+      0x04, 0xa7, 0x10,  // MaxCacheDuration = 10000
       0x1e, 0x02,        // group_order = kDescending
   };
 
@@ -1638,7 +1645,9 @@ class QUICHE_NO_EXPORT FetchCancelMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[4] = {
-      0x17, 0x00, 0x01,
+      0x17,
+      0x00,
+      0x01,
       0x01,  // request_id = 1
   };
 
@@ -1669,7 +1678,9 @@ class QUICHE_NO_EXPORT RequestsBlockedMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[4] = {
-      0x1a, 0x00, 0x01,
+      0x1a,
+      0x00,
+      0x01,
       0x0b,  // max_request_id = 11
   };
 
@@ -1780,7 +1791,7 @@ class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[8] = {
-      0x71, 0x84, 0x00, 0x04,  // type
+      0xb1, 0x84, 0x00, 0x04,  // type
       0x01, 0x10, 0x20,        // subscribe ID, group, object
       0x20,                    // 0x10 time delta
   };
@@ -1795,7 +1806,8 @@ class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
 
 // Factory function for test messages.
 static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
-    MoqtMessageType message_type, bool is_webtrans) {
+    MoqtMessageType message_type, bool is_webtrans = true,
+    quic::Perspective perspective = quic::Perspective::IS_CLIENT) {
   switch (message_type) {
     case MoqtMessageType::kRequestOk:
       return std::make_unique<RequestOkMessage>();
@@ -1841,10 +1853,12 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<PublishMessage>();
     case MoqtMessageType::kObjectAck:
       return std::make_unique<ObjectAckMessage>();
-    case MoqtMessageType::kClientSetup:
-      return std::make_unique<ClientSetupMessage>(is_webtrans);
-    case MoqtMessageType::kServerSetup:
-      return std::make_unique<ServerSetupMessage>();
+    case MoqtMessageType::kSetup:
+      if (perspective == quic::Perspective::IS_CLIENT) {
+        return std::make_unique<ClientSetupMessage>(is_webtrans);
+      } else {
+        return std::make_unique<ServerSetupMessage>();
+      }
     default:
       return nullptr;
   }

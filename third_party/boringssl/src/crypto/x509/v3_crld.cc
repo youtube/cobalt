@@ -78,8 +78,8 @@ static STACK_OF(GENERAL_NAME) *gnames_from_sectname(const X509V3_CTX *ctx,
   return gens;
 }
 
-// set_dist_point_name decodes a DistributionPointName from |cnf| and writes the
-// result in |*pdp|. It returns 1 on success, -1 on error, and 0 if |cnf| used
+// set_dist_point_name decodes a DistributionPointName from `cnf` and writes the
+// result in `*pdp`. It returns 1 on success, -1 on error, and 0 if `cnf` used
 // an unrecognized input type. The zero return can be used by callers to support
 // additional syntax.
 static int set_dist_point_name(DIST_POINT_NAME **pdp, const X509V3_CTX *ctx,
@@ -87,8 +87,8 @@ static int set_dist_point_name(DIST_POINT_NAME **pdp, const X509V3_CTX *ctx,
   STACK_OF(GENERAL_NAME) *fnm = nullptr;
   STACK_OF(X509_NAME_ENTRY) *rnm = nullptr;
   if (!strcmp(cnf->name, "fullname")) {
-    // If |cnf| comes from |X509V3_parse_list|, which is possible for a v2i
-    // function, |cnf->value| may be NULL.
+    // If `cnf` comes from `X509V3_parse_list`, which is possible for a v2i
+    // function, `cnf->value` may be NULL.
     if (cnf->value == nullptr) {
       OPENSSL_PUT_ERROR(X509V3, X509V3_R_MISSING_VALUE);
       return -1;
@@ -98,8 +98,8 @@ static int set_dist_point_name(DIST_POINT_NAME **pdp, const X509V3_CTX *ctx,
       goto err;
     }
   } else if (!strcmp(cnf->name, "relativename")) {
-    // If |cnf| comes from |X509V3_parse_list|, which is possible for a v2i
-    // function, |cnf->value| may be NULL.
+    // If `cnf` comes from `X509V3_parse_list`, which is possible for a v2i
+    // function, `cnf->value` may be NULL.
     if (cnf->value == nullptr) {
       OPENSSL_PUT_ERROR(X509V3, X509V3_R_MISSING_VALUE);
       return -1;

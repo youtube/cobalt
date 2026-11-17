@@ -104,7 +104,7 @@ bool GlicKeyedServiceAndroid::InvokeWithAutoSubmit(JNIEnv* env,
   }
 
   auto invocation_source = static_cast<mojom::InvocationSource>(source);
-  GlicInvokeOptions options(Target(tab), invocation_source);
+  GlicInvokeOptions options(Target(*tab), invocation_source);
   options.prompts.push_back(std::move(text));
 
   switch (invocation_source) {
@@ -152,6 +152,25 @@ void GlicKeyedServiceAndroid::OnUserEnabledActuationOnWebChanged() {
 void GlicKeyedServiceAndroid::OnAllowedStateChanged() {
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_GlicKeyedServiceImpl_onAllowedStateChanged(env, java_obj_);
+}
+
+bool GlicKeyedService::IsGlicShortcutActive() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  base::android::ScopedJavaLocalRef<jobject> java_service = GetJavaObject(this);
+  if (!java_service) {
+    return false;
+  }
+  return Java_GlicKeyedServiceImpl_isGlicShortcutActive(
+      env, java_service, profile_->GetJavaObject());
+}
+
+bool GlicKeyedService::IsBottomBarEnabled() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  base::android::ScopedJavaLocalRef<jobject> java_service = GetJavaObject(this);
+  if (!java_service) {
+    return false;
+  }
+  return Java_GlicKeyedServiceImpl_isBottomBarEnabled(env, java_service);
 }
 
 }  // namespace glic

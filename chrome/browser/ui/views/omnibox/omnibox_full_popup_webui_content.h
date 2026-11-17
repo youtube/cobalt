@@ -33,6 +33,10 @@ class OmniboxFullPopupWebUIContent : public OmniboxPopupWebUIContent {
       delete;
   ~OmniboxFullPopupWebUIContent() override;
 
+  bool EscClosesUI() const override;
+
+  void CloseUI() override;
+
  protected:
   std::string_view GetMetricPrefix() const override;
 
@@ -40,9 +44,6 @@ class OmniboxFullPopupWebUIContent : public OmniboxPopupWebUIContent {
   // WebUIContentsWrapper::Host:
   bool HandleContextMenu(content::RenderFrameHost& render_frame_host,
                          const content::ContextMenuParams& params) override;
-
-  // OmniboxPopupWebUIBaseContent:
-  void OnActiveTabChanged(content::WebContents* new_contents) override;
 
   base::WeakPtrFactory<OmniboxPopupWebUIContent> weak_factory_{this};
 };

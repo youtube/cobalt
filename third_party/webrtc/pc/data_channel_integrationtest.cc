@@ -141,10 +141,8 @@ TEST_P(DataChannelIntegrationTest, DataChannelWhileDisconnected) {
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_observer(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer(); }));
   std::string data1 = "hello first";
   caller()->data_channel()->Send(DataBuffer(data1));
   EXPECT_THAT(
@@ -177,10 +175,8 @@ TEST_P(DataChannelIntegrationTest, DataChannelWhileDisconnectedIceRestart) {
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_observer(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer(); }));
   std::string data1 = "hello first";
   caller()->data_channel()->Send(DataBuffer(data1));
   EXPECT_THAT(
@@ -201,8 +197,7 @@ TEST_P(DataChannelIntegrationTest, DataChannelWhileDisconnectedIceRestart) {
   // the network outage.
   caller()->SetOfferAnswerOptions(IceRestartOfferAnswerOptions());
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Remove the network outage. The connection should reestablish.
   virtual_socket_server()->set_drop_probability(0.0);
   EXPECT_THAT(
@@ -224,8 +219,7 @@ TEST_P(DataChannelIntegrationTest, EndToEndCallWithSctpDataChannel) {
     callee()->AddAudioVideoTracks();
   }
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   if (allow_media()) {
     // Ensure the existence of the SCTP data channel didn't impede audio/video.
     MediaExpectations media_expectations;
@@ -237,12 +231,8 @@ TEST_P(DataChannelIntegrationTest, EndToEndCallWithSctpDataChannel) {
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   // Ensure data can be sent in both directions.
   std::string data = "hello world";
@@ -268,19 +258,14 @@ TEST_P(DataChannelIntegrationTest,
   // well.
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Caller data channel should already exist (it created one). Callee data
   // channel may not exist yet, since negotiation happens in-band, not in SDP.
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   // Expect that all sizes under kSctpSendBufferSize(256 * 1024) to be sent
   // without any issue.
@@ -334,19 +319,14 @@ TEST_P(DataChannelIntegrationTest,
   // well.
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Caller data channel should already exist (it created one). Callee data
   // channel may not exist yet, since negotiation happens in-band, not in SDP.
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   // By default, SDP would set kSctpSendBufferSize as the size limit for the
   // transport. Expect that a longer message will not be sent and cause the
@@ -371,19 +351,14 @@ TEST_P(DataChannelIntegrationTest, EndToEndCallWithSctpDataChannelFullBuffer) {
   // well.
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Caller data channel should already exist (it created one). Callee data
   // channel may not exist yet, since negotiation happens in-band, not in SDP.
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   std::string data(256 * 1024, 'a');
   for (size_t queued_size = 0;
@@ -426,19 +401,14 @@ TEST_P(DataChannelIntegrationTest,
   // well.
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Caller data channel should already exist (it created one). Callee data
   // channel may not exist yet, since negotiation happens in-band, not in SDP.
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   // Ensure data can be sent in both directions.
   // Sending empty string data
@@ -494,19 +464,14 @@ TEST_P(DataChannelIntegrationTest,
   // well.
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Caller data channel should already exist (it created one). Callee data
   // channel may not exist yet, since negotiation happens in-band, not in SDP.
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   virtual_socket_server()->set_max_udp_payload(kLowestSafePayloadSizeLimit);
   for (int message_size = 1140; message_size < 1240; message_size += 1) {
@@ -539,17 +504,12 @@ TEST_P(DataChannelIntegrationTest, EndToEndCallWithSctpDataChannelHarmfulMtu) {
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   if (caller()->tls_version() == kDtls13VersionBytes) {
     ASSERT_EQ(caller()->tls_version(), kDtls13VersionBytes);
@@ -594,17 +554,12 @@ TEST_P(DataChannelIntegrationTest, CalleeClosesSctpDataChannel) {
     callee()->AddAudioVideoTracks();
   }
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   // Close the data channel on the callee side, and wait for it to reach the
   // "closed" state on both sides.
@@ -641,13 +596,10 @@ TEST_P(DataChannelIntegrationTest, SctpDataChannelConfigSentToOtherSide) {
     callee()->AddAudioVideoTracks();
   }
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
   // Since "negotiated" is false, the "id" parameter should be ignored.
   EXPECT_NE(init.id, callee()->data_channel()->id());
   EXPECT_EQ("data-channel", callee()->data_channel()->label());
@@ -672,17 +624,12 @@ TEST_P(DataChannelIntegrationTest, StressTestUnorderedSctpDataChannel) {
   init.ordered = false;
   caller()->CreateDataChannel(&init);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   static constexpr int kNumMessages = 100;
   // Deliberately chosen to be larger than the MTU so messages get fragmented.
@@ -753,8 +700,7 @@ TEST_P(DataChannelIntegrationTest, StressTestOpenCloseChannelNoDelay) {
 
     if (!has_negotiated) {
       caller()->CreateAndSetAndSignalOffer();
-      ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-                  IsRtcOk());
+      ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
       has_negotiated = true;
     }
 
@@ -840,8 +786,7 @@ TEST_P(DataChannelIntegrationTest, StressTestOpenCloseChannelWithDelay) {
 
     if (!has_negotiated) {
       caller()->CreateAndSetAndSignalOffer();
-      ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-                  IsRtcOk());
+      ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
       has_negotiated = true;
     }
 
@@ -910,24 +855,18 @@ TEST_P(DataChannelIntegrationTest, AddSctpDataChannelInSubsequentOffer) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Create data channel and do new offer and answer.
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Caller data channel should already exist (it created one). Callee data
   // channel may not exist yet, since negotiation happens in-band, not in SDP.
   ASSERT_NE(nullptr, caller()->data_channel());
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
   // Ensure data can be sent in both directions.
   std::string data = "hello world";
   caller()->data_channel()->Send(DataBuffer(data));
@@ -956,25 +895,19 @@ TEST_P(DataChannelIntegrationTest, SctpDataChannelToAudioVideoUpgrade) {
   // Do initial offer/answer with just data channel.
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Wait until data can be sent over the data channel.
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   // Do subsequent offer/answer with two-way audio and video. Audio and video
   // should end up bundled on the DTLS/ICE transport already used for data.
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -1000,16 +933,11 @@ TEST_P(DataChannelIntegrationTest,
   caller()->CreateDataChannel();
   caller()->SetGeneratedSdpMunger(MakeSpecCompliantSctpOffer);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   // Ensure data can be sent in both directions.
   std::string data = "hello world";
@@ -1038,8 +966,7 @@ TEST_P(DataChannelIntegrationTest, ClosingConnectionStopsPacketFlow) {
   caller()->AddAudioVideoTracks();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -1058,11 +985,8 @@ TEST_P(DataChannelIntegrationTest, DtlsRoleIsSetNormally) {
   caller()->CreateDataChannel();
   ASSERT_FALSE(caller()->pc()->GetSctpTransport());
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
   ASSERT_TRUE(caller()->pc()->GetSctpTransport());
   ASSERT_TRUE(
       caller()->pc()->GetSctpTransport()->Information().dtls_transport());
@@ -1101,11 +1025,8 @@ TEST_P(DataChannelIntegrationTest, DtlsRoleIsSetWhenReversed) {
   caller()->CreateDataChannel();
   callee()->SetReceivedSdpMunger(MakeOfferHaveActiveDtlsRole);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
   EXPECT_TRUE(caller()
                   ->pc()
                   ->GetSctpTransport()
@@ -1147,11 +1068,8 @@ TEST_P(DataChannelIntegrationTest,
         callee()->CreateDataChannel();
       });
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
   ASSERT_THAT(
       WaitUntil([&] { return callee()->data_channels().size(); }, Eq(2U)),
       IsRtcOk());
@@ -1201,10 +1119,8 @@ TEST_P(DataChannelIntegrationTest,
   caller()->CreateDataChannel();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_channel(); }));
 
   auto caller_report = caller()->NewGetStats(run_loop());
   ASSERT_THAT(caller_report, NotNull());
@@ -1231,10 +1147,8 @@ TEST_P(DataChannelIntegrationTest, QueuedPacketsGetDeliveredInReliableMode) {
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_channel(); }));
 
   caller()->data_channel()->Send(DataBuffer("hello first"));
   ASSERT_THAT(
@@ -1271,10 +1185,8 @@ TEST_P(DataChannelIntegrationTest, QueuedPacketsGetDroppedInUnreliableMode) {
   init.ordered = false;
   caller()->CreateDataChannel(&init);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_channel(); }));
   caller()->data_channel()->Send(DataBuffer("hello first"));
   ASSERT_THAT(
       WaitUntil(
@@ -1319,10 +1231,8 @@ TEST_P(DataChannelIntegrationTest,
   init.ordered = false;
   caller()->CreateDataChannel(&init);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_channel(); }));
   caller()->data_channel()->Send(DataBuffer("hello first"));
   ASSERT_THAT(
       WaitUntil(
@@ -1366,10 +1276,8 @@ TEST_P(DataChannelIntegrationTest,
   init.ordered = false;
   caller()->CreateDataChannel(&init);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_channel(); }));
   caller()->data_channel()->Send(DataBuffer("hello first"));
   ASSERT_THAT(
       WaitUntil(
@@ -1432,16 +1340,11 @@ TEST_P(DataChannelIntegrationTest, ChangingSctpPortIsNotAllowed) {
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   std::unique_ptr<SessionDescriptionInterface> answer;
   caller()->SetReceivedSdpMunger(
@@ -1469,16 +1372,11 @@ TEST_P(DataChannelIntegrationTest, ChangingSctpPortIsAllowedWithDtlsRestart) {
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return caller()->data_observer()->IsOpen(); }));
+  EXPECT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 
   // Recreate the second peerconnection.
   PeerConnectionDependencies dependencies(nullptr);
@@ -1528,11 +1426,9 @@ TEST_F(DataChannelIntegrationTestUnifiedPlan,
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return caller()->pc()->GetSctpTransport(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(
+      WaitUntil([&] { return caller()->pc()->GetSctpTransport() != nullptr; }));
   ASSERT_THAT(
       WaitUntil(
           [&] {
@@ -1540,11 +1436,8 @@ TEST_F(DataChannelIntegrationTestUnifiedPlan,
           },
           Eq(SctpTransportState::kConnected)),
       IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_channel(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
 }
 
 TEST_F(DataChannelIntegrationTestUnifiedPlan,
@@ -1553,13 +1446,9 @@ TEST_F(DataChannelIntegrationTestUnifiedPlan,
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_channel(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
   ASSERT_TRUE(caller()->data_observer()->IsOpen());
 }
 
@@ -1568,17 +1457,11 @@ TEST_F(DataChannelIntegrationTestUnifiedPlan, DataChannelClosesWhenClosed) {
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_observer(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
   caller()->data_channel()->Close();
-  ASSERT_THAT(
-      WaitUntil([&] { return !callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return !callee()->data_observer()->IsOpen(); }));
 }
 
 TEST_F(DataChannelIntegrationTestUnifiedPlan,
@@ -1587,17 +1470,11 @@ TEST_F(DataChannelIntegrationTestUnifiedPlan,
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_observer(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
   callee()->data_channel()->Close();
-  ASSERT_THAT(
-      WaitUntil([&] { return !caller()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return !caller()->data_observer()->IsOpen(); }));
 }
 
 TEST_F(DataChannelIntegrationTestUnifiedPlan,
@@ -1606,17 +1483,11 @@ TEST_F(DataChannelIntegrationTestUnifiedPlan,
   ConnectFakeSignaling();
   caller()->CreateDataChannel();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->data_observer(); }, IsTrue()),
-              IsRtcOk());
-  ASSERT_THAT(
-      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer(); }));
+  ASSERT_TRUE(WaitUntil([&] { return callee()->data_observer()->IsOpen(); }));
   caller()->pc()->Close();
-  ASSERT_THAT(
-      WaitUntil([&] { return !callee()->data_observer()->IsOpen(); }, IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return !callee()->data_observer()->IsOpen(); }));
 }
 
 TEST_F(DataChannelIntegrationTestUnifiedPlan, ReducingMaxChannelsAtCaller) {
@@ -1628,18 +1499,14 @@ TEST_F(DataChannelIntegrationTestUnifiedPlan, ReducingMaxChannelsAtCaller) {
       caller_config, PeerConnectionInterface::RTCConfiguration()));
   ConnectFakeSignaling();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   scoped_refptr<SctpTransportInterface> caller_transport =
       caller()->pc()->GetSctpTransport();
   ASSERT_THAT(caller_transport, NotNull());
-  ASSERT_THAT(WaitUntil(
-                  [&] {
-                    return caller_transport->Information().state() ==
-                           SctpTransportState::kConnected;
-                  },
-                  IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] {
+    return caller_transport->Information().state() ==
+           SctpTransportState::kConnected;
+  }));
   scoped_refptr<SctpTransportInterface> callee_transport =
       callee()->pc()->GetSctpTransport();
   ASSERT_THAT(callee_transport, NotNull());
@@ -1662,18 +1529,14 @@ TEST_F(DataChannelIntegrationTestUnifiedPlan, ReducingMaxChannelsAtCallee) {
       CreatePeerConnectionWrappersWithConfig(caller_config, callee_config));
   ConnectFakeSignaling();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   scoped_refptr<SctpTransportInterface> caller_transport =
       caller()->pc()->GetSctpTransport();
   ASSERT_THAT(caller_transport, NotNull());
-  ASSERT_THAT(WaitUntil(
-                  [&] {
-                    return caller_transport->Information().state() ==
-                           SctpTransportState::kConnected;
-                  },
-                  IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] {
+    return caller_transport->Information().state() ==
+           SctpTransportState::kConnected;
+  }));
   scoped_refptr<SctpTransportInterface> callee_transport =
       callee()->pc()->GetSctpTransport();
   ASSERT_THAT(callee_transport, NotNull());
@@ -1902,8 +1765,7 @@ TEST_P(SdpNegotiationGoogSpedV1Test, VerifySdp) {
                 testing::Not(testing::HasSubstr(ICE_OPTION_GOOG_SPED_V1)));
   }
 
-  ASSERT_THAT(WaitUntil([&] { return answer.get() != nullptr; }, IsTrue()),
-              IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return answer.get() != nullptr; }));
 
   std::string answer_sdp;
   answer->ToString(&answer_sdp);
