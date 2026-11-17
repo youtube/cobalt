@@ -68,60 +68,9 @@ void BM_AudioSinkCreate(::benchmark::State& state,
       (AudioSinkBenchmarkConfig{channels, sample_type, frequency}))         \
       ->UseManualTime()                                                     \
       ->Unit(::benchmark::kMicrosecond)                                     \
-      ->Iterations(20)
+      ->Iterations(20);
 
-// Stereo is what WebAudio creates through CobaltAudioRendererSink; mono and
-// 5.1 cover the other channel layouts platforms commonly support.
-AUDIO_SINK_CREATE_BENCHMARK(Mono_Int16_44100,
-                            /*channels=*/1,
-                            kSbMediaAudioSampleTypeInt16Deprecated,
-                            /*frequency=*/44'100);
-AUDIO_SINK_CREATE_BENCHMARK(Mono_Int16_48000,
-                            /*channels=*/1,
-                            kSbMediaAudioSampleTypeInt16Deprecated,
-                            /*frequency=*/48'000);
-AUDIO_SINK_CREATE_BENCHMARK(Mono_Float32_44100,
-                            /*channels=*/1,
-                            kSbMediaAudioSampleTypeFloat32,
-                            /*frequency=*/44'100);
-AUDIO_SINK_CREATE_BENCHMARK(Mono_Float32_48000,
-                            /*channels=*/1,
-                            kSbMediaAudioSampleTypeFloat32,
-                            /*frequency=*/48'000);
-
-AUDIO_SINK_CREATE_BENCHMARK(Stereo_Int16_44100,
-                            /*channels=*/2,
-                            kSbMediaAudioSampleTypeInt16Deprecated,
-                            /*frequency=*/44'100);
-AUDIO_SINK_CREATE_BENCHMARK(Stereo_Int16_48000,
-                            /*channels=*/2,
-                            kSbMediaAudioSampleTypeInt16Deprecated,
-                            /*frequency=*/48'000);
-AUDIO_SINK_CREATE_BENCHMARK(Stereo_Float32_44100,
-                            /*channels=*/2,
-                            kSbMediaAudioSampleTypeFloat32,
-                            /*frequency=*/44'100);
-AUDIO_SINK_CREATE_BENCHMARK(Stereo_Float32_48000,
-                            /*channels=*/2,
-                            kSbMediaAudioSampleTypeFloat32,
-                            /*frequency=*/48'000);
-
-AUDIO_SINK_CREATE_BENCHMARK(FiveOne_Int16_44100,
-                            /*channels=*/6,
-                            kSbMediaAudioSampleTypeInt16Deprecated,
-                            /*frequency=*/44'100);
-AUDIO_SINK_CREATE_BENCHMARK(FiveOne_Int16_48000,
-                            /*channels=*/6,
-                            kSbMediaAudioSampleTypeInt16Deprecated,
-                            /*frequency=*/48'000);
-AUDIO_SINK_CREATE_BENCHMARK(FiveOne_Float32_44100,
-                            /*channels=*/6,
-                            kSbMediaAudioSampleTypeFloat32,
-                            /*frequency=*/44'100);
-AUDIO_SINK_CREATE_BENCHMARK(FiveOne_Float32_48000,
-                            /*channels=*/6,
-                            kSbMediaAudioSampleTypeFloat32,
-                            /*frequency=*/48'000);
+AUDIO_SINK_BENCHMARK_CONFIGS(AUDIO_SINK_CREATE_BENCHMARK)
 
 #undef AUDIO_SINK_CREATE_BENCHMARK
 
