@@ -27,14 +27,12 @@ blink_modules_sources("storage") {
     "storage_namespace.h",
   ]
 
-<<<<<<< HEAD
   configs += [ "//third_party/blink/renderer:narrowing" ]
-=======
+
   if (!enable_devtools_backend) {
     sources -= [ "inspector_dom_storage_agent.cc" ]
     sources += [ "cobalt/inspector_dom_storage_agent_stub.h" ]
   }
->>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 source_set("unit_tests") {
