@@ -2107,7 +2107,7 @@ void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
   if (!source_->RunUnlessElementGoneOrClosingUs(
           blink::BindOnce(&SourceBuffer::AppendBufferInternal_Locked,
                         WrapPersistent(this), data, std::move(release_runner),
-                        Unretained(&exception_state)))) {
+                        blink::subtle::UnretainedException(&exception_state)))) {
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!source_->RunUnlessElementGoneOrClosingUs(blink::BindOnce(
           &SourceBuffer::AppendBufferInternal_Locked, WrapPersistent(this),
