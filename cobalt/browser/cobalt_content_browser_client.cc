@@ -57,6 +57,7 @@
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/build/configs/buildflags.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
+#include "cobalt/common/session_dirty_bit/session_dirty_bit_state.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -219,7 +220,12 @@ static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
   client->FlushCookiesAndLocalStorage(base::DoNothing());
 }
 
+static void JNI_CobaltContentBrowserClient_OnActivityStopped(JNIEnv*) {
+  OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/false);
+}
+
 static void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
+  OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/false);
   auto* client = CobaltContentBrowserClient::Get();
   if (!client) {
     return;
@@ -228,6 +234,7 @@ static void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
 }
 
 static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
+  OnSessionDirtyBitPlatformForeground();
   auto* client = CobaltContentBrowserClient::Get();
   if (!client) {
     return;
@@ -874,6 +881,7 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorageOnPause() {
 }
 
 void CobaltContentBrowserClient::DispatchBlur() {
+  OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/false);
   if (web_contents_observer_) {
     auto* web_contents = web_contents_observer_->web_contents();
     if (web_contents) {
@@ -884,6 +892,7 @@ void CobaltContentBrowserClient::DispatchBlur() {
 }
 
 void CobaltContentBrowserClient::DispatchFocus() {
+  OnSessionDirtyBitPlatformForeground();
   if (web_contents_observer_) {
     auto* web_contents = web_contents_observer_->web_contents();
     if (web_contents) {
@@ -1054,7 +1063,16 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
                                   params);
 }
 
+void CobaltContentBrowserClient::InitializeSessionDirtyBitFromCacheDir() {
+  base::FilePath cache_dir;
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
+      !cache_dir.empty()) {
+    InitializeSessionDirtyBit(cache_dir, is_visible_);
+  }
+}
+
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
+  InitializeSessionDirtyBitFromCacheDir();
   auto* global_features = GlobalFeatures::GetInstance();
   global_features->metrics_services_manager()->InstantiateFieldTrialList();
   // Mark the session as unclean at startup. If the session exits cleanly, it

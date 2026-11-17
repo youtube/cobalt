@@ -28,6 +28,12 @@ enum LowMemoryKillPressureSource {
   "cobalt",
 };
 
+enum SessionDirtyBitStage {
+  "clean",
+  "early",
+  "late",
+};
+
 // `timestamp` is required. All other fields are optional; unknown enum
 // values are omitted (`undefined`), and unavailable memory or reason values are
 // null.
@@ -117,4 +123,20 @@ interface H5vccSystem {
   // details.
   [CallWith=ScriptState, RaisesException]
   Promise<LowMemoryKillDetails?> getLowMemoryKillDetails();
+
+  // Returns the dirty-bit stage left behind by the previous Cobalt session:
+  //   - "clean": Previous session exited cleanly or no dirty bit was set.
+  //   - "early": Previous session terminated uncleanly during early startup
+  //              before `promoteSessionDirtyBit()` ran.
+  //   - "late":  Previous session terminated uncleanly during an active
+  //              foreground session after `promoteSessionDirtyBit()` ran.
+  SessionDirtyBitStage getPreviousSessionDirtyBitStage();
+
+  // Promotes the active session's dirty bit from "early" to "late" once web
+  // bootstrap completes.
+  void promoteSessionDirtyBit();
+
+  // Explicitly clears both the active on-disk dirty bit and the cached
+  // previous-session stage ahead of an intentional reload or paused preload.
+  void clearSessionDirtyBit();
 };

@@ -669,6 +669,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       // CobaltFreezeOnBackground, which only controls the lightweight page freeze below.
       AppEventBridge.handleConcealEvent(stopTimestamp);
     } else {
+      CobaltContentBrowserClient.onActivityStopped();
       // visibility:hidden event
       updateShellActivityVisible(false);
       WebContents webContents = getActiveWebContents();

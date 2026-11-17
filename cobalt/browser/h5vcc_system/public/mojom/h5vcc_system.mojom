@@ -41,6 +41,12 @@ struct LowMemoryKillDetails {
   string? reason;
 };
 
+// Listener notified when browser-side clean disarming clears the cached
+// previous-session dirty-bit stage so out-of-process renderers stay in sync.
+interface H5vccSystemSessionDirtyBitListener {
+  OnPreviousSessionDirtyBitCleared();
+};
+
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccSystem Blink API.
 interface H5vccSystem {
@@ -81,4 +87,19 @@ interface H5vccSystem {
   // killed by the system due to memory pressure (or null if not). Otherwise
   // resolves with `supported` false and `details` null.
   GetLowMemoryKillDetails() => (bool supported, LowMemoryKillDetails? details);
+
+  // Promotes the active session's dirty bit from `kEarly` to `kLate`.
+  PromoteSessionDirtyBit();
+
+  // Explicitly clears both on-disk and cached previous-session dirty-bit state
+  // ahead of an intentional reload or paused preload cleanup. Synchronous so
+  // the browser processes the clear before a subsequent `location.reload()`
+  // tears down the document's `DocumentService`.
+  [Sync]
+  ClearSessionDirtyBit() => ();
+
+  // Registers a renderer listener notified when browser-side disarming clears
+  // the cached previous-session dirty-bit stage.
+  AddSessionDirtyBitListener(
+      pending_remote<H5vccSystemSessionDirtyBitListener> listener);
 };

@@ -49,6 +49,7 @@
 #include "cobalt/browser/h5vcc_platform_service/platform_service_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/common/session_dirty_bit/session_dirty_bit_state.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/services/storage/public/cpp/constants.h"
@@ -56,6 +57,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/site_instance.h"
+#include "content/public/common/content_switches.h"
 #include "content/test/test_web_contents.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
@@ -1376,6 +1378,87 @@ TEST_F(CobaltPlatformServiceBinderTest,
   state_.on_close = close_loop.QuitClosure();
   service.reset();
   close_loop.Run();
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       AppendExtraCommandLineSwitchesForwardsSessionDirtyBitStage) {
+  base::test::ScopedCommandLine scoped_command_line;
+  ResetSessionDirtyBitForTesting();
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/std::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  SetPreviousSessionDirtyBitStage(SessionDirtyBitStage::kLate);
+  base::CommandLine late_renderer_cmd(base::CommandLine::NO_PROGRAM);
+  late_renderer_cmd.AppendSwitchASCII(::switches::kProcessType,
+                                      ::switches::kRendererProcess);
+  client.AppendExtraCommandLineSwitches(&late_renderer_cmd,
+                                        /*child_process_id=*/1);
+  EXPECT_EQ("late", late_renderer_cmd.GetSwitchValueASCII(
+                        kPreviousSessionDirtyBitStageSwitch));
+
+  SetPreviousSessionDirtyBitStage(SessionDirtyBitStage::kEarly);
+  base::CommandLine early_renderer_cmd(base::CommandLine::NO_PROGRAM);
+  early_renderer_cmd.AppendSwitchASCII(::switches::kProcessType,
+                                       ::switches::kRendererProcess);
+  client.AppendExtraCommandLineSwitches(&early_renderer_cmd,
+                                        /*child_process_id=*/2);
+  EXPECT_EQ("early", early_renderer_cmd.GetSwitchValueASCII(
+                         kPreviousSessionDirtyBitStageSwitch));
+
+  base::CommandLine gpu_cmd(base::CommandLine::NO_PROGRAM);
+  gpu_cmd.AppendSwitchASCII(::switches::kProcessType, ::switches::kGpuProcess);
+  client.AppendExtraCommandLineSwitches(&gpu_cmd, /*child_process_id=*/3);
+  EXPECT_FALSE(gpu_cmd.HasSwitch(kPreviousSessionDirtyBitStageSwitch));
+
+  // Even if the browser launch command line contains the switch, a clean
+  // snapshot must not forward it to child renderers.
+  scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+      kPreviousSessionDirtyBitStageSwitch, "late");
+  SetPreviousSessionDirtyBitStage(SessionDirtyBitStage::kClean);
+  base::CommandLine clean_renderer_cmd(base::CommandLine::NO_PROGRAM);
+  clean_renderer_cmd.AppendSwitchASCII(::switches::kProcessType,
+                                       ::switches::kRendererProcess);
+  client.AppendExtraCommandLineSwitches(&clean_renderer_cmd,
+                                        /*child_process_id=*/4);
+  EXPECT_FALSE(
+      clean_renderer_cmd.HasSwitch(kPreviousSessionDirtyBitStageSwitch));
+
+  ResetSessionDirtyBitForTesting();
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       InitializeSessionDirtyBitPreloadDoesNotOverwritePriorCrash) {
+  ResetSessionDirtyBitForTesting();
+  base::ScopedTempDir temp_cache_dir;
+  ASSERT_TRUE(temp_cache_dir.CreateUniqueTempDir());
+  base::ScopedPathOverride cache_override(base::DIR_CACHE,
+                                          temp_cache_dir.GetPath(),
+                                          /*is_absolute=*/true,
+                                          /*create=*/true);
+  WriteSessionDirtyBitFileForTesting(temp_cache_dir.GetPath(),
+                                     SessionDirtyBitStage::kLate);
+
+  CobaltContentBrowserClient preload_client(/*startup_timestamp=*/std::nullopt,
+                                            /*deep_link=*/"",
+                                            /*is_visible=*/false);
+  preload_client.InitializeSessionDirtyBitFromCacheDir();
+
+  EXPECT_EQ(SessionDirtyBitStage::kLate, GetPreviousSessionDirtyBitStage());
+  EXPECT_EQ(SessionDirtyBitStage::kLate,
+            ReadSessionDirtyBitFileForTesting(temp_cache_dir.GetPath()));
+
+  CobaltContentBrowserClient visible_client(/*startup_timestamp=*/std::nullopt,
+                                            /*deep_link=*/"",
+                                            /*is_visible=*/true);
+  visible_client.InitializeSessionDirtyBitFromCacheDir();
+
+  EXPECT_EQ(SessionDirtyBitStage::kLate, GetPreviousSessionDirtyBitStage());
+  EXPECT_EQ(SessionDirtyBitStage::kEarly,
+            ReadSessionDirtyBitFileForTesting(temp_cache_dir.GetPath()));
+
+  ResetSessionDirtyBitForTesting();
 }
 
 }  // namespace

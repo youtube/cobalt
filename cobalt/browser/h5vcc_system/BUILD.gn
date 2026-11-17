@@ -34,6 +34,7 @@ source_set("h5vcc_system") {
   deps = [
     "//base",
     "//cobalt/browser/h5vcc_system/public/mojom",
+    "//cobalt/common/session_dirty_bit",
     "//cobalt/shell:cobalt_shell_lib",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",

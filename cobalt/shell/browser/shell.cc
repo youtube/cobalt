@@ -40,6 +40,7 @@
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/common/session_dirty_bit/session_dirty_bit_state.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
@@ -375,6 +376,7 @@ Shell::~Shell() {
   web_contents_.reset();
 
   if (windows().empty()) {
+    cobalt::OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/true);
     g_platform->DidCloseLastWindow();
   }
 }
@@ -388,6 +390,7 @@ ShellPlatformDelegate* Shell::GetPlatform() {
 void Shell::OnBlur() {
   CHECK(g_platform);
   if (g_platform->IsVisible()) {
+    cobalt::OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/false);
     g_platform->OnBlur();
   }
 }
@@ -396,6 +399,7 @@ void Shell::OnBlur() {
 void Shell::OnFocus() {
   CHECK(g_platform);
   if (g_platform->IsVisible()) {
+    cobalt::OnSessionDirtyBitPlatformForeground();
     g_platform->OnFocus();
   }
 }
@@ -410,6 +414,7 @@ void Shell::OnConceal() {
     }
   }
   if (g_platform->IsVisible()) {
+    cobalt::OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/false);
     g_platform->OnConceal();
   }
 }
@@ -425,6 +430,7 @@ void Shell::OnReveal() {
 // static
 void Shell::OnFreeze() {
   CHECK(g_platform);
+  cobalt::OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/false);
   g_platform->OnFreeze();
 }
 
@@ -437,6 +443,7 @@ void Shell::OnUnfreeze() {
 // static
 void Shell::OnStop() {
   CHECK(g_platform);
+  cobalt::OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/true);
   g_platform->OnStop();
 }
 
@@ -529,6 +536,7 @@ void Shell::Shutdown() {
   }
 
   DevToolsAgentHost::DetachAllClients();
+  cobalt::OnSessionDirtyBitPlatformDisarm(/*reset_promotion=*/true);
 
   while (!Shell::windows().empty()) {
     Shell::windows().back()->Close();
@@ -673,6 +681,9 @@ void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
   if (navigation_handle->IsInPrimaryMainFrame() &&
       navigation_handle->HasCommitted() && !navigation_handle->IsErrorPage()) {
+    if (!navigation_handle->IsSameDocument()) {
+      cobalt::OnSessionDirtyBitMainFrameNavigationCommitted();
+    }
     MarkStartupEvent(SplashScreenMetrics::Event::kMainCommit);
   }
 #if BUILDFLAG(IS_ANDROIDTV)

@@ -26,6 +26,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
+#include "cobalt/common/session_dirty_bit/session_dirty_bit_state.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -217,6 +218,9 @@ void ShellContentBrowserTestClient::SetUpFieldTrials() {
                       switches::kEnableGpuBenchmarking),
           });
   metrics_state_manager->InstantiateFieldTrialList();
+  if (!user_data_dir.empty()) {
+    cobalt::InitializeSessionDirtyBit(user_data_dir, is_visible());
+  }
 
   std::vector<std::string> variation_ids;
   auto feature_list = std::make_unique<base::FeatureList>();

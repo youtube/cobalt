@@ -12,6 +12,7 @@ const USER_ON_EXIT_STRATEGY_MINIMIZE = 1;
 const USER_ON_EXIT_STRATEGY_NO_EXIT = 2;
 
 const EXIT_METHOD_NAME = 'exit';
+const PROMOTE_DIRTY_BIT_METHOD_NAME = 'promoteSessionDirtyBit';
 
 // Implementation of h5vcc_system.mojom.H5vccSystem.
 class MockH5vccSystem {
@@ -22,7 +23,10 @@ class MockH5vccSystem {
     this.receiver_ = new H5vccSystemReceiver(this);
 
     this.stub_result_ = new Map();
-    this.callCount_ = { [EXIT_METHOD_NAME]: 0 };
+    this.callCount_ = {
+      [EXIT_METHOD_NAME]: 0,
+      [PROMOTE_DIRTY_BIT_METHOD_NAME]: 0,
+    };
   }
 
   ForegroundStatus = LowMemoryKillForegroundStatus;
@@ -45,6 +49,10 @@ class MockH5vccSystem {
     return this.callCount_[EXIT_METHOD_NAME];
   }
 
+  promoteSessionDirtyBitCallCount() {
+    return this.callCount_[PROMOTE_DIRTY_BIT_METHOD_NAME];
+  }
+
   start() {
     this.interceptor_.start();
   }
@@ -59,6 +67,8 @@ class MockH5vccSystem {
 
   reset() {
     this.stub_result_ = new Map();
+    this.callCount_[EXIT_METHOD_NAME] = 0;
+    this.callCount_[PROMOTE_DIRTY_BIT_METHOD_NAME] = 0;
   }
 
   stubResult(key, value) {
@@ -172,6 +182,16 @@ class MockH5vccSystem {
       details: stub ? stub.details : null,
     });
   }
+
+  promoteSessionDirtyBit() {
+    this.callCount_[PROMOTE_DIRTY_BIT_METHOD_NAME] += 1;
+  }
+
+  clearSessionDirtyBit() {
+    return Promise.resolve({});
+  }
+
+  addSessionDirtyBitListener() {}
 }
 
 export const mockH5vccSystem = new MockH5vccSystem();

@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
 
 #include "base/time/time.h"
+#include "cobalt/common/session_dirty_bit/session_dirty_bit_state.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_details.h"
@@ -23,6 +24,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/modules/event_interface_modules_names.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -57,9 +59,17 @@ V8LowMemoryKillPressureSource::Enum ToV8PressureSource(
 
 H5vccSystem::H5vccSystem(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
-      remote_h5vcc_system_(window.GetExecutionContext()) {}
+      remote_h5vcc_system_(window.GetExecutionContext()),
+      dirty_bit_listener_receiver_(this, window.GetExecutionContext()) {}
 
-void H5vccSystem::ContextDestroyed() {}
+void H5vccSystem::ContextDestroyed() {
+  remote_h5vcc_system_.reset();
+  dirty_bit_listener_receiver_.reset();
+}
+
+void H5vccSystem::OnPreviousSessionDirtyBitCleared() {
+  cobalt::SetPreviousSessionDirtyBitStage(cobalt::SessionDirtyBitStage::kClean);
+}
 
 ScriptPromise<IDLString> H5vccSystem::getAdvertisingId(
     ScriptState* script_state,
@@ -315,6 +325,36 @@ void H5vccSystem::OnGetLowMemoryKillDetails(
   resolver->Resolve(details);
 }
 
+V8SessionDirtyBitStage H5vccSystem::getPreviousSessionDirtyBitStage() {
+  MaybeRegisterSessionDirtyBitListener();
+  switch (cobalt::GetPreviousSessionDirtyBitStage()) {
+    case cobalt::SessionDirtyBitStage::kClean:
+      return V8SessionDirtyBitStage(V8SessionDirtyBitStage::Enum::kClean);
+    case cobalt::SessionDirtyBitStage::kEarly:
+      return V8SessionDirtyBitStage(V8SessionDirtyBitStage::Enum::kEarly);
+    case cobalt::SessionDirtyBitStage::kLate:
+      return V8SessionDirtyBitStage(V8SessionDirtyBitStage::Enum::kLate);
+  }
+  NOTREACHED();
+}
+
+void H5vccSystem::promoteSessionDirtyBit() {
+  if (!IsOutermostMainFrame()) {
+    return;
+  }
+  EnsureReceiverIsBound();
+  remote_h5vcc_system_->PromoteSessionDirtyBit();
+}
+
+void H5vccSystem::clearSessionDirtyBit() {
+  if (!IsOutermostMainFrame()) {
+    return;
+  }
+  cobalt::SetPreviousSessionDirtyBitStage(cobalt::SessionDirtyBitStage::kClean);
+  EnsureReceiverIsBound();
+  remote_h5vcc_system_->ClearSessionDirtyBit();
+}
+
 void H5vccSystem::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
@@ -328,10 +368,35 @@ void H5vccSystem::EnsureReceiverIsBound() {
       remote_h5vcc_system_.BindNewPipeAndPassReceiver(task_runner));
 }
 
+void H5vccSystem::MaybeRegisterSessionDirtyBitListener() {
+  if (cobalt::IsSessionDirtyBitSharedInProcess() || !IsOutermostMainFrame() ||
+      dirty_bit_listener_receiver_.is_bound() ||
+      cobalt::GetPreviousSessionDirtyBitStage() ==
+          cobalt::SessionDirtyBitStage::kClean) {
+    return;
+  }
+  EnsureReceiverIsBound();
+  auto task_runner =
+      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  remote_h5vcc_system_->AddSessionDirtyBitListener(
+      dirty_bit_listener_receiver_.BindNewPipeAndPassRemote(task_runner));
+}
+
+bool H5vccSystem::IsOutermostMainFrame() const {
+  if (!GetExecutionContext()) {
+    return false;
+  }
+  const LocalDOMWindow* window =
+      DynamicTo<LocalDOMWindow>(GetExecutionContext());
+  return window && window->GetFrame() &&
+         window->GetFrame()->IsOutermostMainFrame();
+}
+
 void H5vccSystem::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   visitor->Trace(remote_h5vcc_system_);
+  visitor->Trace(dirty_bit_listener_receiver_);
 }
 
 }  // namespace blink
