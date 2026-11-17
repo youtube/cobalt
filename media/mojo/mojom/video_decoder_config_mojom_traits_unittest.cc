@@ -158,39 +158,77 @@ TEST(VideoDecoderConfigStructTraitsTest,
   EXPECT_FALSE(output.IsValidConfig());
 }
 
-<<<<<<< HEAD
 TEST(VideoDecoderConfigStructTraitsTest,
      ConvertVideoDecoderConfig_ProjectionAndStereoMode) {
-=======
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-TEST(VideoDecoderConfigStructTraitsTest, ConvertVideoDecoderConfig_MimeType) {
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   VideoDecoderConfig input(VideoCodec::kVP8, VP8PROFILE_ANY,
                            VideoDecoderConfig::AlphaMode::kIsOpaque,
                            VideoColorSpace(), kNoTransformation, kCodedSize,
                            kVisibleRect, kNaturalSize, EmptyExtraData(),
                            EncryptionScheme::kUnencrypted);
-<<<<<<< HEAD
   input.set_spatial_format(VideoSpatialFormat{
       VideoProjectionType::kEquirect360,
       VideoStereoMode::kSideBySideLeftFirst,
   });
-=======
-  input.set_mime_type("video/mp4; codecs=\"av01.0.09M.08\"");
-
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   std::vector<uint8_t> data =
       media::mojom::VideoDecoderConfig::Serialize(&input);
   VideoDecoderConfig output;
   EXPECT_TRUE(
       media::mojom::VideoDecoderConfig::Deserialize(std::move(data), &output));
   EXPECT_TRUE(output.Matches(input));
-<<<<<<< HEAD
 }
-=======
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST(VideoDecoderConfigStructTraitsTest, ConvertVideoDecoderConfig_MimeType) {
+  VideoDecoderConfig input(VideoCodec::kVP8, VP8PROFILE_ANY,
+                           VideoDecoderConfig::AlphaMode::kIsOpaque,
+                           VideoColorSpace(), kNoTransformation, kCodedSize,
+                           kVisibleRect, kNaturalSize, EmptyExtraData(),
+                           EncryptionScheme::kUnencrypted);
+  input.set_spatial_format(VideoSpatialFormat{
+      VideoProjectionType::kEquirect360,
+      VideoStereoMode::kSideBySideLeftFirst,
+  });
+  std::vector<uint8_t> data =
+      media::mojom::VideoDecoderConfig::Serialize(&input);
+  VideoDecoderConfig output;
+  EXPECT_TRUE(
+      media::mojom::VideoDecoderConfig::Deserialize(std::move(data), &output));
+  EXPECT_TRUE(output.Matches(input));
+}
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST(VideoDecoderConfigStructTraitsTest, ConvertVideoDecoderConfig_MimeType) {
+  VideoDecoderConfig input(VideoCodec::kVP8, VP8PROFILE_ANY,
+                           VideoDecoderConfig::AlphaMode::kIsOpaque,
+                           VideoColorSpace(), kNoTransformation, kCodedSize,
+                           kVisibleRect, kNaturalSize, EmptyExtraData(),
+                           EncryptionScheme::kUnencrypted);
+  input.set_mime_type("video/mp4; codecs=\"av01.0.09M.08\"");
+  std::vector<uint8_t> data =
+      media::mojom::VideoDecoderConfig::Serialize(&input);
+  VideoDecoderConfig output;
+  EXPECT_TRUE(
+      media::mojom::VideoDecoderConfig::Deserialize(std::move(data), &output));
+  EXPECT_TRUE(output.Matches(input));
+}
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST(VideoDecoderConfigStructTraitsTest, ConvertVideoDecoderConfig_MimeType) {
+  VideoDecoderConfig input(VideoCodec::kVP8, VP8PROFILE_ANY,
+                           VideoDecoderConfig::AlphaMode::kIsOpaque,
+                           VideoColorSpace(), kNoTransformation, kCodedSize,
+                           kVisibleRect, kNaturalSize, EmptyExtraData(),
+                           EncryptionScheme::kUnencrypted);
+  input.set_mime_type("video/mp4; codecs=\"av01.0.09M.08\"");
+
+  std::vector<uint8_t> data =
+      media::mojom::VideoDecoderConfig::Serialize(&input);
+  VideoDecoderConfig output;
+  EXPECT_TRUE(
+      media::mojom::VideoDecoderConfig::Deserialize(std::move(data), &output));
+  EXPECT_TRUE(output.Matches(input));
   EXPECT_EQ(output.mime_type(), "video/mp4; codecs=\"av01.0.09M.08\"");
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace media
