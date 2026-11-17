@@ -40,11 +40,8 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_certificate.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel_state.h"
-<<<<<<< HEAD
-#include "third_party/blink/renderer/bindings/modules/v8/v8_union_arraybuffer_jsonwebkey.h"
-=======
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "third_party/blink/renderer/bindings/modules/v8/v8_union_arraybuffer_jsonwebkey.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_cryptokey_cryptokeypair.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
