@@ -156,16 +156,6 @@ public class MemoryPressureListener {
         return MemoryPressureListenerJni.get().isTrimMemoryBackgroundCritical();
     }
 
-    public static boolean isModerateMemoryPressureEnabled() {
-        if (!LibraryLoader.getInstance().isInitialized()) return false;
-        return MemoryPressureListenerJni.get().isModerateMemoryPressureEnabled();
-    }
-
-    public static int getMemoryPressureCooldownSeconds() {
-        if (!LibraryLoader.getInstance().isInitialized()) return 60;
-        return MemoryPressureListenerJni.get().getMemoryPressureCooldownSeconds();
-    }
-
     /**
      * Used by applications to simulate a memory pressure signal. By throwing certain intent
      * actions.
@@ -211,9 +201,5 @@ public class MemoryPressureListener {
         void onPreFreeze();
 
         boolean isTrimMemoryBackgroundCritical();
-
-        boolean isModerateMemoryPressureEnabled();
-
-        int getMemoryPressureCooldownSeconds();
     }
 }

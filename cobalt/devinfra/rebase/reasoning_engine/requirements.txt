@@ -1,3 +1,0 @@
-google-genai>=1.0.0
-google-cloud-aiplatform[reasoningengine]>=1.75.0
-anthropic[vertex]>=0.45.0

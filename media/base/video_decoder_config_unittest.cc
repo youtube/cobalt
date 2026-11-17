@@ -39,22 +39,4 @@ TEST(VideoDecoderConfigTest, SetProfile) {
   EXPECT_EQ(config.profile(), VP9PROFILE_PROFILE2);
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-TEST(VideoDecoderConfigTest, SetMimeTypeAndMatches) {
-  VideoDecoderConfig config1(VideoCodec::kVP9, VP9PROFILE_PROFILE0,
-                             VideoDecoderConfig::AlphaMode::kIsOpaque,
-                             VideoColorSpace(), kNoTransformation, kCodedSize,
-                             kVisibleRect, kNaturalSize, EmptyExtraData(),
-                             EncryptionScheme::kUnencrypted);
-  config1.set_mime_type("video/webm; codecs=\"vp9\"");
-  EXPECT_EQ(config1.mime_type(), "video/webm; codecs=\"vp9\"");
-
-  VideoDecoderConfig config2 = config1;
-  EXPECT_TRUE(config1.Matches(config2));
-
-  config2.set_mime_type("video/mp4; codecs=\"av01.0.09M.08\"");
-  EXPECT_FALSE(config1.Matches(config2));
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 }  // namespace media
