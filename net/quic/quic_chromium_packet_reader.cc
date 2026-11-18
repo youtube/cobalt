@@ -17,6 +17,7 @@
 #if BUILDFLAG(IS_COBALT)
 #include "net/quic/platform/impl/quic_chromium_clock.h"
 #include "net/socket/diff_serv_code_point.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_connection.h"
 
 #ifdef UNSAFE_BUFFERS_BUILD
 #pragma allow_unsafe_buffers
@@ -34,6 +35,10 @@ const size_t kReadBufferSize =
 
 #if BUILDFLAG(IS_COBALT)
 bool QuicChromiumPacketReader::try_reading_multiple_packets_{true};
+
+quic::QuicConnection* QuicChromiumPacketReader::Visitor::GetConnection() {
+  return nullptr;
+}
 #endif
 
 QuicChromiumPacketReader::QuicChromiumPacketReader(
@@ -63,6 +68,8 @@ QuicChromiumPacketReader::~QuicChromiumPacketReader() = default;
 int QuicChromiumPacketReader::StartReadingMultiplePackets() {
   // Packets handled here reuse the time read for the yield check.
   quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
+  quic::QuicConnection::ScopedAckDeferrer ack_deferrer(
+      visitor_->GetConnection());
   for (;;) {
 if (read_pending_)
       return OK;
@@ -180,6 +187,9 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
 }
 
 void QuicChromiumPacketReader::OnReadMultiplePacketComplete(int result) {
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
+  quic::QuicConnection::ScopedAckDeferrer ack_deferrer(
+      visitor_->GetConnection());
   if (ProcessMultiplePacketReadResult(result))
     StartReadingMultiplePackets();
 }
@@ -190,6 +200,8 @@ void QuicChromiumPacketReader::StartReading() {
 #if BUILDFLAG(IS_COBALT)
   // Packets handled here reuse the time read for the yield check.
   quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
+  quic::QuicConnection::ScopedAckDeferrer ack_deferrer(
+      visitor_->GetConnection());
   if (try_reading_multiple_packets_) {
     int rv = StartReadingMultiplePackets();
     if (rv == OK || rv == ERR_IO_PENDING) {
@@ -320,6 +332,11 @@ bool QuicChromiumPacketReader::ProcessReadResult(int result) {
 }
 
 void QuicChromiumPacketReader::OnReadComplete(int result) {
+#if BUILDFLAG(IS_COBALT)
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
+  quic::QuicConnection::ScopedAckDeferrer ack_deferrer(
+      visitor_->GetConnection());
+#endif  // BUILDFLAG(IS_COBALT)
   if (ProcessReadResult(result)) {
     StartReading();
   }

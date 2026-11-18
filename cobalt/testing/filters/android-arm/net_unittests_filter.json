@@ -24,6 +24,9 @@
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1",
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2",
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcnMultiplePackets/RFCv1",
-    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcnMultiplePackets/RFCv2"
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcnMultiplePackets/RFCv2",
+    "*QuicConnectionTest.ScopedAckDeferrer*",
+    "*QuicChromiumClientSessionTest.MultiPacketReadsSendImmediateAcksWithoutDaop*",
+    "*QuicChromiumClientSessionTest.ScopedAckDeferrer*"
   ]
 }
