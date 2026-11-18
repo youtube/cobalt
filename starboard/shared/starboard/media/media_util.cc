@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <optional>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -30,7 +31,7 @@ namespace starboard {
 namespace {
 
 void Assign(const SbMediaAudioStreamInfo& source, AudioStreamInfo* dest) {
-  SB_DCHECK(dest);
+  SB_CHECK(dest);
 
   if (source.audio_specific_config_size > 0) {
     SB_DCHECK(source.audio_specific_config);
@@ -44,7 +45,7 @@ void Assign(const SbMediaAudioStreamInfo& source, AudioStreamInfo* dest) {
     return;
   }
 
-  SB_DCHECK(source.mime);
+  SB_CHECK(source.mime);
 
   dest->mime = source.mime;
   dest->number_of_channels = source.number_of_channels;
@@ -57,7 +58,7 @@ void Assign(const SbMediaAudioStreamInfo& source, AudioStreamInfo* dest) {
 }
 
 void Assign(const SbMediaVideoStreamInfo& source, VideoStreamInfo* dest) {
-  SB_DCHECK(dest);
+  SB_CHECK(dest);
 
   dest->codec = source.codec;
 
@@ -67,8 +68,8 @@ void Assign(const SbMediaVideoStreamInfo& source, VideoStreamInfo* dest) {
     return;
   }
 
-  SB_DCHECK(source.mime);
-  SB_DCHECK(source.max_video_capabilities);
+  SB_CHECK(source.mime);
+  SB_CHECK(source.max_video_capabilities);
 
   dest->mime = source.mime;
   dest->max_video_capabilities = source.max_video_capabilities;
@@ -77,7 +78,7 @@ void Assign(const SbMediaVideoStreamInfo& source, VideoStreamInfo* dest) {
 }
 
 void Assign(const AudioStreamInfo& source, SbMediaAudioStreamInfo* dest) {
-  SB_DCHECK(dest);
+  SB_CHECK(dest);
 
   *dest = {};
 
@@ -94,7 +95,7 @@ void Assign(const AudioStreamInfo& source, SbMediaAudioStreamInfo* dest) {
 }
 
 void Assign(const VideoStreamInfo& source, SbMediaVideoStreamInfo* dest) {
-  SB_DCHECK(dest);
+  SB_CHECK(dest);
 
   *dest = {};
 
@@ -156,7 +157,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
 
 void AudioSampleInfo::ConvertTo(
     SbMediaAudioSampleInfo* audio_sample_info) const {
-  SB_DCHECK(audio_sample_info);
+  SB_CHECK(audio_sample_info);
 
   *audio_sample_info = {};
   stream_info.ConvertTo(&audio_sample_info->stream_info);
@@ -202,7 +203,7 @@ VideoSampleInfo& VideoSampleInfo::operator=(
 
 void VideoSampleInfo::ConvertTo(
     SbMediaVideoSampleInfo* video_sample_info) const {
-  SB_DCHECK(video_sample_info);
+  SB_CHECK(video_sample_info);
 
   *video_sample_info = {};
   stream_info.ConvertTo(&video_sample_info->stream_info);
@@ -231,16 +232,9 @@ std::ostream& operator<<(std::ostream& os, const VideoSampleInfo& sample_info) {
   return os;
 }
 
-bool IsSDRVideo(int bit_depth,
-                SbMediaPrimaryId primary_id,
+bool IsSDRColor(SbMediaPrimaryId primary_id,
                 SbMediaTransferId transfer_id,
                 SbMediaMatrixId matrix_id) {
-  SB_CHECK(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
-
-  if (bit_depth != 8) {
-    return false;
-  }
-
   if (primary_id != kSbMediaPrimaryIdBt709 &&
       primary_id != kSbMediaPrimaryIdUnspecified &&
       primary_id != kSbMediaPrimaryIdSmpte170M) {
@@ -262,7 +256,20 @@ bool IsSDRVideo(int bit_depth,
   return true;
 }
 
-bool IsSDRVideo(const char* mime) {
+bool Is8BitSDRVideo(int bit_depth,
+                    SbMediaPrimaryId primary_id,
+                    SbMediaTransferId transfer_id,
+                    SbMediaMatrixId matrix_id) {
+  SB_CHECK(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
+
+  if (bit_depth != 8) {
+    return false;
+  }
+
+  return IsSDRColor(primary_id, transfer_id, matrix_id);
+}
+
+bool Is8BitSDRVideo(const char* mime) {
   SB_DCHECK(mime);
 
   if (!mime) {
@@ -286,24 +293,15 @@ bool IsSDRVideo(const char* mime) {
     return true;
   }
 
-  SbMediaVideoCodec video_codec;
-  int profile = -1;
-  int level = -1;
-  int bit_depth = 8;
-  SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
-  SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
-  SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
-
-  if (!ParseVideoCodec(codecs[0].c_str(), &video_codec, &profile, &level,
-                       &bit_depth, &primary_id, &transfer_id, &matrix_id)) {
+  std::optional<ParsedVideoCodec> codec_info = ParseVideoCodec(codecs[0]);
+  if (!codec_info) {
     SB_LOG(WARNING) << "ParseVideoCodec() failed on mime: " << mime
                     << ", assuming sdr video.";
     return true;
   }
 
-  SB_DCHECK_NE(video_codec, kSbMediaVideoCodecNone);
-
-  return IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
+  return Is8BitSDRVideo(codec_info->bit_depth, codec_info->primary_id,
+                        codec_info->transfer_id, codec_info->matrix_id);
 }
 
 int GetBytesPerSample(SbMediaAudioSampleType sample_type) {

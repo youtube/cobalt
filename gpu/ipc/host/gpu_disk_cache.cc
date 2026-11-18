@@ -484,6 +484,12 @@ void GpuDiskCacheClearHelper::DoClearGpuCache(int rv) {
 
 GpuDiskCacheFactory::GpuDiskCacheFactory(
     const HandleToPathMap& reserved_handles) {
+#if BUILDFLAG(IS_COBALT)
+  if (reserved_handles.empty()) {
+    base::UmaHistogramCounts100000(
+        "Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB", 0);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   for (const auto& [handle, path] : reserved_handles) {
     CHECK(IsReservedGpuDiskCacheHandle(handle));
     handle_to_path_map_[handle] = path;

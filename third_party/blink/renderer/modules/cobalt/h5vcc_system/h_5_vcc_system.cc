@@ -14,13 +14,46 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
 
+#include "base/time/time.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_details.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_foreground_status.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_pressure_source.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h"
+#include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/event_interface_modules_names.h"
+#include "third_party/blink/renderer/platform/bindings/exception_code.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 
 namespace blink {
+
+namespace {
+
+V8LowMemoryKillForegroundStatus::Enum ToV8ForegroundStatus(
+    h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus status) {
+  switch (status) {
+    case h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus::kForeground:
+      return V8LowMemoryKillForegroundStatus::Enum::kForeground;
+    case h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus::kBackground:
+      return V8LowMemoryKillForegroundStatus::Enum::kBackground;
+  }
+  NOTREACHED();
+}
+
+V8LowMemoryKillPressureSource::Enum ToV8PressureSource(
+    h5vcc_system::mojom::blink::LowMemoryKillPressureSource source) {
+  switch (source) {
+    case h5vcc_system::mojom::blink::LowMemoryKillPressureSource::kSystem:
+      return V8LowMemoryKillPressureSource::Enum::kSystem;
+    case h5vcc_system::mojom::blink::LowMemoryKillPressureSource::kCobalt:
+      return V8LowMemoryKillPressureSource::Enum::kCobalt;
+  }
+  NOTREACHED();
+}
+
+}  // namespace
 
 H5vccSystem::H5vccSystem(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
@@ -204,9 +237,10 @@ void H5vccSystem::hideSplashScreen() {
 }
 
 ScriptPromise<IDLBoolean> H5vccSystem::wasLowMemoryKilled(
-    ScriptState* script_state) {
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(script_state);
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
+      script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
 
@@ -219,8 +253,66 @@ ScriptPromise<IDLBoolean> H5vccSystem::wasLowMemoryKilled(
 
 void H5vccSystem::OnGetWasLowMemoryKilled(
     ScriptPromiseResolver<IDLBoolean>* resolver,
-    bool result) {
-  resolver->Resolve(result);
+    std::optional<bool> result) {
+  if (!result.has_value()) {
+    resolver->RejectWithDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        "LowMemoryKill is not supported on this platform.");
+    return;
+  }
+  resolver->Resolve(*result);
+}
+
+ScriptPromise<IDLNullable<LowMemoryKillDetails>>
+H5vccSystem::getLowMemoryKillDetails(ScriptState* script_state,
+                                     ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<
+      ScriptPromiseResolver<IDLNullable<LowMemoryKillDetails>>>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->GetLowMemoryKillDetails(
+      WTF::BindOnce(&H5vccSystem::OnGetLowMemoryKillDetails,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+void H5vccSystem::OnGetLowMemoryKillDetails(
+    ScriptPromiseResolver<IDLNullable<LowMemoryKillDetails>>* resolver,
+    bool supported,
+    h5vcc_system::mojom::blink::LowMemoryKillDetailsPtr result) {
+  if (!supported) {
+    resolver->RejectWithDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        "LowMemoryKill v2 is not supported on this platform.");
+    return;
+  }
+  if (!result) {
+    resolver->Resolve(nullptr);
+    return;
+  }
+
+  auto* details = LowMemoryKillDetails::Create();
+  details->setTimestamp(
+      static_cast<DOMHighResTimeStamp>(result->timestamp_posix_usec) /
+      base::Time::kMicrosecondsPerMillisecond);
+  if (result->foreground_status.has_value()) {
+    details->setForegroundStatus(
+        ToV8ForegroundStatus(*result->foreground_status));
+  }
+  if (result->pressure_source.has_value()) {
+    details->setPressureSource(ToV8PressureSource(*result->pressure_source));
+  }
+  details->setSystemMemoryAvailable(result->system_memory_available);
+  details->setSystemMemoryTotal(result->system_memory_total);
+  details->setCobaltMemoryUsage(result->cobalt_memory_usage);
+  details->setCobaltMemoryLimit(result->cobalt_memory_limit);
+  // Pass a null String when empty so `reason` is populated as JS null rather
+  // than omitted (undefined).
+  details->setReason(result->reason.empty() ? String() : result->reason);
+  resolver->Resolve(details);
 }
 
 void H5vccSystem::EnsureReceiverIsBound() {

@@ -156,7 +156,7 @@ void Application::Stop(int error_level) {
 }
 
 void Application::Link(const char* link_data) {
-  SB_DCHECK(link_data) << "You must call Link with link_data.";
+  SB_CHECK(link_data) << "You must call Link with link_data.";
   Inject(new Event(kSbEventTypeLink, strdup(link_data), free));
 }
 
@@ -181,6 +181,11 @@ void Application::InjectAccessibilityTextToSpeechSettingsChangedEvent(
   bool* enabled_data = new bool(enabled);
   Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
                    enabled_data, &DeleteDestructor<bool>));
+}
+
+void Application::InjectCaptionSettingsChangedEvent() {
+  Inject(
+      new Event(kSbEventTypeAccessibilityCaptionSettingsChanged, NULL, NULL));
 }
 
 void Application::WindowSizeChanged(void* context,

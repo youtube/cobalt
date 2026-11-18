@@ -121,7 +121,8 @@ class StarboardRendererWrapper
 
   // cobalt::media::mojom::VideoGeometryChangeClient implementation.
   void OnVideoGeometryChange(const gfx::RectF& rect_f,
-                             gfx::OverlayTransform transform) override;
+                             gfx::OverlayTransform transform,
+                             int32_t z_index) override;
 
   void SetRendererForTesting(StarboardRenderer* renderer) {
     test_renderer_ = renderer;

@@ -43,6 +43,9 @@ class RendererClient;
 class MediaLog;
 class MediaResource;
 class MojoRenderer;
+#if BUILDFLAG(IS_IOS_TVOS)
+class UrlPlayerMediaResource;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 class VideoFrame;
 class VideoOverlayFactory;
 
@@ -149,6 +152,12 @@ class MEDIA_EXPORT StarboardRendererClient
            renderer_extension_.is_bound();
   }
   void OnMojoRendererInitialized(PipelineStatus status);
+  // Runs |init_cb_| once the Initialize() reply has arrived and, on success,
+  // the rendering mode and, for the URL player, the duration.
+  void MaybeRunInitCB();
+#if BUILDFLAG(IS_IOS_TVOS)
+  bool IsUrlPlayer() const;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   void SetMojoRendererInitialized(PipelineStatus status);
   bool IsMojoRendererInitialized() const;
   PipelineStatus pipeline_status() const;
@@ -181,7 +190,9 @@ class MEDIA_EXPORT StarboardRendererClient
 
   raw_ptr<RendererClient> client_ = nullptr;
 #if BUILDFLAG(IS_IOS_TVOS)
-  raw_ptr<MediaResource> media_resource_ = nullptr;
+  raw_ptr<UrlPlayerMediaResource> url_resource_ = nullptr;
+  // Whether OnDurationChange() has been called. |init_cb_| waits for it.
+  bool has_url_player_duration_ = false;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   PipelineStatusCallback init_cb_;
 

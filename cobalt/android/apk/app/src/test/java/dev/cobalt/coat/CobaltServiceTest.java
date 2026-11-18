@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.import static org.junit.Assert.assertEquals;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import dev.cobalt.coat.CobaltService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,6 +58,10 @@ public class CobaltServiceTest {
     public void callSendToClient(long nativeService, byte[] data) {
       sendToClient(nativeService, data);
     }
+
+    public boolean isOpened() {
+      return opened;
+    }
   }
 
   @Before
@@ -70,5 +78,28 @@ public class CobaltServiceTest {
     testService.callSendToClient(testNativeService, testData);
 
     verify(mockNatives).nativeSendToClient(testNativeService, testData);
+  }
+
+  @Test
+  public void onClose_fromBackgroundThread_updatesVolatileOpenedAndSuppressesSendToClient()
+      throws Exception {
+    assertTrue(testService.isOpened());
+    AtomicBoolean closedOnBgThread = new AtomicBoolean(false);
+    Thread serviceThread =
+        new Thread(
+            () -> {
+              testService.onClose();
+              closedOnBgThread.set(!testService.isOpened());
+            },
+            "CobaltPlatformServiceTest");
+    serviceThread.start();
+    serviceThread.join(5000);
+
+    assertTrue(closedOnBgThread.get());
+    assertFalse(testService.isOpened());
+
+    byte[] testData = "dropped_payload".getBytes();
+    testService.callSendToClient(98765L, testData);
+    verify(mockNatives, never()).nativeSendToClient(98765L, testData);
   }
 }

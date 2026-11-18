@@ -36,6 +36,7 @@
 #if BUILDFLAG(IS_IOS_TVOS)
 #include "media/base/eme_constants.h"
 #include "media/base/platform_init_data_types.h"
+#include "media/base/starboard/url_player_media_resource.h"
 #include "url/gurl.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
@@ -112,7 +113,7 @@ void StarboardRendererClient::Initialize(MediaResource* media_resource,
 
   client_ = client;
 #if BUILDFLAG(IS_IOS_TVOS)
-  media_resource_ = media_resource;
+  url_resource_ = media_resource->AsUrlPlayerMediaResource();
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   init_cb_ = std::move(init_cb);
 
@@ -275,12 +276,7 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
     case StarboardRenderingMode::kInvalid:
       NOTREACHED() << "Invalid SbPlayer output mode";
   }
-  // OnMojoRendererInitialized() should be called from StarboardRenderer
-  // after this. In the case where OnMojoRendererInitialized() is called
-  // before this, run |init_cb_| if not null.
-  if (IsMojoRendererInitialized() && !init_cb_.is_null()) {
-    std::move(init_cb_).Run(pipeline_status());
-  }
+  MaybeRunInitCB();
 }
 
 void StarboardRendererClient::GetSbWindowHandle() {
@@ -298,9 +294,9 @@ void StarboardRendererClient::OnEncryptedMediaInitDataEncountered(
     const std::vector<uint8_t>& init_data) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
 
-  if (!media_resource_) {
+  if (!url_resource_) {
     LOG(ERROR) << "[UrlPlayer] OnEncryptedMediaInitDataEncountered called "
-               << "without media_resource_";
+               << "without url_resource_";
     return;
   }
 
@@ -322,22 +318,24 @@ void StarboardRendererClient::OnEncryptedMediaInitDataEncountered(
 
   DVLOG(1) << "[UrlPlayer] Forwarding encrypted init data, type="
            << init_data_type << " size=" << init_data.size();
-  media_resource_->ForwardEncryptedMediaInitData(eme_type, init_data);
+  url_resource_->OnPlatformEncryptedMediaInitData(eme_type, init_data);
 }
 
 void StarboardRendererClient::OnDurationChange(base::TimeDelta duration) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  if (media_resource_) {
-    media_resource_->ForwardDurationChangeToDemuxerHost(duration);
+  if (url_resource_) {
+    url_resource_->OnPlatformDurationChange(duration);
   }
+  has_url_player_duration_ = true;
+  MaybeRunInitCB();
 }
 
 void StarboardRendererClient::OnBufferedTimeRangesChange(
     base::TimeDelta start,
     base::TimeDelta length) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  if (media_resource_) {
-    media_resource_->ForwardBufferedTimeRangesToDemuxerHost(start, length);
+  if (url_resource_) {
+    url_resource_->OnPlatformBufferedRangesChange(start, length);
   }
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
@@ -418,8 +416,7 @@ void StarboardRendererClient::InitializeMojoRenderer(
   // entirely to the native platform player.
   bool is_url_player = false;
 #if BUILDFLAG(IS_IOS_TVOS)
-  GURL url = media_resource->GetMediaUrl();
-  is_url_player = url.is_valid();
+  is_url_player = IsUrlPlayer();
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
   if (!is_url_player &&
@@ -452,7 +449,7 @@ void StarboardRendererClient::InitializeMojoRenderer(
 
 #if BUILDFLAG(IS_IOS_TVOS)
   if (is_url_player) {
-    renderer_extension_->SetSourceUrl(url.spec());
+    renderer_extension_->SetSourceUrl(url_resource_->GetMediaUrl().spec());
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
@@ -515,17 +512,38 @@ void StarboardRendererClient::InitAndConstructMojoRenderer(
 
 void StarboardRendererClient::OnMojoRendererInitialized(PipelineStatus status) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  if (!status.is_ok() || rendering_mode_ != StarboardRenderingMode::kInvalid) {
-    DCHECK(!init_cb_.is_null());
-    std::move(init_cb_).Run(status);
-  }
+  DCHECK(!init_cb_.is_null());
   SetMojoRendererInitialized(status);
-
-  // StarboardRenderer reports |rendering_mode_| before calling
-  // OnMojoRendererInitialized(). If |rendering_mode_| is not
-  // reported yet, call |init_cb_| in UpdateStarboardRenderingMode()
-  // to inform media pipeline.
+  MaybeRunInitCB();
 }
+
+void StarboardRendererClient::MaybeRunInitCB() {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (init_cb_.is_null() || !IsMojoRendererInitialized()) {
+    return;
+  }
+  const PipelineStatus status = pipeline_status();
+  // The rendering mode and the URL player duration come on the client
+  // extension pipe, which is not ordered with the Initialize() reply. They
+  // may not be sent on an init error, so don't wait for them then.
+  if (status.is_ok()) {
+    if (rendering_mode_ == StarboardRenderingMode::kInvalid) {
+      return;
+    }
+#if BUILDFLAG(IS_IOS_TVOS)
+    if (IsUrlPlayer() && !has_url_player_duration_) {
+      return;
+    }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+  }
+  std::move(init_cb_).Run(status);
+}
+
+#if BUILDFLAG(IS_IOS_TVOS)
+bool StarboardRendererClient::IsUrlPlayer() const {
+  return url_resource_ && url_resource_->GetMediaUrl().is_valid();
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 void StarboardRendererClient::SetMojoRendererInitialized(
     PipelineStatus status) {

@@ -223,7 +223,6 @@ persistence.
 ### Removed the following SbEvents:
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
-* `kSbEventTypeAccessibilityCaptionSettingsChanged`
 * `kSbEventTypeOnScreenKeyboardShown`
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`

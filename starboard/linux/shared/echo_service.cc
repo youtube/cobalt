@@ -157,9 +157,9 @@ void* Send(PlatformServiceImpl* service,
            uint64_t length,
            uint64_t* output_length,
            bool* invalid_state) {
-  SB_DCHECK(service);
+  SB_CHECK(service);
   SB_DCHECK(data);
-  SB_DCHECK(output_length);
+  SB_CHECK(output_length);
 
   // For simplicity, this service assumes the data sent to it represents a
   // string. If there's a desire to use the service to test binary data

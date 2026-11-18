@@ -55,10 +55,6 @@ const char* GetEvergreenSabiStringFake() {
   return "bad";
 }
 
-const char* GetCobaltUserAgentStringFake() {
-  return "";
-}
-
 class MockLibraryLoader : public LibraryLoader {
  public:
   MOCK_METHOD4(Load,
@@ -171,10 +167,6 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
         .Times(1)
         .WillOnce(
             testing::Return(reinterpret_cast<void*>(&GetEvergreenSabiString)));
-    EXPECT_CALL(library_loader, Resolve("GetCobaltUserAgentString"))
-        .Times(1)
-        .WillOnce(testing::Return(
-            reinterpret_cast<void*>(&GetCobaltUserAgentStringFake)));
     EXPECT_CALL(library_loader, Resolve("SbEventHandle"))
         .Times(1)
         .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
@@ -401,10 +393,6 @@ TEST_P(SlotManagementTest, DISABLED_AlternativeContent) {
       .WillOnce(
           testing::Return(reinterpret_cast<void*>(&GetEvergreenSabiString)));
 
-  EXPECT_CALL(library_loader, Resolve("GetCobaltUserAgentString"))
-      .Times(1)
-      .WillOnce(testing::Return(
-          reinterpret_cast<void*>(&GetCobaltUserAgentStringFake)));
   EXPECT_CALL(library_loader, Resolve("SbEventHandle"))
       .Times(1)
       .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
@@ -463,11 +451,6 @@ TEST_P(SlotManagementTest, DISABLED_BadSabi) {
                                    expected_compression_type, false))
       .Times(1)
       .WillOnce(testing::Return(true));
-
-  EXPECT_CALL(library_loader, Resolve("GetCobaltUserAgentString"))
-      .Times(1)
-      .WillOnce(testing::Return(
-          reinterpret_cast<void*>(&GetCobaltUserAgentStringFake)));
 
   EXPECT_CALL(library_loader, Resolve("SbEventHandle"))
       .Times(1)

@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "client/crash_report_database.h"
+#include "starboard/shared/starboard/media/mime_param.h"
 
-#include "base/notreached.h"
+#include <strings.h>
 
-namespace crashpad {
+#include <ostream>
 
-// static
-std::unique_ptr<CrashReportDatabase> CrashReportDatabase::Initialize(
-    const base::FilePath& path) {
-  NOTIMPLEMENTED();
-  return nullptr;
+namespace starboard {
+
+bool MimeParam::EqualsCaseInsensitive(std::string_view other) const {
+  return name_.size() == other.size() &&
+         strncasecmp(name_.data(), other.data(), name_.size()) == 0;
 }
 
-}  // namespace crashpad
+std::ostream& operator<<(std::ostream& os, const MimeParam& param) {
+  return os << param.name_;
+}
+
+}  // namespace starboard

@@ -111,7 +111,7 @@ void VideoFrameRateEstimator::CalculateInitialFrameRate(
 
 void VideoFrameRateEstimator::RefineFrameRate(const Frames& frames) {
   SB_DCHECK_NE(frame_rate_, kInvalidFrameRate);
-  SB_DCHECK(!frames.empty());
+  SB_CHECK(!frames.empty());
 
   if (frames.front()->is_end_of_stream()) {
     return;

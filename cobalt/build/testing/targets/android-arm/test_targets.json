@@ -18,7 +18,8 @@
     "target": "cobalt/testing/browser_tests:cobalt_browsertests",
     "executable": "out/android-arm_devel/cobalt_browsertests_apk/cobalt_browsertests-debug.apk",
     "runs_on": "device",
-    "test_type": "gtest"
+    "test_type": "gtest",
+    "shards": 4
   },
   {
     "target": "cobalt:cobalt_unittests",

@@ -23,6 +23,7 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/process/current_process.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "build/buildflag.h"
@@ -41,10 +42,12 @@
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
 #endif
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "cobalt/app/cobalt_crash_reporter_client.h"
+#include "components/crash/core/app/crashpad.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
-#include "components/crash/core/app/crashpad.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/public/app/initialize_mojo_core.h"
@@ -109,6 +112,27 @@ CobaltMainDelegate::~CobaltMainDelegate() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+// static
+void CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(
+    base::CommandLine* command_line,
+    bool is_visible) {
+  // Preload launches compile the startup shaders off the user's path.
+  if (is_visible ||
+      command_line->HasSwitch(switches::kDisablePreloadGpuShaderDiskCache)) {
+    return;
+  }
+  command_line->RemoveSwitch(switches::kDisableGpuShaderDiskCache);
+  // GrShaderCache only.
+  command_line->AppendSwitch(switches::kGpuShaderDiskCacheGrOnly);
+  if (!command_line->HasSwitch(switches::kGpuDiskCacheSizeKB)) {
+    command_line->AppendSwitchASCII(
+        switches::kGpuDiskCacheSizeKB,
+        base::NumberToString(kPreloadGrShaderDiskCacheSizeKB));
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -118,7 +142,8 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   // Disabled unconditionally here, exactly as before kCobaltGpuShaderDiskCache
   // existed, so the control arm is unchanged. PostEarlyInitialization() removes
-  // the switch again only when the feature is enabled.
+  // the switch again only when the feature is enabled or, on Starboard, for
+  // preload launches.
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
   return content::ShellMainDelegate::BasicStartupComplete();
 }
@@ -174,6 +199,11 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
         switches::kDisableGpuShaderDiskCache);
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_STARBOARD)
+  ApplyPreloadGpuShaderDiskCache(base::CommandLine::ForCurrentProcess(),
+                                 is_visible_);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();
@@ -247,6 +277,7 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   return 0;
 }
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 void CobaltMainDelegate::PreSandboxStartup() {
 #if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
   const bool initialize_crashpad = true;
@@ -288,6 +319,7 @@ void CobaltMainDelegate::PreSandboxStartup() {
 
   ShellMainDelegate::PreSandboxStartup();
 }
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 void CobaltMainDelegate::Shutdown() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);

@@ -47,7 +47,7 @@ void CreateTargetFromVideoFrameWithContextRunner(void* context) {
   CreateParamsForVideoFrame* params =
       static_cast<CreateParamsForVideoFrame*>(context);
 
-  SB_DCHECK(params->frame);
+  SB_CHECK(params->frame);
   SB_DCHECK_EQ(params->frame->format(), CpuVideoFrame::kYV12);
   static const SbDecodeTargetFormat format = kSbDecodeTargetFormat3PlaneYUVI420;
   static const int plane_count = 3;

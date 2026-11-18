@@ -458,12 +458,6 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
              "CobaltBypassHTMLPreloadScanner",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Bypasses Blink ResourceLoadScheduler queueing and throttling for subresources
-// in Cobalt, dispatching requests immediately.
-BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
-             "CobaltBypassResourceLoadScheduler",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
 // devices so that shelf tracks and carousels are promoted to dedicated
 // hardware-composited cc::PictureLayers rather than triggering CPU repaints.
@@ -474,14 +468,45 @@ BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
              "CobaltPreserveTrivial3DTransform",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Skips HTMLMediaElement work that only exists to support native media
-// controls, which Cobalt never shows (ShouldShowControls() is always false).
-// This includes creating MediaControlsImpl (shadow DOM, observers, and media
-// event listeners) and calling UpdateLayoutObject() from
-// ProgressEventTimerFired().
-BASE_FEATURE(kCobaltSkipHiddenMediaControlsWork,
-             "CobaltSkipHiddenMediaControlsWork",
+// Skips creating hidden MediaControlsImpl (shadow DOM, observers, and ~26
+// media event listeners) when native media controls are hidden, which is
+// always true on Cobalt (ShouldShowControls() returns false).
+BASE_FEATURE(kCobaltSkipHiddenMediaControlsCreation,
+             "CobaltSkipHiddenMediaControlsCreation",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Skips calling UpdateLayoutObject() from
+// HTMLMediaElement::ProgressEventTimerFired() when native media controls are
+// hidden, avoiding unnecessary layout/paint invalidation on progress events.
+BASE_FEATURE(kCobaltSkipMediaProgressLayoutUpdate,
+             "CobaltSkipMediaProgressLayoutUpdate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Turns on V8 memory saver mode for all isolates when memory pressure is
+// signaled, and turns it off once no pressure has been signaled for
+// |kCobaltV8MemorySaverHoldSeconds|. Memory saver mode keeps the JS heap
+// smaller (conservative heap growth, more compaction, memory reducer active)
+// at the cost of more frequent GCs.
+BASE_FEATURE(kCobaltV8MemorySaverOnMemoryPressure,
+             "CobaltV8MemorySaverOnMemoryPressure",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// How long to stay in memory saver mode after the last memory pressure signal.
+// Memory pressure has no reliable "pressure is over" signal, so this decides
+// when to turn it off. It should be longer than the gap between repeated
+// pressure signals to avoid toggling.
+BASE_FEATURE_PARAM(int,
+                   kCobaltV8MemorySaverHoldSeconds,
+                   &kCobaltV8MemorySaverOnMemoryPressure,
+                   "hold_seconds",
+                   300);
+// When true, only CRITICAL memory pressure turns on memory saver mode. By
+// default MODERATE does too, since memory saver mode is a preventive measure
+// that helps most before pressure becomes critical.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltV8MemorySaverOnCriticalOnly,
+                   &kCobaltV8MemorySaverOnMemoryPressure,
+                   "critical_only",
+                   false);
 
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,

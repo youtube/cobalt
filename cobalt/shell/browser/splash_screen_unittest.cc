@@ -19,6 +19,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
+#include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "cobalt/shell/browser/splash_screen_metrics.h"
@@ -272,6 +273,48 @@ TEST_F(SplashScreenTest, MainContentLoadAfterSplashEnd) {
   EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
+
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
+// Verifies that a reveal while the splash screen is still up shows the splash
+// screen again, not the main WebContents.
+TEST_F(SplashScreenTest, RevealDuringSplashShowsSplash) {
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
+  Shell* shell = CreateShellWithSplashScreen();
+  CallLoadSplashScreenWebContents(shell);
+  ExpectStateStarted(shell);
+
+  EXPECT_CALL(*platform_, LoadSplashScreenContents(shell));
+  EXPECT_CALL(*platform_, SetContents(_)).Times(0);
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_.get())
+      ->OnProactiveMapWindow(shell->web_contents());
+  testing::Mock::VerifyAndClearExpectations(platform_.get());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// Verifies that a reveal after the switch to the main WebContents shows it.
+TEST_F(SplashScreenTest, RevealAfterSplashShowsMain) {
+  EXPECT_CALL(*platform_, CreatePlatformWindow(_, _));
+  Shell* shell = CreateShellWithSplashScreen();
+  CallLoadSplashScreenWebContents(shell);
+  CallClosingSplashScreenWebContents(shell);
+  EXPECT_CALL(*platform_, UpdateContents(shell));
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, LoadSplashScreenContents(_)).Times(0);
+  EXPECT_CALL(*platform_, SetContents(shell));
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_.get())
+      ->OnProactiveMapWindow(shell->web_contents());
+  testing::Mock::VerifyAndClearExpectations(platform_.get());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+#endif  // defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 
 TEST_F(SplashScreenTest, DestroyShellWhileSwitching) {
   WebContents::CreateParams create_params(browser_context());
@@ -586,7 +629,8 @@ TEST_F(SplashScreenTest,
 TEST_F(SplashScreenTest, SplashTimeoutFromFeatureParam) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeatureWithParameters(
-      cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}});
+      cobalt::features::kSplashScreenConfig,
+      {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}});
   Shell* shell = CreateShellWithSplashScreen();
 
   CallLoadSplashScreenWebContents(shell);
@@ -612,7 +656,8 @@ TEST_F(SplashScreenTest, VideoPageLoadWaitsForFirstFrame) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
-       {cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
+       {cobalt::features::kSplashScreenConfig,
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -641,7 +686,8 @@ TEST_F(SplashScreenTest, VideoFirstFrameWaitIsBounded) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
-       {cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
+       {cobalt::features::kSplashScreenConfig,
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -667,7 +713,8 @@ TEST_F(SplashScreenTest, VideoSplashScreenWithoutVideoStartsWithPageLoad) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
-       {cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
+       {cobalt::features::kSplashScreenConfig,
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {});
   // E.g., without VP9, splash.html shows its image instead.
   Shell::SetCanSplashScreenPlayVideoForTesting(false);
@@ -696,7 +743,8 @@ TEST_F(SplashScreenTest, VideoSupportCheckedAfterPageLoad) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
-       {cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
+       {cobalt::features::kSplashScreenConfig,
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -724,7 +772,8 @@ TEST_F(SplashScreenTest, VideoSupportCheckedAfterPageLoad) {
 TEST_F(SplashScreenTest, ImageSplashScreenStartsWithPageLoad) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
-      {{cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
+      {{cobalt::features::kSplashScreenConfig,
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -770,7 +819,8 @@ TEST_F(SplashScreenTest, SplashUrlFromFeatureParam) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kSplashScreenConfig,
-        {{"url", "https://www.example.com/splash.html"}}}},
+        {{cobalt::features::kSplashScreenUrlParam.name,
+          "https://www.example.com/splash.html"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen(/*topic=*/"music");
 
@@ -788,7 +838,8 @@ TEST_F(SplashScreenTest, SplashUrlFromFeatureParam) {
 TEST_F(SplashScreenTest, InvalidSplashUrlFallsBackToBuiltInSplashScreen) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
-      {{cobalt::features::kSplashScreenConfig, {{"url", "not a url"}}}},
+      {{cobalt::features::kSplashScreenConfig,
+        {{cobalt::features::kSplashScreenUrlParam.name, "not a url"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -806,13 +857,13 @@ TEST_F(SplashScreenTest, SplashUrlIgnoredInGoldBuilds) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kSplashScreenConfig,
-        {{"url", "https://www.example.com/splash.html"}}}},
+        {{"SplashScreenConfig_url", "https://www.example.com/splash.html"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen();
 
   CallLoadSplashScreenWebContents(shell);
-  // The "url" param doesn't exist in gold builds, so the built-in splash screen
-  // is always used.
+  // The "SplashScreenConfig_url" param doesn't exist in gold builds, so the
+  // built-in splash screen is always used.
   EXPECT_EQ(GetPendingSplashScreenURL(shell),
             GURL(std::string(switches::kSplashScreenURL) +
                  "?force_image=true&timeout=1500"));
@@ -826,7 +877,8 @@ TEST_F(SplashScreenTest, SplashUrlIgnoredInGoldBuilds) {
 TEST_F(SplashScreenTest, SplashTimeoutPassedToSplashScreen) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
-      {{cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
+      {{cobalt::features::kSplashScreenConfig,
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen();
 

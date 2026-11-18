@@ -53,7 +53,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
               const ConsumedCB& consumed_cb) override {
     SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(!input_buffers.empty());
-    SB_DCHECK(consumed_cb);
+    SB_CHECK(consumed_cb);
     SB_DCHECK(output_cb_);
 
     // TODO: |decoded_audio| is used as a buffer to store raw, encoded audio
@@ -78,7 +78,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
 
   void WriteEndOfStream() override {
     SB_CHECK(thread_checker_.CalledOnValidThread());
-    SB_DCHECK(output_cb_);
+    SB_CHECK(output_cb_);
 
     decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
     output_cb_();
@@ -86,8 +86,8 @@ class AudioDecoderPassthrough : public AudioDecoder {
 
   std::optional<DecodedAudio> Read(int* samples_per_second) override {
     SB_CHECK(thread_checker_.CalledOnValidThread());
-    SB_DCHECK(samples_per_second);
-    SB_DCHECK(!decoded_audios_.empty());
+    SB_CHECK(samples_per_second);
+    SB_CHECK(!decoded_audios_.empty());
 
     *samples_per_second = samples_per_second_;
 

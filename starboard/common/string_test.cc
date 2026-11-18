@@ -207,5 +207,27 @@ TEST(StringTest, ToString_Generic) {
   EXPECT_EQ("test", ToString(std::string("test")));
 }
 
+TEST(StringTest, StartsWith) {
+  EXPECT_TRUE(StartsWith("vp09.00.41.08", "vp09."));
+  EXPECT_TRUE(StartsWith("vp09", "vp09"));
+  EXPECT_TRUE(StartsWith("vp09", ""));
+  EXPECT_TRUE(StartsWith("", ""));
+  EXPECT_FALSE(StartsWith("vp9", "vp09"));
+  EXPECT_FALSE(StartsWith("", "vp09"));
+  EXPECT_FALSE(StartsWith("avc1.640028", "avc3."));
+  // Only the characters in the view are compared.
+  EXPECT_FALSE(StartsWith(std::string_view("vp09.", 4), "vp09."));
+}
+
+TEST(StringTest, EndsWith) {
+  EXPECT_TRUE(EndsWith("libcobalt.lz4", ".lz4"));
+  EXPECT_TRUE(EndsWith(".lz4", ".lz4"));
+  EXPECT_TRUE(EndsWith("lz4", ""));
+  EXPECT_TRUE(EndsWith("", ""));
+  EXPECT_FALSE(EndsWith("lz4", ".lz4"));
+  EXPECT_FALSE(EndsWith("", ".lz4"));
+  EXPECT_FALSE(EndsWith("libcobalt.zst", ".lz4"));
+}
+
 }  // namespace
 }  // namespace starboard
