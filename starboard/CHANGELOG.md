@@ -7,6 +7,57 @@ since the version previous to it.
 
 **NOTE: Starboard versions 16 and older are no longer supported.**
 
+## Version 19
+
+### Removed unused Starboard GN configuration variables
+The following GN variables were removed from
+`starboard/build/config/base_configuration.gni` and/or in-tree
+`platform_configuration/configuration.gni` files because no build file read
+them, so they had no effect:
+* `cobalt_licenses_platform`
+* `cobalt_v8_emit_builtins_as_inline_asm`
+* `enable_shared_player_filter_tests`
+* `gtest_target_type`
+* `loadable_module_configs`
+* `nasm_exists`
+* `no_pedantic_warnings_config_path`
+* `path_to_nasm`
+* `pedantic_warnings_config_path`
+* `sb_angle_enable_gl`
+* `sb_enable_opus_sse`
+* `sb_has_unused_symbol_issue`
+* `sb_libevent_method`
+* `sb_use_no_rtti`
+* `size_config_path`
+* `speed_config_path`
+* `v8_enable_pointer_compression_override`
+
+Ports can delete any assignments of these variables from their platform
+configuration files. Setting any of them in `args.gn` now results in a GN
+"Build argument has no effect" warning.
+
+### `gl_type` for linux-x64x11 is now set in args.gn
+`gl_type = "angle"` is no longer set by
+`starboard/linux/x64x11/platform_configuration/configuration.gni` (or by
+`starboard/tvos/shared/platform_configuration/configuration.gni`). It is now
+set in the `args.gn` files of the in-tree build configurations that use these
+platforms. Ports that import the linux-x64x11 platform configuration, or build
+with `starboard_target_platform = "linux-x64x11"` using their own `args.gn`,
+will now default to `gl_type = "system_gles2"` and must add
+`gl_type = "angle"` to their `args.gn` to keep using ANGLE.
+
+Values of `gl_type` set in `args.gn` are also no longer overridden by the RDK
+platform configuration.
+
+### Removed redundant upstream GN arg overrides from platform configurations
+The following assignments were removed from in-tree
+`platform_configuration/configuration.gni` files because they had no effect:
+* `arm_float_abi = "softfp"` (android-arm): already forced for Android by
+  `//build/config/arm.gni`.
+* `arm_version = 8` (evergreen-arm64, rdk-arm64): `arm_version` only applies
+  to 32-bit ARM builds.
+* `v8_enable_webassembly = true` (android, stub): already V8's default.
+
 ## Version 18
 
 ### RDK: Suspend hangwatcher while backgrounded and bound lifecycle
@@ -92,28 +143,6 @@ The following configuration constants were removed as they are no longer used by
 * `kSbNetworkReceiveBufferSize`
 * `kSbPathSepChar`
 * `kSbPathSepString`
-
-### `gl_type` for linux-x64x11 is now set in args.gn
-`gl_type = "angle"` is no longer set by
-`starboard/linux/x64x11/platform_configuration/configuration.gni` (or by
-`starboard/tvos/shared/platform_configuration/configuration.gni`). It is now
-set in the `args.gn` files of the in-tree build configurations that use these
-platforms. Ports that import the linux-x64x11 platform configuration, or build
-with `starboard_target_platform = "linux-x64x11"` using their own `args.gn`,
-will now default to `gl_type = "system_gles2"` and must add
-`gl_type = "angle"` to their `args.gn` to keep using ANGLE.
-
-Values of `gl_type` set in `args.gn` are also no longer overridden by the RDK
-platform configuration.
-
-### Removed redundant upstream GN arg overrides from platform configurations
-The following assignments were removed from in-tree
-`platform_configuration/configuration.gni` files because they had no effect:
-* `arm_float_abi = "softfp"` (android-arm): already forced for Android by
-  `//build/config/arm.gni`.
-* `arm_version = 8` (evergreen-arm64, rdk-arm64): `arm_version` only applies
-  to 32-bit ARM builds.
-* `v8_enable_webassembly = true` (android, stub): already V8's default.
 
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
