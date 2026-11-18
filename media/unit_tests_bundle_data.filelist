@@ -496,13 +496,10 @@
 //media/test/data/speech_16b_stereo_48kHz.raw
 //media/test/data/speex_audio_vorbis_video.ogv
 //media/test/data/spherical.mp4
-<<<<<<< HEAD
 //media/test/data/spherical_frag.mp4
-=======
 //media/test/data/starboard/allocations_1La4QzGeaaQ.txt
 //media/test/data/starboard/allocations_8k.txt
 //media/test/data/starboard/allocations_PMwaIrjiz8w.txt
->>>>>>> parent of 9b968d70d51 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 //media/test/data/stereo_48000.wav
 //media/test/data/sync2-trimmed.mp4
 //media/test/data/sync2.ogv
