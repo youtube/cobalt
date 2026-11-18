@@ -93,6 +93,28 @@ The following configuration constants were removed as they are no longer used by
 * `kSbPathSepChar`
 * `kSbPathSepString`
 
+### `gl_type` for linux-x64x11 is now set in args.gn
+`gl_type = "angle"` is no longer set by
+`starboard/linux/x64x11/platform_configuration/configuration.gni` (or by
+`starboard/tvos/shared/platform_configuration/configuration.gni`). It is now
+set in the `args.gn` files of the in-tree build configurations that use these
+platforms. Ports that import the linux-x64x11 platform configuration, or build
+with `starboard_target_platform = "linux-x64x11"` using their own `args.gn`,
+will now default to `gl_type = "system_gles2"` and must add
+`gl_type = "angle"` to their `args.gn` to keep using ANGLE.
+
+Values of `gl_type` set in `args.gn` are also no longer overridden by the RDK
+platform configuration.
+
+### Removed redundant upstream GN arg overrides from platform configurations
+The following assignments were removed from in-tree
+`platform_configuration/configuration.gni` files because they had no effect:
+* `arm_float_abi = "softfp"` (android-arm): already forced for Android by
+  `//build/config/arm.gni`.
+* `arm_version = 8` (evergreen-arm64, rdk-arm64): `arm_version` only applies
+  to 32-bit ARM builds.
+* `v8_enable_webassembly = true` (android, stub): already V8's default.
+
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
