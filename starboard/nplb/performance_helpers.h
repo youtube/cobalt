@@ -17,6 +17,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
@@ -34,7 +35,7 @@ template <const size_t count_calls,
           const int64_t max_time_per_call,
           typename R,
           typename... Args>
-void TestPerformanceOfFunction(const char* const name_of_f,
+void TestPerformanceOfFunction(std::string_view name_of_f,
                                R (*const f)(Args...),
                                Args... args) {
   // Measure time pre calls to |f|.
