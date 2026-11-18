@@ -47,13 +47,7 @@ blink_modules_sources("mediarecorder") {
     "//third_party/libyuv",
     "//third_party/opus",
   ]
-<<<<<<< HEAD
-=======
-
-  configs += [ "//third_party/blink/renderer:narrowing" ]
-
   if (is_cobalt && (is_starboard || use_starboard_media)) {
     deps -= [ "//third_party/libvpx" ]
   }
->>>>>>> parent of d1b2f62fc05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
