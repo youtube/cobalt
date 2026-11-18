@@ -526,43 +526,23 @@ TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {
 constexpr int kRetryWaitTimeoutMs = 2000;
 
 TEST_F(MediaCodecVideoDecoderTest,
-       CodecCreationFailureWithoutRetriesFailsCreate) {
-  auto result = TryCreateDecoder(/*max_video_capabilities=*/"",
-                                 /*initial_stream_info=*/nullptr,
-                                 /*experimental_features=*/{},
-                                 /*enable_flush_during_seek=*/false,
-                                 /*codec_creation_failures=*/1);
+       CodecCreationFailureWithRetriesDisabledFailsCreate) {
+  // Unset (0), negative (even -253, i.e. 0x...FF03, whose low byte alone would
+  // mean 3 retries) and zero-count settings all disable retries.
+  for (int setting : {0, -1, -253, 0x1E00}) {
+    SCOPED_TRACE(::testing::Message() << "setting=" << setting);
+    auto result = TryCreateDecoder(/*max_video_capabilities=*/"",
+                                   /*initial_stream_info=*/nullptr,
+                                   CodecCreationRetryFeatures(setting),
+                                   /*enable_flush_during_seek=*/false,
+                                   /*codec_creation_failures=*/1);
 
-  ASSERT_FALSE(result);
-  // The failed decoder (and the fake factory it owns) is destroyed, so only
-  // the error message can be inspected.
-  EXPECT_NE(result.error().find("Simulated MediaCodec creation failure"),
-            std::string::npos);
-  fake_factory_ = nullptr;
-}
-
-TEST_F(MediaCodecVideoDecoderTest,
-       NegativeCodecCreationRetryCountDisablesRetries) {
-  auto result = TryCreateDecoder(/*max_video_capabilities=*/"",
-                                 /*initial_stream_info=*/nullptr,
-                                 CodecCreationRetryFeatures(-1),
-                                 /*enable_flush_during_seek=*/false,
-                                 /*codec_creation_failures=*/1);
-
-  EXPECT_FALSE(result);
-  fake_factory_ = nullptr;
-}
-
-TEST_F(MediaCodecVideoDecoderTest,
-       NegativeCodecCreationRetrySettingWithNonZeroLowByteDisablesRetries) {
-  // -253 is 0x...FF03, whose low byte alone would mean 3 retries.
-  auto result = TryCreateDecoder(/*max_video_capabilities=*/"",
-                                 /*initial_stream_info=*/nullptr,
-                                 CodecCreationRetryFeatures(-253),
-                                 /*enable_flush_during_seek=*/false,
-                                 /*codec_creation_failures=*/1);
-
-  EXPECT_FALSE(result);
+    ASSERT_FALSE(result);
+    // The failed decoder (and the fake factory it owns) is destroyed, so only
+    // the error message can be inspected.
+    EXPECT_NE(result.error().find("Simulated MediaCodec creation failure"),
+              std::string::npos);
+  }
   fake_factory_ = nullptr;
 }
 
@@ -630,52 +610,31 @@ TEST_F(MediaCodecVideoDecoderTest,
 
 TEST_F(MediaCodecVideoDecoderTest,
        PackedCodecCreationRetrySettingSetsCountAndBaseDelay) {
-  // 0x1E02: 2 retries with a 30ms base delay, i.e. after 30 and 60ms.
-  const auto start = std::chrono::steady_clock::now();
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                CodecCreationRetryFeatures(0x1E02),
-                /*enable_flush_during_seek=*/false,
-                /*codec_creation_failures=*/10);
-  InitializeDecoder();
+  // 2 retries with a 30ms base delay, i.e. after 30 and 60ms. Bits 16-31 are
+  // ignored.
+  for (int setting : {0x1E02, 0x11E02}) {
+    SCOPED_TRACE(::testing::Message() << "setting=" << setting);
+    decoder_.reset();
+    error_called_ = false;
+    const auto start = std::chrono::steady_clock::now();
+    CreateDecoder(/*max_video_capabilities=*/"",
+                  /*initial_stream_info=*/nullptr,
+                  CodecCreationRetryFeatures(setting),
+                  /*enable_flush_during_seek=*/false,
+                  /*codec_creation_failures=*/10);
+    InitializeDecoder();
 
-  ASSERT_TRUE(PumpJobQueueUntil([this] { return error_called_.load(); },
-                                kRetryWaitTimeoutMs));
-  const auto elapsed = std::chrono::steady_clock::now() - start;
+    ASSERT_TRUE(PumpJobQueueUntil([this] { return error_called_.load(); },
+                                  kRetryWaitTimeoutMs));
+    const auto elapsed = std::chrono::steady_clock::now() - start;
 
-  EXPECT_EQ(last_error_, kSbPlayerErrorDecode);
-  // Initial attempt + 2 retries.
-  EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
-  // A delay decoded too large (e.g. as seconds) is caught by the
-  // kRetryWaitTimeoutMs bound above.
-  EXPECT_GE(elapsed, std::chrono::milliseconds(30 + 60));
-}
-
-TEST_F(MediaCodecVideoDecoderTest, CodecCreationRetrySettingIgnoresUpperBits) {
-  // 0x10102: bit 16 is ignored, leaving 2 retries with a 1ms base delay.
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                CodecCreationRetryFeatures(0x10102),
-                /*enable_flush_during_seek=*/false,
-                /*codec_creation_failures=*/10);
-  InitializeDecoder();
-
-  ASSERT_TRUE(PumpJobQueueUntil([this] { return error_called_.load(); },
-                                kRetryWaitTimeoutMs));
-  EXPECT_EQ(last_error_, kSbPlayerErrorDecode);
-  // Initial attempt + 2 retries.
-  EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
-}
-
-TEST_F(MediaCodecVideoDecoderTest,
-       CodecCreationRetrySettingWithoutCountDisablesRetries) {
-  // 0x1E00: a 30ms base delay, but no retries.
-  auto result = TryCreateDecoder(/*max_video_capabilities=*/"",
-                                 /*initial_stream_info=*/nullptr,
-                                 CodecCreationRetryFeatures(0x1E00),
-                                 /*enable_flush_during_seek=*/false,
-                                 /*codec_creation_failures=*/1);
-
-  EXPECT_FALSE(result);
-  fake_factory_ = nullptr;
+    EXPECT_EQ(last_error_, kSbPlayerErrorDecode);
+    // Initial attempt + 2 retries.
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
+    // A delay decoded too large (e.g. as seconds) is caught by the
+    // kRetryWaitTimeoutMs bound above.
+    EXPECT_GE(elapsed, std::chrono::milliseconds(30 + 60));
+  }
 }
 
 TEST_F(MediaCodecVideoDecoderTest,
@@ -698,37 +657,9 @@ TEST_F(MediaCodecVideoDecoderTest,
 }
 
 TEST_F(MediaCodecVideoDecoderTest,
-       EndOfStreamDuringPendingCodecCreationRetryIsForwarded) {
-  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
-                                        /*codec_creation_failures=*/1);
-  InitializeDecoder();
-
-  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
-  decoder_->WriteEndOfStream();
-  EXPECT_EQ(GetFakeVideoCodec(), nullptr);
-
-  ASSERT_TRUE(PumpJobQueueUntil(
-      [this] { return fake_factory_->video_codec_create_count() == 2; },
-      kRetryWaitTimeoutMs));
-  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
-  ASSERT_NE(fake_codec, nullptr);
-
-  fake_codec->SimulateInputBufferAvailable(0);
-  fake_codec->SimulateInputBufferAvailable(1);
-  ASSERT_TRUE(fake_codec->WaitForInputQueue(2, 1000));
-  auto queued_inputs = fake_codec->ConsumeQueuedInputs();
-  ASSERT_EQ(queued_inputs.size(), 2U);
-  EXPECT_EQ(queued_inputs[0].pts, 0);
-  EXPECT_EQ(queued_inputs[0].flags & MediaCodec::kBufferFlagEndOfStream, 0);
-  EXPECT_NE(queued_inputs[1].flags & MediaCodec::kBufferFlagEndOfStream, 0);
-
-  EXPECT_FALSE(error_called_);
-}
-
-TEST_F(MediaCodecVideoDecoderTest,
        EndOfStreamIsForwardedAcrossMultipleCodecCreationRetries) {
-  // The first retry fails too, so the end of stream latched during the first
-  // pending retry has to carry over to the second one.
+  // The end of stream arrives while the first retry is pending, and the first
+  // retry fails too, so it has to carry over to the second one.
   CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
                                         /*codec_creation_failures=*/2);
   InitializeDecoder();

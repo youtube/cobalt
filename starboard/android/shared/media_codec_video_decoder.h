@@ -159,10 +159,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Cancels a pending codec creation retry, if any, releasing the buffered
   // inputs and the output surface kept for it.
   void CancelPendingCodecCreationRetry();
-  // Queues |input_buffers| into |pending_input_buffers_| while a codec
-  // creation retry is pending, applying back-pressure at
-  // kMaxPendingInputsSize.
-  void BufferInputsForPendingCodec(const InputBuffers& input_buffers);
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
@@ -321,6 +317,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
     // Decodes the `Media.VideoCodecCreationRetry` H5VCC setting, see
     // kMediaVideoCodecCreationRetry.
     explicit CodecCreationRetryState(int setting);
+
+    // Retries scheduled in the current episode.
+    int attempts_made() const { return max_retries - retries_left; }
 
     // 0 when retries are disabled.
     const int max_retries;
