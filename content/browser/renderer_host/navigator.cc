@@ -15,11 +15,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
-<<<<<<< HEAD
-=======
-#include "content/browser/child_process_security_policy_impl.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
->>>>>>> parent of d1b2f62fc05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/interest_group/interest_group_features.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "content/browser/process_lock.h"
