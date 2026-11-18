@@ -27,6 +27,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/starboard/sbmedia_interface.h"
 #include "media/starboard/bidirectional_fit_decoder_buffer_allocator_strategy.h"
+#include "media/starboard/sb_media_histograms.h"
 #include "starboard/common/allocator.h"
 #include "starboard/common/embedded_metadata_reuse_allocator_base.h"
 #include "starboard/common/log.h"
@@ -71,8 +72,9 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
-  base::UmaHistogramBoolean("Cobalt.Media.IsBufferPoolAllocateOnDemand",
-                            is_memory_pool_allocated_on_demand_);
+  base::UmaHistogramBoolean(
+      sb_media_histograms::kIsBufferPoolAllocateOnDemandHistogram,
+      is_memory_pool_allocated_on_demand_);
 
   if (base::FeatureList::IsEnabled(
           media::kCobaltDecoderBufferDecommitOnMemoryPressure)) {
