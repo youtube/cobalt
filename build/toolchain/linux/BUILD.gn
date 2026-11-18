@@ -8,8 +8,7 @@ import("//build/config/sysroot.gni")
 import("//build/config/ui.gni")
 import("//build/toolchain/gcc_toolchain.gni")
 
-if (is_cobalt_hermetic_build && is_official_build &&
-    current_toolchain == default_toolchain) {
+if (is_cobalt_hermetic_build && current_toolchain == default_toolchain) {
   import("//cobalt/build/toolchain/linux/strip.gni")
 }
 
@@ -26,9 +25,10 @@ clang_toolchain("clang_arm") {
     current_cpu = "arm"
     current_os = "linux"
   }
-  if (is_cobalt_hermetic_build && is_official_build &&
-      current_toolchain == default_toolchain) {
-    strip = strip_executable
+  if (is_cobalt_hermetic_build && current_toolchain == default_toolchain) {
+    if (cobalt_strip_binaries) {
+      strip = strip_executable
+    }
   }
 }
 
@@ -37,9 +37,10 @@ clang_toolchain("clang_arm64") {
     current_cpu = "arm64"
     current_os = "linux"
   }
-  if (is_cobalt_hermetic_build && is_official_build &&
-      current_toolchain == default_toolchain) {
-    strip = strip_executable
+  if (is_cobalt_hermetic_build && current_toolchain == default_toolchain) {
+    if (cobalt_strip_binaries) {
+      strip = strip_executable
+    }
   }
 }
 
