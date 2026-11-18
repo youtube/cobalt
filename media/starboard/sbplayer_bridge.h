@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/atomic_sequence_num.h"
 #include "base/containers/circular_deque.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
@@ -34,6 +33,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/starboard/starboard_renderer_config.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/sbplayer_interface.h"
@@ -65,14 +65,19 @@ class SbPlayerBridge {
     ~Host() {}
   };
 
+  // Playback statistics since the creation of the player.
+  struct PlayerStatistics {
+    uint32_t total_video_frames_decoded = 0;
+    uint32_t total_video_frames_dropped = 0;
+    uint64_t total_audio_bytes_decoded = 0;
+    uint64_t total_video_bytes_decoded = 0;
+  };
+
   // Stores playback information to be queried through GetInfo().
   struct PlayerInfo {
-    uint32_t* video_frames_decoded;
-    uint32_t* video_frames_dropped;
-    uint64_t* audio_bytes_decoded;
-    uint64_t* video_bytes_decoded;
-    base::TimeDelta* media_time;
-    base::TimeDelta* duration;
+    PlayerStatistics statistics;
+    base::TimeDelta media_time;
+    base::TimeDelta duration = kNoTimestamp;
   };
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
@@ -138,14 +143,14 @@ class SbPlayerBridge {
   void WriteBuffers(DemuxerStream::Type type,
                     const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
 
-  void SetBounds(const gfx::Rect& rect);
+  void SetBounds(int z_index, const gfx::Rect& rect);
 
   void PrepareForSeek();
   void Seek(base::TimeDelta time);
 
   void SetVolume(float volume);
   void SetPlaybackRate(double playback_rate);
-  void GetInfo(PlayerInfo* out_info);
+  PlayerInfo GetInfo();
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
 
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -189,6 +194,28 @@ class SbPlayerBridge {
   using DecodingBufferQueue = base::circular_deque<OptimizedDecodingBuffer>;
 
  private:
+  // Turns an SbPlayerInfo frame counter, which may reset (e.g. on seek on some
+  // platforms, or when SbPlayer is recreated on resume), into a total that
+  // never decreases.
+  //
+  // Instances are members of SbPlayerBridge and share its lifetime. They are
+  // only accessed on SbPlayerBridge's |task_runner_| sequence, so they are not
+  // thread-safe.
+  class MonotonicCounter {
+   public:
+    // Updates the counter with the latest value from SbPlayerInfo. A decrease
+    // is treated as a reset to 0. Returns the updated total.
+    uint32_t Update(uint32_t sb_value);
+    // Call when the underlying SbPlayer is destroyed, as the counters of a
+    // newly created SbPlayer restart at 0.
+    void OnPlayerDestroyed();
+    uint32_t total() const { return offset_ + last_; }
+
+   private:
+    uint32_t last_ = 0;
+    uint32_t offset_ = 0;
+  };
+
   enum State {
     kPlaying,
     kSuspended,
@@ -229,6 +256,11 @@ class SbPlayerBridge {
   void CreateUrlPlayer(const std::string& url);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   void CreatePlayer();
+  // Calls |create_fn|, which creates the SbPlayer, and records the latency of
+  // the call to UMA. Also records when the call was made, for the latency until
+  // the player reports kSbPlayerStateInitialized.
+  template <typename CreateFn>
+  SbPlayer CreateWithUmaLatency(CreateFn&& create_fn);
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   void WriteNextBuffersFromCache(DemuxerStream::Type type,
@@ -346,11 +378,13 @@ class SbPlayerBridge {
 
   State state_ = kPlaying;
   SbPlayer player_;
-  uint32_t cached_video_frames_decoded_;
-  uint32_t cached_video_frames_dropped_;
+  // Video frame totals since the creation of this bridge. They also serve as
+  // the cached values while suspended. See GetInfo().
+  MonotonicCounter video_frames_decoded_;
+  MonotonicCounter video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
-  uint64_t cached_audio_bytes_decoded_ = 0;
-  uint64_t cached_video_bytes_decoded_ = 0;
+  uint64_t total_audio_bytes_decoded_ = 0;
+  uint64_t total_video_bytes_decoded_ = 0;
 
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
@@ -384,6 +418,12 @@ class SbPlayerBridge {
   base::Time first_audio_sample_time_{};
   base::Time first_video_sample_time_{};
   base::Time sb_player_state_presenting_time_{};
+  // When the Starboard call that creates the player (SbPlayerCreate() or
+  // SbUrlPlayerCreate()) was made. Used for latency UMA.
+  std::optional<base::TimeTicks> sb_player_create_start_time_;
+  // Whether the last call that created the player was the first one in the
+  // process. Used for latency UMA.
+  bool is_first_sb_player_create_ = false;
 
 #if BUILDFLAG(IS_IOS_TVOS)
   const bool is_url_based_;

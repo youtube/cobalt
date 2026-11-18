@@ -22,12 +22,19 @@
 #include "base/threading/simple_thread.h"
 #include "base/time/clock.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
 #include "media/base/time_delta_interpolator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/size.h"
+
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/test/gmock_move_support.h"
+#include "media/starboard/url_player_demuxer.h"
+#include "url/gurl.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using ::base::test::RunClosure;
 using ::base::test::RunOnceCallback;
@@ -963,6 +970,42 @@ TEST_F(PipelineImplTest, RendererErrorsReset) {
 
   base::RunLoop().RunUntilIdle();
 }
+
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST_F(PipelineImplTest, UrlPlayerReportsMetadataAfterRendererInit) {
+  const base::TimeDelta kDuration = base::Seconds(10966);
+  UrlPlayerDemuxer url_player_demuxer(
+      task_environment_.GetMainThreadTaskRunner(),
+      GURL("https://example.com/master.m3u8"));
+  PipelineStatusCallback renderer_init_cb;
+  EXPECT_CALL(*renderer_, OnInitialize(_, _, _))
+      .WillOnce(
+          DoAll(SaveArg<1>(&renderer_client_), MoveArg<2>(&renderer_init_cb)));
+  SetRendererPostStartExpectations();
+
+  pipeline_->Start(
+      Pipeline::StartType::kNormal, &url_player_demuxer, &callbacks_,
+      base::BindOnce(&CallbackHelper::OnStart, base::Unretained(&callbacks_)));
+  base::RunLoop().RunUntilIdle();
+  // |callbacks_| is a StrictMock, so no metadata has been reported yet.
+  ASSERT_TRUE(renderer_init_cb);
+
+  EXPECT_CALL(callbacks_, OnDurationChange());
+  EXPECT_CALL(callbacks_, OnMetadata(_)).WillOnce(InvokeWithoutArgs([&] {
+    EXPECT_EQ(pipeline_->GetMediaDuration(), kDuration);
+  }));
+  EXPECT_CALL(callbacks_, OnStart(HasStatusCode(PIPELINE_OK)));
+  // The renderer reports the platform duration before it finishes
+  // initializing.
+  url_player_demuxer.AsUrlPlayerMediaResource()->OnPlatformDurationChange(
+      kDuration);
+  std::move(renderer_init_cb).Run(PIPELINE_OK);
+  base::RunLoop().RunUntilIdle();
+
+  // Stop while |url_player_demuxer| is alive.
+  pipeline_->Stop();
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
 class PipelineTeardownTest : public PipelineImplTest {
  public:

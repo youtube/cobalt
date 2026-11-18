@@ -213,7 +213,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          test_artifact_name=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_artifact_name // "Cobalt.apk"')
+          test_artifact_name=$(jq -er 'if ([.test_on_device, .test_e2e, .test_yts, .test_yts_playback, .test_yts_wpt, .test_yts_finch] | map(. == true) | any) then (.test_artifact_name | select(type == "string" and length > 0)) else "" end' "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json")
           echo "test_artifact_name=${test_artifact_name}" >> "${GITHUB_OUTPUT}"
       - name: Set Browser test targets
         id: set-browser-test-targets
@@ -281,10 +281,22 @@ jobs:
         env:
           TEST_ON_HOST: ${{ steps.set-test-on-host.outputs.test_on_host }}
           TEST_ON_DEVICE: ${{ steps.set-test-on-device.outputs.test_on_device }}
+          TEST_E2E: ${{ steps.set-internal-tests.outputs.test_e2e }}
+          TEST_YTS: ${{ steps.set-internal-tests.outputs.test_yts }}
+          TEST_YTS_PLAYBACK: ${{ steps.set-internal-tests.outputs.test_yts_playback }}
+          TEST_YTS_WPT: ${{ steps.set-internal-tests.outputs.test_yts_wpt }}
+          TEST_YTS_FINCH: ${{ steps.set-internal-tests.outputs.test_yts_finch }}
           LABELS: ${{ steps.get-labels.outputs.labels }}
+          IS_NIGHTLY_OR_SCHEDULE: ${{ inputs.nightly == 'true' || github.event_name == 'schedule' }}
+          IS_PUSH: ${{ github.event_name == 'push' }}
         run: |
           set -x
           run_on_device_test="false"
+          run_e2e_test="false"
+          run_yts_test="false"
+          run_yts_playback_test="false"
+          run_yts_wpt_test="false"
+          run_yts_finch_test="false"
           expected_tests="[]"
 
           first_platform=$(jq -r '.platforms[0]' "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json")
@@ -292,6 +304,7 @@ jobs:
 
           if [ -f "${test_targets_json_file}" ]; then
             has_runtest_label=$(echo "${LABELS}" | jq 'any(. == "runtest")')
+            has_yts_playback_label=$(echo "${LABELS}" | jq 'any(. == "yts_playback_test")')
 
             is_odt_enabled="false"
             if [[ "${IS_NON_DRAFT_PULL_REQUEST}" == "true" ||
@@ -302,18 +315,39 @@ jobs:
             fi
 
             [[ "${TEST_ON_DEVICE}" == "true" && "${is_odt_enabled}" == "true" ]] && run_on_device_test="true"
+            [[ "${TEST_E2E}" == "true" && "${is_odt_enabled}" == "true" ]] && run_e2e_test="true"
+            [[ "${TEST_YTS}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_test="true"
+            [[ "${TEST_YTS_PLAYBACK}" == "true" && "${has_yts_playback_label}" == "true" ]] && run_yts_playback_test="true"
+            if [[ "${TEST_YTS_WPT}" == "true" ]] && [[ "${IS_NON_DRAFT_PULL_REQUEST}" == "true" || "${IS_NIGHTLY_OR_SCHEDULE}" == "true" || "${IS_PUSH}" == "true" ]]; then
+              run_yts_wpt_test="true"
+            fi
+            [[ "${TEST_YTS_FINCH}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_finch_test="true"
 
-            # Filter expected test targets for results processing and reporting.
+            # Filter expected test targets to the exact (test_type, runs_on)
+            # pairs executed by active runner jobs that feed test-results.
             expected_tests=$(jq -c \
               --arg run_on_device_test "${run_on_device_test}" \
               --arg run_on_host_test "${TEST_ON_HOST}" \
+              --arg run_e2e_test "${run_e2e_test}" \
+              --arg run_yts_test "${run_yts_test}" \
+              --arg run_yts_playback_test "${run_yts_playback_test}" \
+              --arg run_yts_wpt_test "${run_yts_wpt_test}" \
+              --arg run_yts_finch_test "${run_yts_finch_test}" \
               '[
                 .[] | select(
                   (.target != null) and
-                  (.process_results // true) and
+                  (.process_results != false) and
                   (
-                    (.runs_on == "device" and $run_on_device_test == "true") or
-                    ((.runs_on == "host" or .runs_on == null) and $run_on_host_test == "true")
+                    (.runs_on == "device" and (
+                      (.test_type == "gtest" and $run_on_device_test == "true") or
+                      (.test_type == "e2e_test" and $run_e2e_test == "true") or
+                      (.test_type == "yts_test" and $run_yts_test == "true") or
+                      (.test_type == "yts_playback_test" and $run_yts_playback_test == "true") or
+                      (.test_type == "yts_wpt_test" and $run_yts_wpt_test == "true") or
+                      (.test_type == "yts_finch_test" and $run_yts_finch_test == "true")
+                    )) or
+                    (.runs_on == "host" and $run_on_host_test == "true" and
+                      (.test_type == "gtest" or .test_type == "junit"))
                   )
                 )
               ]' "${test_targets_json_file}")
@@ -321,6 +355,11 @@ jobs:
 
           {
             echo "run_on_device_test=${run_on_device_test}"
+            echo "run_e2e_test=${run_e2e_test}"
+            echo "run_yts_test=${run_yts_test}"
+            echo "run_yts_playback_test=${run_yts_playback_test}"
+            echo "run_yts_wpt_test=${run_yts_wpt_test}"
+            echo "run_yts_finch_test=${run_yts_finch_test}"
             echo "expected_tests_json=${expected_tests}"
           } >> "${GITHUB_OUTPUT}"
         shell: bash
@@ -357,6 +396,11 @@ jobs:
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
       expected_tests_json: ${{ steps.generate-expected-test-targets-json.outputs.expected_tests_json }}
       run_on_device_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_device_test }}
+      run_e2e_test: ${{ steps.generate-expected-test-targets-json.outputs.run_e2e_test }}
+      run_yts_test: ${{ steps.generate-expected-test-targets-json.outputs.run_yts_test }}
+      run_yts_playback_test: ${{ steps.generate-expected-test-targets-json.outputs.run_yts_playback_test }}
+      run_yts_wpt_test: ${{ steps.generate-expected-test-targets-json.outputs.run_yts_wpt_test }}
+      run_yts_finch_test: ${{ steps.generate-expected-test-targets-json.outputs.run_yts_finch_test }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -607,7 +651,8 @@ jobs:
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
+          test_type: unit_test
+          test_targets_json: ${{ steps.parse-device-targets.outputs.test_target_configs_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -618,14 +663,7 @@ jobs:
     needs: [initialize, build]
     # Run E2E tests for presumit.
     # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
-    if: |
-      needs.initialize.outputs.test_e2e == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
-          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
-        )
+    if: needs.initialize.outputs.run_e2e_test == 'true'
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_e2e_tests
     permissions: {}
@@ -668,14 +706,7 @@ jobs:
     needs: [initialize, build]
     # Run YTS tests via presumit.
     # Also, run YTS tests on push and schedule if not explicitly disabled via repo vars.
-    if: |
-      needs.initialize.outputs.test_yts == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
-          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
-        )
+    if: needs.initialize.outputs.run_yts_test == 'true'
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_tests
     permissions: {}
@@ -717,9 +748,7 @@ jobs:
   yts-playback-test:
     needs: [initialize, build]
     # Run YTS Playback tests via presumit.
-    if: |
-      needs.initialize.outputs.test_yts_playback == 'true' &&
-      contains(fromJson(needs.initialize.outputs.labels), 'yts_playback_test')
+    if: needs.initialize.outputs.run_yts_playback_test == 'true'
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_playback_tests
     permissions: {}
@@ -821,13 +850,7 @@ jobs:
   yts-wpt-test:
     needs: [initialize, build]
     # Run YTS tests via presubmit.
-    if: |
-      needs.initialize.outputs.test_yts_wpt == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          (inputs.nightly == 'true' || github.event_name == 'schedule') ||
-          (github.event_name == 'push')
-        )
+    if: needs.initialize.outputs.run_yts_wpt_test == 'true'
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_wpt_tests
     continue-on-error: true # Ignoring errors while we are working to productionize
@@ -869,14 +892,7 @@ jobs:
 
   yts-finch-test:
     needs: [initialize, build]
-    if: |
-      needs.initialize.outputs.test_yts_finch == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
-          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
-        )
+    if: needs.initialize.outputs.run_yts_finch_test == 'true'
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_yts_finch_tests
     permissions: {}
@@ -1134,7 +1150,7 @@ jobs:
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/download_test_results
         with:
-          pattern: ${{ matrix.platform }}_${{ matrix.name }}_*results*
+          pattern: ${{ matrix.platform }}_${{ matrix.name }}_*_results[-_][0-9]*
           path: results/
       - name: Test Results
         id: test-results
@@ -1145,8 +1161,7 @@ jobs:
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt results/**/${{ steps.extract-target-name.outputs.test_target }}*cobalt.log
           datadog_api_key: ${{ secrets.datadog_api_key }}
-          num_gtest_shards: ${{ matrix.test_info.test_type == 'gtest' && needs.initialize.outputs.num_gtest_shards || 1 }}
-          required: ${{ matrix.test_info.required != false }}
+          num_gtest_shards: ${{ matrix.test_info.shards || (matrix.test_info.test_type == 'gtest' && needs.initialize.outputs.num_gtest_shards || 1) }}
       - name: ${{ matrix.test_info.target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
         continue-on-error: true
@@ -1154,7 +1169,6 @@ jobs:
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
           symbolize: 'false'
-          required: ${{ matrix.test_info.required != false }}
       - name: ${{ matrix.test_info.target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
@@ -1165,7 +1179,6 @@ jobs:
             results/**/${{ steps.extract-target-name.outputs.test_target }}*symbolized_crash.txt
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           symbolize: 'false'
-          required: ${{ matrix.test_info.required != false }}
       - name: Generate Retry Filter
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/generate_retry_filter

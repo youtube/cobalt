@@ -26,9 +26,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/sabi_string.h"
@@ -500,22 +498,6 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       } else {
         // The system image at index 0 failed.
         return NULL;
-      }
-    }
-
-    auto get_user_agent_func = reinterpret_cast<const char* (*)()>(
-        library_loader->Resolve("GetCobaltUserAgentString"));
-    if (!get_user_agent_func) {
-      SB_LOG(ERROR) << "Failed to get user agent string";
-    } else {
-      std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
-      starboard::strlcpy(buffer.data(), get_user_agent_func(),
-                         USER_AGENT_STRING_MAX_SIZE);
-      if (crashpad::InsertCrashpadAnnotation(
-              crashpad::kCrashpadUserAgentStringKey, buffer.data())) {
-        SB_DLOG(INFO) << "Added user agent string to Crashpad.";
-      } else {
-        SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
       }
     }
 

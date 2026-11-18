@@ -12,10 +12,6 @@ inputs:
     description: "If logs should be ran through crash symbolization tools."
     required: false
     default: 'false'
-  required:
-    description: "Whether to fail and emit an error if no log files match."
-    required: false
-    default: 'true'
 runs:
   using: "composite"
   steps:
@@ -43,7 +39,6 @@ runs:
       env:
         LOG_GLOB: ${{ inputs.log_glob }}
         SYMBOLIZE: ${{ inputs.symbolize }}
-        REQUIRED: ${{ inputs.required }}
         PLATFORM: ${{ matrix.platform }}
         CONFIG: ${{ matrix.config }}
       run: |
@@ -54,12 +49,8 @@ runs:
 
         log_files=(${LOG_GLOB})
         if [ ${#log_files[@]} -eq 0 ]; then
-          if [ "${REQUIRED}" == "true" ]; then
-            echo "::error::No log files were collected. The tests probably failed to run."
-            exit 1
-          else
-            echo "No log files found matching pattern: ${LOG_GLOB}"
-          fi
+          echo "::error::No log files were collected. The tests probably failed to run."
+          exit 1
         else
           for log_file in "${log_files[@]}"; do
             echo "::group::=== ${log_file} ==="

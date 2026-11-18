@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_CRASHPAD_CRASHPAD_CLIENT_COBALT_SIMULATE_CRASH_HERMETIC_STUB_H_
-#define THIRD_PARTY_CRASHPAD_CRASHPAD_CLIENT_COBALT_SIMULATE_CRASH_HERMETIC_STUB_H_
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
 
-#include "base/notreached.h"
+#include "ui/base/l10n/l10n_util_mac.h"
 
-#define CRASHPAD_SIMULATE_CRASH() NOTIMPLEMENTED()
+namespace content {
 
-#endif  // THIRD_PARTY_CRASHPAD_CRASHPAD_CLIENT_COBALT_SIMULATE_CRASH_HERMETIC_STUB_H_
+void ShellBrowserMainParts::PreCreateMainMessageLoop() {
+  l10n_util::OverrideLocaleWithCocoaLocale();
+}
+
+}  // namespace content

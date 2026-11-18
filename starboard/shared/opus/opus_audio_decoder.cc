@@ -234,7 +234,7 @@ void OpusAudioDecoder::DecodePendingBuffers() {
 bool OpusAudioDecoder::DecodeInternal(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_CHECK(input_buffer);
   SB_DCHECK(output_cb_);
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
 

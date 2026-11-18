@@ -650,7 +650,7 @@ void XSendAtom(Window window, Atom atom) {
   // XLib is not thread-safe. Since we may be coming from another thread, we
   // have to open another connection to the display to inject the wake-up event.
   Display* display = XOpenDisplay(NULL);
-  SB_DCHECK(display);
+  SB_CHECK(display);
   XClientMessageEvent event = {0};
   event.type = ClientMessage;
   event.message_type = atom;
@@ -727,7 +727,7 @@ bool ApplicationX11::DestroyWindow(SbWindow window) {
   SB_DCHECK(display_);
   SbWindowVector::iterator iterator =
       std::find(windows_.begin(), windows_.end(), window);
-  SB_DCHECK(iterator != windows_.end());
+  SB_CHECK(iterator != windows_.end());
   windows_.erase(iterator);
 
   if (windows_.empty()) {

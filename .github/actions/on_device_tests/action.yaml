@@ -22,12 +22,10 @@ inputs:
     required: true
   test_device_family:
     description: "Test device family."
-    required: false
-    default: ""
+    required: true
   test_type:
     description: "Test type (unit_test, browser_test, e2e_test, yts_test)."
-    required: false
-    default: "unit_test"
+    required: true
   artifact_name:
     description: "Name of the artifact on GCS (e.g. Cobalt.apk)."
     required: false
@@ -99,7 +97,7 @@ runs:
           --token "${GITHUB_TOKEN}" \
           trigger \
           --test_type "${TEST_TYPE}" \
-          ${TEST_DEVICE_FAMILY:+--device_family "${TEST_DEVICE_FAMILY}"} \
+          --device_family "${TEST_DEVICE_FAMILY}" \
           --targets "${TEST_TARGETS_JSON}" \
           --filter_json_dir "${FILTER_DIR}" \
           --label "chrobalt_on_device_test" \
@@ -136,6 +134,7 @@ runs:
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        TEST_TYPE: ${{ inputs.test_type }}
         PLATFORM: ${{ matrix.platform }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
@@ -146,15 +145,22 @@ runs:
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> "${GITHUB_ENV}"
 
-        # Test results (xml and logs) must be in a subfolder in results_dir
+        # Test results (xml and logs) must be in a subfolder in results_dir.
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${PLATFORM}/1"
         gsutil -m cp -r "${GCS_RESULTS_PATH%/}/*" "${test_output}/${PLATFORM}/" || true
 
         # Check for missing test results.
         target_failed=0
-        readarray -t test_targets < <(echo "${TEST_TARGETS_JSON}" | jq -r '.[]')
-        for test_target_with_path in "${test_targets[@]}"; do
+        readarray -t test_target_entries < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -rc '.[] | if type == "object" then {target: .target, shards: (.shards // 1)} else {target: ., shards: 1} end')
+        for entry in "${test_target_entries[@]}"; do
+          test_target_with_path=$(echo "${entry}" | jq -r '.target')
+          shards=$(echo "${entry}" | jq -r '.shards')
+          if ! [[ "${shards}" =~ ^[0-9]+$ ]] || (( shards < 1 || shards > 10 )); then
+            echo "::error::Invalid shards value (${shards}) for ${test_target_with_path}; expected integer in 1..10."
+            target_failed=1
+            continue
+          fi
           test_target=${test_target_with_path#*:}
           test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
               --filter-dir "${FILTER_DIR}" \
@@ -165,47 +171,111 @@ runs:
           fi
 
           target_config=$(jq -c --arg t "${test_target_with_path}" '.[] | select(.target == $t)' "${TEST_TARGETS_JSON_FILE}")
-          process_results=$(echo "${target_config}" | jq -r '.process_results // true')
+          process_results=$(echo "${target_config}" | jq -r '.process_results != false')
           if [[ "${process_results}" == "false" ]]; then
             echo "Test result processing skipped for ${test_target}."
             continue
           fi
 
-          xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+          if [[ "${shards}" -gt 1 ]]; then
+            for (( shard_idx=0; shard_idx<shards; shard_idx++ )); do
+              shard_filter=$(python3 cobalt/devinfra/github/test_filter.py \
+                  --filter-dir "${FILTER_DIR}" \
+                  --target "${test_target}" \
+                  --shard "${shard_idx}")
+              shard_dir="${test_output}/${PLATFORM}/shard_${shard_idx}"
+              if [ "${shard_filter}" == "-*" ]; then
+                # On the initial attempt, emit a zero-test XML so result
+                # processing sees the expected shard count. On retry attempts,
+                # leave skipped shards untouched so download_test_results
+                # preserves the passing XML from the earlier attempt.
+                if [[ "${GITHUB_RUN_ATTEMPT:-1}" -eq 1 ]]; then
+                  mkdir -p "${shard_dir}"
+                  echo "Skipped due to test filter." > "${shard_dir}/${test_target}_log.txt"
+                  printf '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="0" failures="0" errors="0" time="0"></testsuites>\n' \
+                    > "${shard_dir}/${test_target}_testoutput.xml"
+                fi
+                continue
+              fi
 
-          # Convert JSON report to JUnit XML if XML is not present.
-          if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            json_reports=(
-              "${test_output}/${PLATFORM}"/**/"${test_target}"*.json
-              "${test_output}/${PLATFORM}"/**/results.json
-            )
-            if [ -f "${json_reports[0]:-}" ]; then
-              python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
-                "${json_reports[0]}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
-              xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+              xml_files=("${shard_dir}/${test_target}"*.xml)
+              if [[ "${#xml_files[@]}" -eq 0 ]]; then
+                echo "Test result xml is missing for ${test_target} shard ${shard_idx}."
+                log_path="${shard_dir}/${test_target}_log.txt"
+                if [ -f "${log_path}" ]; then
+                  python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+                    "${log_path}" \
+                    "${shard_dir}/${test_target}_testoutput.xml"
+                fi
+                target_failed=1
+              elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
+                # Double-check the result XML for failures. ODT service has been known to report incorrect status.
+                echo "::error::Found failures in the test xml for ${test_target} shard ${shard_idx}."
+                target_failed=1
+              elif ! grep -q '<testcase' "${xml_files[@]}"; then
+                # A non-skipped shard that ran zero test cases (for example when
+                # device setup or test listing failed before execution) must not
+                # archive an empty XML that marks the shard as passed on retry.
+                echo "::error::Test result xml has no test cases for ${test_target} shard ${shard_idx}."
+                rm -f "${xml_files[@]}"
+                log_path="${shard_dir}/${test_target}_log.txt"
+                if [ -f "${log_path}" ]; then
+                  python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+                    "${log_path}" \
+                    "${shard_dir}/${test_target}_testoutput.xml"
+                fi
+                target_failed=1
+              fi
+            done
+          else
+            xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+
+            # Convert per-target JSON report to JUnit XML for e2e/yts runs when XML is absent.
+            if [[ "${#xml_files[@]}" -eq 0 ]] && [[ "${TEST_TYPE}" == "e2e_test" || "${TEST_TYPE}" == "yts_test" ]]; then
+              json_reports=(
+                "${test_output}/${PLATFORM}"/**/"${test_target}"*.json
+                "${test_output}/${PLATFORM}"/**/"${test_target}"/results.json
+              )
+              if [ -f "${json_reports[0]:-}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
+                  "${json_reports[0]}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
+                xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+              fi
             fi
-          fi
 
-          # If test results are still missing, attempt to generate crash report from logs.
-          if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            echo "Test results are missing for ${test_target}."
-            log_files=(
-              "${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt
-              "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log
-            )
-            if [ -f "${log_files[0]:-}" ]; then
-              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
-                "${log_files[0]}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
-              xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+            # If test results are still missing, attempt to generate crash report from logs.
+            if [[ "${#xml_files[@]}" -eq 0 ]]; then
+              echo "Test results are missing for ${test_target}."
+              if [[ "${TEST_TYPE}" == "e2e_test" ]]; then
+                log_files=(
+                  "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log
+                  "${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt
+                )
+              else
+                log_files=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
+              fi
+              if [ -f "${log_files[0]:-}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+                  "${log_files[0]}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
+                xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+              fi
             fi
-          fi
 
-          target_required=$(echo "${target_config}" | jq -r '.required // true')
-          if [[ "${#xml_files[@]}" -eq 0 ]] || grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
-            if [[ "${target_required}" == "false" ]]; then
-              echo "Test results are missing or contain failures for non-required target ${test_target}; ignoring."
-            else
-              echo "::error::Test results are missing or contain failures for ${test_target}."
+            target_required=$(echo "${target_config}" | jq -r '.required != false')
+            if [[ "${#xml_files[@]}" -eq 0 ]] || grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
+              if [[ "${target_required}" == "false" ]]; then
+                echo "Test results are missing or contain failures for non-required target ${test_target}; ignoring."
+              else
+                echo "::error::Test results are missing or contain failures for ${test_target}."
+                target_failed=1
+              fi
+            elif [[ "${test_target}" == *"cobalt_browsertests"* ]] && ! grep -q '<testcase' "${xml_files[@]}"; then
+              echo "::error::Test result xml has no test cases for ${test_target}."
+              rm -f "${xml_files[@]}"
+              log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
+              if [ -f "${log_paths[0]:-}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
+              fi
               target_failed=1
             fi
           fi

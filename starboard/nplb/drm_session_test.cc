@@ -26,8 +26,6 @@ namespace {
 
 constexpr int64_t kDefaultWaitForCallbackTimeout = 1'000'000;  // 1 second
 constexpr char kWidevineKeySystem[] = "com.widevine.alpha";
-constexpr char kCencInitDataType[] = "cenc";
-constexpr int kInitialTicket = kSbDrmTicketInvalid + 1;
 
 class SbDrmSessionTest : public ::testing::Test {
  protected:

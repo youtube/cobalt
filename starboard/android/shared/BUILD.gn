@@ -102,8 +102,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
     "//starboard/shared/starboard/microphone/microphone_open.cc",
     "//starboard/shared/starboard/microphone/microphone_read.cc",
-    "//starboard/shared/starboard/native_stability.cc",
-    "//starboard/shared/starboard/native_stability.h",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/thread_checker.h",
@@ -166,7 +164,6 @@ static_library("starboard_platform") {
     "drm_session_id_mapper.h",
     "drm_system.cc",
     "drm_system.h",
-    "egl_swap_buffers.cc",
     "exoplayer/exoplayer_bridge.cc",
     "exoplayer/exoplayer_bridge.h",
     "exoplayer/exoplayer_player_worker_handler.cc",
@@ -307,6 +304,7 @@ static_library("starboard_platform") {
   public_deps = [
     ":starboard_base_symbolize",
     "//cobalt/android:app_event_bridge",
+    "//cobalt/android:cobalt_process_state_summary_jni",
     "//cobalt/android:jni_headers",
     "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser/client_hint_headers",
@@ -342,8 +340,6 @@ static_library("starboard_platform") {
       "crash_handler.h",
     ]
     sources += [
-      "//starboard/shared/starboard/crash_handler.cc",
-      "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
 
@@ -374,7 +370,19 @@ static_library("starboard_platform") {
       "//starboard/loader_app:pending_restart",
     ]
 
-    deps += [ "//starboard/crashpad_wrapper" ]
+    if (use_evergreen) {
+      sources += [
+        "//starboard/shared/starboard/crash_handler.cc",
+        "//starboard/shared/starboard/crash_handler.h",
+      ]
+    }
+  }
+
+  if (use_evergreen || !is_starboard) {
+    sources += [
+      "//starboard/shared/starboard/native_stability.cc",
+      "//starboard/shared/starboard/native_stability.h",
+    ]
   }
 
   if (sb_evergreen_compatible_use_libunwind) {
@@ -434,14 +442,13 @@ static_library("test_support") {
 
   deps = [
     ":starboard_platform",
+    "//starboard/shared/starboard:features_test_util",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/jni_zero:jni_zero",
   ]
 
   sources = [
-    "//starboard/shared/starboard/features_test_util.cc",
-    "//starboard/shared/starboard/features_test_util.h",
     "fake_audio_track.cc",
     "fake_audio_track.h",
     "fake_media_codec.cc",
@@ -461,7 +468,6 @@ test("starboard_platform_tests") {
               "audio_renderer_sink_android_test.cc",
               "audio_track_audio_sink_type_test.cc",
               "drm_session_id_mapper_test.cc",
-              "features_extension_test.cc",
               "media_capabilities_cache_test.cc",
               "media_codec_decoder_test.cc",
               "media_codec_video_decoder_helpers_test.cc",

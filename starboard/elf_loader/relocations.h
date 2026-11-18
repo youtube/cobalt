@@ -42,6 +42,9 @@ class Relocations {
   // Apply all the relocations.
   bool ApplyAllRelocations();
 
+  // Discards full memory pages occupied exclusively by the relocation tables.
+  void DiscardRelocationPages();
+
   // Apply a set of relocations.
   bool ApplyRelocations(const rel_t* rel, size_t rel_count);
 

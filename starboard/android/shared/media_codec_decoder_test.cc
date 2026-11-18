@@ -233,6 +233,7 @@ class MediaCodecDecoderVideoDualThreadsTest
         /*max_frame_size=*/std::nullopt, /*fps=*/0,
         jni_zero::JavaRef<jobject>(), kSbDrmSystemInvalid,
         /*color_metadata=*/nullptr, /*require_software_codec=*/false,
+        /*is_high_bit_depth=*/false,
         /*frame_rendered_cb=*/[](int64_t) {},
         /*first_tunnel_frame_ready_cb=*/[]() {},
         /*tunnel_mode_audio_session_id=*/std::nullopt,

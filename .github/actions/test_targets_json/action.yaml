@@ -44,6 +44,9 @@ runs:
         printf "test_targets_json=%s\n" "${test_targets_json}" >> "$GITHUB_OUTPUT"
         printf "test_targets_count=%s\n" "$(jq -ncr --argjson data "${test_targets_json}" '$data | length')" >> "$GITHUB_OUTPUT"
 
+        test_target_configs_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.target != null) | if .shards != null then {target: .target, shards: .shards} else .target end]')"
+        printf "test_target_configs_json=%s\n" "${test_target_configs_json}" >> "$GITHUB_OUTPUT"
+
         test_executables_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.executable != null) | .executable]')"
         printf "test_executables_json=%s\n" "${test_executables_json}" >> "$GITHUB_OUTPUT"
       shell: bash
@@ -54,6 +57,9 @@ outputs:
   test_targets_json:
     description: The matched test targets in a JSON array.
     value: '${{ steps.parse-json.outputs.test_targets_json }}'
+  test_target_configs_json:
+    description: The matched test targets in a JSON array preserving per-target config such as shards.
+    value: '${{ steps.parse-json.outputs.test_target_configs_json }}'
   test_executables_json:
     description: The matched test executables in a JSON array.
     value: '${{ steps.parse-json.outputs.test_executables_json }}'
