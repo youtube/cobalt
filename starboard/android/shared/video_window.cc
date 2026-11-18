@@ -173,12 +173,6 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   return !g_video_surface_holder && GetGlobalVideoSurface();
 }
 
-// static
-bool VideoSurfaceHolder::HasVideoSurface() {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  return !!GetGlobalVideoSurface();
-}
-
 jni_zero::ScopedJavaLocalRef<jobject>
 VideoSurfaceHolder::AcquireVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());

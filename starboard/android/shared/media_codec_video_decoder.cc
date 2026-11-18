@@ -604,7 +604,11 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
-      TeardownCodec();
+      // Without a codec (e.g. while a creation retry is pending) there is
+      // nothing to rebuild; the next attempt picks up |color_metadata_|.
+      if (media_decoder_) {
+        TeardownCodec();
+      }
       color_metadata_ = color_metadata;
     }
 
@@ -874,14 +878,27 @@ MediaCodecVideoDecoder::PrepareOutputSurface() {
     case kSbPlayerOutputModePunchOut: {
       if (surface_view_) {
         j_output_surface = surface_view_.AsLocalRef(env);
+      } else if (j_acquired_video_surface_) {
+        j_output_surface = j_acquired_video_surface_.AsLocalRef(env);
       } else {
         j_output_surface = AcquireVideoSurface();
+        if (j_output_surface) {
+          j_acquired_video_surface_.Reset(j_output_surface);
+        }
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
       }
     } break;
     case kSbPlayerOutputModeDecodeToTexture: {
+      {
+        std::lock_guard lock(decode_target_mutex_);
+        if (decode_target_) {
+          j_output_surface = jni_zero::ScopedJavaLocalRef<jobject>(
+              env, decode_target_->surface());
+          break;
+        }
+      }
       // A width and height of (0, 0) is provided here because Android doesn't
       // actually allocate any memory into the texture at this time.  That is
       // done behind the scenes, the acquired texture is not actually backed
@@ -1012,11 +1029,14 @@ MediaCodecVideoDecoder::TryInitializeCodec(
     codec_creation_retry_.retries_left = codec_creation_retry_.max_retries;
     return CodecInitStatus::kInitialized;
   }
-  TeardownCodec();
 
   if (codec_creation_retry_.retries_left == 0) {
+    TeardownCodec();
     return Unexpected(std::move(result).error());
   }
+  // Keep the prepared surface for the retry: this decoder stays the holder of
+  // the global video surface, so another player can't take it in the meantime
+  // and OnSurfaceDestroyed() still cancels the retry on suspend.
   --codec_creation_retry_.retries_left;
   const int attempt =
       codec_creation_retry_.max_retries - codec_creation_retry_.retries_left;
@@ -1042,33 +1062,11 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
       std::move(*codec_creation_retry_.pending);
   codec_creation_retry_.pending.reset();
 
-  // In punch-out mode without a |surface_view_|, the decoder renders to the
-  // global video surface (a decoder with a |surface_view_| renders to that and
-  // doesn't use the global surface). A failed attempt releases the global
-  // surface in TeardownCodec(), so this decoder is no longer its holder and
-  // isn't notified through OnSurfaceDestroyed() if the surface is destroyed
-  // (e.g. the app is suspended) while the retry is pending. Mirror the suspend
-  // behavior instead of turning it into a decode error: give up silently and
-  // leave the codec torn down.
-  if (output_mode_ == kSbPlayerOutputModePunchOut && !surface_view_ &&
-      !HasVideoSurface()) {
-    SB_LOG(INFO) << "Video surface was destroyed, abandoning MediaCodec "
-                 << "creation retry.";
-    pending_input_buffers_.clear();
-    return;
-  }
-
-  // Prefer the stream info of the buffered inputs: it carries the (HDR) color
-  // metadata that TeardownCodec() cleared after the failed attempt. When no
-  // input has arrived yet (constructor path), the codec is created without
-  // color metadata as in the constructor; WriteInputBuffers() rebuilds it if
-  // the first input turns out to be HDR.
+  // Prefer the stream info of the buffered inputs over that of the failed
+  // attempt, which may predate the first input (constructor path).
   VideoStreamInfo stream_info = retry.stream_info;
   if (!pending_input_buffers_.empty()) {
     stream_info = pending_input_buffers_.front()->video_stream_info();
-    if (!IsIdentity(stream_info.color_metadata)) {
-      color_metadata_ = stream_info.color_metadata;
-    }
   }
 
   // Retries made so far, including this one.
@@ -1127,6 +1125,9 @@ void MediaCodecVideoDecoder::TeardownCodec() {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
   }
+  // Reset even when the surface is no longer owned, e.g. after
+  // OnSurfaceDestroyed().
+  j_acquired_video_surface_.Reset();
   media_decoder_.reset();
   color_metadata_ = std::nullopt;
 
@@ -1403,9 +1404,7 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
   // When this function is called, the decoder no longer owns the surface.
   owns_video_surface_ = false;
   // A retry would fail without a surface; cancel it silently to keep the
-  // suspend behavior unchanged (no error is reported). Note that a decoder
-  // with a pending retry has usually already released the surface and isn't
-  // notified here; RetryCodecCreation() handles that case.
+  // suspend behavior unchanged (no error is reported).
   CancelPendingCodecCreationRetry();
   TeardownCodec();
   {

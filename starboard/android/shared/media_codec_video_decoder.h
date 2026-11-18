@@ -145,16 +145,17 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   enum class CodecInitStatus { kInitialized, kRetryScheduled };
 
   // Sets up the surface the codec renders to: the Android video surface in
-  // punch-out mode, or a new decode target in decode-to-texture mode.
+  // punch-out mode, or a decode target in decode-to-texture mode. Reuses the
+  // surface prepared by an earlier attempt that hasn't been torn down.
   Result<jni_zero::ScopedJavaLocalRef<jobject>> PrepareOutputSurface();
   // Creates the platform MediaCodec rendering to |j_output_surface|.
   Result<void> InitializeCodec(
       const VideoStreamInfo& video_stream_info,
       const jni_zero::JavaRef<jobject>& j_output_surface);
-  // Prepares the output surface and initializes the codec, tearing the codec
-  // down on failure. A failure to create the MediaCodec itself is retried
-  // later while retry budget remains, returning kRetryScheduled. Returns a
-  // failure when the caller has to report an error.
+  // Prepares the output surface and initializes the codec. A failure to create
+  // the MediaCodec itself is retried later while retry budget remains, keeping
+  // the prepared surface, and returns kRetryScheduled. Otherwise tears the
+  // codec down on failure and returns a failure that the caller has to report.
   Result<CodecInitStatus> TryInitializeCodec(
       const VideoStreamInfo& video_stream_info);
   void RetryCodecCreation();
@@ -292,6 +293,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
+  // The global video surface acquired by PrepareOutputSurface(), kept across
+  // codec creation retries so that this decoder remains its holder. Reset in
+  // TeardownCodec().
+  jni_zero::ScopedJavaGlobalRef<jobject> j_acquired_video_surface_;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
