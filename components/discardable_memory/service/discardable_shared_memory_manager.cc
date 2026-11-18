@@ -601,10 +601,11 @@ void DiscardableSharedMemoryManager::OnMemoryPressure(
 #if BUILDFLAG(IS_COBALT)
       if (base::FeatureList::IsEnabled(
               base::features::kCobaltDiscardableModeratePressureLimit)) {
-        ReduceMemoryUsageUntilWithinLimit(static_cast<size_t>(
-            memory_limit_ *
+        const double clamped_fraction = std::clamp(
             base::features::kCobaltDiscardableModeratePressureLimitFraction
-                .Get()));
+                .Get(), 0.0, 1.0);
+        ReduceMemoryUsageUntilWithinLimit(
+            static_cast<size_t>(memory_limit_ * clamped_fraction));
         break;
       }
 #endif  // BUILDFLAG(IS_COBALT)
