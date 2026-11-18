@@ -28,7 +28,7 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 #include "include/core/SkFontMgr.h"
 #include "include/core/SkTypeface.h"
-#include "include/private/base/SkTArray.h"
+#include "include/private/SkTArray.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 
 // This class, which is thread-safe, is Cobalt's implementation of SkFontMgr. It

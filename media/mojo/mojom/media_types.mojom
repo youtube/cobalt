@@ -257,12 +257,9 @@ struct VideoDecoderConfig {
   EncryptionScheme encryption_scheme;
   VideoColorSpace color_space_info;
   gfx.mojom.HDRMetadata hdr_metadata;
-<<<<<<< HEAD
   VideoSpatialFormat spatial_format;
-=======
   [EnableIf=use_starboard_media]
   string mime_type;
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 // Native struct media::SubsampleEntry;

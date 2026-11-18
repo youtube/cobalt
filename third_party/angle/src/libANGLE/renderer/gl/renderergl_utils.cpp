@@ -2594,19 +2594,16 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     // http://anglebug.com/519646871
     // Several drivers are buggy with context switching. It needs to unbind fbo before context
     // switching to workadround the driver issues.
-<<<<<<< HEAD
-    ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext,
-                            IsPowerVR(vendor) || (IsWindows() && isNvidia));
-=======
 #if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     // Tegra devices require unbinding FBO before context switching to
     // prevent display degradation (b/490474392).
+    ANGLE_FEATURE_CONDITION(
+        features, unbindFBOBeforeSwitchingContext,
+        IsPowerVR(vendor) || (IsWindows() && isNvidia) || (IsAndroid() && isNvidia));
+#else   // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext,
-                            IsPowerVR(vendor) || (IsAndroid() && isNvidia));
-#else  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
-    ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext, IsPowerVR(vendor));
-#endif // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
->>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+                            IsPowerVR(vendor) || (IsWindows() && isNvidia));
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     // http://crbug.com/1181068 and http://crbug.com/783979
     ANGLE_FEATURE_CONDITION(features, flushOnFramebufferChange,

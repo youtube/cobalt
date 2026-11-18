@@ -99,6 +99,13 @@ enable_vectorized_html_scanning = false
 # and evergreen-x64 builds for different reasons.
 use_clang_modules = false
 
+# TODO: b/587258428 - Re-evaluate once Chromium also links official builds with
+# mold (https://crbug.com/40208899). Until then, link debug/devel builds with
+# lld like qa/gold. mold keeps undefined dynamic symbols that are referenced
+# only by sections removed by --gc-sections, which the Evergreen API leak
+# detector reports as leaks.
+use_mold = false
+
 # Disable Media Remoting (Casting / Remoter Mojo endpoints) for Cobalt.
 enable_media_remoting = false
 enable_media_remoting_rpc = false

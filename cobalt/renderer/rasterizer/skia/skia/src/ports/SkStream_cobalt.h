@@ -25,7 +25,7 @@
 #include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
 #include "include/core/SkStream.h"
-#include "include/private/base/SkMutex.h"
+#include "include/private/SkMutex.h"
 
 // The SkFileMemoryChunkStream classes provide a stream type that mixes features
 // of both file streams and memory streams. While the stream initially reads
