@@ -158,6 +158,12 @@ class GL_EXPORT NativeViewGLSurfaceEGL : public GLSurfaceEGL,
   std::unique_ptr<gfx::VSyncProvider> vsync_provider_external_;
   std::unique_ptr<gfx::VSyncProvider> vsync_provider_internal_;
 
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks last_swap_end_;
+  void RecordFramePrepTime(base::TimeTicks swap_start,
+                           base::TimeTicks swap_end);
+#endif
+
   // Stored in separate vectors so we can pass the egl timestamps
   // directly to the EGL functions.
   bool use_egl_timestamps_ = false;
