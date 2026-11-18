@@ -130,6 +130,8 @@ static_library("file_wrapper") {
   deps = [ "//starboard:starboard_headers_only" ]
 }
 
+# TODO(b/586488979): Enable starboard_unittests on modular Linux and Evergreen
+# CI, and add common_test to Android's starboard_platform_tests.
 source_set("common_test") {
   testonly = true
   sources = [

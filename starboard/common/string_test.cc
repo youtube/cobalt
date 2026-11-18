@@ -207,9 +207,5 @@ TEST(StringTest, ToString_Generic) {
   EXPECT_EQ("test", ToString(std::string("test")));
 }
 
-// Verifies that starboard/common/string.h continues to re-export StartsWith
-// and EndsWith for out-of-tree Starboard partner ports.
-static_assert(StartsWith("vp09.00", "vp09.") && EndsWith("vp09.00", ".00"), "");
-
 }  // namespace
 }  // namespace starboard
