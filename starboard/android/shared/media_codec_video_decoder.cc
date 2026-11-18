@@ -441,9 +441,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
   }
 
+  stream_info_ = stream_config.video_stream_info;
   if (!needs_fps_to_initialize_codec_) {
-    if (auto status = TryInitializeCodec(stream_config.video_stream_info);
-        !status) {
+    if (auto status = TryInitializeCodec(); !status) {
       *error_message =
           "Failed to initialize video decoder with error: " + status.error();
       SB_LOG(ERROR) << *error_message;
@@ -596,6 +596,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   if (input_buffer_written_ == 0) {
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
+    stream_info_ = input_buffers.front()->video_stream_info();
 
     // If color metadata is present and is not an identity mapping, then
     // teardown the codec so it can be reinitalized with the new metadata.
@@ -617,9 +618,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     // creation retry is already pending; the retry job will create it.
     if (!needs_fps_to_initialize_codec_ && !media_decoder_ &&
         !codec_creation_retry_.pending) {
-      if (auto status =
-              TryInitializeCodec(input_buffers.front()->video_stream_info());
-          !status) {
+      if (auto status = TryInitializeCodec(); !status) {
         std::string error_message =
             "Failed to reinitialize codec with error: " + status.error();
         SB_LOG(ERROR) << error_message;
@@ -647,9 +646,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       decoder_status_cb_(kNeedMoreInput, NULL);
       return;
     }
-    auto status =
-        TryInitializeCodec(pending_input_buffers_.front()->video_stream_info());
-    if (!status) {
+    if (auto status = TryInitializeCodec(); !status) {
       std::string error_message =
           "Failed to reinitialize codec with error: " + status.error();
       SB_LOG(ERROR) << error_message;
@@ -657,7 +654,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       ReportError(kSbPlayerErrorDecode, error_message);
       return;
     }
-    if (*status == CodecInitStatus::kRetryScheduled) {
+    if (codec_creation_retry_.pending) {
       // Keep buffering inputs while the retry is pending, as
       // BufferInputsForPendingCodec() does for later inputs.
       decoder_status_cb_(kNeedMoreInput, /*frame=*/nullptr);
@@ -699,8 +696,8 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
 
   if (codec_creation_retry_.pending) {
     SB_CHECK(!media_decoder_);
-    // RetryCodecCreation() forwards the end of stream once the codec is
-    // created.
+    // InitializeCodec() forwards the end of stream once the retry creates the
+    // codec.
     return;
   }
 
@@ -709,19 +706,16 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
     SB_DCHECK_EQ(pending_input_buffers_.size(),
                  static_cast<size_t>(input_buffer_written_));
 
-    auto status =
-        TryInitializeCodec(pending_input_buffers_.front()->video_stream_info());
-    if (!status) {
+    if (auto status = TryInitializeCodec(); !status) {
       std::string error_message =
           "Failed to reinitialize codec with error: " + status.error();
       SB_LOG(ERROR) << error_message;
       pending_input_buffers_.clear();
       ReportError(kSbPlayerErrorDecode, error_message);
-      return;
     }
-    if (*status == CodecInitStatus::kRetryScheduled) {
-      return;
-    }
+    // InitializeCodec() forwards the end of stream once the codec is created,
+    // possibly by a pending retry.
+    return;
   }
 
   // There's a race condition when suspending the app. If surface view is
@@ -1001,15 +995,17 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       WriteInputBuffersInternal(pending_input_buffers_);
       pending_input_buffers_.clear();
     }
+    // The end of stream may have been written while the codec was pending.
+    if (end_of_stream_written_) {
+      media_decoder_->WriteEndOfStream();
+    }
     return Success();
   }
   media_decoder_.reset();
   return Failure("Media Decoder is not valid: " + result.error());
 }
 
-Result<MediaCodecVideoDecoder::CodecInitStatus>
-MediaCodecVideoDecoder::TryInitializeCodec(
-    const VideoStreamInfo& video_stream_info) {
+Result<void> MediaCodecVideoDecoder::TryInitializeCodec() {
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(!codec_creation_retry_.pending);
 
@@ -1024,10 +1020,10 @@ MediaCodecVideoDecoder::TryInitializeCodec(
     return Unexpected(std::move(j_output_surface).error());
   }
 
-  auto result = InitializeCodec(video_stream_info, *j_output_surface);
+  auto result = InitializeCodec(stream_info_, *j_output_surface);
   if (result) {
     codec_creation_retry_.retries_left = codec_creation_retry_.max_retries;
-    return CodecInitStatus::kInitialized;
+    return Success();
   }
 
   if (codec_creation_retry_.retries_left == 0) {
@@ -1044,10 +1040,9 @@ MediaCodecVideoDecoder::TryInitializeCodec(
   SB_LOG(WARNING) << "MediaCodec creation failed (" << result.error()
                   << "), retrying in " << delay_usec / 1000 << "ms, "
                   << codec_creation_retry_.retries_left << " retries left.";
-  codec_creation_retry_.pending = PendingCodecCreationRetry{
-      Schedule([this] { RetryCodecCreation(); }, delay_usec),
-      video_stream_info};
-  return CodecInitStatus::kRetryScheduled;
+  codec_creation_retry_.pending =
+      Schedule([this] { RetryCodecCreation(); }, delay_usec);
+  return Success();
 }
 
 void MediaCodecVideoDecoder::RetryCodecCreation() {
@@ -1058,22 +1053,12 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
   // always runs with |error_cb_| set.
   SB_CHECK(error_cb_);
 
-  const PendingCodecCreationRetry retry =
-      std::move(*codec_creation_retry_.pending);
   codec_creation_retry_.pending.reset();
-
-  // Prefer the stream info of the buffered inputs over that of the failed
-  // attempt, which may predate the first input (constructor path).
-  VideoStreamInfo stream_info = retry.stream_info;
-  if (!pending_input_buffers_.empty()) {
-    stream_info = pending_input_buffers_.front()->video_stream_info();
-  }
 
   // Retries made so far, including this one.
   const int attempt =
       codec_creation_retry_.max_retries - codec_creation_retry_.retries_left;
-  auto status = TryInitializeCodec(stream_info);
-  if (!status) {
+  if (auto status = TryInitializeCodec(); !status) {
     std::string error_message = "Failed to create MediaCodec after " +
                                 std::to_string(attempt) +
                                 " retries: " + status.error();
@@ -1082,11 +1067,8 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
     ReportError(kSbPlayerErrorDecode, error_message);
     return;
   }
-  if (*status == CodecInitStatus::kInitialized) {
+  if (media_decoder_) {
     SB_LOG(INFO) << "MediaCodec created successfully after retry.";
-    if (end_of_stream_written_) {
-      media_decoder_->WriteEndOfStream();
-    }
   }
 }
 
@@ -1096,7 +1078,7 @@ void MediaCodecVideoDecoder::CancelPendingCodecCreationRetry() {
     return;
   }
   SB_LOG(INFO) << "Cancelling pending MediaCodec creation retry.";
-  RemoveJobByToken(&codec_creation_retry_.pending->job_token);
+  RemoveJobByToken(&*codec_creation_retry_.pending);
   codec_creation_retry_.pending.reset();
   pending_input_buffers_.clear();
 }

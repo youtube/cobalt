@@ -796,6 +796,36 @@ TEST_F(MediaCodecVideoDecoderTest,
 }
 
 TEST_F(MediaCodecVideoDecoderTest,
+       FpsGatedEndOfStreamCreatesCodecAndForwardsEndOfStreamOnce) {
+  MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(false);
+  ASSERT_TRUE(MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
+  VideoStreamInfo av1_info = kDefaultVideoStreamInfo;
+  av1_info.codec = kSbMediaVideoCodecAv1;
+  CreateDecoder(/*max_video_capabilities=*/"", &av1_info);
+  InitializeDecoder();
+
+  // The end of stream arrives before enough inputs for the fps estimate, so
+  // it triggers codec creation.
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &av1_info)});
+  decoder_->WriteEndOfStream();
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  for (int i = 0; i < 3; ++i) {
+    fake_codec->SimulateInputBufferAvailable(i);
+  }
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(2, 1000));
+  // No second end of stream follows.
+  EXPECT_FALSE(fake_codec->WaitForInputQueue(3, 200));
+  auto queued_inputs = fake_codec->ConsumeQueuedInputs();
+  ASSERT_EQ(queued_inputs.size(), 2U);
+  EXPECT_EQ(queued_inputs[0].flags & MediaCodec::kBufferFlagEndOfStream, 0);
+  EXPECT_NE(queued_inputs[1].flags & MediaCodec::kBufferFlagEndOfStream, 0);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
        CodecCreationSucceedsAfterMultipleRetriesWithoutInput) {
   CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
                                         /*codec_creation_failures=*/2);
