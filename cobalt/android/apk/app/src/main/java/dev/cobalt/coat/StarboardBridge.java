@@ -67,12 +67,14 @@ public class StarboardBridge extends BaseStarboardBridge {
 
   @Override
   void raisePlatformError(int errorType, long data, String url) {
-    if (mActivityHolder.get() instanceof CobaltActivity cobaltActivity
-        && cobaltActivity.hasHiddenSplashScreen()) {
-      android.util.Log.i(
-          "StarboardBridge",
-          "Ignoring platform error because splash screen has already been hidden.");
-      return;
+    Activity activity = mActivityHolder.get();
+    if (activity instanceof CobaltActivity cobaltActivity) {
+      if (cobaltActivity.hasHiddenSplashScreen()) {
+        android.util.Log.i(
+            "StarboardBridge",
+            "Ignoring platform error because splash screen has already been hidden.");
+        return;
+      }
     }
     StartupGuard.getInstance().setStartupMilestone(StartupGuard.PLATFORM_ERROR_RAISED);
     mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
