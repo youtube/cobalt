@@ -90,7 +90,7 @@ jclass GetClassInternal(JNIEnv* env, const char* class_name) {
   return env->FindClass(slash_name);
 }
 
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 jclass GetClassGlobalRef(JNIEnv* env, jobject obj) {
   return static_cast<jclass>(env->NewGlobalRef(env->GetObjectClass(obj)));
 }

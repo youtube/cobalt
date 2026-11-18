@@ -2077,7 +2077,7 @@ void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   TRACE_EVENT_BEGIN("media", "SourceBuffer::appendBuffer",
                     perfetto::Track::FromPointer(this), "size", data.size());
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Section 3.2 appendBuffer()
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
   //
@@ -2121,7 +2121,7 @@ void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
 =======
           data, Unretained(&exception_state)))) {
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, exception should be for this case.
     MediaSource::LogAndThrowDOMException(

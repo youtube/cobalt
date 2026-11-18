@@ -28,7 +28,7 @@
 =======
 #include "net/net_buildflags.h"
 #include "net/socket/socket.h"
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "net/socket/datagram_socket.h"
 #include "net/socket/diff_serv_code_point.h"
 #include "net/socket/socket_descriptor.h"
@@ -113,7 +113,7 @@ class NET_EXPORT UDPSocketPosix {
                           int read_buffer_size,
                           CompletionOnceCallback callback);
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Writes to the socket.
   // Only usable from the client-side of a UDP socket, after the socket

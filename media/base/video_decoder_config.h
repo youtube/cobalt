@@ -177,7 +177,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   void set_mime_type(std::string_view mime_type) { mime_type_ = mime_type; }
   const std::string& mime_type() const { return mime_type_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  private:
   VideoCodec codec_ = VideoCodec::kUnknown;
@@ -213,7 +213,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // Full mime string for the video decoder config.
   std::string mime_type_ = "";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is
   // typically small, the performance impact is minimal.

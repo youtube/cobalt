@@ -151,7 +151,7 @@ ParseResult ReadTopLevelBoxHeaderAt(OffsetSegmentedByteQueue& queue,
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Create a HdrMetadataTrack for attaching metadata to track samples. Returns
 // nullptr on failure.
 std::unique_ptr<HdrMetadataTrack> MakeMetadataTrack(

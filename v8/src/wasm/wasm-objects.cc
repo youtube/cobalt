@@ -1346,7 +1346,7 @@ bool WasmMemoryMapDescriptor::UnmapDescriptor() {
   return false;
 #endif
 }
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // static
 MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(

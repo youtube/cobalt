@@ -2606,7 +2606,7 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
 #else  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext, IsPowerVR(vendor));
 #endif // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     // http://crbug.com/1181068 and http://crbug.com/783979
     ANGLE_FEATURE_CONDITION(features, flushOnFramebufferChange,

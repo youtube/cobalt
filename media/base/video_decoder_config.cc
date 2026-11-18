@@ -106,7 +106,7 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
          mime_type() == config.mime_type() &&
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
          hdr_metadata() == config.hdr_metadata() && level() == config.level();
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 std::string VideoDecoderConfig::AsHumanReadableString() const {
@@ -135,7 +135,7 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", mime_type: " << mime_type()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   if (!hdr_metadata().IsEmpty()) {
     s << ", hdr metadata: " << hdr_metadata().ToString();

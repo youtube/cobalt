@@ -73,7 +73,7 @@ class NET_EXPORT_PRIVATE UDPClientSocket final : public DatagramClientSocket {
                           int read_buffer_size,
                           CompletionOnceCallback callback) override;
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 1fe89bc30311 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   int Write(IOBuffer* buf,
             int buf_len,
             CompletionOnceCallback callback,
