@@ -174,11 +174,8 @@
 #include "content/browser/sandboxed_opaque_origin_creator.h"
 #include "content/browser/scoped_active_url.h"
 #include "content/browser/security/coop/cross_origin_opener_policy_reporter.h"
-<<<<<<< HEAD
 #include "content/browser/security/cpsp/child_process_security_policy_impl.h"
-=======
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of d1b2f62fc05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/serial/serial_service.h"
 #endif
 #include "content/browser/service_worker/service_worker_client.h"
