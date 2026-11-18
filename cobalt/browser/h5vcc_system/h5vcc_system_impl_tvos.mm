@@ -17,6 +17,8 @@
 #import <AppTrackingTransparency/AppTrackingTransparency.h>
 #import <UIKit/UIKit.h>
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -138,7 +140,14 @@ void H5vccSystemImpl::GetWasLowMemoryKilled(
     GetWasLowMemoryKilledCallback callback) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Stubbed.
-  std::move(callback).Run(false);
+  std::move(callback).Run(std::nullopt);
+}
+
+void H5vccSystemImpl::GetLowMemoryKillDetails(
+    GetLowMemoryKillDetailsCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTIMPLEMENTED();
+  std::move(callback).Run(/*supported=*/false, nullptr);
 }
 
 void H5vccSystemImpl::PerformExitStrategy() {

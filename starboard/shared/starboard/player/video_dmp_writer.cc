@@ -140,7 +140,7 @@ void VideoDmpWriter::DumpConfigs(
   Write(write_cb_, kRecordTypeAudioConfig);
   Write(write_cb_, audio_codec);
   if (audio_codec != kSbMediaAudioCodecNone) {
-    SB_DCHECK(audio_stream_info);
+    SB_CHECK(audio_stream_info);
     Write(write_cb_, audio_codec, AudioStreamInfo(*audio_stream_info));
   }
 

@@ -10,4 +10,12 @@ h5vcc_system_tests(async (t, mockH5vccSystem) => {
     mockH5vccSystem.stubWasLowMemoryKilled(expected);
     let actual = await window.h5vcc.system.wasLowMemoryKilled();
     assert_equals(actual, expected);
+
+    mockH5vccSystem.stubWasLowMemoryKilled(false);
+    actual = await window.h5vcc.system.wasLowMemoryKilled();
+    assert_equals(actual, false);
+
+    mockH5vccSystem.stubWasLowMemoryKilled(null);
+    await promise_rejects_dom(
+        t, 'NotSupportedError', window.h5vcc.system.wasLowMemoryKilled());
 }, 'exercises H5vccSystem.wasLowMemoryKilled()');

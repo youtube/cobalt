@@ -6,12 +6,17 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "ui/gl/egl_util.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_bindings_autogen_gl.h"
 #include "ui/gl/gl_context.h"
 #include "ui/gl/gl_display.h"
 #include "ui/gl/gl_surface_egl.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/logging.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace gl {
 
@@ -87,14 +92,22 @@ bool GLFenceEGL::HasCompleted() {
 void GLFenceEGL::ClientWait() {
   EGLint result = ClientWaitWithTimeoutNanos(EGL_FOREVER_KHR);
   DCHECK_NE(EGL_TIMEOUT_EXPIRED_KHR, result);
+#if BUILDFLAG(IS_COBALT)
+  DCHECK_NE(EGL_FALSE, result);
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 EGLint GLFenceEGL::ClientWaitWithTimeoutNanos(EGLTimeKHR timeout) {
   EGLint flags = 0;
   EGLint result = eglClientWaitSyncKHR(display_, sync_, flags, timeout);
   if (result == EGL_FALSE) {
+#if BUILDFLAG(IS_COBALT)
+    LOG(ERROR) << "Failed to wait for EGLSync. error:"
+               << ui::GetLastEGLErrorString();
+#else
     NOTREACHED() << "Failed to wait for EGLSync. error:"
                  << ui::GetLastEGLErrorString();
+#endif  // BUILDFLAG(IS_COBALT)
   }
   return result;
 }

@@ -72,6 +72,7 @@ int InitAndRunAllTests(int argc, char** argv) {
   char** final_argv = argv;
 #endif
 
+  starboard::InitializePlatformTestSuite();
   ::testing::InitGoogleTest(&argc, final_argv);
   return starboard::RunPlatformTestSuite(argc, final_argv, &RunTests);
 }

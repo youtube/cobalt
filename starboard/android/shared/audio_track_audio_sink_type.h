@@ -21,6 +21,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -51,6 +52,12 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
     SbAudioSinkPrivate::ErrorFunc error;
   };
 
+  struct Options {
+    bool allow_audio_writing_on_pause = false;
+    bool pause_using_audio_track_state = false;
+    bool restart_on_audio_threshold_growth = false;
+  };
+
   SbAudioSink Create(
       int channels,
       int sampling_frequency_hz,
@@ -70,8 +77,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
                      int64_t start_time,
                      std::optional<int> tunnel_mode_audio_session_id,
                      bool is_web_audio,
-                     bool allow_audio_writing_on_pause,
-                     bool pause_using_audio_track_state,
+                     const Options& options,
                      void* context);
 
   void TestMinRequiredFrames();
@@ -88,6 +94,9 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   bool has_remote_audio_output_ = false;
 };
 
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrackAudioSinkType::Options& options);
+
 class AudioTrackAudioSink : public AudioSinkAndroid {
  public:
   static std::unique_ptr<AudioTrackAudioSink> Create(
@@ -101,8 +110,7 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
       int64_t start_media_time,
       std::optional<int> tunnel_mode_audio_session_id,
       bool is_web_audio,
-      bool allow_audio_writing_on_pause,
-      bool pause_using_audio_track_state,
+      const AudioTrackAudioSinkType::Options& options,
       void* context);
   static std::unique_ptr<AudioTrackAudioSink> CreateForTesting(
       int channels,
@@ -114,8 +122,7 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
       AudioTrackAudioSinkType::Callbacks callbacks,
       int64_t start_media_time,
       std::optional<int> tunnel_mode_audio_session_id,
-      bool allow_audio_writing_on_pause,
-      bool pause_using_audio_track_state,
+      const AudioTrackAudioSinkType::Options& options,
       std::unique_ptr<AudioTrack> fake_audio_track,
       void* context);
 
@@ -129,8 +136,7 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
                       AudioTrackAudioSinkType::Callbacks callbacks,
                       int64_t start_media_time,
                       std::optional<int> tunnel_mode_audio_session_id,
-                      bool allow_audio_writing_on_pause,
-                      bool pause_using_audio_track_state,
+                      const AudioTrackAudioSinkType::Options& options,
                       std::unique_ptr<AudioTrack> audio_track,
                       void* context);
   ~AudioTrackAudioSink() override;
@@ -156,6 +162,23 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
+  enum class StartThresholdAction {
+    kNone,
+    kResetAndFlush,
+    kRestartPlayer,
+  };
+
+  // Called while the playback head is stalled. Checks, at most once every
+  // |kStartThresholdCheckIntervalUs| and only after the playback head has been
+  // stalled for at least that long, whether the start threshold of
+  // |audio_track_| has grown (e.g. after the platform recreated the track for
+  // a higher latency route, b/573043984). Returns |kResetAndFlush| if the new
+  // threshold still fits in the sink buffer so unconsumed frames can be re-fed
+  // to the recreated track, or reports a capability changed error and returns
+  // |kRestartPlayer| if the new threshold exceeds what the sink can provide.
+  StartThresholdAction CheckStartThresholdOnStall(int64_t stalled_duration_us,
+                                                  int64_t now_us);
+
   int64_t GetFramesDurationUs(int64_t frames) const;
 
   const int channels_;
@@ -170,9 +193,14 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
 
   const bool allow_audio_writing_on_pause_;
   const bool pause_using_audio_track_state_;
+  const bool restart_on_audio_threshold_growth_;
 
   // Guaranteed to be non-null.
   const std::unique_ptr<AudioTrack> audio_track_;
+  // The start threshold of |audio_track_| when it was last queried. Only
+  // accessed on the audio out thread after construction.
+  int last_start_threshold_;
+  std::optional<int64_t> last_start_threshold_check_at_us_;
 
   volatile bool quit_ = false;
   std::atomic_bool flush_requested_{false};

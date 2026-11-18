@@ -342,7 +342,9 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
 bool IsCriticalAllowedInForeground() {
   static const bool kAllowCriticalInForeground =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "allow-critical-memory-pressure-handling-in-foreground");
+          "allow-critical-memory-pressure-handling-in-foreground") ||
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltV8FlushCodeOnCriticalMemoryPressure);
   return kAllowCriticalInForeground;
 }
 #endif  // BUILDFLAG(IS_COBALT)
@@ -1499,6 +1501,13 @@ bool RenderThreadImpl::IsGpuRemoteDisconnected() {
 }
 scoped_refptr<gpu::GpuChannelHost> RenderThreadImpl::EstablishGpuChannelSync() {
   TRACE_EVENT0("gpu", "RenderThreadImpl::EstablishGpuChannelSync");
+#if BUILDFLAG(IS_COBALT)
+  if (RendererIsHidden() &&
+      base::FeatureList::IsEnabled(
+          features::kCobaltSkipSyncGpuChannelWhenHidden)) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   scoped_refptr<gpu::GpuChannelHost> gpu_channel =
       gpu_->EstablishGpuChannelSync();

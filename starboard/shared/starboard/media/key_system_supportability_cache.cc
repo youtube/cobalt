@@ -51,7 +51,7 @@ class KeySystemSupportabilityContainer {
   void CacheKeySystemSupportability(T codec,
                                     const char* key_system,
                                     Supportability supportability) {
-    SB_DCHECK(key_system);
+    SB_CHECK(key_system);
     SB_DCHECK_GT(strlen(key_system), 0U);
     SB_DCHECK_NE(supportability, kSupportabilityUnknown);
 
@@ -83,7 +83,7 @@ SB_ONCE_INITIALIZE_FUNCTION(KeySystemSupportabilityCache,
 Supportability KeySystemSupportabilityCache::GetKeySystemSupportability(
     SbMediaAudioCodec codec,
     const char* key_system) {
-  SB_DCHECK(key_system);
+  SB_CHECK(key_system);
 
   // Empty key system is always supported.
   if (strlen(key_system) == 0) {
@@ -101,7 +101,7 @@ Supportability KeySystemSupportabilityCache::GetKeySystemSupportability(
 Supportability KeySystemSupportabilityCache::GetKeySystemSupportability(
     SbMediaVideoCodec codec,
     const char* key_system) {
-  SB_DCHECK(key_system);
+  SB_CHECK(key_system);
 
   // Empty key system is always supported.
   if (strlen(key_system) == 0) {

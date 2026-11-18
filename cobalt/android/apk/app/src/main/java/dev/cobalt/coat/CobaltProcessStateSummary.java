@@ -23,8 +23,10 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.ProcessExitReasonHelper;
+import org.chromium.base.library_loader.LibraryLoader;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * Java bridge for attaching and retrieving the 16-byte process state summary via Android R+ (API
@@ -49,14 +51,65 @@ public final class CobaltProcessStateSummary {
   public static final int TOTAL_PAYLOAD_LENGTH = 16;
   public static final int MAX_SUMMARY_BYTES = 128;
 
+  private static final Object sSyncLock = new Object();
   private static volatile byte[] sLastSummaryBytes;
+  private static boolean sSyncedPreNativeState;
 
   private CobaltProcessStateSummary() {}
 
   @VisibleForTesting
   public static void resetForTesting() {
     sLastSummaryBytes = null;
+    synchronized (sSyncLock) {
+      sSyncedPreNativeState = false;
+    }
     ProcessExitReasonHelper.setActivityManagerForTesting(null);
+  }
+
+  /**
+   * Forwards a startup milestone reached in {@code StartupGuard} to the native {@code
+   * CobaltProcessStateSummaryManager} once the native library is initialized.
+   */
+  public static void onStartupMilestoneReached(int milestone, long startupStatus, boolean isArmed) {
+    if (!LibraryLoader.getInstance().isInitialized()) {
+      return;
+    }
+    synchronized (sSyncLock) {
+      syncPreNativeStateIfNeededLocked(startupStatus & ~(1L << milestone), isArmed);
+      CobaltProcessStateSummaryJni.get().setStartupMilestone(milestone);
+    }
+  }
+
+  /**
+   * Forwards a {@code StartupGuard} armed/disarmed transition to the native {@code
+   * CobaltProcessStateSummaryManager} once the native library is initialized.
+   */
+  public static void onStartupGuardArmedChanged(boolean armed, long startupStatus) {
+    if (!LibraryLoader.getInstance().isInitialized()) {
+      return;
+    }
+    synchronized (sSyncLock) {
+      syncPreNativeStateIfNeededLocked(startupStatus, false);
+      CobaltProcessStateSummaryJni.get().setStartupGuardArmed(armed);
+    }
+  }
+
+  private static void syncPreNativeStateIfNeededLocked(long startupStatus, boolean isArmed) {
+    if (sSyncedPreNativeState) {
+      return;
+    }
+    sSyncedPreNativeState = true;
+    long remaining = startupStatus;
+    while (remaining != 0L) {
+      int bit = Long.numberOfTrailingZeros(remaining);
+      if (bit > 0) {
+        CobaltProcessStateSummaryJni.get().setStartupMilestone(bit);
+      }
+      remaining &= (remaining - 1L);
+    }
+    if (isArmed) {
+      CobaltProcessStateSummaryJni.get().setStartupGuardArmed(true);
+    }
   }
 
   private static int get16bits(byte[] data, int offset) {
@@ -192,5 +245,12 @@ public final class CobaltProcessStateSummary {
       Log.e(TAG, "Failed to getPriorSessionProcessStateSummary: ", e);
       return null;
     }
+  }
+
+  @NativeMethods
+  interface Natives {
+    void setStartupMilestone(int milestone);
+
+    void setStartupGuardArmed(boolean armed);
   }
 }

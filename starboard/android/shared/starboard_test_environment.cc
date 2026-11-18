@@ -15,7 +15,6 @@
 #include "starboard/android/shared/starboard_test_environment.h"
 
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/features_test_util.h"
 
 namespace starboard {
 
@@ -24,7 +23,6 @@ StarboardTestEnvironment::StarboardTestEnvironment() = default;
 StarboardTestEnvironment::~StarboardTestEnvironment() = default;
 
 void StarboardTestEnvironment::SetUp() {
-  features::InitializeStarboardFeatureListWithDefaults();
   SbAudioSinkImpl::Initialize();
 }
 

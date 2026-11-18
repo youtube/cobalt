@@ -37,7 +37,7 @@ typedef std::vector<std::string> Strings;
 void ParseParamTypeAndValue(const std::string& name,
                             const std::string& value,
                             MimeType::Param* param) {
-  SB_DCHECK(param);
+  SB_CHECK(param);
 
   param->name = name;
   if (value.size() >= 2 && value[0] == '\"' && value.back() == '\"') {
@@ -169,7 +169,7 @@ std::optional<MimeType> MimeType::Create(const std::string& content_type) {
     }
     // There can only be no more than one codecs parameter and it has to be
     // the first parameter if it is present.
-    if (param.name == "codecs") {
+    if (kMimeParamCodecs.EqualsCaseInsensitive(param.name)) {
       if (!params.empty()) {
         return std::nullopt;
       }

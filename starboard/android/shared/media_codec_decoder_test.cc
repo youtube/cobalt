@@ -233,6 +233,7 @@ class MediaCodecDecoderVideoDualThreadsTest
         /*max_frame_size=*/std::nullopt, /*fps=*/0,
         jni_zero::JavaRef<jobject>(), kSbDrmSystemInvalid,
         /*color_metadata=*/nullptr, /*require_software_codec=*/false,
+        /*is_high_bit_depth=*/false,
         /*frame_rendered_cb=*/[](int64_t) {},
         /*first_tunnel_frame_ready_cb=*/[]() {},
         /*tunnel_mode_audio_session_id=*/std::nullopt,
@@ -240,8 +241,11 @@ class MediaCodecDecoderVideoDualThreadsTest
         /*max_video_input_size=*/0, /*flush_delay_usec=*/0,
         /*use_dual_threads=*/true,
         MediaCodecDecoder::VideoExperimentalOptions{
-            .enable_codec_thread_improvements =
-                enable_codec_thread_improvements()});
+            /*skip_video_frames_over_60_fps=*/false,
+            /*enable_ndk_video=*/false,
+            /*enable_trivial_optimizations=*/false,
+            /*enable_codec_thread_improvements=*/
+            enable_codec_thread_improvements()});
     ASSERT_TRUE(result);
     decoder_ = std::move(result.value());
     codec_ = factory_.last_created_video_codec();

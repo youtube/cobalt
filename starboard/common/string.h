@@ -148,6 +148,11 @@ inline std::vector<std::string> SplitString(const std::string& input,
   return output;
 }
 
+// Returns true if `str` starts with `prefix`.
+inline bool StartsWith(std::string_view str, std::string_view prefix) {
+  return str.substr(0, prefix.size()) == prefix;
+}
+
 // Returns true if `str` ends with `suffix`.
 inline bool EndsWith(std::string_view str, std::string_view suffix) {
   return str.size() >= suffix.size() &&
