@@ -62,6 +62,20 @@ constexpr char kSbPlayerCreateHistogram[] =
     "Cobalt.Media.LatencyTiming.SbPlayerCreate";
 constexpr char kSbPlayerCreateToInitializedHistogram[] =
     "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
+constexpr char kSbPlayerDestroyHistogramPrefix[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
+constexpr char kSbPlayerDestroyBeforePrerollingHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.BeforePrerolling";
+
+size_t GetTotalDestroyCount(const base::HistogramTester& histogram_tester) {
+  size_t count = 0;
+  for (const auto& [name, histogram_count] :
+       histogram_tester.GetTotalCountsForPrefix(
+           kSbPlayerDestroyHistogramPrefix)) {
+    count += histogram_count;
+  }
+  return count;
+}
 
 // Returns the number of samples recorded in histogram |name| and in its
 // ".Subsequent" variant. Which of the two a sample lands in depends on whether
@@ -436,6 +450,28 @@ TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencyOnFailure) {
   EXPECT_EQ(GetTotalCountAcrossOccurrences(
                 histogram_tester, kSbPlayerCreateToInitializedHistogram),
             0u);
+
+  // A player that was never created isn't destroyed either.
+  renderer_.reset();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 0u);
+}
+
+TEST_F(StarboardRendererTest, RecordsSbPlayerDestroyLatency) {
+  base::HistogramTester histogram_tester;
+  SbPlayer player = InitializeWithAudioAndVideo();
+  // |renderer_| finishes initializing once the player is initialized.
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 0u);
+
+  renderer_.reset();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 1u);
+  histogram_tester.ExpectTotalCount(kSbPlayerDestroyBeforePrerollingHistogram,
+                                    1);
 }
 
 TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksPresenting) {
