@@ -156,6 +156,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // a failure that the caller has to report.
   Result<void> TryInitializeCodec();
   void RetryCodecCreation();
+  // Cancels a pending codec creation retry, if any, releasing the buffered
+  // inputs and the output surface kept for it.
   void CancelPendingCodecCreationRetry();
   // Queues |input_buffers| into |pending_input_buffers_| while a codec
   // creation retry is pending, applying back-pressure at

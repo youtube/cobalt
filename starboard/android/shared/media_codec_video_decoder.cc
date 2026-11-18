@@ -565,8 +565,8 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
           SB_LOG(ERROR) << "Video frame size " << frame_size
                         << " exceeds max resolution " << max_video_size_.value()
                         << ". Raising kSbPlayerErrorCapabilityChanged.";
-          // The player is replaced after this error, so a pending retry must
-          // not grab the hardware codec (and surface) from its replacement.
+          // The player is replaced after this error, so release the codec
+          // creation retry and its surface for the replacement.
           CancelPendingCodecCreationRetry();
           ReportError(kSbPlayerErrorCapabilityChanged,
                       "Video frame size exceeds max resolution.");
@@ -1081,6 +1081,10 @@ void MediaCodecVideoDecoder::CancelPendingCodecCreationRetry() {
   RemoveJobByToken(&*codec_creation_retry_.pending);
   codec_creation_retry_.pending.reset();
   pending_input_buffers_.clear();
+  // Release the output surface kept for the retry, so that it's available to
+  // other players.
+  SB_CHECK(!media_decoder_);
+  TeardownCodec();
 }
 
 void MediaCodecVideoDecoder::BufferInputsForPendingCodec(
