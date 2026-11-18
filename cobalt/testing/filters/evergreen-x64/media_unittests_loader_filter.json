@@ -26,6 +26,7 @@
     "JpegParserTest.*",
     "KeySystemsTest.*",
     "MediaServiceTest.*",
+    "MediaTypeConvertersTest.ConvertDecoderBuffer_HdrMetadata",
     "MediaTypeConvertersTest.RejectOOBSubsample",
     "MimeUtilTest.*",
     "MojoDecoderBufferConverterTest.*",
