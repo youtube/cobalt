@@ -164,7 +164,6 @@ if (enable_printing) {
       ]
       deps += [
         "//chrome/browser:primitives",
-        "//chrome/browser/pdf:pdf_pref_names",
         "//ui/views",
       ]
     }

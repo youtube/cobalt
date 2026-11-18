@@ -22,7 +22,6 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
-#include "build/buildflag.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_image.h"
@@ -62,13 +61,11 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_rendering_context_2d_state.h"
 #include "third_party/blink/renderer/modules/canvas/htmlcanvas/canvas_context_creation_attributes_helpers.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/dawn_conversions.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/dawn_enum_conversions.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/gpu.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/gpu_device.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/webgpu/dawn_conversions.h"
+#include "third_party/blink/renderer/modules/webgpu/dawn_enum_conversions.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu_device.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
 #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
@@ -81,10 +78,8 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_deferred_paint_record.h"
 #include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_cpp.h"  // nogncheck
-#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_mailbox_texture.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_cpp.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_mailbox_texture.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
 #include "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_image.h"

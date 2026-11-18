@@ -69,12 +69,6 @@ public class MockWebContents implements WebContents, WebContentsObserver.Observa
     }
 
     @Override
-    public void onResume() {}
-
-    @Override
-    public void onFreeze() {}
-
-    @Override
     public ViewAndroidDelegate getViewAndroidDelegate() {
         return null;
     }

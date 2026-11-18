@@ -11,12 +11,6 @@
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
-#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
-#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-#include "base/memory/weak_ptr.h"
-#include "base/synchronization/lock.h"
-#include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
-#endif
 
 namespace memory_instrumentation {
 
@@ -105,19 +99,6 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
       MemoryDumpLevelOfDetail,
       MemoryDumpDeterminism,
       RequestGlobalMemoryDumpAndAppendToTraceCallback);
-#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-  void SetDetailedMetricsDelegate(DetailedMetricsDelegate* delegate) {
-    base::AutoLock lock(detailed_metrics_delegate_lock_);
-    detailed_metrics_delegate_ = delegate ? delegate->GetWeakPtr() : nullptr;
-  }
-
-  base::WeakPtr<DetailedMetricsDelegate> GetDetailedMetricsDelegate() const {
-    base::AutoLock lock(detailed_metrics_delegate_lock_);
-    return detailed_metrics_delegate_;
-  }
-
-  base::WeakPtr<MemoryInstrumentation> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
-#endif
 
  private:
   explicit MemoryInstrumentation(
@@ -131,11 +112,6 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
 
   // Only browser process is allowed to request memory dumps.
   const bool is_browser_process_;
-#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-  mutable base::Lock detailed_metrics_delegate_lock_;
-  base::WeakPtr<DetailedMetricsDelegate> detailed_metrics_delegate_;
-  base::WeakPtrFactory<MemoryInstrumentation> weak_ptr_factory_{this};
-#endif
 };
 
 }  // namespace memory_instrumentation

@@ -36,9 +36,6 @@ component("linux_ui") {
     "//ui/gfx/geometry",
   ]
   public_deps = [ "//printing/buildflags" ]
-  if (is_cobalt) {
-    public_deps += [ "//ui/gfx:native_ui_types" ]
-  }
 }
 
 component("linux_ui_factory") {

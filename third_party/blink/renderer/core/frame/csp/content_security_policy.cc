@@ -551,9 +551,6 @@ void ContentSecurityPolicy::ComputeInternalStateForParsedPolicy(
       case CSPDirectiveName::TrustedTypes:
       case CSPDirectiveName::UpgradeInsecureRequests:
       case CSPDirectiveName::WorkerSrc:
-#if BUILDFLAG(IS_COBALT)
-      case CSPDirectiveName::CobaltLocationSrc:
-#endif //BUILDFLAG(IS_COBALT)
         break;
 
       case CSPDirectiveName::Unknown:
@@ -1669,10 +1666,6 @@ const char* ContentSecurityPolicy::GetDirectiveName(CSPDirectiveName type) {
       return "upgrade-insecure-requests";
     case CSPDirectiveName::WorkerSrc:
       return "worker-src";
-#if BUILDFLAG(IS_COBALT)
-    case CSPDirectiveName::CobaltLocationSrc:
-      return "h5vcc-location-src";
-#endif
 
     case CSPDirectiveName::Unknown:
       NOTREACHED();
@@ -1742,10 +1735,6 @@ CSPDirectiveName ContentSecurityPolicy::GetDirectiveType(const String& name) {
     return CSPDirectiveName::UpgradeInsecureRequests;
   if (name == "worker-src")
     return CSPDirectiveName::WorkerSrc;
-#if BUILDFLAG(IS_COBALT)
-  if (name == "h5vcc-location-src" || name == "cobalt-location-src")
-    return CSPDirectiveName::CobaltLocationSrc;
-#endif
 
   return CSPDirectiveName::Unknown;
 }
