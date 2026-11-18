@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "base/callback_list.h"
@@ -568,9 +569,7 @@ void SidePanel::OnResize(int resize_amount, bool done_resizing) {
   }
 
   const int minimum_width = GetMinimumSize().width();
-  if (proposed_width < minimum_width) {
-    proposed_width = minimum_width;
-  }
+  proposed_width = std::max(proposed_width, minimum_width);
 
   if (width() != proposed_width) {
     if (SidePanelUI* side_panel_ui =

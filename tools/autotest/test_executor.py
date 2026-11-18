@@ -46,6 +46,46 @@ def BuildTestTargets(out_dir: str, targets: list[str], dry_run: bool,
   return True
 
 
+def _CreateWebTestCommand(out_dir: str,
+                          web_test_files: list[str] | set[str] | None,
+                          extra_args: list[str]) -> list[str]:
+  run_web_tests_path = os.path.join(const.SRC_DIR, 'third_party', 'blink',
+                                    'tools', 'run_web_tests.py')
+  cmd = [
+      'vpython3', run_web_tests_path, f'--build-directory={out_dir}',
+      '--no-build'
+  ]
+  if web_test_files:
+    cmd.extend(sorted(web_test_files))
+  cmd.extend(extra_args)
+  return cmd
+
+
+def _CreateGtestCommand(out_dir: str, target_binary: str,
+                        gtest_filter: str | None,
+                        pref_mapping_filter: str | None, extra_args: list[str],
+                        no_try_android_wrappers: bool, no_fast_local_dev: bool,
+                        no_single_variant: bool) -> list[str]:
+  path: str = os.path.join(out_dir, 'bin', f'run_{target_binary}')
+  target_extra_args = list(extra_args)
+  if no_try_android_wrappers or not os.path.isfile(path):
+    path = os.path.join(out_dir, target_binary)
+  else:
+    if not no_fast_local_dev:
+      target_extra_args.append('--fast-local-dev')
+    if not no_single_variant:
+      target_extra_args.append('--single-variant')
+
+  cmd: list[str] = [path]
+  if gtest_filter:
+    cmd.append(f'--gtest_filter={gtest_filter}')
+  if pref_mapping_filter:
+    cmd.append(f'--test_policy_to_pref_mappings_filter={pref_mapping_filter}')
+
+  cmd.extend(target_extra_args)
+  return cmd
+
+
 def RunTestTargets(out_dir: str,
                    targets: list[str],
                    gtest_filter: str,
@@ -56,7 +96,8 @@ def RunTestTargets(out_dir: str,
                    no_fast_local_dev: bool,
                    no_single_variant: bool,
                    is_suite: bool = False,
-                   gemini: bool | None = False) -> int:
+                   gemini: bool | None = False,
+                   web_test_files: list[str] | set[str] | None = None) -> int:
   total_passed = total_failed = 0
   failed_test_names = []
   any_failed = False
@@ -64,32 +105,22 @@ def RunTestTargets(out_dir: str,
   for target in targets:
     target_binary: str = target.split(':')[-1]
 
-    # Look for the Android wrapper script first.
-    path: str = os.path.join(out_dir, 'bin', f'run_{target_binary}')
-    if no_try_android_wrappers or not os.path.isfile(path):
-      # If the wrapper is not found or disabled use the Desktop target
-      # which is an executable.
-      path = os.path.join(out_dir, target_binary)
+    if target_binary == 'blink_tests':
+      test_type = const.TestType.WEB
+      cmd = _CreateWebTestCommand(out_dir, web_test_files, extra_args)
     else:
-      if not no_fast_local_dev:
-        # Usually want this flag when developing locally.
-        extra_args = extra_args + ['--fast-local-dev']
-      if not no_single_variant:
-        extra_args = extra_args + ['--single-variant']
-
-    cmd: list[str] = [path]
-    if gtest_filter:
-      cmd.append(f'--gtest_filter={gtest_filter}')
-    if pref_mapping_filter:
-      cmd.append(f'--test_policy_to_pref_mappings_filter={pref_mapping_filter}')
-
-    cmd.extend(extra_args)
+      test_type = const.TestType.GTEST
+      cmd = _CreateGtestCommand(out_dir, target_binary, gtest_filter,
+                                pref_mapping_filter, extra_args,
+                                no_try_android_wrappers, no_fast_local_dev,
+                                no_single_variant)
 
     print('Running test: ' + shlex.join(cmd))
     if dry_run:
       continue
 
-    return_code, summary = command.RunTestCommandWithSummary(cmd)
+    return_code, summary = command.RunTestCommandWithSummary(
+        cmd, test_type=test_type)
 
     if not is_suite:
       if return_code != 0:

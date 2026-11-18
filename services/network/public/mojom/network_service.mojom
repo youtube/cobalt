@@ -224,6 +224,13 @@ interface NetworkService {
   SetSSLKeyLogFile(mojo_base.mojom.File file);
 
   // Creates a new network context with the given parameters.
+  // This method is not used on Desktop (excluding Android Desktop) when the
+  // CreateNetworkContextNonBlocking feature is enabled. In those environments,
+  // the method of the same name in NetworkContextCreator is used instead.
+  // It must be kept consistent with the method of the same name in
+  // NetworkContextCreator.
+  // TODO(crbug.com/519867149): Use [EnableIf=is_android] once
+  // CreateNetworkContextNonBlocking is fully launched.
   [AllowedContext=sandbox.mojom.Context.kBrowser]
   CreateNetworkContext(
       pending_receiver<NetworkContext> context, NetworkContextParams params);
@@ -497,6 +504,21 @@ interface NetworkService {
   [EnableIf=enable_vrp_flags]
   GetVrpFlags()
       => (pending_remote<vrp_flags.mojom.VrpFlags>? vrp_flags);
+
+  // Binds a helper interface to create NetworkContexts.
+  BindNetworkContextCreator(pending_receiver<NetworkContextCreator> receiver);
+};
+
+// Interface to create NetworkContexts, which can be bound from background
+// threads to avoid main thread congestion.
+interface NetworkContextCreator {
+  // Creates a new network context with the given parameters. This behaves
+  // identically to NetworkService::CreateNetworkContext, but is exposed via
+  // this separate interface to allow calling from background threads in the
+  // browser process.
+  [AllowedContext=sandbox.mojom.Context.kBrowser]
+  CreateNetworkContext(
+      pending_receiver<NetworkContext> context, NetworkContextParams params);
 };
 
 struct NetworkDurableMessageConfig {

@@ -83,11 +83,9 @@ class DPAPIKeyProviderTestBase : public ::testing::Test {
     }
   }
 
-  scoped_refptr<Encryptor> GetInstanceSync(
-      OSCryptAsync& factory,
-      Encryptor::Option option = Encryptor::Option::kNone) {
+  scoped_refptr<Encryptor> GetInstanceSync(OSCryptAsync& factory) {
     base::test::TestFuture<scoped_refptr<Encryptor>> future;
-    factory.GetInstance(future.GetCallback(), option);
+    factory.GetInstance(future.GetCallback());
     return future.Take();
   }
 
@@ -164,72 +162,9 @@ class RandomKeyProvider : public KeyProvider {
   }
 
   bool UseForEncryption() final { return use_for_encryption_; }
-  bool IsCompatibleWithOsCryptSync() final { return false; }
 
   const bool use_for_encryption_;
 };
-
-TEST_F(DPAPIKeyProviderTest, EncryptWithOptions) {
-  std::vector<std::pair<size_t, std::unique_ptr<KeyProvider>>> providers;
-  providers.emplace_back(std::make_pair(
-      /*precedence=*/10u, std::make_unique<DPAPIKeyProvider>(&prefs_)));
-  // Random Key Provider will take precedence here.
-  providers.emplace_back(std::make_pair(/*precedence=*/15u,
-                                        std::make_unique<RandomKeyProvider>()));
-
-  OSCryptAsync factory(std::move(providers));
-  scoped_refptr<Encryptor> encryptor = GetInstanceSync(factory);
-  std::optional<std::vector<uint8_t>> ciphertext;
-  {
-    // This should use RandomKeyProvider.
-    ciphertext = encryptor->EncryptString("secrets");
-    ASSERT_TRUE(ciphertext);
-    EXPECT_EQ(ciphertext->at(0), '_');
-
-    // Encryptor should be able to decrypt.
-    const auto decrypted = encryptor->DecryptData(*ciphertext);
-    EXPECT_TRUE(decrypted);
-    EXPECT_EQ(*decrypted, "secrets");
-  }
-  {
-    // Now, obtain a second encryptor but with the kEncryptSyncCompat option.
-    scoped_refptr<Encryptor> encryptor_with_option =
-        GetInstanceSync(factory, Encryptor::Option::kEncryptSyncCompat);
-    // This should now encrypt with DPAPIKeyProvider, compatible with OSCrypt
-    // sync, but still contain both keys for decryption.
-    const auto second_ciphertext =
-        encryptor_with_option->EncryptString("moresecrets");
-    ASSERT_TRUE(second_ciphertext);
-
-    // Now test both encryptors can decrypt both sets of ciphertext, regardless
-    // of the option.
-    {
-      // First Encryptor with first ciphertext.
-      const auto decrypted = encryptor->DecryptData(*ciphertext);
-      ASSERT_TRUE(decrypted);
-      EXPECT_EQ(*decrypted, "secrets");
-    }
-    {
-      // First Encryptor with second ciphertext.
-      const auto decrypted = encryptor->DecryptData(*second_ciphertext);
-      ASSERT_TRUE(decrypted);
-      EXPECT_EQ(*decrypted, "moresecrets");
-    }
-    {
-      // Second encryptor (with option) with first ciphertext.
-      const auto decrypted = encryptor_with_option->DecryptData(*ciphertext);
-      ASSERT_TRUE(decrypted);
-      EXPECT_EQ(*decrypted, "secrets");
-    }
-    {
-      // Second encryptor (with option) with second ciphertext.
-      const auto decrypted =
-          encryptor_with_option->DecryptData(*second_ciphertext);
-      ASSERT_TRUE(decrypted);
-      EXPECT_EQ(*decrypted, "moresecrets");
-    }
-  }
-}
 
 TEST_F(DPAPIKeyProviderTest, ShouldReencrypt) {
   std::string ciphertext;

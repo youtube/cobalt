@@ -20,6 +20,7 @@
 #include "api/candidate.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
+#include "api/environment/environment.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -158,7 +159,8 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
   typedef std::unique_ptr<PeerConnectionWrapperForIceTest> WrapperPtr;
 
   explicit PeerConnectionIceBaseTest(SdpSemantics sdp_semantics)
-      : network_thread_(new Thread(&vss_)),
+      : env_(CreateTestEnvironment()),
+        network_thread_(new Thread(&vss_)),
         worker_thread_(Thread::Create()),
         sdp_semantics_(sdp_semantics) {
     RTC_CHECK(network_thread_->Start());
@@ -191,6 +193,7 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
         std::make_unique<VideoDecoderFactoryTemplate<
             LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter,
             OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>();
+    pcf_deps.env = env_;
     EnableMediaWithDefaults(pcf_deps);
     scoped_refptr<PeerConnectionFactoryInterface> pc_factory =
         CreateModularPeerConnectionFactory(std::move(pcf_deps));
@@ -332,6 +335,7 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
     return sdesc->AddCandidate(jsep_candidate.get());
   }
 
+  const Environment env_;
   test::RunLoop main_;
   VirtualSocketServer vss_;
   std::unique_ptr<Thread> network_thread_;

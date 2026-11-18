@@ -40,6 +40,7 @@ import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -109,11 +110,11 @@ public class ShoppingPersistedTabData extends PersistedTabData {
     }
 
     /**
-     * Used to defer initialization/acquisition of {@link ShoppingPersistedTabData}
-     * until DeferredStartup.
+     * Used to defer initialization/acquisition of {@link ShoppingPersistedTabData} until
+     * DeferredStartup.
      */
     private static class ShoppingDataRequest {
-        public final Tab tab;
+        public final WeakReference<Tab> tab;
         public final Callback<@Nullable ShoppingPersistedTabData> callback;
 
         /**
@@ -121,7 +122,7 @@ public class ShoppingPersistedTabData extends PersistedTabData {
          * @param callback {@link Callback} {@link ShoppingPersistedTabData} is passed back in
          */
         ShoppingDataRequest(Tab tab, Callback<@Nullable ShoppingPersistedTabData> callback) {
-            this.tab = tab;
+            this.tab = new WeakReference<>(tab);
             this.callback = callback;
         }
     }
@@ -347,32 +348,39 @@ public class ShoppingPersistedTabData extends PersistedTabData {
     }
 
     /**
-     * Initializes {@link ShoppingPersistedTabData} for a {@link Tab}. This results in
-     * a {@link ShoppingPersistedTabData} being acquired from storage, via a network call
-     * or a blank one being created. In any case, a {@link ShoppingPersistedTabData} object will be
-     * created which enables pricing data to be prefetched on each new navigation. The only scenario
-     * where no {@link ShoppingPersistedTabData} will be returned is if the {@link Tab} was
-     * destroyed shortly after calling this method.
+     * Initializes {@link ShoppingPersistedTabData} for a {@link Tab}. This results in a {@link
+     * ShoppingPersistedTabData} being acquired from storage, via a network call or a blank one
+     * being created. In any case, a {@link ShoppingPersistedTabData} object will be created which
+     * enables pricing data to be prefetched on each new navigation. The only scenario where no
+     * {@link ShoppingPersistedTabData} will be returned is if the {@link Tab} was destroyed shortly
+     * after calling this method.
+     *
      * @param tab {@link Tab} for which {@link ShoppingPersistedTabData} is initialized.
      */
     public static void initialize(Tab tab) {
+        WeakReference<Tab> tabRef = new WeakReference<>(tab);
         Callback<@Nullable ShoppingPersistedTabData> callback =
                 (res) -> {
+                    Tab innerTab = tabRef.get();
+                    if (innerTab == null) {
+                        return;
+                    }
                     if (res == null) {
                         // If there is no ShoppingPersistedTabData found from storage, we create
                         // an empty ShoppingPersistedTabData so the pricing data can be prefetched
                         // on each new navigation. We gate this with an isDestroyed() check to
                         // protect against the Tab being destroyed in the meantime.
-                        if (!tab.isDestroyed()) {
-                            ShoppingPersistedTabData.from(tab);
+                        if (!innerTab.isDestroyed()) {
+                            ShoppingPersistedTabData.from(innerTab);
                         }
                     }
                     if (ChromeFeatureList.isEnabled(ChromeFeatureList.PRICE_CHANGE_MODULE)) {
                         ShoppingPersistedTabDataService service =
-                                ShoppingPersistedTabDataService.getForProfile(tab.getProfile());
+                                ShoppingPersistedTabDataService.getForProfile(
+                                        innerTab.getProfile());
                         service.notifyPriceDropStatus(
-                                tab,
-                                !tab.isDestroyed()
+                                innerTab,
+                                !innerTab.isDestroyed()
                                         && ShoppingPersistedTabDataService
                                                 .isDataEligibleForPriceDrop(res));
                     }
@@ -386,8 +394,8 @@ public class ShoppingPersistedTabData extends PersistedTabData {
 
     /**
      * Acquire {@link ShoppingPersistedTabData} for a {@link Tab}
-     * @param tab {@link Tab} ShoppingPersistedTabData is acquired for
-     * @param callback {@link Callback} receiving the Tab's {@link ShoppingPersistedTabData}
+     *
+     * <pre>
      * The result in the callback wil be null for a:
      * - Custom Tab
      * - Incognito Tab
@@ -395,14 +403,14 @@ public class ShoppingPersistedTabData extends PersistedTabData {
      * - Tab with a non-shopping related page currently navigated to
      * - Tab with a shopping related page for which no shopping related data was found
      * - Uninitialized Tab
+     * </pre>
+     *
+     * @param tab {@link Tab} ShoppingPersistedTabData is acquired for
+     * @param callback {@link Callback} receiving the Tab's {@link ShoppingPersistedTabData}
      */
     public static void from(Tab tab, Callback<@Nullable ShoppingPersistedTabData> callback) {
-        if (tab == null || tab.isDestroyed()) {
-            PostTask.runOrPostTask(
-                    TaskTraits.UI_DEFAULT,
-                    () -> {
-                        callback.onResult(null);
-                    });
+        if (tab.isDestroyed()) {
+            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, callback.bind(null));
             return;
         }
         if (sDelayedInitFinished) {
@@ -410,11 +418,7 @@ public class ShoppingPersistedTabData extends PersistedTabData {
         } else {
             @DelayedInitMethod int delayedInitMethod = getDelayedInitMethod();
             if (delayedInitMethod == DelayedInitMethod.EMPTY_RESPONSES_UNTIL_INIT) {
-                PostTask.postTask(
-                        TaskTraits.UI_DEFAULT,
-                        () -> {
-                            callback.onResult(null);
-                        });
+                PostTask.postTask(TaskTraits.UI_DEFAULT, callback.bind(null));
             } else if (delayedInitMethod == DelayedInitMethod.DELAY_RESPONSES_UNTIL_INIT) {
                 sShoppingDataRequests.add(new ShoppingDataRequest(tab, callback));
             } else {
@@ -455,11 +459,7 @@ public class ShoppingPersistedTabData extends PersistedTabData {
         // example, for incognito Tabs it is not possible to call a backend service with the user's
         // URL.
         if (tab == null || tab.isDestroyed() || tab.isIncognito() || tab.isCustomTab()) {
-            PostTask.postTask(
-                    TaskTraits.UI_DEFAULT,
-                    () -> {
-                        callback.onResult(null);
-                    });
+            PostTask.postTask(TaskTraits.UI_DEFAULT, callback.bind(null));
             return;
         }
         PersistedTabData.<@Nullable ShoppingPersistedTabData>from(
@@ -483,10 +483,7 @@ public class ShoppingPersistedTabData extends PersistedTabData {
                                             }
                                             PostTask.postTask(
                                                     TaskTraits.UI_DEFAULT,
-                                                    () -> {
-                                                        factoryCallback.onResult(
-                                                                shoppingPersistedTabData);
-                                                    });
+                                                    factoryCallback.bind(shoppingPersistedTabData));
                                         });
                             });
                 },
@@ -958,20 +955,17 @@ public class ShoppingPersistedTabData extends PersistedTabData {
             return;
         }
         ShoppingDataRequest shoppingDataRequest = sShoppingDataRequests.poll();
-        if (shoppingDataRequest.tab.isDestroyed()) {
+        Tab tab = shoppingDataRequest.tab.get();
+        if (tab == null || tab.isDestroyed()) {
             // If Tab was destroyed we should just return null and not try and
             // create and associate {@link ShoppingPersistedTabData} with a
             // destroyed {@link Tab}.
-            PostTask.postTask(
-                    TaskTraits.UI_DEFAULT,
-                    () -> {
-                        shoppingDataRequest.callback.onResult(null);
-                    });
+            PostTask.postTask(TaskTraits.UI_DEFAULT, shoppingDataRequest.callback.bind(null));
             processNextItemOnQueue();
             return;
         }
         ShoppingPersistedTabData.fromWithoutDelayedInit(
-                shoppingDataRequest.tab,
+                tab,
                 (res) -> {
                     shoppingDataRequest.callback.onResult(res);
                     processNextItemOnQueue();

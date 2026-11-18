@@ -98,8 +98,7 @@ interface DevToolsAgent {
   AttachDevToolsSession(pending_associated_remote<DevToolsSessionHost> host,
                         pending_associated_receiver<DevToolsSession> session,
                         pending_receiver<DevToolsSession> io_session,
-                        DevToolsSessionState? reattach_session_state,
-                        string script_to_evaluate_on_load,
+                        DevToolsSessionState reattach_session_state,
                         bool client_expects_binary_responses,
                         bool client_is_trusted,
                         string session_id,
@@ -217,6 +216,10 @@ struct BrowserOriginatingSessionState {
   // needs to be removed (see also
   // DevToolsSession::{add,remove}ScriptToEvaluateOnNewDocument above).
   map<string /* scriptId */, ScriptToEvaluateOnNewDocument> scripts_to_evaluate_on_new_document;
+  string script_to_evaluate_on_load_once;
+  map<string /* header name */, string /* header value */> extra_request_headers;
+  bool overlay_enabled = false;
+  string paused_in_debugger_message;
 };
 
 // The renderer originating session state is a mapping from keys to either values

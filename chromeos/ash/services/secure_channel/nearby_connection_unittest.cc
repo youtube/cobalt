@@ -8,6 +8,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
+#include "base/no_destructor.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "chromeos/ash/components/multidevice/remote_device_test_util.h"
@@ -26,8 +27,9 @@ const char kTestBluetoothAddress[] = "01:23:45:67:89:AB";
 
 // Returns the same address as above except as a byte vector.
 const std::vector<uint8_t>& GetTestBluetoothAddressAsVector() {
-  static const std::vector<uint8_t> address{0x01, 0x23, 0x45, 0x67, 0x89, 0xab};
-  return address;
+  static const base::NoDestructor<std::vector<uint8_t>> address(
+      std::vector<uint8_t>{0x01, 0x23, 0x45, 0x67, 0x89, 0xab});
+  return *address;
 }
 
 const std::vector<uint8_t> GetEid() {

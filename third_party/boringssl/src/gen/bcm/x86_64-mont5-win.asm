@@ -3686,7 +3686,9 @@ $L$SEH_end_bn_gather5:
 
 
 section	.rdata rdata align=8
+
 ALIGN	64
+mont5_increments:
 $L$inc:
 	DD	0,0,1,1
 	DD	2,2,2,2

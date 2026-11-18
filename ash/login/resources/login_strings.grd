@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<grit base_dir="." latest_public_release="0" current_release="1" source_lang_id="en" enc_check="möl">
+  <outputs>
+    <output filename="grit/ash_login_strings.h" type="rc_header">
+      <emit emit_type="prepend"/>
+    </output>
+    <output filename="ash_login_strings_af.pak" type="data_package" lang="af"/>
+    <output filename="ash_login_strings_am.pak" type="data_package" lang="am"/>
+    <output filename="ash_login_strings_ar.pak" type="data_package" lang="ar"/>
+    <output filename="ash_login_strings_as.pak" type="data_package" lang="as"/>
+    <output filename="ash_login_strings_az.pak" type="data_package" lang="az"/>
+    <output filename="ash_login_strings_be.pak" type="data_package" lang="be"/>
+    <output filename="ash_login_strings_bg.pak" type="data_package" lang="bg"/>
+    <output filename="ash_login_strings_bn.pak" type="data_package" lang="bn"/>
+    <output filename="ash_login_strings_bs.pak" type="data_package" lang="bs"/>
+    <output filename="ash_login_strings_ca.pak" type="data_package" lang="ca"/>
+    <output filename="ash_login_strings_cs.pak" type="data_package" lang="cs"/>
+    <output filename="ash_login_strings_cy.pak" type="data_package" lang="cy"/>
+    <output filename="ash_login_strings_da.pak" type="data_package" lang="da"/>
+    <output filename="ash_login_strings_de.pak" type="data_package" lang="de"/>
+    <output filename="ash_login_strings_el.pak" type="data_package" lang="el"/>
+    <output filename="ash_login_strings_en-GB.pak" type="data_package" lang="en-GB"/>
+    <output filename="ash_login_strings_en-US.pak" type="data_package" lang="en"/>
+    <output filename="ash_login_strings_es.pak" type="data_package" lang="es"/>
+    <output filename="ash_login_strings_es-419.pak" type="data_package" lang="es-419"/>
+    <output filename="ash_login_strings_et.pak" type="data_package" lang="et"/>
+    <output filename="ash_login_strings_eu.pak" type="data_package" lang="eu"/>
+    <output filename="ash_login_strings_fa.pak" type="data_package" lang="fa"/>
+    <output filename="ash_login_strings_fi.pak" type="data_package" lang="fi"/>
+    <output filename="ash_login_strings_fil.pak" type="data_package" lang="fil"/>
+    <output filename="ash_login_strings_fr-CA.pak" type="data_package" lang="fr-CA"/>
+    <output filename="ash_login_strings_fr.pak" type="data_package" lang="fr"/>
+    <output filename="ash_login_strings_gl.pak" type="data_package" lang="gl"/>
+    <output filename="ash_login_strings_gu.pak" type="data_package" lang="gu"/>
+    <output filename="ash_login_strings_he.pak" type="data_package" lang="he"/>
+    <output filename="ash_login_strings_hi.pak" type="data_package" lang="hi"/>
+    <output filename="ash_login_strings_hr.pak" type="data_package" lang="hr"/>
+    <output filename="ash_login_strings_hu.pak" type="data_package" lang="hu"/>
+    <output filename="ash_login_strings_hy.pak" type="data_package" lang="hy"/>
+    <output filename="ash_login_strings_id.pak" type="data_package" lang="id"/>
+    <output filename="ash_login_strings_is.pak" type="data_package" lang="is"/>
+    <output filename="ash_login_strings_it.pak" type="data_package" lang="it"/>
+    <output filename="ash_login_strings_ja.pak" type="data_package" lang="ja"/>
+    <output filename="ash_login_strings_ka.pak" type="data_package" lang="ka"/>
+    <output filename="ash_login_strings_kk.pak" type="data_package" lang="kk"/>
+    <output filename="ash_login_strings_km.pak" type="data_package" lang="km"/>
+    <output filename="ash_login_strings_kn.pak" type="data_package" lang="kn"/>
+    <output filename="ash_login_strings_ko.pak" type="data_package" lang="ko"/>
+    <output filename="ash_login_strings_ky.pak" type="data_package" lang="ky"/>
+    <output filename="ash_login_strings_lo.pak" type="data_package" lang="lo"/>
+    <output filename="ash_login_strings_lt.pak" type="data_package" lang="lt"/>
+    <output filename="ash_login_strings_lv.pak" type="data_package" lang="lv"/>
+    <output filename="ash_login_strings_mk.pak" type="data_package" lang="mk"/>
+    <output filename="ash_login_strings_ml.pak" type="data_package" lang="ml"/>
+    <output filename="ash_login_strings_mn.pak" type="data_package" lang="mn"/>
+    <output filename="ash_login_strings_mr.pak" type="data_package" lang="mr"/>
+    <output filename="ash_login_strings_ms.pak" type="data_package" lang="ms"/>
+    <output filename="ash_login_strings_my.pak" type="data_package" lang="my"/>
+    <output filename="ash_login_strings_ne.pak" type="data_package" lang="ne"/>
+    <output filename="ash_login_strings_nl.pak" type="data_package" lang="nl"/>
+    <output filename="ash_login_strings_nb.pak" type="data_package" lang="no"/>
+    <output filename="ash_login_strings_pa.pak" type="data_package" lang="pa"/>
+    <output filename="ash_login_strings_pl.pak" type="data_package" lang="pl"/>
+    <output filename="ash_login_strings_pt-BR.pak" type="data_package" lang="pt-BR"/>
+    <output filename="ash_login_strings_pt-PT.pak" type="data_package" lang="pt-PT"/>
+    <output filename="ash_login_strings_or.pak" type="data_package" lang="or"/>
+    <output filename="ash_login_strings_ro.pak" type="data_package" lang="ro"/>
+    <output filename="ash_login_strings_ru.pak" type="data_package" lang="ru"/>
+    <output filename="ash_login_strings_si.pak" type="data_package" lang="si"/>
+    <output filename="ash_login_strings_sk.pak" type="data_package" lang="sk"/>
+    <output filename="ash_login_strings_sl.pak" type="data_package" lang="sl"/>
+    <output filename="ash_login_strings_sq.pak" type="data_package" lang="sq"/>
+    <output filename="ash_login_strings_sr-Latn.pak" type="data_package" lang="sr-Latn"/>
+    <output filename="ash_login_strings_sr.pak" type="data_package" lang="sr"/>
+    <output filename="ash_login_strings_sv.pak" type="data_package" lang="sv"/>
+    <output filename="ash_login_strings_sw.pak" type="data_package" lang="sw"/>
+    <output filename="ash_login_strings_ta.pak" type="data_package" lang="ta"/>
+    <output filename="ash_login_strings_te.pak" type="data_package" lang="te"/>
+    <output filename="ash_login_strings_th.pak" type="data_package" lang="th"/>
+    <output filename="ash_login_strings_tr.pak" type="data_package" lang="tr"/>
+    <output filename="ash_login_strings_uk.pak" type="data_package" lang="uk"/>
+    <output filename="ash_login_strings_ur.pak" type="data_package" lang="ur"/>
+    <output filename="ash_login_strings_uz.pak" type="data_package" lang="uz"/>
+    <output filename="ash_login_strings_vi.pak" type="data_package" lang="vi"/>
+    <output filename="ash_login_strings_zh-CN.pak" type="data_package" lang="zh-CN"/>
+    <output filename="ash_login_strings_zh-HK.pak" type="data_package" lang="zh-HK"/>
+    <output filename="ash_login_strings_zh-TW.pak" type="data_package" lang="zh-TW"/>
+    <output filename="ash_login_strings_zu.pak" type="data_package" lang="zu"/>
+    <output filename="ash_login_strings_ar-XB.pak" type="data_package" lang="ar-XB"/>
+    <output filename="ash_login_strings_en-XA.pak" type="data_package" lang="en-XA"/>
+  </outputs>
+  <translations>
+    <file path="translations/ash_login_strings_af.xtb" lang="af" />
+    <file path="translations/ash_login_strings_am.xtb" lang="am" />
+    <file path="translations/ash_login_strings_ar.xtb" lang="ar" />
+    <file path="translations/ash_login_strings_as.xtb" lang="as" />
+    <file path="translations/ash_login_strings_az.xtb" lang="az" />
+    <file path="translations/ash_login_strings_be.xtb" lang="be" />
+    <file path="translations/ash_login_strings_bg.xtb" lang="bg" />
+    <file path="translations/ash_login_strings_bn.xtb" lang="bn" />
+    <file path="translations/ash_login_strings_bs.xtb" lang="bs" />
+    <file path="translations/ash_login_strings_ca.xtb" lang="ca" />
+    <file path="translations/ash_login_strings_cs.xtb" lang="cs" />
+    <file path="translations/ash_login_strings_cy.xtb" lang="cy" />
+    <file path="translations/ash_login_strings_da.xtb" lang="da" />
+    <file path="translations/ash_login_strings_de.xtb" lang="de" />
+    <file path="translations/ash_login_strings_el.xtb" lang="el" />
+    <file path="translations/ash_login_strings_en-GB.xtb" lang="en-GB" />
+    <file path="translations/ash_login_strings_es.xtb" lang="es" />
+    <file path="translations/ash_login_strings_es-419.xtb" lang="es-419" />
+    <file path="translations/ash_login_strings_et.xtb" lang="et" />
+    <file path="translations/ash_login_strings_eu.xtb" lang="eu" />
+    <file path="translations/ash_login_strings_fa.xtb" lang="fa" />
+    <file path="translations/ash_login_strings_fi.xtb" lang="fi" />
+    <file path="translations/ash_login_strings_fil.xtb" lang="fil" />
+    <file path="translations/ash_login_strings_fr.xtb" lang="fr" />
+    <file path="translations/ash_login_strings_fr-CA.xtb" lang="fr-CA" />
+    <file path="translations/ash_login_strings_gl.xtb" lang="gl" />
+    <file path="translations/ash_login_strings_gu.xtb" lang="gu" />
+    <file path="translations/ash_login_strings_hi.xtb" lang="hi" />
+    <file path="translations/ash_login_strings_hr.xtb" lang="hr" />
+    <file path="translations/ash_login_strings_hu.xtb" lang="hu" />
+    <file path="translations/ash_login_strings_hy.xtb" lang="hy" />
+    <file path="translations/ash_login_strings_id.xtb" lang="id" />
+    <file path="translations/ash_login_strings_is.xtb" lang="is" />
+    <file path="translations/ash_login_strings_it.xtb" lang="it" />
+    <!-- The translation console uses 'iw' for Hebrew, but we use 'he'. -->
+    <file path="translations/ash_login_strings_iw.xtb" lang="he" />
+    <file path="translations/ash_login_strings_ja.xtb" lang="ja" />
+    <file path="translations/ash_login_strings_ka.xtb" lang="ka" />
+    <file path="translations/ash_login_strings_kk.xtb" lang="kk" />
+    <file path="translations/ash_login_strings_km.xtb" lang="km" />
+    <file path="translations/ash_login_strings_kn.xtb" lang="kn" />
+    <file path="translations/ash_login_strings_ko.xtb" lang="ko" />
+    <file path="translations/ash_login_strings_ky.xtb" lang="ky" />
+    <file path="translations/ash_login_strings_lo.xtb" lang="lo" />
+    <file path="translations/ash_login_strings_lt.xtb" lang="lt" />
+    <file path="translations/ash_login_strings_lv.xtb" lang="lv" />
+    <file path="translations/ash_login_strings_mk.xtb" lang="mk" />
+    <file path="translations/ash_login_strings_ml.xtb" lang="ml" />
+    <file path="translations/ash_login_strings_mn.xtb" lang="mn" />
+    <file path="translations/ash_login_strings_mr.xtb" lang="mr" />
+    <file path="translations/ash_login_strings_ms.xtb" lang="ms" />
+    <file path="translations/ash_login_strings_my.xtb" lang="my" />
+    <file path="translations/ash_login_strings_ne.xtb" lang="ne" />
+    <file path="translations/ash_login_strings_nl.xtb" lang="nl" />
+    <file path="translations/ash_login_strings_no.xtb" lang="no" />
+    <file path="translations/ash_login_strings_or.xtb" lang="or" />
+    <file path="translations/ash_login_strings_pa.xtb" lang="pa" />
+    <file path="translations/ash_login_strings_pl.xtb" lang="pl" />
+    <file path="translations/ash_login_strings_pt-BR.xtb" lang="pt-BR" />
+    <file path="translations/ash_login_strings_pt-PT.xtb" lang="pt-PT" />
+    <file path="translations/ash_login_strings_ro.xtb" lang="ro" />
+    <file path="translations/ash_login_strings_ru.xtb" lang="ru" />
+    <file path="translations/ash_login_strings_si.xtb" lang="si" />
+    <file path="translations/ash_login_strings_sk.xtb" lang="sk" />
+    <file path="translations/ash_login_strings_sl.xtb" lang="sl" />
+    <file path="translations/ash_login_strings_sq.xtb" lang="sq" />
+    <file path="translations/ash_login_strings_sr.xtb" lang="sr" />
+    <file path="translations/ash_login_strings_sr-Latn.xtb" lang="sr-Latn" />
+    <file path="translations/ash_login_strings_sv.xtb" lang="sv" />
+    <file path="translations/ash_login_strings_sw.xtb" lang="sw" />
+    <file path="translations/ash_login_strings_ta.xtb" lang="ta" />
+    <file path="translations/ash_login_strings_te.xtb" lang="te" />
+    <file path="translations/ash_login_strings_th.xtb" lang="th" />
+    <file path="translations/ash_login_strings_tr.xtb" lang="tr" />
+    <file path="translations/ash_login_strings_uk.xtb" lang="uk" />
+    <file path="translations/ash_login_strings_ur.xtb" lang="ur" />
+    <file path="translations/ash_login_strings_uz.xtb" lang="uz" />
+    <file path="translations/ash_login_strings_vi.xtb" lang="vi" />
+    <file path="translations/ash_login_strings_zh-CN.xtb" lang="zh-CN" />
+    <file path="translations/ash_login_strings_zh-HK.xtb" lang="zh-HK" />
+    <file path="translations/ash_login_strings_zh-TW.xtb" lang="zh-TW" />
+    <file path="translations/ash_login_strings_zu.xtb" lang="zu" />
+  </translations>
+  <release seq="1">
+    <messages fallback_to_english="true">
+      <!-- Strings for parental handoff login screen -->
+      <message name="IDS_LOGIN_PARENTAL_HANDOFF_SCREEN_TITLE" desc="Title of screen which tells user that the parent can handoff the device to supervised user.">
+        Now it's <ph name="SUPERVISED_USER_NAME">$1<ex>Child 1</ex></ph>'s turn
+      </message>
+      <message name="IDS_LOGIN_PARENTAL_HANDOFF_SCREEN_SUBTITLE" desc="Subtitle of screen which tells user that the parent can handoff the device to supervised user.">
+        You can hand this Chromebook to <ph name="SUPERVISED_USER_NAME">$1<ex>Child 1</ex></ph>. Setup is almost done, then it's time to explore.
+      </message>
+      <message name="IDS_LOGIN_PARENTAL_HANDOFF_SCREEN_NEXT_BUTTON" desc="Next button of parental handoff screen">
+        Next
+      </message>
+
+      <!-- Strings for family link notice screen -->
+      <message name="IDS_LOGIN_FAMILY_LINK_NOTICE_SCREEN_TITLE" desc="Title of the screen which tells user they can add parental control later.">
+        Add parental controls after setup
+      </message>
+      <message name="IDS_LOGIN_FAMILY_LINK_NOTICE_SCREEN_NEW_ACCOUNT_SUBTITLE" desc="Title of the screen which tells user they can add parental control later after they create a new account for their child.">
+        For older children, you can add parental controls once you finish setup. You'll find information on parental controls in the Explore app.
+      </message>
+      <message name="IDS_LOGIN_FAMILY_LINK_NOTICE_SCREEN_EXISTING_ACCOUNT_SUBTITLE" desc="Title of the screen which tells user they can add parental control later after they sign in with an existing account for their child.">
+        You child's account isn't set up for Family Link parental controls. You can add parental controls once you finish setup. You'll find information on parental controls in the Explore app.
+      </message>
+      <message name="IDS_LOGIN_FAMILY_LINK_NOTICE_SCREEN_NOT_ELIGIBLE_TITLE" desc="Title of the screen which tells user the account is not eligible for parental controls.">
+        This account isn't eligible for parental controls
+      </message>
+      <message name="IDS_LOGIN_FAMILY_LINK_NOTICE_SCREEN_NOT_ELIGIBLE_SUBTITLE" desc="Subtitle of the screen which tells user the account is not eligible for parental controls.">
+        <ph name="USER_EMAIL">$1<ex>john.doe@example.com</ex></ph> is already being managed by <ph name="DOMAIN">$2<ex>google.com</ex></ph>. To use parental controls with a different Google Account, sign out after setup, then select "Add person" on the sign-in screen.
+      </message>
+      <message name="IDS_LOGIN_FAMILY_LINK_NOTICE_SCREEN_CONTINUE_BUTTON" desc="Continue button on family link notice screen.">
+        Continue
+      </message>
+
+      <!-- Strings for sync consent screen -->
+      <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_TITLE_WITH_DEVICE" desc="Alternate title for the dialog that explains Chrome Sync and privacy options on first login.">
+        Sync your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>
+      </message>
+      <if expr="reven">
+        <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_SUBTITLE_2" desc="Alternate subtitle of the dialog that explains Chrome Sync and privacy options on first login for non-split.">
+          Your saved preferences and activity will be ready on any ChromeOS Flex device when you sign in with your Google Account. You can choose what to sync in Settings.
+        </message>
+      </if>
+      <if expr="not reven">
+        <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_SUBTITLE_2" desc="Alternate subtitle of the dialog that explains Chrome Sync and privacy options on first login for non-split.">
+          Your saved preferences and activity will be ready on any ChromeOS device when you sign in with your Google Account. You can choose what to sync in Settings.
+        </message>
+      </if>
+
+      <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_OS_SYNC_NAME_2" desc="Alternate title of the 'Settings sync' section of the sync confirmation dialog that is displayed on the first user log in.">
+        Sync your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> apps, settings, and more
+      </message>
+      <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_CHROME_BROWSER_SYNC_NAME_3" desc="Alternate title of the 'Chrome browser sync' section of the sync confirmation dialog that is displayed on the first user log in.">
+        Your Chrome browser bookmarks, passwords, history, and more are saved in your Google Account
+      </message>
+      <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_CHROME_BROWSER_SYNC_NAME_2" desc="Alternate title of the 'Chrome browser sync' section of the sync confirmation dialog that is displayed on the first user log in.">
+        Sync your Chrome browser bookmarks, passwords, history, and more
+      </message>
+      <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_CHROME_BROWSER_SYNC_DESCRIPTION" desc="Description of the 'Chrome browser sync' section of the sync confirmation dialog that is displayed on the first user log in.">
+        Google may use your history to personalize Search and other Google services
+      </message>
+      <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_REVIEW_SYNC_OPTIONS_LATER" desc="The label to the checkbox explaining that when checked, it will trigger user settings screen opened after session start.">
+        Review sync options following setup
+      </message>
+      <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_ACCEPT_AND_CONTINUE" desc="The label on the button that closes dialog while accepting the selected settings.">
+        Accept and continue
+      </message>
+      <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_TURN_ON_SYNC" desc="The label on the button that closes the dialog while agreeing to sync for minor users.">
+        Turn on sync
+      </message>
+      <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_DECLINE2" desc="Alternate label on the button that closes the dialog while not agreeing to sync.">
+        No thanks
+      </message>
+      <!-- Strings for categories selection screen-->
+      <message name="IDS_LOGIN_CATEGORIES_SCREEN_LOADING" desc="Message shown while the categories are being fetched for the server.">
+        Please wait...
+      </message>
+      <message name="IDS_LOGIN_CATEGORIES_SCREEN_TITLE" desc="The title of the categories selection screeb for the user to select main use of the device">
+        What will you use your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> for?
+      </message>
+      <message name="IDS_LOGIN_CATEGORIES_SCREEN_SUBTITLE" desc="The description of the categories selection screen">
+        Based on your interests, you may see app recommendations, tips, and more
+      </message>
+      <message name="IDS_LOGIN_CATEGORIES_SCREEN_SKIP" desc="The label on the button that skips the categories screen">
+        Skip
+      </message>
+      <!-- Strings for new recommend apps screen-->
+      <message name="IDS_LOGIN_PERSONALIZED_RECOMMEND_APPS_SCREEN_SCREEN_LOADING" desc="The title of the recommended apps screen">
+      Please wait...
+      </message>
+      <message name="IDS_LOGIN_PERSONALIZED_RECOMMEND_APPS_SCREEN_SCREEN_TITLE" desc="The title of the recommended apps screen">
+        Top apps for your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>
+      </message>
+      <message name="IDS_LOGIN_PERSONALIZED_RECOMMEND_APPS_SCREEN_SCREEN_SUBTITLE" desc="The subtitle of the recommended apps screen.Apps and Games here refers to system apps provided by the App Mall team.">
+        Selected apps will be installed after setup. Find more recommendations later in the Apps &amp; Games app.
+      </message>
+      <message name="IDS_LOGIN_PERSONALIZED_RECOMMEND_APPS_SCREEN_SCREEN_SKIP" desc="The label on the button that skips the recommended apps screen">
+        Skip
+      </message>
+      <!-- Strings for recommend apps screen -->
+      <message name="IDS_LOGIN_RECOMMEND_APPS_SCREEN_TITLE" desc="The title of the dialog that recommend apps to user">
+        Install apps for your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> from the Google Play Store
+      </message>
+      <message name="IDS_LOGIN_RECOMMEND_APPS_SCREEN_DESCRIPTION" desc="The description of the 'Recommend Apps' section">
+        Find the apps you need, from productivity to entertainment, on the Google Play Store. You can install apps anytime.
+      </message>
+      <message name="IDS_LOGIN_RECOMMEND_APPS_SELECT_ALL" desc="The label on the button that selects all recommended apps">
+        Select and install popular apps
+      </message>
+      <message name="IDS_LOGIN_RECOMMEND_APPS_SCREEN_IN_APP_PURCHASES" desc="Part of an app description message.">
+        In-app purchases
+      </message>
+      <message name="IDS_LOGIN_RECOMMEND_APPS_SCREEN_WAS_INSTALLED" desc="Part of an app description message.">
+        Installed on your other devices
+      </message>
+      <message name="IDS_LOGIN_RECOMMEND_APPS_SCREEN_CONTAINS_ADS" desc="Part of an app description message.">
+        Contains ads
+      </message>
+      <message name="IDS_LOGIN_RECOMMEND_APPS_SCREEN_DESCRIPTION_EXPAND_BUTTON" desc="An expand button description message announced to ChromeVox users.">
+        More about <ph name="APP_NAME">$1<ex>Google Maps</ex></ph>
+      </message>
+      <message name="IDS_LOGIN_RECOMMEND_APPS_SKIP" desc="The label on the button that skips installing any recomended apps">
+        Skip
+      </message>
+      <message name="IDS_LOGIN_RECOMMEND_APPS_INSTALL" desc="The label on the button that installs the user selected apps">
+        Install
+      </message>
+      <message name="IDS_LOGIN_RECOMMEND_APPS_SCREEN_LOADING" desc="Message shown while the recommended app list is being downloaded.">
+        Please wait...
+      </message>
+      <!-- Strings for perks discovery screen-->
+      <message name="IDS_LOGIN_PERKS_SCREEN_LOADING" desc="Message shown while the perks are being fetched for the server.">
+        Please wait...
+      </message>
+      <!-- Strings for app downloading screen -->
+      <message name="IDS_LOGIN_APP_DOWNLOADING_SCREEN_TITLE" desc="The title of the dialog that tells the user the selected Android Apps are downloading.">
+        Apps downloading
+      </message>
+      <message name="IDS_LOGIN_APP_DOWNLOADING_SCREEN_DESCRIPTION" desc="The description of the 'App Downloading' section.">
+        We'll install those apps for you. You can find more apps for your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> in the Play Store.
+      </message>
+      <message name="IDS_LOGIN_APP_DOWNLOADING_SCREEN_NEXT" desc="The label on the button that continues the setup flow.">
+        Next
+      </message>
+    </messages>
+  </release>
+</grit>

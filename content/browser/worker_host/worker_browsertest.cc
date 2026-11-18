@@ -55,6 +55,7 @@
 #include "net/test/embedded_test_server/install_default_websocket_handlers.h"
 #include "net/test/test_data_directory.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/mojom/connection_change_observer_client.mojom.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -915,7 +916,7 @@ IN_PROC_BROWSER_TEST_F(WorkerFromCredentiallessIframeNikBrowserTest,
                             network::mojom::CredentialsMode::kInclude,
                             main_rfh->GetIsolationInfoForSubresources()
                                 .network_anonymization_key(),
-                            /*network_restrictions_id=*/std::nullopt,
+                            network::GetTestNetworkRestrictionsId(),
                             net::MutableNetworkTrafficAnnotationTag(
                                 TRAFFIC_ANNOTATION_FOR_TESTS),
                             std::nullopt, mojo::NullRemote());

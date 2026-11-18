@@ -12,6 +12,9 @@ namespace content {
 // Installs UMA histograms recording functions on the `chrome.histograms`
 // object. For a list of supported functions, see
 // //tools/typescript/definitions/chrome_histograms.d.ts.
+//
+// Use this if you are only interested in metrics in WebUI. If you need to
+// collect latency between the browser and WebUI, use MetricsReporter.
 void InstallWebUIHistogramsExtension(v8::Isolate* isolate,
                                      v8::Local<v8::Context> context,
                                      v8::Local<v8::Object> chrome);

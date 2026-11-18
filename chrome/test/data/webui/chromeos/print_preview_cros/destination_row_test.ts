@@ -10,7 +10,7 @@ import type {DestinationRowController} from 'chrome://os-print/js/destination_ro
 import type {Destination} from 'chrome://os-print/js/utils/print_preview_cros_app_types.js';
 import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict_query.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 
 import {createTestDestination, resetDataManagersAndProviders} from './test_utils.js';

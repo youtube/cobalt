@@ -31,6 +31,7 @@ class MockFacilitatedPaymentsNetworkInterface
   MOCK_METHOD(RequestId,
               GetDetailsForCreatePaymentInstrument,
               (int64_t,
+               const std::vector<uint8_t>&,
                GetDetailsForCreatePaymentInstrumentResponseCallback,
                const std::string&),
               (override));

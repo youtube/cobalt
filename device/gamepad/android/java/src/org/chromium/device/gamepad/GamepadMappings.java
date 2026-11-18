@@ -39,6 +39,7 @@ abstract class GamepadMappings {
     @VisibleForTesting static final int PS_DUALSHOCK_4_SLIM_PRODUCT_ID = 0x09cc;
     @VisibleForTesting static final int PS_DUALSHOCK_4_USB_RECEIVER_PRODUCT_ID = 0x0ba0;
     static final int PS_DUAL_SENSE_PRODUCT_ID = 0x0ce6;
+    static final int PS_DUAL_SENSE_EDGE_PRODUCT_ID = 0x0df2;
 
     @VisibleForTesting static final int MICROSOFT_VENDOR_ID = 0x045e;
     @VisibleForTesting static final int XBOX_ONE_S_2016_FIRMWARE_PRODUCT_ID = 0x02e0;
@@ -77,12 +78,14 @@ abstract class GamepadMappings {
                 }
                 return new Ps4Ps5GamepadMappings();
             }
-            if (productId == PS_DUAL_SENSE_PRODUCT_ID) {
+            if (productId == PS_DUAL_SENSE_PRODUCT_ID
+                    || productId == PS_DUAL_SENSE_EDGE_PRODUCT_ID) {
                 // Android 12 includes a new driver for PS5 gamepads. Use an alternate mapping for
                 // versions of Android without this driver.
                 if (android.os.Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
                     return new Ps4Ps5GamepadMappings();
                 }
+                return new XboxCompatibleGamepadMappings();
             }
         }
         if (vendorId == MICROSOFT_VENDOR_ID) {

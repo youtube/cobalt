@@ -9,7 +9,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/successful_position_fallback.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/style/position_try_fallbacks.h"
 #include "third_party/blink/renderer/platform/geometry/physical_offset.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
@@ -18,14 +18,15 @@
 
 namespace blink {
 
+enum class RememberedScrollOffsetType { kLayout, kRangeAdjustment };
+
 class CSSPropertyValueSet;
 class Element;
 class LayoutBox;
 class LayoutObject;
 
-class CORE_EXPORT OutOfFlowData final
-    : public GarbageCollected<OutOfFlowData>,
-      public ElementRareDataField {
+class CORE_EXPORT OutOfFlowData final : public GarbageCollected<OutOfFlowData>,
+                                        public NodeRareDataField {
  public:
   struct ScrollOffsetPair {
     PhysicalOffset scroll_offset_for_layout;
@@ -52,17 +53,22 @@ class CORE_EXPORT OutOfFlowData final
       return it != offsets_.end() ? std::make_optional(it->value)
                                   : std::nullopt;
     }
-    std::optional<PhysicalOffset> GetOffsetForAnchor(
-        const Element* anchor) const {
+    std::optional<PhysicalOffset> GetOffset(const Element* anchor,
+                                            RememberedScrollOffsetType type,
+                                            bool needs_x,
+                                            bool needs_y) const {
       if (const auto& offsets = GetOffsetsForAnchor(anchor)) {
-        return offsets->scroll_offset_for_layout;
-      }
-      return std::nullopt;
-    }
-    std::optional<PhysicalOffset> GetOffsetForAnchorForRangeAdjustment(
-        const Element* anchor) const {
-      if (const auto& offsets = GetOffsetsForAnchor(anchor)) {
-        return offsets->scroll_offset_for_range_adjustment;
+        PhysicalOffset result =
+            type == RememberedScrollOffsetType::kLayout
+                ? offsets->scroll_offset_for_layout
+                : offsets->scroll_offset_for_range_adjustment;
+        if (!needs_x) {
+          result.left = LayoutUnit();
+        }
+        if (!needs_y) {
+          result.top = LayoutUnit();
+        }
+        return result;
       }
       return std::nullopt;
     }

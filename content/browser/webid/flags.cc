@@ -99,4 +99,8 @@ bool IsFedCmAmbientUIEnabled() {
   return base::FeatureList::IsEnabled(features::kFedCmAmbientUI);
 }
 
+bool IsFedCmNativeIdPsEnabled() {
+  return base::FeatureList::IsEnabled(features::kFedCmNativeIdPs);
+}
+
 }  // namespace content::webid

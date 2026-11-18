@@ -30,13 +30,15 @@
 #include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/bigint.h"
 #include "src/objects/casting.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/field-type.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/hole.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
@@ -113,10 +115,8 @@ DEF_CAST_TRAITS(CoverageInfo)
 DEF_CAST_TRAITS(CppHeapExternalObject)
 DEF_CAST_TRAITS(DataHandler)
 DEF_CAST_TRAITS(DeoptimizationData)
-DEF_CAST_TRAITS(DependentCode)
 DEF_CAST_TRAITS(DescriptorArray)
 DEF_CAST_TRAITS(DictionaryTemplateInfo)
-DEF_CAST_TRAITS(DoubleStringCache)
 DEF_CAST_TRAITS(EmbedderDataArray)
 DEF_CAST_TRAITS(EphemeronHashTable)
 DEF_CAST_TRAITS(FeedbackCell)
@@ -126,9 +126,9 @@ DEF_CAST_TRAITS(FunctionTemplateInfo)
 DEF_CAST_TRAITS(FixedArrayBase)
 DEF_CAST_TRAITS(FixedArrayExact)
 DEF_CAST_TRAITS(Foreign)
-DEF_CAST_TRAITS(FreeSpace)
 DEF_CAST_TRAITS(GcSafeCode)
 DEF_CAST_TRAITS(GlobalDictionary)
+DEF_CAST_TRAITS(HashSeedWrapper)
 DEF_CAST_TRAITS(InterceptorInfo)
 DEF_CAST_TRAITS(JSArgumentsObject)
 DEF_CAST_TRAITS(JSArray)
@@ -202,13 +202,10 @@ DEF_CAST_TRAITS(JSWeakMap)
 DEF_CAST_TRAITS(JSWeakSet)
 DEF_CAST_TRAITS(JSWrappedFunction)
 DEF_CAST_TRAITS(LoadHandler)
-DEF_CAST_TRAITS(Map)
 DEF_CAST_TRAITS(MegaDomHandler)
 DEF_CAST_TRAITS(Module)
 DEF_CAST_TRAITS(Microtask)
-DEF_CAST_TRAITS(Name)
 DEF_CAST_TRAITS(NameDictionary)
-DEF_CAST_TRAITS(NameToIndexHashTable)
 DEF_CAST_TRAITS(NativeContext)
 DEF_CAST_TRAITS(NormalizedMapCache)
 DEF_CAST_TRAITS(NumberDictionary)
@@ -224,9 +221,7 @@ DEF_CAST_TRAITS(OrderedNameDictionary)
 DEF_CAST_TRAITS(PreparseData)
 DEF_CAST_TRAITS(PrimitiveHeapObject)
 DEF_CAST_TRAITS(PromiseReactionJobTask)
-DEF_CAST_TRAITS(PropertyArray)
 DEF_CAST_TRAITS(PropertyCell)
-DEF_CAST_TRAITS(ScopeInfo)
 DEF_CAST_TRAITS(SharedFunctionInfo)
 DEF_CAST_TRAITS(SimpleNameDictionary)
 DEF_CAST_TRAITS(SimpleNumberDictionary)
@@ -271,7 +266,6 @@ DEF_CAST_TRAITS(WasmFuncRef)
 DEF_CAST_TRAITS(WasmGlobalObject)
 DEF_CAST_TRAITS(WasmInstanceObject)
 DEF_CAST_TRAITS(WasmMemoryObject)
-DEF_CAST_TRAITS(WasmMemoryMapDescriptor)
 DEF_CAST_TRAITS(WasmModuleObject)
 DEF_CAST_TRAITS(WasmNull)
 DEF_CAST_TRAITS(WasmObject)
@@ -287,16 +281,11 @@ DEF_CAST_TRAITS(WasmTypeInfo)
 DEF_CAST_TRAITS(WasmValueObject)
 #endif  // V8_ENABLE_WEBASSEMBLY
 DEF_CAST_TRAITS(WeakCell)
-DEF_CAST_TRAITS(ArrayList)
-DEF_CAST_TRAITS(ByteArray)
 DEF_CAST_TRAITS(ClosureFeedbackCellArray)
-DEF_CAST_TRAITS(FixedDoubleArray)
 DEF_CAST_TRAITS(ObjectBoilerplateDescription)
 DEF_CAST_TRAITS(RegExpMatchInfo)
 DEF_CAST_TRAITS(ScriptContextTable)
 DEF_CAST_TRAITS(SloppyArgumentsElements)
-DEF_CAST_TRAITS(WeakArrayList)
-DEF_CAST_TRAITS(WeakFixedArray)
 DEF_CAST_TRAITS(WeakHomomorphicFixedArray)
 
 #ifdef V8_INTL_SUPPORT
@@ -350,7 +339,6 @@ DEF_CAST_TRAITS(Number)
 DEF_CAST_TRAITS(NumberWrapper)
 DEF_CAST_TRAITS(OSROptimizedCodeCache)
 DEF_CAST_TRAITS(ScriptWrapper)
-DEF_CAST_TRAITS(SmiStringCache)
 DEF_CAST_TRAITS(StringWrapper)
 DEF_CAST_TRAITS(SymbolWrapper)
 DEF_CAST_TRAITS(UniqueName)
@@ -578,8 +566,6 @@ DEF_HEAP_OBJECT_PREDICATE(IsDeoptimizationData) {
 
 DEF_HEAP_OBJECT_PREDICATE(IsHandlerTable) { return IsFixedArrayExact(obj); }
 
-DEF_HEAP_OBJECT_PREDICATE(IsDependentCode) { return IsWeakArrayList(obj); }
-
 DEF_HEAP_OBJECT_PREDICATE(IsOSROptimizedCodeCache) {
   return IsWeakFixedArray(obj);
 }
@@ -652,8 +638,6 @@ DEF_HEAP_OBJECT_PREDICATE(IsAccessCheckNeeded) {
   }
   return obj->map()->is_access_check_needed();
 }
-
-DEF_HEAP_OBJECT_PREDICATE(IsSmiStringCache) { return IsFixedArray(obj); }
 
 // static
 double Object::NumberValue(Tagged<Number> obj) {
@@ -1189,151 +1173,6 @@ bool JSArray::HasReadOnlyLength(DirectHandle<JSArray> array) {
   return V8_UNLIKELY(HasReadOnlyLengthSlowPath(array));
 }
 
-EarlyReadOnlyRoots HeapObject::EarlyGetReadOnlyRoots() const {
-  return ReadOnlyHeap::EarlyGetReadOnlyRoots(this);
-}
-
-void HeapObject::set_map(Isolate* isolate, Tagged<Map> value) {
-  set_map<EmitWriteBarrier::kYes>(isolate, value, kRelaxedStore,
-                                  VerificationMode::kPotentialLayoutChange);
-}
-
-template <typename IsolateT>
-void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
-                         ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kYes>(isolate, value, kReleaseStore,
-                                  VerificationMode::kPotentialLayoutChange);
-}
-
-template <typename IsolateT>
-void HeapObject::set_map_safe_transition(IsolateT* isolate, Tagged<Map> value) {
-  set_map<EmitWriteBarrier::kYes>(isolate, value, kRelaxedStore,
-                                  VerificationMode::kSafeMapTransition);
-}
-
-template <typename IsolateT>
-void HeapObject::set_map_safe_transition(IsolateT* isolate, Tagged<Map> value,
-                                         ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kYes>(isolate, value, kReleaseStore,
-                                  VerificationMode::kSafeMapTransition);
-}
-
-void HeapObject::set_map_safe_transition_no_write_barrier(Isolate* isolate,
-                                                          Tagged<Map> value,
-                                                          RelaxedStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(isolate, value, kRelaxedStore,
-                                 VerificationMode::kSafeMapTransition);
-}
-
-void HeapObject::set_map_safe_transition_no_write_barrier(Isolate* isolate,
-                                                          Tagged<Map> value,
-                                                          ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(isolate, value, kReleaseStore,
-                                 VerificationMode::kSafeMapTransition);
-}
-
-// Unsafe accessor omitting write barrier.
-void HeapObject::set_map_no_write_barrier(Isolate* isolate, Tagged<Map> value,
-                                          RelaxedStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(isolate, value, kRelaxedStore,
-                                 VerificationMode::kPotentialLayoutChange);
-}
-
-void HeapObject::set_map_no_write_barrier(Isolate* isolate, Tagged<Map> value,
-                                          ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(isolate, value, kReleaseStore,
-                                 VerificationMode::kPotentialLayoutChange);
-}
-
-template <HeapObject::EmitWriteBarrier emit_write_barrier, typename MemoryOrder,
-          typename IsolateT>
-void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
-                         MemoryOrder order, VerificationMode mode) {
-#if V8_ENABLE_WEBASSEMBLY
-  // In {WasmGraphBuilder::SetMap} and {WasmGraphBuilder::LoadMap}, we treat
-  // maps as immutable. Therefore we are not allowed to mutate them here.
-  DCHECK(!IsWasmStructMap(value) && !IsWasmArrayMap(value));
-#endif
-  if (v8_flags.verify_heap) {
-    if (mode == VerificationMode::kSafeMapTransition) {
-      HeapVerifier::VerifySafeMapTransition(isolate->heap()->AsHeap(), this,
-                                            value);
-    } else {
-      DCHECK_EQ(mode, VerificationMode::kPotentialLayoutChange);
-      HeapVerifier::VerifyObjectLayoutChange(isolate->heap()->AsHeap(), this,
-                                             value);
-    }
-  }
-  set_map_word(value, order);
-  Heap::NotifyObjectLayoutChangeDone(this);
-#ifndef V8_DISABLE_WRITE_BARRIERS
-  if (emit_write_barrier == EmitWriteBarrier::kYes) {
-    WriteBarrier::ForValue(this, MaybeObjectSlot(map_slot()), value,
-                           UPDATE_WRITE_BARRIER);
-  } else {
-    DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
-#if V8_VERIFY_WRITE_BARRIERS
-    DCHECK(!WriteBarrier::IsRequired(this, value));
-#endif
-  }
-#endif
-}
-
-template <typename IsolateT>
-void HeapObject::set_map_after_allocation(IsolateT* isolate, Tagged<Map> value,
-                                          WriteBarrierMode mode) {
-  set_map_word(value, kRelaxedStore);
-#ifndef V8_DISABLE_WRITE_BARRIERS
-  if (mode != SKIP_WRITE_BARRIER) {
-    DCHECK(!value.is_null());
-    WriteBarrier::ForValue(this, MaybeObjectSlot(map_slot()), value, mode);
-  } else {
-    SLOW_DCHECK(
-        // We allow writes of a null map before root initialisation.
-        value.is_null() ? !isolate->read_only_heap()->roots_init_complete()
-                        : !WriteBarrier::IsRequired(this, value));
-  }
-#endif
-}
-
-// static
-void HeapObject::SetFillerMap(const WritableFreeSpace& writable_space,
-                              Tagged<Map> value) {
-  writable_space.WriteHeaderSlot<Map, offsetof(HeapObject, map_)>(
-      value, kRelaxedStore);
-}
-
-ObjectSlot HeapObject::map_slot() const {
-  return ObjectSlot(MapField::address(this));
-}
-
-void HeapObject::set_map_word(Tagged<Map> map, RelaxedStoreTag) {
-  MapField::Relaxed_Store_Map_Word(this, MapWord::FromMap(map));
-}
-
-void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
-                                        RelaxedStoreTag) {
-  MapField::Relaxed_Store_Map_Word(
-      this, MapWord::FromForwardingAddress(this, target_object));
-}
-
-void HeapObject::set_map_word(Tagged<Map> map, ReleaseStoreTag) {
-  MapField::Release_Store_Map_Word(this, MapWord::FromMap(map));
-}
-
-void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
-                                        ReleaseStoreTag) {
-  MapField::Release_Store_Map_Word(
-      this, MapWord::FromForwardingAddress(this, target_object));
-}
-
-bool HeapObject::relaxed_compare_and_swap_map_word_forwarded(
-    MapWord old_map_word, Tagged<HeapObject> new_target_object) {
-  Tagged_t result = MapField::Relaxed_CompareAndSwap(
-      this, old_map_word,
-      MapWord::FromForwardingAddress(this, new_target_object));
-  return result == static_cast<Tagged_t>(old_map_word.ptr());
-}
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
   return instance_type <= LAST_SPECIAL_RECEIVER_TYPE;
@@ -1614,58 +1453,6 @@ Tagged<Object> Object::GetHash(Tagged<Object> obj) {
   CHECK(IsJSReceiver(obj));
   Tagged<JSReceiver> receiver = Cast<JSReceiver>(obj);
   return receiver->GetIdentityHash();
-}
-
-bool IsShared(Tagged<Object> obj) {
-  // This logic should be kept in sync with fast paths in
-  // CodeStubAssembler::SharedValueBarrier.
-
-  // Smis are trivially shared.
-  if (IsSmi(obj)) return true;
-
-  Tagged<HeapObject> object = Cast<HeapObject>(obj);
-
-  // RO objects are shared when the RO space is shared.
-  if (HeapLayout::InReadOnlySpace(object)) {
-    return true;
-  }
-
-  // Check if this object is already shared.
-  InstanceType instance_type = object->map()->instance_type();
-  if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type)) {
-    DCHECK(HeapLayout::InAnySharedSpace(object));
-    return true;
-  }
-  switch (instance_type) {
-    case SHARED_SEQ_TWO_BYTE_STRING_TYPE:
-    case SHARED_SEQ_ONE_BYTE_STRING_TYPE:
-    case SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE:
-    case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case SHARED_UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE:
-    case SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-      DCHECK(HeapLayout::InAnySharedSpace(object));
-      return true;
-#if V8_ENABLE_WEBASSEMBLY
-    case WASM_STRUCT_TYPE:
-    case WASM_ARRAY_TYPE:
-      return HeapLayout::InAnySharedSpace(object);
-#endif
-    case INTERNALIZED_TWO_BYTE_STRING_TYPE:
-    case INTERNALIZED_ONE_BYTE_STRING_TYPE:
-    case EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
-    case EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
-      if (v8_flags.shared_string_table) {
-        DCHECK(HeapLayout::InAnySharedSpace(object));
-        return true;
-      }
-      return false;
-    case HEAP_NUMBER_TYPE:
-      return HeapLayout::InWritableSharedSpace(object);
-    default:
-      return false;
-  }
 }
 
 // static

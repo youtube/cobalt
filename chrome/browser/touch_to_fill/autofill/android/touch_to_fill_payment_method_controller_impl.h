@@ -14,10 +14,15 @@
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller.h"
+#include "chrome/browser/ui/autofill/autofill_popup_hide_helper.h"
 #include "components/autofill/android/touch_to_fill_keyboard_suppressor.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
+
+namespace content {
+class WebContents;
+}
 
 namespace autofill {
 
@@ -30,7 +35,7 @@ class BnplIssuer;
 class ContentAutofillClient;
 class Iban;
 class LoyaltyCard;
-class TouchToFillDelegate;
+class TouchToFillPaymentMethodDelegate;
 class TouchToFillPaymentMethodView;
 
 // Controller of the bottom sheet surface for filling credit card IBAN or
@@ -39,8 +44,7 @@ class TouchToFillPaymentMethodView;
 // `java_object_`.
 class TouchToFillPaymentMethodControllerImpl
     : public TouchToFillPaymentMethodController,
-      public ContentAutofillDriverFactory::Observer,
-      public content::WebContentsObserver {
+      public ContentAutofillDriverFactory::Observer {
  public:
   explicit TouchToFillPaymentMethodControllerImpl(
       ContentAutofillClient* autofill_client);
@@ -51,21 +55,22 @@ class TouchToFillPaymentMethodControllerImpl
   ~TouchToFillPaymentMethodControllerImpl() override;
 
   // TouchToFillPaymentMethodController:
-  bool ShowPaymentMethods(std::unique_ptr<TouchToFillPaymentMethodView> view,
-                          base::WeakPtr<TouchToFillDelegate> delegate,
-                          base::span<const Suggestion> suggestions) override;
+  bool ShowPaymentMethods(
+      std::unique_ptr<TouchToFillPaymentMethodView> view,
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
+      base::span<const Suggestion> suggestions) override;
   bool ShowIbans(std::unique_ptr<TouchToFillPaymentMethodView> view,
-                 base::WeakPtr<TouchToFillDelegate> delegate,
+                 base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
                  base::span<const Iban> ibans_to_suggest) override;
   bool ShowAffiliatedLoyaltyCards(
       std::unique_ptr<TouchToFillPaymentMethodView> view,
-      base::WeakPtr<TouchToFillDelegate> delegate,
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
       base::span<const LoyaltyCard> affiliated_loyalty_cards,
       base::span<const LoyaltyCard> all_loyalty_cards,
       bool first_time_usage) override;
   bool ShowAllLoyaltyCards(
       std::unique_ptr<TouchToFillPaymentMethodView> view,
-      base::WeakPtr<TouchToFillDelegate> delegate,
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
       base::span<const LoyaltyCard> all_loyalty_cards) override;
   bool OnPurchaseAmountExtracted(
       base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
@@ -89,11 +94,6 @@ class TouchToFillPaymentMethodControllerImpl
                          base::OnceClosure cancel_callback) override;
   void Hide() override;
   void SetVisible(bool visible) override;
-
-  // content::WebContentsObserver:
-  void WebContentsDestroyed() override;
-  void DidFinishNavigation(
-      content::NavigationHandle* navigation_handle) override;
 
   // ContentAutofillDriverFactory::Observer:
   void OnContentAutofillDriverFactoryDestroyed(
@@ -129,13 +129,22 @@ class TouchToFillPaymentMethodControllerImpl
   }
 
  private:
+  bool InitHideHelper(TouchToFillPaymentMethodDelegate& delegate);
+
+  // The controller must ignore user actions if the associated WebContents is
+  // not active anymore. This is to handle race conditions between, for example,
+  // a new tab being opened and TTF being shown.
+  bool IsActiveWebContents();
+
+  content::WebContents* web_contents();
+
   // Observes creation of ContentAutofillDrivers to inject a
   // TouchToFillDelegateAndroidImpl into the BrowserAutofillManager.
   base::ScopedObservation<ContentAutofillDriverFactory,
                           ContentAutofillDriverFactory::Observer>
       driver_factory_observation_{this};
   // Delegate for the surface being shown.
-  base::WeakPtr<TouchToFillDelegate> delegate_;
+  base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate_;
   // View that displays the surface, owned by `this`.
   std::unique_ptr<TouchToFillPaymentMethodView> view_;
   // The corresponding Java TouchToFillPaymentMethodControllerBridge.
@@ -144,6 +153,8 @@ class TouchToFillPaymentMethodControllerImpl
   // AutofillManager::Observer::On{Before,After}AskForValuesToFill() events if
   // TTF may be shown.
   TouchToFillKeyboardSuppressor keyboard_suppressor_;
+  // Hides TTF when a relevant frame is destroyed or navigated.
+  std::optional<AutofillPopupHideHelper> hide_helper_;
 };
 
 }  // namespace autofill

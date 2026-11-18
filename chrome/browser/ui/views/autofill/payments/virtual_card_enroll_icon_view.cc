@@ -54,12 +54,11 @@ views::BubbleDialogDelegate* VirtualCardEnrollIconView::GetBubble() const {
   // completes to show the confirmation bubble.
   if (controller->IsEnrollmentComplete()) {
     return static_cast<
-        autofill::
             SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews*>(
         controller->GetVirtualCardBubbleView());
   }
 
-  return static_cast<autofill::VirtualCardEnrollBubbleViews*>(
+  return static_cast<VirtualCardEnrollBubbleViews*>(
       controller->GetVirtualCardBubbleView());
 }
 

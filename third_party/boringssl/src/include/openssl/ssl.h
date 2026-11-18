@@ -2004,8 +2004,7 @@ SSL_SESSION_get0_peer_certificates(const SSL_SESSION *session);
 
 // SSL_SESSION_get0_peer_rpk returns the peer raw public key stored in
 // `session`, or NULL if the peer did not send a raw public key.
-OPENSSL_EXPORT const EVP_PKEY *SSL_SESSION_get0_peer_rpk(
-    const SSL_SESSION *session);
+OPENSSL_EXPORT EVP_PKEY *SSL_SESSION_get0_peer_rpk(const SSL_SESSION *session);
 
 // SSL_SESSION_get0_signed_cert_timestamp_list sets `*out` and `*out_len` to
 // point to `*out_len` bytes of SCT information stored in `session`. This is
@@ -2637,7 +2636,7 @@ OPENSSL_EXPORT int SSL_CTX_set1_group_ids_with_flags(SSL_CTX *ctx,
 
 // SSL_set1_group_ids_with_flags sets the preferred groups for `ssl` to
 // `group_ids`, using the corresponding `flags` for each element, which is a set
-// of SSL_GROUP_FLAG_* values ORed toegether. Each element of `group_ids` should
+// of SSL_GROUP_FLAG_* values ORed together. Each element of `group_ids` should
 // be a unique one of the `SSL_GROUP_*` constants. If `group_ids` is empty, a
 // default list of groups and flags defaulting to zero will be set instead.
 // `group_ids` and `flags` should both have `num_group_ids` elements.  It
@@ -4295,7 +4294,7 @@ struct ssl_quic_method_st {
   int (*send_alert)(SSL *ssl, enum ssl_encryption_level_t level, uint8_t alert);
 };
 
-// SSL_quic_max_handshake_flight_len returns returns the maximum number of bytes
+// SSL_quic_max_handshake_flight_len returns the maximum number of bytes
 // that may be received at the given encryption level. This function should be
 // used to limit buffering in the QUIC implementation.
 //
@@ -4890,7 +4889,7 @@ OPENSSL_EXPORT int SSL_CTX_set_record_protocol_version(SSL_CTX *ctx,
 // retains its final flight for retransmission in case of loss. There is no
 // explicit protocol signal for when this completes, though after receiving
 // application data and/or a timeout it is likely that this is no longer needed.
-// BoringSSL does not currently evaluate either condition and leaves it it to
+// BoringSSL does not currently evaluate either condition and leaves it to
 // the caller to determine whether this is now unnecessary. This applies when
 // `ssl` is a server for full handshakes and when `ssl` is a client for full
 // handshakes.
@@ -5739,7 +5738,7 @@ OPENSSL_EXPORT int SSL_get_shared_sigalgs(SSL *ssl, int idx, int *psign,
 // i2d_SSL_SESSION serializes `in`, as described in `i2d_SAMPLE`.
 //
 // Use `SSL_SESSION_to_bytes` instead.
-OPENSSL_EXPORT int i2d_SSL_SESSION(SSL_SESSION *in, uint8_t **pp);
+OPENSSL_EXPORT int i2d_SSL_SESSION(const SSL_SESSION *in, uint8_t **pp);
 
 // d2i_SSL_SESSION parses a serialized session from the `len` bytes pointed to
 // by `*inp`, as described in `d2i_SAMPLE`.

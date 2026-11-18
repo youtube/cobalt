@@ -57,7 +57,7 @@ class UnitTest(fake_filesystem_unittest.TestCase):
             '-cipd-package', 'path:name=123', '--scalar', '42',
             '--enable-resultdb'
         ]
-        self.assertEquals(go_args, expected)
+        self.assertEqual(go_args, expected)
 
     def test_convert_to_go_swarming_args_failed(self):
         invalid_args = [

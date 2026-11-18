@@ -703,6 +703,7 @@ if (rtc_include_tests) {
       "../../rtc_base:threading",
       "../../system_wrappers",
       "../../system_wrappers:metrics",
+      "../../test:create_test_environment",
       "../../test:create_test_field_trials",
       "../../test:mock_transport",
       "../../test:near_matcher",

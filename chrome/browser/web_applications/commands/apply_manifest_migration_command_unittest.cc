@@ -556,6 +556,17 @@ TEST_F(ApplyManifestMigrationCommandTest, SuccessSuggestedForMigration) {
         base::UTF16ToUTF8(destination_app_name)));
   }
 
+  const WebApp* pre_migration_dest_app =
+      fake_provider().registrar_unsafe().GetAppById(destination_app_id);
+  EXPECT_FALSE(pre_migration_dest_app->first_install_time().is_null());
+  EXPECT_FALSE(pre_migration_dest_app->latest_install_time().is_null());
+
+  base::Time source_first_install_time = fake_provider()
+                                             .registrar_unsafe()
+                                             .GetAppById(source_app_id)
+                                             ->first_install_time();
+  EXPECT_FALSE(source_first_install_time.is_null());
+
   // Trigger the command, and verify a successful migration.
   // Note: The FakeWebAppUiManager has launches fail for unit tests, the launch
   // is tested in the browser test.
@@ -589,6 +600,11 @@ TEST_F(ApplyManifestMigrationCommandTest, SuccessSuggestedForMigration) {
         profile(), destination_app_id,
         base::UTF16ToUTF8(destination_app_name)));
   }
+
+  const WebApp* destination_app =
+      fake_provider().registrar_unsafe().GetAppById(destination_app_id);
+  EXPECT_EQ(destination_app->first_install_time(), source_first_install_time);
+  EXPECT_FALSE(destination_app->latest_install_time().is_null());
 }
 
 TEST_F(ApplyManifestMigrationCommandTest, RunOnOsLoginMigrated) {

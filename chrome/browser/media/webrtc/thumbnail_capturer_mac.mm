@@ -135,7 +135,6 @@ GetPipIdToExcludeFromScreenCaptureOnUIThread(
 // array containing the SCWindow object corresponding to the provided ID.
 // Returns an empty array if the ID is not provided or no matching window is
 // found.
-API_AVAILABLE(macos(12.3))
 NSArray<SCWindow*>* ConvertWindowIDToSCWindows(
     SCShareableContent* content,
     std::optional<content::DesktopMediaID::Id> excluded_window_id) {
@@ -152,8 +151,7 @@ NSArray<SCWindow*>* ConvertWindowIDToSCWindows(
   return @[];
 }
 
-bool API_AVAILABLE(macos(12.3))
-    IsWindowFullscreen(SCWindow* window, NSArray<SCDisplay*>* displays) {
+bool IsWindowFullscreen(SCWindow* window, NSArray<SCDisplay*>* displays) {
   for (SCDisplay* display in displays) {
     if (CGRectEqualToRect(window.frame, display.frame)) {
       return true;
@@ -162,8 +160,8 @@ bool API_AVAILABLE(macos(12.3))
   return false;
 }
 
-SCDisplay* API_AVAILABLE(macos(12.3))
-    FindDisplay(NSArray<SCDisplay*>* array, CGDirectDisplayID display_id) {
+SCDisplay* FindDisplay(NSArray<SCDisplay*>* array,
+                       CGDirectDisplayID display_id) {
   for (SCDisplay* display in array) {
     if ([display displayID] == display_id) {
       return display;
@@ -172,8 +170,7 @@ SCDisplay* API_AVAILABLE(macos(12.3))
   return nil;
 }
 
-SCWindow* API_AVAILABLE(macos(12.3))
-    FindWindow(NSArray<SCWindow*>* array, CGWindowID window_id) {
+SCWindow* FindWindow(NSArray<SCWindow*>* array, CGWindowID window_id) {
   for (SCWindow* window in array) {
     if ([window windowID] == window_id) {
       return window;
@@ -201,7 +198,7 @@ CGWindowID GetWindowId(CFArrayRef window_array, CFIndex index) {
   return window_id;
 }
 
-class API_AVAILABLE(macos(12.3)) ScreenshotManagerCapturer {
+class ScreenshotManagerCapturer {
  public:
   using ContentFilterCallback = base::RepeatingCallback<
       SCContentFilter*(ThumbnailCapturer::SourceId source_id, CGRect& frame)>;
@@ -416,8 +413,7 @@ void ScreenshotManagerCapturer::SCScreenshotCaptureSource(
 
 // Context object to hold the results of the asynchronous operations (PiP IDs
 // and shareable content) so they can be processed together when both complete.
-struct API_AVAILABLE(macos(12.3)) UpdateContext
-    : public base::RefCountedThreadSafe<UpdateContext> {
+struct UpdateContext : public base::RefCountedThreadSafe<UpdateContext> {
   std::map<content::DesktopMediaID::Id,
            std::optional<content::DesktopMediaID::Id>>
       pip_ids;

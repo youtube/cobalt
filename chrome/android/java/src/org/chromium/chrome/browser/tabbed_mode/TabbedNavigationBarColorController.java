@@ -308,7 +308,7 @@ class TabbedNavigationBarColorController
                 new LayoutStateObserver() {
                     @Override
                     public void onStartedShowing(@LayoutType int layoutType) {
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             enableOverviewMode();
                             updateNavigationBarColor();
                         } else if (layoutType == LayoutType.TOOLBAR_SWIPE
@@ -325,7 +325,7 @@ class TabbedNavigationBarColorController
 
                     @Override
                     public void onStartedHiding(@LayoutType int layoutType) {
-                        if (layoutType != LayoutType.TAB_SWITCHER) return;
+                        if (layoutType != LayoutType.HUB) return;
                         disableOverviewMode();
                         updateNavigationBarColor();
                     }

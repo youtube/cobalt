@@ -448,6 +448,7 @@ L$mul_epilogue:
 .private_extern _bn_mul4x_mont_gather5
 
 .p2align	5
+.alt_entry _bn_mul4x_mont_gather5
 _bn_mul4x_mont_gather5:
 
 _CET_ENDBR
@@ -554,6 +555,7 @@ L$mul4x_epilogue:
 
 
 .p2align	5
+.alt_entry mul4x_internal
 mul4x_internal:
 
 	shlq	$5,%r9
@@ -1085,6 +1087,7 @@ L$inner4x:
 .private_extern _bn_power5_nohw
 
 .p2align	5
+.alt_entry _bn_power5_nohw
 _bn_power5_nohw:
 
 _CET_ENDBR
@@ -1222,7 +1225,9 @@ L$power5_epilogue:
 .private_extern	_bn_sqr8x_internal
 
 .p2align	5
+.alt_entry _bn_sqr8x_internal
 _bn_sqr8x_internal:
+.alt_entry __bn_sqr8x_internal
 __bn_sqr8x_internal:
 
 _CET_ENDBR
@@ -1741,6 +1746,7 @@ L$sqr4x_shift_n_add:
 	movq	%rbx,-16(%rdi)
 	movq	%r8,-8(%rdi)
 	movq	%xmm2,%rbp
+.alt_entry __bn_sqr8x_reduction
 __bn_sqr8x_reduction:
 	xorq	%rax,%rax
 	leaq	(%r9,%rbp,1),%rcx
@@ -2004,6 +2010,7 @@ L$8x_no_tail:
 
 
 .p2align	5
+.alt_entry __bn_post4x_internal
 __bn_post4x_internal:
 
 	movq	0(%rbp),%r12
@@ -2062,6 +2069,7 @@ L$sqr4x_sub_entry:
 .private_extern _bn_mulx4x_mont_gather5
 
 .p2align	5
+.alt_entry _bn_mulx4x_mont_gather5
 _bn_mulx4x_mont_gather5:
 
 _CET_ENDBR
@@ -2176,6 +2184,7 @@ L$mulx4x_epilogue:
 
 
 .p2align	5
+.alt_entry mulx4x_internal
 mulx4x_internal:
 
 	movq	%r9,8(%rsp)
@@ -2604,6 +2613,7 @@ L$mulx4x_inner:
 .private_extern _bn_powerx5
 
 .p2align	5
+.alt_entry _bn_powerx5
 _bn_powerx5:
 
 _CET_ENDBR
@@ -2745,7 +2755,9 @@ L$powerx5_epilogue:
 .private_extern	_bn_sqrx8x_internal
 
 .p2align	5
+.alt_entry _bn_sqrx8x_internal
 _bn_sqrx8x_internal:
+.alt_entry __bn_sqrx8x_internal
 __bn_sqrx8x_internal:
 
 _CET_ENDBR
@@ -3152,6 +3164,7 @@ L$sqrx4x_shift_n_add_break:
 	movq	%rbx,56(%rdi)
 	leaq	64(%rdi),%rdi
 	movq	%xmm2,%rbp
+.alt_entry __bn_sqrx8x_reduction
 __bn_sqrx8x_reduction:
 	xorl	%eax,%eax
 	movq	32+8(%rsp),%rbx
@@ -3364,6 +3377,7 @@ L$sqrx8x_no_tail:
 
 .p2align	5
 
+.alt_entry __bn_postx4x_internal
 __bn_postx4x_internal:
 
 	movq	0(%rbp),%r12
@@ -3419,6 +3433,7 @@ L$sqrx4x_sub_entry:
 .private_extern _bn_scatter5
 
 .p2align	4
+.alt_entry _bn_scatter5
 _bn_scatter5:
 
 _CET_ENDBR
@@ -3450,6 +3465,7 @@ L$scatter_epilogue:
 .private_extern _bn_gather5
 
 .p2align	5
+.alt_entry _bn_gather5
 _bn_gather5:
 
 L$SEH_begin_bn_gather5:
@@ -3617,7 +3633,9 @@ L$SEH_end_bn_gather5:
 
 
 .section	__DATA,__const
+
 .p2align	6
+mont5_increments:
 L$inc:
 .long	0,0, 1,1
 .long	2,2, 2,2

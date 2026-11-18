@@ -11,18 +11,6 @@ build_webui("build") {
   grd_prefix = "webui_toolbar"
 
   static_files = [
-    "browser_controls_icons/home_20.svg",
-    "browser_controls_icons/home_24.svg",
-    "lhs_icons/business_chrome_refresh.svg",
-    "lhs_icons/dangerous_chrome_refresh.svg",
-    "lhs_icons/http_chrome_refresh.svg",
-    "lhs_icons/no_encryption.svg",
-    "lhs_icons/not_secure_warning_chrome_refresh_16.svg",
-    "lhs_icons/not_secure_warning_chrome_refresh_20.svg",
-    "lhs_icons/page_chrome_refresh_icon.svg",
-    "lhs_icons/product_chrome_refresh_icon.svg",
-    "lhs_icons/secure_page_info_chrome_refresh.svg",
-
     "rhs_icons/ads_chrome_refresh.svg",
     "rhs_icons/ads_off_chrome_refresh.svg",
     "rhs_icons/code_chrome_refresh.svg",
@@ -89,16 +77,20 @@ build_webui("build") {
     "avatar_button.ts",
     "back_forward_button.html.ts",
     "back_forward_button.ts",
+    "battery_saver_button.html.ts",
+    "battery_saver_button.ts",
+    "battery_saver_button_icons.html.ts",
     "browser_proxy.ts",
     "content_setting_icon.html.ts",
     "content_setting_icon.ts",
     "content_settings_icons.html.ts",
     "content_settings_icons.ts",
+    "extension.html.ts",
+    "extension.ts",
+    "extensions.html.ts",
+    "extensions.ts",
     "home_button.html.ts",
     "home_button.ts",
-    "icon_from_table.ts",
-    "icon_from_table.html.ts",
-    "icon_table.ts",
     "icons.html.ts",
     "location_bar.ts",
     "location_bar.html.ts",
@@ -111,7 +103,6 @@ build_webui("build") {
     "permission_dashboard.ts",
     "pinned_toolbar_action.html.ts",
     "pinned_toolbar_action.ts",
-    "pinned_toolbar_action_icons.html.ts",
     "pinned_toolbar_actions.html.ts",
     "pinned_toolbar_actions.ts",
     "pointer_proxy.ts",
@@ -123,7 +114,6 @@ build_webui("build") {
     "selected_keyword.html.ts",
     "split_tabs_button.html.ts",
     "split_tabs_button.ts",
-    "split_tabs_button_icons.html.ts",
     "timer_helper.ts",
     "toolbar_button.ts",
     "toolbar_divider.html.ts",
@@ -137,21 +127,18 @@ build_webui("build") {
   css_files = [
     "app.css",
     "avatar_button.css",
-    "back_forward_button.css",
     "content_setting_icon.css",
     "content_settings_icons.css",
+    "extensions.css",
     "home_button.css",
-    "icon_from_table.css",
     "location_bar.css",
     "location_icon.css",
     "permission_chip.css",
     "permission_dashboard.css",
-    "pinned_toolbar_action.css",
     "pinned_toolbar_actions.css",
     "readonly_omnibox.css",
     "reload_button.css",
     "selected_keyword.css",
-    "split_tabs_button.css",
     "toolbar_button.css",
     "toolbar_divider.css",
   ]
@@ -164,11 +151,15 @@ build_webui("build") {
   if (optimize) {
     optimize_webui_host = "webui-toolbar.top-chrome"
     optimize_webui_in_files = [ "app.js" ]
-    optimize_webui_external_paths =
-        [ "chrome://webui-toolbar.top-chrome|" +
+    optimize_webui_external_paths = [
+      "chrome://webui-toolbar.top-chrome|" +
           rebase_path(
               "$root_gen_dir/chrome/browser/resources/webui_toolbar/tsc",
-              root_build_dir) ]
+              root_build_dir),
+      "/shared|" + rebase_path(
+              "$root_gen_dir/chrome/browser/resources/webui_toolbar_shared/tsc",
+              root_build_dir),
+    ]
   }
 
   ts_definitions = [
@@ -180,6 +171,7 @@ build_webui("build") {
   ]
 
   ts_deps = [
+    "../webui_toolbar_shared:build_ts",
     "//third_party/lit/v3_0:build_ts",
     "//ui/webui/resources/cr_components/color_change_listener:build_ts",
     "//ui/webui/resources/cr_components/help_bubble:build_ts",
@@ -189,20 +181,17 @@ build_webui("build") {
   ]
 
   mojo_files_deps = [
-    "//components/browser_apis/browser_controls:mojom_data_model_ts__generator",
-    "//components/browser_apis/browser_controls:mojom_ts__generator",
-    "//components/browser_apis/ui_controllers/toolbar:mojom_data_model_ts__generator",
-    "//components/browser_apis/ui_controllers/toolbar:mojom_ts__generator",
     "//components/content_settings/core/common:content_settings_types_ts__generator",
     "//ui/base/dragdrop/mojom:mojom_ts__generator",
   ]
 
   mojo_files = [
-    "$root_gen_dir/components/browser_apis/browser_controls/browser_controls_api.mojom-webui.ts",
-    "$root_gen_dir/components/browser_apis/browser_controls/browser_controls_api_data_model.mojom-webui.ts",
-    "$root_gen_dir/components/browser_apis/ui_controllers/toolbar/toolbar_ui_api.mojom-webui.ts",
-    "$root_gen_dir/components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom-webui.ts",
     "$root_gen_dir/components/content_settings/core/common/content_settings_types.mojom-webui.ts",
     "$root_gen_dir/ui/base/dragdrop/mojom/drag_drop_types.mojom-webui.ts",
   ]
+
+  ts_path_mappings =
+      [ "/shared/*|" + rebase_path(
+            "$root_gen_dir/chrome/browser/resources/webui_toolbar_shared/tsc/*",
+            target_gen_dir) ]
 }

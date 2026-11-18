@@ -38,7 +38,7 @@ namespace autofill {
 SaveUpdateAddressProfilePromptController::
     SaveUpdateAddressProfilePromptController(
         std::unique_ptr<SaveUpdateAddressProfilePromptView> prompt_view,
-        autofill::PersonalDataManager* personal_data,
+        PersonalDataManager* personal_data,
         const AutofillProfile& profile,
         const AutofillProfile* original_profile,
         SaveUpdateAddressProfilePromptMode prompt_mode,
@@ -127,13 +127,9 @@ std::u16string SaveUpdateAddressProfilePromptController::GetRecordTypeNotice(
 
   // Notify user that their address is saved only in Chrome and can be migrated
   // to their Google account.
-  // TODO(crbug.com/40066949): Simplify once ConsentLevel::kSync is not used
-  // anymore, and thus IsSyncFeatureEnabledForAutofill() will always be false.
   if (IsMigrationToAccount()) {
     return l10n_util::GetStringFUTF16(
-        personal_data_->address_data_manager().IsSyncFeatureEnabledForAutofill()
-            ? IDS_AUTOFILL_SYNCABLE_PROFILE_MIGRATION_PROMPT_NOTICE
-            : IDS_AUTOFILL_LOCAL_PROFILE_MIGRATION_PROMPT_NOTICE,
+        IDS_AUTOFILL_LOCAL_PROFILE_MIGRATION_PROMPT_NOTICE,
         base::UTF8ToUTF16(account->email));
   }
 

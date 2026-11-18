@@ -8,6 +8,8 @@ component("renderer") {
   sources = [
     "create_plugin.cc",
     "create_plugin.h",
+    "surface_embed_paint_holding_helper.cc",
+    "surface_embed_paint_holding_helper.h",
     "surface_embed_web_plugin.cc",
     "surface_embed_web_plugin.h",
   ]
@@ -22,5 +24,20 @@ component("renderer") {
     "//skia",
     "//third_party/blink/public:blink",
     "//ui/gfx/geometry",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "surface_embed_paint_holding_helper_unittest.cc" ]
+
+  deps = [
+    ":renderer",
+    "//base",
+    "//base/test:test_support",
+    "//cc",
+    "//components/viz/common",
+    "//testing/gtest",
   ]
 }

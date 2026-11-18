@@ -479,7 +479,7 @@ TEST(RenderingSimulatorTest, VideoRecvVp8Lossy) {
                                [](const auto& e) {
                                  return e.ArrivalTimestamp().IsFinite();
                                }),
-              Eq(960));
+              Eq(987));
 
   // Find the last rendered frame.
   EXPECT_TRUE(absl::c_is_sorted(stream.frames,
@@ -511,15 +511,14 @@ TEST(RenderingSimulatorTest, VideoRecvVp8Lossy) {
            .last_packet_arrival_timestamp = Timestamp::Millis(821457158),
            // Frame timestamps.
            .assembled_timestamp = Timestamp::Millis(821457158),
-           .render_timestamp = Timestamp::Millis(821457178),
-           .decoded_timestamp = Timestamp::Micros(821457168065),
-           .rendered_timestamp = Timestamp::Micros(821457168065),
+           .render_timestamp = Timestamp::Millis(821457378),
+           .decoded_timestamp = Timestamp::Micros(821457368242),
+           .rendered_timestamp = Timestamp::Micros(821457368242),
            // Jitter buffer information.
            .frames_dropped = 0,
-           // The value below is unreasonably low, we should fix this.
-           .jitter_buffer_minimum_delay = TimeDelta::Micros(13085),
-           .jitter_buffer_target_delay = TimeDelta::Micros(13085),
-           .jitter_buffer_delay = TimeDelta::Micros(21065)}));
+           .jitter_buffer_minimum_delay = TimeDelta::Micros(213371),
+           .jitter_buffer_target_delay = TimeDelta::Micros(213371),
+           .jitter_buffer_delay = TimeDelta::Micros(221242)}));
 }
 
 }  // namespace

@@ -1073,7 +1073,7 @@ using RemoveExpiredFormElementsTest = AutocompleteTableLabelSensitiveTest;
 // RemoveExpiredFormElements should remove the entry.
 TEST_F(RemoveExpiredFormElementsTest, RemovesExpiredEntries) {
   ASSERT_TRUE(CreateAndSubmitDefaultField().has_value());
-  AdvanceClock(2 * autofill::kAutocompleteRetentionPolicyPeriod);
+  AdvanceClock(2 * kAutocompleteRetentionPolicyPeriod);
 
   ASSERT_TRUE(table().RemoveExpiredFormElements());
 
@@ -1085,7 +1085,7 @@ TEST_F(RemoveExpiredFormElementsTest, RemovesExpiredEntries) {
 // RemoveExpiredFormElements should not remove the entry.
 TEST_F(RemoveExpiredFormElementsTest, DoesNotRemoveNonExpiredEntries) {
   ASSERT_TRUE(CreateAndSubmitDefaultField().has_value());
-  ASSERT_LT(base::Days(2), autofill::kAutocompleteRetentionPolicyPeriod);
+  ASSERT_LT(base::Days(2), kAutocompleteRetentionPolicyPeriod);
   AdvanceClock(base::Days(2));
 
   ASSERT_TRUE(table().RemoveExpiredFormElements());

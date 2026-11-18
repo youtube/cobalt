@@ -2459,6 +2459,41 @@ TEST_P(TableViewTest, FocusAfterRemovingAnchor) {
   table_->RequestFocus();
 }
 
+TEST_P(TableViewTest, SelectOnFocus) {
+  // Set select_on_focus to true.
+  table_->SetSelectOnFocus(true);
+
+  // Initially no selection.
+  EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
+
+  // Focus the table.
+  table_->RequestFocus();
+
+  // The first row should be automatically selected.
+  EXPECT_EQ("active=0 anchor=0 selection=0", SelectionStateAsString());
+
+  // Clear focus, then set selection to row 1.
+  table_->GetFocusManager()->ClearFocus();
+  table_->Select(1);
+  EXPECT_EQ("active=1 anchor=1 selection=1", SelectionStateAsString());
+
+  // Re-focus the table. It should NOT change the selection because there
+  // already was a selection.
+  table_->RequestFocus();
+  EXPECT_EQ("active=1 anchor=1 selection=1", SelectionStateAsString());
+
+  // Clear focus, clear selection, and set select_on_focus to false.
+  table_->GetFocusManager()->ClearFocus();
+  table_->Select(std::nullopt);
+  table_->SetSelectOnFocus(false);
+  EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
+
+  // Focus the table again. It should NOT select the first row because
+  // select_on_focus is false.
+  table_->RequestFocus();
+  EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
+}
+
 // OnItemsRemoved() should ensure view-model mappings are updated in response to
 // the table model change before these view-model mappings are used.
 // Test for (https://crbug.com/1173373).

@@ -213,7 +213,7 @@ function testAllowTransparencyAttribute() {
 
 // This test verifies that a lengthy page with autosize enabled will report
 // the correct height in the sizechanged event.
-function testAutosizeHeight() {
+function testAutosizeHeight(expectedWidth) {
   var webview = document.createElement('webview');
 
   webview.autosize = true;
@@ -223,7 +223,6 @@ function testAutosizeHeight() {
   webview.maxheight = 200;
 
   var step = 1;
-  var finalWidth = 200;
   var finalHeight = 50;
   webview.addEventListener('sizechanged', function(e) {
     embedder.test.assertTrue(e.newHeight >= webview.minheight);
@@ -234,7 +233,7 @@ function testAutosizeHeight() {
       webview.maxheight = 50;
 
     // We are done once the size settles on the final width and height.
-    if (e.newHeight == finalHeight && e.newWidth == finalWidth)
+    if (e.newHeight == finalHeight && e.newWidth == expectedWidth)
       embedder.test.succeed();
     ++step;
   });
@@ -4100,7 +4099,8 @@ async function testWebRequestOnErrorOccurredNavigation() {
 
 embedder.test.testList = {
   'testAllowTransparencyAttribute': testAllowTransparencyAttribute,
-  'testAutosizeHeight': testAutosizeHeight,
+  'testAutosizeHeightFeatureEnabled': () => testAutosizeHeight(210),
+  'testAutosizeHeightFeatureDisabled': () => testAutosizeHeight(200),
   'testAutosizeAfterNavigation': testAutosizeAfterNavigation,
   'testAutosizeBeforeNavigation': testAutosizeBeforeNavigation,
   'testAutosizeRemoveAttributes': testAutosizeRemoveAttributes,

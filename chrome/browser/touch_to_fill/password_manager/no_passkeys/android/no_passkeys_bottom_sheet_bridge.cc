@@ -59,7 +59,7 @@ NoPasskeysBottomSheetBridge::NoPasskeysBottomSheetBridge(
     : jni_delegate_(std::move(jni_delegate)) {}
 
 NoPasskeysBottomSheetBridge::NoPasskeysBottomSheetBridge(
-    base::PassKey<class TouchToFillControllerWebAuthnTest>,
+    base::PassKey<class TouchToFillPasswordManagerWebAuthnDelegateTest>,
     std::unique_ptr<JniDelegate> jni_delegate)
     : jni_delegate_(std::move(jni_delegate)) {}
 

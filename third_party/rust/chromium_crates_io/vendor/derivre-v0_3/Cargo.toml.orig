@@ -1,6 +1,6 @@
 [package]
 name = "derivre"
-version = "0.3.11"
+version = "0.3.12"
 edition = "2021"
 authors = ["Michal Moskal <michal@moskal.me>"]
 license = "MIT"
@@ -17,13 +17,13 @@ ahash = { version = "0.8.11", optional = true }
 anyhow = "1.0.95"
 bytemuck = "1.21.0"
 bytemuck_derive = "1.8.1"
-hashbrown = { version = "0.15.2", default-features = false }
+hashbrown = { version = "0.17.1", default-features = false }
 regex-syntax = "0.8.5"
-strum = { version = "0.27.0", features = ["derive"] }
+strum = { version = "0.28.0", features = ["derive"] }
 
 [dev-dependencies]
 serde = { version = "1.0.217", features = ["derive"] }
-toml = "0.8.20"
+toml = "1.1.2"
 bstr = { version = "1.11.3", default-features = false, features = ["std", "serde"] }
 
 [[bin]]

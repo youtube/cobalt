@@ -8,12 +8,14 @@
 #include <utility>
 
 #include "base/check_deref.h"
+#include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
@@ -32,14 +34,17 @@
 #include "chrome/browser/signin/signin_hats_util.h"
 #include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/profiles/feature_showcase/default_browser_step_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_eligibility_tracker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_step_eligibility_checker.h"
+#include "chrome/browser/ui/views/profiles/feature_showcase/google_lens_step_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/password_manager_feature_showcase_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller_impl.h"
 #include "chrome/browser/ui/views/profiles/profile_management_step_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_management_types.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_post_sign_in_adapter.h"
+#include "chrome/browser/ui/views/profiles/profile_picker_toolbar.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
 #include "chrome/browser/ui/webui/feature_showcase/feature_showcase_ui.h"
 #include "chrome/browser/ui/webui/intro/intro_ui.h"
@@ -47,6 +52,7 @@
 #include "chrome/common/channel_info.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/browser_resources.h"
 #include "components/prefs/pref_service.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/signin/public/base/consent_level.h"
@@ -56,9 +62,12 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "components/signin/public/identity_manager/tribool.h"
+#include "content/public/browser/audio_service.h"
 #include "content/public/browser/web_ui.h"
 #include "google_apis/gaia/core_account_id.h"
+#include "media/base/audio_codecs.h"
 #include "net/base/url_util.h"
+#include "services/audio/public/cpp/sounds/sounds_manager.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -76,29 +85,14 @@
 
 namespace {
 
-constexpr base::TimeDelta kDefaultBrowserCheckTimeout = base::Seconds(2);
+FirstRunFlowController::SoundsManagerFactory& GetSoundsManagerFactory() {
+  static base::NoDestructor<FirstRunFlowController::SoundsManagerFactory>
+      factory(base::BindRepeating(&audio::SoundsManager::Create));
+  return *factory;
+}
 
 const signin_metrics::AccessPoint kAccessPoint =
     signin_metrics::AccessPoint::kForYouFre;
-
-enum class ShowDefaultBrowserStep {
-  // The default browser step should be shown as appropriate.
-  kYes,
-  // The default browser step should be skipped.
-  kNo,
-  // The default browser step should be shown even if we normally should skip
-  // it, example because of policies or the current default state.
-  kForce
-};
-
-bool IsDefaultBrowserDisabledByPolicy() {
-  const PrefService::Preference* pref =
-      g_browser_process->local_state()->FindPreference(
-          prefs::kDefaultBrowserSettingEnabled);
-  CHECK(pref);
-  DCHECK(pref->GetValue()->is_bool());
-  return pref->IsManaged() && !pref->GetValue()->GetBool();
-}
 
 void MaybeLogSetAsDefaultSuccess(
     shell_integration::DefaultWebClientState state) {
@@ -123,6 +117,7 @@ bool IsPostIdentityStep(ProfileManagementFlowController::Step step) {
     case ProfileManagementFlowController::Step::kDefaultBrowser:
     case ProfileManagementFlowController::Step::kSearchEngineChoice:
     case ProfileManagementFlowController::Step::kFeatureShowcase:
+    case ProfileManagementFlowController::Step::kFinishOrContinue:
       return true;
   }
 }
@@ -248,8 +243,10 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
  public:
   explicit DefaultBrowserStepController(
       ProfilePickerWebContentsHost* host,
+      Profile* profile,
       base::OnceClosure step_completed_callback)
       : ProfileManagementStepController(host),
+        profile_(CHECK_DEREF(profile)),
         step_completed_callback_(std::move(step_completed_callback)) {}
 
   ~DefaultBrowserStepController() override {
@@ -263,45 +260,30 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
             bool reset_state) override {
     CHECK(!step_shown_callback->is_null());
     CHECK(reset_state);
-    const ShowDefaultBrowserStep show_screen = ShouldShowScreen();
-
-    if (show_screen == ShowDefaultBrowserStep::kNo) {
-      // Mark that this step was skipped and proceed with the next one.
-      std::move(step_shown_callback.value()).Run(false);
-      std::move(step_completed_callback_).Run();
-      return;
-    }
 
     step_shown_callback_ = std::move(step_shown_callback);
-    navigation_finished_closure_ = base::BindOnce(
-        &DefaultBrowserStepController::OnLoadFinished, base::Unretained(this));
 
     show_default_browser_screen_callback_ =
         base::BindOnce(&DefaultBrowserStepController::ShowDefaultBrowserScreen,
                        weak_ptr_factory_.GetWeakPtr());
 
-    // If the feature is set to forced, show the step even if it's already
-    // the default browser.
-    if (show_screen == ShowDefaultBrowserStep::kForce) {
-      std::move(show_default_browser_screen_callback_).Run();
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    if (CHECK_DEREF(command_line)
+            .HasSwitch(switches::kForceFreDefaultBrowserStep)) {
+      OnEligibilityDetermined(true);
       return;
     }
 
-    // Set up the timeout closure, in case checking if the browser is already
-    // set as default isn't completed before the timeout.
-    default_browser_check_timeout_closure_.Reset(base::BindOnce(
+    timeout_closure_.Reset(base::BindOnce(
         &DefaultBrowserStepController::OnDefaultBrowserCheckTimeout,
         weak_ptr_factory_.GetWeakPtr()));
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, default_browser_check_timeout_closure_.callback(),
-        kDefaultBrowserCheckTimeout);
+        FROM_HERE, timeout_closure_.callback(), base::Seconds(2));
 
-    // Check if browser is already set as default. If it isn't, show default
-    // browser step.
-    base::MakeRefCounted<shell_integration::DefaultBrowserWorker>()
-        ->StartCheckIsDefault(base::BindOnce(
-            &DefaultBrowserStepController::OnDefaultBrowserCheckFinished,
-            weak_ptr_factory_.GetWeakPtr()));
+    checker_.CheckEligibility(
+        *profile_,
+        base::BindOnce(&DefaultBrowserStepController::OnEligibilityDetermined,
+                       weak_ptr_factory_.GetWeakPtr()));
   }
 
   void OnNavigateBackRequested() override {
@@ -309,39 +291,78 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
   }
 
  private:
-  void OnLoadFinished() {
+  void OnDefaultBrowserCheckTimeout() {
+    if (!step_completed_callback_) {
+      return;
+    }
+
+    base::UmaHistogramEnumeration("ProfilePicker.FirstRun.DefaultBrowser",
+                                  DefaultBrowserChoice::kNotShownOnTimeout);
+    // Mark that this step was skipped and proceed with the next one.
+    std::move(step_shown_callback_.value()).Run(false);
+    std::move(step_completed_callback_).Run();
+    show_default_browser_screen_callback_.Reset();
+  }
+
+  void OnEligibilityDetermined(bool is_eligible) {
+    if (!show_default_browser_screen_callback_) {
+      return;
+    }
+
+    timeout_closure_.Cancel();
+
+    if (is_eligible) {
+#if BUILDFLAG(IS_WIN)
+      // Check if Chrome can pin to the taskbar, which is an async call. When it
+      // finishes, the result will be recorded and
+      // `show_default_browser_screen_callback_` will be run.
+      browser_util::ShouldOfferToPin(
+          ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
+          browser_util::PinAppToTaskbarChannel::kFirstRunExperience,
+          base::BindOnce(&DefaultBrowserStepController::OnCanPinToTaskbarResult,
+                         weak_ptr_factory_.GetWeakPtr()));
+      return;
+#else
+      std::move(show_default_browser_screen_callback_).Run(/*can_pin=*/false);
+#endif  // BUILDFLAG(IS_WIN)
+    } else {
+      // Mark that this step was skipped and proceed with the next one.
+      std::move(step_shown_callback_.value()).Run(false);
+      std::move(step_completed_callback_).Run();
+    }
+  }
+
+  void OnLoadFinished(bool can_pin) {
     auto* intro_ui = host()
                          ->GetPickerContents()
                          ->GetWebUI()
                          ->GetController()
                          ->GetAs<IntroUI>();
     CHECK(intro_ui);
-    if (can_pin_) {
-      intro_ui->SetCanPinToTaskbar(can_pin_);
+    if (can_pin) {
+      intro_ui->SetCanPinToTaskbar(can_pin);
     }
     intro_ui->SetDefaultBrowserCallback(DefaultBrowserCallback(
         base::BindOnce(&DefaultBrowserStepController::OnStepCompleted,
                        // WeakPtr: The callback is given to the WebUIController,
                        // owned by the webcontents, which lifecycle is not
                        // bounded by a single step.
-                       weak_ptr_factory_.GetWeakPtr())));
+                       weak_ptr_factory_.GetWeakPtr(), can_pin)));
   }
 
   void OnCanPinToTaskbarResult(bool can_pin) {
-    can_pin_ = can_pin;
-    std::move(show_default_browser_screen_callback_).Run();
+    std::move(show_default_browser_screen_callback_).Run(can_pin);
   }
 
-  void OnStepCompleted(DefaultBrowserChoice choice) {
+  void OnStepCompleted(bool can_pin, DefaultBrowserChoice choice) {
     if (choice == DefaultBrowserChoice::kClickSetAsDefault) {
-      CHECK(!IsDefaultBrowserDisabledByPolicy());
       // The worker pointer is reference counted. While it is running, sequence
       // it runs on will hold references to it and it will be automatically
       // freed once all its tasks have finished.
       base::MakeRefCounted<shell_integration::DefaultBrowserWorker>()
           ->StartSetAsDefault(base::BindOnce(&MaybeLogSetAsDefaultSuccess));
 #if BUILDFLAG(IS_WIN)
-      if (can_pin_) {
+      if (can_pin) {
         browser_util::PinAppToTaskbar(
             ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
             browser_util::PinAppToTaskbarChannel::kFirstRunExperience,
@@ -355,126 +376,58 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
     std::move(step_completed_callback_).Run();
   }
 
-  void OnDefaultBrowserCheckFinished(
-      shell_integration::DefaultWebClientState state) {
-    if (!show_default_browser_screen_callback_) {
-      return;
+  void ShowDefaultBrowserScreen(bool can_pin) {
+    base::OnceClosure navigation_finished_closure =
+        base::BindOnce(&DefaultBrowserStepController::OnLoadFinished,
+                       base::Unretained(this), can_pin);
+
+    if (!step_shown_callback_->is_null()) {
+      // Notify the previous step before executing this step's initialization
+      // callback.
+      navigation_finished_closure =
+          base::BindOnce(std::move(step_shown_callback_.value()), true)
+              .Then(std::move(navigation_finished_closure));
     }
 
-    // Cancel timeout.
-    default_browser_check_timeout_closure_.Cancel();
-
-    bool should_show_default_browser_step =
-        state == shell_integration::NOT_DEFAULT ||
-        state == shell_integration::OTHER_MODE_IS_DEFAULT;
-
-    if (should_show_default_browser_step) {
-#if BUILDFLAG(IS_WIN)
-      // Check if Chrome can pin to the taskbar, which is an async call. When it
-      // finishes, the result will be recorded and
-      // `show_default_browser_screen_callback_` will be run.
-      browser_util::ShouldOfferToPin(
-          ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
-          browser_util::PinAppToTaskbarChannel::kFirstRunExperience,
-          base::BindOnce(&DefaultBrowserStepController::OnCanPinToTaskbarResult,
-                         weak_ptr_factory_.GetWeakPtr()));
-      return;
-#else
-      std::move(show_default_browser_screen_callback_).Run();
-#endif  // BUILDFLAG(IS_WIN)
-    } else {
-      // Mark that this step was skipped and proceed with the next one.
-      std::move(step_shown_callback_.value()).Run(false);
-      std::move(step_completed_callback_).Run();
-    }
+    host()->ShowScreenInPickerContents(
+        GURL(chrome::kChromeUIIntroDefaultBrowserURL),
+        std::move(navigation_finished_closure));
   }
 
-  void OnDefaultBrowserCheckTimeout() {
-    if (!step_completed_callback_) {
-      return;
-    }
-
-    base::UmaHistogramEnumeration("ProfilePicker.FirstRun.DefaultBrowser",
-                                  DefaultBrowserChoice::kNotShownOnTimeout);
-    // Mark that this step was skipped and proceed with the next one.
-    std::move(step_shown_callback_.value()).Run(false);
-    std::move(step_completed_callback_).Run();
-  }
-
-  void ShowDefaultBrowserScreen() {
-    if (navigation_finished_closure_) {
-      if (!step_shown_callback_->is_null()) {
-        // Notify the previous step before executing this step's initialization
-        // callback.
-        navigation_finished_closure_ =
-            base::BindOnce(std::move(step_shown_callback_.value()), true)
-                .Then(std::move(navigation_finished_closure_));
-      }
-
-      host()->ShowScreenInPickerContents(
-          GURL(chrome::kChromeUIIntroDefaultBrowserURL),
-          std::move(navigation_finished_closure_));
-    }
-  }
-
-  ShowDefaultBrowserStep ShouldShowScreen() const {
-    bool should_show_default_browser_step =
-        // Check for policies.
-        !IsDefaultBrowserDisabledByPolicy() &&
-        // Some releases cannot be set as default browser.
-        shell_integration::CanSetAsDefaultBrowser();
-
-    if (!should_show_default_browser_step) {
-      return ShowDefaultBrowserStep::kNo;
-    }
-
-    // The default browser step should be shown only on Windows. We only show it
-    // on Windows because we display a dialog before the FRE on MacOS and Linux
-    // to ask the user about the default browser. If it's forced, it should be
-    // shown on the other platforms for testing.
-#if BUILDFLAG(IS_WIN)
-    return ShowDefaultBrowserStep::kYes;
-#else
-    // Non-Windows platforms should not show this unless forced (e.g.
-    // command line)
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    return command_line->HasSwitch(switches::kForceFreDefaultBrowserStep)
-               ? ShowDefaultBrowserStep::kForce
-               : ShowDefaultBrowserStep::kNo;
-#endif  // BUILDFLAG(IS_WIN)
-  }
+  raw_ref<Profile> profile_;
+  DefaultBrowserStepEligibilityChecker checker_;
 
   // Callback to be executed when the step is completed.
   base::OnceClosure step_completed_callback_;
   StepSwitchFinishedCallback step_shown_callback_;
 
-  // Whether or not Chrome be pinned to the taskbar.
-  bool can_pin_ = false;
-
-  base::OnceClosure navigation_finished_closure_;
-  base::CancelableOnceClosure default_browser_check_timeout_closure_;
-  base::OnceClosure show_default_browser_screen_callback_;
+  base::OnceCallback<void(bool)> show_default_browser_screen_callback_;
+  base::CancelableOnceClosure timeout_closure_;
   base::WeakPtrFactory<DefaultBrowserStepController> weak_ptr_factory_{this};
 };
 
 class FeatureShowcaseStepController : public ProfileManagementStepController {
  public:
-  explicit FeatureShowcaseStepController(
-      ProfilePickerWebContentsHost* host,
-      Profile* profile,
-      base::OnceClosure step_completed_callback)
+  FeatureShowcaseStepController(ProfilePickerWebContentsHost* host,
+                                Profile* profile,
+                                base::OnceClosure step_completed_callback)
       : ProfileManagementStepController(host),
         profile_(profile),
         step_completed_callback_(std::move(step_completed_callback)) {
+    CHECK(step_completed_callback_);
     std::vector<std::unique_ptr<FeatureShowcaseStepEligibilityChecker>>
         checkers;
-
     // Register checkers in order of priority (highest first).
+    checkers.push_back(
+        std::make_unique<DefaultBrowserStepEligibilityChecker>());
+    checkers.push_back(std::make_unique<GoogleLensStepEligibilityChecker>());
     checkers.push_back(
         std::make_unique<PasswordManagerFeatureShowcaseEligibilityChecker>());
     tracker_ = std::make_unique<FeatureShowcaseEligibilityTracker>(
         std::move(checkers));
   }
+
+  bool is_eligible() const { return is_eligible_; }
 
   ~FeatureShowcaseStepController() override = default;
 
@@ -504,16 +457,46 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
 
  private:
   void OnEligibilityDetermined(const std::vector<std::string>& eligible_steps) {
-    if (eligible_steps.empty()) {
+    is_eligible_ = !eligible_steps.empty();
+
+    if (!is_eligible_) {
       std::move(step_shown_callback_.value()).Run(/*success=*/false);
       std::move(step_completed_callback_).Run();
       return;
     }
 
+    if (std::find(eligible_steps.begin(), eligible_steps.end(),
+                  kFeatureShowcaseDefaultBrowserStepIdentifier) !=
+        eligible_steps.end()) {
+#if BUILDFLAG(IS_WIN)
+      browser_util::ShouldOfferToPin(
+          ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
+          browser_util::PinAppToTaskbarChannel::kFirstRunExperience,
+          base::BindOnce(
+              &FeatureShowcaseStepController::OnCanPinToTaskbarResult,
+              weak_ptr_factory_.GetWeakPtr(), eligible_steps));
+#else
+      ShowScreen(eligible_steps, /*can_pin=*/false);
+#endif
+      return;
+    }
+
+    ShowScreen(eligible_steps, /*can_pin=*/false);
+  }
+
+#if BUILDFLAG(IS_WIN)
+  void OnCanPinToTaskbarResult(const std::vector<std::string>& eligible_steps,
+                               bool can_pin) {
+    ShowScreen(eligible_steps, can_pin);
+  }
+#endif
+
+  void ShowScreen(const std::vector<std::string>& eligible_steps,
+                  bool can_pin) {
     host()->ShowScreenInPickerContents(
         BuildFeatureShowcaseURL(eligible_steps),
         base::BindOnce(&FeatureShowcaseStepController::OnLoadFinished,
-                       weak_ptr_factory_.GetWeakPtr()));
+                       weak_ptr_factory_.GetWeakPtr(), can_pin));
   }
 
   GURL BuildFeatureShowcaseURL(const std::vector<std::string>& steps) {
@@ -522,7 +505,7 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
                                      base::JoinString(steps, ","));
   }
 
-  void OnLoadFinished() {
+  void OnLoadFinished(bool can_pin) {
     if (!step_shown_callback_->is_null()) {
       std::move(step_shown_callback_.value()).Run(/*success=*/true);
     }
@@ -533,6 +516,10 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
                             ->GetController()
                             ->GetAs<FeatureShowcaseUI>();
     CHECK(showcase_ui);
+
+    if (can_pin) {
+      showcase_ui->SetCanPinToTaskbar(can_pin);
+    }
 
     showcase_ui->SetFinishCallback(
         base::BindOnce(&FeatureShowcaseStepController::OnStepCompleted,
@@ -545,6 +532,7 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
   }
 
   raw_ptr<Profile> profile_;
+  bool is_eligible_ = false;
   base::OnceClosure step_completed_callback_;
   StepSwitchFinishedCallback step_shown_callback_;
   std::unique_ptr<FeatureShowcaseEligibilityTracker> tracker_;
@@ -552,12 +540,66 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
   base::WeakPtrFactory<FeatureShowcaseStepController> weak_ptr_factory_{this};
 };
 
+class FinishOrContinueStepController : public ProfileManagementStepController {
+ public:
+  FinishOrContinueStepController(
+      ProfilePickerWebContentsHost* host,
+      base::OnceCallback<bool()> eligibility_callback,
+      base::OnceClosure step_completed_callback)
+      : ProfileManagementStepController(host),
+        eligibility_callback_(std::move(eligibility_callback)),
+        step_completed_callback_(std::move(step_completed_callback)) {}
+
+  ~FinishOrContinueStepController() override = default;
+
+  void Show(StepSwitchFinishedCallback step_shown_callback,
+            bool reset_state) override {
+    CHECK(reset_state);
+    CHECK(eligibility_callback_);
+    CHECK(!step_shown_callback->is_null());
+    step_shown_callback_ = std::move(step_shown_callback);
+
+    const GURL url = net::AppendQueryParameter(
+        GURL(chrome::kChromeUIIntroURL)
+            .Resolve(chrome::kChromeUIIntroFinishOrContinueSubPage),
+        "showcase", std::move(eligibility_callback_).Run() ? "true" : "false");
+
+    host()->ShowScreenInPickerContents(
+        url, base::BindOnce(&FinishOrContinueStepController::OnLoadFinished,
+                            weak_ptr_factory_.GetWeakPtr()));
+  }
+
+  void OnNavigateBackRequested() override {
+    // Navigating back is not allowed for the finish or continue step.
+    NOTREACHED();
+  }
+
+ private:
+  void OnLoadFinished() {
+    CHECK(!step_shown_callback_->is_null());
+    std::move(step_shown_callback_.value()).Run(/*success=*/true);
+    // TODO(crbug.com/516392211): Remove once button actions are implemented.
+    OnStepCompleted();
+  }
+
+  void OnStepCompleted() {
+    CHECK(step_completed_callback_);
+    std::move(step_completed_callback_).Run();
+  }
+
+  base::OnceCallback<bool()> eligibility_callback_;
+  base::OnceClosure step_completed_callback_;
+  StepSwitchFinishedCallback step_shown_callback_;
+  base::WeakPtrFactory<FinishOrContinueStepController> weak_ptr_factory_{this};
+};
+
 using IdentityStepsCompletedCallback =
     base::OnceCallback<void(PostHostClearedCallback post_host_cleared_callback,
                             bool is_continue_callback)>;
 
-// Instance allowing `TurnSyncOnHelper` to drive the interface in the
-// `kPostSignIn` step.
+// Instance allowing `TurnSyncOnHelper` (in legacy sync flow) or
+// `HistorySyncOptinHelper` (in new history sync flow) to drive the interface in
+// the `kPostSignIn` step.
 class FirstRunPostSignInAdapter : public ProfilePickerPostSignInAdapter {
  public:
   FirstRunPostSignInAdapter(
@@ -565,22 +607,26 @@ class FirstRunPostSignInAdapter : public ProfilePickerPostSignInAdapter {
       Profile* profile,
       const CoreAccountInfo& account_info,
       std::unique_ptr<content::WebContents> contents,
-      IdentityStepsCompletedCallback step_completed_callback)
+      IdentityStepsCompletedCallback step_completed_callback,
+      base::OnceClosure play_celebration_sound_callback)
       : ProfilePickerPostSignInAdapter(host,
                                        profile,
                                        account_info,
                                        std::move(contents),
                                        kAccessPoint,
                                        /*profile_color=*/std::nullopt),
-        step_completed_callback_(std::move(step_completed_callback)) {
+        step_completed_callback_(std::move(step_completed_callback)),
+        play_celebration_sound_callback_(
+            std::move(play_celebration_sound_callback)) {
     DCHECK(step_completed_callback_);
   }
 
   void Init(StepSwitchFinishedCallback step_switch_callback) override {
     // Stop with the sign-in navigation and show a spinner instead. The spinner
-    // will be shown until TurnSyncOnHelper figures out whether it's a
-    // managed account and whether sync is disabled by policies (which in some
-    // cases involves fetching policies and can take a couple of seconds).
+    // will be shown until TurnSyncOnHelper or HistorySyncOptinHelper figures
+    // out whether it's a managed account and whether sync/policies are resolved
+    // (which in some cases involves fetching policies/capabilities and can take
+    // a couple of seconds).
     host()->ShowScreen(contents(), GetSyncConfirmationURL(/*loading=*/true),
                        /*navigation_finished_closure=*/base::OnceClosure());
 
@@ -621,8 +667,27 @@ class FirstRunPostSignInAdapter : public ProfilePickerPostSignInAdapter {
         .Run(std::move(combined_callback), is_continue_callback);
   }
 
+  void ShowSignInCelebration(base::OnceClosure celebration_finished) override {
+    ProfilePickerPostSignInAdapter::ShowSignInCelebration(
+        std::move(celebration_finished));
+    if (play_celebration_sound_callback_) {
+      std::move(play_celebration_sound_callback_).Run();
+    }
+  }
+
+  void ShowAccountManagementScreen(
+      signin::SigninChoiceCallback on_account_management_screen_closed)
+      override {
+    ProfilePickerPostSignInAdapter::ShowAccountManagementScreen(
+        std::move(on_account_management_screen_closed));
+    if (play_celebration_sound_callback_) {
+      std::move(play_celebration_sound_callback_).Run();
+    }
+  }
+
  private:
   IdentityStepsCompletedCallback step_completed_callback_;
+  base::OnceClosure play_celebration_sound_callback_;
 };
 
 }  // namespace
@@ -639,9 +704,10 @@ std::unique_ptr<ProfileManagementStepController> CreateIntroStep(
 
 std::unique_ptr<ProfileManagementStepController> CreateDefaultBrowserStep(
     ProfilePickerWebContentsHost* host,
+    Profile* profile,
     base::OnceClosure step_completed_callback) {
   return std::make_unique<DefaultBrowserStepController>(
-      host, std::move(step_completed_callback));
+      host, profile, std::move(step_completed_callback));
 }
 
 std::unique_ptr<ProfileManagementStepController> CreateFeatureShowcaseStep(
@@ -650,6 +716,15 @@ std::unique_ptr<ProfileManagementStepController> CreateFeatureShowcaseStep(
     base::OnceClosure step_completed_callback) {
   return std::make_unique<FeatureShowcaseStepController>(
       host, profile, std::move(step_completed_callback));
+}
+
+std::unique_ptr<ProfileManagementStepController> CreateFinishOrContinueStep(
+    ProfilePickerWebContentsHost* host,
+    base::OnceCallback<bool()> eligibility_callback,
+    base::OnceClosure step_completed_callback) {
+  return std::make_unique<FinishOrContinueStepController>(
+      host, std::move(eligibility_callback),
+      std::move(step_completed_callback));
 }
 
 FirstRunFlowController::FirstRunFlowController(
@@ -695,16 +770,34 @@ void FirstRunFlowController::ShowSigninError(Profile* profile,
   HandleSigninErrorInBrowser(profile, error);
 }
 
-void FirstRunFlowController::ToggleMediaEffects(bool active) {
-  if (ProfileManagementStepController* current_step_controller =
-          GetCurrentStepController()) {
-    current_step_controller->ToggleMediaEffects(active);
+ProfilePickerToolbar::Builder FirstRunFlowController::CreateToolbarBuilder() {
+  ProfilePickerToolbar::Builder builder =
+      ProfileManagementFlowController::CreateToolbarBuilder();
+  const bool is_in_search_engine_choice_region =
+      IsProfileInSearchEngineChoiceRegion(profile_);
+  if (switches::IsFirstRunDesktopRefreshEnabled(
+          is_in_search_engine_choice_region) &&
+      switches::kFirstRunDesktopSignInPromoVariation.Get() ==
+          switches::FirstRunDesktopSignInPromoVariation::
+              kDontSignInOnGaiaPage) {
+    builder.WithDontSignInButton(
+        base::BindRepeating(&FirstRunFlowController::CancelSigninFlow,
+                            weak_ptr_factory_.GetWeakPtr()));
   }
-  // TODO(crbug.com/485150597): Add resuming/pausing the audio.
+
+  if (switches::IsFirstRunDesktopRevampEnabled(
+          is_in_search_engine_choice_region)) {
+    builder.WithEffectsControlButton(
+        base::BindRepeating(&FirstRunFlowController::ToggleMediaEffects,
+                            weak_ptr_factory_.GetWeakPtr()));
+  }
+  return builder;
 }
 
-bool FirstRunFlowController::AreEffectsEnabled() const {
-  return host()->AreEffectsEnabled();
+void FirstRunFlowController::PlaySignInCelebrationSound() {
+  if (sounds_manager_ && AreEffectsEnabled()) {
+    sounds_manager_->Play(kWelcomeBackSoundKey);
+  }
 }
 
 void FirstRunFlowController::Init() {
@@ -718,6 +811,26 @@ void FirstRunFlowController::Init() {
           base::BindRepeating(&FirstRunFlowController::AreEffectsEnabled,
                               base::Unretained(this))));
   SwitchToStep(Step::kIntro, /*reset_state=*/true);
+
+  if (switches::IsFirstRunDesktopRevampEnabled(
+          IsProfileInSearchEngineChoiceRegion(profile_))) {
+    sounds_manager_ = GetSoundsManagerFactory().Run(
+        content::GetAudioServiceStreamFactoryBinder());
+    if (sounds_manager_) {
+      sounds_manager_->Initialize(kLogoSoundKey, IDR_INTRO_SOUND_LOGO_FLAC,
+                                  media::AudioCodec::kFLAC, /*loop=*/false);
+      sounds_manager_->Initialize(kAmbientSoundKey,
+                                  IDR_INTRO_SOUND_AMBIENT_FLAC,
+                                  media::AudioCodec::kFLAC, /*loop=*/true);
+      sounds_manager_->Initialize(kWelcomeBackSoundKey,
+                                  IDR_INTRO_SOUND_WELCOME_BACK_FLAC,
+                                  media::AudioCodec::kFLAC, /*loop=*/false);
+      if (AreEffectsEnabled()) {
+        sounds_manager_->Play(kLogoSoundKey);
+        sounds_manager_->Play(kAmbientSoundKey);
+      }
+    }
+  }
 
   signin_metrics::LogSignInOffered(
       kAccessPoint, signin_metrics::PromoAction::
@@ -782,7 +895,11 @@ FirstRunFlowController::CreatePostSignInAdapter(
       base::BindOnce(&FirstRunFlowController::HandleIdentityStepsCompleted,
                      // Unretained ok: the callback is passed to a step that
                      // the `this` will own and outlive.
-                     base::Unretained(this), base::Unretained(profile_)));
+                     base::Unretained(this), base::Unretained(profile_)),
+      base::BindOnce(&FirstRunFlowController::PlaySignInCelebrationSound,
+                     // Unretained ok: the callback is passed to a step
+                     // that the `this` will own and outlive.
+                     base::Unretained(this)));
 }
 
 void FirstRunFlowController::RunFinishFlowCallback() {
@@ -798,6 +915,29 @@ std::string FirstRunFlowController::GetHatsSurveyTrigger() const {
   }
 
   return kHatsSurveyTriggerIdentityFirstRunCompleted;
+}
+
+void FirstRunFlowController::ToggleMediaEffects(bool active) {
+  if (ProfileManagementStepController* current_step_controller =
+          GetCurrentStepController()) {
+    current_step_controller->ToggleMediaEffects(active);
+  }
+  if (sounds_manager_) {
+    if (active) {
+      // Resume only the ambient sound, other (on action) sounds are played
+      // once, and resuming them may be confusing for the user.
+      sounds_manager_->Play(kAmbientSoundKey);
+    } else {
+      sounds_manager_->Pause(kAmbientSoundKey);
+      // Stop one-shot sounds, safe to call even if not playing.
+      sounds_manager_->Stop(kLogoSoundKey);
+      sounds_manager_->Stop(kWelcomeBackSoundKey);
+    }
+  }
+}
+
+bool FirstRunFlowController::AreEffectsEnabled() const {
+  return host()->AreEffectsEnabled();
 }
 
 void FirstRunFlowController::MaybeTriggerHatsSurvey() {
@@ -866,26 +1006,49 @@ FirstRunFlowController::RegisterPostIdentitySteps(
   post_identity_steps.emplace(
       ProfileManagementFlowController::Step::kSearchEngineChoice);
 
-  auto default_browser_promo_step_completed =
-      base::BindOnce(&FirstRunFlowController::AdvanceToNextPostIdentityStep,
-                     base::Unretained(this));
-  RegisterStep(Step::kDefaultBrowser,
-               CreateDefaultBrowserStep(
-                   host(), std::move(default_browser_promo_step_completed)));
-  post_identity_steps.emplace(
-      ProfileManagementFlowController::Step::kDefaultBrowser);
-
-  if (switches::IsFirstRunDesktopRevampEnabled(
-          IsProfileInSearchEngineChoiceRegion(profile_))) {
-    auto feature_showcase_step_completed =
+  const bool is_desktop_revamp_enabled =
+      switches::IsFirstRunDesktopRevampEnabled(
+          IsProfileInSearchEngineChoiceRegion(profile_));
+  if (!is_desktop_revamp_enabled) {
+    auto default_browser_promo_step_completed =
         base::BindOnce(&FirstRunFlowController::AdvanceToNextPostIdentityStep,
                        base::Unretained(this));
     RegisterStep(
-        Step::kFeatureShowcase,
-        CreateFeatureShowcaseStep(host(), profile_,
-                                  std::move(feature_showcase_step_completed)));
+        Step::kDefaultBrowser,
+        CreateDefaultBrowserStep(
+            host(), profile_, std::move(default_browser_promo_step_completed)));
+    post_identity_steps.emplace(
+        ProfileManagementFlowController::Step::kDefaultBrowser);
+  }
+
+  if (is_desktop_revamp_enabled) {
+    auto feature_showcase_step_completed =
+        base::BindOnce(&FirstRunFlowController::AdvanceToNextPostIdentityStep,
+                       base::Unretained(this));
+    auto feature_showcase_step =
+        std::make_unique<FeatureShowcaseStepController>(
+            host(), profile_, std::move(feature_showcase_step_completed));
+    FeatureShowcaseStepController* feature_showcase_step_ptr =
+        feature_showcase_step.get();
+    RegisterStep(Step::kFeatureShowcase, std::move(feature_showcase_step));
     post_identity_steps.emplace(
         ProfileManagementFlowController::Step::kFeatureShowcase);
+
+    auto finish_or_continue_step_completed =
+        base::BindOnce(&FirstRunFlowController::AdvanceToNextPostIdentityStep,
+                       base::Unretained(this));
+    RegisterStep(
+        Step::kFinishOrContinue,
+        CreateFinishOrContinueStep(
+            host(),
+            base::BindOnce(&FeatureShowcaseStepController::is_eligible,
+                           // Unretained ok: sibling step controllers are
+                           // guaranteed to have the same lifetime as the
+                           // flow controller
+                           base::Unretained(feature_showcase_step_ptr)),
+            std::move(finish_or_continue_step_completed)));
+    post_identity_steps.emplace(
+        ProfileManagementFlowController::Step::kFinishOrContinue);
   }
 
   RegisterStep(
@@ -896,4 +1059,13 @@ FirstRunFlowController::RegisterPostIdentitySteps(
   post_identity_steps.emplace(
       ProfileManagementFlowController::Step::kFinishFlow);
   return post_identity_steps;
+}
+
+// static
+base::AutoReset<FirstRunFlowController::SoundsManagerFactory>
+FirstRunFlowController::SetSoundsManagerFactoryForTesting(  // IN-TEST
+    FirstRunFlowController::SoundsManagerFactory factory) {
+  CHECK_IS_TEST();
+  return base::AutoReset<SoundsManagerFactory>(&GetSoundsManagerFactory(),
+                                               std::move(factory));
 }

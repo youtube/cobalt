@@ -118,12 +118,14 @@ struct VideoOptions {
     SetFrom(&video_noise_reduction, change.video_noise_reduction);
     SetFrom(&screencast_min_bitrate_kbps, change.screencast_min_bitrate_kbps);
     SetFrom(&is_screencast, change.is_screencast);
+    SetFrom(&allow_zero_hertz_video, change.allow_zero_hertz_video);
   }
 
   bool operator==(const VideoOptions& o) const {
     return video_noise_reduction == o.video_noise_reduction &&
            screencast_min_bitrate_kbps == o.screencast_min_bitrate_kbps &&
-           is_screencast == o.is_screencast;
+           is_screencast == o.is_screencast &&
+           allow_zero_hertz_video == o.allow_zero_hertz_video;
   }
   bool operator!=(const VideoOptions& o) const { return !(*this == o); }
 
@@ -134,6 +136,7 @@ struct VideoOptions {
     ost << ToStringIfSet("screencast min bitrate kbps",
                          screencast_min_bitrate_kbps);
     ost << ToStringIfSet("is_screencast ", is_screencast);
+    ost << ToStringIfSet("allow_zero_hertz_video ", allow_zero_hertz_video);
     ost << "}";
     return ost.Release();
   }
@@ -154,6 +157,9 @@ struct VideoOptions {
   // youtube video have different needs.
   std::optional<bool> is_screencast;
   VideoTrackInterface::ContentHint content_hint;
+  // Allows the zero-hertz feature to be enabled for regular video, false by
+  // default.
+  std::optional<bool> allow_zero_hertz_video;
 
  private:
   template <typename T>

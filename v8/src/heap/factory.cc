@@ -50,14 +50,15 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/feedback-cell-inl.h"
-#include "src/objects/feedback-cell.h"
+#include "src/objects/fixed-array-base-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/hash-seed-wrapper.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -75,6 +76,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/objects.h"
+#include "src/objects/pod-array-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/scope-info.h"
@@ -85,7 +87,6 @@
 #include "src/objects/templates.h"
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots-inl.h"
-#include "src/roots/roots.h"
 #include "src/sandbox/isolate.h"
 #include "src/strings/unicode-inl.h"
 #if V8_ENABLE_WEBASSEMBLY
@@ -4001,7 +4002,8 @@ DirectHandle<SourceTextModule> Factory::NewSourceTextModule(
 
 Handle<SyntheticModule> Factory::NewSyntheticModule(
     DirectHandle<String> module_name, DirectHandle<FixedArray> export_names,
-    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
+    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps,
+    DirectHandle<Object> host_defined_options) {
   ReadOnlyRoots roots(isolate());
 
   const uint32_t exports_len = export_names->ulength().value();
@@ -4026,6 +4028,7 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   module->set_export_names(*export_names);
   module->set_exports(*exports);
   module->set_evaluation_steps(*evaluation_steps_foreign);
+  module->set_host_defined_options(*host_defined_options);
   return handle(module, isolate());
 }
 
@@ -4530,8 +4533,9 @@ Handle<DebugInfo> Factory::NewDebugInfo(
     DirectHandle<SharedFunctionInfo> shared) {
   DCHECK(!shared->HasDebugInfo(isolate()));
 
-  auto debug_info =
-      NewStructInternal<DebugInfo>(DEBUG_INFO_TYPE, AllocationType::kOld);
+  Tagged<DebugInfo> debug_info =
+      TrustedCast<DebugInfo>(AllocateRawWithImmortalMap(
+          sizeof(DebugInfo), AllocationType::kTrusted, *debug_info_map()));
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> raw_shared = *shared;
   debug_info->set_flags(DebugInfo::kNone, kRelaxedStore);
@@ -4539,9 +4543,11 @@ Handle<DebugInfo> Factory::NewDebugInfo(
   debug_info->set_debugger_hints(0);
   DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info->debugging_id());
   debug_info->set_break_points(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  debug_info->set_coverage_info(*undefined_value(), SKIP_WRITE_BARRIER);
   debug_info->clear_original_bytecode_array();
   debug_info->clear_debug_bytecode_array();
 
+  debug_info->InitAndPublish(isolate());
   return handle(debug_info, isolate());
 }
 
@@ -5540,6 +5546,18 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   }
 
   return function_handle;
+}
+
+Handle<HashSeedWrapper> Factory::NewHashSeedWrapper() {
+  static_assert(sizeof(HashSeedWrapper) <= kMaxRegularHeapObjectSize);
+  Tagged<Map> map = read_only_roots().hash_seed_wrapper_map();
+  constexpr size_t data_offset = offsetof(HashSeedWrapper, data_);
+  static_assert(data_offset == 4 || data_offset == 8);
+  AllocationAlignment alignment =
+      data_offset == 4 ? kDoubleUnaligned : kDoubleAligned;
+  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
+      sizeof(HashSeedWrapper), AllocationType::kReadOnly, map, alignment);
+  return handle(Cast<HashSeedWrapper>(result), isolate());
 }
 
 JSDispatchHandle Factory::NewJSDispatchHandle(uint16_t parameter_count,

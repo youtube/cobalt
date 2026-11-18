@@ -23,6 +23,7 @@ source_set("common") {
   deps = [
     "//base",
     "//base:i18n",
+    "//build:android_buildflags",
     "//components/url_formatter",
     "//ui/base:features",
     "//url",

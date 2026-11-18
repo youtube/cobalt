@@ -3368,6 +3368,26 @@ TEST_F(FileUtilTest, CreateAndOpenTemporaryFileInDir) {
 #endif
 }
 
+#if BUILDFLAG(IS_WIN)
+TEST_F(FileUtilTest, CreateAndOpenTemporaryFileInDirWithFlags) {
+  // Create a temporary file with flags that allow sharing for read and delete.
+  FilePath path;
+  uint32_t flags = File::FLAG_READ | File::FLAG_WRITE |
+                   File::FLAG_WIN_EXCLUSIVE_WRITE | File::FLAG_WIN_SHARE_DELETE;
+  File file = CreateAndOpenTemporaryFileInDirWithFlags(temp_dir_.GetPath(),
+                                                       &path, flags);
+  ASSERT_TRUE(file.IsValid());
+  EXPECT_FALSE(path.empty());
+
+  // Try to open another handle to it for reading.
+  File file2(path,
+             File::FLAG_OPEN | File::FLAG_READ | File::FLAG_WIN_SHARE_DELETE);
+  // On all platforms (including Windows), this should succeed because we
+  // did not set FLAG_WIN_EXCLUSIVE_READ.
+  EXPECT_TRUE(file2.IsValid());
+}
+#endif
+
 TEST_F(FileUtilTest, CreateTemporaryFileTest) {
   std::array<FilePath, 3> temp_files;
   for (auto& i : temp_files) {

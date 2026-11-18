@@ -63,6 +63,11 @@ bool ShouldInterveneDownloadByFramePolicy(LocalFrame* frame) {
                         WebFeature::kDownloadInAdFrameWithoutUserGesture);
       should_intervene_download = true;
     }
+  } else if (frame->IsAdScriptInStack()) {
+    // We only record kDownloadFromAdScript if kDownloadInAdFrame is not set.
+    // This avoids double counting and makes it easier to isolate the impact
+    // of ad scripts.
+    UseCounter::Count(document, WebFeature::kDownloadFromAdScript);
   }
   if (frame->DomWindow()->IsSandboxed(
           network::mojom::blink::WebSandboxFlags::kDownloads)) {

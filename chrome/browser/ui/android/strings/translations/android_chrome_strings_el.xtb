@@ -244,6 +244,7 @@
 <translation id="2082238445998314030">Αποτέλεσμα <ph name="RESULT_NUMBER" /> από <ph name="TOTAL_RESULTS" /></translation>
 <translation id="2091863218454846791">Εμφάνιση συμπαγούς προβολής</translation>
 <translation id="2093731487903423814">τελευταία 15 λεπτά</translation>
+<translation id="2094298041331405438">Πατήστε εδώ για να κλείσετε όλα τα παράθυρα για ανώνυμη περιήγηση</translation>
 <translation id="2096577711562668473">Αλλαγή υπηρεσίας αυτόματης συμπλήρωσης;</translation>
 <translation id="2109384632594340939">φωτογραφία προφίλ</translation>
 <translation id="2111511281910874386">Μετάβαση στη σελίδα</translation>
@@ -505,6 +506,7 @@
 <translation id="3114507951000454849">Διαβάστε τις σημερινές ειδήσεις <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">Περισσότερες λεπτομέρειες</translation>
 <translation id="3123734510202723619">Ανακοινώσεις</translation>
+<translation id="3132267803114336523">Για να κλείσετε όλα τα παράθυρα για ανώνυμη περιήγηση, πατήστε την ένδειξη ανώνυμης περιήγησης</translation>
 <translation id="3134385238404760368">Δεν υπάρχουν πρόσφατες καρτέλες</translation>
 <translation id="3135655388926735587">Πατήστε Πρόσφατες καρτέλες</translation>
 <translation id="314939179385989105">Αρχική σελίδα του Chrome</translation>
@@ -613,6 +615,7 @@
 <translation id="3635073343384702370">Το Chrome μπορεί να ελέγξει τους κωδικούς πρόσβασής σας όταν τους αποθηκεύετε</translation>
 <translation id="3636940436873918441">Προτιμώμενες γλώσσες</translation>
 <translation id="3637744895182738742">Εάν ξεχάσετε τη φράση πρόσβασης ή θέλετε να αλλάξετε αυτή τη ρύθμιση, <ph name="BEGIN_LINK" />διαγράψτε τα δεδομένα του Chrome στον λογαριασμό σας<ph name="END_LINK" />.</translation>
+<translation id="3649090831059057090"><ph name="WINDOW_TITLE" /> - <ph name="TAB_COUNT" /></translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" />: <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">Μετάβαση στην αρχική σελίδα της εφαρμογής Google</translation>
 <translation id="368329460027487650">Αποσυνδεθήκατε. Ανοίγει επιλογές για σύνδεση.</translation>
@@ -637,6 +640,7 @@
 <translation id="3739899004075612870">Ο σελιδοδείκτης προστέθηκε στο <ph name="PRODUCT_NAME" /></translation>
 <translation id="3740290940447881599">Βεβαιωθείτε ότι εμπιστεύεστε αυτόν τον ιστότοπο</translation>
 <translation id="3740525748616366977">Η Φωνητική αναζήτηση δεν είναι διαθέσιμη σε αυτή τη συσκευή.</translation>
+<translation id="3756823472711156529">Επαναφορά ομάδας</translation>
 <translation id="3763110477555836428">Κατά την ολοκλήρωση αγορών με αυτή την κάρτα, θα συμπληρωθεί ένας αριθμός εικονικής κάρτας για την προστασία των πραγματικών στοιχείων σας. Διαχειριστείτε τη στο Πορτοφόλι Google. <ph name="BEGIN_LINK1" />Μάθετε περισσότερα σχετικά με τις εικονικές κάρτες<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">Ορισμένα δεδομένα δεν έχουν αποθηκευτεί ακόμα</translation>
 <translation id="3770620323585347665">Ονομασία παραθύρου</translation>

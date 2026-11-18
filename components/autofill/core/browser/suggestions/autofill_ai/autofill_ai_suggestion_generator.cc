@@ -175,10 +175,8 @@ std::vector<Suggestion> GetFooterSuggestions(
     suggestions.emplace_back(CreateUndoSuggestion());
   }
   if (base::FeatureList::IsEnabled(
-          autofill::features::
-              kSuggestionManageButtonSplitForEnhancedAutofill) &&
-      base::FeatureList::IsEnabled(
-          autofill::features::kYourSavedInfoSettingsPage)) {
+          features::kSuggestionManageButtonSplitForEnhancedAutofill) &&
+      base::FeatureList::IsEnabled(features::kYourSavedInfoSettingsPage)) {
     CHECK(suggestions_contain_travel_entity ||
           suggestions_contain_identity_docs_entity);
 

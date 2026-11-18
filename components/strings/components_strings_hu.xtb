@@ -269,6 +269,7 @@ Ezt egyéb esetben letiltják az Ön adatvédelmi beállításai. Az engedélyez
 <translation id="1407135791313364759">Összes megnyitása</translation>
 <translation id="1408696301184924537">Ha legközelebb automatikusan ki szeretné tölteni ezt az IBAN-számot, mentse Google-fiókjába</translation>
 <translation id="1408787208417187241">Három kapocs felül</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" />., összesen <ph name="NUM_MATCHES_IN_GROUP" /> a(z) <ph name="GROUP_HEADER" /> csoportban.</translation>
 <translation id="1410365862999780287">Az ezt az eszközt használó többi személy nem láthatja az Ön tevékenységeit, így Ön privát módon böngészhet. Az inkognitó mód használata nincs hatással az Ön által felkeresett webhelyek és az általuk használt szolgáltatások (például a Google) által végzett adatgyűjtésre. A letöltéseket, a könyvjelzőket és az olvasólista elemeit menti a böngésző.</translation>
 <translation id="1410941016594047814">Invite boríték</translation>
 <translation id="1413235258620101697">A rendszer titkosítja, és a Google Walletbe menti a kártya CVC-kódját a gyorsabb fizetés érdekében.</translation>
@@ -660,6 +661,7 @@ Ezt egyéb esetben letiltják az Ön adatvédelmi beállításai. Az engedélyez
 <translation id="2045871135676061132">Személyes boríték</translation>
 <translation id="2046951263634619614">Könyvkereskedők</translation>
 <translation id="2048261947532620704">Oldal fordítása</translation>
+<translation id="2055016614992422886">Beszélgetés</translation>
 <translation id="2059166748188874810">Törvényhatósági terület</translation>
 <translation id="2059202684901022309">22 × 34 hüvelyk</translation>
 <translation id="2064568741209980952">Hitelezés</translation>
@@ -3554,6 +3556,7 @@ A későbbi fizetési lehetőségek elrejtéséhez lépjen a <ph name="BEGIN_LIN
 <translation id="6550245281449521513">Az egér zárolása nem engedélyezett</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, új</translation>
 <translation id="6552566579578780089">Fizetések</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" />., összesen <ph name="NUM_MATCHES_IN_GROUP" /> a(z) <ph name="GROUP_HEADER" /> csoportban.</translation>
 <translation id="6554732001434021288">Utolsó látogatás: <ph name="NUM_DAYS" /> napja</translation>
 <translation id="6556866813142980365">Újra</translation>
 <translation id="6557715786897013164">14 × 17 hüvelyk</translation>

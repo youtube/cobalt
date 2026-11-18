@@ -204,7 +204,8 @@ class GlicAnnotationManagerUiTestBase : public InteractiveGlicTest {
       auto options = mojom::GetTabContextOptions::New();
       options->include_annotated_page_content = true;
 
-      FocusedTabData data = GetHost()->sharing_manager().GetFocusedTabData();
+      FocusedTabData data =
+          GetHost()->GetSharingManagerInternal().GetFocusedTabData();
       CHECK(data.focus());
       FetchPageContext(
           data.focus(), *options,
@@ -428,7 +429,8 @@ class GlicAnnotationManagerUiTestBase : public InteractiveGlicTest {
                 ->web_contents();
       }
       CHECK(GetHost());
-      GlicSharingManager* sharing_manager = &GetHost()->sharing_manager();
+      GlicSharingManagerInternal* sharing_manager =
+          &GetHost()->GetSharingManagerInternal();
       FocusedTabData focused_tab_data = sharing_manager->GetFocusedTabData();
       content::WebContents* focused_web_contents =
           focused_tab_data.focus() ? focused_tab_data.focus()->GetContents()
@@ -853,7 +855,7 @@ IN_PROC_BROWSER_TEST_F(
           mojom::ScrollToErrorReason::kFocusedTabChangedOrNavigated));
 }
 
-// This tests a state where GlicSharingManager has no focused tab. It
+// This tests a state where GlicSharingManagerInternal has no focused tab. It
 // relies on chrome://settings not being considered as a valid URL by the class.
 IN_PROC_BROWSER_TEST_F(MAYBE_GlicAnnotationManagerUiTest, NoFocusedTab) {
   RunTestSequence(InstrumentTab(kActiveTabId),

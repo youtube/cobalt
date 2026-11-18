@@ -80,10 +80,20 @@ class SyncedBookmarkTracker {
   const SyncedBookmarkTrackerEntity* GetEntityForBookmarkNode(
       const bookmarks::BookmarkNode* node) const;
 
-  // Starts tracking local bookmark `bookmark_node`, which must not be tracked
-  // beforehand. The rest of the arguments represent the initial metadata.
+  // Starts tracking local bookmark `bookmark_node` that is not yet committed to
+  // the server. It must not be tracked beforehand.
   // Returns the tracked entity.
-  const SyncedBookmarkTrackerEntity* Add(
+  const SyncedBookmarkTrackerEntity* AddLocalCreation(
+      const bookmarks::BookmarkNode* bookmark_node,
+      const std::string& sync_id,
+      base::Time creation_time,
+      const sync_pb::EntitySpecifics& specifics);
+
+  // Starts tracking remote bookmark `bookmark_node` that is already synced.
+  // It must not be tracked beforehand. `server_version` must not be
+  // `kUncommittedVersion`.
+  // Returns the tracked entity.
+  const SyncedBookmarkTrackerEntity* AddRemote(
       const bookmarks::BookmarkNode* bookmark_node,
       const std::string& sync_id,
       int64_t server_version,
@@ -101,6 +111,12 @@ class SyncedBookmarkTracker {
   // this tracker.
   void UpdateServerVersion(const SyncedBookmarkTrackerEntity* entity,
                            int64_t server_version);
+
+  // Overrides the server ID and version of an existing entity.
+  // Internally calls `UpdateSyncIdIfNeeded` and updates the version.
+  void OverrideServerMetadata(const syncer::ClientTagHash& client_tag_hash,
+                              const std::string& sync_id,
+                              int64_t server_version);
 
   // Marks an existing entry that a commit request might have been sent to the
   // server. `entity` must be owned by this tracker.
@@ -150,7 +166,8 @@ class SyncedBookmarkTracker {
   void UpdateUponCommitResponse(const SyncedBookmarkTrackerEntity* entity,
                                 const std::string& sync_id,
                                 int64_t server_version,
-                                int64_t acked_sequence_number);
+                                int64_t acked_sequence_number,
+                                const std::string& specifics_hash);
 
   // Informs the tracker that the sync ID for `entity` has changed. It updates
   // the internal state of the tracker accordingly. `entity` must be owned by
@@ -235,8 +252,9 @@ class SyncedBookmarkTracker {
     TRACKED_MANAGED_NODE = 11,
     MISSING_CLIENT_TAG_HASH = 12,
     MISSING_FAVICON_HASH = 13,
+    INVALID_METADATA = 14,
 
-    kMaxValue = MISSING_FAVICON_HASH
+    kMaxValue = INVALID_METADATA
   };
   // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncBookmarkModelMetadataCorruptionReason)
 
@@ -246,6 +264,13 @@ class SyncedBookmarkTracker {
       std::optional<int64_t> num_ignored_updates_due_to_missing_parent,
       std::optional<int64_t>
           max_version_among_ignored_updates_due_to_missing_parent);
+
+  const SyncedBookmarkTrackerEntity* AddInternal(
+      const bookmarks::BookmarkNode* bookmark_node,
+      const std::string& sync_id,
+      int64_t server_version,
+      base::Time creation_time,
+      const sync_pb::EntitySpecifics& specifics);
 
   // Add entities to `this` tracker based on the content of `*model` and
   // `model_metadata`. Validates the integrity of `*model` and `model_metadata`

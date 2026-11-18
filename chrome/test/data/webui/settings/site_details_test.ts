@@ -397,7 +397,7 @@ suite('SiteDetails', function() {
               testElement.shadowRoot!.querySelectorAll(
                   'site-details-permission');
           const javascriptOptimizerPermission =
-              siteDetailsPermissions.values().find(siteDetailsPermission => {
+              Array.from(siteDetailsPermissions).find(siteDetailsPermission => {
                 return siteDetailsPermission.category ===
                     ContentSettingsTypes.JAVASCRIPT_OPTIMIZER;
               });

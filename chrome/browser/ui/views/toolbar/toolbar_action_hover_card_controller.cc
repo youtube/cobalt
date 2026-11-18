@@ -19,6 +19,7 @@
 #include "content/public/browser/web_contents.h"
 #include "extensions/common/extension_features.h"
 #include "ui/display/screen.h"
+#include "ui/events/event.h"
 #include "ui/events/event_observer.h"
 #include "ui/views/bubble/bubble_anchor.h"
 #include "ui/views/event_monitor.h"
@@ -69,11 +70,28 @@ class ToolbarActionHoverCardController::EventSniffer
  protected:
   // ui::EventObserver:
   void OnEvent(const ui::Event& event) override {
-    controller_->UpdateHoverCard(nullptr,
-                                 ToolbarActionHoverCardUpdateType::kEvent);
+    bool close_hover_card = true;
+    if (event.IsKeyEvent()) {
+      close_hover_card = event.AsKeyEvent()->key_code() == ui::VKEY_RETURN ||
+                         event.AsKeyEvent()->key_code() == ui::VKEY_ESCAPE ||
+                         event.AsKeyEvent()->key_code() == ui::VKEY_SPACE ||
+                         !IsExtensionsContainerFocused();
+    }
+
+    if (close_hover_card) {
+      controller_->UpdateHoverCard(nullptr,
+                                   ToolbarActionHoverCardUpdateType::kEvent);
+    }
   }
 
  private:
+  bool IsExtensionsContainerFocused() const {
+    views::View* container_view = controller_->extensions_container_;
+    return container_view && container_view->GetFocusManager() &&
+           container_view->Contains(
+               container_view->GetFocusManager()->GetFocusedView());
+  }
+
   const raw_ptr<ToolbarActionHoverCardController> controller_;
   std::unique_ptr<views::EventMonitor> event_monitor_;
 };
@@ -150,6 +168,9 @@ void ToolbarActionHoverCardController::UpdateHoverCard(
       DCHECK(!action_view);
       break;
     case ToolbarActionHoverCardUpdateType::kEvent:
+      // No special action taken for this type of event.
+      break;
+    case ToolbarActionHoverCardUpdateType::kFocus:
       // No special action taken for this type of event.
       break;
   }
@@ -340,10 +361,8 @@ bool ToolbarActionHoverCardController::ShouldShowImmediately(
   bool within_delay_time_buffer = !last_mouse_exit_timestamp_.is_null() &&
                                   elapsed_time <= kShowWithoutDelayTimeBuffer;
   // Hover cards should be shown without delay if triggered within the time
-  // buffer.
-  // TODO(crbug.com/40857356): Should hover cards be shown if the action view
-  // is keyboard focused?
-  return within_delay_time_buffer;
+  // buffer or if the action view is keyboard focused.
+  return within_delay_time_buffer || action_view->HasFocus();
 }
 
 const views::View* ToolbarActionHoverCardController::GetTargetAnchorView()

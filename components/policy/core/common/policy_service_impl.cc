@@ -445,14 +445,24 @@ PolicyBundle PolicyServiceImpl::MergePolicyBundles(
   DefaultChromeAppsMigrator chrome_apps_migrator;
 #endif  // BUILDFLAG(IS_CHROMEOS)
   for (const PolicyBundle* policy_bundle : bundles) {
-    PolicyBundle provided_bundle = policy_bundle->Clone();
-    IgnoreUserCloudPrecedencePolicies(&provided_bundle.Get(chrome_namespace));
-    DowngradeMetricsReportingToRecommendedPolicy(
-        &provided_bundle.Get(chrome_namespace));
+    // Merge non-chrome namespaces directly from the provider. No clone is
+    // needed because PolicyMap::MergeFrom deep-copies individual entries
+    // internally — the provider's data is never mutated. Only the chrome
+    // namespace requires cloning for pre-merge mutations below.
+    for (const auto& [ns, map] : *policy_bundle) {
+      if (ns != chrome_namespace) {
+        bundle.Get(ns).MergeFrom(map);
+      }
+    }
+
+    // Clone only the chrome-namespace PolicyMap for pre-merge mutations.
+    PolicyMap chrome_clone = policy_bundle->Get(chrome_namespace).Clone();
+    IgnoreUserCloudPrecedencePolicies(&chrome_clone);
+    DowngradeMetricsReportingToRecommendedPolicy(&chrome_clone);
 #if BUILDFLAG(IS_CHROMEOS)
-    chrome_apps_migrator.Migrate(&provided_bundle.Get(chrome_namespace));
+    chrome_apps_migrator.Migrate(&chrome_clone);
 #endif  // BUILDFLAG(IS_CHROMEOS)
-    bundle.MergeFrom(provided_bundle);
+    bundle.Get(chrome_namespace).MergeFrom(chrome_clone);
   }
 
   auto& chrome_policies = bundle.Get(chrome_namespace);

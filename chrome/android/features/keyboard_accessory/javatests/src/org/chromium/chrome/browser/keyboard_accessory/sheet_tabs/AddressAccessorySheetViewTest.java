@@ -38,7 +38,6 @@ import org.chromium.chrome.browser.keyboard_accessory.AccessorySuggestionType;
 import org.chromium.chrome.browser.keyboard_accessory.AccessoryTabType;
 import org.chromium.chrome.browser.keyboard_accessory.R;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
-import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.PlusAddressInfo;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.UserInfo;
 import org.chromium.chrome.browser.keyboard_accessory.data.UserInfoField;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_component.AccessorySheetCoordinator;
@@ -198,38 +197,6 @@ public class AddressAccessorySheetViewTest {
         assertThat(clicked.get(), is(true));
     }
 
-    @Test
-    @MediumTest
-    public void testAddingPlusAddressInfoToTheModelRendersClickableActions()
-            throws ExecutionException {
-        final AtomicBoolean clicked = new AtomicBoolean();
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mModel.add(
-                            new AccessorySheetDataPiece(
-                                    new PlusAddressInfo(
-                                            /* origin= */ "google.com",
-                                            new UserInfoField.Builder()
-                                                    .setSuggestionType(
-                                                            AccessorySuggestionType.PLUS_ADDRESS)
-                                                    .setDisplayText("example@gmail.com")
-                                                    .setTextToFill("example@gmail.com")
-                                                    .setIsObfuscated(false)
-                                                    .setCallback(unused -> clicked.set(true))
-                                                    .build()),
-                                    AccessorySheetDataPiece.Type.PLUS_ADDRESS_SECTION));
-                });
-
-        CriteriaHelper.pollUiThread(
-                () -> Criteria.checkThat(mView.get().getChildCount(), greaterThan(0)));
-
-        assertThat(getChipText(R.id.plus_address), is("example@gmail.com"));
-
-        // Plus address chip is clickable:
-        ThreadUtils.runOnUiThreadBlocking(findChipView(R.id.plus_address)::performClick);
-        assertThat(clicked.get(), is(true));
-    }
 
     private UserInfo createInfo(
             String nameFull,

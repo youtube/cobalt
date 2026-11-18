@@ -7,6 +7,7 @@
 .text	
 
 
+p256_constants:
 .Lord:
 .quad	0xf3b9cac2fc632551, 0xbce6faada7179e84, 0xffffffffffffffff, 0xffffffff00000000
 .LordK:

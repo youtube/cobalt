@@ -36,9 +36,9 @@ class TestCardUnmaskPromptWaiter {
   bool EnterAndAcceptCvcDialog(const std::u16string& cvc);
 
  private:
-  raw_ptr<autofill::payments::ChromePaymentsAutofillClient> client_;
+  raw_ptr<payments::ChromePaymentsAutofillClient> client_;
   raw_ptr<TestCardUnmaskPromptControllerImpl> injected_controller_;
-  std::unique_ptr<autofill::CardUnmaskPromptControllerImpl> old_controller_;
+  std::unique_ptr<CardUnmaskPromptControllerImpl> old_controller_;
 };
 
 }  // namespace autofill

@@ -140,6 +140,7 @@ namespace internal {
   V(FreeSpace)                                  \
   V(GcSafeCode)                                 \
   V(GlobalDictionary)                           \
+  V(HashSeedWrapper)                            \
   V(HeapNumber)                                 \
   V(InterceptorInfo)                            \
   V(InternalizedString)                         \
@@ -291,7 +292,6 @@ namespace internal {
   IF_WASM(V, WasmGlobalObject)                  \
   IF_WASM(V, WasmInstanceObject)                \
   IF_WASM(V, WasmMemoryObject)                  \
-  IF_WASM(V, WasmMemoryMapDescriptor)           \
   IF_WASM(V, WasmModuleObject)                  \
   IF_WASM(V, WasmNull)                          \
   IF_WASM(V, WasmObject)                        \
@@ -383,10 +383,11 @@ namespace internal {
 // and live in trusted space, outside of the sandbox.
 //
 
-#define ABSTRACT_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V) \
-  APPLY(V, TrustedObject, TRUSTED_OBJECT)                \
-  APPLY(V, ExposedTrustedObject, EXPOSED_TRUSTED_OBJECT) \
-  APPLY(V, UncompiledData, UNCOMPILED_DATA)              \
+#define ABSTRACT_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V)    \
+  APPLY(V, TrustedObject, TRUSTED_OBJECT)                   \
+  APPLY(V, ExposedTrustedObject, EXPOSED_TRUSTED_OBJECT)    \
+  APPLY(V, TrustedFixedArrayBase, TRUSTED_FIXED_ARRAY_BASE) \
+  APPLY(V, UncompiledData, UNCOMPILED_DATA)                 \
   IF_WASM(APPLY, V, WasmFunctionData, WASM_FUNCTION_DATA)
 
 // Concrete trusted objects. These must:
@@ -396,6 +397,7 @@ namespace internal {
 #define CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V)                       \
   APPLY(V, BytecodeArray, BYTECODE_ARRAY)                                      \
   APPLY(V, Code, CODE)                                                         \
+  APPLY(V, DebugInfo, DEBUG_INFO)                                              \
   APPLY(V, InstructionStream, INSTRUCTION_STREAM)                              \
   APPLY(V, InterpreterData, INTERPRETER_DATA)                                  \
   APPLY(V, UncompiledDataWithPreparseData, UNCOMPILED_DATA_WITH_PREPARSE_DATA) \

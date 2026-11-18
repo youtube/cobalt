@@ -16,6 +16,7 @@ source_set("impl") {
   deps = [
     ":zoom",
     "//chrome/browser/ui",
+    "//chrome/browser/ui:browser_actions",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/views/frame:toolbar_button_provider",

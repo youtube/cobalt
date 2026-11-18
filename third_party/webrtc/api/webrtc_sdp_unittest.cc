@@ -3221,6 +3221,10 @@ TEST_F(WebRtcSdpTest, DeserializeSdpWithInvalidAttributeValue) {
   // ssrc
   ExpectParseFailure("a=ssrc:1", "a=ssrc:badvalue");
   ExpectParseFailure("a=ssrc-group:FEC 2 3", "a=ssrc-group:FEC badvalue 3");
+  ExpectParseFailure(
+      "a=ssrc-group:FEC 2 3",
+      "a=ssrc-group:FEC 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 "
+      "22 23 24 25 26 27 28 29 30 31 32 33 34 35");
   // rtpmap
   ExpectParseFailure("a=rtpmap:111 ", "a=rtpmap:badvalue ");
   ExpectParseFailure("opus/48000/2", "opus/badvalue/2");
@@ -3254,6 +3258,49 @@ TEST_F(WebRtcSdpTest, DeserializeSdpWithInvalidAttributeValue) {
   ExpectParseFailureWithNewLines("a=mid:video_content_name\r\n",
                                  "a=extmap:badvalue http://example.com\r\n",
                                  "a=extmap:badvalue http://example.com");
+}
+
+TEST_F(WebRtcSdpTest, DeserializeSdpWithInvalidExtmapUri) {
+  // Test raw control characters
+  ExpectParseFailureWithNewLines("a=mid:video_content_name\r\n",
+                                 "a=extmap:1 http://example.com/\x01\r\n",
+                                 "a=extmap:1 http://example.com/\x01");
+
+  // Test percent-encoded control characters
+  ExpectParseFailureWithNewLines("a=mid:video_content_name\r\n",
+                                 "a=extmap:1 http://example.com/%0a\r\n",
+                                 "a=extmap:1 http://example.com/%0a");
+  ExpectParseFailureWithNewLines("a=mid:video_content_name\r\n",
+                                 "a=extmap:1 http://example.com/%0d\r\n",
+                                 "a=extmap:1 http://example.com/%0d");
+  ExpectParseFailureWithNewLines("a=mid:video_content_name\r\n",
+                                 "a=extmap:1 http://example.com/%1f\r\n",
+                                 "a=extmap:1 http://example.com/%1f");
+  ExpectParseFailureWithNewLines("a=mid:video_content_name\r\n",
+                                 "a=extmap:1 http://example.com/%7f\r\n",
+                                 "a=extmap:1 http://example.com/%7f");
+
+  // Test invalid percent encoding
+  ExpectParseFailureWithNewLines("a=mid:video_content_name\r\n",
+                                 "a=extmap:1 http://example.com/%\r\n",
+                                 "a=extmap:1 http://example.com/%");
+  ExpectParseFailureWithNewLines("a=mid:video_content_name\r\n",
+                                 "a=extmap:1 http://example.com/%7\r\n",
+                                 "a=extmap:1 http://example.com/%7");
+  ExpectParseFailureWithNewLines("a=mid:video_content_name\r\n",
+                                 "a=extmap:1 http://example.com/%7g\r\n",
+                                 "a=extmap:1 http://example.com/%7g");
+
+  // Test valid percent-encoded characters (should succeed)
+  std::string sdp_with_valid_percent =
+      "v=0\r\n"
+      "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "m=video 9 RTP/SAVPF 100\r\n"
+      "a=mid:video_content_name\r\n"
+      "a=extmap:1 http://example.com/foo%20bar\r\n";
+  EXPECT_THAT(SdpDeserialize(sdp_with_valid_percent), NotNull());
 }
 
 TEST_F(WebRtcSdpTest, DeserializeSdpWithReorderedPltypes) {

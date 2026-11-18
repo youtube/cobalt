@@ -38,13 +38,11 @@
 #include "include/gpu/graphite/Recorder.h"
 #include "include/gpu/graphite/Surface.h"
 #include "include/gpu/graphite/TextureInfo.h"
-#include "include/private/base/SingleOwner.h"
-#include "include/private/base/SkAssert.h"
-#include "include/private/base/SkFloatingPoint.h"
-#include "include/private/base/SkLog.h"
-#include "include/private/base/SkTo.h"
-#include "src/base/SkArenaAlloc.h"
-#include "src/base/SkVx.h"
+#include "include/private/SingleOwner.h"
+#include "include/private/SkAssert.h"
+#include "include/private/SkFloatingPoint.h"
+#include "include/private/SkTo.h"
+#include "src/core/SkArenaAlloc.h"
 #include "src/core/SkBlendModePriv.h"
 #include "src/core/SkBlenderBase.h"
 #include "src/core/SkImageFilterTypes.h"  // IWYU pragma: keep
@@ -56,6 +54,7 @@
 #include "src/core/SkStrikeCache.h"
 #include "src/core/SkTraceEvent.h"
 #include "src/core/SkVerticesPriv.h"
+#include "src/core/SkVx.h"
 #include "src/gpu/BlurUtils.h"
 #include "src/gpu/SkBackingFit.h"
 #include "src/gpu/Swizzle.h"
@@ -1785,9 +1784,11 @@ void Device::drawGeometry(const Transform& localToDevice,
             // The regular draw has analytic coverage, so isn't being sorted front to back, but
             // we do want to sort the inner fill to maximize overdraw reduction
             orderWithoutCoverage.reverseDepthAsStencil();
+
+            UniquePaintParamsID opaqueID = shading.optimizeForOpacity(keyContext, paintID);
             fDC->recordDraw(fRecorder->priv().rendererProvider()->nonAABounds(), localToDevice,
                             Geometry(Shape(innerFillBounds)), clip, orderWithoutCoverage,
-                            paintID, dstUsage, scopedDrawBuilder.gatherer(),
+                            opaqueID, DstUsage::kNone, scopedDrawBuilder.gatherer(),
                             /*stroke=*/nullptr, latestInsertion);
             // Force the coverage draw to come after the non-AA draw in order to benefit from
             // early depth testing.

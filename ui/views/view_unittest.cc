@@ -44,6 +44,9 @@
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/compositor_switches.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor/layer_animation_element.h"
+#include "ui/compositor/layer_animation_observer.h"
+#include "ui/compositor/layer_animation_sequence.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/compositor/paint_context.h"
 #include "ui/compositor/test/draw_waiter_for_test.h"
@@ -56,6 +59,7 @@
 #include "ui/events/types/event_type.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/transform.h"
+#include "ui/gfx/scoped_animation_duration_scale_mode.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/strings/grit/ui_strings.h"
 #include "ui/views/background.h"
@@ -6331,6 +6335,81 @@ TEST_F(ViewLayerTest, LayerBeneathRemovedOnDestruction) {
   layer.reset();
   root.RemoveChildView(view);
   delete view;
+}
+
+// View::OrphanLayers() captures a bare ui::Layer* `parent` local and loops
+// over GetLayersInOrder() calling parent->Remove(layer) on each iteration.
+// Layer::Remove() synchronously calls StopAnimatingProperty(BOUNDS), which
+// fires LayerAnimationObserver callbacks that may free `parent`.
+// Tests that this does not cause a crash.
+TEST_F(ViewLayerTest, DestroyParentLayerOnLayerAnimationAborted) {
+  // Ensure the BOUNDS animation has non-zero duration so it is still running
+  // when Layer::Remove() calls StopAnimatingProperty().
+  gfx::ScopedAnimationDurationScaleMode duration_mode(
+      gfx::ScopedAnimationDurationScaleMode::NORMAL_DURATION);
+
+  // The container View only exists so we can call RemoveChildView() to reach
+  // the (private) OrphanLayers(). It has no layer of its own.
+  auto container = std::make_unique<View>();
+
+  // The View whose OrphanLayers() will be invoked.
+  View* target = container->AddChildView(std::make_unique<View>());
+  target->SetPaintToLayer();
+
+  // The parent layer is heap-owned by the test (NOT by any View) so the
+  // observer can free it without a surviving raw_ptr<> quarantining the slot.
+  auto parent_layer = std::make_unique<ui::Layer>();
+  parent_layer->SetName("parent_layer");
+  parent_layer->Add(target->layer());
+
+  // A region layer below `target`'s layer makes GetLayersInOrder() return two
+  // entries so OrphanLayers() loops more than once. This mirrors production
+  // ink-drop region layers (InkDropHost::AddInkDropLayer).
+  auto region_layer = std::make_unique<ui::Layer>();
+  region_layer->SetName("region_layer");
+  target->AddLayerToRegion(region_layer.get(), LayerRegion::kBelow);
+  ASSERT_EQ(region_layer->parent(), parent_layer.get());
+  ASSERT_EQ(target->layer()->parent(), parent_layer.get());
+  ASSERT_EQ(target->GetLayersInOrder().size(), 2u);
+
+  // Observer that frees `parent_layer` when the BOUNDS animation is aborted.
+  class ParentLayerDestroyer : public ui::LayerAnimationObserver {
+   public:
+    explicit ParentLayerDestroyer(std::unique_ptr<ui::Layer>* parent_layer)
+        : parent_layer_(parent_layer) {}
+    void OnLayerAnimationEnded(ui::LayerAnimationSequence*) override {
+      abortion_observed_ = true;
+      parent_layer_->reset();
+    }
+    void OnLayerAnimationAborted(ui::LayerAnimationSequence*) override {
+      abortion_observed_ = true;
+      parent_layer_->reset();
+    }
+    void OnLayerAnimationScheduled(ui::LayerAnimationSequence*) override {}
+
+    bool abortion_observed() const { return abortion_observed_; }
+
+   private:
+    bool abortion_observed_ = false;
+    raw_ptr<std::unique_ptr<ui::Layer>> parent_layer_;
+  };
+  ParentLayerDestroyer observer(&parent_layer);
+
+  // Start a BOUNDS animation on `region_layer` carrying the destructive
+  // observer.
+  ui::LayerAnimator* animator = region_layer->GetAnimator();
+  animator->set_disable_timer_for_test(true);
+  auto sequence = std::make_unique<ui::LayerAnimationSequence>(
+      ui::LayerAnimationElement::CreateBoundsElement(gfx::Rect(0, 0, 50, 50),
+                                                     base::Seconds(1)));
+  sequence->AddObserver(&observer);
+  animator->StartAnimation(sequence.release());
+  ASSERT_TRUE(animator->is_animating());
+
+  std::unique_ptr<View> owned_target = container->RemoveChildViewT(target);
+  // Not reached under ASAN if View::OrphanLayers() is not guarded against
+  // destroyed parent layer during layer-removal loop.
+  EXPECT_TRUE(observer.abortion_observed());
 }
 
 TEST_F(ViewLayerTest, LayerBeneathVisibilityUpdated) {

@@ -550,6 +550,12 @@ TEST(ASN1Test, SerializeEmbeddedBoolean) {
   val->ca = 0;
   TestSerialize(val.get(), i2d_BASIC_CONSTRAINTS, kLeaf);
 
+  const uint8_t *inp = kLeaf;
+  UniquePtr<BASIC_CONSTRAINTS> parsed(
+      d2i_BASIC_CONSTRAINTS(nullptr, &inp, sizeof(kLeaf)));
+  ASSERT_TRUE(parsed);
+  EXPECT_EQ(parsed->ca, ASN1_BOOLEAN_FALSE);
+
   // TRUE should always be encoded as 0xff, independent of what value the caller
   // placed in the `ASN1_BOOLEAN`.
   static const uint8_t kCA[] = {0x30, 0x03, 0x01, 0x01, 0xff};
@@ -559,6 +565,19 @@ TEST(ASN1Test, SerializeEmbeddedBoolean) {
   TestSerialize(val.get(), i2d_BASIC_CONSTRAINTS, kCA);
   val->ca = 0x100;
   TestSerialize(val.get(), i2d_BASIC_CONSTRAINTS, kCA);
+
+  inp = kCA;
+  parsed.reset(d2i_BASIC_CONSTRAINTS(nullptr, &inp, sizeof(kCA)));
+  ASSERT_TRUE(parsed);
+  EXPECT_EQ(parsed->ca, ASN1_BOOLEAN_TRUE);
+
+  // We currently allow non-DER encodings of TRUE. (We should reject these.)
+  // When this happens, the in-memory representation is still uniform.
+  static const uint8_t kCAWrong[] = {0x30, 0x03, 0x01, 0x01, 0x01};
+  inp = kCAWrong;
+  parsed.reset(d2i_BASIC_CONSTRAINTS(nullptr, &inp, sizeof(kCAWrong)));
+  ASSERT_TRUE(parsed);
+  EXPECT_EQ(parsed->ca, ASN1_BOOLEAN_TRUE);
 }
 
 static std::vector<uint8_t> EmbedParamInAlgorithmIdentifier(
@@ -976,8 +995,7 @@ TEST(ASN1Test, SetBitString) {
   UniquePtr<ASN1_BIT_STRING> val(ASN1_BIT_STRING_new());
   ASSERT_TRUE(val);
   const uint8_t kBytesf000[] = {0xf0, 0x00};
-  ASSERT_TRUE(
-      ASN1_STRING_set(val.get(), kBytesf000, sizeof(kBytesf000)));
+  ASSERT_TRUE(ASN1_STRING_set(val.get(), kBytesf000, sizeof(kBytesf000)));
   static const uint8_t kBitStringf000[] = {0x03, 0x03, 0x00, 0xf0, 0x00};
   TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitStringf000);
 
@@ -1052,7 +1070,7 @@ TEST(ASN1Test, StringToUTF8) {
       {{0, 0, 0, 88, 0, 0, 0xfe, 0xff},
        V_ASN1_UNIVERSALSTRING,
        "X\xef\xbb\xbf"},
-      // The maximum code-point should pass though.
+      // The maximum code-point should pass through.
       {{0, 16, 0xff, 0xfd}, V_ASN1_UNIVERSALSTRING, "\xf4\x8f\xbf\xbd"},
       // Values outside the Unicode space should not.
       {{0, 17, 0, 0}, V_ASN1_UNIVERSALSTRING, nullptr},
@@ -3087,7 +3105,7 @@ TEST(ASN1Test, OptionalAndDefaultBooleans) {
   EXPECT_EQ(obj->default_true, ASN1_BOOLEAN_TRUE);
   EXPECT_EQ(obj->default_false, ASN1_BOOLEAN_FALSE);
 
-  // Include the optinonal fields instead.
+  // Include the optional fields instead.
   static const uint8_t kFieldsIncluded[] = {0x30, 0x0c, 0x01, 0x01, 0xff,
                                             0x81, 0x01, 0x00, 0x82, 0x01,
                                             0x00, 0x83, 0x01, 0xff};
@@ -3122,18 +3140,24 @@ ASN1_ITEM_TEMPLATE_END(EXPLICIT_OCTET_STRING)
 
 // DOUBLY_TAGGED is
 //   SEQUENCE {
-//     b   [3] EXPLICIT [1] EXPLICIT BOOLEAN OPTIONAL,
-//     oct [4] EXPLICIT [2] EXPLICIT OCTET STRING OPTIONAL }
+//     b    [3] EXPLICIT [1] EXPLICIT BOOLEAN OPTIONAL,
+//     oct  [4] EXPLICIT [2] EXPLICIT OCTET STRING OPTIONAL
+//     b2   [5] IMPLICIT [1] EXPLICIT BOOLEAN OPTIONAL,
+//     oct2 [6] IMPLICIT [2] EXPLICIT OCTET STRING OPTIONAL }
 // with explicit tagging.
 struct DOUBLY_TAGGED {
   ASN1_BOOLEAN b;
   ASN1_OCTET_STRING *oct;
+  ASN1_BOOLEAN b2;
+  ASN1_OCTET_STRING *oct2;
 };
 
 DECLARE_ASN1_FUNCTIONS(DOUBLY_TAGGED)
 ASN1_SEQUENCE(DOUBLY_TAGGED) = {
     ASN1_EXP_OPT(DOUBLY_TAGGED, b, EXPLICIT_BOOLEAN, 3),
     ASN1_EXP_OPT(DOUBLY_TAGGED, oct, EXPLICIT_OCTET_STRING, 4),
+    ASN1_IMP_OPT(DOUBLY_TAGGED, b2, EXPLICIT_BOOLEAN, 5),
+    ASN1_IMP_OPT(DOUBLY_TAGGED, oct2, EXPLICIT_OCTET_STRING, 6),
 } ASN1_SEQUENCE_END(DOUBLY_TAGGED)
 IMPLEMENT_ASN1_FUNCTIONS(DOUBLY_TAGGED)
 
@@ -3143,25 +3167,30 @@ TEST(ASN1Test, DoublyTagged) {
   std::unique_ptr<DOUBLY_TAGGED, decltype(&DOUBLY_TAGGED_free)> obj(
       nullptr, DOUBLY_TAGGED_free);
 
-  // Both fields missing.
+  // All fields missing.
   static const uint8_t kOmitted[] = {0x30, 0x00};
   const uint8_t *inp = kOmitted;
   obj.reset(d2i_DOUBLY_TAGGED(nullptr, &inp, sizeof(kOmitted)));
   ASSERT_TRUE(obj);
   EXPECT_EQ(obj->b, -1);
   EXPECT_FALSE(obj->oct);
+  EXPECT_EQ(obj->b2, -1);
+  EXPECT_FALSE(obj->oct2);
   TestSerialize(obj.get(), i2d_DOUBLY_TAGGED, kOmitted);
 
-  // Both fields present, true and the empty string.
-  static const uint8_t kTrueEmpty[] = {0x30, 0x0d, 0xa3, 0x05, 0xa1,
-                                       0x03, 0x01, 0x01, 0xff, 0xa4,
-                                       0x04, 0xa2, 0x02, 0x04, 0x00};
+  // All fields present, true and the empty string.
+  static const uint8_t kTrueEmpty[] = {
+      0x30, 0x16, 0xa3, 0x05, 0xa1, 0x03, 0x01, 0x01, 0xff, 0xa4, 0x04, 0xa2,
+      0x02, 0x04, 0x00, 0xa5, 0x03, 0x01, 0x01, 0xff, 0xa6, 0x02, 0x04, 0x00};
   inp = kTrueEmpty;
   obj.reset(d2i_DOUBLY_TAGGED(nullptr, &inp, sizeof(kTrueEmpty)));
   ASSERT_TRUE(obj);
   EXPECT_EQ(obj->b, 0xff);
   ASSERT_TRUE(obj->oct);
   EXPECT_EQ(ASN1_STRING_length(obj->oct), 0);
+  EXPECT_EQ(obj->b2, 0xff);
+  ASSERT_TRUE(obj->oct2);
+  EXPECT_EQ(ASN1_STRING_length(obj->oct2), 0);
   TestSerialize(obj.get(), i2d_DOUBLY_TAGGED, kTrueEmpty);
 }
 

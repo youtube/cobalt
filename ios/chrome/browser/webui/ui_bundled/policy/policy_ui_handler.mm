@@ -256,10 +256,10 @@ void PolicyUIHandler::HandleUploadReport(const base::ListValue& args) {
       report_count, base::BindOnce(&PolicyUIHandler::OnReportUploaded,
                                    weak_factory_.GetWeakPtr(), callback_id));
   if (report_scheduler) {
-    report_scheduler->UploadFullReport(on_report_uploaded);
+    report_scheduler->UploadReport(on_report_uploaded);
   }
   if (profile_report_scheduler) {
-    profile_report_scheduler->UploadFullReport(on_report_uploaded);
+    profile_report_scheduler->UploadReport(on_report_uploaded);
   }
 }
 

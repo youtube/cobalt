@@ -28,9 +28,11 @@
 #include "src/objects/cell-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/fixed-array-base-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -1648,8 +1650,13 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     TagObject(js_fun->context(), "(context)");
     SetInternalReference(entry, "context", js_fun->context(),
                          offsetof(JSFunction, context_));
-    SetInternalReference(entry, "code", js_fun->code(isolate),
-                         offsetof(JSFunction, dispatch_handle_));
+    JSDispatchHandle handle = js_fun->dispatch_handle();
+    if (handle != kNullJSDispatchHandle) {
+      SetInternalReference(entry, "code", js_fun->code(isolate),
+                           offsetof(JSFunction, dispatch_handle_));
+    } else {
+      MarkVisitedField(offsetof(JSFunction, dispatch_handle_));
+    }
   } else if (IsJSGlobalObject(obj)) {
     Tagged<JSGlobalObject> global_obj = Cast<JSGlobalObject>(obj);
     SetInternalReference(entry, "global_proxy", global_obj->raw_global_proxy(),
@@ -1952,7 +1959,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
   // Wasm object maps overload the dependent_code field to store the
   // immediate supertype map. Emit without field offset to avoid
   // double-marking the slot.
-  if (IsWasmObjectMap(map)) {
+  if (IsWasmObjectMap(map) && map->has_immediate_supertype_map()) {
     TagObject(map->immediate_supertype_map(), "(immediate supertype map)");
     SetInternalReference(entry, "immediate_supertype_map",
                          map->immediate_supertype_map());

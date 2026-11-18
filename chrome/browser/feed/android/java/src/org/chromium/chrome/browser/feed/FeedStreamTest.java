@@ -128,7 +128,6 @@ public class FeedStreamTest {
     @Mock private FeedActionDelegate mActionDelegate;
 
     @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
-    @Mock private FeedContentFirstLoadWatcher mFeedContentFirstLoadWatcher;
     @Mock private Stream.StreamsMediator mStreamsMediator;
     // Enable the Features class, so we can call code which checks to see if features are enabled
     // without crashing.
@@ -185,7 +184,6 @@ public class FeedStreamTest {
                         mShareDelegateSupplier,
                         /* streamKind= */ StreamKind.FOR_YOU,
                         mActionDelegate,
-                        mFeedContentFirstLoadWatcher,
                         mStreamsMediator,
                         new FeedSurfaceRendererBridgeFactory());
         mRecyclerView = new RecyclerView(mActivity);
@@ -268,7 +266,6 @@ public class FeedStreamTest {
         assertEquals(2, mContentManager.getItemCount());
         assertEquals(HEADER_PREFIX + "0", mContentManager.getContent(0).getKey());
         assertEquals(1, mContentManager.findContentPositionByKey("Spacer"));
-        verify(mFeedContentFirstLoadWatcher).nonNativeContentLoaded(anyInt());
     }
 
     @Test

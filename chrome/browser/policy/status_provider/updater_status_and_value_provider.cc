@@ -4,22 +4,22 @@
 
 #include "chrome/browser/policy/status_provider/updater_status_and_value_provider.h"
 
-#include <windows.h>
-
-#include <DSRole.h>
-
 #include <algorithm>
 #include <utility>
 
+#include "base/barrier_callback.h"
 #include "base/sequence_checker.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/values.h"
-#include "chrome/browser/google/google_update_policy_fetcher_win.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
+#include "chrome/browser/google/google_update_policy_fetcher.h"
 #include "chrome/browser/policy/chrome_policy_conversions_client.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/install_static/install_util.h"
+#include "chrome/browser/updater/updater.h"
 #include "components/policy/core/browser/policy_conversions.h"
 #include "components/policy/core/browser/webui/policy_status_provider.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -32,31 +32,12 @@ constexpr char kUpdaterPoliciesId[] = "updater";
 constexpr char kUpdaterPoliciesName[] = "Google Update Policies";
 constexpr char kUpdaterPolicyStatusDescription[] = "statusUpdater";
 
-std::string GetActiveDirectoryDomain() {
-  std::string domain;
-  ::DSROLE_PRIMARY_DOMAIN_INFO_BASIC* info = nullptr;
-  if (::DsRoleGetPrimaryDomainInformation(nullptr,
-                                          ::DsRolePrimaryDomainInfoBasic,
-                                          (PBYTE*)&info) != ERROR_SUCCESS) {
-    return domain;
-  }
-  if (info->DomainNameDns)
-    domain = base::WideToUTF8(info->DomainNameDns);
-  ::DsRoleFreeMemory(info);
-  return domain;
-}
-
 }  // namespace
 
 UpdaterStatusAndValueProvider::UpdaterStatusAndValueProvider(Profile* profile)
     : profile_(profile) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE,
-      {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::BindOnce(&GetActiveDirectoryDomain),
-      base::BindOnce(&UpdaterStatusAndValueProvider::OnDomainReceived,
-                     weak_factory_.GetWeakPtr()));
+  Init();
 }
 
 UpdaterStatusAndValueProvider::~UpdaterStatusAndValueProvider() = default;
@@ -69,13 +50,11 @@ base::DictValue UpdaterStatusAndValueProvider::GetStatus() {
   if (!updater_status_)
     return dict;
   if (!updater_status_->version.empty())
-    dict.Set("version", base::WideToUTF8(updater_status_->version));
+    dict.Set("version", updater_status_->version);
   if (!updater_status_->last_checked_time.is_null()) {
     dict.Set("timeSinceLastRefresh",
              GetTimeSinceLastActionString(updater_status_->last_checked_time));
   }
-  if (dict.empty())
-    return {};
 
   dict.Set(policy::kPolicyDescriptionKey, kUpdaterPolicyStatusDescription);
   return dict;
@@ -119,28 +98,58 @@ base::DictValue UpdaterStatusAndValueProvider::GetNames() {
 
 void UpdaterStatusAndValueProvider::Refresh() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  base::ThreadPool::CreateCOMSTATaskRunner(
-      {base::TaskPriority::USER_BLOCKING,
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN, base::MayBlock()})
-      ->PostTaskAndReplyWithResult(
-          FROM_HERE, base::BindOnce(&GetGoogleUpdatePoliciesAndState),
-          base::BindOnce(
-              &UpdaterStatusAndValueProvider::OnUpdaterPoliciesRefreshed,
-              weak_factory_.GetWeakPtr()));
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&UpdaterStatusAndValueProvider::DoRefresh,
+                                weak_factory_.GetWeakPtr()));
 }
 
-void UpdaterStatusAndValueProvider::OnDomainReceived(std::string domain) {
+void UpdaterStatusAndValueProvider::DoRefresh() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  domain_ = std::move(domain);
-  // Call Refresh() to load the policies when the domain is received.
-  Refresh();
+
+  // Use a `BarrierCallback` to wait for both async Mojo calls to complete
+  // before invoking `OnUpdaterPoliciesRefreshed`. This unified implementation
+  // works for both Windows and macOS, ensuring parity with the chrome://updater
+  // page.
+  auto barrier = base::BarrierCallback<GoogleUpdatePoliciesAndState>(
+      2,
+      base::BindOnce(&UpdaterStatusAndValueProvider::OnUpdaterPoliciesRefreshed,
+                     weak_factory_.GetWeakPtr()));
+
+  // Fetch updater state (version + last_checked).
+  updater::GetSystemUpdaterState(
+      base::BindOnce([](const updater::mojom::UpdaterState& state) {
+        return GoogleUpdatePoliciesAndState{
+            .state =
+                GoogleUpdateState{
+                    .version = state.active_version,
+                    .last_checked_time = state.last_checked,
+                },
+        };
+      }).Then(barrier));
+
+  // Fetch policies JSON and parse into PolicyMap.
+  updater::GetSystemPoliciesJson(
+      base::BindOnce([](const std::string& json) {
+        policy::PolicyMap p;
+        ParsePoliciesJsonIntoPolicyMap(json, GetUpdaterAppId(), &p);
+        return GoogleUpdatePoliciesAndState{.policies = std::move(p)};
+      }).Then(barrier));
 }
 
 void UpdaterStatusAndValueProvider::OnUpdaterPoliciesRefreshed(
-    std::unique_ptr<GoogleUpdatePoliciesAndState> updater_policies_and_state) {
+    std::vector<GoogleUpdatePoliciesAndState> results) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  updater_policies_ = std::move(updater_policies_and_state->policies);
-  updater_status_ = std::move(updater_policies_and_state->state);
+
+  updater_policies_ = std::nullopt;
+  updater_status_ = std::nullopt;
+
+  for (auto& result : results) {
+    if (result.state.has_value()) {
+      updater_status_ = std::move(*result.state);
+    } else if (result.policies.has_value()) {
+      updater_policies_ = std::move(*result.policies);
+    }
+  }
   NotifyValueChange();
   NotifyStatusChange();
 }

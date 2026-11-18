@@ -61,6 +61,7 @@
 #include "components/safe_browsing/core/common/safebrowsing_referral_methods.h"
 #include "components/search_engines/search_engines_switches.h"
 #include "components/signin/public/base/consent_level.h"
+#include "components/version_info/version_info.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/common/constants.h"
@@ -415,6 +416,16 @@ void LaunchReleaseNotes(Profile* profile, apps::LaunchSource source) {
 #if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
   LaunchReleaseNotesImpl(profile, source);
 #endif
+}
+
+void ShowChromeEnterpriseReleaseNotes(BrowserWindowInterface* browser) {
+  std::string url = base::StrCat(
+      {"https://chromeenterprise.google/resources/release-notes/",
+       "?utm_source=release-notes-chrome-enterprise",
+       "&utm_medium=release-notes",
+       "&utm_campaign=release-notes-chrome-enterprise",
+       "&utm_term=release-notes-m", version_info::GetMajorVersionNumber()});
+  ShowSingletonTab(browser, GURL(url));
 }
 
 void ShowBetaForum(BrowserWindowInterface* browser) {

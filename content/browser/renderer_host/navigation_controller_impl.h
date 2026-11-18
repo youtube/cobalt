@@ -1117,6 +1117,11 @@ class CONTENT_EXPORT NavigationControllerImpl : public NavigationController {
   FrameTreeNode* GetTargetFrameTreeNodeForNavigation(
       const LoadURLParams& params);
 
+  // Returns true if the initial entry should be replaced when reloading.
+  // This happens when a reload occurs before the first noninitial navigation
+  // commits and replaces the initial entry.
+  bool ShouldReplaceInitialEntryForReload(ReloadType reload_type);
+
   // ---------------------------------------------------------------------------
 
   // The FrameTree this instance belongs to. Each FrameTree gets its own

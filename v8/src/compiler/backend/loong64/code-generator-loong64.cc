@@ -4949,7 +4949,9 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
   if (!saves_fpu.is_empty()) {
     int count = saves_fpu.Count();
-    DCHECK_EQ(kNumCalleeSavedFPU, count);
+    DCHECK_EQ(saves_fpu.bits(), kCalleeSavedFPU.bits());
+    DCHECK(kCalleeSavedVR.is_empty());
+
     frame->AllocateSavedCalleeRegisterSlots(count *
                                             (kDoubleSize / kSystemPointerSize));
   }
@@ -5062,7 +5064,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ MultiPush(regs_to_save);
         DoubleRegList fp_regs_to_save;
         for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
-        __ MultiPushFPU(fp_regs_to_save);
+        __ MultiPushFPUOrLSX(fp_regs_to_save);
         __ li(WasmHandleStackOverflowDescriptor::GapRegister(),
               required_slots * kSystemPointerSize);
         __ Add_d(
@@ -5080,7 +5082,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // safepoint here.
         ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
         RecordSafepoint(reference_map);
-        __ MultiPopFPU(fp_regs_to_save);
+        __ MultiPopFPUOrLSX(fp_regs_to_save);
         __ MultiPop(regs_to_save);
       } else {
         __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
@@ -5113,6 +5115,7 @@ void CodeGenerator::AssembleConstructFrame() {
     // Save callee-saved FPU registers.
     __ MultiPushFPU(saves_fpu);
     DCHECK_EQ(kNumCalleeSavedFPU, saves_fpu.Count());
+    DCHECK(kCalleeSavedVR.is_empty());
   }
 
   if (!saves.is_empty()) {
@@ -5184,6 +5187,9 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     RegList regs_to_save;
     for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
     __ MultiPush(regs_to_save);
+    DoubleRegList fp_regs_to_save;
+    for (auto reg : wasm::kFpReturnRegisters) fp_regs_to_save.set(reg);
+    __ MultiPushFPUOrLSX(fp_regs_to_save);
     __ li(kCArgRegs[0], ExternalReference::isolate_address());
     {
       UseScratchRegisterScope temps{masm()};
@@ -5192,6 +5198,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     __ mov(fp, kReturnRegister0);
+    __ MultiPopFPUOrLSX(fp_regs_to_save);
     __ MultiPop(regs_to_save);
     __ bind(&done);
   }
@@ -5254,10 +5261,7 @@ AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
   auto rep = LocationOperand::cast(source)->representation();
   int new_slots = ElementSizeInPointers(rep);
   Loong64OperandConverter g(this, nullptr);
-  int last_frame_slot_id =
-      frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-  int sp_delta = frame_access_state_->sp_delta();
-  int slot_id = last_frame_slot_id + sp_delta + new_slots;
+  int slot_id = frame_access_state()->GetSPSlotCount() - 1 + new_slots;
   AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
   if (source->IsRegister()) {
     __ Push(g.ToRegister(source));
@@ -5292,10 +5296,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
     __ Pop(scratch);
     __ St_d(scratch, g.ToMemOperand(dest));
   } else {
-    int last_frame_slot_id =
-        frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-    int sp_delta = frame_access_state_->sp_delta();
-    int slot_id = last_frame_slot_id + sp_delta;
+    int slot_id = frame_access_state()->GetSPSlotCount() - 1;
     AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
     AssembleMove(&stack_slot, dest);
     frame_access_state()->IncreaseSPDelta(-dropped_slots);

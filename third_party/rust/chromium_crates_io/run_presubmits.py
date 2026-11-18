@@ -265,15 +265,16 @@ def CheckMultiversionCrates(crate_ids, gnrt_config):
         crate_name_to_list_of_crate_ids[crate_name] += [crate_id]
 
     result = []
+    unneeded_multiversion_tags = []
     for (crate_name, crate_ids) in crate_name_to_list_of_crate_ids.items():
-        # Ignore crates where we depend only on a single version.
-        if len(crate_ids) == 1:
-            continue
-
-        # Ignore crates that already have a bug to track cleaning up a
-        # multiversion situation.
         extra_kv = _GetExtraKvForCrateName(crate_name, gnrt_config)
-        if "multiversion_cleanup_bug" in extra_kv:
+        has_multiversion_tag = ("multiversion_cleanup_bug" in extra_kv)
+
+        if len(crate_ids) == 1 and has_multiversion_tag:
+            unneeded_multiversion_tags.append(crate_name)
+
+        # Ignore single-version crates and ones with the tag.
+        if len(crate_ids) == 1 or has_multiversion_tag:
             continue
 
         # Report a problem for other multiversion crates.
@@ -291,6 +292,11 @@ def CheckMultiversionCrates(crate_ids, gnrt_config):
             f"    [crate.{crate_name}.extra_kv]",
             f'    multiversion_cleanup_bug = "https://crbug.com/<bug number>"\n',
         ]
+
+    if unneeded_multiversion_tags:
+        result.append("ERROR: `gnrt_config.toml` contains unnecessary "
+                      "`multiversion_cleanup_bug` tag for the following "
+                      f"crates: {', '.join(unneeded_multiversion_tags)}")
 
     return "\n".join(result)
 

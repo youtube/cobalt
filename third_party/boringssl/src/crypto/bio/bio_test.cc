@@ -499,7 +499,7 @@ TEST(BIOTest, SocketNonBlocking) {
     bytes_read += ret;
   }
 
-  // `connect_bio` should become writeable again.
+  // `connect_bio` should become writable again.
   ASSERT_TRUE(WaitForSocket(accept_sock.get(), WaitType::kWrite))
       << LastSocketError();
   ret = BIO_write(connect_bio.get(), kTestMessage, sizeof(kTestMessage));

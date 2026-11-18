@@ -31,6 +31,8 @@
 #include "chrome/installer/util/google_update_settings.h"
 #include "components/metrics/enabled_state_provider.h"
 #include "components/metrics/metrics_pref_names.h"
+#include "components/metrics/metrics_reporting_choice_service.h"
+#include "components/metrics/metrics_reporting_level.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/service/variations_service.h"
@@ -57,6 +59,7 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/settings/metrics_reporting_level_controller.h"
 #include "chrome/browser/ash/settings/stats_reporting_controller.h"
 #include "components/metrics/structured/recorder.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -139,10 +142,29 @@ bool IsClientInSampleImpl(PrefService* local_state) {
 #if BUILDFLAG(IS_CHROMEOS)
 // Callback to update the metrics reporting state when the Chrome OS metrics
 // reporting setting changes.
+// TODO(b/492510818): Remove once migration to metrics reporting level
+// completes.
 void OnCrosMetricsReportingSettingChange(
     metrics::ChangeMetricsReportingStateCalledFrom called_from) {
+  if (metrics::MetricsReportingChoiceService::
+          ShouldUseMetricsConsentRestructure(
+              g_browser_process->local_state())) {
+    return;
+  }
   bool enable_metrics = ash::StatsReportingController::Get()->IsEnabled();
   metrics::ChangeMetricsReportingState(enable_metrics, called_from);
+}
+
+void OnCrosMetricsReportingLevelChange(
+    metrics::ChangeMetricsReportingStateCalledFrom called_from) {
+  if (!metrics::MetricsReportingChoiceService::
+          ShouldUseMetricsConsentRestructure(
+              g_browser_process->local_state())) {
+    return;
+  }
+  metrics::MetricsReportingLevel level =
+      ash::MetricsReportingLevelController::Get()->GetLevel();
+  metrics::ChangeMetricsReportingState(level, called_from);
 }
 #endif
 
@@ -262,11 +284,13 @@ bool ChromeMetricsServicesManagerClient::GetSamplingRatePerMille(int* rate) {
 #endif  // BUILDFLAG(IS_ANDROID)
   std::string rate_str = base::GetFieldTrialParamValueByFeature(
       feature, metrics::internal::kRateParamName);
-  if (rate_str.empty())
+  if (rate_str.empty()) {
     return false;
+  }
 
-  if (!base::StringToInt(rate_str, rate) || *rate > 1000)
+  if (!base::StringToInt(rate_str, rate) || *rate > 1000) {
     return false;
+  }
 
   return true;
 }
@@ -274,13 +298,28 @@ bool ChromeMetricsServicesManagerClient::GetSamplingRatePerMille(int* rate) {
 #if BUILDFLAG(IS_CHROMEOS)
 void ChromeMetricsServicesManagerClient::OnCrosSettingsCreated() {
   // Listen for changes to metrics reporting state.
+  // TODO(b/492510818): Remove once migration to metrics reporting level
+  // completes.
   reporting_setting_subscription_ =
       ash::StatsReportingController::Get()->AddObserver(
           base::BindRepeating(&OnCrosMetricsReportingSettingChange,
                               metrics::ChangeMetricsReportingStateCalledFrom::
                                   kCrosMetricsSettingsChange));
+
+  // Listen for changes to metrics reporting level.
+  reporting_level_setting_subscription_ =
+      ash::MetricsReportingLevelController::Get()->AddObserver(
+          base::BindRepeating(&OnCrosMetricsReportingLevelChange,
+                              metrics::ChangeMetricsReportingStateCalledFrom::
+                                  kCrosMetricsSettingsChange));
+
   // Invoke the callback once initially to set the metrics reporting state.
+  // TODO(b/492510818): Remove once migration to metrics reporting level
+  // completes.
   OnCrosMetricsReportingSettingChange(
+      metrics::ChangeMetricsReportingStateCalledFrom::
+          kCrosMetricsSettingsCreated);
+  OnCrosMetricsReportingLevelChange(
       metrics::ChangeMetricsReportingStateCalledFrom::
           kCrosMetricsSettingsCreated);
 }
@@ -361,8 +400,9 @@ bool ChromeMetricsServicesManagerClient::IsOffTheRecordSessionActive() {
   // TODO(crbug.com/40107157): This function should return true for Incognito
   // CCTs.
   for (const TabModel* model : TabModelList::models()) {
-    if (model->IsOffTheRecord())
+    if (model->IsOffTheRecord()) {
       return true;
+    }
   }
 
   return false;

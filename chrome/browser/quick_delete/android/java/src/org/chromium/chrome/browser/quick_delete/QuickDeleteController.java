@@ -198,7 +198,7 @@ public class QuickDeleteController {
         boolean isTabModelEmpty = mTabModel.getCount() == 0;
         // If the tab switcher is not displayed, skip the animation.
         boolean isTabSwitcherVisible =
-                mLayoutManager != null && mLayoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER);
+                mLayoutManager != null && mLayoutManager.isLayoutVisible(LayoutType.HUB);
 
         if (!isTabModelEmpty && isTabSwitcherVisible) {
             List<Tab> tabs =

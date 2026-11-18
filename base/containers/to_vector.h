@@ -49,11 +49,13 @@ template <typename U = void,
               std::is_void_v<U>,
               base::projected_value_t<std::ranges::iterator_t<Range>, Proj>,
               U>>
-  requires std::ranges::sized_range<Range> && std::ranges::input_range<Range> &&
+  requires std::ranges::input_range<Range> &&
            std::indirectly_unary_invocable<Proj, std::ranges::iterator_t<Range>>
 constexpr auto ToVector(Range&& range, Proj proj) {
   std::vector<ProjectedType> container;
-  container.reserve(std::ranges::size(range));
+  if constexpr (std::ranges::sized_range<Range>) {
+    container.reserve(std::ranges::size(range));
+  }
   std::ranges::transform(std::forward<Range>(range),
                          std::back_inserter(container), std::move(proj));
   return container;

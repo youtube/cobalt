@@ -108,6 +108,7 @@
 #include "rtc_base/time_utils.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/encoder_settings.h"
 #include "test/fake_encoder.h"
@@ -822,10 +823,8 @@ class SimpleVideoStreamEncoderFactory {
 
   FieldTrials field_trials_ = CreateTestFieldTrials();
   GlobalSimulatedTimeController time_controller_{Timestamp::Zero()};
-  Environment env_ =
-      CreateEnvironment(&field_trials_,
-                        time_controller_.GetClock(),
-                        time_controller_.CreateTaskQueueFactory());
+  Environment env_ = CreateTestEnvironment(
+      {.field_trials = &field_trials_, .time = &time_controller_});
   std::unique_ptr<MockableSendStatisticsProxy> stats_proxy_ =
       std::make_unique<MockableSendStatisticsProxy>(
           time_controller_.GetClock(),
@@ -1767,9 +1766,8 @@ class VideoStreamEncoderTest : public ::testing::Test {
  protected:
   FieldTrials field_trials_ = CreateTestFieldTrials();
   GlobalSimulatedTimeController time_controller_{Timestamp::Micros(1234)};
-  Environment env_ = CreateEnvironment(&field_trials_,
-                                       time_controller_.GetClock(),
-                                       time_controller_.GetTaskQueueFactory());
+  Environment env_ = CreateTestEnvironment(
+      {.field_trials = &field_trials_, .time = &time_controller_});
   VideoSendStream::Config video_send_config_;
   VideoEncoderConfig video_encoder_config_;
   int codec_width_;
@@ -8531,7 +8529,6 @@ TEST_F(VideoStreamEncoderTest, EncoderRatesPropagatedOnReconfigure) {
   video_stream_encoder_->Stop();
 }
 
-
 TEST_F(VideoStreamEncoderTest, EncoderSelectorCurrentEncoderIsSignaled) {
   constexpr int kDontCare = 100;
   StrictMock<MockEncoderSelector> encoder_selector;
@@ -10528,7 +10525,7 @@ TEST(VideoStreamEncoderSimpleTest, CreateDestroy) {
 
   // Lots of boiler plate.
   GlobalSimulatedTimeController time_controller(Timestamp::Zero());
-  Environment env = CreateEnvironment(time_controller.GetClock());
+  Environment env = CreateTestEnvironment({.time = &time_controller});
   MockableSendStatisticsProxy stats_proxy(
       &env.clock(), VideoSendStream::Config(nullptr),
       VideoEncoderConfig::ContentType::kRealtimeVideo, env.field_trials());
@@ -10605,6 +10602,51 @@ TEST(VideoStreamEncoderFrameCadenceTest, ActivatesFrameCadenceOnContentType) {
   VideoEncoderConfig config2;
   test::FillEncoderConfiguration(kVideoCodecVP8, 1, &config2);
   config2.content_type = VideoEncoderConfig::ContentType::kRealtimeVideo;
+  video_stream_encoder->ConfigureEncoder(std::move(config2), 0);
+  PassAFrame(encoder_queue, video_stream_encoder_callback, /*ntp_time_ms=*/2);
+  factory.DepleteTaskQueues();
+}
+
+TEST(VideoStreamEncoderFrameCadenceTest,
+     AllowZeroHertzVideoEnablesFrameCadence) {
+  auto adapter = std::make_unique<MockFrameCadenceAdapter>();
+  auto* adapter_ptr = adapter.get();
+  SimpleVideoStreamEncoderFactory factory;
+  FrameCadenceAdapterInterface::Callback* video_stream_encoder_callback =
+      nullptr;
+  EXPECT_CALL(*adapter_ptr, Initialize)
+      .WillOnce([&](FrameCadenceAdapterInterface::Callback* callback) {
+        video_stream_encoder_callback = callback;
+      });
+  TaskQueueBase* encoder_queue = nullptr;
+  std::unique_ptr<SimpleVideoStreamEncoderFactory::AdaptedVideoStreamEncoder>
+      video_stream_encoder = factory.Create(std::move(adapter), &encoder_queue);
+
+  EXPECT_CALL(*adapter_ptr, SetZeroHertzModeEnabled(Optional(Field(
+                                &FrameCadenceAdapterInterface::
+                                    ZeroHertzModeParams::num_simulcast_layers,
+                                Eq(0u)))));
+  VideoEncoderConfig config;
+  test::FillEncoderConfiguration(kVideoCodecVP8, 1, &config);
+  config.content_type = VideoEncoderConfig::ContentType::kRealtimeVideo;
+  config.allow_zero_hertz_video = true;
+  video_stream_encoder->ConfigureEncoder(std::move(config), 0);
+  factory.DepleteTaskQueues();
+
+  EXPECT_CALL(*adapter_ptr, SetZeroHertzModeEnabled(Optional(Field(
+                                &FrameCadenceAdapterInterface::
+                                    ZeroHertzModeParams::num_simulcast_layers,
+                                Gt(0u)))));
+  PassAFrame(encoder_queue, video_stream_encoder_callback, /*ntp_time_ms=*/1);
+  factory.DepleteTaskQueues();
+
+  // Expect a disabled zero-hertz mode after passing realtime video without
+  // allow_zero_hertz_video.
+  EXPECT_CALL(*adapter_ptr, SetZeroHertzModeEnabled(Eq(std::nullopt)));
+  VideoEncoderConfig config2;
+  test::FillEncoderConfiguration(kVideoCodecVP8, 1, &config2);
+  config2.content_type = VideoEncoderConfig::ContentType::kRealtimeVideo;
+  config2.allow_zero_hertz_video = false;
   video_stream_encoder->ConfigureEncoder(std::move(config2), 0);
   PassAFrame(encoder_queue, video_stream_encoder_callback, /*ntp_time_ms=*/2);
   factory.DepleteTaskQueues();

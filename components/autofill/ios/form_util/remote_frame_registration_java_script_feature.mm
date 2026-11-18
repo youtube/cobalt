@@ -35,7 +35,7 @@ RemoteFrameRegistrationJavaScriptFeature::
               FeatureScript::ReinjectionBehavior::
                   kReinjectOnDocumentRecreation)},
           {
-              autofill::AutofillFormFeaturesJavaScriptFeature::GetInstance(),
+              AutofillFormFeaturesJavaScriptFeature::GetInstance(),
           }) {}
 
 RemoteFrameRegistrationJavaScriptFeature::

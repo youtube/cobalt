@@ -116,7 +116,6 @@ import org.chromium.chrome.browser.customtabs.PopupCreatorFactory;
 import org.chromium.chrome.browser.desktop_site.DesktopSiteUtils;
 import org.chromium.chrome.browser.device.DeviceClassManager;
 import org.chromium.chrome.browser.devtools.DevToolsWindowAndroid;
-import org.chromium.chrome.browser.dom_distiller.DomDistillerUiUtils;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeManager;
 import org.chromium.chrome.browser.download.DownloadManagerService;
 import org.chromium.chrome.browser.download.DownloadUtils;
@@ -2822,9 +2821,17 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         int type = Profile.getBrowserProfileTypeFromProfile(getCurrentTabModel().getProfile());
 
         if (id == R.id.preferences_id) {
-            SettingsNavigation settingsNavigation =
-                    SettingsNavigationFactory.createSettingsNavigation();
-            settingsNavigation.startSettings(this);
+            if (ChromeFeatureList.isEnabled(ChromeFeatureList.SETTINGS_IN_TAB)) {
+                LoadUrlParams params =
+                        new LoadUrlParams(UrlConstants.SETTINGS_URL, PageTransition.LINK);
+                // Settings are associated with the on-the-record profile, never incognito.
+                getTabCreator(/* incognito= */ false)
+                        .createNewTab(params, TabLaunchType.FROM_CHROME_UI, getActivityTab());
+            } else {
+                SettingsNavigation settingsNavigation =
+                        SettingsNavigationFactory.createSettingsNavigation();
+                settingsNavigation.startSettings(this);
+            }
             RecordUserAction.record("MobileMenuSettings");
             RecordHistogram.recordEnumeratedHistogram(
                     "Settings.OpenSettingsFromMenu.PerProfileType",
@@ -3093,11 +3100,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                         this, profile, url.getSpec(), getModalDialogManager());
             }
 
-            return true;
-        }
-
-        if (id == R.id.reader_mode_prefs_id) {
-            DomDistillerUiUtils.openDialogSettings(currentTab.getWebContents());
             return true;
         }
 

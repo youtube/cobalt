@@ -7,8 +7,12 @@
 #include <algorithm>
 #include <vector>
 
+#include "base/at_exit.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory_coordinator/test_memory_consumer_registry.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_mock_time_task_runner.h"
+#include "components/viz/common/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace viz {
@@ -46,9 +50,31 @@ class TestFrameEvictionManagerClient : public FrameEvictionManagerClient {
 
 }  // namespace
 
-class FrameEvictionManagerTest : public testing::Test {};
+class FrameEvictionManagerTest
+    // Cannot use base::WithFeatureOverride because of VizTestSuite setup.
+    : public testing::TestWithParam<bool> {
+ public:
+  FrameEvictionManagerTest() {
+    if (GetParam()) {
+      scoped_feature_list_.InitAndEnableFeature(
+          features::kScalableFrameEviction);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          features::kScalableFrameEviction);
+    }
+  }
 
-TEST_F(FrameEvictionManagerTest, ScopedPause) {
+ private:
+  // Required to force the `FrameEvictionManager` singleton to be destroyed and
+  // re-created for each parameterized test run, because its constructor caches
+  // the state of `features::kScalableFrameEviction`.
+  base::test::ScopedFeatureList scoped_feature_list_;
+  base::ShadowingAtExitManager shadowing_at_exit_manager_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All, FrameEvictionManagerTest, testing::Bool());
+
+TEST_P(FrameEvictionManagerTest, ScopedPause) {
   constexpr int kMaxSavedFrames = 1;
   constexpr int kFrames = 2;
 
@@ -73,7 +99,7 @@ TEST_F(FrameEvictionManagerTest, ScopedPause) {
                                   &TestFrameEvictionManagerClient::has_frame));
 }
 
-TEST_F(FrameEvictionManagerTest, PeriodicCulling) {
+TEST_P(FrameEvictionManagerTest, PeriodicCulling) {
   // Cannot use a TaskEnvironment as there is already one which is not using
   // MOCK_TIME.
   auto task_runner = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
@@ -108,6 +134,80 @@ TEST_F(FrameEvictionManagerTest, PeriodicCulling) {
 
   task_runner->FastForwardBy(FrameEvictionManager::kPeriodicCullingDelay);
   EXPECT_FALSE(frame2.has_frame());
+}
+
+TEST_P(FrameEvictionManagerTest, ScalableEvictionLimits) {
+  if (!GetParam()) {
+    return;
+  }
+
+  base::TestMemoryConsumerRegistry test_registry;
+
+  FrameEvictionManager* manager = FrameEvictionManager::GetInstance();
+
+  // Trigger 50% limit, which should bring us exactly to the baseline.
+  test_registry.NotifyUpdateMemoryLimit(50);
+  size_t baseline = manager->GetMaxNumberOfSavedFrames();
+
+  // Trigger 100% limit, which should bring us to baseline * 2.
+  test_registry.NotifyUpdateMemoryLimit(100);
+  EXPECT_EQ(manager->GetMaxNumberOfSavedFrames(), baseline * 2);
+
+  // Trigger 25% limit, which should clamp to baseline.
+  test_registry.NotifyUpdateMemoryLimit(25);
+  EXPECT_EQ(manager->GetMaxNumberOfSavedFrames(), baseline);
+
+  // Trigger 75% limit, which should be baseline * 2 * 75 / 100.
+  test_registry.NotifyUpdateMemoryLimit(75);
+  EXPECT_EQ(manager->GetMaxNumberOfSavedFrames(), baseline * 2 * 75 / 100);
+}
+
+TEST_P(FrameEvictionManagerTest, ScalableEvictionReleaseMemory) {
+  if (!GetParam()) {
+    return;
+  }
+
+  base::TestMemoryConsumerRegistry test_registry;
+  FrameEvictionManager* manager = FrameEvictionManager::GetInstance();
+
+  // Get the baseline.
+  test_registry.NotifyUpdateMemoryLimit(50);
+  size_t baseline = manager->GetMaxNumberOfSavedFrames();
+
+  // Reset to 100% to start with 2x baseline capacity.
+  test_registry.NotifyUpdateMemoryLimit(100);
+  EXPECT_EQ(manager->GetMaxNumberOfSavedFrames(), baseline * 2);
+
+  // Add more frames than the capacity.
+  size_t frames_to_add = baseline * 2 + 2;
+  std::vector<TestFrameEvictionManagerClient> frames(frames_to_add);
+  for (auto& frame : frames) {
+    manager->AddFrame(&frame, false);
+  }
+
+  // Initial culling should keep baseline * 2 frames.
+  EXPECT_EQ(baseline * 2,
+            static_cast<size_t>(std::ranges::count_if(
+                frames, &TestFrameEvictionManagerClient::has_frame)));
+
+  // Lower limit to 50% (target capacity becomes baseline, but effective
+  // capacity remains 2x baseline).
+  test_registry.NotifyUpdateMemoryLimit(50);
+  EXPECT_EQ(manager->GetMaxNumberOfSavedFrames(), baseline * 2);
+
+  // Verify we still have 2x baseline frames.
+  EXPECT_EQ(baseline * 2,
+            static_cast<size_t>(std::ranges::count_if(
+                frames, &TestFrameEvictionManagerClient::has_frame)));
+
+  // Notify release memory. Effective capacity drops to baseline, and culling
+  // occurs.
+  test_registry.NotifyReleaseMemory();
+  EXPECT_EQ(manager->GetMaxNumberOfSavedFrames(), baseline);
+
+  // Verify culling occurred down to baseline.
+  EXPECT_EQ(baseline, static_cast<size_t>(std::ranges::count_if(
+                          frames, &TestFrameEvictionManagerClient::has_frame)));
 }
 
 }  // namespace viz

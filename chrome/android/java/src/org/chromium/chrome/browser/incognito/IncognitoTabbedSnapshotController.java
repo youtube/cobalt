@@ -48,7 +48,7 @@ public class IncognitoTabbedSnapshotController extends IncognitoSnapshotControll
             TabModelSelector tabModelSelector,
             ActivityLifecycleDispatcher activityLifecycleDispatcher) {
         Supplier<Boolean> isOverviewModeSupplier =
-                () -> layoutManager.getActiveLayoutType() == LayoutType.TAB_SWITCHER;
+                () -> layoutManager.getActiveLayoutType() == LayoutType.HUB;
         Supplier<Boolean> isShowingIncognitoSupplier =
                 getIsShowingIncognitoSupplier(tabModelSelector, isOverviewModeSupplier);
 
@@ -101,17 +101,17 @@ public class IncognitoTabbedSnapshotController extends IncognitoSnapshotControll
 
         mLayoutStateObserver =
                 new FilterLayoutStateObserver(
-                        LayoutType.TAB_SWITCHER,
+                        LayoutType.HUB,
                         new LayoutStateObserver() {
                             @Override
                             public void onStartedShowing(int layoutType) {
-                                assert layoutType == LayoutType.TAB_SWITCHER;
+                                assert layoutType == LayoutType.HUB;
                                 updateIncognitoTabSnapshotState();
                             }
 
                             @Override
                             public void onStartedHiding(int layoutType) {
-                                assert layoutType == LayoutType.TAB_SWITCHER;
+                                assert layoutType == LayoutType.HUB;
                                 updateIncognitoTabSnapshotState();
                             }
                         });

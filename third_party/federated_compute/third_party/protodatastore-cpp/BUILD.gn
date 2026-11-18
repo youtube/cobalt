@@ -1,0 +1,39 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+visibility = [
+  ":*",
+  "//third_party/federated_compute:*",
+]
+
+config("protodatastore_include") {
+  include_dirs = [ "src" ]
+}
+
+source_set("protodatastore-cpp") {
+  public = [
+    "src/protostore/crc32.h",
+    "src/protostore/file-storage.h",
+    "src/protostore/proto-data-store.h",
+    "src/protostore/status-macros.h",
+  ]
+  sources = [
+    "src/protostore/crc32.cc",
+    "src/protostore/file-storage.cc",
+  ]
+
+  public_configs = [ ":protodatastore_include" ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  public_deps = [
+    "//third_party/abseil-cpp:absl",
+    "//third_party/zlib",
+  ]
+
+  if (is_win) {
+    defines = [ "ssize_t=intptr_t" ]
+  }
+}

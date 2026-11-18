@@ -1,1 +1,1 @@
-TYPE_VIEW_ACCESSIBILITY_FOCUSED class_name=android.view.View
+TYPE_VIEW_ACCESSIBILITY_FOCUSED class_name=android.view.View on [Apple] class_name=android.view.View

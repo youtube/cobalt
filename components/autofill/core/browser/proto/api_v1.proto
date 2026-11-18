@@ -135,7 +135,7 @@ message AutofillQueryResponse {
       reserved 4;  // optional bool may_use_prefilled_placeholder
       // For fields of type NEW_PASSWORD and ACCOUNT_CREATION_PASSWORD, this may
       // specify requirements for the generation of passwords.
-      optional .autofill.PasswordRequirementsSpec password_requirements = 5;
+      optional PasswordRequirementsSpec password_requirements = 5;
       reserved 6;  // optional bool primary_type_prediction_is_override
       reserved 7;  // optional string format_string = 7;
       optional FormatString format_string = 8;

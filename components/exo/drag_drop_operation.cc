@@ -12,6 +12,7 @@
 #include "base/strings/string_split.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/exo/data_exchange_delegate.h"
+#include "components/exo/data_exchange_utils.h"
 #include "components/exo/data_offer.h"
 #include "components/exo/data_source.h"
 #include "components/exo/extended_drag_source.h"
@@ -24,6 +25,8 @@
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "ui/aura/client/drag_drop_client.h"
 #include "ui/aura/window_tracker.h"
+#include "ui/base/clipboard/clipboard_format_type.h"
+#include "ui/base/clipboard/custom_data_helper.h"
 #include "ui/base/clipboard/file_info.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
@@ -38,6 +41,7 @@
 #include "ui/gfx/geometry/transform_util.h"
 #include "ui/gfx/geometry/vector2d.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace exo {
 namespace {
@@ -191,6 +195,8 @@ DragDropOperation::DragDropOperation(
           origin_->get()->window());
   os_exchange_data_->SetSource(
       std::make_unique<ui::DataTransferEndpoint>(endpoint_type));
+  // All data here comes from VM, mark them as renderer-tainted.
+  os_exchange_data_->MarkRendererTaintedFromOrigin(url::Origin());
 
   extended_drag_source_ = ExtendedDragSource::Get();
   if (extended_drag_source_) {
@@ -306,10 +312,11 @@ void DragDropOperation::OnFileContentsRead(const std::string& mime_type,
 void DragDropOperation::OnWebCustomDataRead(const std::string& mime_type,
                                             const std::vector<uint8_t>& data) {
   DCHECK(os_exchange_data_);
-  base::Pickle pickle = base::Pickle::WithData(data);
-  os_exchange_data_->SetPickledData(
-      ui::ClipboardFormatType::DataTransferCustomType(), pickle);
-  mime_type_ = mime_type;
+  if (std::optional<base::Pickle> pickle = FilterCustomData(data)) {
+    os_exchange_data_->SetPickledData(
+        ui::ClipboardFormatType::DataTransferCustomType(), *pickle);
+    mime_type_ = mime_type;
+  }
   counter_.Run();
 }
 

@@ -394,7 +394,6 @@
         "module_name": "//content/test:content_browsertests",
         "module_scheme": "gtest",
         "name": "content_browsertests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",

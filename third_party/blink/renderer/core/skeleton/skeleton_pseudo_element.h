@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SKELETON_SKELETON_PSEUDO_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SKELETON_SKELETON_PSEUDO_ELEMENT_H_
 
+#include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 
 namespace blink {
@@ -33,10 +34,18 @@ class SkeletonPseudoElement : public PseudoElement {
   bool LayoutObjectIsNeeded(const DisplayStyle&) const final;
 
   void AttachLayoutTree(AttachContext&) final;
-  void DetachLayoutTree(bool performing_reattach) final;
+  void DidRecalcStyle(const StyleRecalcChange) final;
 
   const ComputedStyle* CustomStyleForLayoutObject(
       const StyleRecalcContext&) final;
+
+  const ComputedStyle* AdjustedLayoutStyle(
+      const ComputedStyle& style,
+      const ComputedStyle& layout_parent_style) final;
+
+ private:
+  // Return the used color-scheme for the skeleton root element
+  mojom::blink::ColorScheme SkeletonUsedColorScheme();
 };
 
 }  // namespace blink

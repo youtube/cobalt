@@ -403,6 +403,7 @@
 <translation id="5234764350956374838">닫기</translation>
 <translation id="5239627039202700673">언제든지 메시지, 문서, 기타 앱에서 링크를 클릭하여 Chrome을 사용하세요</translation>
 <translation id="5251420635869119124">게스트로 사용 기록을 남기지 않고 Chrome을 사용할 수 있습니다.</translation>
+<translation id="5271833978500241046">Chrome에서 다른 Gemini 기능과 함께 사용하세요</translation>
 <translation id="5286907366254680517">감지됨</translation>
 <translation id="5320351714793324716">사용자가 쿠키를 허용하면 Chrome에서 미리 로드할 때 쿠키를 사용할 수 있습니다.</translation>
 <translation id="5321325624576443340">Google 렌즈를 사용할 수 없습니다. 나중에 다시 시도해 주세요.</translation>
@@ -441,15 +442,6 @@ Chrome에서 설정을 복구할 수 없습니다.</translation>
 <translation id="569897634095159764">인터넷에 연결할 수 없습니다. 프록시 서버를 인증해야 합니다.</translation>
 <translation id="5709557627224531708">Chrome을 기본 브라우저로 설정</translation>
 <translation id="5719246646468301581">Chrome 및 ChromeOS 추가 서비스 약관</translation>
-<translation id="5719324992913248873">이 작업으로 인해 나타날 수 있는 결과는 다음과 같습니다.
-          <ph name="LINE_BREAKS" />
-           • 일부 Chrome 설정 및 Chrome 바로가기 재설정
-           <ph name="LINE_BREAK" />
-           • 확장 프로그램 사용 중지
-           <ph name="LINE_BREAK" />
-           • 쿠키 및 기타 임시 사이트 데이터 삭제
-            <ph name="LINE_BREAKS" />
-           북마크, 기록, 저장된 비밀번호는 영향을 받지 않습니다.</translation>
 <translation id="5736850870166430177">사이트에서 사용자의 비밀번호를 도용하려고 하거나 사용자가 유해한 파일을 다운로드하는 경우, Chrome에서 페이지 콘텐츠 일부를 비롯한 URL을 세이프 브라우징 서비스에 보낼 수 있습니다.</translation>
 <translation id="5756509061973259733">이 계정을 사용하는 Chrome 프로필이 기기에 이미 존재합니다.</translation>
 <translation id="5759947850379142561">Google 렌즈로 검색할 텍스트 또는 이미지를 선택하거나 Esc 키를 눌러 Google 렌즈를 종료하세요</translation>
@@ -647,6 +639,7 @@ Chrome에서 설정을 복구할 수 없습니다.</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">데이터를 보호하려면 최근에 방문하지 않은 사이트의 권한을 Chrome에서 삭제하도록 허용하세요.</translation>
 <translation id="7629695634924605473">비밀번호가 유출되면 Chrome에서 알려줍니다.</translation>
+<translation id="7629898584100520089">스킬과 같은 AI 혁신은 Google 계정에 저장되며 Chrome 동기화와 별도로 관리됩니다</translation>
 <translation id="7641148173327520642">시스템 관리자가 <ph name="TARGET_URL_HOSTNAME" /> 액세스를 위해 <ph name="ALTERNATIVE_BROWSER_NAME" />을(를) 열도록 Chrome을 구성했습니다.</translation>
 <translation id="7649070708921625228">도움말</translation>
 <translation id="7651907282515937834">Chrome Enterprise 로고</translation>

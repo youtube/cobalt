@@ -60,7 +60,6 @@ class EnrollmentScreenView {
     kEnterprisePreferred,
     kKioskPreferred
   };
-  enum class UserErrorType { kConsumerDomain, kBusinessDomain };
 
   // Initializes the view with parameters.
   virtual void SetEnrollmentConfig(const policy::EnrollmentConfig& config) = 0;

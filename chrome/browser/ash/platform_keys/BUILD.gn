@@ -18,7 +18,6 @@ static_library("platform_keys") {
   deps = [
     "//ash/constants",
     "//base",
-    "//chrome/browser/ash/certificate_provider",
     "//chrome/browser/ash/kcer",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/net",
@@ -27,6 +26,7 @@ static_library("platform_keys") {
     "//chromeos/ash/components/kcer",
     "//chromeos/ash/components/network",
     "//chromeos/ash/components/platform_keys",
+    "//chromeos/components/certificate_provider",
     "//components/keyed_service/core",
     "//components/policy/core/common",
     "//components/user_manager",

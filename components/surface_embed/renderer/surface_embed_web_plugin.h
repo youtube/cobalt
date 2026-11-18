@@ -13,8 +13,10 @@
 #include "cc/layers/content_layer_client.h"
 #include "cc/layers/surface_layer.h"
 #include "components/surface_embed/common/surface_embed.mojom.h"
+#include "components/surface_embed/renderer/surface_embed_paint_holding_helper.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
+#include "components/viz/common/surfaces/surface_id.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/web/web_plugin.h"
@@ -81,13 +83,14 @@ class SurfaceEmbedWebPlugin : public blink::WebPlugin,
 
   // Synchronizes visual properties (e.g. LocalSurfaceId, viewport size) with
   // the browser process.
-  void SynchronizeVisualProperties();
+  void SynchronizeVisualProperties(bool allow_paint_holding);
 
   // Called when the mojo channels disconnect.
   void OnHostDisconnected();
 
   // mojom::SurfaceEmbed implementation:
-  void SetFrameSinkId(const ::viz::FrameSinkId& frame_sink_id) override;
+  void SetFrameSinkId(const ::viz::FrameSinkId& frame_sink_id,
+                      bool allow_paint_holding) override;
   void UpdateLocalSurfaceIdFromChild(
       const ::viz::LocalSurfaceId& local_surface_id) override;
   void ChildProcessGone() override;
@@ -120,6 +123,7 @@ class SurfaceEmbedWebPlugin : public blink::WebPlugin,
   viz::FrameSinkId frame_sink_id_;
   std::unique_ptr<viz::ParentLocalSurfaceIdAllocator>
       parent_local_surface_id_allocator_;
+  SurfaceEmbedPaintHoldingHelper paint_holding_helper_;
 
   mojo::Remote<mojom::SurfaceEmbedHost> host_;
   mojo::Receiver<mojom::SurfaceEmbed> receiver_{this};

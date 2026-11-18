@@ -9,12 +9,12 @@
 
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "../../third_party/inspector_protocol/crdtp/protocol_core.h"
 #include "include/v8-inspector.h"
-#include "include/v8-memory-span.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
@@ -54,7 +54,7 @@ class V8_EXPORT Binary {
   size_t size() const { return bytes_->size(); }
   String toBase64() const;
   static Binary fromBase64(const String& base64, bool* success);
-  static Binary fromSpan(v8::MemorySpan<const uint8_t> span) {
+  static Binary fromSpan(std::span<const uint8_t> span) {
     return Binary(
         std::make_shared<std::vector<uint8_t>>(span.begin(), span.end()));
   }
@@ -115,6 +115,11 @@ struct ProtocolTypeTraits<v8_inspector::protocol::Binary> {
   static void Serialize(const v8_inspector::protocol::Binary& value,
                         std::vector<uint8_t>* bytes);
 };
+
+template <typename T>
+v8_inspector::String16 ConvertAssociatedData(std::string_view data) {
+  return v8_inspector::String16(data);
+}
 
 }  // namespace v8_crdtp
 

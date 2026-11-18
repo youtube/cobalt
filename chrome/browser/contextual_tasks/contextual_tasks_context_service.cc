@@ -339,12 +339,10 @@ ContextualTasksContextService::ContextualTasksContextService(
       embedder_metadata_provider_);
   scoped_page_embeddings_service_observation_.Observe(page_embeddings_service_);
 
-  if (optimization_guide_keyed_service_) {
-    model_handler_ = std::make_unique<ContextualTasksContextModelHandler>(
-        optimization_guide_keyed_service_,
-        base::ThreadPool::CreateSequencedTaskRunner(
-            {base::MayBlock(), base::TaskPriority::USER_BLOCKING}));
-  }
+  model_handler_ = std::make_unique<ContextualTasksContextModelHandler>(
+      optimization_guide_keyed_service_,
+      base::ThreadPool::CreateSequencedTaskRunner(
+          {base::MayBlock(), base::TaskPriority::USER_BLOCKING}));
 }
 
 ContextualTasksContextService::~ContextualTasksContextService() = default;
@@ -814,6 +812,8 @@ TabSignals ContextualTasksContextService::ComputeTabSignals(
     candidate_tab_embeddings =
         page_embeddings_service_->GetEmbeddings(web_contents->GetPrimaryPage());
   }
+  base::UmaHistogramBoolean("ContextualTasks.Context.CandidateTabHasEmbeddings",
+                            !candidate_tab_embeddings.empty());
 
   tab_signals.similarity_scores =
       GetEmbeddingScores(query_state.query_embedding, candidate_tab_embeddings);

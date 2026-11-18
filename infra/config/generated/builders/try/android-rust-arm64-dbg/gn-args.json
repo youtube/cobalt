@@ -4,7 +4,6 @@
     "debuggable_apks": false,
     "enable_r8_tracerefs": true,
     "ffmpeg_branding": "Chrome",
-    "is_component_build": true,
     "is_debug": true,
     "proprietary_codecs": true,
     "symbol_level": 1,

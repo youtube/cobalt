@@ -7,49 +7,22 @@
 
 #import <set>
 
+#import "ios/chrome/browser/shared/public/commands/tab_picker_commands.h"
 #import "ios/chrome/browser/tab_picker/ui/tab_picker_mutator.h"
 #import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/base_grid_mediator.h"
 #import "ios/web/public/web_state.h"
 
-@protocol TabPickerLogger;
-@protocol TabPickerSnackbarPresenter;
-@class TabPickerMediator;
+@class TabPickerParams;
 @protocol TabPickerConsumer;
-
-// The tabs attachment delegate.
-@protocol TabsAttachmentDelegate
-
-// Returns the max number of tab attachments.
-- (NSUInteger)maxTabAttachmentCount;
-
-/// Sends the selected tabs identifiers to the tabs attachment delegate.
-/// `cachedWebStateIDs` contains the IDs of the tabs that have their content
-/// cached.
-- (void)attachSelectedTabs:(TabPickerMediator*)tabPickerMediator
-       selectedWebStateIDs:(std::set<web::WebStateID>)selectedWebStateIDs
-         cachedWebStateIDs:(std::set<web::WebStateID>)cachedWebStateIDs;
-
-/// Returns the web state IDs that are preselected.
-- (std::set<web::WebStateID>)preselectedWebStateIDs;
-
-@end
 
 // The tab picker mediator.
 @interface TabPickerMediator : BaseGridMediator <TabPickerMutator>
 
 - (instancetype)initWithGridConsumer:(id<TabCollectionConsumer>)gridConsumer
                    tabPickerConsumer:(id<TabPickerConsumer>)tabPickerConsumer
-              tabsAttachmentDelegate:
-                  (id<TabsAttachmentDelegate>)tabsAttachmentDelegate;
-
-// Delegate for logging events.
-@property(nonatomic, weak) id<TabPickerLogger> logger;
-
-// Presenter for snackbars.
-@property(nonatomic, weak) id<TabPickerSnackbarPresenter> snackbarPresenter;
-
-/// The mediator's delegate for attaching selected tabs.
-@property(nonatomic, weak) id<TabsAttachmentDelegate> tabsAttachmentDelegate;
+                              params:(TabPickerParams*)params
+            tabPickerCompletionBlock:
+                (TabPickerCompletionBlock)tabPickerCompletionBlock;
 
 @end
 

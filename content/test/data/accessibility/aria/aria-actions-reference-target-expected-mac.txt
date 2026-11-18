@@ -1,0 +1,4 @@
+AXWebArea
+++AXTextField AXCustomActionNamesForTesting=['Edit'] AXValue='your-file-name.pdf Edit'
+++++AXStaticText AXValue='your-file-name.pdf '
+++++AXButton AXTitle='Edit'

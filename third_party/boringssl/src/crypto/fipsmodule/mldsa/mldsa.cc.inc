@@ -1513,6 +1513,24 @@ inline void vector_encode_signed(uint8_t *out, const vector<X> *a) {
   }
 }
 
+// `vector_encode_signed_ntt` behaves like `vector_encode_signed` but takes its
+// input in NTT form. This is only used by the testing-only `skEncode` and
+// `skDecode` functions and is not performance-sensitive.
+template <int bits, uint32_t max, int X>
+inline void vector_encode_signed_ntt(uint8_t *out, const vector<X> *a_ntt) {
+  vector<X> a = *a_ntt;
+  vector_inverse_ntt_montgomery(&a);
+  // `vector_inverse_ntt_montgomery` adds an extra factor of R, which we must
+  // cancel with a Montgomery reduction.
+  for (int i = 0; i < X; i++) {
+    for (int j = 0; j < kDegree; j++) {
+      a.v[i].c[j] = reduce_montgomery(a.v[i].c[j]);
+    }
+  }
+
+  vector_encode_signed<bits, max>(out, &a);
+}
+
 // FIPS 204, Algorithm 19 (`BitUnpack`).
 template <int bits, uint32_t max, int X>
 inline int vector_decode_signed(vector<X> *out, const uint8_t *in) {
@@ -1591,9 +1609,9 @@ template <int K, int L>
 struct private_key {
   public_key<K> pub;
   uint8_t k[kKBytes];
-  vector<L> s1;
-  vector<K> s2;
-  vector<K> t0;
+  vector<L> s1_ntt;
+  vector<K> s2_ntt;
+  vector<K> t0_ntt;
 };
 
 template <int K, int L>
@@ -1657,21 +1675,21 @@ inline int mldsa_marshal_private_key(CBB *out, const private_key<K, L> *priv) {
   if (!CBB_add_space(out, &vectorl_output, scalar_bytes * L)) {
     return 0;
   }
-  vector_encode_signed<plus_minus_eta_bitlen<K>(), eta<K>()>(vectorl_output,
-                                                             &priv->s1);
+  vector_encode_signed_ntt<plus_minus_eta_bitlen<K>(), eta<K>()>(vectorl_output,
+                                                                 &priv->s1_ntt);
 
   uint8_t *s2_output;
   if (!CBB_add_space(out, &s2_output, scalar_bytes * K)) {
     return 0;
   }
-  vector_encode_signed<plus_minus_eta_bitlen<K>(), eta<K>()>(s2_output,
-                                                             &priv->s2);
+  vector_encode_signed_ntt<plus_minus_eta_bitlen<K>(), eta<K>()>(s2_output,
+                                                                 &priv->s2_ntt);
 
   uint8_t *t0_output;
   if (!CBB_add_space(out, &t0_output, 416 * K)) {
     return 0;
   }
-  vector_encode_signed<13, (1 << 12)>(t0_output, &priv->t0);
+  vector_encode_signed_ntt<13, (1 << 12)>(t0_output, &priv->t0_ntt);
 
   return 1;
 }
@@ -1688,17 +1706,16 @@ inline int mldsa_parse_private_key(private_key<K, L> *priv, CBS *in) {
       !CBS_get_bytes(in, &public_key_hash, kTrBytes) ||
       !CBS_get_bytes(in, &s1_bytes, scalar_bytes * L) ||
       !vector_decode_signed<plus_minus_eta_bitlen<K>(), eta<K>()>(
-          &priv->s1, CBS_data(&s1_bytes)) ||
+          &priv->s1_ntt, CBS_data(&s1_bytes)) ||
       !CBS_get_bytes(in, &s2_bytes, scalar_bytes * K) ||
       !vector_decode_signed<plus_minus_eta_bitlen<K>(), eta<K>()>(
-          &priv->s2, CBS_data(&s2_bytes)) ||
-      !CBS_get_bytes(in, &t0_bytes, 416 * K) ||
-      // Note: Decoding 13 bits into (-2^12, 2^12] cannot fail.
-      !vector_decode_signed<13, (1 << 12)>(&priv->t0, CBS_data(&t0_bytes))) {
+          &priv->s2_ntt, CBS_data(&s2_bytes)) ||
+      !CBS_get_bytes(in, &t0_bytes, 416 * K)) {
     return 0;
   }
 
-  // Compute `t1`, which is not in the `skDecode` input.
+  // Compute `t1`, which is not in the `skDecode` input. This also computes
+  // `t0_ntt` and converts `s1_ntt` and `s2_ntt` to NTT form.
   uint8_t unused[public_key_bytes<K>()];
   if (!mldsa_finish_keygen(unused, priv)) {
     return 0;
@@ -1707,7 +1724,7 @@ inline int mldsa_parse_private_key(private_key<K, L> *priv, CBS *in) {
   // As a side effect of computing `t1`, we also compute `t0` and
   // `public_key_hash`. Check they match the received bytes.
   uint8_t t0_computed[416 * K];
-  vector_encode_signed<13, (1 << 12)>(t0_computed, &priv->t0);
+  vector_encode_signed_ntt<13, (1 << 12)>(t0_computed, &priv->t0_ntt);
   if (!CBS_mem_equal(&public_key_hash, priv->pub.public_key_hash,
                      sizeof(priv->pub.public_key_hash)) ||
       !CBS_mem_equal(&t0_bytes, t0_computed, sizeof(t0_computed))) {
@@ -1760,6 +1777,9 @@ inline int mldsa_parse_signature(signature<K, L> *sign, CBS *in) {
 
 // FIPS 204, Algorithm 6 (`ML-DSA.KeyGen_internal`), steps 3 and 5–11.
 // Returns 1 on success and 0 on failure.
+//
+// On input, `priv->s1_ntt` and `priv->s2_ntt` are not yet in NTT form. They are
+// converted to NTT form by this function.
 template <int K, int L>
 inline int mldsa_finish_keygen(
     uint8_t out_encoded_public_key[public_key_bytes<K>()],
@@ -1769,7 +1789,6 @@ inline int mldsa_finish_keygen(
   struct Values {
     enum { kAllowUniquePtr = true };
     matrix<K, L> a_ntt;
-    vector<L> s1_ntt;
     vector<K> t;
   };
   auto values = MakeUnique<Values>();
@@ -1780,16 +1799,17 @@ inline int mldsa_finish_keygen(
   // Step 3.
   matrix_expand(&values->a_ntt, priv->pub.rho);
 
-  // Step 5.
-  OPENSSL_memcpy(&values->s1_ntt, &priv->s1, sizeof(values->s1_ntt));
-  vector_ntt(&values->s1_ntt);
-
-  matrix_mult_montgomery(&values->t, &values->a_ntt, &values->s1_ntt);
+  // Step 5. Note that, on input, `s1_ntt` and `s2_ntt` are not yet in NTT form,
+  // but this function is responsible for converting them to NTT.
+  vector_ntt(&priv->s1_ntt);
+  matrix_mult_montgomery(&values->t, &values->a_ntt, &priv->s1_ntt);
   vector_inverse_ntt_montgomery(&values->t);
-  vector_add(&values->t, &values->t, &priv->s2);
+  vector_add(&values->t, &values->t, &priv->s2_ntt);
+  vector_ntt(&priv->s2_ntt);
 
-  // Step 6-7.
-  vector_power2_round(&priv->pub.t1, &priv->t0, &values->t);
+  // Step 6-7. We store t0 in NTT form.
+  vector_power2_round(&priv->pub.t1, &priv->t0_ntt, &values->t);
+  vector_ntt(&priv->t0_ntt);
   // t1 is public.
   CONSTTIME_DECLASSIFY(&priv->pub.t1, sizeof(priv->pub.t1));
 
@@ -1831,8 +1851,9 @@ inline int mldsa_generate_key_external_entropy_no_self_test(
   CONSTTIME_DECLASSIFY(rho, kRhoBytes);
   OPENSSL_memcpy(priv->pub.rho, rho, sizeof(priv->pub.rho));
   OPENSSL_memcpy(priv->k, k, sizeof(priv->k));
-  // Step 4. This is independent of A (step 3) and can be done first.
-  vector_expand_short(&priv->s1, &priv->s2, sigma);
+  // Steps 4. This is independent of A (step 3) and can be done first.
+  // `mldsa_finish_keygen` will convert `s1_ntt` and `s2_ntt` into NTT from.
+  vector_expand_short(&priv->s1_ntt, &priv->s2_ntt, sigma);
   // Steps 3 and 5-11.
   return mldsa_finish_keygen(out_encoded_public_key, priv);
 }
@@ -1867,9 +1888,6 @@ inline int mldsa_sign_mu_no_self_test(
   struct Values {
     enum { kAllowUniquePtr = true };
     signature<K, L> sign;
-    vector<L> s1_ntt;
-    vector<K> s2_ntt;
-    vector<K> t0_ntt;
     matrix<K, L> a_ntt;
     vector<L> y;
     vector<K> w;
@@ -1881,15 +1899,6 @@ inline int mldsa_sign_mu_no_self_test(
   if (values == nullptr) {
     return 0;
   }
-  OPENSSL_memcpy(&values->s1_ntt, &priv->s1, sizeof(values->s1_ntt));
-  vector_ntt(&values->s1_ntt);
-
-  OPENSSL_memcpy(&values->s2_ntt, &priv->s2, sizeof(values->s2_ntt));
-  vector_ntt(&values->s2_ntt);
-
-  OPENSSL_memcpy(&values->t0_ntt, &priv->t0, sizeof(values->t0_ntt));
-  vector_ntt(&values->t0_ntt);
-
   matrix_expand(&values->a_ntt, priv->pub.rho);
 
   // kappa must not exceed 2**16/L = 13107. But the probability of it
@@ -1919,9 +1928,9 @@ inline int mldsa_sign_mu_no_self_test(
                                   sizeof(values->sign.c_tilde), tau<K>());
     scalar_ntt(&c_ntt);
 
-    vector_mult_scalar_montgomery(&values->cs1, &values->s1_ntt, &c_ntt);
+    vector_mult_scalar_montgomery(&values->cs1, &priv->s1_ntt, &c_ntt);
     vector_inverse_ntt_montgomery(&values->cs1);
-    vector_mult_scalar_montgomery(&values->cs2, &values->s2_ntt, &c_ntt);
+    vector_mult_scalar_montgomery(&values->cs2, &priv->s2_ntt, &c_ntt);
     vector_inverse_ntt_montgomery(&values->cs2);
 
     vector_add(&values->sign.z, &values->y, &values->cs1);
@@ -1953,7 +1962,7 @@ inline int mldsa_sign_mu_no_self_test(
     }
 
     vector<K> *ct0 = &values->w1;
-    vector_mult_scalar_montgomery(ct0, &values->t0_ntt, &c_ntt);
+    vector_mult_scalar_montgomery(ct0, &priv->t0_ntt, &c_ntt);
     vector_inverse_ntt_montgomery(ct0);
     vector_make_hint(&values->sign.h, ct0, &values->cs2, &values->w);
 

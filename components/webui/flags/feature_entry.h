@@ -6,6 +6,7 @@
 #define COMPONENTS_WEBUI_FLAGS_FEATURE_ENTRY_H_
 
 #include <string>
+#include <string_view>
 
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -247,7 +248,7 @@ struct FeatureEntry {
   // Check whether internal |name| matches this FeatureEntry. Depending on the
   // type of entry, this compared it to either |internal_name| or the values
   // produced by NameForOption().
-  bool InternalNameMatches(const std::string& name) const;
+  bool InternalNameMatches(std::string_view name) const;
 
   // Number of options to choose from. This is used if type is MULTI_VALUE,
   // ENABLE_DISABLE_VALUE, FEATURE_VALUE, or FEATURE_WITH_PARAMS_VALUE.

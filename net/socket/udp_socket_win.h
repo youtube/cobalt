@@ -31,6 +31,7 @@
 #include "net/base/network_handle.h"
 #include "net/base/sockaddr_storage.h"
 #include "net/log/net_log_with_source.h"
+#include "net/socket/datagram_client_socket.h"
 #include "net/socket/datagram_socket.h"
 #include "net/socket/diff_serv_code_point.h"
 #include "net/socket/udp_socket_global_limits.h"
@@ -236,6 +237,13 @@ class NET_EXPORT UDPSocketWin : public base::win::ObjectWatcher::Delegate {
                int buf_len,
                IPEndPoint* address,
                CompletionOnceCallback callback);
+
+  base::expected<DatagramsMetadata, Error> ReadMultiple(
+      IOBuffer* buf,
+      size_t buf_len,
+      size_t maximum_packet_size,
+      base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+          callback);
 
   // Sends to a socket with a particular destination.
   // |buf| is the buffer to send.

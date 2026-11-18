@@ -45,7 +45,7 @@ by a child template that "extends" this file.
                  {% if force_32_bit is defined and force_32_bit == 'true' %}
                  android:use32bitAbi="true"
                  {% endif %}>
-        {# This part is shared between stand-alone WebView and Monochrome #}
+        {# This part is shared between stand-alone WebView and Trichrome WebView #}
         {% macro common(manifest_package, webview_lib) %}
             <meta-data android:name="com.android.webview.WebViewLibrary"
                        android:value="{{ webview_lib }}" />

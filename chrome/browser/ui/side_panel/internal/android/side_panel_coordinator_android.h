@@ -51,6 +51,7 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
 
   // Implements Java `SidePanelCoordinatorAndroid.Natives`. These methods are
   // called from Java via JNI, see `SidePanelCoordinatorAndroidImpl.java`.
+  void Init(JNIEnv* env);
   void Destroy(JNIEnv* env);
   void NotifyCloseAnimationFinished(JNIEnv* env);
   void NotifyOpenAnimationFinished(JNIEnv* env);
@@ -79,6 +80,8 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   }
 
   // Functions for testing:
+  SidePanelState GetStateForTesting();
+  int GetContainerWidthForTesting();
   SidePanelEntryWaiter* GetWaiterForTesting() { return waiter(); }
   const SidePanelDeferredEntryTracker& GetDeferredEntryTrackerForTesting()
       const {

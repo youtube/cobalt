@@ -556,14 +556,6 @@ bool LayoutObject::IsMenuList() const {
   return false;
 }
 
-bool LayoutObject::IsListBox() const {
-  NOT_DESTROYED();
-  if (const auto* select = DynamicTo<HTMLSelectElement>(GetNode())) {
-    return !select->UsesMenuList();
-  }
-  return false;
-}
-
 bool LayoutObject::IsStyleGenerated() const {
   NOT_DESTROYED();
   if (const auto* layout_text_fragment = DynamicTo<LayoutTextFragment>(this))

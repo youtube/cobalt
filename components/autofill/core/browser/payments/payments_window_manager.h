@@ -134,7 +134,7 @@ class PaymentsWindowManager {
     ~BnplContext();
 
     // The ID of the issuer for the BNPL flow.
-    autofill::BnplIssuer::IssuerId issuer_id;
+    BnplIssuer::IssuerId issuer_id;
     // The starting location of the BNPL flow, which is an initial URL to
     // open inside of the pop-up.
     GURL initial_url;

@@ -15,6 +15,7 @@
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/language/ios/browser/ios_language_detection_tab_helper.h"
 #import "components/omnibox/common/omnibox_features.h"
+#import "components/password_manager/core/browser/features/password_features.h"
 #import "components/safe_browsing/core/common/features.h"
 #import "components/safe_browsing/ios/browser/safe_browsing_url_allow_list.h"
 #import "components/send_tab_to_self/features.h"
@@ -67,6 +68,7 @@
 #import "ios/chrome/browser/infobars/model/overlays/infobar_overlay_request_inserter.h"
 #import "ios/chrome/browser/infobars/model/overlays/infobar_overlay_tab_helper.h"
 #import "ios/chrome/browser/infobars/model/overlays/translate_overlay_tab_helper.h"
+#import "ios/chrome/browser/intelligence/actor/model/actor_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/itunes_urls/model/itunes_urls_handler_tab_helper.h"
@@ -85,6 +87,7 @@
 #import "ios/chrome/browser/overscroll_actions/model/overscroll_actions_tab_helper.h"
 #import "ios/chrome/browser/page_info/features/features.h"
 #import "ios/chrome/browser/page_info/model/about_this_site_tab_helper.h"
+#import "ios/chrome/browser/passwords/model/actor_login/ios_chrome_actor_login_delegate_client.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_account_password_store_factory.h"
 #import "ios/chrome/browser/passwords/model/password_controller.h"
 #import "ios/chrome/browser/passwords/model/password_tab_helper.h"
@@ -93,7 +96,6 @@
 #import "ios/chrome/browser/policy_url_blocking/model/policy_url_blocking_tab_helper.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_tab_helper.h"
-#import "ios/chrome/browser/reading_list/model/offline_page_tab_helper.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_model_factory.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_web_state_observer.h"
 #import "ios/chrome/browser/safe_browsing/model/safe_browsing_client_factory.h"
@@ -322,7 +324,7 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
 
   attacher.Create<WebSelectionTabHelper>();
   attacher.Create<WebPerformanceMetricsTabHelper>();
-  attacher.Create<OfflinePageTabHelper>(
+  attacher.Create<ReadingListWebStateObserver>(
       ReadingListModelFactory::GetForProfile(profile));
   attacher.Create<PermissionsTabHelper>();
   attacher.Create<RepostFormTabHelper>();
@@ -381,6 +383,13 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
   attacher.CreateWhen<GeminiTabHelper>(!attacher.IsOffTheRecord() &&
                                        !attacher.IsForPrerender() &&
                                        IsPageActionMenuEnabled());
+
+  const bool is_actor_tab_helper_enabled =
+      IsActorEnabled() && !attacher.IsForPrerender();
+  attacher.CreateWhen<ActorTabHelper>(is_actor_tab_helper_enabled);
+  attacher.CreateWhen<IOSChromeActorLoginDelegateClient>(
+      is_actor_tab_helper_enabled &&
+      base::FeatureList::IsEnabled(password_manager::features::kActorLogin));
 
   attacher.Create<WebViewProxyTabHelper>();
 

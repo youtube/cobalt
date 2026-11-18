@@ -17,12 +17,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/keyboard_accessory/android/accessory_controller.h"
-#include "chrome/browser/keyboard_accessory/android/affiliated_plus_profiles_provider.h"
-#include "chrome/browser/keyboard_accessory/test_utils/android/mock_affiliated_plus_profiles_provider.h"
 #include "chrome/browser/keyboard_accessory/test_utils/android/mock_manual_filling_controller.h"
-#include "chrome/browser/plus_addresses/plus_address_service_factory.h"
-#include "chrome/browser/ui/plus_addresses/android/all_plus_addresses_bottom_sheet_controller.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/autofill/content/browser/test_autofill_client_injector.h"
@@ -33,12 +28,6 @@
 #include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
-#include "components/plus_addresses/core/browser/fake_plus_address_service.h"
-#include "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
-#include "components/plus_addresses/core/browser/plus_address_test_utils.h"
-#include "components/plus_addresses/core/browser/plus_address_types.h"
-#include "components/plus_addresses/core/common/features.h"
-#include "components/plus_addresses/core/common/plus_address_prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
@@ -51,7 +40,6 @@ namespace autofill {
 namespace {
 using autofill::UserInfo;
 using base::ASCIIToUTF16;
-using plus_addresses::FakePlusAddressService;
 using testing::_;
 using testing::ByMove;
 using testing::Mock;
@@ -61,17 +49,11 @@ using testing::SaveArg;
 using testing::StrictMock;
 using FillingSource = ManualFillingController::FillingSource;
 using IsFillingSourceAvailable = AccessoryController::IsFillingSourceAvailable;
-using PlusProfile = plus_addresses::PlusProfile;
 
 constexpr char kExampleSite[] = "https://example.com";
 
 std::u16string addresses_empty_str() {
   return l10n_util::GetStringUTF16(IDS_AUTOFILL_ADDRESS_SHEET_EMPTY_MESSAGE);
-}
-
-std::u16string plus_addresses_title() {
-  return l10n_util::GetStringFUTF16(
-      IDS_PLUS_ADDRESS_FALLBACK_MANUAL_FILLING_SHEET_TITLE, u"example.com");
 }
 
 std::u16string manage_addresses_str() {
@@ -81,10 +63,8 @@ std::u16string manage_addresses_str() {
 
 // Creates a AccessorySheetData::Builder with a "Manage Addresses" footer.
 AccessorySheetData::Builder AddressAccessorySheetDataBuilder(
-    const std::u16string& userInfoTitle,
-    const std::u16string& plusAddressTitle) {
-  return AccessorySheetData::Builder(AccessoryTabType::ADDRESSES, userInfoTitle,
-                                     plusAddressTitle)
+    const std::u16string& userInfoTitle) {
+  return AccessorySheetData::Builder(AccessoryTabType::ADDRESSES, userInfoTitle)
       .AppendFooterCommand(manage_addresses_str(),
                            AccessoryAction::MANAGE_ADDRESSES);
 }
@@ -95,11 +75,6 @@ std::unique_ptr<KeyedService> BuildTestPersonalDataManager(
   personal_data_manager->test_address_data_manager().SetAutofillProfileEnabled(
       true);
   return personal_data_manager;
-}
-
-std::unique_ptr<KeyedService> BuildFakePlusAddressService(
-    content::BrowserContext* context) {
-  return std::make_unique<FakePlusAddressService>();
 }
 
 class MockAutofillClient : public TestContentAutofillClient {
@@ -129,9 +104,6 @@ class AddressAccessoryControllerTest : public ChromeRenderViewHostTestHarness {
  public:
   void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
-
-    PlusAddressServiceFactory::GetInstance()->SetTestingFactory(
-        GetBrowserContext(), base::BindRepeating(&BuildFakePlusAddressService));
 
     NavigateAndCommit(GURL(kExampleSite));
     FocusWebContentsOnMainFrame();
@@ -171,14 +143,7 @@ class AddressAccessoryControllerTest : public ChromeRenderViewHostTestHarness {
     return *autofill_driver_injector_[web_contents()];
   }
 
-  FakePlusAddressService& plus_address_service() {
-    return *static_cast<FakePlusAddressService*>(
-        PlusAddressServiceFactory::GetForBrowserContext(
-            web_contents()->GetBrowserContext()));
-  }
 
-  base::test::ScopedFeatureList features_{
-      plus_addresses::features::kPlusAddressesEnabled};
   test::AutofillUnitTestEnvironment test_environment_;
   StrictMock<MockManualFillingController> mock_manual_filling_controller_;
   base::MockCallback<AccessoryController::FillingSourceObserver>
@@ -195,9 +160,7 @@ TEST_F(AddressAccessoryControllerTest, ProvidesEmptySuggestionsMessage) {
   controller()->RefreshSuggestions();
 
   EXPECT_EQ(controller()->GetSheetData(),
-            AddressAccessorySheetDataBuilder(
-                addresses_empty_str(), /*plusAddressTitle=*/std::u16string())
-                .Build());
+            AddressAccessorySheetDataBuilder(addresses_empty_str()).Build());
 }
 
 TEST_F(AddressAccessoryControllerTest, IsNotRecreatedForSameWebContents) {
@@ -211,18 +174,14 @@ TEST_F(AddressAccessoryControllerTest, IsNotRecreatedForSameWebContents) {
 
 TEST_F(AddressAccessoryControllerTest, ProvidesEmptySheetBeforeInitialRefresh) {
   EXPECT_EQ(controller()->GetSheetData(),
-            AddressAccessorySheetDataBuilder(
-                addresses_empty_str(), /*plusAddressTitle=*/std::u16string())
-                .Build());
+            AddressAccessorySheetDataBuilder(addresses_empty_str()).Build());
 
   EXPECT_CALL(filling_source_observer_,
               Run(controller(), IsFillingSourceAvailable(false)));
   controller()->RefreshSuggestions();
 
   EXPECT_EQ(controller()->GetSheetData(),
-            AddressAccessorySheetDataBuilder(
-                addresses_empty_str(), /*plusAddressTitle=*/std::u16string())
-                .Build());
+            AddressAccessorySheetDataBuilder(addresses_empty_str()).Build());
 }
 
 TEST_F(AddressAccessoryControllerTest, RefreshSuggestionsCallsUI) {
@@ -235,8 +194,7 @@ TEST_F(AddressAccessoryControllerTest, RefreshSuggestionsCallsUI) {
 
   EXPECT_EQ(
       controller()->GetSheetData(),
-      AddressAccessorySheetDataBuilder(/*userInfoTitle=*/std::u16string(),
-                                       /*plusAddressTitle=*/std::u16string())
+      AddressAccessorySheetDataBuilder(/*userInfoTitle=*/std::u16string())
           .AddUserInfo()
           .AppendSimpleField(AccessorySuggestionType::kNameFull,
                              canadian.GetRawInfo(FieldType::NAME_FULL))
@@ -272,17 +230,14 @@ TEST_F(AddressAccessoryControllerTest, TriggersRefreshWhenDataChanges) {
   controller()->RefreshSuggestions();
 
   EXPECT_EQ(controller()->GetSheetData(),
-            AddressAccessorySheetDataBuilder(
-                addresses_empty_str(), /*plusAddressTitle=*/std::u16string())
-                .Build());
+            AddressAccessorySheetDataBuilder(addresses_empty_str()).Build());
 
   // When new data is added, a refresh is automatically triggered.
   AutofillProfile email = test::GetIncompleteProfile2();
   personal_data_manager()->address_data_manager().AddProfile(email);
   EXPECT_EQ(
       controller()->GetSheetData(),
-      AddressAccessorySheetDataBuilder(/*userInfoTitle=*/std::u16string(),
-                                       /*plusAddressTitle=*/std::u16string())
+      AddressAccessorySheetDataBuilder(/*userInfoTitle=*/std::u16string())
           .AddUserInfo()
           /*name full:*/
           .AppendSimpleField(AccessorySuggestionType::kNameFull,
@@ -313,174 +268,7 @@ TEST_F(AddressAccessoryControllerTest, TriggersRefreshWhenDataChanges) {
           .Build());
 }
 
-TEST_F(AddressAccessoryControllerTest,
-       PlusAddressFillingDisabled_NoPlusAddressesActions) {
-  EXPECT_CALL(filling_source_observer_,
-              Run(controller(), IsFillingSourceAvailable(false)));
-  controller()->RefreshSuggestions();
 
-  EXPECT_EQ(controller()->GetSheetData(),
-            AddressAccessorySheetDataBuilder(
-                addresses_empty_str(), /*plusAddressTitle=*/std::u16string())
-                .Build());
-}
-
-TEST_F(AddressAccessoryControllerTest,
-       NoPlusAddressesSaved_NoSelectPlusAddressAction) {
-  EXPECT_CALL(filling_source_observer_,
-              Run(controller(), IsFillingSourceAvailable(false)));
-  controller()->RefreshSuggestions();
-
-  // Although the plus address filling is enabled, the user doesn't have any
-  // saved plus addresses. The "Select plus address" should not be displayed.
-  plus_address_service().set_is_plus_address_filling_enabled(true);
-
-  EXPECT_EQ(controller()->GetSheetData(),
-            AddressAccessorySheetDataBuilder(
-                addresses_empty_str(), /*plusAddressTitle=*/std::u16string())
-                .Build());
-}
-
-TEST_F(AddressAccessoryControllerTest,
-       PlusAddressFillingEnabled_AppendsSelectPlusAddressAction) {
-  EXPECT_CALL(filling_source_observer_,
-              Run(controller(), IsFillingSourceAvailable(false)));
-  controller()->RefreshSuggestions();
-
-  plus_address_service().add_plus_profile(
-      plus_addresses::test::CreatePlusProfile());
-  plus_address_service().set_is_plus_address_filling_enabled(true);
-
-  EXPECT_EQ(controller()->GetSheetData(),
-            AddressAccessorySheetDataBuilder(
-                addresses_empty_str(), /*plusAddressTitle=*/std::u16string())
-                .AppendFooterCommand(
-                    l10n_util::GetStringUTF16(
-                        IDS_PLUS_ADDRESS_SELECT_PLUS_ADDRESS_LINK_ANDROID),
-                    AccessoryAction::SELECT_PLUS_ADDRESS_FROM_ADDRESS_SHEET)
-                .Build());
-}
-
-TEST_F(AddressAccessoryControllerTest, AppendsPlusAddressesSection) {
-  MockAffiliatedPlusProfilesProvider provider;
-  EXPECT_CALL(provider, AddObserver);
-  controller()->RegisterPlusProfilesProvider(provider.GetWeakPtr());
-
-  std::vector<PlusProfile> profiles{plus_addresses::test::CreatePlusProfile()};
-  EXPECT_CALL(filling_source_observer_,
-              Run(controller(), IsFillingSourceAvailable(true)));
-  EXPECT_CALL(provider, GetAffiliatedPlusProfiles)
-      .WillRepeatedly(Return(base::span(profiles)));
-  controller()->RefreshSuggestions();
-
-  EXPECT_EQ(controller()->GetSheetData(),
-            AddressAccessorySheetDataBuilder(/*userInfoTitle=*/std::u16string(),
-                                             plus_addresses_title())
-                .AddPlusAddressInfo("https://foo.com", u"plus+foo@plus.plus")
-                .AppendFooterCommand(
-                    l10n_util::GetStringUTF16(
-                        IDS_PLUS_ADDRESS_MANAGE_PLUS_ADDRESSES_LINK_ANDROID),
-                    AccessoryAction::MANAGE_PLUS_ADDRESS_FROM_ADDRESS_SHEET)
-                .Build());
-}
-
-TEST_F(AddressAccessoryControllerTest,
-       AppendsAddressProfileAndPlusAddressesSections) {
-  AutofillProfile canadian = test::GetFullValidProfileForCanada();
-  personal_data_manager()->address_data_manager().AddProfile(canadian);
-
-  MockAffiliatedPlusProfilesProvider provider;
-  EXPECT_CALL(provider, AddObserver);
-  controller()->RegisterPlusProfilesProvider(provider.GetWeakPtr());
-
-  std::vector<PlusProfile> profiles{plus_addresses::test::CreatePlusProfile()};
-  EXPECT_CALL(filling_source_observer_,
-              Run(controller(), IsFillingSourceAvailable(true)));
-  EXPECT_CALL(provider, GetAffiliatedPlusProfiles)
-      .WillRepeatedly(Return(base::span(profiles)));
-  controller()->RefreshSuggestions();
-
-  EXPECT_EQ(
-      controller()->GetSheetData(),
-      AddressAccessorySheetDataBuilder(/*userInfoTitle=*/std::u16string(),
-                                       /*plusAddressTitle=*/std::u16string())
-          .AddPlusAddressInfo("https://foo.com", u"plus+foo@plus.plus")
-          .AddUserInfo()
-          .AppendSimpleField(AccessorySuggestionType::kNameFull,
-                             canadian.GetRawInfo(FieldType::NAME_FULL))
-          .AppendSimpleField(AccessorySuggestionType::kCompanyName,
-                             canadian.GetRawInfo(FieldType::COMPANY_NAME))
-          .AppendSimpleField(AccessorySuggestionType::kAddressLine1,
-                             canadian.GetRawInfo(FieldType::ADDRESS_HOME_LINE1))
-          .AppendSimpleField(AccessorySuggestionType::kAddressLine2,
-                             canadian.GetRawInfo(FieldType::ADDRESS_HOME_LINE2))
-          .AppendSimpleField(AccessorySuggestionType::kZip,
-                             canadian.GetRawInfo(FieldType::ADDRESS_HOME_ZIP))
-          .AppendSimpleField(AccessorySuggestionType::kCity,
-                             canadian.GetRawInfo(FieldType::ADDRESS_HOME_CITY))
-          .AppendSimpleField(AccessorySuggestionType::kState,
-                             canadian.GetRawInfo(FieldType::ADDRESS_HOME_STATE))
-          .AppendSimpleField(
-              AccessorySuggestionType::kCountry,
-              canadian.GetRawInfo(FieldType::ADDRESS_HOME_COUNTRY))
-          .AppendSimpleField(
-              AccessorySuggestionType::kPhoneNumber,
-              canadian.GetRawInfo(FieldType::PHONE_HOME_WHOLE_NUMBER))
-          .AppendSimpleField(AccessorySuggestionType::kEmailAddress,
-                             canadian.GetRawInfo(FieldType::EMAIL_ADDRESS))
-          .AppendFooterCommand(
-              l10n_util::GetStringUTF16(
-                  IDS_PLUS_ADDRESS_MANAGE_PLUS_ADDRESSES_LINK_ANDROID),
-              AccessoryAction::MANAGE_PLUS_ADDRESS_FROM_ADDRESS_SHEET)
-          .Build());
-}
-
-TEST_F(AddressAccessoryControllerTest, TriggersManagePlusAddress) {
-  base::UserActionTester user_action_tester;
-  controller()->OnOptionSelected(
-      AccessoryAction::MANAGE_PLUS_ADDRESS_FROM_ADDRESS_SHEET);
-  EXPECT_EQ(user_action_tester.GetActionCount(
-                "PlusAddresses.ManageOptionOnAddressManualFallbackSelected"),
-            1);
-}
-
-TEST_F(AddressAccessoryControllerTest, TriggersSelectPlusAddressMenu) {
-  FieldGlobalId field_id = test::MakeFieldGlobalId();
-  EXPECT_CALL(mock_manual_filling_controller_, GetLastFocusedFieldId)
-      .WillOnce(Return(field_id));
-  EXPECT_CALL(mock_manual_filling_controller_, Hide);
-
-  base::UserActionTester user_action_tester;
-  controller()->OnOptionSelected(
-      AccessoryAction::SELECT_PLUS_ADDRESS_FROM_ADDRESS_SHEET);
-  EXPECT_EQ(user_action_tester.GetActionCount(
-                "PlusAddresses."
-                "SelectPlusAddressOptionOnAddressManualFallbackSelected"),
-            1);
-}
-
-TEST_F(AddressAccessoryControllerTest, SelectPlusAddressItemFromMenu) {
-  FieldGlobalId field_id = test::MakeFieldGlobalId();
-  EXPECT_CALL(mock_manual_filling_controller_, GetLastFocusedFieldId)
-      .WillOnce(Return(field_id));
-  EXPECT_CALL(mock_manual_filling_controller_, Hide);
-
-  plus_addresses::PlusProfile plus_profile =
-      plus_addresses::test::CreatePlusProfile();
-  plus_address_service().add_plus_profile(plus_profile);
-  plus_address_service().set_is_plus_address_filling_enabled(true);
-
-  base::UserActionTester user_action_tester;
-  controller()->OnOptionSelected(
-      AccessoryAction::SELECT_PLUS_ADDRESS_FROM_ADDRESS_SHEET);
-  controller()
-      ->GetAllPlusAddressesControllerForTesting()
-      ->OnPlusAddressSelected(plus_profile.plus_address.value());
-  EXPECT_EQ(user_action_tester.GetActionCount(
-                "PlusAddresses."
-                "StandaloneFillSuggestionOnAddressManualFallbackAccepted"),
-            1);
-}
 
 
 }  // namespace autofill

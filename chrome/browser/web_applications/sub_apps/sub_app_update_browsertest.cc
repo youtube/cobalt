@@ -20,7 +20,7 @@
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_menu_button.h"
-#include "chrome/browser/ui/views/web_apps/sub_apps_install_dialog_controller.h"
+#include "chrome/browser/ui/views/web_apps/sub_apps/sub_apps_install_dialog_controller.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_menu_model.h"
@@ -205,18 +205,21 @@ class SubAppUpdateBrowserTest : public IsolatedWebAppBrowserTestHarness {
     iwa_test_update_server_.AddBundle(builder.BuildBundle(
         bundle_id, {web_package::test::GetDefaultEd25519KeyPair()}));
 
-    base::test::TestFuture<IsolatedWebAppUpdateDiscoveryTask::CompletionStatus>
+    base::test::TestFuture<
+        IsolatedWebAppUpdateCheckAndPrepareTask::CompletionStatus>
         update_future;
     UpdateDiscoveryTaskResultWaiter update_waiter(
         provider(),
         IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(bundle_id).app_id(),
         update_future.GetCallback());
 
-    EXPECT_EQ(
-        1ul, provider().isolated_web_app_update_manager().DiscoverUpdatesNow());
-    EXPECT_THAT(update_future.Take(),
-                base::test::ValueIs(IsolatedWebAppUpdateDiscoveryTask::Success::
-                                        kUpdateFoundAndSavedInDatabase));
+    EXPECT_EQ(1ul, provider()
+                       .isolated_web_app_update_manager()
+                       .DiscoverAndPrepareUpdatesNow());
+    EXPECT_THAT(
+        update_future.Take(),
+        base::test::ValueIs(IsolatedWebAppUpdateCheckAndPrepareTask::Success::
+                                kUpdateFoundAndSavedInDatabase));
   }
 
  protected:
@@ -247,7 +250,7 @@ IN_PROC_BROWSER_TEST_F(SubAppUpdateBrowserTest,
       provider().registrar_unsafe().GetAppShortcutsMenuItemInfos(sub_app_id),
       testing::IsEmpty());
 
-  iwa_browser->window()->Close();
+  iwa_browser->GetWindow()->Close();
 
   UpdateIwaToV2AndWait(bundle_id, "Sub App", R"([{
         "name": "Shortcut",
@@ -305,7 +308,7 @@ IN_PROC_BROWSER_TEST_F(SubAppUpdateBrowserTest,
       provider().registrar_unsafe().GetAppShortcutsMenuItemInfos(sub_app_id),
       testing::IsEmpty());
 
-  iwa_browser->window()->Close();
+  iwa_browser->GetWindow()->Close();
 
   // Use different name of sub app to check that the update
   // for title/icon is still applied automatically without user action.
@@ -440,7 +443,7 @@ IN_PROC_BROWSER_TEST_F(SubAppUpdateBrowserTest, SubAppScopeOverlap) {
   EXPECT_EQ(provider().registrar_unsafe().GetAppScope(sub_app_2_id),
             iwa_url_info.origin().GetURL().Resolve("/sub2/"));
 
-  iwa_browser->window()->Close();
+  iwa_browser->GetWindow()->Close();
 
   // Update parent IWA that includes the sub apps.
   ManifestBuilder parent_manifest_v2 =
@@ -618,7 +621,7 @@ IN_PROC_BROWSER_TEST_F(SubAppUpdateBrowserTest, SubAppParentInScope) {
   EXPECT_EQ(provider().registrar_unsafe().GetAppScope(sub_app_1_id),
             iwa_url_info.origin().GetURL().Resolve("/sub1/"));
 
-  iwa_browser->window()->Close();
+  iwa_browser->GetWindow()->Close();
 
   // Update parent IWA that includes the sub app.
   ManifestBuilder parent_manifest_v2 =

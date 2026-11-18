@@ -194,7 +194,8 @@ class ChromeEnterpriseRealTimeUrlLookupServiceTest : public PlatformTest {
         }),
         base::BindRepeating([] { return true; }),
         /*is_command_line_switch_supported=*/true,
-        /*intelligent_scan_delegate=*/nullptr);
+        /*intelligent_scan_delegate=*/nullptr,
+        /*network_context_getter=*/base::NullCallback());
 
     test_pref_service_.SetInteger(
         enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,

@@ -71,12 +71,24 @@ public class PreWarmingRecycledViewPoolTest {
     }
 
     private void ensureAllViewsCreated() {
-        assertEquals(1, mPool.getRecycledViewCount(OmniboxSuggestionUiType.EDIT_URL_SUGGESTION));
-        assertEquals(1, mPool.getRecycledViewCount(OmniboxSuggestionUiType.TILE_NAVSUGGEST));
-        assertEquals(1, mPool.getRecycledViewCount(OmniboxSuggestionUiType.HEADER));
-        assertEquals(1, mPool.getRecycledViewCount(OmniboxSuggestionUiType.CLIPBOARD_SUGGESTION));
-        assertEquals(15, mPool.getRecycledViewCount(OmniboxSuggestionUiType.DEFAULT));
-        assertEquals(3, mPool.getRecycledViewCount(OmniboxSuggestionUiType.ENTITY_SUGGESTION));
+        assertEquals(
+                PreWarmingRecycledViewPool.PRE_WARMED_EDIT_URL_SUGGESTION_VIEW_COUNT,
+                mPool.getRecycledViewCount(OmniboxSuggestionUiType.EDIT_URL_SUGGESTION));
+        assertEquals(
+                PreWarmingRecycledViewPool.PRE_WARMED_TILE_NAVSUGGEST_VIEW_COUNT,
+                mPool.getRecycledViewCount(OmniboxSuggestionUiType.TILE_NAVSUGGEST));
+        assertEquals(
+                PreWarmingRecycledViewPool.PRE_WARMED_HEADER_VIEW_COUNT,
+                mPool.getRecycledViewCount(OmniboxSuggestionUiType.HEADER));
+        assertEquals(
+                PreWarmingRecycledViewPool.PRE_WARMED_CLIPBOARD_SUGGESTION_VIEW_COUNT,
+                mPool.getRecycledViewCount(OmniboxSuggestionUiType.CLIPBOARD_SUGGESTION));
+        assertEquals(
+                PreWarmingRecycledViewPool.PRE_WARMED_DEFAULT_VIEW_COUNT,
+                mPool.getRecycledViewCount(OmniboxSuggestionUiType.DEFAULT));
+        assertEquals(
+                PreWarmingRecycledViewPool.PRE_WARMED_ENTITY_SUGGESTION_VIEW_COUNT,
+                mPool.getRecycledViewCount(OmniboxSuggestionUiType.ENTITY_SUGGESTION));
 
         View expectedView = mView;
         // null out mView so that newly-created ViewHolders will be distinct from pre-warmed ones.

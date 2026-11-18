@@ -29,7 +29,6 @@
 #include "components/reporting/proto/synced/metric_data.pb.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
-#include "components/services/app_service/public/cpp/features.h"
 #include "components/services/app_service/public/protos/app_types.pb.h"
 
 namespace reporting {

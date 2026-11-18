@@ -83,7 +83,8 @@ std::unique_ptr<base::MemoryMappedFile> LoadRawData(
     LOG(ERROR) << "Failed to read the file: " << data_file_path;
     return nullptr;
   }
-  CHECK_EQ(memory_mapped_file->length(), video_frame_size * num_read_frames);
+  CHECK_EQ(memory_mapped_file->bytes().size(),
+           video_frame_size * num_read_frames);
   return memory_mapped_file;
 }
 }  // namespace

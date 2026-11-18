@@ -240,7 +240,7 @@ public class MismatchNotificationController
     }
 
     @Override
-    public void onCoreAccountInfosChanged() {
+    public void onAccountsChanged() {
         var accountsPromise = mAccountManagerFacade.getAccounts();
         assert accountsPromise.isFulfilled();
         if (AccountUtils.findAccountByEmail(accountsPromise.getResult(), mAppAccountEmail)

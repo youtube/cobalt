@@ -10,6 +10,7 @@ from unittest import mock
 
 import finders.file_finder as file_finder
 import finders.target_finder as target_finder
+import test_executor
 import utils.constants as const
 from utils.command_error import AutotestError, CommandError
 
@@ -85,6 +86,90 @@ class FindMatchingTestFilesTest(TestCase):
     self.fs.create_dir(test_dir)
     self.create_cc_test(test_file)
     self.assertEqual([test_file], file_finder.FindMatchingTestFiles(test_dir))
+
+  def test_web_test_html(self):
+    path = os.path.join(const.SRC_DIR, 'third_party', 'blink', 'web_tests',
+                        'fast', 'media', 'mq-display-mode.html')
+    self.fs.create_file(path)
+    self.assertEqual([path], file_finder.FindMatchingTestFiles(path))
+
+  def test_web_test_js(self):
+    path = os.path.join(const.SRC_DIR, 'third_party', 'blink', 'web_tests',
+                        'fast', 'media', 'mq-display-mode.js')
+    self.fs.create_file(path)
+    self.assertEqual([path], file_finder.FindMatchingTestFiles(path))
+
+  def test_web_test_directory(self):
+    test_dir = os.path.join(const.SRC_DIR, 'third_party', 'blink', 'web_tests',
+                            'fast', 'media')
+    test_file = os.path.join(test_dir, 'mq-display-mode.html')
+    self.fs.create_dir(test_dir)
+    self.fs.create_file(test_file)
+    self.assertEqual([test_file], file_finder.FindMatchingTestFiles(test_dir))
+
+  def test_web_test_exclude_resources(self):
+    test_dir = os.path.join(const.SRC_DIR, 'third_party', 'blink', 'web_tests',
+                            'fast', 'media')
+    resources_dir = os.path.join(test_dir, 'resources')
+    test_file = os.path.join(test_dir, 'mq-display-mode.html')
+    resource_file = os.path.join(resources_dir, 'helper.html')
+
+    self.fs.create_dir(resources_dir)
+    self.fs.create_file(test_file)
+    self.fs.create_file(resource_file)
+
+    self.assertEqual([test_file], file_finder.FindMatchingTestFiles(test_dir))
+
+  def test_web_test_exclude_expectations(self):
+    test_dir = os.path.join(const.SRC_DIR, 'third_party', 'blink', 'web_tests',
+                            'fast', 'media')
+    test_file = os.path.join(test_dir, 'mq-display-mode.html')
+    expected_file = os.path.join(test_dir, 'mq-display-mode-expected.html')
+
+    self.fs.create_dir(test_dir)
+    self.fs.create_file(test_file)
+    self.fs.create_file(expected_file)
+
+    self.assertEqual([test_file], file_finder.FindMatchingTestFiles(test_dir))
+
+  def test_webui_tests(self):
+    # Setup a fake WebUI directory structure under const.SRC_DIR
+    webui_dir = os.path.join(const.SRC_DIR, 'chrome', 'test', 'data', 'webui',
+                             'glic')
+    unit_tests_dir = os.path.join(webui_dir, 'unit_tests')
+    self.fs.create_dir(unit_tests_dir)
+
+    # Create the C++ wrapper containing references to the JS files
+    cc_wrapper = os.path.join(webui_dir, 'glic_browsertest.cc')
+    self.fs.create_file(cc_wrapper,
+                        contents='TEST_F(GlicWebUIBrowserTest, All) {\n'
+                        '  RunTest("glic/unit_tests/glic_api_host_test.js")\n'
+                        '  RunTest("glic/unit_tests/glic_api_client_test.js")\n'
+                        '}')
+
+    # Create the TS test files
+    ts_file1 = os.path.join(unit_tests_dir, 'glic_api_host_test.ts')
+    ts_file2 = os.path.join(unit_tests_dir, 'glic_api_client_test.ts')
+    ts_file_ignored = os.path.join(unit_tests_dir, 'glic_api_ignored_test.ts')
+
+    self.fs.create_file(ts_file1, contents='// TS test 1')
+    self.fs.create_file(ts_file2, contents='// TS test 2')
+    self.fs.create_file(ts_file_ignored, contents='// TS test ignored')
+
+    # Assertion 1: Running on a single TS file that is referenced should
+    # return the C++ wrapper
+    self.assertEqual([cc_wrapper], file_finder.FindMatchingTestFiles(ts_file1))
+
+    # Assertion 2: Running on a single TS file that is NOT referenced should
+    # raise an AutotestError
+    with self.assertRaises(AutotestError) as cm:
+      file_finder.FindMatchingTestFiles(ts_file_ignored)
+    self.assertIn("doesn't look like a test file", str(cm.exception))
+
+    # Assertion 3: Searching the unit_tests directory should return only
+    # the C++ wrapper (deduplicated)
+    self.assertEqual([cc_wrapper],
+                     file_finder.FindMatchingTestFiles(unit_tests_dir))
 
   def test_recursive_search(self):
     # Setup: root/match.cc, root/subdir/match.cc
@@ -540,6 +625,68 @@ class SearchForTestsByNameTest(TestCase):
 
     called_args = self.mock_run_command.call_args[0][0]
     self.assertIn('(\\bFooTest\\b)', called_args)
+
+
+# Tests execution of multiple test targets to ensure correct flag isolation.
+class RunTestTargetsTest(TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.setUpPyfakefs()
+    self.out_dir = os.path.join(const.SRC_DIR, 'out', 'Default')
+    self.fs.create_dir(self.out_dir)
+
+    # Mock RunTestCommandWithSummary to avoid running actual commands
+    self.mock_run_with_summary = mock.patch(
+        'test_executor.command.RunTestCommandWithSummary').start()
+    from utils.command_util import TestSummary
+    self.mock_run_with_summary.return_value = (0, TestSummary(test_count=1))
+    self.addCleanup(mock.patch.stopall)
+
+  def test_extra_args_pollution(self):
+    # Setup: Create the Android wrapper script for base_unittests so it triggers
+    # the addition of --fast-local-dev and --single-variant.
+    wrapper_path = os.path.join(self.out_dir, 'bin', 'run_base_unittests')
+    self.fs.create_file(wrapper_path)
+
+    # We also need to simulate blink web tests runner path
+    web_tests_runner = os.path.join(const.SRC_DIR, 'third_party', 'blink',
+                                    'tools', 'run_web_tests.py')
+    self.fs.create_file(web_tests_runner)
+
+    targets = ['base:base_unittests', 'blink_tests']
+    web_test_files = [
+        'third_party/blink/web_tests/fast/media/mq-display-mode.html'
+    ]
+
+    # Run the executor
+    test_executor.RunTestTargets(out_dir=self.out_dir,
+                                 targets=targets,
+                                 gtest_filter='ValuesTest.*',
+                                 pref_mapping_filter=None,
+                                 extra_args=['--some-shared-arg'],
+                                 dry_run=False,
+                                 no_try_android_wrappers=False,
+                                 no_fast_local_dev=False,
+                                 no_single_variant=False,
+                                 web_test_files=web_test_files)
+
+    # Verify calls to RunTestCommandWithSummary
+    self.assertEqual(self.mock_run_with_summary.call_count, 2)
+
+    # First call (GTest base_unittests)
+    first_call_args = self.mock_run_with_summary.call_args_list[0][0][0]
+    self.assertIn('--fast-local-dev', first_call_args)
+    self.assertIn('--single-variant', first_call_args)
+    self.assertIn('--some-shared-arg', first_call_args)
+
+    # Second call (Web Test blink_tests)
+    second_call_args = self.mock_run_with_summary.call_args_list[1][0][0]
+    # It should contain the shared arg
+    self.assertIn('--some-shared-arg', second_call_args)
+    # BUT it should NOT contain the GTest-specific wrapper flags!
+    self.assertNotIn('--fast-local-dev', second_call_args)
+    self.assertNotIn('--single-variant', second_call_args)
 
 
 if __name__ == '__main__':

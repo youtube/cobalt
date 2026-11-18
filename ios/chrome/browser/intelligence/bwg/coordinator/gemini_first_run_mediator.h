@@ -48,9 +48,9 @@ class IdentityManager;
                          entryPoint:(gemini::EntryPoint)entryPoint
                   completionHandler:(void (^)(BOOL success))completion;
 
-// Returns the consent configuration for the given FRE type.
-- (GeminiConsentConfiguration*)consentConfigurationForFREType:
-    (GeminiFREType)FREType;
+// Returns the consent configuration for the given First Run type.
+- (GeminiConsentConfiguration*)consentConfigurationForFirstRunType:
+    (GeminiFirstRunType)firstRunType;
 
 // Aborts the flow due to mic permission denial without resetting consent.
 - (void)didRefuseLiveMicPermission;

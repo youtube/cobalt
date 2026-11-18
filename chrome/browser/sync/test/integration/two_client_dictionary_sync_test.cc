@@ -143,7 +143,7 @@ IN_PROC_BROWSER_TEST_P(TwoClientDictionarySyncTest, Limit) {
 
   // Pick a size between 1/2 and 1/3 of kMaxSyncableDictionaryWords. This will
   // allow the test to verify that while we crossed the limit the client not
-  // actively making changes is still recieving sync updates but stops exactly
+  // actively making changes is still receiving sync updates but stops exactly
   // on the limit.
   const size_t chunk_size = kMaxSyncableDictionaryWords * 2 / 5;
 

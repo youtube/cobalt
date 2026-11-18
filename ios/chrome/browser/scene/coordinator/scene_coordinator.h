@@ -53,7 +53,7 @@ enum class WarningType;
 // `urlLoadParams` in a new tab in the target BVC. `tabOpenedCompletion` will be
 // called on the new tab (if not nil).
 - (void)openOrReuseTabInMode:(ApplicationMode)targetMode
-           withUrlLoadParams:(const UrlLoadParams&)urlLoadParams
+           withUrlLoadParams:(UrlLoadParams)urlLoadParams
          tabOpenedCompletion:(ProceduralBlock)tabOpenedCompletion;
 
 @end

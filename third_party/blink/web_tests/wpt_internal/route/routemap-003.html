@@ -6,7 +6,7 @@
   {
     "routes": [
       {
-        "name": "r1",
+        "name": "--r1",
         "pattern": [ "/*/match-later" ]
       }
     ]
@@ -38,11 +38,11 @@
     // Trigger an active navigation, so that any valid "at" rule will match.
     navigation.navigate("match-later");
     await committed.promise;
-    sheetElm.sheet.insertRule("@navigation (at: r1) { #target { width: 100px; } }", 1);
+    sheetElm.sheet.insertRule("@navigation (at: --r1) { #target { width: 100px; } }", 1);
     assert_equals(getComputedStyle(target).width, "100px");
     sheetElm.sheet.deleteRule(1);
     assert_equals(getComputedStyle(target).width, "7px");
-    sheetElm.sheet.insertRule("@navigation (at: r1) { #target { width: 200px; } }", 1);
+    sheetElm.sheet.insertRule("@navigation (at: --r1) { #target { width: 200px; } }", 1);
     assert_equals(getComputedStyle(target).width, "200px");
   }, "Add and remove rules dynamically");
 </script>

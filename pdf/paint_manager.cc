@@ -155,6 +155,10 @@ void PaintManager::SetSize(const gfx::Size& new_size,
     if (engine_buffer_) {
       BufferFinishedOnMainThread(std::move(engine_buffer_));
     }
+    if (draw_buffer_) {
+      BufferFinishedOnMainThread(std::move(draw_buffer_));
+    }
+    surface_.reset();
     engine_buffer_ = GetBuffer();
     engine_bitmap_ =
         client_->InstallBuffer(image_info_, engine_buffer_->allocation);

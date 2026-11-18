@@ -12,8 +12,8 @@ import type {HelpBubbleHandlerInterface} from './help_bubble.mojom-webui.js';
 import {HelpBubbleClientCallbackRouter, HelpBubbleHandlerRemote, PdfHelpBubbleHandlerFactory} from './help_bubble.mojom-webui.js';
 
 export interface PdfHelpBubbleProxy {
-  getHandler(): HelpBubbleHandlerInterface;
-  getCallbackRouter(): HelpBubbleClientCallbackRouter;
+  handler: HelpBubbleHandlerInterface;
+  callbackRouter: HelpBubbleClientCallbackRouter;
 }
 
 class PdfTrackedElementProxyImpl implements TrackedElementProxy {
@@ -32,15 +32,15 @@ class PdfTrackedElementProxyImpl implements TrackedElementProxy {
 
 export class PdfHelpBubbleProxyImpl implements PdfHelpBubbleProxy {
   private trackedElementHandler_ = new TrackedElementHandlerRemote();
-  private callbackRouter_ = new HelpBubbleClientCallbackRouter();
-  private helpBubbleHandler_ = new HelpBubbleHandlerRemote();
+  callbackRouter = new HelpBubbleClientCallbackRouter();
+  handler = new HelpBubbleHandlerRemote();
 
   constructor(connectToMojo: boolean) {
     if (connectToMojo) {
       const factory = PdfHelpBubbleHandlerFactory.getRemote();
       factory.createHelpBubbleHandler(
-          this.callbackRouter_.$.bindNewPipeAndPassRemote(),
-          this.helpBubbleHandler_.$.bindNewPipeAndPassReceiver(),
+          this.callbackRouter.$.bindNewPipeAndPassRemote(),
+          this.handler.$.bindNewPipeAndPassReceiver(),
           this.trackedElementHandler_.$.bindNewPipeAndPassReceiver());
       TrackedElementProxyImpl.setInstance(
           new PdfTrackedElementProxyImpl(this.trackedElementHandler_));
@@ -54,14 +54,6 @@ export class PdfHelpBubbleProxyImpl implements PdfHelpBubbleProxy {
   static createConnectedInstance() {
     assert(!instance);
     instance = new PdfHelpBubbleProxyImpl(true);
-  }
-
-  getHandler(): HelpBubbleHandlerRemote {
-    return this.helpBubbleHandler_;
-  }
-
-  getCallbackRouter(): HelpBubbleClientCallbackRouter {
-    return this.callbackRouter_;
   }
 }
 

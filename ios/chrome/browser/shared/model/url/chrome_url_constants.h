@@ -69,7 +69,6 @@ inline constexpr char kChromeUIManagementHost[] = "management";
 inline constexpr char kChromeUINetExportHost[] = "net-export";
 inline constexpr char kChromeUINewTabHost[] = "newtab";
 inline constexpr char kChromeUINTPTilesInternalsHost[] = "ntp-tiles-internals";
-inline constexpr char kChromeUIOfflineHost[] = "offline";
 inline constexpr char kChromeUIOmahaHost[] = "omaha";
 inline constexpr char kChromeUIOnDeviceLlmInternalsHost[] =
     "on-device-llm-internals";

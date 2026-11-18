@@ -268,7 +268,7 @@ void SignOutDoneForSceneState(id<SystemIdentity> identity,
 
   AccountInfo accountInfo = identityManager->FindExtendedAccountInfoByAccountId(
       primaryAccountInfo.account_id);
-  switch (accountInfo.capabilities.can_sign_in_to_chrome()) {
+  switch (accountInfo.GetAccountCapabilities().can_sign_in_to_chrome()) {
     case signin::Tribool::kUnknown:
       break;
     case signin::Tribool::kFalse: {

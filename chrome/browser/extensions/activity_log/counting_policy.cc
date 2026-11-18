@@ -624,7 +624,7 @@ void CountingPolicy::DoRemoveURLs(const std::vector<GURL>& restrict_urls) {
   }
 
   // Clean up unused strings from the strings and urls table to really delete
-  // the urls and page titles. Should be called even if an error occured when
+  // the urls and page titles. Should be called even if an error occurred when
   // removing a URL as there may some things to clean up.
   CleanStringTables(db);
 }

@@ -307,6 +307,10 @@ class RobustResourceInitTestES3 : public RobustResourceInitTest
                                 GLenum internalFormatRGBA,
                                 GLenum internalFormatRGB,
                                 GLenum type);
+    template <typename PixelT>
+    void testIntegerRenderbufferInit(GLenum internalFormat, GLenum type);
+    template <typename PixelT>
+    void testFloatRenderbufferInit(GLenum internalFormat, GLenum type);
 };
 
 class RobustResourceInitTestES31 : public RobustResourceInitTest
@@ -1264,6 +1268,43 @@ TEST_P(RobustResourceInitTestES3, CopyTexSubImage3DTextureWronglyInitialized)
     EXPECT_EQ(data, pixels);
 }
 
+// Test that glCopyTexSubImage3D from a 2D texture to a 3D texture works correctly when formats
+// match
+TEST_P(RobustResourceInitTestES3, CopyTexSubImage3DTarget3DSource2DMatches)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+
+    constexpr GLint kTextureLayer     = 0;
+    constexpr GLint kTextureWidth     = 2;
+    constexpr GLint kTextureHeight    = 2;
+    constexpr GLint kTextureDepth     = 2;
+    constexpr size_t kTextureDataSize = kTextureWidth * kTextureHeight * 4;
+
+    GLTexture texture2D;
+    glBindTexture(GL_TEXTURE_2D, texture2D);
+    constexpr std::array<uint8_t, kTextureDataSize> data = {{0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+                                                             0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C,
+                                                             0x0D, 0x0E, 0x0F, 0x10}};
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kTextureWidth, kTextureHeight, 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, data.data());
+
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture2D, 0);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    GLTexture texture3D;
+    glBindTexture(GL_TEXTURE_3D, texture3D);
+    glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA8, kTextureWidth, kTextureHeight, kTextureDepth);
+    glCopyTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, kTextureLayer, 0, 0, kTextureWidth, kTextureHeight);
+
+    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture3D, 0, kTextureLayer);
+    std::array<uint8_t, kTextureDataSize> pixels;
+    glReadPixels(0, 0, kTextureWidth, kTextureHeight, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    ASSERT_GL_NO_ERROR();
+    EXPECT_EQ(data, pixels);
+}
+
 // Test that binding an EGL surface to a texture does not cause it to be cleared.
 TEST_P(RobustResourceInitTestES3, BindTexImage)
 {
@@ -1946,6 +1987,93 @@ void RobustResourceInitTestES3::testIntegerTextureInit(const char *samplerType,
 
     ASSERT_GL_NO_ERROR();
     EXPECT_EQ(0, incorrectPixels);
+}
+
+template <typename PixelT>
+void RobustResourceInitTestES3::testIntegerRenderbufferInit(GLenum internalFormat, GLenum type)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+
+    GLRenderbuffer renderbuffer;
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, internalFormat, kWidth, kHeight);
+    ASSERT_GL_NO_ERROR();
+
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, renderbuffer);
+    ASSERT_GL_NO_ERROR();
+
+    std::array<PixelT, kWidth * kHeight * 4> data;
+    glReadPixels(0, 0, kWidth, kHeight, GL_RGBA_INTEGER, type, data.data());
+    ASSERT_GL_NO_ERROR();
+
+    int incorrectPixels = 0;
+    for (int y = 0; y < kHeight; ++y)
+    {
+        for (int x = 0; x < kWidth; ++x)
+        {
+            int index    = (y * kWidth + x) * 4;
+            bool correct = (data[index] == 0 && data[index + 1] == 0 && data[index + 2] == 0 &&
+                            data[index + 3] == 0);
+            incorrectPixels += (!correct ? 1 : 0);
+        }
+    }
+
+    EXPECT_EQ(0, incorrectPixels);
+}
+
+template <typename PixelT>
+void RobustResourceInitTestES3::testFloatRenderbufferInit(GLenum internalFormat, GLenum type)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+
+    GLRenderbuffer renderbuffer;
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, internalFormat, kWidth, kHeight);
+    ASSERT_GL_NO_ERROR();
+
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, renderbuffer);
+    ASSERT_GL_NO_ERROR();
+
+    std::array<PixelT, kWidth * kHeight * 4> data;
+    glReadPixels(0, 0, kWidth, kHeight, GL_RGBA, type, data.data());
+    ASSERT_GL_NO_ERROR();
+
+    int incorrectPixels = 0;
+    for (int y = 0; y < kHeight; ++y)
+    {
+        for (int x = 0; x < kWidth; ++x)
+        {
+            int index    = (y * kWidth + x) * 4;
+            bool correct = (data[index] == 0.0f && data[index + 1] == 0.0f &&
+                            data[index + 2] == 0.0f && data[index + 3] == 0.0f);
+            incorrectPixels += (!correct ? 1 : 0);
+        }
+    }
+
+    EXPECT_EQ(0, incorrectPixels);
+}
+
+// Test that integer renderbuffers are initialized to zero.
+TEST_P(RobustResourceInitTestES3, RenderbufferInit_IntRGBA8)
+{
+    testIntegerRenderbufferInit<int32_t>(GL_RGBA8I, GL_INT);
+}
+
+// Test that unsigned integer renderbuffers are initialized to zero.
+TEST_P(RobustResourceInitTestES3, RenderbufferInit_UIntRGBA8)
+{
+    testIntegerRenderbufferInit<uint32_t>(GL_RGBA8UI, GL_UNSIGNED_INT);
+}
+
+// Test that floating point renderbuffers are initialized to zero.
+TEST_P(RobustResourceInitTestES3, RenderbufferInit_FloatRGBA32F)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_color_buffer_float"));
+    testFloatRenderbufferInit<GLfloat>(GL_RGBA32F, GL_FLOAT);
 }
 
 // Simple tests for integer formats that ANGLE must emulate on D3D11.
@@ -3508,9 +3636,70 @@ TEST_P(RobustResourceInitTestES3, BlitDepthStencilAfterClearBuffer)
     EXPECT_PIXEL_COLOR_EQ(kSize - 1, kSize - 1, GLColor::green);
 }
 
+// Tests that binding an FBO to GL_READ_FRAMEBUFFER correctly triggers robust resource
+// initialization on read-back (glReadPixels), even if it wasn't previously bound as
+// GL_DRAW_FRAMEBUFFER.
+TEST_P(RobustResourceInitTest, BindReadFramebufferBypass)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+
+    // Setup an uninitialized texture, then bind it.
+    GLTexture tex;
+    setupTexture(&tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kWidth, kHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    // Attach to a custom FBO
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_READ_FRAMEBUFFER));
+
+    // Bind default framebuffer to GL_READ_FRAMEBUFFER to clear any dirty bits
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+
+    // Read pixels from the default framebuffer to ensure no dirty bits remain in the context
+    std::vector<GLColor> defaultData(kWidth * kHeight);
+    glReadPixels(0, 0, kWidth, kHeight, GL_RGBA, GL_UNSIGNED_BYTE, defaultData.data());
+
+    // Bind our FBO back to GL_READ_FRAMEBUFFER
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+
+    // Read pixels. If robust resource init is bypassed, this will return the "bad data".
+    // If robust resource init is working, it will return transparent black (0).
+    checkFramebufferNonZeroPixels(0, 0, 0, 0, GLColor::transparentBlack);
+    EXPECT_GL_NO_ERROR();
+}
+
+// Tests that attaching a texture to a bound GL_READ_FRAMEBUFFER correctly triggers robust resource
+// initialization on read-back, even if it wasn't previously bound as GL_DRAW_FRAMEBUFFER.
+TEST_P(RobustResourceInitTest, AttachToBoundReadFramebufferBypass)
+{
+    ANGLE_SKIP_TEST_IF(!hasGLExtension());
+
+    // Setup an uninitialized texture, then bind it.
+    GLTexture tex;
+    setupTexture(&tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kWidth, kHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    // Create a custom FBO and bind to GL_READ_FRAMEBUFFER
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+
+    // Attach texture to the bound GL_READ_FRAMEBUFFER
+    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+    EXPECT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_READ_FRAMEBUFFER));
+
+    // Read pixels. If robust resource init is bypassed, this will return the "bad data".
+    // If robust resource init is working, it will return transparent black (0).
+    checkFramebufferNonZeroPixels(0, 0, 0, 0, GLColor::transparentBlack);
+    EXPECT_GL_NO_ERROR();
+}
+
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND(
     RobustResourceInitTest,
     ES3_METAL().enable(Feature::EmulateDontCareLoadWithRandomClear),
+    ES3_METAL().enable(Feature::AllocateNonZeroTextures),
+    ES2_METAL().enable(Feature::AllocateNonZeroTextures),
     ES2_VULKAN().enable(Feature::AllocateNonZeroMemory));
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(RobustResourceInitTestES3);

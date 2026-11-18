@@ -18,6 +18,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
@@ -26,6 +27,8 @@
 #include "components/bookmarks/browser/bookmark_uuids.h"
 #include "components/bookmarks/common/bookmark_metrics.h"
 #include "components/favicon/core/favicon_service.h"
+#include "components/sync/base/client_tag_hash.h"
+#include "components/sync/base/server_defined_unique_tags.h"
 #include "components/sync/base/unique_position.h"
 #include "components/sync/protocol/bookmark_specifics.pb.h"
 #include "components/sync/protocol/entity_data.h"
@@ -331,7 +334,8 @@ sync_pb::EntitySpecifics CreateSpecificsFromBookmarkNode(
   }
 
   if (favicon_bytes.get() && favicon_bytes->size() != 0) {
-    bm_specifics->set_favicon(favicon_bytes->data(), favicon_bytes->size());
+    bm_specifics->set_favicon(
+        base::as_string_view(base::span<const uint8_t>(*favicon_bytes)));
     // Avoid sync-ing favicon URLs that are unreasonably large, as determined by
     // |kMaxFaviconUrlSize|. Most notably, URLs prefixed with the data: scheme
     // to embed the content of the image itself in the URL may be arbitrarily
@@ -594,6 +598,38 @@ bool HasExpectedBookmarkGuid(const sync_pb::BookmarkSpecifics& specifics,
   return base::Uuid::ParseLowercase(specifics.guid()) ==
          InferGuidFromLegacyOriginatorId(originator_cache_guid,
                                          originator_client_item_id);
+}
+
+base::Uuid GetPermanentFolderUuidForServerDefinedUniqueTag(
+    const std::string& server_defined_unique_tag) {
+  DCHECK(!server_defined_unique_tag.empty());
+
+  if (server_defined_unique_tag == syncer::kBookmarkBarTag) {
+    return base::Uuid::ParseLowercase(bookmarks::kBookmarkBarNodeUuid);
+  }
+  if (server_defined_unique_tag == syncer::kOtherBookmarksTag) {
+    return base::Uuid::ParseLowercase(bookmarks::kOtherBookmarksNodeUuid);
+  }
+  if (server_defined_unique_tag == syncer::kSyncedBookmarksTag) {
+    return base::Uuid::ParseLowercase(bookmarks::kMobileBookmarksNodeUuid);
+  }
+
+  return base::Uuid();
+}
+
+syncer::ClientTagHash GetOrInferClientTagHashInUpdate(
+    const syncer::EntityData& update_entity) {
+  if (!update_entity.client_tag_hash.value().empty()) {
+    return update_entity.client_tag_hash;
+  }
+  if (!update_entity.originator_client_item_id.empty()) {
+    return syncer::ClientTagHash::FromUnhashed(
+        syncer::BOOKMARKS,
+        InferGuidFromLegacyOriginatorId(update_entity.originator_cache_guid,
+                                        update_entity.originator_client_item_id)
+            .AsLowercaseString());
+  }
+  return syncer::ClientTagHash();
 }
 
 }  // namespace sync_bookmarks

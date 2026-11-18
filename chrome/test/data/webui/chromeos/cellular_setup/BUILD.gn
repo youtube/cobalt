@@ -7,7 +7,7 @@ import("../../build_webui_tests.gni")
 build_webui_tests("build") {
   ts_composite = true
   ts_tsconfig_base = "tsconfig_base.json"
-  cc_test_files = [ "../cr_components_chromeos_v3_browsertest.js" ]
+  cc_test_files = [ "../cr_components_chromeos_v3_browsertest.cc" ]
   files = [
     "activation_code_page_test.ts",
     "base_page_test.ts",
@@ -21,7 +21,7 @@ build_webui_tests("build") {
     "fake_esim_manager_remote.ts",
     "fake_media_devices.ts",
     "final_page_test.ts",
-    "mock_metrics_private.ts",
+    "test_metrics_browser_proxy.ts",
     "profile_discovery_list_page_test.ts",
     "provisioning_page_test.ts",
     "psim_flow_ui_test.ts",

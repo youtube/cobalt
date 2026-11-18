@@ -20,11 +20,11 @@
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
-#include "api/environment/environment_factory.h"
 #include "common_audio/channel_buffer.h"
 #include "modules/audio_processing/test/protobuf_utils.h"
 #include "modules/audio_processing/test/runtime_setting_util.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 
 namespace webrtc {
 namespace test {
@@ -197,7 +197,7 @@ void DebugDumpReplayer::MaybeRecreateApm(const audioproc::Config& msg) {
   // We only create APM once, since changes on these fields should not
   // happen in current implementation.
   if (apm_ == nullptr) {
-    apm_ = BuiltinAudioProcessingBuilder().Build(CreateEnvironment());
+    apm_ = BuiltinAudioProcessingBuilder().Build(CreateTestEnvironment());
   }
 }
 

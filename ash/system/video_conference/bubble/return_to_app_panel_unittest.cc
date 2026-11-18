@@ -633,15 +633,16 @@ TEST_F(ReturnToAppPanelTest, ReturnToAppButtonAccessibleName) {
 
   auto expected_camera_text = l10n_util::GetStringFUTF16(
       VIDEO_CONFERENCE_RETURN_TO_APP_PERIPHERALS_ACCESSIBLE_NAME,
-      l10n_util::GetStringUTF16(VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA));
+      l10n_util::GetStringUTF16(
+          IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA));
   auto expected_microphone_text = l10n_util::GetStringFUTF16(
       VIDEO_CONFERENCE_RETURN_TO_APP_PERIPHERALS_ACCESSIBLE_NAME,
       l10n_util::GetStringUTF16(
-          VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE));
+          IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE));
   auto expected_screen_share_text = l10n_util::GetStringFUTF16(
       VIDEO_CONFERENCE_RETURN_TO_APP_PERIPHERALS_ACCESSIBLE_NAME,
       l10n_util::GetStringUTF16(
-          VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_SCREEN_SHARE));
+          IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_SCREEN_SHARE));
 
   // Verify accessible name for each row.
   EXPECT_EQ(expected_camera_text + u"Meet",
@@ -671,15 +672,16 @@ TEST_F(ReturnToAppPanelTest, ReturnToAppButtonSummaryRowAccessibleName) {
 
   auto expected_camera_text = l10n_util::GetStringFUTF16(
       VIDEO_CONFERENCE_RETURN_TO_APP_PERIPHERALS_ACCESSIBLE_NAME,
-      l10n_util::GetStringUTF16(VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA));
+      l10n_util::GetStringUTF16(
+          IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA));
   auto expected_microphone_text = l10n_util::GetStringFUTF16(
       VIDEO_CONFERENCE_RETURN_TO_APP_PERIPHERALS_ACCESSIBLE_NAME,
       l10n_util::GetStringUTF16(
-          VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE));
+          IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE));
   auto expected_screen_share_text = l10n_util::GetStringFUTF16(
       VIDEO_CONFERENCE_RETURN_TO_APP_PERIPHERALS_ACCESSIBLE_NAME,
       l10n_util::GetStringUTF16(
-          VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_SCREEN_SHARE));
+          IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_SCREEN_SHARE));
   auto expected_button_text =
       expected_camera_text + expected_microphone_text +
       expected_screen_share_text +

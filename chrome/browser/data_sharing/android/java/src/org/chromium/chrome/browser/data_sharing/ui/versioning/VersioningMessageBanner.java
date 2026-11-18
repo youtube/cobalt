@@ -99,7 +99,7 @@ public class VersioningMessageBanner {
                         R.string
                                 .collaboration_shared_tab_groups_panel_out_of_date_message_cell_text);
         String buttonText = mContext.getString(R.string.update);
-        Drawable icon = ContextCompat.getDrawable(mContext, R.drawable.ic_features_24dp);
+        Drawable icon = ContextCompat.getDrawable(mContext, R.drawable.ic_grid_view_24dp);
 
         PropertyModel.Builder builder =
                 new PropertyModel.Builder(ALL_KEYS)

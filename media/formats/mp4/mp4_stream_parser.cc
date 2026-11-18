@@ -148,7 +148,6 @@ ParseResult ReadTopLevelBoxHeaderAt(OffsetSegmentedByteQueue& queue,
                                           media_log, type, box_size);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 // Create a HdrMetadataTrack for attaching metadata to track samples. Returns
 // nullptr on failure.
 std::unique_ptr<HdrMetadataTrack> MakeMetadataTrack(

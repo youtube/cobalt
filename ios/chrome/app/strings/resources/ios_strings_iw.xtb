@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">אפשר לחזור לפה כדי לפתוח כרטיסיות שסגרת לאחרונה</translation>
 <translation id="1016495303386450659">הפריט עודכן</translation>
+<translation id="1018804590490383958">סריקה ומילוי אוטומטי</translation>
 <translation id="1019990162050689579">‏הפעילות בממשקי Gemini</translation>
 <translation id="102916930470544692">מפתח גישה</translation>
 <translation id="1030376737535466765">פתיחה של מנהל הסיסמאות</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">‏אפשר להעלות תמונה כדי לשנות את הסגנון שלה עם Nano Banana</translation>
 <translation id="1377508275003315939">סיסמאות</translation>
 <translation id="1381022135873211423">{count,plural, =1{‫{position} מתוך כתובת אחת ({count})}one{‫{position} מתוך {count} כתובות}two{‫{position} מתוך {count} כתובות}other{‫{position} מתוך {count} כתובות}}</translation>
+<translation id="13813615483058219">משהו השתבש. כדאי לבדוק את החיבור לאינטרנט, להגביר את עוצמת הקול או לנסות שוב.</translation>
 <translation id="1383876407941801731">חיפוש</translation>
 <translation id="138618066238211776">המשך בתור <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">אפשרויות לשמירת כרטיס</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">עדכון הדפדפן</translation>
 <translation id="4021931095789478915">‏הוספת הכתובת ${url} לרשימת הקריאה</translation>
 <translation id="4028871427853484857">שמירה בחשבון…</translation>
+<translation id="4036529942385659684">הצגת דף הפתיחה אחרי תקופה של חוסר פעילות</translation>
 <translation id="4038354071007134711">אין במכשיר זה אף אפליקציה שניתן לפתוח באמצעותה את הקובץ.</translation>
 <translation id="4042870976416480368">חיפוש בדף</translation>
 <translation id="4045441967987592849">פתיחה מחדש</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">ניהול הקבוצה</translation>
 <translation id="4172051516777682613">להציג תמיד</translation>
 <translation id="417273154673973994">{count,plural, =1{קבוצת כרטיסיות אחת נסגרה ונשמרה}one{‫{count} קבוצות הכרטיסיות נסגרו ונשמרו}two{‫{count} קבוצות הכרטיסיות נסגרו ונשמרו}other{‫{count} קבוצות הכרטיסיות נסגרו ונשמרו}}</translation>
-<translation id="417612446554534067">שליחה אל המכשירים שלך</translation>
 <translation id="4180726336228139707">רק במכשיר הזה</translation>
 <translation id="4181841719683918333">שפות</translation>
 <translation id="4183350924949589798">רוצה לשפר את רמת האבטחה?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">הכרטיסיות נסגרו והמערכת הוציאה אותך מהחשבון</translation>
 <translation id="4911042367886397055">שמחים שחזרת, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">אפשר לשתף באופן מאובטח עותק של הסיסמה עם מישהו בקבוצה המשפחתית שלך. <ph name="BEGIN_LINK" />מידע נוסף<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">עדשה</translation>
 <translation id="4917025507570489430">אפשר להשתמש בנתוני הגלישה הקיימים כשמתחברים כ-<ph name="USER_EMAIL" />. יכול להיות שהארגון שלך יוכל לראות את הנתונים האלה.</translation>
 <translation id="4918086044614829423">אישור</translation>
 <translation id="4930714375720679147">הפעלה</translation>
@@ -1549,6 +1552,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">בחירת המיקום של סרגל הכתובות</translation>
 <translation id="6307241780749477694">כדי לקבל את כל הסיסמאות במכשיר הזה, צריך לאמת את הזהות שלך</translation>
+<translation id="6307792728709337290">‏כדי למלא אוטומטית את פרטי הכרטיס ברכישה הזו וברכישות עתידיות ב-Chrome, צריך לשמור אותו בחשבון Google.</translation>
 <translation id="6316141353357700666">בוחרים את הסיסמה שבה רוצים להשתמש מתוך הרשימה שמופיעה.</translation>
 <translation id="6321526113093607004">הוספה לסימניות</translation>
 <translation id="6327249202318869726">‏‫Gemini מושבת בחשבון שלך. כדי לקבל מידע נוסף, אפשר לפנות לאדמין.</translation>
@@ -2143,6 +2147,7 @@
 <translation id="8263809106706527890">יכול להיות שנעשה שינוי בהגדרות דפדפן ברירת המחדל. אפשר לבדוק את זה בהגדרות.</translation>
 <translation id="8264966119170358612">‏חלק מהסיסמאות השמורות שלך נחשפו ברשומות שאינן של Google עקב פרצה באבטחת מידע. <ph name="BEGIN_LINK" />מידע נוסף<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">‏המערכת הוציאה אותך מהחשבון, <ph name="USER_NAME" />, במסגרת האיפוס של iPad. כדי להיכנס שוב לחשבון צריך ללחוץ על 'המשך' למטה.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">הפרטים ימולאו באתר <ph name="URL" /></translation>
 <translation id="8275068909952022340">עוד…</translation>
 <translation id="8281781826761538115">ברירת מחדל - <ph name="DEFAULT_LOCALE" /></translation>

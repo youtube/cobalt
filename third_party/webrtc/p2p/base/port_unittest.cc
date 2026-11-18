@@ -4158,13 +4158,7 @@ class TestPortWrapper : public TurnPort {
                  /*tls_alpn_protocols=*/{"alpn"},
                  /*tls_elliptic_curves=*/{"ecc"},
                  /*customizer=*/nullptr,
-                 /*tls_cert_verifier=*/nullptr) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    SubscribeReadPacket([](PortInterface* port, const char* data, size_t size,
-                           const SocketAddress& addr) {});
-#pragma clang diagnostic pop
-  }
+                 /*tls_cert_verifier=*/nullptr) {}
 
  private:
   PortParametersRef args_{.env = CreateTestEnvironment()};

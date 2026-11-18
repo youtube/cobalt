@@ -59,7 +59,7 @@ bool IsSaveAndFillEnabled() {
   return base::FeatureList::IsEnabled(features::kAutofillEnableSaveAndFill);
 #elif BUILDFLAG(IS_IOS)
   return base::FeatureList::IsEnabled(
-      autofill::features::kAutofillEnableBottomSheetScanCardAndFill);
+      features::kAutofillEnableBottomSheetScanCardAndFill);
 #else
   return false;
 #endif

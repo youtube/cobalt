@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">ÅÅÅÅ</translation>
 <translation id="1013952917065545813">Du kan vende tilbage hertil for at åbne dine senest lukkede faner igen</translation>
 <translation id="1016495303386450659">Elementet blev opdateret</translation>
+<translation id="1018804590490383958">Scan og udfyld automatisk</translation>
 <translation id="1019990162050689579">Gemini-appaktivitet</translation>
 <translation id="102916930470544692">Adgangsnøgle</translation>
 <translation id="1030376737535466765">Åbn Adgangskodeadministrator</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Upload et billede, der skal remixes med Nano Banana</translation>
 <translation id="1377508275003315939">Adgangskoder</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} af {count} adresse}one{{position} af {count} adresse}other{{position} af {count} adresser}}</translation>
+<translation id="13813615483058219">Noget gik galt. Tjek din internetforbindelse, øg lydstyrken, eller prøv igen.</translation>
 <translation id="1383876407941801731">Søg</translation>
 <translation id="138618066238211776">Fortsæt som <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Valgmuligheder for at gemme kort</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">Opdater din browser</translation>
 <translation id="4021931095789478915">Føj ${url} til læselisten</translation>
 <translation id="4028871427853484857">Gem på kontoen…</translation>
+<translation id="4036529942385659684">Vis startsiden efter en periode med inaktivitet</translation>
 <translation id="4038354071007134711">Ingen apps på denne enhed, der kan åbne filen.</translation>
 <translation id="4042870976416480368">Find på siden</translation>
 <translation id="4045441967987592849">Genåbn</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">Administrer gruppe</translation>
 <translation id="4172051516777682613">Vis altid</translation>
 <translation id="417273154673973994">{count,plural, =1{1 fanegruppe blev lukket og gemt}one{{count} fanegruppe blev lukket og gemt}other{{count} fanegrupper blev lukket og gemt}}</translation>
-<translation id="417612446554534067">Send til dine enheder</translation>
 <translation id="4180726336228139707">Kun på denne enhed</translation>
 <translation id="4181841719683918333">Sprog</translation>
 <translation id="4183350924949589798">Større sikkerhed?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">Fanerne er blevet lukket: Du er blevet logget ud</translation>
 <translation id="4911042367886397055">Velkommen tilbage, <ph name="USER_NAME" />.</translation>
 <translation id="4913626501929406101">Du kan på sikker vis dele en kopi af din adgangskode med en anden i din familiegruppe. <ph name="BEGIN_LINK" />Få flere oplysninger<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Objektiv</translation>
 <translation id="4917025507570489430">Du kan bruge eksisterende browserdata, når du er logget ind som <ph name="USER_EMAIL" />. Din organisation kan muligvis se disse data.</translation>
 <translation id="4918086044614829423">Accepter</translation>
 <translation id="4930714375720679147">Aktivér</translation>
@@ -1549,6 +1552,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Vælg placering for adresselinje</translation>
 <translation id="6307241780749477694">Verificer din identitet for at få alle dine adgangskoder på denne enhed</translation>
+<translation id="6307792728709337290">Gem dit kort på din Google-konto for at udfylde kortoplysninger automatisk ved dette og fremtidige køb i Chrome.</translation>
 <translation id="6316141353357700666">Vælg den adgangskode, du vil bruge, på den liste, der vises.</translation>
 <translation id="6321526113093607004">Føj til Bogmærker</translation>
 <translation id="6327249202318869726">Gemini er deaktiveret for din konto. Kontakt din administrator for at få flere oplysninger.</translation>
@@ -2143,6 +2147,7 @@ Skift til <ph name="OTHER_EMAIL" /> for at fortsætte på din computer. Du får 
 <translation id="8263809106706527890">Dine standardbrowserindstillinger er muligvis blevet ændret. Du kan tjekke dette i indstillingerne.</translation>
 <translation id="8264966119170358612">Nogle af dine gemte adgangskoder er blevet offentliggjort som følge af et brud på datasikkerheden uden for Google. <ph name="BEGIN_LINK" />Få flere oplysninger<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Du blev logget ud af din konto, <ph name="USER_NAME" />, som en del af nulstillingen af din iPad. Tryk på "Fortsæt" nedenfor for at logge ind igen.</translation>
+<translation id="8270320981823560179">Drev</translation>
 <translation id="8273982424131314219">Du skal udfylde oplysningerne på <ph name="URL" /></translation>
 <translation id="8275068909952022340">Mere…</translation>
 <translation id="8281781826761538115">Standardsprog – <ph name="DEFAULT_LOCALE" /></translation>

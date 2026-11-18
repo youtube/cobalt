@@ -35,7 +35,6 @@
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/gc-tracer-inl.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-utils-inl.h"
 #include "src/heap/heap-visitor-inl.h"
@@ -55,11 +54,9 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
-#include "src/heap/memory-measurement.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/normal-page-inl.h"
-#include "src/heap/normal-page.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/read-only-heap.h"
@@ -78,7 +75,7 @@
 #include "src/objects/foreign.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object-inl.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-objects-inl.h"
@@ -4143,7 +4140,8 @@ void MarkCompactCollector::TrimDescriptorArray(
     DCHECK_EQ(descriptors, ReadOnlyRoots(heap_).empty_descriptor_array());
     return;
   }
-  const bool can_trim = v8_flags.trim_descriptor_arrays_in_gc &&
+  const bool can_trim = heap_->ShouldReduceMemory() &&
+                        v8_flags.trim_descriptor_arrays_in_gc &&
                         (v8_flags.trim_descriptor_arrays_in_gc_with_stack ||
                          !heap_->IsGCWithStack());
   int to_trim =

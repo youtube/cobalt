@@ -117,6 +117,7 @@
 <translation id="1373120905936431262">Muat naik imej untuk diadun semula dengan Nano Banana</translation>
 <translation id="1377508275003315939">Kata laluan</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} daripada {count} alamat}other{{position} daripada {count} alamat}}</translation>
+<translation id="13813615483058219">Ada masalah. Semak sambungan Internet, tingkatkan kelantangan atau cuba lagi.</translation>
 <translation id="1383876407941801731">Carian</translation>
 <translation id="138618066238211776">Teruskan sebagai <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Pilihan untuk menyimpan kad</translation>
@@ -500,6 +501,7 @@
 <translation id="2666092431469916601">Atas</translation>
 <translation id="2669454659051515572">Sesiapa sahaja yang menggunakan peranti ini dapat melihat fail yang dimuat turun</translation>
 <translation id="2671423594960767771">Kongsi kumpulan</translation>
+<translation id="2673183423393669407">Bayaran Ansuran</translation>
 <translation id="2673508731173059946">Lawati pautan disalin</translation>
 <translation id="2679659833697380">Maklumat anda disimpan pada peranti anda</translation>
 <translation id="2681572445246787428">Penandatanganan Dokumen</translation>
@@ -874,6 +876,7 @@
 <translation id="4021447724486050609">Kemas kinikan Penyemak Imbas anda</translation>
 <translation id="4021931095789478915">Tambahkan ${url} pada senarai bacaan</translation>
 <translation id="4028871427853484857">Simpan dalam akaun…</translation>
+<translation id="4036529942385659684">Tunjukkan halaman mula selepas tempoh tidak aktif</translation>
 <translation id="4038354071007134711">Tiada aplikasi pada peranti ini yang dapat membuka fail itu.</translation>
 <translation id="4042870976416480368">Cari dalam Halaman</translation>
 <translation id="4045441967987592849">Buka semula</translation>
@@ -911,7 +914,6 @@
 <translation id="417138788035229076">Urus kumpulan</translation>
 <translation id="4172051516777682613">Sentiasa paparkan</translation>
 <translation id="417273154673973994">{count,plural, =1{1 kumpulan tab telah ditutup dan disimpan}other{{count} kumpulan tab telah ditutup dan disimpan}}</translation>
-<translation id="417612446554534067">Hantar kepada Peranti Anda</translation>
 <translation id="4180726336228139707">Hanya pada peranti ini</translation>
 <translation id="4181841719683918333">Bahasa</translation>
 <translation id="4183350924949589798">Lagi keselamatan?</translation>
@@ -1135,6 +1137,7 @@
 <translation id="4896467949657706481">Tab telah ditutup; anda telah dilog keluar</translation>
 <translation id="4911042367886397055">Selamat kembali, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Anda boleh berkongsi salinan kata laluan anda dengan selamat dengan seseorang dalam kumpulan keluarga anda. <ph name="BEGIN_LINK" />Ketahui lebih lanjut<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Lensa</translation>
 <translation id="4917025507570489430">Anda boleh menggunakan data semakan imbas sedia ada apabila anda log masuk sebagai <ph name="USER_EMAIL" />. Organisasi anda mungkin dapat melihat data ini.</translation>
 <translation id="4918086044614829423">Terima</translation>
 <translation id="4930714375720679147">Hidupkan</translation>
@@ -1556,6 +1559,7 @@ Serah mestilah turut didayakan dalam bahagian Umum pada Tetapan dan peranti anda
 <translation id="6327249202318869726">Gemini dimatikan untuk akaun anda. Hubungi pentadbir anda untuk mendapatkan maklumat lanjut.</translation>
 <translation id="6331836477476466332">Penyemak imbas yang lebih selamat dan berkuasa untuk anda</translation>
 <translation id="6337234675334993532">Penyulitan</translation>
+<translation id="6337711171050747395">Tunjukkan pilihan bayaran ansuran semasa semak keluar</translation>
 <translation id="633809752005859102">Ada sesuatu yang tidak kena. Kami akan membetulkannya.</translation>
 <translation id="6339793034470834130">Untuk menggunakan Pemeriksa Web, sambungkan kepada Safari pada komputer anda menggunakan kabel dan akses iPhone anda daripada menu Pembangun. Anda boleh mendayakan menu pembangun pada bahagian Lanjutan tetapan Safari pada komputer anda.</translation>
 <translation id="6340285871011301182">Terjemahan separa tidak tersedia.</translation>
@@ -2145,6 +2149,7 @@ Untuk meneruskan proses daripada komputer anda, beralih kepada <ph name="OTHER_E
 <translation id="8263809106706527890">Mungkin terdapat perubahan pada tetapan penyemak imbas lalai anda. Anda boleh menyemak perubahan ini dalam tetapan.</translation>
 <translation id="8264966119170358612">Sesetengah kata laluan anda yang disimpan telah terdedah dalam pelanggaran data bukan Google. <ph name="BEGIN_LINK" />Ketahui lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Anda telah dilog keluar daripada akaun anda, <ph name="USER_NAME" />, sebagai sebahagian daripada tetapan semula iPad anda. Untuk log masuk semula, ketik "Teruskan" di bawah.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Anda akan mengisi maklumat pada <ph name="URL" /></translation>
 <translation id="8275068909952022340">Lagi…</translation>
 <translation id="8281781826761538115">Lalai - <ph name="DEFAULT_LOCALE" /></translation>

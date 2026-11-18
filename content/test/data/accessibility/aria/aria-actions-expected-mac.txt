@@ -1,0 +1,19 @@
+AXWebArea
+++AXTabGroup
+++++AXRadioButton AXSubrole=AXTabButton AXCustomActionNamesForTesting=['Edit', 'Open', 'Delete'] AXTitle='your-file-name.pdf Close' AXValue=0
+++++++AXStaticText AXValue='your-file-name.pdf '
+++++++AXButton AXTitle='Edit'
+++++++AXLink AXDescription='Open'
+++++++++AXStaticText AXValue='Open'
+++++++AXCheckBox AXSubrole=AXSwitch AXTitle='Close' AXValue=0
+++AXButton AXTitle='Delete'
+=== Start Continuation ===
+AXWebArea AXTitle='change-aria-action-id'
+++AXTabGroup
+++++AXRadioButton AXSubrole=AXTabButton AXCustomActionNamesForTesting=['Close'] AXTitle='your-file-name.pdf Edit Open' AXValue=0
+++++++AXStaticText AXValue='your-file-name.pdf '
+++++++AXButton AXTitle='Edit'
+++++++AXLink AXDescription='Open'
+++++++++AXStaticText AXValue='Open'
+++++++AXCheckBox AXSubrole=AXSwitch AXTitle='Close' AXValue=0
+++AXButton AXTitle='Delete'

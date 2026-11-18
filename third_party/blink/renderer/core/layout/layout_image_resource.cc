@@ -110,11 +110,20 @@ ResourcePriority LayoutImageResource::ComputeResourcePriority() const {
 void LayoutImageResource::ResetAnimation() {
   DCHECK(layout_object_);
 
-  if (!cached_image_)
+  if (!cached_image_) {
     return;
+  }
 
   cached_image_->GetImage()->ResetAnimation();
 
+  layout_object_->SetShouldDoFullPaintInvalidation();
+}
+
+void LayoutImageResource::InvalidatePaint() {
+  DCHECK(layout_object_);
+  if (!cached_image_) {
+    return;
+  }
   layout_object_->SetShouldDoFullPaintInvalidation();
 }
 

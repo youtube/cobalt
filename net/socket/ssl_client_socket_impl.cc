@@ -954,6 +954,7 @@ int SSLClientSocketImpl::DoHandshake() {
 
     OpenSSLErrorInfo error_info;
     net_error = MapLastOpenSSLError(ssl_error, err_tracer, &error_info);
+    MaybeClearEarlyDataCache(net_error);
     if (net_error == ERR_IO_PENDING) {
       // If not done, stay in this state
       next_handshake_state_ = STATE_HANDSHAKE;
@@ -1381,6 +1382,7 @@ int SSLClientSocketImpl::DoPayloadRead(base::span<uint8_t> buf) {
     } else {
       pending_read_error_ = MapLastOpenSSLError(
           pending_read_ssl_error_, err_tracer, &pending_read_error_info_);
+      MaybeClearEarlyDataCache(pending_read_error_);
     }
 
     // Many servers do not reliably send a close_notify alert when shutting down
@@ -1436,6 +1438,7 @@ int SSLClientSocketImpl::DoPayloadWrite() {
     return ERR_IO_PENDING;
   OpenSSLErrorInfo error_info;
   int net_error = MapLastOpenSSLError(ssl_error, err_tracer, &error_info);
+  MaybeClearEarlyDataCache(net_error);
 
   if (net_error != ERR_IO_PENDING) {
     NetLogOpenSSLError(net_log_, NetLogEventType::SSL_WRITE_ERROR, net_error,
@@ -1487,11 +1490,7 @@ void SSLClientSocketImpl::DoPeek() {
     // On early data reject, clear early data on any other sessions in the
     // cache, so retries do not get stuck attempting 0-RTT. See
     // https://crbug.com/1066623.
-    if (err == ERR_EARLY_DATA_REJECTED ||
-        err == ERR_WRONG_VERSION_ON_EARLY_DATA) {
-      context_->ssl_client_session_cache()->ClearEarlyData(
-          GetSessionCacheKey(std::nullopt));
-    }
+    MaybeClearEarlyDataCache(err);
 
     handled_early_data_result_ = true;
 
@@ -1673,6 +1672,15 @@ bool SSLClientSocketImpl::IsRenegotiationAllowed() const {
 
 bool SSLClientSocketImpl::IsCachingEnabled() const {
   return context_->ssl_client_session_cache() != nullptr;
+}
+
+void SSLClientSocketImpl::MaybeClearEarlyDataCache(int error) {
+  if ((error == ERR_EARLY_DATA_REJECTED ||
+       error == ERR_WRONG_VERSION_ON_EARLY_DATA) &&
+      IsCachingEnabled()) {
+    context_->ssl_client_session_cache()->ClearEarlyData(
+        GetSessionCacheKey(std::nullopt));
+  }
 }
 
 ssl_private_key_result_t SSLClientSocketImpl::PrivateKeySignCallback(

@@ -11,6 +11,8 @@
 #include <vector>
 
 #include "base/containers/flat_set.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_filter.h"
 #include "components/services/app_service/public/cpp/preferred_app.h"
@@ -24,7 +26,22 @@ namespace apps {
 // an list of |intent_filter| vs. app_id.
 class PreferredAppsList : public PreferredAppsListHandle {
  public:
-  PreferredAppsList();
+  class Delegate {
+   public:
+    // Returns true if two structurally overlapping preferred app filter
+    // configurations conflict, indicating that they cannot co-exist and the
+    // older preference must be disabled. If the delegate returns false, they
+    // can co-exist (e.g., nested scopes of different non-system web apps).
+    virtual bool QueryConflict(const std::string& first_app_id,
+                               const IntentFilterPtr& first_filter,
+                               const std::string& second_app_id,
+                               const IntentFilterPtr& second_filter) = 0;
+
+   protected:
+    virtual ~Delegate() = default;
+  };
+
+  explicit PreferredAppsList(Delegate* delegate);
   ~PreferredAppsList();
 
   PreferredAppsList(const PreferredAppsList&) = delete;
@@ -33,6 +50,10 @@ class PreferredAppsList : public PreferredAppsListHandle {
   // Initialize the preferred app with empty list or existing |preferred_apps|;
   void Init();
   void Init(PreferredApps preferred_apps);
+
+  void SetLongestPrefixMatchEnabled(bool enabled) {
+    longest_prefix_match_enabled_ = enabled;
+  }
 
   // Add a preferred app for an |intent_filter|, and returns a group of
   // |app_ids| that is no longer preferred app of their corresponding
@@ -64,6 +85,7 @@ class PreferredAppsList : public PreferredAppsListHandle {
   std::optional<std::string> FindPreferredAppForIntent(
       const IntentPtr& intent) const override;
   base::flat_set<std::string> FindPreferredAppsForFilters(
+      std::optional<std::string> app_id,
       const IntentFilters& intent_filters) const override;
 
  private:
@@ -72,6 +94,11 @@ class PreferredAppsList : public PreferredAppsListHandle {
                    const IntentFilterPtr& intent_filter);
 
   PreferredApps preferred_apps_;
+  // The delegate is owned by the same class (PreferredAppsImpl) that owns this
+  // PreferredAppsList instance, which guarantees that the delegate will outlive
+  // this list and therefore the pointer will never dangle.
+  raw_ptr<Delegate> delegate_ = nullptr;
+  bool longest_prefix_match_enabled_ = false;
   bool initialized_ = false;
 };
 

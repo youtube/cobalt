@@ -3,11 +3,10 @@
 // found in the LICENSE file.
 
 import {TileSource} from '//resources/mojo/components/ntp_tiles/tile_source.mojom-webui.js';
-import {MostVisitedBrowserProxy} from 'chrome://resources/cr_components/most_visited/browser_proxy.js';
 import {MostVisitedElement} from 'chrome://resources/cr_components/most_visited/most_visited.js';
 import type {AutoRemovedEventDetail} from 'chrome://resources/cr_components/most_visited/most_visited.js';
 import type {MostVisitedPageRemote, MostVisitedTile} from 'chrome://resources/cr_components/most_visited/most_visited.mojom-webui.js';
-import {MostVisitedPageCallbackRouter, MostVisitedPageHandlerRemote} from 'chrome://resources/cr_components/most_visited/most_visited.mojom-webui.js';
+import {browserProxyFactory, MostVisitedPageHandlerRemote} from 'chrome://resources/cr_components/most_visited/most_visited.mojom-webui.js';
 import {MostVisitedWindowProxy} from 'chrome://resources/cr_components/most_visited/window_proxy.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
@@ -93,10 +92,9 @@ function assertAddShortcutShown() {
 
 function createBrowserProxy() {
   handler = TestMock.fromClass(MostVisitedPageHandlerRemote);
-  const callbackRouter = new MostVisitedPageCallbackRouter();
-  MostVisitedBrowserProxy.setInstance(
-      new MostVisitedBrowserProxy(handler, callbackRouter));
-  callbackRouterRemote = callbackRouter.$.bindNewPipeAndPassRemote();
+  const {instance, remote} = browserProxyFactory.createForTest(handler);
+  browserProxyFactory.setInstance(instance);
+  callbackRouterRemote = remote;
 
   handler.setResultFor('addMostVisitedTile', Promise.resolve({
     success: true,

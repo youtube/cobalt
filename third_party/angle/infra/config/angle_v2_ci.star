@@ -5,12 +5,12 @@
 """CI ANGLE builders using the angle_v2 recipe."""
 
 load("@chromium-luci//builder_config.star", "builder_config")
-load("@chromium-luci//builders.star", "os")
 load("@chromium-luci//ci.star", "ci")
 load("@chromium-luci//consoles.star", "consoles")
 load("@chromium-luci//gardener_rotations.star", "gardener_rotations")
 load("@chromium-luci//gn_args.star", "gn_args")
 load("@chromium-luci//targets.star", "targets")
+load("//angle_v2_shared.star", "builder_defaults")
 load("//constants.star", "default_experiments", "siso")
 
 ci.defaults.set(
@@ -48,19 +48,19 @@ targets.builder_defaults.set(
 ################################################################################
 
 def angle_linux_parent_builder(**kwargs):
-    kwargs.setdefault("cores", 8)
-    kwargs.setdefault("os", os.LINUX_DEFAULT)
+    kwargs = builder_defaults.apply_linux_builder_defaults(kwargs)
     ci.builder(**kwargs)
 
 def angle_mac_parent_builder(**kwargs):
-    kwargs.setdefault("cpu", "arm64")
-    kwargs.setdefault("os", os.MAC_DEFAULT)
+    kwargs = builder_defaults.apply_mac_builder_defaults(kwargs)
     ci.builder(**kwargs)
 
 def angle_win_parent_builder(**kwargs):
-    kwargs.setdefault("cores", 8)
-    kwargs.setdefault("os", os.WINDOWS_DEFAULT)
-    kwargs.setdefault("ssd", None)
+    kwargs = builder_defaults.apply_win_clang_builder_defaults(kwargs)
+    ci.builder(**kwargs)
+
+def angle_win_msvc_parent_builder(**kwargs):
+    kwargs = builder_defaults.apply_win_msvc_builder_defaults(kwargs)
     ci.builder(**kwargs)
 
 angle_linux_parent_builder(
@@ -482,6 +482,38 @@ angle_mac_parent_builder(
 )
 
 angle_win_parent_builder(
+    name = "angle-win-x64-builder-asan",
+    description_html = "Compiles release ANGLE test binaries for Win/x64 with ASan enabled",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "asan",
+            "component",
+            "opencl",
+            "release_with_dchecks",
+            "win_clang",
+            "x64",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|win|x64",
+        short_name = "asn",
+    ),
+)
+
+angle_win_parent_builder(
     name = "angle-win-x64-builder-dbg",
     description_html = "Compiles debug ANGLE test binaries for Win/x64",
     schedule = "triggered",
@@ -509,6 +541,66 @@ angle_win_parent_builder(
     console_view_entry = consoles.console_view_entry(
         category = "compile|win|x64",
         short_name = "dbg",
+    ),
+)
+
+angle_win_msvc_parent_builder(
+    name = "angle-win-x64-builder-msvc-dbg",
+    description_html = "Compiles debug ANGLE targets for Win/x64 using MSVC",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.DEBUG,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "component",
+            "debug",
+            "win_msvc",
+            "x64",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|win|x64|msvc",
+        short_name = "dbg",
+    ),
+)
+
+angle_win_msvc_parent_builder(
+    name = "angle-win-x64-builder-msvc-rel",
+    description_html = "Compiles release ANGLE targets for Win/x64 using MSVC",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "component",
+            "release_with_dchecks",
+            "win_msvc",
+            "x64",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|win|x64|msvc",
+        short_name = "rel",
     ),
 )
 
@@ -576,6 +668,66 @@ angle_win_parent_builder(
     ),
 )
 
+angle_win_msvc_parent_builder(
+    name = "angle-win-x64-builder-uwp-dbg",
+    description_html = "Compiles debug ANGLE targets for Windows UWP/x64 using MSVC",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.DEBUG,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "component",
+            "debug",
+            "win_uwp",
+            "x64",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|win|x64|uwp",
+        short_name = "dbg",
+    ),
+)
+
+angle_win_msvc_parent_builder(
+    name = "angle-win-x64-builder-uwp-rel",
+    description_html = "Compiles release ANGLE targets for Windows UWP/x64 using MSVC",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "component",
+            "release_with_dchecks",
+            "win_uwp",
+            "x64",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|win|x64|uwp",
+        short_name = "rel",
+    ),
+)
+
 angle_win_parent_builder(
     name = "angle-win-x86-builder-dbg",
     description_html = "Compiles debug ANGLE test binaries for Win/x86",
@@ -604,6 +756,66 @@ angle_win_parent_builder(
     console_view_entry = consoles.console_view_entry(
         category = "compile|win|x86",
         short_name = "dbg",
+    ),
+)
+
+angle_win_msvc_parent_builder(
+    name = "angle-win-x86-builder-msvc-dbg",
+    description_html = "Compiles debug ANGLE targets for Win/x86 using MSVC",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.DEBUG,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 32,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "component",
+            "debug",
+            "win_msvc",
+            "x86",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|win|x86|msvc",
+        short_name = "dbg",
+    ),
+)
+
+angle_win_msvc_parent_builder(
+    name = "angle-win-x86-builder-msvc-rel",
+    description_html = "Compiles release ANGLE targets for Win/x86 using MSVC",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 32,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "component",
+            "release_with_dchecks",
+            "win_msvc",
+            "x86",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|win|x86|msvc",
+        short_name = "rel",
     ),
 )
 
@@ -1169,7 +1381,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.MAC,
         ),
-        shallow = True,
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     console_view_entry = consoles.console_view_entry(
@@ -1195,6 +1407,16 @@ ci.thin_tester(
             target_platform = builder_config.target_platform.MAC,
         ),
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [],
+        mixins = [
+            "mac_retina_amd_gpu_experimental",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.MAC,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
     # console_view_entry = consoles.console_view_entry(
@@ -1222,6 +1444,18 @@ ci.thin_tester(
         ),
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "mac_x64_gtests",
+        ],
+        mixins = [
+            "mac_retina_amd_gpu_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.MAC,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|mac|x64|rel",
         short_name = "5300m",
@@ -1246,6 +1480,18 @@ ci.thin_tester(
         ),
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "mac_x64_gtests",
+        ],
+        mixins = [
+            "mac_retina_amd_555x_gpu_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.MAC,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|mac|x64|rel",
         short_name = "555x",
@@ -1269,6 +1515,18 @@ ci.thin_tester(
             target_platform = builder_config.target_platform.MAC,
         ),
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "mac_x64_gtests",
+        ],
+        mixins = [
+            "mac_mini_intel_gpu_experimental",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.MAC,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
     console_view_entry = consoles.console_view_entry(
@@ -1296,6 +1554,18 @@ ci.thin_tester(
         ),
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "mac_x64_gtests",
+        ],
+        mixins = [
+            "mac_mini_intel_gpu_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.MAC,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|mac|x64|rel",
         short_name = "630",
@@ -1320,6 +1590,16 @@ ci.thin_tester(
         ),
         no_history = True,
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [],
+        mixins = [
+            "win10_intel_uhd_630_experimental",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.WINDOWS,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
     # console_view_entry = consoles.console_view_entry(
@@ -1372,6 +1652,61 @@ ci.thin_tester(
         no_history = True,
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "common_isolated_scripts",
+            "win_common_gtests",
+        ],
+        mixins = [
+            "win10_intel_uhd_630_stable",
+        ],
+        per_test_modifications = {
+            "angle_end2end_tests": targets.per_test_modification(
+                mixins = targets.mixin(
+                    args = [
+                        # anglebug.com/40644897 suspecting device lost caused by
+                        # multiprocess.
+                        "--max-processes=1",
+                    ],
+                    swarming = targets.swarming(
+                        shards = 10,
+                    ),
+                ),
+                replacements = targets.replacements(
+                    args = {
+                        # crbug.com/506180945 low capacity in this pool.
+                        "--gtest_filter": "-*Vulkan_SwiftShader*:*D3D9*:*WebGPU*",
+                    },
+                ),
+            ),
+            "angle_restricted_trace_gold_tests": targets.mixin(
+                args = [
+                    # anglebug.com/42263955 flaky 4x8 pixel artifacts on Win
+                    # Intel.
+                    "--flaky-retries=1",
+                ],
+                swarming = targets.swarming(
+                    shards = 5,
+                ),
+            ),
+            "angle_trace_perf_vulkan_smoke_tests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 3,
+                ),
+            ),
+            "angle_white_box_tests": targets.mixin(
+                args = [
+                    # anglebug.com/40644897 suspecting device lost caused by
+                    # multiprocess.
+                    "--max-processes=1",
+                ],
+            ),
+        },
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.WINDOWS,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|win|x64|rel",
         short_name = "630",
@@ -1397,6 +1732,48 @@ ci.thin_tester(
         no_history = True,
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "common_isolated_scripts",
+            "win_common_gtests",
+        ],
+        mixins = [
+            "win10_intel_uhd_770_stable",
+        ],
+        per_test_modifications = {
+            "angle_deqp_gles2_d3d11_tests": targets.mixin(
+                args = [
+                    # anglebug.com/352528974 suspecting OOM caused by
+                    # multiprocess.
+                    "--max-processes=2",
+                ],
+            ),
+            "angle_end2end_tests": targets.mixin(
+                args = [
+                    # anglebug.com/352528974 suspecting OOM caused by
+                    # multiprocess.
+                    "--max-processes=2",
+                ],
+                swarming = targets.swarming(
+                    shards = 5,
+                ),
+            ),
+            "angle_restricted_trace_gold_tests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 4,
+                ),
+            ),
+            "angle_trace_perf_vulkan_smoke_tests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 4,
+                ),
+            ),
+        },
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.WINDOWS,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|win|x64|rel",
         short_name = "770",
@@ -1421,6 +1798,16 @@ ci.thin_tester(
         ),
         no_history = True,
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [],
+        mixins = [
+            "win10_nvidia_gtx_1660_experimental",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.WINDOWS,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
     # console_view_entry = consoles.console_view_entry(
@@ -1473,9 +1860,46 @@ ci.thin_tester(
         no_history = True,
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "common_isolated_scripts",
+            "win_common_gtests",
+            "win_nvidia_only_gtests",
+        ],
+        mixins = [
+            "win10_nvidia_gtx_1660_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.WINDOWS,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|win|x64|rel",
         short_name = "1660",
+    ),
+)
+
+ci.thin_tester(
+    name = "angle-win-x64-sws-asan",
+    description_html = "Tests release ANGLE on Win/x64 with ASan on SwiftShader",
+    parent = "angle-win-x64-builder-asan",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2_nointernal",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "test|win|x64|asan",
+        short_name = "sws",
     ),
 )
 

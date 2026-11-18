@@ -42,8 +42,6 @@ class OnDemandSpellCheckController;
 class LocalDOMWindow;
 class LocalFrame;
 class HTMLElement;
-class Node;
-class SpellCheckMarker;
 class SpellCheckRequest;
 class SpellCheckRequester;
 struct TextCheckingResult;

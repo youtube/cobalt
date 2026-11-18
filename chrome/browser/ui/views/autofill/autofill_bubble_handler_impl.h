@@ -14,6 +14,7 @@
 #include "components/signin/public/base/signin_buildflags.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
+class BrowserWindowInterface;
 class ToolbarButtonProvider;
 
 namespace content {
@@ -29,8 +30,8 @@ enum class IbanBubbleType;
 
 class AutofillBubbleHandlerImpl : public AutofillBubbleHandler {
  public:
-  explicit AutofillBubbleHandlerImpl(
-      ToolbarButtonProvider* toolbar_button_provider);
+  AutofillBubbleHandlerImpl(BrowserWindowInterface* browser,
+                            ToolbarButtonProvider* toolbar_button_provider);
 
   AutofillBubbleHandlerImpl(const AutofillBubbleHandlerImpl&) = delete;
   AutofillBubbleHandlerImpl& operator=(const AutofillBubbleHandlerImpl&) =
@@ -104,6 +105,8 @@ class AutofillBubbleHandlerImpl : public AutofillBubbleHandler {
       SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams ui_params);
 
   raw_ptr<ToolbarButtonProvider> toolbar_button_provider_ = nullptr;
+
+  ui::ScopedUnownedUserData<AutofillBubbleHandler> scoped_user_data_;
 };
 
 }  // namespace autofill

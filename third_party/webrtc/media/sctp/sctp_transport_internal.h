@@ -47,16 +47,6 @@ class SctpTransportInternal {
   // TODO(deadbeef): Support calling Start with different local/remote ports
   // and create a new association? Not clear if this is something we need to
   // support though. See: https://github.com/w3c/webrtc-pc/issues/979
-  [[deprecated("Call with SctpOptions")]]
-  virtual bool Start(int local_sctp_port,
-                     int remote_sctp_port,
-                     int max_message_size) {
-    return Start({
-        .local_port = local_sctp_port,
-        .remote_port = remote_sctp_port,
-        .max_message_size = max_message_size,
-    });
-  }
 
   // NOTE: Initially there was a "Stop" method here, but it was never used, so
   // it was removed.

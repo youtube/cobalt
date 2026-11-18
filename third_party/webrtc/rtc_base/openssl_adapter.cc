@@ -237,12 +237,6 @@ void OpenSSLAdapter::SetEllipticCurves(const std::vector<std::string>& curves) {
   elliptic_curves_ = curves;
 }
 
-void OpenSSLAdapter::SetMode(SSLMode mode) {
-  RTC_DCHECK(!ssl_ctx_);
-  RTC_DCHECK(state_ == SSL_NONE);
-  ssl_mode_ = mode;
-}
-
 void OpenSSLAdapter::SetCertVerifier(
     SSLCertificateVerifier* ssl_cert_verifier) {
   RTC_DCHECK(!ssl_ctx_);

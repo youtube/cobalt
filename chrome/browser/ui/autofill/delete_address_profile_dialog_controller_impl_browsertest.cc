@@ -108,7 +108,7 @@ class DeleteAddressProfileDialogControllerImplBrowserTest
   base::MockOnceCallback<void(bool)> delete_dialog_callback_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_adaptor_;
-  autofill::test::AutofillBrowserTestEnvironment autofill_test_environment_;
+  test::AutofillBrowserTestEnvironment autofill_test_environment_;
 };
 
 IN_PROC_BROWSER_TEST_F(DeleteAddressProfileDialogControllerImplBrowserTest,

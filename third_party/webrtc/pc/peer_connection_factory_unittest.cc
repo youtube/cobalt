@@ -30,7 +30,6 @@
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
-#include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -679,7 +678,7 @@ TEST_F(PeerConnectionFactoryTest, LocalRendering) {
 
 TEST(PeerConnectionFactoryDependenciesTest,
      CanInjectFieldTrialsWithEnvironment) {
-  std::unique_ptr<FieldTrialsView> field_trials = FieldTrials::Create("");
+  std::unique_ptr<FieldTrialsView> field_trials = CreateTestFieldTrialsPtr("");
   ASSERT_THAT(field_trials, NotNull());
   FieldTrialsView* raw_field_trials = field_trials.get();
 
@@ -704,6 +703,7 @@ TEST(PeerConnectionFactoryDependenciesTest, UsesNetworkManager) {
 
   PeerConnectionFactoryDependencies pcf_dependencies;
   pcf_dependencies.network_manager = std::move(mock_network_manager);
+  pcf_dependencies.env = CreateTestEnvironment();
 
   scoped_refptr<PeerConnectionFactoryInterface> pcf =
       CreateModularPeerConnectionFactory(std::move(pcf_dependencies));
@@ -733,6 +733,7 @@ TEST(PeerConnectionFactoryDependenciesTest, UsesPacketSocketFactory) {
 
   PeerConnectionFactoryDependencies pcf_dependencies;
   pcf_dependencies.packet_socket_factory = std::move(mock_socket_factory);
+  pcf_dependencies.env = CreateTestEnvironment();
 
   scoped_refptr<PeerConnectionFactoryInterface> pcf =
       CreateModularPeerConnectionFactory(std::move(pcf_dependencies));
@@ -766,6 +767,7 @@ TEST(PeerConnectionFactoryDependenciesTest,
   PeerConnectionFactoryDependencies pcf_dependencies;
   pcf_dependencies.adm = FakeAudioCaptureModule::Create();
   pcf_dependencies.audio_processing_builder = std::move(ap_factory);
+  pcf_dependencies.env = CreateTestEnvironment();
   EnableMediaWithDefaults(pcf_dependencies);
 
   scoped_refptr<PeerConnectionFactoryInterface> pcf =
@@ -787,6 +789,7 @@ TEST(PeerConnectionFactoryDependenciesTest, RepeatMediaEngineInitialization) {
   pcf_dependencies.signaling_thread = Thread::Current();
   pcf_dependencies.worker_thread = Thread::Current();
   pcf_dependencies.network_thread = Thread::Current();
+  pcf_dependencies.env = CreateTestEnvironment();
   EnableMediaWithDefaults(pcf_dependencies);
 
   scoped_refptr<PeerConnectionFactoryInterface> pcf =
@@ -825,6 +828,7 @@ TEST(PeerConnectionFactoryDependenciesTest,
   pcf_dependencies.signaling_thread = Thread::Current();
   pcf_dependencies.worker_thread = Thread::Current();
   pcf_dependencies.network_thread = Thread::Current();
+  pcf_dependencies.env = CreateTestEnvironment();
   EnableMediaWithDefaults(pcf_dependencies);
 
   scoped_refptr<PeerConnectionFactoryInterface> pcf =

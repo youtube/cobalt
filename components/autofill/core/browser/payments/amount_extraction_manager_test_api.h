@@ -8,6 +8,8 @@
 #include "base/check_deref.h"
 #include "base/memory/raw_ref.h"
 #include "components/autofill/core/browser/payments/amount_extraction_manager.h"
+#include "components/optimization_guide/core/model_execution/remote_model_executor.h"
+#include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 
 namespace autofill::payments {
@@ -44,6 +46,23 @@ class AmountExtractionManagerTestApi {
 
   void SetAiAmountExtractionStartTime(base::TimeTicks time) {
     amount_extraction_manager_->ai_amount_extraction_start_time_ = time;
+  }
+
+  void OnCheckoutAmountReceived(base::TimeTicks search_request_start_timestamp,
+                                const std::string& extracted_amount) {
+    return amount_extraction_manager_->OnCheckoutAmountReceived(
+        search_request_start_timestamp, extracted_amount);
+  }
+
+  void OnCheckoutAmountReceivedFromAi(
+      optimization_guide::OptimizationGuideModelExecutionResult result,
+      std::unique_ptr<optimization_guide::ModelQualityLogEntry> log_entry) {
+    return amount_extraction_manager_->OnCheckoutAmountReceivedFromAi(
+        std::move(result), std::move(log_entry));
+  }
+
+  void OnTimeoutReached() {
+    return amount_extraction_manager_->OnTimeoutReached();
   }
 
  private:

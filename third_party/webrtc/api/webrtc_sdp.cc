@@ -19,6 +19,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -26,6 +27,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/nullability.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -54,6 +56,7 @@
 #include "pc/simulcast_sdp_serializer.h"
 #include "rtc_base/base64.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_set.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
@@ -132,6 +135,10 @@ const char kAttributeInactive[] = "inactive";
 const char kAttributeSctpPort[] = "sctp-port";
 const char kAttributeMaxMessageSize[] = "max-message-size";
 const int kDefaultSctpMaxMessageSize = 65536;
+// 32 is a safe upper bound. Standard groups (FID, FEC-FR, SIM) use <= 3 SSRCs.
+// This allows a buffer for custom semantics while preventing resource
+// exhaustion.
+constexpr size_t kMaxSsrcsPerGroup = 32;
 
 // draft-hancke-tsvwg-snap
 const char kAttributeSctpSnap[] = "sctp-init";
@@ -758,6 +765,29 @@ void WriteSctpInit(const std::vector<uint8_t>& cookie, StringBuilder* os) {
   *os << kSdpDelimiterColon << Base64Encode(cookie);
 }
 
+bool IsValidAbsoluteUri(absl::string_view uri) {
+  for (size_t i = 0; i < uri.size(); ++i) {
+    char c = uri[i];
+    if (absl::ascii_iscntrl(c)) {
+      return false;
+    }
+    if (c == '%') {
+      if (i + 2 >= uri.size()) {
+        return false;
+      }
+      char decoded[1];
+      if (hex_decode(decoded, uri.substr(i + 1, 2)) != 1) {
+        return false;
+      }
+      if (absl::ascii_iscntrl(decoded[0])) {
+        return false;
+      }
+      i += 2;
+    }
+  }
+  return true;
+}
+
 bool ParseExtmap(absl::string_view line,
                  RtpExtension* extmap,
                  SdpParseError* error) {
@@ -798,6 +828,10 @@ bool ParseExtmap(absl::string_view line,
     if (uri == RtpExtension::kEncryptHeaderExtensionsUri) {
       return ParseFailed(line, "Recursive encrypted header.", error);
     }
+  }
+
+  if (!IsValidAbsoluteUri(uri)) {
+    return ParseFailed(line, "URI contains invalid characters.", error);
   }
 
   *extmap = RtpExtension(uri, RtpHeaderExtensionId(value), encrypted);
@@ -1914,13 +1948,13 @@ void RemoveDuplicateRidDescriptions(const std::vector<int>& payload_types,
 // If a group of alternatives is empty after removing layers, the group should
 // be removed altogether.
 SimulcastLayerList RemoveRidsFromSimulcastLayerList(
-    const std::set<std::string>& to_remove,
+    const flat_set<absl::string_view>& to_remove,
     const SimulcastLayerList& layers) {
   SimulcastLayerList result;
   for (const std::vector<SimulcastLayer>& vector : layers) {
     std::vector<SimulcastLayer> new_layers;
     for (const SimulcastLayer& layer : vector) {
-      if (to_remove.find(layer.rid) == to_remove.end()) {
+      if (!to_remove.contains(layer.rid)) {
         new_layers.push_back(layer);
       }
     }
@@ -1938,13 +1972,14 @@ SimulcastLayerList RemoveRidsFromSimulcastLayerList(
 // 2. They do not appear in the list of `valid_rids`.
 void RemoveInvalidRidsFromSimulcast(
     const std::vector<RidDescription>& valid_rids,
-    SimulcastDescription* simulcast) {
+    SimulcastDescription* absl_nonnull simulcast) {
   RTC_DCHECK(simulcast);
-  std::set<std::string> to_remove;
   std::vector<SimulcastLayer> all_send_layers =
       simulcast->send_layers().GetAllLayers();
   std::vector<SimulcastLayer> all_receive_layers =
       simulcast->receive_layers().GetAllLayers();
+  // `to_remove` must be declared after the vectors because it holds views.
+  flat_set<absl::string_view> to_remove;
 
   // If a rid appears in both send and receive directions, remove it from both.
   // This algorithm runs in O(n^2) time, but for small n (as is the case with
@@ -2188,6 +2223,10 @@ bool ParseSsrcGroupAttribute(absl::string_view line,
   const size_t expected_min_fields = 2;
   if (fields.size() < expected_min_fields) {
     return ParseFailedExpectMinFieldNum(line, expected_min_fields, error);
+  }
+  // fields[0] is semantics, remaining fields are SSRCs.
+  if (fields.size() - 1 > kMaxSsrcsPerGroup) {
+    return ParseFailed(line, "Too many SSRCs in ssrc-group", error);
   }
   std::string semantics;
   if (!GetValue(fields[0], kAttributeSsrcGroup, &semantics, error)) {

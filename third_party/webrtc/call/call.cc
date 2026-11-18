@@ -1304,7 +1304,9 @@ void Call::OnTargetTransferRate(TargetTransferRate msg) {
 
   uint32_t target_bitrate_bps = msg.target_rate.bps();
   // For controlling the rate of feedback messages.
-  receive_side_cc_.OnBitrateChanged(target_bitrate_bps);
+  receive_side_cc_.OnBitrateChanged(
+      msg.target_rate, msg.is_bandwidth_limited,
+      transport_send_ptr_->GetTransportOverhead());
   bitrate_allocator_->OnNetworkEstimateChanged(msg);
 
   last_bandwidth_bps_.store(target_bitrate_bps, std::memory_order_relaxed);

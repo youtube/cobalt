@@ -36,6 +36,14 @@ void AddIntegerValue(CFMutableDictionaryRef dictionary,
   CFDictionaryAddValue(dictionary, key, number.get());
 }
 
+void AddIntegerValue64(CFMutableDictionaryRef dictionary,
+                       const CFStringRef key,
+                       int64_t value) {
+  base::apple::ScopedCFTypeRef<CFNumberRef> number(
+      CFNumberCreate(nullptr, kCFNumberSInt64Type, &value));
+  CFDictionaryAddValue(dictionary, key, number.get());
+}
+
 // Return the expected four character code pixel format for an IOSurface with
 // the specified viz::SharedImageFormat.
 uint32_t SharedImageFormatToIOSurfacePixelFormat(viz::SharedImageFormat format,
@@ -233,8 +241,9 @@ ScopedIOSurface CreateIOSurface(const gfx::Size& size,
                       plane_bytes_per_element);
       AddIntegerValue(plane_info.get(), kIOSurfacePlaneBytesPerRow,
                       plane_bytes_per_row);
-      AddIntegerValue(plane_info.get(), kIOSurfacePlaneSize, plane_bytes_alloc);
-      AddIntegerValue(plane_info.get(), kIOSurfacePlaneOffset, plane_offset);
+      AddIntegerValue64(plane_info.get(), kIOSurfacePlaneSize,
+                        plane_bytes_alloc);
+      AddIntegerValue64(plane_info.get(), kIOSurfacePlaneOffset, plane_offset);
       CFArrayAppendValue(planes.get(), plane_info.get());
       total_bytes_alloc = plane_offset + plane_bytes_alloc;
     }
@@ -242,7 +251,7 @@ ScopedIOSurface CreateIOSurface(const gfx::Size& size,
 
     total_bytes_alloc =
         IOSurfaceAlignProperty(kIOSurfaceAllocSize, total_bytes_alloc);
-    AddIntegerValue(properties.get(), kIOSurfaceAllocSize, total_bytes_alloc);
+    AddIntegerValue64(properties.get(), kIOSurfaceAllocSize, total_bytes_alloc);
   } else {
     const size_t bytes_per_element = format.BytesPerPixel();
     const size_t bytes_per_row = IOSurfaceAlignProperty(
@@ -256,7 +265,7 @@ ScopedIOSurface CreateIOSurface(const gfx::Size& size,
     AddIntegerValue(properties.get(), kIOSurfaceBytesPerElement,
                     bytes_per_element);
     AddIntegerValue(properties.get(), kIOSurfaceBytesPerRow, bytes_per_row);
-    AddIntegerValue(properties.get(), kIOSurfaceAllocSize, bytes_alloc);
+    AddIntegerValue64(properties.get(), kIOSurfaceAllocSize, bytes_alloc);
   }
 
   ScopedIOSurface io_surface(IOSurfaceCreate(properties.get()));

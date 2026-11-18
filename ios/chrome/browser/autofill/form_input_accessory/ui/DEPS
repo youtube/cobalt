@@ -1,5 +1,7 @@
 include_rules = [
   "-ios/chrome/browser/autofill/model",
+  "+ios/chrome/browser/autofill/form_input_accessory/public",
+  "+ios/chrome/browser/autofill/public",
 
   # TODO(crbug.com/468036457): Remove this once a public subdirectory is
   # extracted from autofill/model

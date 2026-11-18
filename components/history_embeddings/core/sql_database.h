@@ -71,7 +71,8 @@ class SqlDatabase : public VectorDatabase {
   size_t GetEmbeddingDimensions() const override;
   bool AddUrlData(UrlData url_data) override;
   std::unique_ptr<UrlDataIterator> MakeUrlDataIterator(
-      std::optional<base::Time> time_range_start) override;
+      std::optional<base::Time> time_range_start,
+      const std::vector<history::URLID>& url_id_filter) override;
 
   // These three methods are used to keep the on-disk persistence in sync with
   // History deletions, either from user action or time-based expiration.

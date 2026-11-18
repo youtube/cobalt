@@ -16,7 +16,8 @@ class ContentPasswordManagerDriver;
 // replacing surface. A surface can be shown only once, when the state is
 // `kCanBeShown`. The state can be reset, using `Reset()` to redisplay.
 // The lifetime is controlled by the owner (i.e. `PasswordManagerClient`) and
-// the object will be used by `TouchToFillController` and `CredManController`.
+// the object will be used by `TouchToFillPasswordManagerController` and
+// `CredManController`.
 class KeyboardReplacingSurfaceVisibilityControllerImpl final
     : public KeyboardReplacingSurfaceVisibilityController {
  public:

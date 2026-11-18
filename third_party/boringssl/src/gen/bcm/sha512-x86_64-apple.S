@@ -1812,6 +1812,7 @@ K512:
 .private_extern _sha512_block_data_order_avx
 
 .p2align	6
+.alt_entry _sha512_block_data_order_avx
 _sha512_block_data_order_avx:
 
 _CET_ENDBR

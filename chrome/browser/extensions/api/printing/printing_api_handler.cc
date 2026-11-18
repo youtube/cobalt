@@ -28,7 +28,6 @@
 #include "chrome/browser/chromeos/printing/printer_error_codes.h"
 #include "chrome/browser/extensions/api/printing/print_job_submitter.h"
 #include "chrome/browser/extensions/api/printing/printing_api_utils.h"
-#include "chrome/browser/printing/local_printer_utils_chromeos.h"
 #include "chrome/browser/printing/pdf_blob_data_flattener.h"
 #include "chrome/browser/printing/print_job.h"
 #include "chrome/browser/printing/print_job_controller.h"

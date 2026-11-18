@@ -8,10 +8,13 @@
 #include "src/objects/scope-info.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "include/v8config.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dependent-code.h"
-#include "src/objects/fixed-array-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/oddball-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/string.h"
 #include "src/roots/roots-inl.h"
 
@@ -129,9 +132,7 @@ int ScopeInfo::InferredFunctionNameOffset() const {
   const bool has_function_variable =
       FunctionVariableBits::decode(Flags()) != VariableAllocationInfo::NONE;
   return FunctionVariableInfoOffset() +
-         (has_function_variable
-              ? TorqueGeneratedFunctionVariableInfoOffsets::kSize
-              : 0);
+         (has_function_variable ? sizeof(FunctionVariableInfo) : 0);
 }
 
 int ScopeInfo::OuterScopeInfoOffset() const {
@@ -154,8 +155,7 @@ int ScopeInfo::DependentCodeOffset() const {
   const bool is_module =
       ScopeTypeBits::decode(Flags()) == ScopeType::MODULE_SCOPE;
   const int mod_var_count = is_module ? module_variable_count() : 0;
-  return ModuleVariablesOffset() +
-         mod_var_count * TorqueGeneratedModuleVariableOffsets::kSize;
+  return ModuleVariablesOffset() + mod_var_count * sizeof(ModuleVariableInfo);
 }
 
 int ScopeInfo::UnusedParameterBitsOffset() const {
@@ -260,8 +260,7 @@ Tagged<Union<Smi, String>> ScopeInfo::function_variable_info_name() const {
   DCHECK_NE(FunctionVariableBits::decode(Flags()),
             VariableAllocationInfo::NONE);
   const int slot = scope_info_internal::DataSlotIndex(
-      FunctionVariableInfoOffset() +
-      TorqueGeneratedFunctionVariableInfoOffsets::kNameOffset);
+      FunctionVariableInfoOffset() + offsetof(FunctionVariableInfo, name));
   return Cast<Union<Smi, String>>(data()[slot].load());
 }
 
@@ -270,8 +269,7 @@ void ScopeInfo::set_function_variable_info_name(
   DCHECK_NE(FunctionVariableBits::decode(Flags()),
             VariableAllocationInfo::NONE);
   const int slot = scope_info_internal::DataSlotIndex(
-      FunctionVariableInfoOffset() +
-      TorqueGeneratedFunctionVariableInfoOffsets::kNameOffset);
+      FunctionVariableInfoOffset() + offsetof(FunctionVariableInfo, name));
   data()[slot].store(this, value, mode);
 }
 
@@ -280,8 +278,7 @@ int ScopeInfo::function_variable_info_context_or_stack_slot_index() const {
             VariableAllocationInfo::NONE);
   const int slot = scope_info_internal::DataSlotIndex(
       FunctionVariableInfoOffset() +
-      TorqueGeneratedFunctionVariableInfoOffsets::
-          kContextOrStackSlotIndexOffset);
+      offsetof(FunctionVariableInfo, context_or_stack_slot_index));
   return Cast<Smi>(data()[slot].load()).value();
 }
 
@@ -291,8 +288,7 @@ void ScopeInfo::set_function_variable_info_context_or_stack_slot_index(
             VariableAllocationInfo::NONE);
   const int slot = scope_info_internal::DataSlotIndex(
       FunctionVariableInfoOffset() +
-      TorqueGeneratedFunctionVariableInfoOffsets::
-          kContextOrStackSlotIndexOffset);
+      offsetof(FunctionVariableInfo, context_or_stack_slot_index));
   data()[slot].store(this, Smi::FromInt(value));
 }
 
@@ -341,9 +337,8 @@ Tagged<String> ScopeInfo::module_variables_name(int i) const {
   DCHECK_GE(i, 0);
   DCHECK_LT(i, module_variable_count());
   const int slot = scope_info_internal::DataSlotIndex(
-      ModuleVariablesOffset() +
-      i * TorqueGeneratedModuleVariableOffsets::kSize +
-      TorqueGeneratedModuleVariableOffsets::kNameOffset);
+      ModuleVariablesOffset() + i * sizeof(ModuleVariableInfo) +
+      offsetof(ModuleVariableInfo, name));
   return Cast<String>(data()[slot].load());
 }
 
@@ -352,9 +347,8 @@ void ScopeInfo::set_module_variables_name(int i, Tagged<String> value,
   DCHECK_GE(i, 0);
   DCHECK_LT(i, module_variable_count());
   const int slot = scope_info_internal::DataSlotIndex(
-      ModuleVariablesOffset() +
-      i * TorqueGeneratedModuleVariableOffsets::kSize +
-      TorqueGeneratedModuleVariableOffsets::kNameOffset);
+      ModuleVariablesOffset() + i * sizeof(ModuleVariableInfo) +
+      offsetof(ModuleVariableInfo, name));
   data()[slot].store(this, value, mode);
 }
 
@@ -362,9 +356,8 @@ int ScopeInfo::module_variables_index(int i) const {
   DCHECK_GE(i, 0);
   DCHECK_LT(i, module_variable_count());
   const int slot = scope_info_internal::DataSlotIndex(
-      ModuleVariablesOffset() +
-      i * TorqueGeneratedModuleVariableOffsets::kSize +
-      TorqueGeneratedModuleVariableOffsets::kIndexOffset);
+      ModuleVariablesOffset() + i * sizeof(ModuleVariableInfo) +
+      offsetof(ModuleVariableInfo, index));
   return Cast<Smi>(data()[slot].load()).value();
 }
 
@@ -372,9 +365,8 @@ void ScopeInfo::set_module_variables_index(int i, int value) {
   DCHECK_GE(i, 0);
   DCHECK_LT(i, module_variable_count());
   const int slot = scope_info_internal::DataSlotIndex(
-      ModuleVariablesOffset() +
-      i * TorqueGeneratedModuleVariableOffsets::kSize +
-      TorqueGeneratedModuleVariableOffsets::kIndexOffset);
+      ModuleVariablesOffset() + i * sizeof(ModuleVariableInfo) +
+      offsetof(ModuleVariableInfo, index));
   data()[slot].store(this, Smi::FromInt(value));
 }
 
@@ -382,9 +374,8 @@ int ScopeInfo::module_variables_properties(int i) const {
   DCHECK_GE(i, 0);
   DCHECK_LT(i, module_variable_count());
   const int slot = scope_info_internal::DataSlotIndex(
-      ModuleVariablesOffset() +
-      i * TorqueGeneratedModuleVariableOffsets::kSize +
-      TorqueGeneratedModuleVariableOffsets::kPropertiesOffset);
+      ModuleVariablesOffset() + i * sizeof(ModuleVariableInfo) +
+      offsetof(ModuleVariableInfo, properties));
   return Cast<Smi>(data()[slot].load()).value();
 }
 
@@ -392,9 +383,8 @@ void ScopeInfo::set_module_variables_properties(int i, int value) {
   DCHECK_GE(i, 0);
   DCHECK_LT(i, module_variable_count());
   const int slot = scope_info_internal::DataSlotIndex(
-      ModuleVariablesOffset() +
-      i * TorqueGeneratedModuleVariableOffsets::kSize +
-      TorqueGeneratedModuleVariableOffsets::kPropertiesOffset);
+      ModuleVariablesOffset() + i * sizeof(ModuleVariableInfo) +
+      offsetof(ModuleVariableInfo, properties));
   data()[slot].store(this, Smi::From31BitPattern(value));
 }
 
@@ -441,7 +431,7 @@ bool ScopeInfo::HasInlinedLocalNames() const {
 template <typename ScopeInfoPtr>
 class ScopeInfo::LocalNamesRange {
  public:
-  class Iterator {
+  class V8_GSL_POINTER Iterator {
    public:
     Iterator(const LocalNamesRange* range, InternalIndex index)
         : range_(range), index_(index) {

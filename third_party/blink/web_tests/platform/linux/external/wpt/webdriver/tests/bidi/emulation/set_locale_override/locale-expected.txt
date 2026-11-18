@@ -1,0 +1,19 @@
+This is a wdspec test.
+[FAIL] test_new_dedicated_worker[navigator.language]
+  AssertionError: assert 'en-US' == 'de-DE'
+[FAIL] test_existing_dedicated_worker[navigator.language-navigator]
+  AssertionError: assert 'en-US' == 'de-DE'
+[FAIL] test_new_shared_worker[navigator.language]
+  AssertionError: assert 'en-US' == 'de-DE'
+[FAIL] test_existing_shared_worker[navigator.language-navigator]
+  AssertionError: assert 'en-US' == 'de-DE'
+[FAIL] test_new_shared_worker_multiple_contexts[navigator.language]
+  AssertionError: assert 'en-US' == 'de-DE'
+[FAIL] test_new_shared_worker_multiple_contexts[new Intl.DateTimeFormat().resolvedOptions().locale]
+  AssertionError: assert 'de-DE' == 'es-ES'
+[FAIL] test_new_service_worker[navigator]
+  AssertionError: assert 'en-US' == 'de-DE'
+[FAIL] test_existing_service_worker[navigator]
+  AssertionError: assert 'en-US' == 'de-DE'
+Harness: the test ran to completion.
+

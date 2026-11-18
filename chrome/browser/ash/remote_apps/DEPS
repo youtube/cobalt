@@ -25,6 +25,5 @@ include_rules = [
   "+chrome/browser/ui/ash/shelf",
   "+chrome/common/apps/platform_apps/api",
   "+chrome/common/chrome_paths.h",
-  "+chrome/common/pref_names.h",
   "+chrome/grit",
 ]

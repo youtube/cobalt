@@ -32,12 +32,13 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace metrics {
+
 class CrOSPreChoiceMetricsManagerTest : public InProcessBrowserTest {
  public:
   CrOSPreChoiceMetricsManagerTest() {
     feature_list_.InitAndEnableFeature(ash::features::kOobePreConsentMetrics);
 
-    // Make sure that the pref is used to check the consent during tests.
+    // Make sure that the pref is used to check the choice during tests.
     ChromeMetricsServiceAccessor::SetForceIsMetricsReportingEnabledPrefLookup(
         true);
   }
@@ -51,7 +52,7 @@ class CrOSPreChoiceMetricsManagerTest : public InProcessBrowserTest {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   }
 
-  void WaitOnConsentToPropagate() {
+  void WaitOnChoiceToPropagate() {
     base::RunLoop run_loop;
     GoogleUpdateSettings::CollectStatsConsentTaskRunner()->PostTaskAndReply(
         FROM_HERE, base::DoNothing(), run_loop.QuitClosure());
@@ -74,7 +75,7 @@ IN_PROC_BROWSER_TEST_F(CrOSPreChoiceMetricsManagerTest,
 
   manager->Enable();
   EXPECT_TRUE(manager->is_enabled_for_testing());
-  WaitOnConsentToPropagate();
+  WaitOnChoiceToPropagate();
 
   // Metrics reporting and recording should be enabled.
   EXPECT_TRUE(
@@ -95,7 +96,7 @@ IN_PROC_BROWSER_TEST_F(CrOSPreChoiceMetricsManagerTest,
 
   manager->Enable();
   EXPECT_TRUE(manager->is_enabled_for_testing());
-  WaitOnConsentToPropagate();
+  WaitOnChoiceToPropagate();
 
   EXPECT_TRUE(
       g_browser_process->GetMetricsServicesManager()->IsMetricsConsentGiven());
@@ -103,7 +104,7 @@ IN_PROC_BROWSER_TEST_F(CrOSPreChoiceMetricsManagerTest,
   // Disable the Pre-choice metrics.
   manager->Disable();
   EXPECT_FALSE(manager->is_enabled_for_testing());
-  WaitOnConsentToPropagate();
+  WaitOnChoiceToPropagate();
 
   // The existing state of metrics is not changed when disabled.
   EXPECT_TRUE(
@@ -143,7 +144,7 @@ IN_PROC_BROWSER_TEST_F(CrOSPreChoiceMetricsManagerTest,
   ASSERT_NE(manager, nullptr);
 
   manager->Enable();
-  WaitOnConsentToPropagate();
+  WaitOnChoiceToPropagate();
 
   EXPECT_TRUE(
       g_browser_process->GetMetricsServicesManager()->IsMetricsConsentGiven());

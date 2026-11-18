@@ -26,9 +26,7 @@ class MappedFileReader {
   MappedFileReader(const MappedFileReader&) = delete;
   const MappedFileReader& operator=(const MappedFileReader&) = delete;
 
-  const uint8_t* data() const { return buffer_.data(); }
-  size_t length() const { return buffer_.length(); }
-  zucchini::ConstBufferView region() const { return {data(), length()}; }
+  zucchini::ConstBufferView region() const { return buffer_.bytes(); }
 
   bool HasError() { return !error_.empty() || !buffer_.IsValid(); }
   const std::string& error() { return error_; }
@@ -52,9 +50,7 @@ class MappedFileWriter {
   const MappedFileWriter& operator=(const MappedFileWriter&) = delete;
   ~MappedFileWriter();
 
-  uint8_t* data() { return buffer_.data(); }
-  size_t length() const { return buffer_.length(); }
-  zucchini::MutableBufferView region() { return {data(), length()}; }
+  zucchini::MutableBufferView region() { return buffer_.mutable_bytes(); }
 
   bool HasError() { return !error_.empty() || !buffer_.IsValid(); }
   const std::string& error() { return error_; }

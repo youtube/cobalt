@@ -941,6 +941,18 @@
     <message name="IDS_ENTERPRISE_WELCOME_MERGE_BROWSING_DATA_CHOICE_DETAILS" desc="Additional information of a radio button option that lets the user add their existing data from a newly created work profile.">
       Your organization will be able to see and manage any existing browsing data, such as passwords and more
     </message>
+    <message name="IDS_ENTERPRISE_DEVICE_SIGNALS_DISCLAIMER_PROFILE_INFORMATION_DETAILS" desc="Body text in the enterprise device signals collection disclaimer modal dialog. The dialog is shown on Chrome startup to managed Chrome users who have not previously acknowledged device signals collection. This string describes the profile-related information that their organization can see and manage.">
+      Your organization may need to see and manage browsing data in your work profile, such as your browsing history and passwords
+    </message>
+    <message name="IDS_ENTERPRISE_DEVICE_SIGNALS_DISCLAIMER_DEVICE_INFORMATION_DETAILS" desc="Body text in the enterprise device signals collection disclaimer modal dialog. The dialog is shown on Chrome startup to managed Chrome users who have not previously acknowledged device signals collection. This string describes the device-related information that their organization can see.">
+      To make sure this device can be used safely, your organization may need to see information about its operating system, browser, settings, and what software is installed on the device
+    </message>
+    <message name="IDS_ENTERPRISE_DEVICE_SIGNALS_DISCLAIMER_CONTINUE_BUTTON_LABEL" desc="Label of the primary confirmation button in the enterprise device signals collection disclaimer modal dialog. The dialog is shown on Chrome startup to managed Chrome users who have not previously acknowledged device signals collection. Clicking this button acknowledges the disclaimer, closes the dialog, and allows the user to continue using Chrome.">
+      Got it
+    </message>
+    <message name="IDS_ENTERPRISE_DEVICE_SIGNALS_DISCLAIMER_CANCEL_BUTTON_LABEL" desc="Label of the secondary/cancel button in the enterprise device signals collection disclaimer modal dialog. The dialog is shown on Chrome startup to managed Chrome users who have not previously acknowledged device signals collection. Clicking this button cancels the startup flow and signs the user out of their managed Chrome profile.">
+      Sign out
+    </message>
     <message name="IDS_BROWSING_HISTORY_COUNT" desc="Text describing the number of browsing history entries">
       {BROWSING_HISTORY_COUNT, plural,
         =1 {your browsing history of # site}
@@ -1238,6 +1250,26 @@
     </message>
     <message name="IDS_FRE_REFRESH_DEFAULT_BROWSER_NO_THANKS" desc="The label for a button to skip setting Chrome as their default browser.">
       No thanks
+    </message>
+
+    <!-- Feature Showcase - Lens -->
+    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_TITLE" desc="This is the headline for the Google Lens opt-in screen. It introduces the visual search feature. (CHAR LIMIT = 40).">
+      Browse smarter with Google Lens
+    </message>
+    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_SUBTITLE" desc="This is the subtitle for Google Lens, explaining the primary use cases (shopping, translation, search).">
+      Select anything on your screen as you browse to shop, translate, and search using AI
+    </message>
+    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_DISCLOSURE" desc="This is a technical disclosure for Google Lens. It specifies that PDFs are also part of the shared data. The tone should be informative.">
+      When you use Google Lens on desktop, the page title, URL, and content, including PDFs, are sent to Google
+    </message>
+    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_NOT_NOW" desc="The label for the 'Not now' button to not enable the Google Lens feature.">
+      Not now
+    </message>
+    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_YES_IM_IN" desc="Label for the 'Yes, I'm in' button to enable the Google Lens feature.">
+      Yes, I'm in
+    </message>
+    <message name="IDS_FEATURE_SHOWCASE_GOOGLE_LENS_ILLUSTRATION_A11Y_LABEL" desc="Accessibility label for the illustration on the Google Lens page in the Feature Showcase.">
+      A simplified image showing how you can use Google Lens to look up a product
     </message>
 
     <!-- Signout Confirmation Dialog Desktop -->

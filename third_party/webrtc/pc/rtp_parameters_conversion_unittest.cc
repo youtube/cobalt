@@ -149,15 +149,12 @@ TEST(RtpParametersConversionTest, ToRtpCapabilities) {
   Codec red2 = CreateVideoCodec(127, "red");
   Codec ulpfec = CreateVideoCodec(103, "ulpfec");
   Codec flexfec = CreateVideoCodec(102, "flexfec-03");
-  Codec rtx = CreateVideoRtxCodec(014, 101);
+  Codec rtx = CreateVideoRtxCodec(104, 101);
   Codec rtx2 = CreateVideoRtxCodec(105, 109);
 
-  std::vector<RtpHeaderExtensionCapability> header_extension_caps = {
-      {RtpHeaderExtensionCapability("uri", RtpHeaderExtensionId(1)),
-       RtpHeaderExtensionCapability("uri2", RtpHeaderExtensionId(3))}};
-
-  RtpCapabilities capabilities =
-      ToRtpCapabilities({vp8, ulpfec, rtx, rtx2}, header_extension_caps);
+  RtpCapabilities capabilities = ToRtpCapabilities(
+      {{vp8, ulpfec, rtx, rtx2}},
+      {{{"uri", RtpHeaderExtensionId(1)}, {"uri2", RtpHeaderExtensionId(3)}}});
   ASSERT_EQ(3u, capabilities.codecs.size());
   EXPECT_EQ("VP8", capabilities.codecs[0].name);
   EXPECT_EQ("ulpfec", capabilities.codecs[1].name);
@@ -172,13 +169,13 @@ TEST(RtpParametersConversionTest, ToRtpCapabilities) {
             capabilities.header_extensions[1].preferred_id);
   EXPECT_EQ(0u, capabilities.fec.size());
 
-  capabilities = ToRtpCapabilities({vp8, red, red2, ulpfec, rtx}, {});
+  capabilities = ToRtpCapabilities({{vp8, red, red2, ulpfec, rtx}}, {});
   EXPECT_EQ(4u, capabilities.codecs.size());
   EXPECT_THAT(
       capabilities.fec,
       UnorderedElementsAre(FecMechanism::RED, FecMechanism::RED_AND_ULPFEC));
 
-  capabilities = ToRtpCapabilities({vp8, red, flexfec}, {});
+  capabilities = ToRtpCapabilities({{vp8, red, flexfec}}, {});
   EXPECT_EQ(3u, capabilities.codecs.size());
   EXPECT_THAT(capabilities.fec,
               UnorderedElementsAre(FecMechanism::RED, FecMechanism::FLEXFEC));

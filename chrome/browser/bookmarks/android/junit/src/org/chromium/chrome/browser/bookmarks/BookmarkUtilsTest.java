@@ -112,6 +112,7 @@ public class BookmarkUtilsTest {
         ImageServiceBridgeJni.setInstanceForTesting(mImageServiceBridgeJni);
         CommerceFeatureUtilsJni.setInstanceForTesting(mCommerceFeatureUtilsJniMock);
         ShoppingServiceFactoryJni.setInstanceForTesting(mShoppingServiceFactoryJniMock);
+        doReturn(1L).when(mFaviconHelperJni).init();
         doReturn(mShoppingService).when(mShoppingServiceFactoryJniMock).getForProfile(any());
         doReturn(mIdentityManager).when(mIdentityServicesProvider).getIdentityManager(any());
         doReturn(TestAccounts.ACCOUNT1).when(mIdentityManager).getPrimaryAccountInfo();

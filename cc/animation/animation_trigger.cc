@@ -162,6 +162,24 @@ void AnimationTrigger::PerformPlayOnce(Animation& animation,
   animation.Play(monotonic_time);
 }
 
+void AnimationTrigger::PerformPlayForwards(Animation& animation,
+                                           base::TimeTicks monotonic_time) {
+  if (animation.GetPlaybackRate() > 0) {
+    animation.Play(monotonic_time, Animation::AutoRewind::kDisabled);
+  } else {
+    animation.Reverse(monotonic_time, Animation::AutoRewind::kDisabled);
+  }
+}
+
+void AnimationTrigger::PerformPlayBackwards(Animation& animation,
+                                            base::TimeTicks monotonic_time) {
+  if (animation.GetPlaybackRate() < 0) {
+    animation.Play(monotonic_time, Animation::AutoRewind::kDisabled);
+  } else {
+    animation.Reverse(monotonic_time, Animation::AutoRewind::kDisabled);
+  }
+}
+
 void AnimationTrigger::PerformBehavior(Animation& animation,
                                        Behavior behavior,
                                        base::TimeTicks monotonic_time) {
@@ -179,7 +197,11 @@ void AnimationTrigger::PerformBehavior(Animation& animation,
       PerformPlayOnce(animation, monotonic_time);
       break;
     case Behavior::kPlayForwards:
+      PerformPlayForwards(animation, monotonic_time);
+      break;
     case Behavior::kPlayBackwards:
+      PerformPlayBackwards(animation, monotonic_time);
+      break;
     case Behavior::kReset:
       // TODO(crbug.com/451238244): Implement these behaviors.
       NOTREACHED();

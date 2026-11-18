@@ -10,14 +10,13 @@
 #include <string>
 #include <vector>
 
-#include "base/observer_list_types.h"
-#include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
-#include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
+#include "base/functional/callback_forward.h"
 #include "chromeos/ash/experiences/arc/metrics/arc_metrics_constants.h"
 #include "chromeos/ash/experiences/arc/mojom/app.mojom-forward.h"
 #include "components/services/app_service/public/cpp/intent.h"
 
 class ApplicationLocaleStorage;
+class PrefService;
 class Profile;
 
 namespace content {
@@ -25,13 +24,6 @@ class BrowserContext;
 }
 
 namespace arc {
-
-// Observes ARC app launches.
-class AppLaunchObserver : public base::CheckedObserver {
- public:
-  // Called when an app launch is requested
-  virtual void OnAppLaunchRequested(const ArcAppListPrefs::AppInfo& app_info) {}
-};
 
 // Checks if a given app should be hidden in launcher.
 bool ShouldShowInLauncher(const std::string& app_id);
@@ -124,12 +116,6 @@ std::string AppIdToArcPackageName(const std::string& app_id, Profile* profile);
 // name of an ARC app or an empty string if name not found.
 std::string ArcPackageNameToAppId(const std::string& package_name,
                                   Profile* profile);
-
-// Add/remove an observer to be notified of app launches.
-void AddAppLaunchObserver(content::BrowserContext* context,
-                          AppLaunchObserver* observer);
-void RemoveAppLaunchObserver(content::BrowserContext* context,
-                             AppLaunchObserver* observer);
 
 // Returns the app id from the app id or the shelf group id.
 const std::string GetAppFromAppOrGroupId(content::BrowserContext* context,

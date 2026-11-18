@@ -26,7 +26,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/common/channel_info.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/browsing_data/content/android/browsing_data_model_android.h"
 #include "components/browsing_data/content/browsing_data_model.h"
 #include "components/browsing_data/core/browsing_data_utils.h"

@@ -20,9 +20,9 @@ ScopedScreenWin::ScopedScreenWin() : ScreenWin(false) {
       CreateMonitorInfo(kPixelBounds, kPixelWork, L"primary");
   UpdateFromDisplayInfos(
       {{std::nullopt, monitor_info, /*device_scale_factor=*/1.0f,
-        Display::kDefaultBitsPerPixel, 1.0f, Display::ROTATE_0, 60.0f,
-        gfx::Vector2dF(96.0, 96.0), DISPLAYCONFIG_OUTPUT_TECHNOLOGY_OTHER,
-        std::string()}});
+        /*text_scale_multiplier=*/1.0f, Display::kDefaultBitsPerPixel, 1.0f,
+        Display::ROTATE_0, 60.0f, gfx::Vector2dF(96.0, 96.0),
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_OTHER, std::string()}});
 }
 
 }  // namespace test

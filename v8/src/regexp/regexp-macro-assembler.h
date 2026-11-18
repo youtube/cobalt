@@ -9,7 +9,7 @@
 
 #include "src/base/strings.h"
 #include "src/execution/frame-constants.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp.h"
 
@@ -237,6 +237,9 @@ class RegExpMacroAssembler {
 
   // Check that we are not in the middle of a surrogate pair.
   void CheckNotInSurrogatePair(int cp_offset, Label* on_failure);
+
+  // Step forward by 1 character/code point in the unanchored search loop.
+  void UnanchoredAdvance(bool unicode, Label* on_failure);
 
 #define IMPLEMENTATIONS_LIST(V) \
   V(IA32)                       \

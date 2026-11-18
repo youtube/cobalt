@@ -4,6 +4,7 @@
 
 #include "components/autofill/core/browser/form_parsing/field_candidates.h"
 
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_parsing/autofill_parsing_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,38 +25,64 @@ TEST(FieldCandidatesTest, EmptyFieldCandidates) {
 // the only candidate.
 TEST(FieldCandidatesTest, SingleCandidate) {
   FieldCandidates field_candidates;
-  field_candidates.AddFieldCandidate(COMPANY_NAME, MatchAttribute::kName, 1.0);
+  field_candidates.AddFieldCandidate(
+      COMPANY_NAME, MatchAttribute::kName,
+      {/*is_name_or_high_quality_label_match=*/true,
+       /*parser_type=*/HeuristicParser::kName});
   EXPECT_EQ(COMPANY_NAME, field_candidates.BestHeuristicType());
 }
 
 // Simple case with two candidates. The one with higher score should win.
 TEST(FieldCandidatesTest, TwoCandidates) {
   FieldCandidates field_candidates;
-  field_candidates.AddFieldCandidate(NAME_LAST, MatchAttribute::kName, 1.01);
-  field_candidates.AddFieldCandidate(NAME_FIRST, MatchAttribute::kName, 0.99);
-  EXPECT_EQ(NAME_LAST, field_candidates.BestHeuristicType());
+  field_candidates.AddFieldCandidate(
+      NAME_FULL, MatchAttribute::kName,
+      {/*is_name_or_high_quality_label_match=*/true,
+       /*parser_type=*/HeuristicParser::kName});
+  field_candidates.AddFieldCandidate(
+      MERCHANT_PROMO_CODE, MatchAttribute::kName,
+      {/*is_name_or_high_quality_label_match=*/true,
+       /*parser_type=*/HeuristicParser::kMerchantPromoCode});
+  EXPECT_EQ(NAME_FULL, field_candidates.BestHeuristicType());
 }
 
 // Same as TwoCandidates but added in the opposite order, which should not
 // interfere with the outcome.
 TEST(FieldCandidatesTest, TwoCandidatesOppositeOrder) {
   FieldCandidates field_candidates;
-  field_candidates.AddFieldCandidate(NAME_FIRST, MatchAttribute::kName, 0.99);
-  field_candidates.AddFieldCandidate(NAME_LAST, MatchAttribute::kName, 1.01);
-  EXPECT_EQ(NAME_LAST, field_candidates.BestHeuristicType());
+  field_candidates.AddFieldCandidate(
+      MERCHANT_PROMO_CODE, MatchAttribute::kName,
+      {/*is_name_or_high_quality_label_match=*/true,
+       /*parser_type=*/HeuristicParser::kMerchantPromoCode});
+  field_candidates.AddFieldCandidate(
+      NAME_FULL, MatchAttribute::kName,
+      {/*is_name_or_high_quality_label_match=*/true,
+       /*parser_type=*/HeuristicParser::kName});
+  EXPECT_EQ(NAME_FULL, field_candidates.BestHeuristicType());
 }
 
 TEST(FieldCandidatesTest, BestHeuristicTypeReason) {
   FieldCandidates field_candidates;
-  field_candidates.AddFieldCandidate(NAME_FIRST, MatchAttribute::kName, 1);
-  // The best type is NAME_FIRST due to the kName match.
-  EXPECT_THAT(field_candidates.BestHeuristicTypeReason(),
-              UnorderedElementsAre(MatchAttribute::kName));
-  field_candidates.AddFieldCandidate(NAME_LAST, MatchAttribute::kLabel, 2);
-  // The best type becomes NAME_LAST due to a higher scoring kLabel match.
+
+  field_candidates.AddFieldCandidate(
+      NAME_FULL, MatchAttribute::kLabel,
+      {/*is_name_or_high_quality_label_match=*/false,
+       /*parser_type=*/HeuristicParser::kName});
   EXPECT_THAT(field_candidates.BestHeuristicTypeReason(),
               UnorderedElementsAre(MatchAttribute::kLabel));
-  field_candidates.AddFieldCandidate(NAME_LAST, MatchAttribute::kName, 0.5);
+
+  field_candidates.AddFieldCandidate(
+      IBAN_VALUE, MatchAttribute::kLabel,
+      {/*is_name_or_high_quality_label_match=*/false,
+       /*parser_type=*/HeuristicParser::kIban});
+  // The best type becomes IBAN_VALUE due to a higher parser priority.
+  EXPECT_THAT(field_candidates.BestHeuristicTypeReason(),
+              UnorderedElementsAre(MatchAttribute::kLabel));
+
+  field_candidates.AddFieldCandidate(
+      IBAN_VALUE, MatchAttribute::kName,
+      {/*is_name_or_high_quality_label_match=*/true,
+       /*parser_type=*/HeuristicParser::kIban});
   // The best type remains, but the reason now includes the kName match.
   EXPECT_THAT(
       field_candidates.BestHeuristicTypeReason(),

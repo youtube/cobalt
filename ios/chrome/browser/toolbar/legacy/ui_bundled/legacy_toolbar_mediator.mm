@@ -129,13 +129,6 @@
   [self.omniboxConsumer setBottomOmniboxOffsetForPopup:bottomOffset];
 }
 
-- (void)didNavigateToNTPOnActiveWebState {
-  _isNTP = YES;
-  if (IsBottomOmniboxAvailable()) {
-    [self updateOmniboxPosition];
-    [self.omniboxConsumer setIsNTP:_isNTP];
-  }
-}
 
 #pragma mark - Setters
 

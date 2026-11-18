@@ -51,7 +51,8 @@
     "experiments": [],
     "keep_going": 3,
     "profile_mode": "cloud",
-    "project": "rbe-chromium-untrusted"
+    "project": "rbe-chromium-untrusted",
+    "remote_jobs": 150
   },
   "$recipe_engine/resultdb/test_presentation": {
     "column_keys": [],

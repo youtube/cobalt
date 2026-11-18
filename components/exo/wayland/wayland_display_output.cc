@@ -8,6 +8,7 @@
 #include <wayland-server-protocol-core.h>
 
 #include <cstring>
+#include <string_view>
 
 #include "base/compiler_specific.h"
 #include "base/task/single_thread_task_runner.h"
@@ -111,8 +112,7 @@ void WaylandDisplayOutput::RegisterOutput(wl_resource* output_resource) {
   wl_client_for_each_resource(
       client,
       [](wl_resource* resource, void*) {
-        if (UNSAFE_TODO(std::strcmp("wl_surface",
-                                    wl_resource_get_class(resource))) == 0) {
+        if (std::string_view(wl_resource_get_class(resource)) == "wl_surface") {
           if (auto* surface = GetUserDataAs<Surface>(resource)) {
             surface->OnNewOutputAdded();
           }

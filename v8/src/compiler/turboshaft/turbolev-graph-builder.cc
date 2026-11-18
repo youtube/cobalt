@@ -57,6 +57,7 @@
 #include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/contexts.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements-kind.h"
@@ -3399,7 +3400,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::LoadTaggedField* node,
                                 const maglev::ProcessingState& state) {
     MemoryRepresentation mem_repr = MemoryRepresentation::AnyTagged();
-    if (node->load_type() == maglev::LoadType::kSmi) {
+    if (node->type() == maglev::NodeType::kSmi) {
       mem_repr = MemoryRepresentation::TaggedSigned();
     }
     return ProcessAbstractLoadTaggedField(node, mem_repr);
@@ -3981,6 +3982,74 @@ class GraphBuildingNodeProcessor {
         ConvertCompare<Float64>(node->LeftInput(), node->RightInput(),
                                 node->operation(), Sign::kSigned);
     SetMap(node, ConvertWord32ToJSBool(bool_res));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BigIntBinaryOperation* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    BigIntBinopOp::Kind kind;
+    switch (node->operation()) {
+      case ::Operation::kAdd:
+        kind = BigIntBinopOp::Kind::kAdd;
+        break;
+      case ::Operation::kSubtract:
+        kind = BigIntBinopOp::Kind::kSub;
+        break;
+      case ::Operation::kMultiply:
+        kind = BigIntBinopOp::Kind::kMul;
+        break;
+      case ::Operation::kDivide:
+        kind = BigIntBinopOp::Kind::kDiv;
+        break;
+      case ::Operation::kModulus:
+        kind = BigIntBinopOp::Kind::kMod;
+        break;
+      case ::Operation::kBitwiseAnd:
+        kind = BigIntBinopOp::Kind::kBitwiseAnd;
+        break;
+      case ::Operation::kBitwiseOr:
+        kind = BigIntBinopOp::Kind::kBitwiseOr;
+        break;
+      case ::Operation::kBitwiseXor:
+        kind = BigIntBinopOp::Kind::kBitwiseXor;
+        break;
+      case ::Operation::kShiftLeft:
+        kind = BigIntBinopOp::Kind::kShiftLeft;
+        break;
+      case ::Operation::kShiftRight:
+        kind = BigIntBinopOp::Kind::kShiftRightArithmetic;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    SetMap(node,
+           __ BigIntBinop(Map<BigInt>(node->LeftInput()),
+                          Map<BigInt>(node->RightInput()), frame_state, kind));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BigIntCompare* node,
+                                const maglev::ProcessingState& state) {
+    BigIntComparisonOp::Kind kind;
+    switch (node->operation()) {
+      case ::Operation::kEqual:
+        kind = BigIntComparisonOp::Kind::kEqual;
+        break;
+      case ::Operation::kLessThan:
+        kind = BigIntComparisonOp::Kind::kLessThan;
+        break;
+      case ::Operation::kLessThanOrEqual:
+        kind = BigIntComparisonOp::Kind::kLessThanOrEqual;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    SetMap(node, __ BigIntComparison(Map<BigInt>(node->LeftInput()),
+                                     Map<BigInt>(node->RightInput()), kind));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::BigIntNegate* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ BigIntNegate(Map<BigInt>(node->ValueInput())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::TaggedEqual* node,
@@ -6199,11 +6268,11 @@ class GraphBuildingNodeProcessor {
             builder.AddInput(
                 MachineType::AnyTagged(),
                 __ HeapConstantHole(local_factory_->the_hole_value()));
-          } else {
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-            // TODO(nicohartmann): Handle is_undefined_nan here.
-            DCHECK(!value_as_float.is_undefined_nan());
+          } else if (value_as_float.is_undefined_nan()) {
+            builder.AddInput(MachineType::AnyTagged(), undefined_value_);
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
+          } else {
             builder.AddInput(MachineType::AnyTagged(),
                              __ NumberConstant(value_as_float));
           }

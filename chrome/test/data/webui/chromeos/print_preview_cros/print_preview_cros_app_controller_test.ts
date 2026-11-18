@@ -12,7 +12,7 @@ import {PRINT_TICKET_MANAGER_SESSION_INITIALIZED, PrintTicketManager} from 'chro
 import type {FakePrintPreviewPageHandler} from 'chrome://os-print/js/fakes/fake_print_preview_page_handler.js';
 import {DIALOG_ARG_PROPERTY_KEY, PrintPreviewCrosAppController} from 'chrome://os-print/js/print_preview_cros_app_controller.js';
 import {getPrintPreviewPageHandler} from 'chrome://os-print/js/utils/mojo_data_providers.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import type {MockMethod} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';

@@ -49,6 +49,15 @@
    */
   --glow-stroke-width_: var(--animated-glow-stroke-width, 2px);
 
+  /* Gradient burst duration */
+  --gradient-burst-duration: 650ms;
+
+  /* Gradient burst rotation angles. */
+  --gradient-angle-start: 170deg;
+  --gradient-angle-end: 225deg;
+  --mask-angle-start: -90deg;
+  --mask-angle-end: 200deg;
+
   --search-animated-glow-background-z-index: 103;
   --search-animated-glow-drag-drop-placeholder-z-index: 104;
   --search-animated-glow-gradient-after-z-index: 101;
@@ -74,16 +83,16 @@
   --start-angle-expand_: 90deg;
   --start-angle-submit_: 200deg;
   --start-angle-listen_: 35deg;
+
   border-radius: inherit;
 
-  /* Gradient burst duration */
-  --gradient-burst-duration: 650ms;
+  display: contents;
 
-  /* Gradient burst rotation angles. */
-  --gradient-angle-start: 170deg;
-  --gradient-angle-end: 225deg;
-  --mask-angle-start: -90deg;
-  --mask-angle-end: 200deg;
+  --glow-animation-delay: 0ms;
+}
+
+:host([animation-state='expanding'][energy-effect-animation-enabled]) {
+  --glow-animation-delay: 150ms;
 }
 
 .audio-animation {
@@ -221,6 +230,7 @@
 
 :host([animation-state='dragging'][energy-effect-animation-enabled]),
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]),
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']),
 :host([animation-state='submitting'][energy-effect-animation-enabled]) {
   --dragging-glow-gradient: conic-gradient(
     #3186ff 34%,
@@ -254,6 +264,8 @@
 :host([animation-state='dragging'][energy-effect-animation-enabled]) .gradient-sharp-wrapper .double-gradient::before,
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .gradient-blur-wrapper .gradient::before,
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .gradient-sharp-wrapper .double-gradient::before,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .gradient-blur-wrapper .gradient::before,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .gradient-sharp-wrapper .double-gradient::before,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .gradient-blur-wrapper .gradient::before,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .gradient-sharp-wrapper .double-gradient::before {
   animation: none;
@@ -472,6 +484,7 @@
 
 :host([animation-state='dragging'][energy-effect-animation-enabled]) .gradient-blur-wrapper,
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .gradient-blur-wrapper,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .gradient-blur-wrapper,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .gradient-blur-wrapper {
   border-radius: inherit;
   display: block;
@@ -482,12 +495,13 @@
 }
 
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .gradient-blur-wrapper,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .gradient-blur-wrapper,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .gradient-blur-wrapper {
   animation:
-    animateOpacity var(--gradient-burst-duration) both,
+    animateOpacity var(--gradient-burst-duration) var(--glow-animation-delay) both,
     animateAngles var(--gradient-burst-duration)
-      var(--standard-decelerate-curve) both,
-    animateBlur var(--gradient-burst-duration) linear both;
+      var(--standard-decelerate-curve) var(--glow-animation-delay) both,
+    animateBlur var(--gradient-burst-duration) linear var(--glow-animation-delay) both;
 }
 
 @keyframes animateOpacity {
@@ -538,6 +552,7 @@
 
 :host([animation-state='dragging'][energy-effect-animation-enabled]) .gradient-sharp-wrapper,
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .gradient-sharp-wrapper,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .gradient-sharp-wrapper,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .gradient-sharp-wrapper {
   border-radius: inherit;
   display: block;
@@ -548,15 +563,17 @@
 }
 
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .gradient-sharp-wrapper,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .gradient-sharp-wrapper,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .gradient-sharp-wrapper {
   animation:
-    animateOpacity var(--gradient-burst-duration) both,
+    animateOpacity var(--gradient-burst-duration) var(--glow-animation-delay) both,
     animateAngles var(--gradient-burst-duration)
-      var(--standard-decelerate-curve) both;
+      var(--standard-decelerate-curve) var(--glow-animation-delay) both;
 }
 
 :host([animation-state='dragging'][energy-effect-animation-enabled]) .gradient-blur-wrapper .gradient,
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .gradient-blur-wrapper .gradient,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .gradient-blur-wrapper .gradient,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .gradient-blur-wrapper .gradient {
   scale: 7 1.5;
   -webkit-mask-image: conic-gradient(
@@ -581,6 +598,7 @@
 
 :host([animation-state='dragging'][energy-effect-animation-enabled]) .double-gradient,
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .double-gradient,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .double-gradient,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .double-gradient {
   scale: 7 1.5;
   -webkit-mask-image: conic-gradient(
@@ -605,6 +623,7 @@
 
 :host([animation-state='dragging'][energy-effect-animation-enabled]) .gradient-sharp-wrapper .double-gradient::before,
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .gradient-sharp-wrapper .double-gradient::before,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .gradient-sharp-wrapper .double-gradient::before,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .gradient-sharp-wrapper .double-gradient::before {
   animation: none;
   background: var(--dragging-glow-gradient);
@@ -627,6 +646,7 @@
 
 :host([animation-state='dragging'][energy-effect-animation-enabled]) .background,
 :host([animation-state='expanding'][energy-effect-animation-enabled][is-zero-state]) .background,
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .background,
 :host([animation-state='submitting'][energy-effect-animation-enabled]) .background {
   /*
   * Remove transparent border and inset by 2px so background covers
@@ -642,6 +662,18 @@
   pointer-events: none;
 }
 
+/*
+ * The same style as the entry above, except for the inset value to avoid the
+ * double border issue at the corners.
+ */
+:host([animation-state='expanding'][energy-effect-animation-enabled][entrypoint-name='Realbox']) .background {
+  animation: none;
+  background-color: var(--cr-composebox-background-color, var(--color-search-animated-glow-background));
+  border-width: 0;
+  inset: 0;
+  pointer-events: none;
+}
+
 :host([animation-state='dragging'][energy-effect-animation-enabled]) .background {
   z-index: var(--search-animated-glow-background-z-index, 3);
 }
@@ -652,6 +684,10 @@
 
 :host([animation-state='submitting']) .background {
   animation: gradient-border-width-close-submit var(--expand-timing_);
+}
+
+:host([animation-state='listening']) .background {
+  animation: none;
 }
 
 :host([animation-state='dragging']) .background::before {
@@ -711,15 +747,46 @@
   pointer-events: none;
 }
 
+#recordingWave {
+  block-size: 48px;
+  order: 1;  /* Always middle item. */
+}
+
 /* Overlay that goes over any of the above effects
- * (background, etc.) */
+ * (background, etc.). Hide during non listening mode. Flex-display otherwise.
+ */
 #fullContainerOverlay {
-  display: flex;
+  align-items: flex-start;
+  display: none;
+  flex-direction: column;
+  justify-content: flex-start;
   /* Since ':host' has no size or position, this is sized and
    * positioned relative to their nearest positioned ancestor, which
    * is from the parent 'composebox' or 'searchbox'.
    */
   inset: 0;
-  /* Ensure it does not take up space in composebox/searchbox layout. */
-  position: absolute;
+  padding-top: 6px;
+  padding-bottom: var(--animated-search-padding-bottom, 10px);
+  pointer-events: auto;
+  /* Ensure it does not take up space in composebox/searchbox layout,
+   * but takes height and width from closest relative parent, which is
+   * from composebox component.
+   */
+}
+
+:host([is-listening]) #fullContainerOverlay {
+  display: flex;
+  min-block-size: 112px;
+  position: relative;
+  width: 100%;
+}
+
+/* Only when the file carousel is above the recording wave,
+ * and only the file carousel is showing, is the recording wave
+ * overlapping with the submit/stop button. To avoid that, add
+ * padding bottom only in this mode.
+ */
+:host([showing-only-carousel-on-top-of-input]) #fullContainerOverlay {
+  padding-bottom: calc(var(--voice-bottom-actions-height, 40px) +
+      var(--voice-bottom-actions-bottom, 12px));
 }

@@ -20,7 +20,6 @@
 
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/rtp_header_extension_id.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_size.h"
@@ -37,6 +36,7 @@
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/time_controller/simulated_time_controller.h"
@@ -133,7 +133,7 @@ class RtpSenderEgressTest : public ::testing::Test {
  protected:
   RtpSenderEgressTest()
       : time_controller_(kStartTime),
-        env_(CreateEnvironment(time_controller_.GetClock())),
+        env_(CreateTestEnvironment({.time = &time_controller_})),
         transport_(&header_extensions_),
         packet_history_(env_,
                         RtpPacketHistory::PaddingMode::kRecentLargePacket),

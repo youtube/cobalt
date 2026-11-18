@@ -53,9 +53,8 @@ std::string GetNetworkIdWithGuid(const NetworkState* network_state) {
 
 // Global override for the getter function. This is used for testing purposes.
 // See SetProvisioningIdForCertGetterForTesting for details.
-ClientCertResolver::ProvisioningProfileIdGetter
-    g_provisioning_id_getter_for_testing =
-        ClientCertResolver::ProvisioningProfileIdGetter();
+ClientCertResolver::ProvisioningProfileIdGetter*
+    g_provisioning_id_getter_for_testing = nullptr;
 
 // Describes a network that is configured with |client_cert_config|, which
 // includes the certificate config.
@@ -295,8 +294,10 @@ std::string GetProvisioningIdForCert(CERTCertificate* cert) {
   if (!priv_key)
     return std::string();
 
-  if (!g_provisioning_id_getter_for_testing.is_null())
-    return g_provisioning_id_getter_for_testing.Run(cert);
+  if (g_provisioning_id_getter_for_testing &&
+      !g_provisioning_id_getter_for_testing->is_null()) {
+    return g_provisioning_id_getter_for_testing->Run(cert);
+  }
 
   crypto::ScopedSECItem attribute_value(SECITEM_AllocItem(/*arena=*/nullptr,
                                                           /*item=*/nullptr,
@@ -540,10 +541,17 @@ void ClientCertResolver::SetClockForTesting(base::Clock* clock) {
 base::ScopedClosureRunner
 ClientCertResolver::SetProvisioningIdForCertGetterForTesting(
     ProvisioningProfileIdGetter getter) {
-  g_provisioning_id_getter_for_testing = getter;
+  auto persistent_getter =
+      std::make_unique<ProvisioningProfileIdGetter>(std::move(getter));
+  g_provisioning_id_getter_for_testing = persistent_getter.get();
 
-  return base::ScopedClosureRunner(
-      base::BindOnce([]() { g_provisioning_id_getter_for_testing.Reset(); }));
+  return base::ScopedClosureRunner(base::BindOnce(
+      [](std::unique_ptr<ProvisioningProfileIdGetter> old_getter) {
+        if (g_provisioning_id_getter_for_testing == old_getter.get()) {
+          g_provisioning_id_getter_for_testing = nullptr;
+        }
+      },
+      std::move(persistent_getter)));
 }
 
 void ClientCertResolver::NetworkListChanged() {

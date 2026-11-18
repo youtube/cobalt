@@ -198,8 +198,6 @@ class RTC_EXPORT Port : public PortInterface {
              bool payload) override = 0;
   */
 
-  [[deprecated("Pass via PortParametersRef")]] void SetIceTiebreaker(
-      uint64_t tiebreaker) override;
   uint64_t IceTiebreaker() const override;
 
   bool SharedSocket() const override;
@@ -419,14 +417,6 @@ class RTC_EXPORT Port : public PortInterface {
   void SubscribeRoleConflict(absl::AnyInvocable<void()> callback) override;
   void NotifyRoleConflict() override;
 
-  [[deprecated("Use SubscribeUnknownAddress(const void* tag, ...)")]]
-  void SubscribeUnknownAddress(
-      absl::AnyInvocable<void(PortInterface*,
-                              const SocketAddress&,
-                              ProtocolType,
-                              IceMessage*,
-                              const std::string&,
-                              bool)> callback) override;
   void SubscribeUnknownAddress(
       const void* tag,
       absl::AnyInvocable<void(PortInterface*,
@@ -444,11 +434,6 @@ class RTC_EXPORT Port : public PortInterface {
 
   // This function causes strange linker behavior if it's inlined,
   // otherwise it would have been ABSL_DEPRECATE_AND_INLINE.
-  [[deprecated("Use tagged version with span")]] void SubscribeReadPacket(
-      absl::AnyInvocable<
-          void(PortInterface*, const char*, size_t, const SocketAddress&)>
-          callback) override;
-
   void SubscribeReadPacket(
       const void* tag,
       absl::AnyInvocable<void(PortInterface*,
@@ -459,9 +444,6 @@ class RTC_EXPORT Port : public PortInterface {
                         std::span<const uint8_t> data,
                         const SocketAddress& remote_address) override;
 
-  [[deprecated("Use SubscribeSentPacket(const void* tag, ...)")]]
-  void SubscribeSentPacket(
-      absl::AnyInvocable<void(const SentPacketInfo&)> callback) override;
   void SubscribeSentPacket(
       const void* tag,
       absl::AnyInvocable<void(const SentPacketInfo&)> callback) override;
@@ -603,7 +585,7 @@ class RTC_EXPORT Port : public PortInterface {
   bool enable_port_packets_ RTC_GUARDED_BY(thread_);
   IceRole ice_role_ RTC_GUARDED_BY(thread_);
   // https://datatracker.ietf.org/doc/html/rfc5245#section-5.2
-  uint64_t ice_tiebreaker_ RTC_GUARDED_BY(thread_);
+  const uint64_t ice_tiebreaker_;
   bool shared_socket_ RTC_GUARDED_BY(thread_);
 
   // A virtual cost perceived by the user, usually based on the network type

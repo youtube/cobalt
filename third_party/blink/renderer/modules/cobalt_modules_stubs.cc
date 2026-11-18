@@ -55,14 +55,21 @@ static void DummyInstallInterfaceTemplateFunc(
   // Do nothing
 }
 
+// The stubbed types are never instantiated, so no object is ever wrapped with
+// this tag. v8::CppHeapPointerTag::kDefaultTag is not available when the V8
+// sandbox is enabled, so use the end-of-range sentinel of the ScriptWrappable
+// tag range, which is not assigned to any real type.
+static constexpr v8::CppHeapPointerTag kStubWrapperTag =
+    kLastScriptWrappableTag;
+
 static const WrapperTypeInfo g_dummy_wrapper_type_info = {
     {gin::kEmbedderBlink},
     DummyInstallInterfaceTemplateFunc,
     nullptr,
     "Dummy",
     nullptr,
-    v8::CppHeapPointerTag::kDefaultTag,
-    v8::CppHeapPointerTag::kDefaultTag,
+    kStubWrapperTag,
+    kStubWrapperTag,
     WrapperTypeInfo::kWrapperTypeObjectPrototype,
     WrapperTypeInfo::kObjectClassId,
     WrapperTypeInfo::kIdlInterface,
@@ -75,8 +82,8 @@ static const WrapperTypeInfo g_dummy_namespace_wrapper_type_info = {
     nullptr,
     "DummyNamespace",
     nullptr,
-    v8::CppHeapPointerTag::kDefaultTag,
-    v8::CppHeapPointerTag::kDefaultTag,
+    kStubWrapperTag,
+    kStubWrapperTag,
     WrapperTypeInfo::kWrapperTypeNoPrototype,
     WrapperTypeInfo::kObjectClassId,
     WrapperTypeInfo::kIdlNamespace,

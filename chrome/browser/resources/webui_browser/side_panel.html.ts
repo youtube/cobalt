@@ -19,7 +19,11 @@ ${this.showing_ ? html`
         @click="${this.onCloseClick_}">
       </cr-icon-button>
     </div>
-    <div id="content">${this.webView}</div>
+    <div id="content">
+      ${this.showBookmarks_ ? html`
+        <webui-browser-bookmarks></webui-browser-bookmarks>
+      ` : this.webView}
+    </div>
   </div>
 ` : ''}
 <!--_html_template_end_-->`;

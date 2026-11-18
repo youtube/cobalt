@@ -118,19 +118,11 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="2236949375853147973">Mi Actividad</translation>
 <translation id="2238130810669087193">Para acceder a tus direcciones y más en todos tus dispositivos, inicia sesión en Chromium. Esta dirección se guardará en tu cuenta de Google cuando inicies sesión.</translation>
 <translation id="2241627712206172106">Si compartes un ordenador, tus amigos y familiares pueden navegar de forma independiente y configurar Chromium a su gusto.</translation>
+<translation id="22571759390241347">Habilidades en Chromium</translation>
 <translation id="2283803047247799269">Buscar en esta pestaña con la búsqueda por imágenes</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium recomienda pausar la pestaña que ralentiza tu navegador}other{Chromium recomienda pausar las pestañas que ralentizan tu navegador}}</translation>
 <translation id="2307973900865360088">Mantener en el Dock</translation>
 <translation id="2313870531055795960">Comprueba las URLs guardadas en Chromium con una lista de sitios que no son seguros. Si un sitio intenta robarte tu contraseña o si te descargas un archivo dañino, puede que Chromium también envíe URLs, así como fragmentos de contenido de la página, a Navegación segura.</translation>
-<translation id="2332076562712130931">Al realizar esta acción:
-          <ph name="LINE_BREAKS" />
-           • Se restablecerán algunos ajustes y combinaciones de teclas de Chromium
-           <ph name="LINE_BREAK" />
-           • Se inhabilitarán las extensiones
-           <ph name="LINE_BREAK" />
-           • Se eliminarán las cookies y otros datos temporales de sitios
-            <ph name="LINE_BREAKS" />
-           Los marcadores, el historial y las contraseñas guardadas no se verán afectados.</translation>
 <translation id="2343156876103232566">Para enviar un número desde aquí a tu teléfono Android, inicia sesión en Chromium con ambos dispositivos.</translation>
 <translation id="2356070529366658676">Preguntar</translation>
 <translation id="2359808026110333948">Continuar</translation>
@@ -192,6 +184,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="3003694935412297923">Todas las tareas</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium debe verificar que eres tú para poder guardar algunos datos en tu cuenta de Google y usarlos en todos tus dispositivos. Si cierras sesión ahora, estos datos (1 elemento) se eliminarán.}other{Chromium debe verificar que eres tú para poder guardar algunos datos en tu cuenta de Google y usarlos en todos tus dispositivos. Si cierras sesión ahora, estos datos ({count} elementos) se eliminarán.}}</translation>
 <translation id="3013473503895162900">Abre <ph name="URL" /> en una pestaña nueva de Chromium.</translation>
+<translation id="302551344979399011">Las innovaciones de IA, como las habilidades, se guardan en tu cuenta de Google y se gestionan por separado de la sincronización de Chromium</translation>
 <translation id="3032787606318309379">Añadiendo a Chromium...</translation>
 <translation id="3038232873781883849">Esperando para instalar...</translation>
 <translation id="3045032126857188731">Idioma traducido: <ph name="LANGUAGE" /></translation>
@@ -383,6 +376,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="5289287148052354622">Descarga la aplicación Chromium</translation>
 <translation id="5294316920224716406">Cuando navegues en modo Incógnito, Chromium te avisará antes de cargar un sitio usando una conexión no segura</translation>
 <translation id="5313228254328109263">Servicio interno de la herramienta de actualización de Chromium</translation>
+<translation id="5324450571874973775">Úsalas junto con otras funciones de Gemini en Chromium</translation>
 <translation id="5346389065299425353">Profundiza en tu búsqueda añadiendo varias pestañas, archivos y herramientas</translation>
 <translation id="5348677704241861105">Obtén un resumen rápido de este documento y haz preguntas con Gemini en Chromium</translation>
 <translation id="5352264705793813212">Chromium ha encontrado algunas recomendaciones de seguridad para que las revises</translation>
@@ -674,6 +668,7 @@ Chromium no puede recuperar tu configuración.</translation>
 <translation id="8318772038038596122">Tu organización cierra Chromium cuando lleva <ph name="TIMEOUT_DURATION" /> sin usarse.</translation>
 <translation id="8321888067342493336">Guardar como imagen</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> usaba Chromium anteriormente</translation>
+<translation id="8351551329754447960">Activar habilidades en Chromium</translation>
 <translation id="8359544530202147897">Actualiza Chromium para seguir usando los datos de Chromium en tu cuenta de Google (<ph name="ACCOUNT_EMAIL" />)</translation>
 <translation id="8360718212975266891">Para recibir futuras actualizaciones de Chromium, deberás tener Windows 10 o una versión posterior. Este ordenador tiene Windows 8.</translation>
 <translation id="8362914115861174987">Traducir al</translation>

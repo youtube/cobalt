@@ -2957,6 +2957,12 @@ EVENT_TYPE(QUIC_SESSION_CRYPTO_FRAME_SENT)
 //  }
 EVENT_TYPE(QUIC_SESSION_CRYPTO_FRAME_RECEIVED)
 
+// Session completed the Crypto Handshake
+//  {
+//    "received_server_padding": <Whether server padding was received>,
+//  }
+EVENT_TYPE(QUIC_SESSION_CRYPTO_HANDSHAKE_COMPLETE)
+
 // Session sent a STOP_SENDING frame.
 //  {
 //    "stream_id": <The stream id>,

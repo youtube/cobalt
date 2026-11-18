@@ -296,7 +296,7 @@ int DH_generate_parameters_ex(DH *dh, int prime_bits, int generator,
   //
   // I've implemented the second simple method :-).
   // Since DH should be using a safe prime (both p and q are prime),
-  // this generator function can take a very very long time to run.
+  // this generator function can take a very, very long time to run.
 
   // Actually there is no reason to insist that 'generator' be a generator.
   // It's just as OK (and in some sense better) to use a generator of the

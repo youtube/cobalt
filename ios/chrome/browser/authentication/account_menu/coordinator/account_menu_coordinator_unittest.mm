@@ -142,8 +142,6 @@ class AccountMenuCoordinatorTest : public PlatformTest {
     fake_system_identity_manager_ =
         FakeSystemIdentityManager::FromSystemIdentityManager(
             GetApplicationContext()->GetSystemIdentityManager());
-    authentication_service_ =
-        AuthenticationServiceFactory::GetForProfile(profile_.get());
 
     SigninWithPrimaryIdentity();
     AddSecondaryIdentity();
@@ -170,6 +168,10 @@ class AccountMenuCoordinatorTest : public PlatformTest {
   void TearDown() override {
     VerifyMock();
     PlatformTest::TearDown();
+  }
+
+  AuthenticationService* authentication_service() {
+    return AuthenticationServiceFactory::GetForProfile(profile_.get());
   }
 
  protected:
@@ -210,7 +212,6 @@ class AccountMenuCoordinatorTest : public PlatformTest {
   AccountMenuMediator* mediator_;
   id<SyncEncryptionPassphraseTableViewControllerPresentationDelegate>
       presentation_delegate_;
-  raw_ptr<AuthenticationService, DanglingUntriaged> authentication_service_;
   raw_ptr<FakeSystemIdentityManager> fake_system_identity_manager_;
   // The view owned by the view controller.
   UIView* view_;
@@ -232,8 +233,8 @@ class AccountMenuCoordinatorTest : public PlatformTest {
   // Signs in kPrimaryIdentity as primary identity.
   void SigninWithPrimaryIdentity() {
     fake_system_identity_manager_->AddIdentity(kPrimaryIdentity);
-    authentication_service_->SignIn(kPrimaryIdentity,
-                                    signin_metrics::AccessPoint::kStartPage);
+    authentication_service()->SignIn(kPrimaryIdentity,
+                                     signin_metrics::AccessPoint::kStartPage);
   }
 
   // Add kSecondaryIdentity as a secondary identity.
@@ -307,7 +308,7 @@ TEST_F(AccountMenuCoordinatorTest, testSignOut) {
                              closure.Run();
                            }];
   run_loop.Run();
-  EXPECT_EQ(authentication_service_->GetPrimaryIdentity(), nil);
+  EXPECT_EQ(authentication_service()->GetPrimaryIdentity(), nil);
 }
 
 // Tests that `mediatorWantsToBeDismissed` requests to the delegate to stop the

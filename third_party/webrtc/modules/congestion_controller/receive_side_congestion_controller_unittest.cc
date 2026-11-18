@@ -14,7 +14,6 @@
 #include <memory>
 #include <vector>
 
-#include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/media_types.h"
 #include "api/rtp_header_extension_id.h"
@@ -34,6 +33,7 @@
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/buffer.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -59,9 +59,9 @@ TEST(ReceiveSideCongestionControllerTest, SendsRembWithAbsSendTime) {
   MockFunction<void(uint64_t, std::vector<uint32_t>)> remb_sender;
   SimulatedClock clock(123456);
 
-  ReceiveSideCongestionController controller(CreateEnvironment(&clock),
-                                             feedback_sender.AsStdFunction(),
-                                             remb_sender.AsStdFunction());
+  ReceiveSideCongestionController controller(
+      CreateTestEnvironment({.time = &clock}), feedback_sender.AsStdFunction(),
+      remb_sender.AsStdFunction());
 
   RtpHeaderExtensionMap extensions;
   extensions.Register<AbsoluteSendTime>(RtpHeaderExtensionId(1));
@@ -89,9 +89,9 @@ TEST(ReceiveSideCongestionControllerTest,
   MockFunction<void(uint64_t, std::vector<uint32_t>)> remb_sender;
   SimulatedClock clock(123456);
 
-  ReceiveSideCongestionController controller(CreateEnvironment(&clock),
-                                             feedback_sender.AsStdFunction(),
-                                             remb_sender.AsStdFunction());
+  ReceiveSideCongestionController controller(
+      CreateTestEnvironment({.time = &clock}), feedback_sender.AsStdFunction(),
+      remb_sender.AsStdFunction());
   EXPECT_CALL(remb_sender, Call(123, _));
   controller.SetMaxDesiredReceiveBitrate(DataRate::BitsPerSec(123));
 }
@@ -124,8 +124,8 @@ TEST(ReceiveSideCongestionControllerTest, SendsRfc8888FeedbackIfForced) {
   MockFunction<void(uint64_t, std::vector<uint32_t>)> remb_sender;
   SimulatedClock clock(123456);
   ReceiveSideCongestionController controller(
-      CreateEnvironment(&clock, &field_trials), rtcp_sender.AsStdFunction(),
-      remb_sender.AsStdFunction());
+      CreateTestEnvironment({.field_trials = &field_trials, .time = &clock}),
+      rtcp_sender.AsStdFunction(), remb_sender.AsStdFunction());
 
   // Expect that RTCP feedback is sent.
   EXPECT_CALL(rtcp_sender, Call)
@@ -149,9 +149,9 @@ TEST(ReceiveSideCongestionControllerTest, SendsRfc8888FeedbackIfEnabled) {
       rtcp_sender;
   MockFunction<void(uint64_t, std::vector<uint32_t>)> remb_sender;
   SimulatedClock clock(123456);
-  ReceiveSideCongestionController controller(CreateEnvironment(&clock),
-                                             rtcp_sender.AsStdFunction(),
-                                             remb_sender.AsStdFunction());
+  ReceiveSideCongestionController controller(
+      CreateTestEnvironment({.time = &clock}), rtcp_sender.AsStdFunction(),
+      remb_sender.AsStdFunction());
   controller.SetPreferredRtcpCcAckType(RtcpFeedbackType::CCFB);
 
   // Expect that RTCP feedback is sent.
@@ -177,9 +177,9 @@ TEST(ReceiveSideCongestionControllerTest,
       rtcp_sender;
   MockFunction<void(uint64_t, std::vector<uint32_t>)> remb_sender;
   SimulatedClock clock(123456);
-  ReceiveSideCongestionController controller(CreateEnvironment(&clock),
-                                             rtcp_sender.AsStdFunction(),
-                                             remb_sender.AsStdFunction());
+  ReceiveSideCongestionController controller(
+      CreateTestEnvironment({.time = &clock}), rtcp_sender.AsStdFunction(),
+      remb_sender.AsStdFunction());
   controller.SetPreferredRtcpCcAckType(RtcpFeedbackType::TRANSPORT_CC);
 
   // Expect that RTCP feedback is sent.
@@ -208,9 +208,9 @@ TEST(ReceiveSideCongestionControllerTest,
       rtcp_sender;
   MockFunction<void(uint64_t, std::vector<uint32_t>)> remb_sender;
   SimulatedClock clock(123456);
-  ReceiveSideCongestionController controller(CreateEnvironment(&clock),
-                                             rtcp_sender.AsStdFunction(),
-                                             remb_sender.AsStdFunction());
+  ReceiveSideCongestionController controller(
+      CreateTestEnvironment({.time = &clock}), rtcp_sender.AsStdFunction(),
+      remb_sender.AsStdFunction());
 
   // No Transport feedback is sent because received packet does not have
   // transport sequence number rtp header extension.
@@ -264,6 +264,28 @@ TEST(ReceiveSideCongestionControllerTest, IsFairToTCP) {
   // For some reason we get outcompeted by TCP here, this should probably be
   // fixed and a lower bound should be added to the test.
   EXPECT_LT(client->send_bandwidth().kbps(), 750);
+}
+
+TEST(ReceiveSideCongestionControllerTest, OnBitrateChangedDeprecatedAndNew) {
+  MockFunction<void(std::vector<std::unique_ptr<rtcp::RtcpPacket>>)>
+      feedback_sender;
+  MockFunction<void(uint64_t, std::vector<uint32_t>)> remb_sender;
+  SimulatedClock clock(123456);
+
+  ReceiveSideCongestionController controller(
+      CreateTestEnvironment({.time = &clock}), feedback_sender.AsStdFunction(),
+      remb_sender.AsStdFunction());
+
+  // Test new overload.
+  controller.OnBitrateChanged(DataRate::BitsPerSec(500'000),
+                              /*is_bandwidth_limited=*/true,
+                              DataSize::Bytes(42));
+
+  // Test deprecated overload.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  controller.OnBitrateChanged(500'000);
+#pragma clang diagnostic pop
 }
 }  // namespace
 }  // namespace test

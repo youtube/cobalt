@@ -31,7 +31,6 @@
 #include "chrome/browser/ui/webui/personal_context_internals/personal_context_internals.mojom.h"
 #include "chrome/browser/ui/webui/personal_context_internals/personal_context_internals_ui.h"
 #include "chrome/browser/ui/webui/policy/policy_ui.h"
-#include "chrome/browser/ui/webui/privacy_sandbox/privacy_sandbox_internals_ui.h"
 #include "chrome/browser/ui/webui/segmentation_internals/segmentation_internals_ui.h"
 #include "chrome/browser/ui/webui/subresource_filter/subresource_filter_internals_ui.h"
 #include "chrome/browser/ui/webui/usb_internals/usb_internals.mojom.h"
@@ -247,6 +246,10 @@ void PopulateChromeWebUIFrameBindersPartsAllPlatforms(
   if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
     RegisterWebUIControllerInterfaceBinder<
         contextual_tasks::mojom::PageHandlerFactory, ContextualTasksUI>(map);
+    RegisterWebUIControllerInterfaceBinder<
+        contextual_tasks_internals::mojom::
+            ContextualTasksInternalsPageHandlerFactory,
+        ContextualTasksUI>(map);
   }
 
   RegisterWebUIControllerInterfaceBinder<
@@ -347,6 +350,8 @@ void PopulateChromeWebUIFrameBinders(
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
   RegisterWebUIControllerInterfaceBinder<skills::mojom::PageHandlerFactory,
+                                         skills::SkillsUI>(map);
+  RegisterWebUIControllerInterfaceBinder<skills::mojom::SkillsPageHandler,
                                          skills::SkillsUI>(map);
 #endif
 

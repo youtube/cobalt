@@ -1987,7 +1987,7 @@ TEST_F(DownloadTargetDeterminerTest, InitialVirtualPathUnsafe) {
 // prompted, and not otherwise. These test cases shouldn't result in prompting
 // since the error is set to NETWORK_FAILED.
 TEST_F(DownloadTargetDeterminerTest, ResumedNoPrompt) {
-  // All test cases run with GetPathInDownloadDir(kInitialPath) as the inital
+  // All test cases run with GetPathInDownloadDir(kInitialPath) as the initial
   // path.
   const base::FilePath::CharType* kInitialPath =
       FILE_PATH_LITERAL("some_path/bar.txt");
@@ -2106,7 +2106,7 @@ TEST_F(DownloadTargetDeterminerTest, ResumedForcedDownload) {
 // prompted, and not otherwise. These test cases result in prompting since the
 // error is set to NO_SPACE.
 TEST_F(DownloadTargetDeterminerTest, ResumedWithPrompt) {
-  // All test cases run with GetPathInDownloadDir(kInitialPath) as the inital
+  // All test cases run with GetPathInDownloadDir(kInitialPath) as the initial
   // path.
   const base::FilePath::CharType* kInitialPath =
       FILE_PATH_LITERAL("some_path/bar.txt");
@@ -2186,7 +2186,7 @@ TEST_F(DownloadTargetDeterminerTest, ResumedWithPrompt) {
 
 // Test intermediate filename generation for resumed downloads.
 TEST_F(DownloadTargetDeterminerTest, IntermediateNameForResumed) {
-  // All test cases run with GetPathInDownloadDir(kInitialPath) as the inital
+  // All test cases run with GetPathInDownloadDir(kInitialPath) as the initial
   // path.
   const base::FilePath::CharType kInitialPath[] =
       FILE_PATH_LITERAL("some_path/bar.txt");
@@ -2302,7 +2302,7 @@ TEST_F(DownloadTargetDeterminerTest, IntermediateNameForResumed) {
 
 // Test MIME type determination based on the target filename.
 TEST_F(DownloadTargetDeterminerTest, MIMETypeDetermination) {
-  // All test cases run with GetPathInDownloadDir(kInitialPath) as the inital
+  // All test cases run with GetPathInDownloadDir(kInitialPath) as the initial
   // path.
   const base::FilePath::CharType kInitialPath[] =
       FILE_PATH_LITERAL("some_path/bar.txt");
@@ -2841,7 +2841,7 @@ class DownloadTargetDeterminerTestWithPlugin
 // Check if secure handling of filetypes is determined correctly for PPAPI
 // plugins.
 TEST_F(DownloadTargetDeterminerTestWithPlugin, CheckForSecureHandling_PPAPI) {
-  // All test cases run with GetPathInDownloadDir(kInitialPath) as the inital
+  // All test cases run with GetPathInDownloadDir(kInitialPath) as the initial
   // path.
   const base::FilePath::CharType kInitialPath[] =
       FILE_PATH_LITERAL("some_path/bar.txt");
@@ -2907,7 +2907,7 @@ TEST_F(DownloadTargetDeterminerTestWithPlugin, CheckForSecureHandling_PPAPI) {
 // BrowserPlugins.
 TEST_F(DownloadTargetDeterminerTestWithPlugin,
        CheckForSecureHandling_BrowserPlugin) {
-  // All test cases run with GetPathInDownloadDir(kInitialPath) as the inital
+  // All test cases run with GetPathInDownloadDir(kInitialPath) as the initial
   // path.
   const base::FilePath::CharType kInitialPath[] =
       FILE_PATH_LITERAL("some_path/bar.txt");

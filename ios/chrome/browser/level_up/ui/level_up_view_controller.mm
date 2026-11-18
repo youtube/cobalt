@@ -9,7 +9,7 @@
 #import "ios/chrome/browser/level_up/coordinator/level_up_task.h"
 #import "ios/chrome/browser/level_up/ui/level_up_progress_view.h"
 #import "ios/chrome/browser/level_up/ui/level_up_stat_view.h"
-#import "ios/chrome/browser/level_up/ui/level_up_task_collection_view.h"
+#import "ios/chrome/browser/level_up/ui/level_up_task_collection_view_cell.h"
 #import "ios/chrome/browser/level_up/ui/level_up_welcome_header_view.h"
 #import "ios/chrome/browser/shared/public/commands/level_up_commands.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -49,7 +49,7 @@ const CGFloat kStatCardHeight = 96.0;
 const CGFloat kTasksCellHeight = 350.0;
 }  // namespace
 
-@interface LevelUpViewController () <LevelUpTaskCollectionViewDelegate,
+@interface LevelUpViewController () <LevelUpTaskCollectionViewCellDelegate,
                                      UICollectionViewDelegate>
 @end
 
@@ -79,10 +79,6 @@ const CGFloat kTasksCellHeight = 350.0;
   [self setupContentView];
 }
 
-- (void)setDelegate:(id<LevelUpViewControllerDelegate>)delegate {
-  _delegate = delegate;
-}
-
 #pragma mark - LevelUpConsumer
 
 - (void)setLevel:(NSInteger)level tasksForLevel:(NSArray<LevelUpTask*>*)tasks {
@@ -102,10 +98,14 @@ const CGFloat kTasksCellHeight = 350.0;
   _userAvatar = userAvatar;
 }
 
-#pragma mark - LevelUpTaskCollectionViewDelegate
+#pragma mark - LevelUpTaskCollectionViewCellDelegate
 
 - (void)didTapSeeAllTasks:(UICollectionViewCell*)cell {
   [self.delegate didTapSeeAllTasks:self];
+}
+
+- (void)taskCollectionViewDidTapCompletedHeader:(UICollectionViewCell*)cell {
+  // Collapsible section is not supported on main screen.
 }
 
 #pragma mark - Private
@@ -122,11 +122,11 @@ const CGFloat kTasksCellHeight = 350.0;
 }
 
 // Configures the tasks checklist cell.
-- (void)configureTasksCell:(LevelUpTaskCollectionView*)cell {
+- (void)configureTasksCell:(LevelUpTaskCollectionViewCell*)cell {
   cell.headerTitle = l10n_util::GetNSString(IDS_IOS_LEVEL_UP_YOUR_TASKS);
   cell.showsSeeAllButton = YES;
   cell.delegate = self;
-  [cell setLevel:_level tasksForLevel:_tasks];
+  [cell setTasks:_tasks completedTasks:nil completedExpanded:NO];
 }
 
 // Configures the stat card cell for a given stat item identifier.
@@ -148,7 +148,7 @@ const CGFloat kTasksCellHeight = 350.0;
   self.title = l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_LEVEL_UP);
 
   UIButton* menuButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  menuButton.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
+  menuButton.backgroundColor = UIColor.clearColor;
   menuButton.tintColor = [UIColor colorNamed:kTextPrimaryColor];
   [menuButton setImage:DefaultSymbolTemplateWithPointSize(
                            kEllipsisSymbol, kSymbolAccessoryPointSize)
@@ -159,7 +159,7 @@ const CGFloat kTasksCellHeight = 350.0;
       [[UIBarButtonItem alloc] initWithCustomView:menuButton];
 
   UIButton* dismissButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  dismissButton.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
+  dismissButton.backgroundColor = UIColor.clearColor;
   dismissButton.tintColor = [UIColor colorNamed:kTextPrimaryColor];
   [dismissButton setImage:DefaultSymbolTemplateWithPointSize(
                               kXMarkSymbol, kSymbolAccessoryPointSize)
@@ -226,8 +226,8 @@ const CGFloat kTasksCellHeight = 350.0;
 
   UICollectionViewCellRegistration* tasksRegistration =
       [UICollectionViewCellRegistration
-          registrationWithCellClass:[LevelUpTaskCollectionView class]
-               configurationHandler:^(LevelUpTaskCollectionView* cell,
+          registrationWithCellClass:[LevelUpTaskCollectionViewCell class]
+               configurationHandler:^(LevelUpTaskCollectionViewCell* cell,
                                       NSIndexPath* indexPath,
                                       NSString* itemIdentifier) {
                  __strong __typeof(weakSelf) strongSelf = weakSelf;

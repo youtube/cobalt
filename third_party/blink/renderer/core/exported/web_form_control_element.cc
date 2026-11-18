@@ -163,43 +163,16 @@ void WebFormControlElement::SetAutofillValue(const WebString& value,
     if (!Focused())
       DispatchFocusEvent();
 
-    auto send_event = [local_dom_window =
-                           Unwrap<Element>()->GetDocument().domWindow(),
-                       this](WebInputEvent::Type event_type) {
-      WebKeyboardEvent web_event{event_type, WebInputEvent::kNoModifiers,
-                                 base::TimeTicks::Now()};
-      web_event.dom_key = ui::DomKey::UNIDENTIFIED;
-      web_event.dom_code = static_cast<int>(ui::DomKey::UNIDENTIFIED);
-      web_event.native_key_code = blink::VKEY_UNKNOWN;
-      web_event.windows_key_code = blink::VKEY_UNKNOWN;
-      web_event.text[0] = blink::VKEY_UNKNOWN;
-      web_event.unmodified_text[0] = blink::VKEY_UNKNOWN;
-
-      KeyboardEvent* event = KeyboardEvent::Create(web_event, local_dom_window);
-      Unwrap<Element>()->DispatchScopedEvent(*event);
-    };
-
     // Simulate key events in case the website checks via JS that a keyboard
     // interaction took place.
-    if (base::FeatureList::IsEnabled(
-            blink::features::kAutofillSendUnidentifiedKeyAfterFill)) {
-      send_event(WebInputEvent::Type::kRawKeyDown);
-    } else {
-      Unwrap<Element>()->DispatchScopedEvent(
-          *Event::CreateBubble(event_type_names::kKeydown));
-    }
+    Unwrap<Element>()->DispatchScopedEvent(
+        *Event::CreateBubble(event_type_names::kKeydown));
 
     Unwrap<TextControlElement>()->SetAutofillValue(
         value, value.IsEmpty() ? WebAutofillState::kNotFilled : autofill_state);
 
-    if (base::FeatureList::IsEnabled(
-            blink::features::kAutofillSendUnidentifiedKeyAfterFill)) {
-      send_event(WebInputEvent::Type::kChar);
-      send_event(WebInputEvent::Type::kKeyUp);
-    } else {
-      Unwrap<Element>()->DispatchScopedEvent(
-          *Event::CreateBubble(event_type_names::kKeyup));
-    }
+    Unwrap<Element>()->DispatchScopedEvent(
+        *Event::CreateBubble(event_type_names::kKeyup));
 
     if (!Focused())
       DispatchBlurEvent();

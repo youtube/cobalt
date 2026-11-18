@@ -125,7 +125,7 @@ void GalleryWatchManager::FileWatchManager::AddFileWatch(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // This can occur if the GalleryWatchManager attempts to watch the same path
-  // again before recieving the callback. It's benign.
+  // again before receiving the callback. It's benign.
   if (watchers_.contains(path)) {
     content::GetUIThreadTaskRunner({})->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), false));

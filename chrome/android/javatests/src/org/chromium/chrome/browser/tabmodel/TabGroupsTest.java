@@ -208,7 +208,7 @@ public class TabGroupsTest {
 
         // Wait to enter the tab switcher.
         ChromeTabbedActivity cta = (ChromeTabbedActivity) mActivityTestRule.getActivity();
-        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.TAB_SWITCHER);
+        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.HUB);
 
         InOrder calledInOrder = inOrder(mTabModelObserver);
         ThreadUtils.runOnUiThreadBlocking(

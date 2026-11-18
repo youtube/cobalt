@@ -15,6 +15,7 @@
 #include "base/sequence_checker.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/personal_context/proto/context_memory_service.pb.h"
+#include "url/gurl.h"
 
 namespace network {
 class SharedURLLoaderFactory;
@@ -44,6 +45,12 @@ class PersonalContextManager final {
                     std::optional<base::TimeDelta> timeout,
                     FetchContextCallback callback);
 
+  // Fetches unmasked PII entities for `request`. Invokes `callback` on request
+  // completion.
+  void FetchPiiEntities(const proto::FetchPiiEntitiesRequest& request,
+                        std::optional<base::TimeDelta> timeout,
+                        FetchPiiContextCallback callback);
+
   void Shutdown();
 
  private:
@@ -58,8 +65,17 @@ class PersonalContextManager final {
   void OnFetchContextResponse(
       proto::ContextMemoryFeature feature,
       FetcherId fetcher_id,
+      base::TimeTicks start_time,
       FetchContextCallback callback,
       base::expected<const proto::FetchContextResponse, ContextMemoryError>
+          fetch_response);
+
+  // Invoked when the fetch PII entities result is available.
+  void OnFetchPiiEntitiesResponse(
+      proto::ContextMemoryFeature feature,
+      FetcherId fetcher_id,
+      FetchPiiContextCallback callback,
+      base::expected<const proto::FetchPiiEntitiesResponse, ContextMemoryError>
           fetch_response);
 
   // The next available `FetcherId`. Assigned in increasing order.
@@ -69,11 +85,18 @@ class PersonalContextManager final {
   base::flat_map<proto::ContextMemoryFeature, ActiveFeatureFetchers>
       active_fetchers_;
 
+  // The active PII fetchers per ContextMemoryFeature.
+  base::flat_map<proto::ContextMemoryFeature, ActiveFeatureFetchers>
+      active_pii_fetchers_;
+
   // The URL Loader Factory that will be used by the fetchers.
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
   // Unowned IdentityManager for fetching access tokens.
   const raw_ptr<signin::IdentityManager> identity_manager_;
+
+  // Holds the memory service url.
+  const GURL memory_service_url_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

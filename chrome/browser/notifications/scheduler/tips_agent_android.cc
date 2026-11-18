@@ -8,12 +8,13 @@
 #include "chrome/browser/notifications/scheduler/public/notification_entry.h"
 #include "chrome/browser/notifications/scheduler/public/notification_params.h"
 #include "chrome/browser/notifications/scheduler/public/notification_schedule_service.h"
-#include "chrome/browser/notifications/scheduler/public/tips_prefs.h"
-#include "chrome/browser/notifications/scheduler/public/tips_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/segmentation_platform/segmentation_platform_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/tips/core/tips_prefs.h"
+#include "chrome/browser/tips/core/tips_types.h"
+#include "chrome/browser/tips/core/tips_utils.h"
 #include "components/browsing_data/core/pref_names.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/prefs/pref_service.h"
@@ -32,26 +33,25 @@ using base::android::ScopedJavaLocalRef;
 
 namespace {
 
-notifications::TipsNotificationsFeatureType GetFeatureType(
-    const std::string& label) {
+tips::TipsNotificationsFeatureType GetFeatureType(const std::string& label) {
   if (label == segmentation_platform::kEnhancedSafeBrowsing) {
-    return notifications::TipsNotificationsFeatureType::kEnhancedSafeBrowsing;
+    return tips::TipsNotificationsFeatureType::kEnhancedSafeBrowsing;
   } else if (label == segmentation_platform::kQuickDelete) {
-    return notifications::TipsNotificationsFeatureType::kQuickDelete;
+    return tips::TipsNotificationsFeatureType::kQuickDelete;
   } else if (label == segmentation_platform::kGoogleLens) {
-    return notifications::TipsNotificationsFeatureType::kGoogleLens;
+    return tips::TipsNotificationsFeatureType::kGoogleLens;
   } else if (label == segmentation_platform::kBottomOmnibox) {
-    return notifications::TipsNotificationsFeatureType::kBottomOmnibox;
+    return tips::TipsNotificationsFeatureType::kBottomOmnibox;
   } else if (label == segmentation_platform::kPasswordAutofill) {
-    return notifications::TipsNotificationsFeatureType::kPasswordAutofill;
+    return tips::TipsNotificationsFeatureType::kPasswordAutofill;
   } else if (label == segmentation_platform::kSignin) {
-    return notifications::TipsNotificationsFeatureType::kSignin;
+    return tips::TipsNotificationsFeatureType::kSignin;
   } else if (label == segmentation_platform::kCreateTabGroups) {
-    return notifications::TipsNotificationsFeatureType::kCreateTabGroups;
+    return tips::TipsNotificationsFeatureType::kCreateTabGroups;
   } else if (label == segmentation_platform::kCustomizeMVT) {
-    return notifications::TipsNotificationsFeatureType::kCustomizeMVT;
+    return tips::TipsNotificationsFeatureType::kCustomizeMVT;
   } else if (label == segmentation_platform::kRecentTabs) {
-    return notifications::TipsNotificationsFeatureType::kRecentTabs;
+    return tips::TipsNotificationsFeatureType::kRecentTabs;
   } else {
     NOTREACHED();
   }
@@ -90,13 +90,13 @@ void TipsAgentAndroid::RunGetClassificationResultCallback(
   }
 
   const std::string& action_label = result.ordered_labels[0];
-  notifications::TipsNotificationsFeatureType feature_type =
+  tips::TipsNotificationsFeatureType feature_type =
       GetFeatureType(action_label);
 
   notifications::ScheduleParams schedule_params = GetCurrentScheduleParams();
 
   notifications::NotificationData data =
-      notifications::GetTipsNotificationData(feature_type);
+      tips::GetTipsNotificationData(feature_type);
   service->Schedule(std::make_unique<notifications::NotificationParams>(
       notifications::SchedulerClientType::kTips, std::move(data),
       std::move(schedule_params)));
@@ -149,28 +149,28 @@ void TipsAgentAndroid::ScheduleNewNotification(
       segmentation_platform::processing::ProcessedValue(
           bottom_omnibox_ever_used));
 
-  bool enhanced_safe_browsing_tip_shown = pref_service->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownESB);
+  bool enhanced_safe_browsing_tip_shown =
+      pref_service->GetBoolean(tips::prefs::kAndroidTipNotificationShownESB);
   input_context->metadata_args.emplace(
       segmentation_platform::kEnhancedSafeBrowsingTipShown,
       segmentation_platform::processing::ProcessedValue(
           enhanced_safe_browsing_tip_shown));
 
   bool quick_delete_tip_shown = pref_service->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownQuickDelete);
+      tips::prefs::kAndroidTipNotificationShownQuickDelete);
   input_context->metadata_args.emplace(
       segmentation_platform::kQuickDeleteTipShown,
       segmentation_platform::processing::ProcessedValue(
           quick_delete_tip_shown));
 
-  bool google_lens_tip_shown = pref_service->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownLens);
+  bool google_lens_tip_shown =
+      pref_service->GetBoolean(tips::prefs::kAndroidTipNotificationShownLens);
   input_context->metadata_args.emplace(
       segmentation_platform::kGoogleLensTipShown,
       segmentation_platform::processing::ProcessedValue(google_lens_tip_shown));
 
   bool bottom_omnibox_tip_shown = pref_service->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownBottomOmnibox);
+      tips::prefs::kAndroidTipNotificationShownBottomOmnibox);
   input_context->metadata_args.emplace(
       segmentation_platform::kBottomOmniboxTipShown,
       segmentation_platform::processing::ProcessedValue(
@@ -187,34 +187,34 @@ void TipsAgentAndroid::ScheduleNewNotification(
           is_user_signed_in));
 
   bool password_autofill_tip_shown = pref_service->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownPasswordAutofill);
+      tips::prefs::kAndroidTipNotificationShownPasswordAutofill);
   input_context->metadata_args.emplace(
       segmentation_platform::kPasswordAutofillTipShown,
       segmentation_platform::processing::ProcessedValue(
           password_autofill_tip_shown));
 
-  bool signin_tip_shown = pref_service->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownSignin);
+  bool signin_tip_shown =
+      pref_service->GetBoolean(tips::prefs::kAndroidTipNotificationShownSignin);
   input_context->metadata_args.emplace(
       segmentation_platform::kSigninTipShown,
       segmentation_platform::processing::ProcessedValue(signin_tip_shown));
 
   bool create_tab_groups_tip_shown = pref_service->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownCreateTabGroups);
+      tips::prefs::kAndroidTipNotificationShownCreateTabGroups);
   input_context->metadata_args.emplace(
       segmentation_platform::kCreateTabGroupsTipShown,
       segmentation_platform::processing::ProcessedValue(
           create_tab_groups_tip_shown));
 
   bool customize_mvt_tip_shown = pref_service->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownCustomizeMVT);
+      tips::prefs::kAndroidTipNotificationShownCustomizeMVT);
   input_context->metadata_args.emplace(
       segmentation_platform::kCustomizeMVTTipShown,
       segmentation_platform::processing::ProcessedValue(
           customize_mvt_tip_shown));
 
   bool recent_tabs_tip_shown = pref_service->GetBoolean(
-      notifications::tips::prefs::kAndroidTipNotificationShownRecentTabs);
+      tips::prefs::kAndroidTipNotificationShownRecentTabs);
   input_context->metadata_args.emplace(
       segmentation_platform::kRecentTabsTipShown,
       segmentation_platform::processing::ProcessedValue(recent_tabs_tip_shown));
@@ -258,7 +258,7 @@ TipsAgentAndroid::TipsAgentAndroid() = default;
 TipsAgentAndroid::~TipsAgentAndroid() = default;
 
 void TipsAgentAndroid::ShowTipsPromo(
-    notifications::TipsNotificationsFeatureType feature_type) {
+    tips::TipsNotificationsFeatureType feature_type) {
   JNIEnv* env = jni_zero::AttachCurrentThread();
   Java_TipsAgent_showTipsPromo(env, static_cast<int32_t>(feature_type));
 }

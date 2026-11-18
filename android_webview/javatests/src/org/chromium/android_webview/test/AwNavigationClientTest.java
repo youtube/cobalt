@@ -465,8 +465,8 @@ public class AwNavigationClientTest extends AwParameterizedTest {
         mActivityTestRule.loadUrlAsync(awContents, url);
         latch2.countDown();
 
-        // The second navigation is ignored, so we only wait for the first one to finish.
-        mContentsClient.getOnPageFinishedHelper().waitForCallback(onPageFinishedCallCount, 1);
+        // The second navigation is ignored, but we still expect onPageFinished to be called for it.
+        mContentsClient.getOnPageFinishedHelper().waitForCallback(onPageFinishedCallCount, 2);
 
         // onPageStarted is called only once, and the server received only one request.
         Assert.assertEquals(

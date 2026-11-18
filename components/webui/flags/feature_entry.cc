@@ -28,7 +28,7 @@ const char kGenericExperimentChoiceEnabled[] = "Enabled";
 const char kGenericExperimentChoiceDisabled[] = "Disabled";
 const char kGenericExperimentChoiceAutomatic[] = "Automatic";
 
-bool FeatureEntry::InternalNameMatches(const std::string& name) const {
+bool FeatureEntry::InternalNameMatches(std::string_view name) const {
   if (!base::StartsWith(name, internal_name, base::CompareCase::SENSITIVE)) {
     return false;
   }

@@ -738,7 +738,7 @@ TEST(RSATest, BadExponent) {
   ERR_clear_error();
 }
 
-// Attempting to generate an funny RSA key length should round down.
+// Attempting to generate a funny RSA key length should round down.
 TEST(RSATest, RoundKeyLengths) {
   UniquePtr<BIGNUM> e(BN_new());
   ASSERT_TRUE(e);
@@ -1392,8 +1392,9 @@ TEST(RSATest, LargeE) {
   static const uint8_t kDigest[32] = {0};
   std::vector<uint8_t> sig(RSA_size(priv.get()));
   size_t len;
-  EXPECT_FALSE(RSA_sign_pss_mgf1(priv.get(), &len, sig.data(), sig.size(), kDigest,
-                                 sizeof(kDigest), EVP_sha256(), EVP_sha256(),
+  EXPECT_FALSE(RSA_sign_pss_mgf1(priv.get(), &len, sig.data(), sig.size(),
+                                 kDigest, sizeof(kDigest), EVP_sha256(),
+                                 EVP_sha256(),
                                  /*salt_len=*/32));
 
   // But the "large e" APIs tolerate it.

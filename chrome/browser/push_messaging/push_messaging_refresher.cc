@@ -37,7 +37,7 @@ void PushMessagingRefresher::Refresh(
   // Insert is as current started refresh
   old_subscriptions_.emplace(new_app_id, refresh_object);
   refresh_map_.emplace(old_app_identifier.app_id(), new_app_id);
-  // TODO(viviy): Save old_subscription in a seperate map in preferences, so
+  // TODO(viviy): Save old_subscription in a separate map in preferences, so
   // that in case of a browser shutdown the subscription is remembered.
   // Unsubscribe on next startup.
 }

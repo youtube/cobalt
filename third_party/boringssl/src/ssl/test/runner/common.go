@@ -1276,7 +1276,7 @@ type ProtocolBugs struct {
 	EmptyTicketSessionID bool
 
 	// NewSessionIDLength, if non-zero is the length of the session ID to use
-	// when issung new sessions.
+	// when issuing new sessions.
 	NewSessionIDLength int
 
 	// SendClientHelloSessionID, if not nil, is the session ID sent in the
@@ -2042,7 +2042,7 @@ type ProtocolBugs struct {
 	// extension to indicate a match.
 	SendNonEmptyTrustAnchorMatch bool
 
-	// AlwaysSendAvailableTrustAnchors, if true, causese the server to always
+	// AlwaysSendAvailableTrustAnchors, if true, causes the server to always
 	// send available trust anchors in EncryptedExtensions, even if unsolicited.
 	AlwaysSendAvailableTrustAnchors bool
 

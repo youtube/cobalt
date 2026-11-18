@@ -24,7 +24,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_info_provider.h"
-#include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_discovery_task.h"
+#include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_check_and_prepare_task.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_manager.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest_fetcher.h"
@@ -159,7 +159,7 @@ class IwaInternalsHandler::IwaManifestInstallUpdateHandler
     // For now, we do not enable setting pinned_version field via iwa internals.
     // By not setting `pinned_version` argument, discovery task defaults to
     // searching for the latest available version on current update channel.
-    provider_->isolated_web_app_update_manager().DiscoverUpdatesForApp(
+    provider_->isolated_web_app_update_manager().DiscoverAndPrepareUpdate(
         *IsolatedWebAppUrlInfo::Create(iwa->scope()),
         *isolation_data.update_manifest_url(),
         /*update_channel=*/
@@ -170,22 +170,25 @@ class IwaInternalsHandler::IwaManifestInstallUpdateHandler
   }
 
   // IsolatedWebAppUpdateManager::Observer:
-  void OnUpdateDiscoveryTaskCompleted(
+  void OnUpdateDiscoverAndPrepareTaskCompleted(
       const webapps::AppId& app_id,
-      IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status) override {
+      IsolatedWebAppUpdateCheckAndPrepareTask::CompletionStatus status)
+      override {
     if (status.has_value()) {
       switch (*status) {
-        case IsolatedWebAppUpdateDiscoveryTask::Success::
+        case IsolatedWebAppUpdateCheckAndPrepareTask::Success::
             kUpdateFoundAndSavedInDatabase:
-        case IsolatedWebAppUpdateDiscoveryTask::Success::
+        case IsolatedWebAppUpdateCheckAndPrepareTask::Success::
             kPinnedVersionUpdateFoundAndSavedInDatabase:
-        case IsolatedWebAppUpdateDiscoveryTask::Success::
+        case IsolatedWebAppUpdateCheckAndPrepareTask::Success::
             kDowngradeVersionFoundAndSavedInDatabase:
           // An update has been found and is now pending. Return and wait for
           // OnUpdateApplyTaskCompleted to be called.
           return;
-        case IsolatedWebAppUpdateDiscoveryTask::Success::kNoUpdateFound:
-        case IsolatedWebAppUpdateDiscoveryTask::Success::kUpdateAlreadyPending:
+        case IsolatedWebAppUpdateCheckAndPrepareTask::Success::kNoUpdateFound:
+        case IsolatedWebAppUpdateCheckAndPrepareTask::Success::
+            kUpdateAlreadyPending:
+        case IsolatedWebAppUpdateCheckAndPrepareTask::Success::kUpdateFound:
           // No update will be applied, so we can proceed to call the callback.
           break;
       }
@@ -199,7 +202,8 @@ class IwaInternalsHandler::IwaManifestInstallUpdateHandler
     } else {
       std::move(callback).Run(
           "Update failed: " +
-          IsolatedWebAppUpdateDiscoveryTask::ErrorToString(status.error()));
+          IsolatedWebAppUpdateCheckAndPrepareTask::ErrorToString(
+              status.error()));
     }
   }
 
@@ -446,8 +450,8 @@ void IwaInternalsHandler::SearchForIsolatedWebAppUpdates(
     return;
   }
 
-  size_t queued_task_count =
-      provider->isolated_web_app_update_manager().DiscoverUpdatesNow();
+  size_t queued_task_count = provider->isolated_web_app_update_manager()
+                                 .DiscoverAndPrepareUpdatesNow();
   std::move(callback).Run(base::StringPrintf(
       "queued %zu update discovery tasks", queued_task_count));
 }

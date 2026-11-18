@@ -34,6 +34,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -64,17 +65,23 @@ import org.chromium.chrome.browser.media.FullscreenVideoPictureInPictureControll
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.BottomContainer;
 import org.chromium.chrome.browser.ui.RootUiCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuPropertiesDelegate;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.dom_distiller.core.DomDistillerUrlUtilsJni;
+import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.components.ukm.UkmRecorderJni;
+import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.TestActivity;
@@ -92,6 +99,9 @@ public class ChromeActivityUnitTest {
     @Mock TabModel mTabModel;
     @Mock Profile mProfile;
     @Mock Tab mActivityTab;
+    @Mock TabModelSelector mTabModelSelector;
+    @Mock TabCreator mTabCreator;
+    @Mock SettingsNavigation mSettingsNavigation;
     @Mock ReadAloudController mReadAloudController;
     @Mock ReaderModeManager mReaderModeManager;
     @Mock FullscreenVideoPictureInPictureController mFullscreenVideoPictureInPictureController;
@@ -425,5 +435,46 @@ public class ChromeActivityUnitTest {
         doReturn(true).when(chromeActivity).isInOverviewMode();
         chromeActivity.exitOverviewModeOnActorPiPExpand();
         verify(mLayoutManagerMock).showLayout(eq(LayoutType.BROWSING), eq(false));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.SETTINGS_IN_TAB)
+    public void testPreferencesMenuItem_SettingsInTabEnabled() {
+        TestChromeActivity chromeActivity = Mockito.spy(new TestChromeActivity());
+
+        doReturn(mActivityTab).when(chromeActivity).getActivityTab();
+        doReturn(mTabModel).when(chromeActivity).getCurrentTabModel();
+        doReturn(mTabCreator).when(chromeActivity).getTabCreator(eq(false));
+
+        when(mTabModel.getProfile()).thenReturn(mProfile);
+        when(mProfile.isOffTheRecord()).thenReturn(false);
+
+        assertTrue(
+                chromeActivity.onMenuOrKeyboardAction(R.id.preferences_id, /* fromMenu= */ true));
+
+        // Verify that createNewTab was called with the settings URL.
+        ArgumentCaptor<LoadUrlParams> paramsCaptor = ArgumentCaptor.forClass(LoadUrlParams.class);
+        verify(mTabCreator)
+                .createNewTab(
+                        paramsCaptor.capture(), eq(TabLaunchType.FROM_CHROME_UI), eq(mActivityTab));
+        assertEquals(UrlConstants.SETTINGS_URL, paramsCaptor.getValue().getUrl());
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.SETTINGS_IN_TAB)
+    public void testPreferencesMenuItem_SettingsInTabDisabled() {
+        TestChromeActivity chromeActivity = Mockito.spy(new TestChromeActivity());
+
+        doReturn(mTabModel).when(chromeActivity).getCurrentTabModel();
+        when(mTabModel.getProfile()).thenReturn(mProfile);
+        when(mProfile.isOffTheRecord()).thenReturn(false);
+
+        SettingsNavigationFactory.setInstanceForTesting(mSettingsNavigation);
+
+        assertTrue(
+                chromeActivity.onMenuOrKeyboardAction(R.id.preferences_id, /* fromMenu= */ true));
+
+        // Verify that the standard settings activity was launched.
+        verify(mSettingsNavigation).startSettings(chromeActivity);
     }
 }

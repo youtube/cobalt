@@ -25,7 +25,7 @@ class ContentAutofillClient;
 class Iban;
 class LoyaltyCard;
 struct Suggestion;
-class TouchToFillDelegate;
+class TouchToFillPaymentMethodDelegate;
 class TouchToFillPaymentMethodView;
 
 // Controller of the bottom sheet surface for filling credit card, IBAN or
@@ -45,15 +45,16 @@ class TouchToFillPaymentMethodController
   // shown.
   virtual bool ShowPaymentMethods(
       std::unique_ptr<TouchToFillPaymentMethodView> view,
-      base::WeakPtr<TouchToFillDelegate> delegate,
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
       base::span<const Suggestion> suggestions) = 0;
 
   // Shows the Touch To Fill `view`. `delegate` will provide the fillable IBANs
   // and be notified of the user's decision. Returns whether the surface was
   // successfully shown.
-  virtual bool ShowIbans(std::unique_ptr<TouchToFillPaymentMethodView> view,
-                         base::WeakPtr<TouchToFillDelegate> delegate,
-                         base::span<const Iban> ibans_to_suggest) = 0;
+  virtual bool ShowIbans(
+      std::unique_ptr<TouchToFillPaymentMethodView> view,
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
+      base::span<const Iban> ibans_to_suggest) = 0;
 
   // Shows the Touch To Fill `view`. `delegate` will provide the fillable
   // affiliated loyalty cards and be notified of the user's decision.
@@ -62,7 +63,7 @@ class TouchToFillPaymentMethodController
   // successfully shown.
   virtual bool ShowAffiliatedLoyaltyCards(
       std::unique_ptr<TouchToFillPaymentMethodView> view,
-      base::WeakPtr<TouchToFillDelegate> delegate,
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
       base::span<const LoyaltyCard> affiliated_loyalty_cards,
       base::span<const LoyaltyCard> all_loyalty_cards,
       bool first_time_usage) = 0;
@@ -71,7 +72,7 @@ class TouchToFillPaymentMethodController
   // fillable loyalty cards and be notified of the user's decision.
   virtual bool ShowAllLoyaltyCards(
       std::unique_ptr<TouchToFillPaymentMethodView> view,
-      base::WeakPtr<TouchToFillDelegate> delegate,
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
       base::span<const LoyaltyCard> all_loyalty_cards) = 0;
 
   // If the user is on the credit card suggestion screen and amount extraction

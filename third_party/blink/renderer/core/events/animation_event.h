@@ -32,6 +32,7 @@
 namespace blink {
 
 class AnimationEventInit;
+class Animation;
 
 class AnimationEvent final : public Event {
   DEFINE_WRAPPERTYPEINFO();
@@ -43,9 +44,10 @@ class AnimationEvent final : public Event {
   static AnimationEvent* Create(const AtomicString& type,
                                 const String& animation_name,
                                 const AnimationTimeDelta& elapsed_time,
-                                const String& pseudo_element) {
-    return MakeGarbageCollected<AnimationEvent>(type, animation_name,
-                                                elapsed_time, pseudo_element);
+                                const String& pseudo_element,
+                                Animation* animation) {
+    return MakeGarbageCollected<AnimationEvent>(
+        type, animation_name, elapsed_time, pseudo_element, animation);
   }
   static AnimationEvent* Create(const AtomicString& type,
                                 const AnimationEventInit* initializer) {
@@ -56,13 +58,15 @@ class AnimationEvent final : public Event {
   AnimationEvent(const AtomicString& type,
                  const String& animation_name,
                  const AnimationTimeDelta& elapsed_time,
-                 const String& pseudo_element);
+                 const String& pseudo_element,
+                 Animation* animation);
   AnimationEvent(const AtomicString&, const AnimationEventInit*);
   ~AnimationEvent() override;
 
   const String& animationName() const;
   double elapsedTime() const;
   const String& pseudoElement() const;
+  Animation* animation() const;
 
   CSSPseudoElement* pseudoTarget() const { return Event::pseudoTarget(); }
 
@@ -74,6 +78,7 @@ class AnimationEvent final : public Event {
   String animation_name_;
   AnimationTimeDelta elapsed_time_;
   String pseudo_element_;
+  Member<Animation> animation_;
 };
 
 }  // namespace blink

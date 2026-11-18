@@ -7,6 +7,7 @@
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/numerics/safe_conversions.h"
 #include "build/build_config.h"
 #include "media/base/cdm_context.h"
 #include "media/gpu/macros.h"
@@ -365,6 +366,15 @@ DecodeStatus H265VaapiVideoDecoderDelegate::SubmitSlice(
 #define SHDR_TO_SP_LSF(a) slice_param_.LongSliceFlags.fields.a = slice_hdr->a
 #define SHDR_TO_SP_LSF2(a, b) \
   slice_param_.LongSliceFlags.fields.a = slice_hdr->b
+#define CHECKED_SHDR_TO_SP2(SRC, DEST, ERR)                               \
+  do {                                                                    \
+    using dest_type = std::decay_t<decltype(slice_param_.DEST)>;          \
+    if (!base::IsValueInRangeForNumericType<dest_type>(slice_hdr->SRC)) { \
+      return (ERR);                                                       \
+    }                                                                     \
+    SHDR_TO_SP2(SRC, DEST);                                               \
+  } while (0)
+
   SHDR_TO_SP(slice_segment_address);
   const auto ref_pic_list0_size = ref_pic_list0.size();
   const auto ref_pic_list1_size = ref_pic_list1.size();
@@ -435,40 +445,69 @@ DecodeStatus H265VaapiVideoDecoderDelegate::SubmitSlice(
   SHDR_TO_SP2(pred_weight_table.delta_chroma_log2_weight_denom,
               delta_chroma_log2_weight_denom);
   for (int i = 0; i < kMaxRefIdxActive; ++i) {
+    // VAAPI headers use the wrong bit-depth for a few fields:
+    //  field                                   | required | actual
+    //  VASliceParametBufferHEVC.luma_offset_l0 | uint16   | uint8
+    //  VASliceParametBufferHEVC.luma_offset_l1 | uint16   | uint8
+    //  VASliceParametBufferHEVC.ChromaOffsetL0 | uint16   | uint8
+    //  VASliceParametBufferHEVC.ChromaOffsetL1 | uint16   | uint8
+    // Likely due to spec changes adding support for high-bit-depth content
+    // that was just never added to VAAPI. We have to verify that these values
+    // are within acceptable ranges for the vaapi driver, otherwise playback
+    // isn't possible. This likely means that some high-bit-depth content that
+    // is valid just can't be played through VAAPI.
+
     UNSAFE_TODO(SHDR_TO_SP2(pred_weight_table.delta_luma_weight_l0[i],
                             delta_luma_weight_l0[i]));
-    UNSAFE_TODO(
-        SHDR_TO_SP2(pred_weight_table.luma_offset_l0[i], luma_offset_l0[i]));
+
+    UNSAFE_TODO(CHECKED_SHDR_TO_SP2(pred_weight_table.luma_offset_l0[i],
+                                    luma_offset_l0[i], DecodeStatus::kFail));
     if (slice_hdr->IsBSlice()) {
       UNSAFE_TODO(SHDR_TO_SP2(pred_weight_table.delta_luma_weight_l1[i],
                               delta_luma_weight_l1[i]));
-      UNSAFE_TODO(
-          SHDR_TO_SP2(pred_weight_table.luma_offset_l1[i], luma_offset_l1[i]));
+      UNSAFE_TODO(CHECKED_SHDR_TO_SP2(pred_weight_table.luma_offset_l1[i],
+                                      luma_offset_l1[i], DecodeStatus::kFail));
     }
     for (int j = 0; j < 2; ++j) {
-      UNSAFE_TODO(SHDR_TO_SP2(pred_weight_table.delta_chroma_weight_l0[i][j],
-                              delta_chroma_weight_l0[i][j]));
+      UNSAFE_TODO(CHECKED_SHDR_TO_SP2(
+          pred_weight_table.delta_chroma_weight_l0[i][j],
+          delta_chroma_weight_l0[i][j], DecodeStatus::kFail));
       int chroma_weight_l0 =
           (1 << slice_hdr->pred_weight_table.chroma_log2_weight_denom) +
           slice_hdr->pred_weight_table.delta_chroma_weight_l0[i][j];
-      UNSAFE_TODO(slice_param_.ChromaOffsetL0[i][j]) =
+      int chroma_offset_l0 =
           Clip3(-sps->wp_offset_half_range_c, sps->wp_offset_half_range_c - 1,
                 (sps->wp_offset_half_range_c +
                  slice_hdr->pred_weight_table.delta_chroma_offset_l0[i][j] -
                  ((sps->wp_offset_half_range_c * chroma_weight_l0) >>
                   slice_hdr->pred_weight_table.chroma_log2_weight_denom)));
+      using chroma_offset_l0_type =
+          std::decay_t<decltype(slice_param_.ChromaOffsetL0[i][j])>;
+      if (!base::IsValueInRangeForNumericType<chroma_offset_l0_type>(
+              chroma_offset_l0)) {
+        return DecodeStatus::kFail;
+      }
+      UNSAFE_TODO(slice_param_.ChromaOffsetL0[i][j]) = chroma_offset_l0;
       if (slice_hdr->IsBSlice()) {
-        UNSAFE_TODO(SHDR_TO_SP2(pred_weight_table.delta_chroma_weight_l1[i][j],
-                                delta_chroma_weight_l1[i][j]));
+        UNSAFE_TODO(CHECKED_SHDR_TO_SP2(
+            pred_weight_table.delta_chroma_weight_l1[i][j],
+            delta_chroma_weight_l1[i][j], DecodeStatus::kFail));
         int chroma_weight_l1 =
             (1 << slice_hdr->pred_weight_table.chroma_log2_weight_denom) +
             slice_hdr->pred_weight_table.delta_chroma_weight_l1[i][j];
-        UNSAFE_TODO(slice_param_.ChromaOffsetL1[i][j]) =
+        int chroma_offset_l1 =
             Clip3(-sps->wp_offset_half_range_c, sps->wp_offset_half_range_c - 1,
                   (sps->wp_offset_half_range_c +
                    slice_hdr->pred_weight_table.delta_chroma_offset_l1[i][j] -
                    ((sps->wp_offset_half_range_c * chroma_weight_l1) >>
                     slice_hdr->pred_weight_table.chroma_log2_weight_denom)));
+        using chroma_offset_l1_type =
+            std::decay_t<decltype(slice_param_.ChromaOffsetL1[i][j])>;
+        if (!base::IsValueInRangeForNumericType<chroma_offset_l1_type>(
+                chroma_offset_l1)) {
+          return DecodeStatus::kFail;
+        }
+        UNSAFE_TODO(slice_param_.ChromaOffsetL1[i][j]) = chroma_offset_l1;
       }
     }
   }

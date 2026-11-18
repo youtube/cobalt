@@ -23,7 +23,7 @@ BatchedProxyIPCSender::BatchedProxyIPCSender(
     const std::optional<base::UnguessableToken>& navigation_metrics_token)
     : root_proxy_host_(root_proxy),
       navigation_metrics_token_(navigation_metrics_token) {
-  DCHECK(!root_proxy->frame_tree_node()->parent());
+  CHECK(!root_proxy->frame_tree_node()->parent(), base::NotFatalUntil::M152);
 }
 
 BatchedProxyIPCSender::~BatchedProxyIPCSender() {}

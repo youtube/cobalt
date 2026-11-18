@@ -62,7 +62,6 @@ DECLARE_PRINTER(feedwire, ViewDemotionProfile)
 DECLARE_PRINTER(feedwire, Table)
 DECLARE_PRINTER(feedwire, Table::Column)
 DECLARE_PRINTER(feedwire, ClientUserProfiles)
-DECLARE_PRINTER(feedxsurface, WebFeedFollowState)
 
 #undef DECLARE_PRINTER
 

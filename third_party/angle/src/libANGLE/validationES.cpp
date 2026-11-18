@@ -560,37 +560,6 @@ bool IsBlitSameResource(const FramebufferAttachment *read, const FramebufferAtta
     return false;
 }
 
-const char *ValidateProgramDrawAdvancedBlendState(const Context *context,
-                                                  const ProgramExecutable &executable)
-{
-    const State &state                                 = context->getState();
-    const BlendEquationBitSet &supportedBlendEquations = executable.getAdvancedBlendEquations();
-    const DrawBufferMask &enabledDrawBufferMask        = state.getBlendStateExt().getEnabledMask();
-
-    // Zero (default) means everything is BlendEquationType::Add, so check can be skipped
-    if (ANGLE_UNLIKELY(state.getBlendStateExt().getEquationColorBits() != 0))
-    {
-        for (size_t blendEnabledBufferIndex : enabledDrawBufferMask)
-        {
-            const gl::BlendEquationType enabledBlendEquation =
-                state.getBlendStateExt().getEquationColorIndexed(blendEnabledBufferIndex);
-
-            if (enabledBlendEquation < gl::BlendEquationType::Multiply ||
-                enabledBlendEquation > gl::BlendEquationType::HslLuminosity)
-            {
-                continue;
-            }
-
-            if (!supportedBlendEquations.test(enabledBlendEquation))
-            {
-                return gl::err::kBlendEquationNotEnabled;
-            }
-        }
-    }
-
-    return nullptr;
-}
-
 ANGLE_INLINE GLenum ShPixelLocalStorageFormatToGLenum(ShPixelLocalStorageFormat format)
 {
     switch (format)
@@ -748,15 +717,21 @@ ANGLE_INLINE const char *ValidateProgramDrawStates(const Context *context,
         }
     }
 
-    // Enabled blend equation validation
-    const char *errorString = nullptr;
-
-    if (extensions.blendEquationAdvancedKHR || context->getClientVersion() >= ES_3_2)
+    // Validate that executable is compatible with the advanced blending equation.
+    if (ANGLE_UNLIKELY(state.getBlendStateExt().getUsesAdvancedBlendEquationMask()[0] &&
+                       state.getBlendStateExt().getEnabledMask()[0]))
     {
-        errorString = ValidateProgramDrawAdvancedBlendState(context, executable);
+        const BlendEquationType equation = state.getBlendStateExt().getEquationColorIndexed(0);
+        ASSERT(equation >= BlendEquationType::Multiply &&
+               equation <= BlendEquationType::HslLuminosity);
+
+        if (!executable.getAdvancedBlendEquations().test(equation))
+        {
+            return kAdvancedBlendEquationNotEnabled;
+        }
     }
 
-    return errorString;
+    return nullptr;
 }
 }  // anonymous namespace
 
@@ -2316,11 +2291,6 @@ bool ValidateDeleteQueriesEXT(const Context *context,
                               const QueryID *ids)
 {
     return ValidateGenOrDelete(context->getMutableErrorSetForValidation(), entryPoint, n, ids);
-}
-
-bool ValidateIsQueryEXT(const Context *context, angle::EntryPoint entryPoint, QueryID id)
-{
-    return true;
 }
 
 bool ValidateBeginQueryBase(const Context *context,
@@ -4086,27 +4056,26 @@ const char *ValidateDrawStates(const Context *context, GLenum *outErrorCode)
         }
     }
 
-    // Advanced blend equation can only be enabled for a single render target.
+    // Advanced blend equation can only be enabled for color attachment zero and with only that
+    // attachment enabled.
     const BlendStateExt &blendStateExt = state.getBlendStateExt();
-    if (ANGLE_UNLIKELY(blendStateExt.getUsesAdvancedBlendEquationMask().any()))
+    const gl::DrawBufferMask drawBuffersWithAdvancedBlend =
+        blendStateExt.getUsesAdvancedBlendEquationMask() & blendStateExt.getEnabledMask();
+    if (ANGLE_UNLIKELY(drawBuffersWithAdvancedBlend.any()))
     {
+        // Note: Framebuffer::getDrawBufferMask() excludes non-existing draw buffers.  But if
+        // glDrawBuffers sets them to non-NONE, draw with advanced blend is still expected to fail.
+        // So we can't do a quick check with getDrawBufferMask() alone.
         const size_t drawBufferCount            = framebuffer->getDrawbufferStateCount();
-        uint32_t advancedBlendRenderTargetCount = 0;
-
-        for (size_t drawBufferIndex : blendStateExt.getUsesAdvancedBlendEquationMask())
+        const bool advancedBlendOnDrawBufferZero =
+            drawBuffersWithAdvancedBlend[0] && framebuffer->getDrawBufferState(0) != GL_NONE;
+        for (size_t drawBufferIndex = 1; drawBufferIndex < drawBufferCount; ++drawBufferIndex)
         {
-            if (drawBufferIndex < drawBufferCount &&
-                framebuffer->getDrawBufferState(drawBufferIndex) != GL_NONE &&
-                blendStateExt.getEnabledMask().test(drawBufferIndex) &&
-                blendStateExt.getUsesAdvancedBlendEquationMask().test(drawBufferIndex))
+            if (framebuffer->getDrawBufferState(drawBufferIndex) != GL_NONE &&
+                (advancedBlendOnDrawBufferZero || drawBuffersWithAdvancedBlend[drawBufferIndex]))
             {
-                ++advancedBlendRenderTargetCount;
+                return kAdvancedBlendEquationWithMRT;
             }
-        }
-
-        if (advancedBlendRenderTargetCount > 1)
-        {
-            return kAdvancedBlendEquationWithMRT;
         }
     }
 
@@ -4719,14 +4688,6 @@ bool ValidateDiscardFramebufferBase(const Context *context,
         }
     }
 
-    return true;
-}
-
-bool ValidateInsertEventMarkerEXT(const Context *context,
-                                  angle::EntryPoint entryPoint,
-                                  GLsizei length,
-                                  const char *marker)
-{
     return true;
 }
 

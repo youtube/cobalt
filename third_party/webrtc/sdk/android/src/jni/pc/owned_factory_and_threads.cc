@@ -11,6 +11,7 @@
 #include "sdk/android/src/jni/pc/owned_factory_and_threads.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "api/environment/environment.h"
@@ -29,11 +30,11 @@ OwnedFactoryAndThreads::OwnedFactoryAndThreads(
     std::unique_ptr<Thread> signaling_thread,
     const Environment& env,
     const scoped_refptr<PeerConnectionFactoryInterface>& factory)
-    : socket_factory_(std::move(socket_factory)),
-      network_thread_(std::move(network_thread)),
-      worker_thread_(std::move(worker_thread)),
+    : env_(env),
+      socket_factory_(std::move(socket_factory)),
       signaling_thread_(std::move(signaling_thread)),
-      env_(env),
+      worker_thread_(std::move(worker_thread)),
+      network_thread_(std::move(network_thread)),
       factory_(factory) {}
 
 OwnedFactoryAndThreads::OwnedFactoryAndThreads(
@@ -42,11 +43,11 @@ OwnedFactoryAndThreads::OwnedFactoryAndThreads(
     std::unique_ptr<Thread> worker_thread,
     std::unique_ptr<Thread> signaling_thread,
     const scoped_refptr<PeerConnectionFactoryInterface>& factory)
-    : socket_factory_(std::move(socket_factory)),
-      network_thread_(std::move(network_thread)),
-      worker_thread_(std::move(worker_thread)),
+    : env_(std::nullopt),
+      socket_factory_(std::move(socket_factory)),
       signaling_thread_(std::move(signaling_thread)),
-      env_(std::nullopt),
+      worker_thread_(std::move(worker_thread)),
+      network_thread_(std::move(network_thread)),
       factory_(factory) {}
 
 }  // namespace jni

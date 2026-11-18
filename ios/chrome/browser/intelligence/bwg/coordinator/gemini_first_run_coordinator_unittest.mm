@@ -28,8 +28,8 @@
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
@@ -83,12 +83,12 @@ class GeminiFirstRunCoordinatorTest : public PlatformTest {
     GeminiBrowserAgent::CreateForBrowser(browser_.get());
 
     CommandDispatcher* dispatcher = browser_->GetCommandDispatcher();
-    mock_bwg_command_handler_ = OCMProtocolMock(@protocol(BWGCommands));
+    mock_gemini_handler_ = OCMProtocolMock(@protocol(GeminiCommands));
     mock_help_command_handler_ = OCMProtocolMock(@protocol(HelpCommands));
     id mock_scene_commands_handler = OCMProtocolMock(@protocol(SceneCommands));
 
-    [dispatcher startDispatchingToTarget:mock_bwg_command_handler_
-                             forProtocol:@protocol(BWGCommands)];
+    [dispatcher startDispatchingToTarget:mock_gemini_handler_
+                             forProtocol:@protocol(GeminiCommands)];
     [dispatcher startDispatchingToTarget:mock_help_command_handler_
                              forProtocol:@protocol(HelpCommands)];
     [dispatcher startDispatchingToTarget:mock_scene_commands_handler
@@ -105,7 +105,7 @@ class GeminiFirstRunCoordinatorTest : public PlatformTest {
         initWithBaseViewController:base_view_controller_
                            browser:browser_.get()
                     fromEntryPoint:entryPoint
-                           FREType:GeminiFREType::kNewUser
+                      firstRunType:GeminiFirstRunType::kNewUser
                  completionHandler:nil];
     [coordinator_ start];
     // Wait for the view controller to be presented.
@@ -127,7 +127,7 @@ class GeminiFirstRunCoordinatorTest : public PlatformTest {
   UIViewController* base_view_controller_;
   GeminiFirstRunCoordinator* coordinator_;
   id mock_help_command_handler_;
-  id mock_bwg_command_handler_;
+  id mock_gemini_handler_;
   std::unique_ptr<ScopedKeyWindow> scoped_window_;
 };
 

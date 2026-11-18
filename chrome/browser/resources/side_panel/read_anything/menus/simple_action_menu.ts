@@ -16,8 +16,8 @@ import type {ShowAtConfigPrefs} from '../content/read_anything_types.js';
 import {ToolbarEvent} from '../content/read_anything_types.js';
 import {openMenu} from '../shared/common.js';
 
+import {getCss} from './action_menu.css.js';
 import type {MenuStateItem} from './menu_util.js';
-import {getCss} from './simple_action_menu.css.js';
 import {getHtml} from './simple_action_menu.html.js';
 
 export interface SimpleActionMenuElement {
@@ -81,17 +81,14 @@ export class SimpleActionMenuElement extends SimpleActionMenuElementBase {
         Number.parseInt(currentTarget.dataset['index']!);
     const menuItem = this.menuItems[this.currentSelectedIndex];
     assert(menuItem);
-    const eventName = menuItem.eventName || this.eventName;
-    this.fire(eventName, {data: menuItem.data});
+    this.fire(this.eventName, {data: menuItem.data});
     if (this.closeOnClick) {
       this.$.lazyMenu.get().close();
     }
   }
 
-  protected isItemSelected_(index: number, item: MenuStateItem<unknown>):
-      boolean {
-    // Only use currentSelectedIndex if item.selected is undefined.
-    return item.selected ?? (index === this.currentSelectedIndex);
+  protected isItemSelected_(index: number): boolean {
+    return index === this.currentSelectedIndex;
   }
 
   protected doesItemHaveIcon_(item: MenuStateItem<unknown>): boolean {
@@ -100,15 +97,6 @@ export class SimpleActionMenuElement extends SimpleActionMenuElementBase {
 
   protected itemIcon_(item: MenuStateItem<unknown>): string {
     return item.icon === undefined ? '' : item.icon;
-  }
-
-  protected doesItemHaveHeader_(item: MenuStateItem<unknown>): boolean {
-    return chrome.readingMode.isLineFocusEnabled && !!item.header;
-  }
-
-  protected doesItemHaveHeaderSeparator_(item: MenuStateItem<unknown>):
-      boolean {
-    return chrome.readingMode.isLineFocusEnabled && !!item.header?.separator;
   }
 }
 

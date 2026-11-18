@@ -260,7 +260,7 @@ void CastWindowManagerBindings::InvokeV8Callback(
   v8::Local<v8::Number> touch_x = v8::Integer::New(isolate, touch_location.x());
   v8::Local<v8::Number> touch_y = v8::Integer::New(isolate, touch_location.y());
 
-  auto args = v8::to_array<v8::Local<v8::Value>>({touch_x, touch_y});
+  auto args = std::to_array<v8::Local<v8::Value>>({touch_x, touch_y});
 
   v8::MaybeLocal<v8::Value> maybe_result =
       handler->Call(context, context->Global(), args.size(), args.data());

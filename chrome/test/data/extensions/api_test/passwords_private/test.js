@@ -135,6 +135,7 @@ const availableTests = [
           storedIn: chrome.passwordsPrivate.PasswordStoreSet.DEVICE,
           note: '',
           hidden: false,
+          isAutomaticPasswordChangeSupported: false,
         }),
         expected);
     chrome.test.succeed();
@@ -468,6 +469,7 @@ const availableTests = [
           storedIn: chrome.passwordsPrivate.PasswordStoreSet.DEVICE,
           note: '',
           hidden: false,
+          isAutomaticPasswordChangeSupported: false,
         },
         () => {
           chrome.test.assertNoLastError();
@@ -496,6 +498,7 @@ const availableTests = [
           storedIn: chrome.passwordsPrivate.PasswordStoreSet.DEVICE,
           note: '',
           hidden: false,
+          isAutomaticPasswordChangeSupported: false,
         },
         () => {
           chrome.test.assertLastError(
@@ -526,6 +529,7 @@ const availableTests = [
           storedIn: chrome.passwordsPrivate.PasswordStoreSet.DEVICE,
           note: '',
           hidden: false,
+          isAutomaticPasswordChangeSupported: false,
         },
         () => {
           chrome.test.assertNoLastError();
@@ -554,6 +558,7 @@ const availableTests = [
           storedIn: chrome.passwordsPrivate.PasswordStoreSet.DEVICE,
           note: '',
           hidden: false,
+          isAutomaticPasswordChangeSupported: false,
         },
         () => {
           chrome.test.assertLastError(

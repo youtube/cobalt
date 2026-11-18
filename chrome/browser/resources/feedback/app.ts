@@ -568,12 +568,13 @@ export class AppElement extends CrLitElement {
 
     const consentCheckboxValue: boolean =
         this.getRequiredElement<HTMLInputElement>('#consent-checkbox').checked;
-    this.feedbackInfo.systemInformation = [
-      {
-        key: 'feedbackUserCtlConsent',
-        value: String(consentCheckboxValue),
-      },
-    ];
+    if (!this.feedbackInfo.systemInformation) {
+      this.feedbackInfo.systemInformation = [];
+    }
+    this.feedbackInfo.systemInformation.push({
+      key: 'feedbackUserCtlConsent',
+      value: String(consentCheckboxValue),
+    });
 
     const isAiFlow: boolean =
         this.feedbackInfo.flow === chrome.feedbackPrivate.FeedbackFlow.AI;

@@ -402,6 +402,7 @@
 <translation id="5234764350956374838">إغلاق</translation>
 <translation id="5239627039202700673">‏يمكنك فتح Chrome عند النقر على الروابط في الرسائل والمستندات والتطبيقات الأخرى.</translation>
 <translation id="5251420635869119124">‏يمكن للضيف استخدام Chrome بدون أن يترك أي أثر وراءه.</translation>
+<translation id="5271833978500241046">‏يمكنك استخدامها مع ميزات Gemini الأخرى في Chrome</translation>
 <translation id="5286907366254680517">تمّ رصد اللغة</translation>
 <translation id="5320351714793324716">‏في حال السماح بملفات تعريف الارتباط، قد يستخدمها Chrome في عملية التحميل المُسبق.</translation>
 <translation id="5321325624576443340">‏"عدسة Google" غير متاحة. يُرجى إعادة المحاولة لاحقًا.</translation>
@@ -438,15 +439,6 @@
 <translation id="569897634095159764">يتعذّر الاتصال بالإنترنت. يتطلب الخادم الوكيل المصادقة.</translation>
 <translation id="5709557627224531708">‏اختيار Chrome كمتصفِّح تلقائي</translation>
 <translation id="5719246646468301581">‏بنود الخدمة الإضافية لكل من متصفّح Google Chrome ونظام التشغيل ChromeOS</translation>
-<translation id="5719324992913248873">‏سيؤدي هذا الإجراء إلى ما يلي:
-          <ph name="LINE_BREAKS" />
-          • إعادة ضبط بعض إعدادات Chrome واختصاراته
-          <ph name="LINE_BREAK" />
-          • إيقاف الإضافات
-          <ph name="LINE_BREAK" />
-          • حذف ملفات تعريف الارتباط والبيانات المؤقَّتة الأخرى للمواقع الإلكترونية
-          <ph name="LINE_BREAKS" />
-          لن يؤثّر هذا الإجراء في الإشارات المرجعية والسجلّ وكلمات المرور المحفوظة.</translation>
 <translation id="5736850870166430177">‏إذا حاول موقع إلكتروني سرقة كلمة المرور أو إذا نزّلت ملفًا ضارًا، قد يرسِل متصفِّح Chrome أيضًا عناوين URL تتضمّن أجزاءً من محتوى الصفحة إلى خدمة "التصفُّح الآمن".</translation>
 <translation id="5756509061973259733">‏يتوفّر حاليًا على هذا الجهاز ملف شخصي لهذا الحساب على Chrome.</translation>
 <translation id="5759947850379142561">‏يُرجى اختيار أي نصوص أو صور للبحث عنها باستخدام خدمة "عدسة Google" أو الضغط على مفتاح Escape للخروج من الخدمة</translation>
@@ -644,6 +636,7 @@
 <translation id="7606334485649076285">‏نظام التشغيل ChromeOS Flex من Google</translation>
 <translation id="7627609214560473136">‏لحماية بياناتك، يمكنك السماح لمتصفِّح Chrome بإزالة الأذونات من المواقع الإلكترونية التي لم تتم زيارتها مؤخرًا.</translation>
 <translation id="7629695634924605473">‏يتم إعلامك من خلال Chrome في حال تم اختراق كلمات المرور في أي وقت.</translation>
+<translation id="7629898584100520089">‏يتم حفظ ابتكارات الذكاء الاصطناعي، مثل المهارات، في حسابك على Google وإدارتها بشكل منفصل عن ميزة "مزامنة Chrome"</translation>
 <translation id="7641148173327520642">‏ضَبَط مشرف النظام Google Chrome لفتح <ph name="ALTERNATIVE_BROWSER_NAME" /> للوصول إلى <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">مساعدة</translation>
 <translation id="7651907282515937834">‏شعار Chrome Enterprise</translation>

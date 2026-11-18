@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <span>
+
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/objects/managed.h"
@@ -113,7 +115,7 @@ class WasmSerializationTest {
     heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
 
-  v8::MemorySpan<const uint8_t> wire_bytes() const { return wire_bytes_; }
+  std::span<const uint8_t> wire_bytes() const { return wire_bytes_; }
 
   CompileTimeImports MakeCompileTimeImports() { return CompileTimeImports{}; }
 
@@ -162,7 +164,7 @@ class WasmSerializationTest {
           v8_module_obj.As<v8::WasmModuleObject>();
       v8::CompiledWasmModule compiled_module =
           v8_module_object->GetCompiledModule();
-      v8::MemorySpan<const uint8_t> uncompiled_bytes =
+      std::span<const uint8_t> uncompiled_bytes =
           compiled_module.GetWireBytesRef();
       uint8_t* bytes_copy =
           zone()->AllocateArray<uint8_t>(uncompiled_bytes.size());
@@ -208,8 +210,8 @@ class WasmSerializationTest {
   // imports.
   CompileTimeImports compile_imports_;
   v8::OwnedBuffer data_;
-  v8::MemorySpan<const uint8_t> wire_bytes_ = {};
-  v8::MemorySpan<const uint8_t> serialized_bytes_ = {};
+  std::span<const uint8_t> wire_bytes_ = {};
+  std::span<const uint8_t> serialized_bytes_ = {};
   FlagScope<int> tier_up_quickly_{&v8_flags.wasm_tiering_budget, 1000};
 };
 
@@ -539,19 +541,19 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
                             CompileTimeImports{}, &thrower,
                             base::OwnedCopyOf(zone_buffer))
               .ToHandleChecked();
-      weak_native_module = module_object->native_module().as_shared_ptr();
+      Managed<wasm::NativeModule>::Ptr native_module =
+          module_object->native_module();
+      weak_native_module = native_module.as_shared_ptr();
 
       // Retrieve the canonicalized signature ID.
       const std::vector<CanonicalTypeIndex>& canonical_type_ids =
-          module_object->native_module()
-              ->module()
-              ->isorecursive_canonical_type_ids;
+          native_module->module()->isorecursive_canonical_type_ids;
       CHECK_EQ(1, canonical_type_ids.size());
       canonical_sig_id_before_serialization = canonical_type_ids[0];
 
       // Check that the embedded constant in the code is right.
       WasmCodeRefScope code_ref_scope;
-      WasmCode* code = module_object->native_module()->GetCode(0);
+      WasmCode* code = native_module->GetCode(0);
       RelocIterator reloc_it{
           code->instructions(), code->reloc_info(), code->constant_pool(),
           RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID)};
@@ -625,16 +627,16 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
             .ToHandleChecked();
 
     // Check that the signature ID got canonicalized to index 1.
+    Managed<wasm::NativeModule>::Ptr native_module =
+        module_object->native_module();
     const std::vector<CanonicalTypeIndex>& canonical_type_ids =
-        module_object->native_module()
-            ->module()
-            ->isorecursive_canonical_type_ids;
+        native_module->module()->isorecursive_canonical_type_ids;
     CHECK_EQ(1, canonical_type_ids.size());
     CHECK_EQ(canonical_sig_id_after_deserialization, canonical_type_ids[0]);
 
     // Check that the embedded constant in the code is right.
     WasmCodeRefScope code_ref_scope;
-    WasmCode* code = module_object->native_module()->GetCode(0);
+    WasmCode* code = native_module->GetCode(0);
     RelocIterator reloc_it{
         code->instructions(), code->reloc_info(), code->constant_pool(),
         RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID)};

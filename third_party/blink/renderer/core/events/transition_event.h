@@ -33,6 +33,7 @@
 namespace blink {
 
 class TransitionEventInit;
+class Animation;
 
 class TransitionEvent final : public Event {
   DEFINE_WRAPPERTYPEINFO();
@@ -44,9 +45,10 @@ class TransitionEvent final : public Event {
   static TransitionEvent* Create(const AtomicString& type,
                                  const String& property_name,
                                  const AnimationTimeDelta& elapsed_time,
-                                 const String& pseudo_element) {
-    return MakeGarbageCollected<TransitionEvent>(type, property_name,
-                                                 elapsed_time, pseudo_element);
+                                 const String& pseudo_element,
+                                 Animation* animation) {
+    return MakeGarbageCollected<TransitionEvent>(
+        type, property_name, elapsed_time, pseudo_element, animation);
   }
   static TransitionEvent* Create(const AtomicString& type,
                                  const TransitionEventInit* initializer) {
@@ -57,7 +59,8 @@ class TransitionEvent final : public Event {
   TransitionEvent(const AtomicString& type,
                   const String& property_name,
                   const AnimationTimeDelta& elapsed_time,
-                  const String& pseudo_element);
+                  const String& pseudo_element,
+                  Animation* animation);
   TransitionEvent(const AtomicString& type,
                   const TransitionEventInit* initializer);
   ~TransitionEvent() override;
@@ -65,6 +68,7 @@ class TransitionEvent final : public Event {
   const String& propertyName() const;
   double elapsedTime() const;
   const String& pseudoElement() const;
+  Animation* animation() const;
 
   CSSPseudoElement* pseudoTarget() const { return Event::pseudoTarget(); }
 
@@ -76,6 +80,7 @@ class TransitionEvent final : public Event {
   String property_name_;
   AnimationTimeDelta elapsed_time_;
   String pseudo_element_;
+  Member<Animation> animation_;
 };
 
 }  // namespace blink

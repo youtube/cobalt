@@ -93,7 +93,7 @@ public class SafetyCheckSettingsFragmentTest {
         PasswordManagerTestHelper.setUpGmsCoreFakeBackends();
 
         when(mBackendSupportHelperMock.isBackendPresent()).thenReturn(true);
-        // The password manger is always available in Safety Check after login db deprecation.
+        // The password manager is always available in Safety Check after login db deprecation.
         configurePasswordManagerUtilBridge();
     }
 

@@ -5,9 +5,9 @@
 """Try ANGLE builders using the angle_v2 recipe."""
 
 load("@chromium-luci//builder_config.star", "builder_config")
-load("@chromium-luci//builders.star", "os")
 load("@chromium-luci//gn_args.star", "gn_args")
 load("@chromium-luci//try.star", "try_")
+load("//angle_v2_shared.star", "builder_defaults")
 load("//constants.star", "default_experiments", "siso")
 
 try_.defaults.set(
@@ -54,9 +54,7 @@ def apply_linux_cq_builder_defaults(kwargs):
         |kwargs| with default values set for a Linux CQ builder.
     """
     kwargs = apply_cq_builder_defaults(kwargs)
-    kwargs.setdefault("cores", 8)
-    kwargs.setdefault("os", os.LINUX_DEFAULT)
-    kwargs.setdefault("ssd", None)
+    kwargs = builder_defaults.apply_linux_builder_defaults(kwargs)
     return kwargs
 
 def apply_mac_cq_builder_defaults(kwargs):
@@ -69,8 +67,7 @@ def apply_mac_cq_builder_defaults(kwargs):
         |kwargs| with default values set for a Mac CQ builder.
     """
     kwargs = apply_cq_builder_defaults(kwargs)
-    kwargs.setdefault("cpu", "arm64")
-    kwargs.setdefault("os", os.MAC_DEFAULT)
+    kwargs = builder_defaults.apply_mac_builder_defaults(kwargs)
     return kwargs
 
 def apply_win_cq_builder_defaults(kwargs):
@@ -83,8 +80,20 @@ def apply_win_cq_builder_defaults(kwargs):
         |kwargs| with default values set for a Windows CQ builder.
     """
     kwargs = apply_cq_builder_defaults(kwargs)
-    kwargs.setdefault("os", os.WINDOWS_DEFAULT)
-    kwargs.setdefault("ssd", None)
+    kwargs = builder_defaults.apply_win_clang_builder_defaults(kwargs)
+    return kwargs
+
+def apply_win_msvc_cq_builder_defaults(kwargs):
+    """Applies default builder settings for an MSVC Windows CQ builder.
+
+    Args:
+        kwargs: The args being used for the builder as a dict.
+
+    Returns:
+        |kwargs| with default values set for a Windows CQ builder.
+    """
+    kwargs = apply_cq_builder_defaults(kwargs)
+    kwargs = builder_defaults.apply_win_msvc_builder_defaults(kwargs)
     return kwargs
 
 def angle_linux_functional_cq_tester(**kwargs):
@@ -97,6 +106,10 @@ def angle_mac_functional_cq_tester(**kwargs):
 
 def angle_win_functional_cq_tester(**kwargs):
     kwargs = apply_win_cq_builder_defaults(kwargs)
+    try_.builder(**kwargs)
+
+def angle_win_msvc_functional_cq_tester(**kwargs):
+    kwargs = apply_win_msvc_cq_builder_defaults(kwargs)
     try_.builder(**kwargs)
 
 def angle_linux_presubmit_builder(**kwargs):
@@ -219,12 +232,40 @@ angle_mac_functional_cq_tester(
 )
 
 angle_win_functional_cq_tester(
+    name = "angle-cq-win-x64-asan",
+    description_html = "Tests release ANGLE on Win/x64 with ASan on multiple hardware configs. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x64-builder-asan",
+        "ci/angle-win-x64-sws-asan",
+    ],
+    gn_args = "ci/angle-win-x64-builder-asan",
+)
+
+angle_win_functional_cq_tester(
     name = "angle-cq-win-x64-dbg",
     description_html = "Compiles all debug ANGLE targets for Win/x64. Blocks CL submission.",
     mirrors = [
         "ci/angle-win-x64-builder-dbg",
     ],
     gn_args = "ci/angle-win-x64-builder-dbg",
+)
+
+angle_win_msvc_functional_cq_tester(
+    name = "angle-cq-win-x64-msvc-dbg",
+    description_html = "Compiles debug ANGLE targets for Win/x64 using MSVC. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x64-builder-msvc-dbg",
+    ],
+    gn_args = "ci/angle-win-x64-builder-msvc-dbg",
+)
+
+angle_win_msvc_functional_cq_tester(
+    name = "angle-cq-win-x64-msvc-rel",
+    description_html = "Compiles release ANGLE targets for Win/x64 using MSVC. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x64-builder-msvc-rel",
+    ],
+    gn_args = "ci/angle-win-x64-builder-msvc-rel",
 )
 
 angle_win_functional_cq_tester(
@@ -238,6 +279,24 @@ angle_win_functional_cq_tester(
     gn_args = "ci/angle-win-x64-builder-rel",
 )
 
+angle_win_msvc_functional_cq_tester(
+    name = "angle-cq-win-x64-uwp-dbg",
+    description_html = "Compiles debug ANGLE targets for Windows UWP/x64 using MSVC. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x64-builder-uwp-dbg",
+    ],
+    gn_args = "ci/angle-win-x64-builder-uwp-dbg",
+)
+
+angle_win_msvc_functional_cq_tester(
+    name = "angle-cq-win-x64-uwp-rel",
+    description_html = "Compiles release ANGLE targets for Windows UWP/x64 using MSVC. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x64-builder-uwp-rel",
+    ],
+    gn_args = "ci/angle-win-x64-builder-uwp-rel",
+)
+
 angle_win_functional_cq_tester(
     name = "angle-cq-win-x86-dbg",
     description_html = "Compiles all debug ANGLE targets for Win/x86. Blocks CL submission.",
@@ -245,6 +304,24 @@ angle_win_functional_cq_tester(
         "ci/angle-win-x86-builder-dbg",
     ],
     gn_args = "ci/angle-win-x86-builder-dbg",
+)
+
+angle_win_msvc_functional_cq_tester(
+    name = "angle-cq-win-x86-msvc-dbg",
+    description_html = "Compiles debug ANGLE targets for Win/x86 using MSVC. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x86-builder-msvc-dbg",
+    ],
+    gn_args = "ci/angle-win-x64-builder-msvc-dbg",
+)
+
+angle_win_msvc_functional_cq_tester(
+    name = "angle-cq-win-x86-msvc-rel",
+    description_html = "Compiles release ANGLE targets for Win/x86 using MSVC. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x86-builder-msvc-rel",
+    ],
+    gn_args = "ci/angle-win-x86-builder-msvc-rel",
 )
 
 angle_win_functional_cq_tester(
@@ -340,30 +417,26 @@ angle_win_trace_tester(
 ## Templates
 
 def angle_linux_manual_builder(*, name, **kwargs):
+    kwargs = builder_defaults.apply_linux_builder_defaults(kwargs)
     return try_.builder(
         name = name,
         max_concurrent_builds = 1,
-        cores = 8,
-        os = os.LINUX_DEFAULT,
-        ssd = None,
         **kwargs
     )
 
 def angle_mac_manual_builder(*, name, **kwargs):
+    kwargs = builder_defaults.apply_mac_builder_defaults(kwargs)
     return try_.builder(
         name = name,
         max_concurrent_builds = 1,
-        cpu = "arm64",
-        os = os.MAC_DEFAULT,
         **kwargs
     )
 
 def angle_win_manual_builder(*, name, **kwargs):
+    kwargs = builder_defaults.apply_win_clang_builder_defaults(kwargs)
     return try_.builder(
         name = name,
         max_concurrent_builds = 1,
-        os = os.WINDOWS_DEFAULT,
-        ssd = None,
         **kwargs
     )
 

@@ -4,36 +4,48 @@
 
 #include "components/user_education/test/test_product_messaging_controller.h"
 
-#include "components/user_education/common/product_messaging_controller.h"
+#include "components/user_education/product_messaging/product_messaging_controller.h"
 
 namespace user_education::test {
 
-TestNotice::TestNotice(ProductMessagingController& controller,
-                       RequiredNoticeId id,
-                       std::initializer_list<RequiredNoticeId> show_after,
-                       std::initializer_list<RequiredNoticeId> blocked_by)
-    : id_(id) {
-  controller.QueueRequiredNotice(
-      id_, base::BindOnce(&TestNotice::OnReadyToShow, base::Unretained(this)),
-      show_after, blocked_by);
+TestProductMessage::TestProductMessage(ProductMessagingController& controller,
+                                       ProductMessageKey key,
+                                       std::optional<base::TimeDelta> timeout)
+    : key_(key) {
+  controller.QueueMessage(key_,
+                          base::BindOnce(&TestProductMessage::OnReadyToShow,
+                                         weak_ptr_factory_.GetWeakPtr()),
+                          timeout);
 }
 
-TestNotice::~TestNotice() = default;
+TestProductMessage::~TestProductMessage() = default;
 
-void TestNotice::SetShown() {
+void TestProductMessage::SetShown() {
   CHECK(handle_);
-  handle_.SetShown();
+  handle_->SetShown();
 }
 
-void TestNotice::Release() {
+void TestProductMessage::Release() {
   CHECK(handle_);
-  handle_.Release();
+  handle_.reset();
 }
 
-void TestNotice::OnReadyToShow(RequiredNoticePriorityHandle handle) {
+void TestProductMessage::OnReadyToShow(ProductMessagingHandle handle) {
   CHECK(handle);
   shown_ = true;
   handle_ = std::move(handle);
+  if (pending_status_callback_) {
+    handle_->SetSupersededCallback(std::move(pending_status_callback_));
+  }
+}
+
+void TestProductMessage::SetSupersededCallback(
+    ProductMessageStatusCallback callback) {
+  if (handle_) {
+    handle_->SetSupersededCallback(std::move(callback));
+  } else {
+    pending_status_callback_ = std::move(callback);
+  }
 }
 
 }  // namespace user_education::test

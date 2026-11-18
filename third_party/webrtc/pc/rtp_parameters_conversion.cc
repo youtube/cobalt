@@ -102,9 +102,9 @@ RtpCodecCapability ToRtpCodecCapability(const Codec& cricket_codec) {
   return codec;
 }
 
-namespace {
-RtpCapabilities ToRtpCapabilitiesWithoutExtensions(
-    const std::vector<Codec>& cricket_codecs) {
+RtpCapabilities ToRtpCapabilities(
+    std::span<const Codec> cricket_codecs,
+    std::span<const RtpHeaderExtensionCapability> extensions) {
   RtpCapabilities capabilities;
   bool have_red = false;
   bool have_ulpfec = false;
@@ -138,6 +138,9 @@ RtpCapabilities ToRtpCapabilitiesWithoutExtensions(
     }
     capabilities.codecs.push_back(codec_capability);
   }
+
+  capabilities.header_extensions.assign(extensions.begin(), extensions.end());
+
   if (have_red) {
     capabilities.fec.push_back(FecMechanism::RED);
   }
@@ -147,16 +150,6 @@ RtpCapabilities ToRtpCapabilitiesWithoutExtensions(
   if (have_flexfec) {
     capabilities.fec.push_back(FecMechanism::FLEXFEC);
   }
-  return capabilities;
-}
-}  // namespace
-
-RtpCapabilities ToRtpCapabilities(
-    const std::vector<Codec>& cricket_codecs,
-    std::span<const RtpHeaderExtensionCapability> extensions) {
-  RtpCapabilities capabilities =
-      ToRtpCapabilitiesWithoutExtensions(cricket_codecs);
-  capabilities.header_extensions.assign(extensions.begin(), extensions.end());
   return capabilities;
 }
 

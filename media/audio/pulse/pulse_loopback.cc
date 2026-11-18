@@ -10,6 +10,8 @@
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 PulseLoopbackAudioStream::PulseLoopbackAudioStream(
     ReleaseStreamCallback release_stream_callback,
     const std::string& source_name,
@@ -123,7 +125,7 @@ void PulseLoopbackAudioStream::ChangeStreamSource(
   if (stream_->Open() != OpenOutcome::kSuccess) {
     stream_opened_ = false;
     if (sink_) {
-      sink_->OnError();
+      sink_->OnError(Error::kRuntimeError);
     }
     return;
   }

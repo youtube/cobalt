@@ -13,6 +13,7 @@
 #include "media/base/audio_parameters.h"
 #include "media/base/media_switches.h"
 #include "services/audio/ml_model_manager.h"
+#include "services/audio/processing_audio_fifo.h"
 
 namespace audio {
 
@@ -28,14 +29,15 @@ AudioProcessorHandler::AudioProcessorHandler(
     media::AecdumpRecordingManager* aecdump_recording_manager,
     raw_ptr<MlModelManager> ml_model_manager)
     : residual_echo_estimation_model_handle_(
-          ml_model_manager ? ml_model_manager->GetResidualEchoEstimationModel()
+          ml_model_manager ? ml_model_manager->GetModel(
+                                 mojom::MlModelType::kResidualEchoEstimation)
                            : nullptr),
       audio_processor_(media::AudioProcessor::Create(
           // Unretained is safe because this class owns audio_processor_, so it
           // will be destroyed first.
           base::BindRepeating(&AudioProcessorHandler::DeliverProcessedAudio,
                               base::Unretained(this)),
-          std::move(log_callback),
+          log_callback,
           settings,
           input_format,
           output_format,
@@ -63,6 +65,17 @@ AudioProcessorHandler::AudioProcessorHandler(
         "Media.Audio.Capture.NeuralResidualEchoEstimationModelAvailable",
         is_model_available);
   }
+
+  // We need to offload work to another thread for heavy processing, ex: echo
+  // cancellation.
+  if (needs_playout_reference()) {
+    processing_fifo_ = std::make_unique<ProcessingAudioFifo>(
+        input_format, kProcessingFifoSize,
+        base::BindRepeating(
+            &AudioProcessorHandler::ProcessCapturedAudioInternal,
+            base::Unretained(this)),
+        std::move(log_callback));
+  }
 }
 
 AudioProcessorHandler::~AudioProcessorHandler() {
@@ -74,7 +87,39 @@ AudioProcessorHandler::~AudioProcessorHandler() {
   }
 }
 
+void AudioProcessorHandler::StartProcessing() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+  // This is safe because the caller is required to call StartProcessing()
+  // before the capture stream is started, ensuring no concurrent calls to
+  // ProcessCapturedAudio() can occur.
+  if (processing_fifo_) {
+    processing_fifo_->Start();
+  }
+}
+
+void AudioProcessorHandler::StopProcessing() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+  // This is safe because the caller is required to synchronously stop the
+  // capture stream before calling StopProcessing(), guaranteeing that no
+  // concurrent calls to ProcessCapturedAudio() can occur.
+  processing_fifo_.reset();
+}
+
 void AudioProcessorHandler::ProcessCapturedAudio(
+    const media::AudioBus& audio_source,
+    base::TimeTicks audio_capture_time,
+    double volume,
+    const media::AudioGlitchInfo& audio_glitch_info) {
+  if (processing_fifo_) {
+    processing_fifo_->PushData(&audio_source, audio_capture_time, volume,
+                               audio_glitch_info);
+  } else {
+    ProcessCapturedAudioInternal(audio_source, audio_capture_time, volume,
+                                 audio_glitch_info);
+  }
+}
+
+void AudioProcessorHandler::ProcessCapturedAudioInternal(
     const media::AudioBus& audio_source,
     base::TimeTicks audio_capture_time,
     double volume,

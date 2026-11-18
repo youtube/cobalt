@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
 #include <stdlib.h>
+#include <gtest/gtest.h>
 
 #include <optional>
 
@@ -694,8 +694,7 @@ static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
       if (!sysrand(kAdditionalDataLength)) {
         return ret;
       }
-      if (kUsesDaemon && !AppendDaemonEvents(&ret, flags) &&
-          !sysrand(48)) {
+      if (kUsesDaemon && !AppendDaemonEvents(&ret, flags) && !sysrand(48)) {
         return ret;
       }
     }
@@ -725,7 +724,7 @@ static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
 }
 
 // Tests that `TestFunctionPRNGModel` is a correct model for the code in
-// urandom.c, at least to the limits of the the `Event` type.
+// urandom.c, at least to the limits of the `Event` type.
 TEST(URandomTest, Test) {
   char buf[256];
 

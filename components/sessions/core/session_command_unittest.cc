@@ -142,6 +142,21 @@ TEST(SessionCommandTest, ContentsAsPickle) {
   EXPECT_EQ(456, read_int);
 }
 
+TEST(SessionCommandTest, Clone) {
+  const id_type id = 42;
+  const size_type size = 5;
+  SessionCommand command(id, size);
+  command.contents().copy_from(base::span<const uint8_t>({1, 2, 3, 4, 5}));
+
+  std::unique_ptr<SessionCommand> clone = command.Clone();
+  ASSERT_TRUE(clone);
+  EXPECT_EQ(command.id(), clone->id());
+  EXPECT_EQ(command.contents(), clone->contents());
+
+  clone->contents()[0] = 99;
+  EXPECT_NE(command.contents(), clone->contents());
+}
+
 TEST_P(SessionCommandParamTest, SerializeAndDeserialize) {
   const id_type id = 42;
   const std::string contents = "session_data";

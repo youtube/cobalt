@@ -102,6 +102,7 @@ public class DisclosureInfobar
         String action = mResources.getString(R.string.ok);
         return Snackbar.make(title, mSnackbarController, type, code)
                 .setAction(action, null)
+                .setHighPriority(true)
                 .setDefaultLines(false);
     }
 

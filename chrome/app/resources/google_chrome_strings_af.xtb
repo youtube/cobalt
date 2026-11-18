@@ -404,6 +404,7 @@ Sommige kenmerke kan dalk onbeskikbaar wees. Spesifiseer 'n ander profielgids of
 <translation id="5234764350956374838">Verwerp</translation>
 <translation id="5239627039202700673">Gebruik Chrome enige tyd wanneer jy op skakels in boodskappe, dokumente en ander apps klik</translation>
 <translation id="5251420635869119124">Gaste kan Chrome gebruik sonder om iets agter te laat.</translation>
+<translation id="5271833978500241046">Gebruik hulle saam met ander Gemini-kenmerke in Chrome</translation>
 <translation id="5286907366254680517">Bespeur</translation>
 <translation id="5320351714793324716">As jy webkoekies toelaat, kan Chrome hulle met vooraflaai gebruik</translation>
 <translation id="5321325624576443340">Google Lens is nie beskikbaar nie. Probeer later weer.</translation>
@@ -442,15 +443,6 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="569897634095159764">Kon nie aan die internet koppel nie. Instaanbediener vereis stawing.</translation>
 <translation id="5709557627224531708">Stel Chrome as jou verstekblaaier</translation>
 <translation id="5719246646468301581">Google Chrome en ChromeOS se bykomende diensbepalings</translation>
-<translation id="5719324992913248873">Hierdie handeling sal:
-        <ph name="LINE_BREAKS" />
-          • Sommige Chrome-instellings en Chrome-kortpaaie terugstel
-          <ph name="LINE_BREAK" />
-          • Uitbreidings deaktiveer
-          <ph name="LINE_BREAK" />
-          • Webkoekies en ander tydelike werfdata uitvee
-          <ph name="LINE_BREAKS" />
-          Boekmerke, geskiedenis en gestoorde wagwoorde sal nie geraak word nie.</translation>
 <translation id="5736850870166430177">As 'n werf probeer om jou wagwoord te steel, of wanneer jy 'n skadelike lêer aflaai, sal Chrome dalk ook URL'e, insluitend stukkies bladsyinhoud, na Veiligblaai toe stuur</translation>
 <translation id="5756509061973259733">'n Chrome-profiel met hierdie rekening bestaan reeds op hierdie toestel</translation>
 <translation id="5759947850379142561">Kies enige teks of prent om met Google Lens te soek of druk Escape om uit Google Lens te gaan</translation>
@@ -648,6 +640,7 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
 <translation id="7627609214560473136">Laat Chrome toestemmings van werwe verwyder wat jy nie onlangs besoek het nie om jou data te beskerm.</translation>
 <translation id="7629695634924605473">Chrome sal jou laat weet as jou wagwoorde gekompromitteer is</translation>
+<translation id="7629898584100520089">KI-innovasies soos vaardighede word in jou Google-rekening gestoor en apart van Chrome-sinkronisering bestuur</translation>
 <translation id="7641148173327520642">Jou stelseladministrateur het Google Chrome opgestel om <ph name="ALTERNATIVE_BROWSER_NAME" /> oop te maak om by <ph name="TARGET_URL_HOSTNAME" /> in te gaan.</translation>
 <translation id="7649070708921625228">Hulp</translation>
 <translation id="7651907282515937834">Chrome-onderneminglogo</translation>

@@ -796,3 +796,11 @@ void ReadAloudAppModel::LogAudioDelay(bool success) {
     base::UmaHistogramLongTimes(kAudioStartTimeFailureHistogramName, delay);
   }
 }
+
+// Functionally acts as a session-start setter and logger. Safe because playback
+// context remains constant and this is only called once per speech session.
+void ReadAloudAppModel::LogPlaybackContext(
+    ReadAnythingPlaybackContext context) {
+  current_session_context_for_testing_ = context;
+  base::UmaHistogramEnumeration(kPlaybackContextHistogramName, context);
+}

@@ -29,7 +29,7 @@ If a POC stops reproducing when any of the above flags are set, it is likely not
 
 The steps are generally similar to regular security bugs.
 The difference is the bugs are expected to reproduce with `--run-as-sandbox-security-poc` in addition to any provided flags.
-A successful reproduction must result in the crash filter reporting a sandbox violation (e.g. "V8 sandbox violation detected").
+A successful reproduction must result in the crash filter reporting a sandbox violation (e.g. "V8 sandbox violation detected") when run in the [sandbox testing environment](../../src/sandbox/README.md#testing).
 Crashes reported as "harmless" by the filter do not qualify as sandbox escapes.
 If the crash still occurs with this flag enabled, and the test filter does not consider it harmless, it is likely a valid security vulnerability (**Type=Vulnerability**).
 
@@ -45,6 +45,7 @@ Running with `--allow-natives-syntax --expose-gc` exposes:
 - **WebAssembly**: `%WasmTierUpFunction(func)`
 - **Debugging**: `%DebugPrint(value)`, `%DisassembleFunction(func)` (requires `is_debug`), `%HeapObjectVerify(obj)` (requires `is_debug` or `v8_enable_verify_heap`), `%SystemBreak()`
 - **Garbage Collection**: `gc()`, `%SimulateNewspaceFull()`
+- **Synchronization**: `%BlockAt(synchronization_point)`, `%WaitUntilBlocked(synchronization_point[, timeout])`, `%Resume(synchronization_point)`
 
 For WebAssembly, the `WasmModuleBuilder` (`test/mjsunit/wasm/wasm-module-builder.js`) should be used to construct POCs whenever possible.
 The easiest way is to just invoke the script from JavaScript in `d8` using `d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js')`.

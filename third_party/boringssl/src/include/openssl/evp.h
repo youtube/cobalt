@@ -1136,7 +1136,7 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx,
 
 // Diffie-Hellman-specific control functions.
 
-// EVP_PKEY_CTX_set_dh_pad configures configures whether `ctx`, which must be an
+// EVP_PKEY_CTX_set_dh_pad configures whether `ctx`, which must be an
 // `EVP_PKEY_derive` operation, configures the handling of leading zeros in the
 // Diffie-Hellman shared secret. If `pad` is zero, leading zeros are removed
 // from the secret. If `pad` is non-zero, the fixed-width shared secret is used

@@ -244,7 +244,8 @@ SourceBuffer* MediaSource::addSourceBuffer(const String& type,
   if (!RunUnlessElementGoneOrClosingUs(blink::BindOnce(
           &MediaSource::AddSourceBuffer_Locked, WrapPersistent(this), type,
           nullptr /* audio_config */, nullptr /* video_config */,
-          Unretained(&exception_state), Unretained(&source_buffer)))) {
+          blink::subtle::UnretainedException(&exception_state),
+          blink::subtle::UnretainedException(&source_buffer)))) {
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, exception should be for this case.
     LogAndThrowDOMException(exception_state,
@@ -365,7 +366,8 @@ SourceBuffer* MediaSource::AddSourceBufferUsingConfig(
   if (!RunUnlessElementGoneOrClosingUs(blink::BindOnce(
           &MediaSource::AddSourceBuffer_Locked, WrapPersistent(this), null_type,
           std::move(audio_config), std::move(video_config),
-          Unretained(&exception_state), Unretained(&source_buffer)))) {
+          blink::subtle::UnretainedException(&exception_state),
+          blink::subtle::UnretainedException(&source_buffer)))) {
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, exception should be for this case.
     LogAndThrowDOMException(exception_state,
@@ -794,13 +796,8 @@ void MediaSource::CompleteAttachingToMediaElement(
 
     DCHECK_EQ(!attachment_tracer_, !IsMainThread());
 
-    if (attachment_tracer_) {
-      // Use of a tracer means we must be using same-thread attachment.
-      TRACE_EVENT_END("media", perfetto::Track::FromPointer(this));
-    } else {
-      // Otherwise, we must be using a cross-thread MSE-in-Workers attachment.
-      TRACE_EVENT_END("media", perfetto::Track::FromPointer(this));
-    }
+    TRACE_EVENT_END(
+        "media", perfetto::NamedTrack::FromPointer("blink::MediaSource", this));
     DCHECK(web_media_source);
     DCHECK(!web_media_source_);
     DCHECK(media_source_attachment_);
@@ -998,7 +995,7 @@ void MediaSource::setDuration(double duration,
   // case). Note, we must be open, therefore we must have an attachment.
   if (!RunUnlessElementGoneOrClosingUs(blink::BindOnce(
           &MediaSource::DurationChangeAlgorithm, WrapPersistent(this), duration,
-          Unretained(&exception_state)))) {
+          blink::subtle::UnretainedException(&exception_state)))) {
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, exception should be for this case.
     LogAndThrowDOMException(exception_state,
@@ -1409,8 +1406,9 @@ MediaSourceTracer* MediaSource::StartAttachingToMediaElement(
   DCHECK(!context_already_destroyed_);
   DCHECK(IsClosed());
 
-  TRACE_EVENT_BEGIN("media", "MediaSource::StartAttachingToMediaElement",
-                    perfetto::Track::FromPointer(this));
+  TRACE_EVENT_BEGIN(
+      "media", "MediaSource::StartAttachingToMediaElement",
+      perfetto::NamedTrack::FromPointer("blink::MediaSource", this));
   media_source_attachment_ = attachment;
   attachment_tracer_ =
       MakeGarbageCollected<SameThreadMediaSourceTracer>(element, this);
@@ -1435,9 +1433,9 @@ bool MediaSource::StartWorkerAttachingToMainThreadMediaElement(
   }
 
   DCHECK(IsClosed());
-  TRACE_EVENT_BEGIN("media",
-                    "MediaSource::StartWorkerAttachingToMainThreadMediaElement",
-                    perfetto::Track::FromPointer(this));
+  TRACE_EVENT_BEGIN(
+      "media", "MediaSource::StartWorkerAttachingToMainThreadMediaElement",
+      perfetto::NamedTrack::FromPointer("blink::MediaSource", this));
   media_source_attachment_ = attachment;
   return true;
 }

@@ -19,15 +19,15 @@
 #include "include/core/SkStream.h"
 #include "include/core/SkTypes.h"
 #include "include/private/SkEncodedInfo.h"
-#include "include/private/base/SkMalloc.h"
-#include "include/private/base/SkNoncopyable.h"
-#include "include/private/base/SkTemplates.h"
+#include "include/private/SkMalloc.h"
+#include "include/private/SkNoncopyable.h"
+#include "include/private/SkTemplates.h"
 #include "modules/skcms/skcms.h"
-#include "src/base/SkSafeMath.h"
 #include "src/codec/SkCodecPriv.h"
 #include "src/codec/SkPngCompositeChunkReader.h"
 #include "src/codec/SkPngPriv.h"
 #include "src/codec/SkSwizzler.h"
+#include "src/core/SkSafeMath.h"
 
 #include <csetjmp>
 #include <algorithm>

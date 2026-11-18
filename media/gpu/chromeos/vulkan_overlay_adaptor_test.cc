@@ -541,15 +541,18 @@ scoped_refptr<VideoFrame> ProcessFrameLibyuv(scoped_refptr<VideoFrame> in_frame,
   return frame;
 }
 
-void InitWithImage(const uint8_t* img_data,
+void InitWithImage(base::span<const uint8_t> img_data,
                    const gfx::Size size,
                    uint8_t* y_plane,
                    size_t y_stride,
                    uint8_t* uv_plane,
                    size_t uv_stride) {
-  libyuv::NV12Copy(img_data, size.width(), img_data + size.GetArea(),
-                   size.width(), y_plane, y_stride, uv_plane, uv_stride,
-                   size.width(), size.height());
+  CHECK_GE(img_data.size(), size.GetArea() * 3 / 2);
+  auto y_span = img_data.first(size.GetArea());
+  auto uv_span = img_data.subspan(size.GetArea());
+  libyuv::NV12Copy(y_span.data(), size.width(), uv_span.data(), size.width(),
+                   y_plane, y_stride, uv_plane, uv_stride, size.width(),
+                   size.height());
 }
 
 void InitWithRandom(const gfx::Size size,
@@ -807,7 +810,7 @@ TEST_P(VulkanOverlayAdaptorTest, Correctness) {
                           kMM21TileWidth),
       base::bits::AlignUp(base::checked_cast<size_t>(image.Size().height()),
                           kMM21TileHeight));
-  auto init_cb = base::BindOnce(&InitWithImage, image.Data());
+  auto init_cb = base::BindOnce(&InitWithImage, image.DataSpan());
   auto in_frame =
       CreateVideoFrame(in_mailbox, image.Size(), image.VisibleRect(),
                        std::move(init_cb), is_10bit);
@@ -853,8 +856,8 @@ TEST_P(VulkanOverlayAdaptorTest, Correctness) {
   auto packed_in_frame = VideoFrame::WrapExternalData(
       VideoPixelFormat::PIXEL_FORMAT_NV12, in_frame->coded_size(),
       in_frame->visible_rect(), in_frame->coded_size(),
-      base::span(image.Data(),
-                 static_cast<size_t>(in_frame->coded_size().GetArea() * 3 / 2)),
+      image.DataSpan().first(
+          static_cast<size_t>(in_frame->coded_size().GetArea() * 3 / 2)),
       base::TimeDelta());
 
   auto libyuv_out_frame =

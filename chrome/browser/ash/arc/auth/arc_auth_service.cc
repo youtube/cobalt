@@ -31,6 +31,7 @@
 #include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
@@ -249,6 +250,10 @@ ArcAuthService::ArcAuthService(content::BrowserContext* browser_context,
                                ArcBridgeService* arc_bridge_service)
     :  // TODO(crbug.com/404130092): Inject PrefService via constructor.
       local_state_(CHECK_DEREF(g_browser_process->local_state())),
+      system_url_loader_factory_(
+          g_browser_process->shared_url_loader_factory()),
+      browser_policy_connector_ash_(
+          g_browser_process->platform_part()->browser_policy_connector_ash()),
       delegate_(std::make_unique<ArcAuthServiceDelegateImpl>(
           ash::BrowserContextHelper::Get()->GetUserByBrowserContext(
               browser_context))),
@@ -493,11 +498,12 @@ void ArcAuthService::FetchPrimaryAccountInfo(
   if (account_type == mojom::ChromeAccountType::ROBOT_ACCOUNT) {
     // For robot accounts, which are used in kiosk and public session mode
     // (which includes online demo sessions), use Robot auth code fetching.
-    auth_code_fetcher = std::make_unique<ArcRobotAuthCodeFetcher>();
-    if (url_loader_factory_for_testing_set_) {
-      static_cast<ArcRobotAuthCodeFetcher*>(auth_code_fetcher.get())
-          ->SetURLLoaderFactoryForTesting(url_loader_factory_);
-    }
+    // TODO(crbug.com/522071107): Refactor testing injection.
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory =
+        url_loader_factory_for_testing_set_ ? url_loader_factory_
+                                            : system_url_loader_factory_;
+    auth_code_fetcher = std::make_unique<ArcRobotAuthCodeFetcher>(
+        std::move(url_loader_factory), browser_policy_connector_ash_);
   } else {
     // Optionally retrieve auth code in silent mode. Use the "unconsented"
     // primary account because this class doesn't care about browser sync

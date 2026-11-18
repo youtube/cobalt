@@ -19,7 +19,6 @@
 
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/test/network_emulation/create_cross_traffic.h"
 #include "api/test/network_emulation/cross_traffic.h"
@@ -31,6 +30,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "call/video_receive_stream.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -161,7 +161,7 @@ void UpdatesTargetRateBasedOnLinkCapacity(absl::string_view test_name = "",
   GoogCcNetworkControllerFactory factory;
   Scenario s("googcc_unit/target_capacity" + std::string(test_name), false);
   CallClientConfig config;
-  config.field_trials.Merge(FieldTrials(field_trials));
+  config.field_trials.Merge(CreateTestFieldTrials(field_trials));
   config.transport.cc_factory = &factory;
   config.transport.rates.min_rate = DataRate::KilobitsPerSec(10);
   config.transport.rates.max_rate = DataRate::KilobitsPerSec(1500);
@@ -269,7 +269,8 @@ class NetworkControllerTestFixture {
   }
 
   FieldTrials field_trials_ = CreateTestFieldTrials();
-  const Environment env_ = CreateEnvironment(&field_trials_);
+  const Environment env_ =
+      CreateTestEnvironment({.field_trials = &field_trials_});
   GoogCcNetworkControllerFactory factory_;
 };
 

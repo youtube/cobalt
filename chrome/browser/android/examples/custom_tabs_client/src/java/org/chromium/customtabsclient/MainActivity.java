@@ -1391,12 +1391,12 @@ public class MainActivity extends AppCompatActivity
 
     private void launchAuthTab(String url) {
         int colorScheme = getColorSchemeFromButton(null);
-        AuthTabColorSchemeParams.Builder builder = new AuthTabColorSchemeParams.Builder();
+        var colorSchemeBuilder = new AuthTabColorSchemeParams.Builder();
         if (!TextUtils.isEmpty(mToolbarColor)) {
             int toolbarColor = Color.parseColor(mToolbarColor);
-            builder.setToolbarColor(toolbarColor);
+            colorSchemeBuilder.setToolbarColor(toolbarColor);
             if (mNavbarColorToolbarCheckbox.isChecked()) {
-                builder.setNavigationBarColor(toolbarColor);
+                colorSchemeBuilder.setNavigationBarColor(toolbarColor);
             }
         }
         int closeButton = mCloseButtonIcon.getCheckedButtonId();
@@ -1409,14 +1409,17 @@ public class MainActivity extends AppCompatActivity
             closeIconId = R.drawable.baseline_close_white;
         }
         Bitmap closeIcon = BitmapFactory.decodeResource(getResources(), closeIconId);
-        AuthTabIntent authIntent =
+        var intentBuilder =
                 new AuthTabIntent.Builder()
-                        .setSession(getAuthSession())
                         .setColorScheme(colorScheme)
-                        .setDefaultColorSchemeParams(builder.build())
+                        .setDefaultColorSchemeParams(colorSchemeBuilder.build())
                         .setCloseButtonIcon(closeIcon)
-                        .setEphemeralBrowsingEnabled(mEphemeralCctCheckbox.isChecked())
-                        .build();
+                        .setEphemeralBrowsingEnabled(mEphemeralCctCheckbox.isChecked());
+        var authSession = getAuthSession();
+        if (authSession != null) {
+            intentBuilder.setSession(authSession);
+        }
+        var authIntent = intentBuilder.build();
         authIntent.intent.setPackage(mPackageNameToBind);
         String scheme = ((EditText) findViewById(R.id.custom_scheme)).getText().toString();
         if (TextUtils.isEmpty(scheme)) {

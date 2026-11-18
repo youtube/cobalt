@@ -17,12 +17,17 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/publishers/app_publisher.h"
+#include "chrome/browser/apps/link_capturing/link_capturing_feature_test_support.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
+#include "chrome/browser/web_applications/web_app.h"
+#include "chrome/browser/web_applications/web_app_install_info.h"
+#include "chrome/browser/web_applications/web_app_registry_update.h"
+#include "chrome/browser/web_applications/web_app_sync_bridge.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
-#include "components/services/app_service/public/cpp/features.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_filter.h"
@@ -30,6 +35,7 @@
 #include "components/services/app_service/public/cpp/intent_test_util.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
 #include "components/services/app_service/public/cpp/preferred_app.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/size.h"
@@ -430,6 +436,14 @@ TEST_F(AppServiceProxyTest, ReinitializeClearsCache) {
 
 class AppServiceProxyPreferredAppsTest : public AppServiceProxyTest {
  public:
+  AppServiceProxyPreferredAppsTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kPwaNavigationCapturing,
+          {{features::kNavigationCapturingDefaultState.name,
+            "reimpl_default_on"}}}},
+        {});
+  }
+
   void SetUp() override {
     AppServiceProxyTest::SetUp();
 
@@ -457,6 +471,9 @@ class AppServiceProxyPreferredAppsTest : public AppServiceProxyTest {
   PreferredAppsImpl* PreferredAppsImpl() {
     return proxy()->preferred_apps_impl_.get();
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(AppServiceProxyPreferredAppsTest, UpdatedOnUninstall) {
@@ -1054,6 +1071,290 @@ TEST_F(AppServiceProxyTest, GetAppsForIntentBestHandler) {
   // scheme-only filter which should have been discarded.
   EXPECT_EQ(1U, intent_launch_info.size());
   EXPECT_EQ("name 2", intent_launch_info[0].activity_name);
+}
+
+TEST_F(AppServiceProxyPreferredAppsTest, OverlappingWebAppsCoexistence) {
+  GetPreferredAppsList().Init();
+
+  // 1. Install nested Web Apps A and B.
+  GURL scope_a("https://example.com/");
+  GURL scope_b("https://example.com/inner/");
+
+  auto info_a = std::make_unique<web_app::WebAppInstallInfo>(
+      webapps::ManifestId(GURL("https://example.com/manifest_a")),
+      GURL("https://example.com/index.html"));
+  info_a->scope = scope_a;
+  info_a->title = u"Web App A";
+  webapps::AppId app_a =
+      web_app::test::InstallWebApp(profile(), std::move(info_a));
+
+  auto info_b = std::make_unique<web_app::WebAppInstallInfo>(
+      webapps::ManifestId(GURL("https://example.com/inner/manifest_b")),
+      GURL("https://example.com/inner/index.html"));
+  info_b->scope = scope_b;
+  info_b->title = u"Web App B";
+  webapps::AppId app_b =
+      web_app::test::InstallWebApp(profile(), std::move(info_b));
+
+  // Also publish them to App Service.
+  FakePublisherForProxyTest web_pub(proxy(), AppType::kWeb, {app_a, app_b});
+
+  // Enable preferred for App A, then App B.
+  IntentFilters filters_a;
+  filters_a.push_back(apps_util::MakeIntentFilterForUrlScope(scope_a));
+  proxy()->SetSupportedLinksPreference(app_a, std::move(filters_a));
+
+  IntentFilters filters_b;
+  filters_b.push_back(apps_util::MakeIntentFilterForUrlScope(scope_b));
+  proxy()->SetSupportedLinksPreference(app_b, std::move(filters_b));
+
+  // They should both be preferred apps (co-exist!) since their scopes are
+  // different.
+  EXPECT_TRUE(web_pub.AppHasSupportedLinksPreference(app_a));
+  EXPECT_TRUE(web_pub.AppHasSupportedLinksPreference(app_b));
+
+  // Dispatch navigation to chat URL. Longest prefix match should win (App B).
+  auto intent_chat =
+      std::make_unique<Intent>(apps_util::kIntentActionView,
+                               GURL("https://example.com/inner/message/123"));
+  EXPECT_EQ(app_b,
+            GetPreferredAppsList().FindPreferredAppForIntent(intent_chat));
+
+  // Dispatch navigation to general mail URL. App A should win.
+  auto intent_mail = std::make_unique<Intent>(
+      apps_util::kIntentActionView, GURL("https://example.com/inbox"));
+  EXPECT_EQ(app_a,
+            GetPreferredAppsList().FindPreferredAppForIntent(intent_mail));
+}
+
+TEST_F(AppServiceProxyPreferredAppsTest, OverlappingWebAppsConflictSameScope) {
+  GetPreferredAppsList().Init();
+
+  GURL scope_a("https://example.com/");
+  GURL scope_b("https://example.com/inner/");
+
+  auto info_a = std::make_unique<web_app::WebAppInstallInfo>(
+      webapps::ManifestId(GURL("https://example.com/manifest_a")),
+      GURL("https://example.com/index.html"));
+  info_a->scope = scope_a;
+  info_a->title = u"Web App A";
+  webapps::AppId app_a =
+      web_app::test::InstallWebApp(profile(), std::move(info_a));
+
+  auto info_b = std::make_unique<web_app::WebAppInstallInfo>(
+      webapps::ManifestId(GURL("https://example.com/inner/manifest_b")),
+      GURL("https://example.com/inner/index.html"));
+  info_b->scope = scope_b;
+  info_b->title = u"Web App B";
+  webapps::AppId app_b =
+      web_app::test::InstallWebApp(profile(), std::move(info_b));
+
+  FakePublisherForProxyTest web_pub(proxy(), AppType::kWeb, {app_a, app_b});
+
+  IntentFilters filters_a;
+  filters_a.push_back(apps_util::MakeIntentFilterForUrlScope(scope_a));
+  proxy()->SetSupportedLinksPreference(app_a, std::move(filters_a));
+
+  IntentFilters filters_b;
+  filters_b.push_back(apps_util::MakeIntentFilterForUrlScope(scope_b));
+  proxy()->SetSupportedLinksPreference(app_b, std::move(filters_b));
+
+  // Install Web App C with the exact same scope as App A.
+  auto info_c = std::make_unique<web_app::WebAppInstallInfo>(
+      webapps::ManifestId(GURL("https://example.com/manifest_c")),
+      GURL("https://example.com/index_c.html"));
+  info_c->scope = scope_a;
+  info_c->title = u"Web App C";
+  webapps::AppId app_c =
+      web_app::test::InstallWebApp(profile(), std::move(info_c));
+  web_pub.InitApps({app_a, app_b, app_c});
+
+  IntentFilters filters_c;
+  filters_c.push_back(apps_util::MakeIntentFilterForUrlScope(scope_a));
+  proxy()->SetSupportedLinksPreference(app_c, std::move(filters_c));
+
+  // App A's preference should be disabled (removed) because its scope is
+  // exactly identical to App C. App B's preference should remain unaffected.
+  EXPECT_FALSE(web_pub.AppHasSupportedLinksPreference(app_a));
+  EXPECT_TRUE(web_pub.AppHasSupportedLinksPreference(app_b));
+  EXPECT_TRUE(web_pub.AppHasSupportedLinksPreference(app_c));
+}
+
+// Struct parameterizing the conflict tests to test overlap conflict with
+// non-standard-web apps (like ARC apps and System Web Apps). Since SWAs are
+// published to App Service as AppType::kWeb, we use `is_system_web_app` to
+// denote whether to register it as a System Web App in the web app database.
+struct ConflictTestParam {
+  AppType app_type;
+  bool is_system_web_app;
+};
+
+class AppServiceProxyPreferredAppsConflictTest
+    : public AppServiceProxyPreferredAppsTest,
+      public testing::WithParamInterface<ConflictTestParam> {};
+
+// Tests that a standard Web App conflicts with non-standard-web apps (ARC apps
+// and System Web Apps) in both directions:
+// - Direction A: If a standard Web App is preferred first, setting a
+//   conflicting ARC or SWA app as preferred will override and disable the Web
+//   App's preference.
+// - Direction B: If an ARC or SWA app is preferred first, setting a standard
+//   Web App as preferred is blocked/aborted, leaving the ARC/SWA app as the
+//   preferred app.
+//
+// Key behavior differences in Preferred Apps / Link Capturing:
+// 1. Standard Web Apps: Can co-exist with other standard Web Apps if their
+//    scopes only overlap/nest (e.g. nested paths) rather than match exactly.
+//    Longest prefix matching resolves routing.
+// 2. ARC Apps and SWAs: Any overlap in intent filters is treated as a conflict.
+//    They are considered strictly isolated/prioritized compared to standard Web
+//    Apps. Thus:
+//    - They override standard Web App preferences when enabled.
+//    - They block standard Web Apps from overriding their preference.
+TEST_P(AppServiceProxyPreferredAppsConflictTest, ConflictBothDirections) {
+  GetPreferredAppsList().Init();
+  auto* provider = web_app::WebAppProvider::GetForWebApps(profile());
+  ASSERT_TRUE(provider);
+
+  const ConflictTestParam& param = GetParam();
+
+  // 1. Install standard Web App B.
+  GURL scope_b("https://example.com/inner/");
+  auto info_b = std::make_unique<web_app::WebAppInstallInfo>(
+      webapps::ManifestId(GURL("https://example.com/inner/manifest_b")),
+      GURL("https://example.com/inner/index.html"));
+  info_b->scope = scope_b;
+  info_b->title = u"Web App B";
+  webapps::AppId app_b =
+      web_app::test::InstallWebApp(profile(), std::move(info_b));
+
+  FakePublisherForProxyTest web_pub(proxy(), AppType::kWeb, {app_b});
+
+  // 2. Setup the conflicting app (either ARC or SWA).
+  webapps::AppId conflicting_app_id;
+  std::unique_ptr<FakePublisherForProxyTest> conflicting_pub;
+
+  if (param.is_system_web_app) {
+    // Install SWA E.
+    GURL scope_e("https://example.com/inner/");
+    auto web_app_e = std::make_unique<web_app::WebApp>(
+        webapps::ManifestId(GURL("https://example.com/inner/manifest_e")),
+        GURL("https://example.com/inner/index.html"), scope_e);
+    web_app_e->AddSource(web_app::WebAppManagement::Type::kSystem);
+    web_app_e->SetName("SWA App E");
+    conflicting_app_id = web_app_e->app_id();
+
+    web_app::ScopedRegistryUpdate update =
+        provider->sync_bridge_unsafe().BeginUpdate();
+    update->CreateApp(std::move(web_app_e));
+
+    web_pub.InitApps({app_b, conflicting_app_id});
+  } else {
+    // ARC App D.
+    conflicting_app_id = "arc_app_d";
+    conflicting_pub = std::make_unique<FakePublisherForProxyTest>(
+        proxy(), param.app_type, std::vector<std::string>{conflicting_app_id});
+  }
+
+  // --- Direction A: Web App enabled first, then Conflicting App enabled ---
+  // Enable Web App B.
+  IntentFilters filters_b;
+  filters_b.push_back(apps_util::MakeIntentFilterForUrlScope(scope_b));
+  proxy()->SetSupportedLinksPreference(app_b, std::move(filters_b));
+  EXPECT_TRUE(web_pub.AppHasSupportedLinksPreference(app_b));
+
+  // Enable Conflicting App.
+  IntentFilters filters_conflicting;
+  filters_conflicting.push_back(
+      apps_util::MakeIntentFilterForUrlScope(scope_b));
+  proxy()->SetSupportedLinksPreference(conflicting_app_id,
+                                       std::move(filters_conflicting));
+
+  // Conflicting App should disable Web App B.
+  EXPECT_FALSE(web_pub.AppHasSupportedLinksPreference(app_b));
+  if (param.is_system_web_app) {
+    EXPECT_TRUE(web_pub.AppHasSupportedLinksPreference(conflicting_app_id));
+  } else {
+    EXPECT_TRUE(
+        conflicting_pub->AppHasSupportedLinksPreference(conflicting_app_id));
+  }
+
+  // --- Direction B: Conflicting App enabled first, then Web App enabled
+  // (blocked) --- Try to enable Web App B again.
+  IntentFilters filters_b2;
+  filters_b2.push_back(apps_util::MakeIntentFilterForUrlScope(scope_b));
+  proxy()->SetSupportedLinksPreference(app_b, std::move(filters_b2));
+
+  // Web App B should NOT be enabled, and the Conflicting App remains preferred.
+  EXPECT_FALSE(web_pub.AppHasSupportedLinksPreference(app_b));
+  if (param.is_system_web_app) {
+    EXPECT_TRUE(web_pub.AppHasSupportedLinksPreference(conflicting_app_id));
+  } else {
+    EXPECT_TRUE(
+        conflicting_pub->AppHasSupportedLinksPreference(conflicting_app_id));
+  }
+
+  // Clean up.
+  proxy()->RemoveSupportedLinksPreference(conflicting_app_id);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    AppServiceProxyPreferredAppsConflictTest,
+    testing::Values(ConflictTestParam{AppType::kArc, false},
+                    ConflictTestParam{AppType::kWeb, true}));
+
+TEST_F(AppServiceProxyPreferredAppsTest,
+       OverlappingWebAppsConflictArcAndSystem) {
+  GetPreferredAppsList().Init();
+
+  auto* provider = web_app::WebAppProvider::GetForWebApps(profile());
+  ASSERT_TRUE(provider);
+
+  // Create and insert a System Web App (SWA) E.
+  GURL scope_e("https://screencast.apps.chrome/");
+  webapps::AppId app_e;
+  {
+    auto web_app_e = std::make_unique<web_app::WebApp>(
+        webapps::ManifestId(GURL("https://screencast.apps.chrome/manifest_e")),
+        GURL("https://screencast.apps.chrome/index.html"), scope_e);
+    web_app_e->AddSource(web_app::WebAppManagement::Type::kSystem);
+    web_app_e->SetName("SWA App E");
+    app_e = web_app_e->app_id();
+
+    web_app::ScopedRegistryUpdate update =
+        provider->sync_bridge_unsafe().BeginUpdate();
+    update->CreateApp(std::move(web_app_e));
+  }
+  FakePublisherForProxyTest web_pub(proxy(), AppType::kWeb, {app_e});
+
+  // Install ARC App D that overlaps with SWA App E.
+  const char arc_app_d[] = "arc_app_d";
+  FakePublisherForProxyTest arc_pub(proxy(), AppType::kArc, {arc_app_d});
+
+  // 1. Enable ARC App D first.
+  IntentFilters filters_d;
+  filters_d.push_back(apps_util::MakeIntentFilterForUrlScope(scope_e));
+  proxy()->SetSupportedLinksPreference(arc_app_d, std::move(filters_d));
+  EXPECT_TRUE(arc_pub.AppHasSupportedLinksPreference(arc_app_d));
+
+  // Enable SWA App E.
+  IntentFilters filters_e;
+  filters_e.push_back(apps_util::MakeIntentFilterForUrlScope(scope_e));
+  proxy()->SetSupportedLinksPreference(app_e, std::move(filters_e));
+
+  // They should conflict. App E disables ARC App D.
+  EXPECT_FALSE(arc_pub.AppHasSupportedLinksPreference(arc_app_d));
+  EXPECT_TRUE(web_pub.AppHasSupportedLinksPreference(app_e));
+
+  // 2. Enable ARC App D again.
+  IntentFilters filters_d2;
+  filters_d2.push_back(apps_util::MakeIntentFilterForUrlScope(scope_e));
+  proxy()->SetSupportedLinksPreference(arc_app_d, std::move(filters_d2));
+
+  // App D disables SWA App E.
+  EXPECT_TRUE(arc_pub.AppHasSupportedLinksPreference(arc_app_d));
+  EXPECT_FALSE(web_pub.AppHasSupportedLinksPreference(app_e));
 }
 
 #endif  // BUILDFLAG(IS_CHROMEOS)

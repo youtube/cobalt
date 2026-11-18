@@ -120,6 +120,8 @@ chromium-metrics-reviews@google.com.
   <variant name="ProofreaderApi" summary="Proofreader API"/>
   <variant name="ScamDetection" summary="Scam Detection"/>
   <variant name="Skills" summary="Skills"/>
+  <variant name="SpeechRecognitionSmallExpertModel"
+      summary="Speech Recognition Small Expert Model (TinyGemma)"/>
   <variant name="Summarize" summary="Summarize"/>
   <variant name="TabOrganization" summary="Tab Organization"/>
   <variant name="Test" summary="Test"/>
@@ -250,6 +252,8 @@ chromium-metrics-reviews@google.com.
       summary="Segmentation: Tablet Productivity user"/>
   <variant name="SegmentationVoice" summary="Segmentation: Voice user"/>
   <variant name="ShoppingClassifier" summary="Shopping classifier"/>
+  <variant name="SpeechRecognitionSmallExpertModel"
+      summary="Speech Recognition Small Expert Model (TinyGemma)"/>
   <variant name="TextClassifier" summary="Smart text selection"/>
   <variant name="TextEmbedder" summary="Generic Text Embedding"/>
   <variant name="TextSafety" summary="Classifies safety of the text"/>
@@ -261,6 +265,8 @@ chromium-metrics-reviews@google.com.
       summary="PWA: Show web app installation promotion"/>
   <variant name="WebRTCNeuralResidualEchoEstimator"
       summary="WebRTC Neural Residual Echo Estimator"/>
+  <variant name="WebRTCVoiceIsolationDenoiser"
+      summary="WebRTC Voice Isolation Denoiser"/>
 </variants>
 
 <variants name="OptimizationType">
@@ -724,6 +730,46 @@ chromium-metrics-reviews@google.com.
     Records the total cumulative count of page content extractions performed on
     a Page over its entire lifetime. Recorded when the Page is destroyed (e.g.,
     upon cross-document navigation).
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.AIPageContent.GetImageBytes.Latency"
+    units="ms" expires_after="2027-06-08">
+  <owner>linnan@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the end-to-end latency of a GetImageBytes request. Recorded on the
+    browser side only when the request successfully retrieves image bytes.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.AIPageContent.GetImageBytes.Size"
+    units="bytes" expires_after="2027-06-08">
+  <owner>linnan@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the size of successfully extracted image bytes. Recorded on the
+    browser side only when the request successfully retrieves image bytes.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.AIPageContent.GetImageBytes.Status"
+    enum="AIPageContentGetImageBytesStatus" expires_after="2027-06-08">
+  <owner>linnan@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the outcome/status of a GetImageBytes request. Recorded on the
+    renderer side once per AIPageContentAgent::GetImageBytes call.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.AIPageContent.GetImageBytes.Timeout"
+    enum="Boolean" expires_after="2027-06-08">
+  <owner>linnan@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records whether a GetImageBytes request timed out on the browser side.
+    Recorded for every image extraction request.
   </summary>
 </histogram>
 
@@ -2339,7 +2385,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentExtraction.AutomaticOnLoad.StabilityLatency"
-    units="ms" expires_after="2026-09-16">
+    units="ms" expires_after="2026-12-06">
   <owner>alexmt@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>

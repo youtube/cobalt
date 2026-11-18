@@ -58,9 +58,6 @@ class HelpAppLauncher : public base::RefCountedThreadSafe<HelpAppLauncher> {
   // Shows specified help topic.
   void ShowHelpTopic(HelpTopic help_topic_id);
 
-  // Allows tests to specify a different extension id to connect to.
-  static void SetExtensionIdForTest(const char* extension_id);
-
  protected:
   virtual ~HelpAppLauncher();
 

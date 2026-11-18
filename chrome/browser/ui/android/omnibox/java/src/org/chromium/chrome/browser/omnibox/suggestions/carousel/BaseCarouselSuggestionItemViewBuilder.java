@@ -17,6 +17,7 @@ import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.mostvisited.MostVisitedTileViewBinder;
 import org.chromium.components.browser_ui.widget.tile.TileView;
+import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
@@ -47,12 +48,26 @@ public class BaseCarouselSuggestionItemViewBuilder {
      * @return BaseCarouselSuggestionView.
      */
     public static BaseCarouselSuggestionView createView(ViewGroup parent) {
+        if (!OmniboxFeatures.sAsyncViewInflation.isEnabled()) {
+            return new BaseCarouselSuggestionView(parent.getContext(), createAdapter());
+        }
+
+        // Defer adapter creation to UI thread to avoid ThreadChecker crashes.
+        return new BaseCarouselSuggestionView(parent.getContext(), null);
+    }
+
+    /**
+     * Create the adapter for the Carousel Suggestion View. Must be called on the UI thread.
+     *
+     * @return SimpleRecyclerViewAdapter.
+     */
+    public static SimpleRecyclerViewAdapter createAdapter() {
         SimpleRecyclerViewAdapter adapter = new SimpleRecyclerViewAdapter(new ModelList());
         adapter.registerType(
                 ViewType.TILE_VIEW,
                 BaseCarouselSuggestionItemViewBuilder::createTileView,
                 MostVisitedTileViewBinder::bind);
-        return new BaseCarouselSuggestionView(parent.getContext(), adapter);
+        return adapter;
     }
 
     /**

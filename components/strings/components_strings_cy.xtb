@@ -269,6 +269,7 @@ Fel arall, bydd eich gosodiadau preifatrwydd yn rhwystro hyn. Bydd hyn yn caniat
 <translation id="1407135791313364759">Agor pob un</translation>
 <translation id="1408696301184924537">I awtolenwi'r IBAN hwn y tro nesaf, cadwch ef yn eich Cyfrif Google</translation>
 <translation id="1408787208417187241">Tair stapl ar y brig</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> o <ph name="NUM_MATCHES_IN_GROUP" /> yn y grŵp <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Ni fydd eraill sy'n defnyddio'r ddyfais hon yn gweld eich gweithgarwch, felly gallwch bori'n fwy preifat. Ni fydd hyn yn newid sut mae data'n cael eu casglu gan wefannau rydych yn ymweld â nhw a'r gwasanaethau maent yn eu defnyddio, gan gynnwys Google. Bydd lawrlwythiadau, nodau tudalen ac eitemau'r rhestr ddarllen yn cael eu cadw.</translation>
 <translation id="1410941016594047814">Amlen Invite</translation>
 <translation id="1413235258620101697">Bydd CVC y cerdyn hwn yn cael ei amgryptio a'i gadw yn Google Wallet i dalu'n gyflymach</translation>
@@ -660,6 +661,7 @@ Fel arall, bydd eich gosodiadau preifatrwydd yn rhwystro hyn. Bydd hyn yn caniat
 <translation id="2045871135676061132">Amlen Personal</translation>
 <translation id="2046951263634619614">Manwerthwyr Llyfrau</translation>
 <translation id="2048261947532620704">Wrthi'n cyfieithu'r dudalen</translation>
+<translation id="2055016614992422886">Sgwrs</translation>
 <translation id="2059166748188874810">Bwrdeistref</translation>
 <translation id="2059202684901022309">22 x 34 modfedd</translation>
 <translation id="2064568741209980952">Credyd a Benthyca</translation>
@@ -3557,6 +3559,7 @@ I guddio opsiynau talu'n ddiweddarach, ewch i'r <ph name="BEGIN_LINK" />gosodiad
 <translation id="6550245281449521513">Ni chaniateir clo llygoden</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, newydd</translation>
 <translation id="6552566579578780089">Taliadau</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> o <ph name="NUM_MATCHES_IN_GROUP" /> yn y grŵp <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Ymwelwyd ddiwethaf <ph name="NUM_DAYS" /> o ddiwrnodau yn ôl</translation>
 <translation id="6556866813142980365">Ail-wneud</translation>
 <translation id="6557715786897013164">14 x 17 modfedd</translation>

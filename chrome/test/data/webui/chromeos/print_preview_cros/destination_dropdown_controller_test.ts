@@ -13,7 +13,7 @@ import type {FakeDestinationProvider} from 'chrome://os-print/js/fakes/fake_dest
 import {createCustomEvent} from 'chrome://os-print/js/utils/event_utils.js';
 import {getDestinationProvider} from 'chrome://os-print/js/utils/mojo_data_providers.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
-import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';

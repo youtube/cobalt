@@ -19,6 +19,7 @@ import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.gesturenav.NavigationBubble.CloseTarget;
+import org.chromium.ui.OverscrollActivationStatus;
 import org.chromium.ui.base.BackGestureEventSwipeEdge;
 
 /** FrameLayout that supports side-wise slide gesture for history navigation. */
@@ -115,12 +116,12 @@ class HistoryNavigationLayout extends FrameLayout implements ViewGroup.OnHierarc
      * Release the active pull. If no pull has started, the release will be ignored. If the pull was
      * sufficiently large, the navigation sequence will be initiated.
      *
-     * @param allowNav {@code true} if release action is supposed to trigger navigation.
+     * @param status The activation status of the release gesture.
      */
-    void releaseBubble(boolean allowNav) {
+    void releaseBubble(@OverscrollActivationStatus int status) {
         if (mSideSlideLayout == null) return;
         cancelStopNavigatingRunnable();
-        mSideSlideLayout.release(allowNav);
+        mSideSlideLayout.release(status);
     }
 
     /** Reset navigation bubble UI in action. */

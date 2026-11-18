@@ -41,6 +41,8 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationMetricsUtil
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataUploadImage;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
@@ -49,6 +51,7 @@ import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
+import org.chromium.ui.util.CommonOnLayoutChangeListeners;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -93,12 +96,17 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
 
     /**
      * @param activity The activity context.
+     * @param profile The current user profile.
      * @param bitmap The bitmap to be previewed.
+     * @param fileIdHash The ID hash of the image file.
+     * @param onBottomSheetClickedCallback The callback to be notified when a bottom sheet button is
+     *     clicked.
      */
     public UploadImagePreviewCoordinator(
             Activity activity,
             Profile profile,
             Bitmap bitmap,
+            String fileIdHash,
             Callback<Boolean> onBottomSheetClickedCallback) {
         mPreviewPropertyModel = new PropertyModel(PREVIEW_KEYS);
         mActivity = activity;
@@ -120,20 +128,13 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
         mShouldShowLogoAndSearchBox =
                 ChromeFeatureList.sNewTabPageCustomizationV2ShowLogoAndSearchBox.getValue();
         mLayoutChangeListener =
-                (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-                    // Checks if the bounding box has actually changed to avoid redundant calls.
-                    if (left == oldLeft
-                            && top == oldTop
-                            && right == oldRight
-                            && bottom == oldBottom) {
-                        return;
-                    }
-
-                    mUiConfig.updateDisplayStyle();
-                    if (mShouldShowLogoAndSearchBox) {
-                        updateSearchBoxWidthPreview();
-                    }
-                };
+                CommonOnLayoutChangeListeners.createBoundsChangedListener(
+                        () -> {
+                            mUiConfig.updateDisplayStyle();
+                            if (mShouldShowLogoAndSearchBox) {
+                                updateSearchBoxWidthPreview();
+                            }
+                        });
         mPreviewLayout.addOnLayoutChangeListener(mLayoutChangeListener);
 
         mDialog =
@@ -152,7 +153,7 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
         mPreviewPropertyModel.set(
                 NtpThemeProperty.PREVIEW_SAVE_CLICK_LISTENER,
                 v -> {
-                    onSaveButtonClicked(bitmap, onBottomSheetClickedCallback, mDialog);
+                    onSaveButtonClicked(bitmap, fileIdHash, onBottomSheetClickedCallback, mDialog);
                 });
 
         mPreviewPropertyModel.set(
@@ -229,10 +230,9 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
         int effectiveFeedPaddingTotal = (totalFeedPaddingPerSide + compensation) * 2;
 
         // 2. Computes the margin added to the ntp.
-        // isTablet is hardcoded to false as this coordinator is guarded against creation on
-        // tablets.
-        int ntpMarginsTotal =
-                getSearchBoxTwoSideMargin(resources, mUiConfig, /* isTablet= */ false);
+        // isLff is hardcoded to false as this coordinator is guarded against creation on
+        // LFF devices.
+        int ntpMarginsTotal = getSearchBoxTwoSideMargin(resources, mUiConfig, /* isLff= */ false);
 
         int finalWidth = mCropImageView.getWidth() - effectiveFeedPaddingTotal - ntpMarginsTotal;
 
@@ -347,13 +347,17 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
      * Called when the save button is clicked.
      *
      * @param bitmap The selected bitmap.
+     * @param fileIdHash The ID hash of the image file.
      * @param onBottomSheetClickedCallback The callback to be notified when a bottom sheet button is
      *     clicked.
      * @param dialog The current preview dialog.
      */
     @VisibleForTesting
     void onSaveButtonClicked(
-            Bitmap bitmap, Callback<Boolean> onBottomSheetClickedCallback, ChromeDialog dialog) {
+            Bitmap bitmap,
+            String fileIdHash,
+            Callback<Boolean> onBottomSheetClickedCallback,
+            ChromeDialog dialog) {
         assumeNonNull(mCropImageView);
         // 1. Gets the matrices (source of truth or calculated estimate)
         Matrix portraitMatrix = mCropImageView.getPortraitMatrix();
@@ -368,7 +372,17 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
                 new BackgroundImageInfo(
                         portraitMatrix, landscapeMatrix, portraitSize, landscapeSize);
 
-        NtpCustomizationConfigManager.getInstance().onUploadedImageSelected(bitmap, info);
+        NtpBackgroundDataUploadImage uploadImageData =
+                new NtpBackgroundDataUploadImage(
+                        PlatformType.ANDROID_LOCAL,
+                        NtpCustomizationUtils.createBackgroundImageFile().getAbsolutePath(),
+                        info,
+                        bitmap,
+                        /* primaryColor= */ null,
+                        fileIdHash);
+
+        NtpCustomizationConfigManager.getInstance()
+                .onBackgroundDataChanged(mActivity, uploadImageData);
 
         // Records metrics before the callback closes the bottom sheet.
         NtpCustomizationMetricsUtils.recordThemeUploadImagePreviewInteractions(

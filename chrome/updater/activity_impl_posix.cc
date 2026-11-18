@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -29,29 +30,34 @@ void ClearActiveBit(const base::FilePath& home_dir, const std::string& id) {
     return;
   }
 
-  const base::FilePath active_file_path = GetActiveFile(home_dir, id);
-  const base::ScopedFD dir_fd(
-      HANDLE_EINTR(open(active_file_path.DirName().value().c_str(), O_RDONLY)));
+  const std::optional<base::FilePath> active_file_path =
+      GetActiveFile(home_dir, id);
+  if (!active_file_path) {
+    return;
+  }
+  const base::ScopedFD dir_fd(HANDLE_EINTR(
+      open(active_file_path->DirName().value().c_str(), O_RDONLY)));
   if (!dir_fd.is_valid()) {
     return;
   }
   struct stat active_file_buffer = {0};
-  if (fstatat(dir_fd.get(), active_file_path.BaseName().value().c_str(),
+  if (fstatat(dir_fd.get(), active_file_path->BaseName().value().c_str(),
               &active_file_buffer, AT_SYMLINK_NOFOLLOW)) {
     return;
   }
   if (active_file_buffer.st_uid != home_buffer.st_uid) {
     return;
   }
-  unlinkat(dir_fd.get(), active_file_path.BaseName().value().c_str(), 0);
+  unlinkat(dir_fd.get(), active_file_path->BaseName().value().c_str(), 0);
 }
 
 bool GetActiveBit(UpdaterScope scope, const std::string& id) {
   return std::ranges::any_of(
       GetHomeDirPaths(scope), [&id](const base::FilePath& path) {
-        const base::FilePath& active_file = GetActiveFile(path, id);
-        return base::PathExists(active_file) &&
-               base::PathIsWritable(active_file);
+        const std::optional<base::FilePath> active_file =
+            GetActiveFile(path, id);
+        return active_file.has_value() && base::PathExists(*active_file) &&
+               base::PathIsWritable(*active_file);
       });
 }
 

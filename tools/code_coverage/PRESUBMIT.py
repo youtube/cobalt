@@ -17,6 +17,7 @@ def _CommonChecks(input_api, output_api):
   if files and not input_api.is_windows:
     tests = [
         path.join(cwd, 'download_fuzz_corpora_test.py'),
+        path.join(cwd, 'find_affected_coverage_guided_fuzzers_test.py'),
         path.join(cwd, 'measure_fuzzilli_coverage_test.py'),
     ]
     return input_api.canned_checks.RunUnitTests(input_api, output_api, tests)

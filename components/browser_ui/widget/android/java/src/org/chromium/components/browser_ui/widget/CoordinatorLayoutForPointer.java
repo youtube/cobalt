@@ -43,9 +43,19 @@ public class CoordinatorLayoutForPointer extends CoordinatorLayout implements To
         final int y = (int) event.getY(pointerIndex);
         final int childrenCount = getChildCount();
         for (int i = childrenCount - 1; i >= 0; --i) {
-            if (getChildAt(i).getVisibility() != VISIBLE) continue;
-            if (isWithinBoundOfView(x, y, getChildAt(i))) {
-                return getChildAt(i).onResolvePointerIcon(event, pointerIndex);
+            View child = getChildAt(i);
+            if (child.getVisibility() != VISIBLE) continue;
+            if (isWithinBoundOfView(x, y, child)) {
+                MotionEvent offsetEvent = MotionEvent.obtain(event);
+
+                // The child view will receive the event with coordinates relative to its own
+                // top-left corner similarly to how android implements internally.
+                offsetEvent.offsetLocation(-child.getLeft(), -child.getTop());
+                PointerIcon icon = child.onResolvePointerIcon(offsetEvent, pointerIndex);
+                offsetEvent.recycle();
+                if (icon != null) {
+                    return icon;
+                }
             }
         }
         return super.onResolvePointerIcon(event, pointerIndex);
@@ -63,7 +73,9 @@ public class CoordinatorLayoutForPointer extends CoordinatorLayout implements To
         return super.onInterceptTouchEvent(ev);
     }
 
-    /** Set a callback that is run for every intercepted touch event on this view and its children. */
+    /**
+     * Set a callback that is run for every intercepted touch event on this view and its children.
+     */
     public void setTouchEventCallback(Runnable touchEventCallback) {
         assert mTouchEventCallback == null || touchEventCallback == null
                 : "Another touchEventCallback is already set.";
@@ -79,4 +91,5 @@ public class CoordinatorLayoutForPointer extends CoordinatorLayout implements To
     public void removeTouchEventObserver(TouchEventObserver obs) {
         mTouchEventObservers.removeObserver(obs);
     }
+
 }

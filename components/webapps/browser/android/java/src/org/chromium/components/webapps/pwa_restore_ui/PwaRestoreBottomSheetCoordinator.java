@@ -48,7 +48,8 @@ public class PwaRestoreBottomSheetCoordinator {
 
         mView = new PwaRestoreBottomSheetView(activity);
         mView.initialize(backArrowId);
-        mContent = new PwaRestoreBottomSheetContent(mView, this::onOsBackButtonClicked);
+        mContent =
+                new PwaRestoreBottomSheetContent(mView, this::onOsBackButtonClicked, this::destroy);
         mMediator =
                 new PwaRestoreBottomSheetMediator(
                         apps,
@@ -68,6 +69,10 @@ public class PwaRestoreBottomSheetCoordinator {
      */
     public boolean show() {
         return mController.requestShowContent(mContent, true);
+    }
+
+    public void destroy() {
+        mMediator.destroy();
     }
 
     private void hideBottomSheet() {

@@ -99,6 +99,7 @@ source_set("autofill") {
 
   if (is_android) {
     sources += [
+      "at_memory_suggestion_controller.h",
       "autofill_dialog_controller.h",
       "autofill_dialog_controller_impl.h",
       "autofill_keyboard_accessory_controller.h",
@@ -139,8 +140,8 @@ source_set("autofill") {
       "edit_address_profile_dialog_controller.h",
       "edit_address_profile_dialog_controller_impl.h",
       "edit_address_profile_view.h",
-      "email_verification_popup_controller.h",
-      "email_verified_toast_menu_model.h",
+      "email_verifier/email_verification_popup_controller.h",
+      "email_verifier/email_verified_toast_menu_model.h",
       "save_address_bubble_controller.h",
       "update_address_bubble_controller.h",
     ]
@@ -170,6 +171,7 @@ source_set("autofill") {
 source_set("impl") {
   sources = [
     "autofill_bubble_controller_base.cc",
+    "autofill_bubble_handler.cc",
     "autofill_client_provider.cc",
     "autofill_client_provider_factory.cc",
     "autofill_popup_hide_helper.cc",
@@ -209,6 +211,7 @@ source_set("impl") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/signin",
     "//chrome/browser/strike_database",
+    "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync",
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui:ui_features",
@@ -253,6 +256,7 @@ source_set("impl") {
 
   if (is_android) {
     sources += [
+      "at_memory_suggestion_controller.cc",
       "autofill_dialog_controller_impl.cc",
       "autofill_keyboard_accessory_controller.cc",
       "autofill_keyboard_accessory_controller_impl.cc",
@@ -283,8 +287,8 @@ source_set("impl") {
       "bubble_manager_impl.cc",
       "delete_address_profile_dialog_controller_impl.cc",
       "edit_address_profile_dialog_controller_impl.cc",
-      "email_verification_popup_controller.cc",
-      "email_verified_toast_menu_model.cc",
+      "email_verifier/email_verification_popup_controller.cc",
+      "email_verifier/email_verified_toast_menu_model.cc",
       "save_address_bubble_controller.cc",
       "update_address_bubble_controller.cc",
     ]
@@ -394,6 +398,7 @@ source_set("unit_tests") {
 
   if (is_android) {
     sources += [
+      "at_memory_suggestion_controller_unittest.cc",
       "autofill_dialog_controller_impl_unittest.cc",
       "autofill_keyboard_accessory_controller_impl_unittest.cc",
       "autofill_message_controller_impl_unittest.cc",
@@ -423,6 +428,10 @@ source_set("unit_tests") {
       "//chrome/browser/ui/user_education",
       "//components/tabs:test_support",
     ]
+  }
+
+  if (is_mac) {
+    sources += [ "autofill_popup_controller_impl_mac_unittest.mm" ]
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
@@ -461,7 +470,12 @@ source_set("test_support") {
       "autofill_popup_controller_impl_test_api.h",
       "mock_autofill_popup_controller.cc",
       "mock_autofill_popup_controller.h",
+      "mock_bubble_manager.cc",
+      "mock_bubble_manager.h",
     ]
+    if (is_mac) {
+      sources += [ "autofill_popup_controller_impl_mac_test_api.h" ]
+    }
     public_deps += [ "//ui/gfx:test_support" ]
   }
 }

@@ -91,9 +91,9 @@ TEST_F(BufferTest, ReleaseCallback) {
   buffer->OnAttach();
   // Produce a transferable resource for the contents of the buffer.
   std::optional<viz::TransferableResource> resource =
-      buffer->ProduceTransferableResource(
-          frame_sink_holder->resource_manager(), nullptr, false,
-          gfx::ColorSpace::CreateSRGB(), nullptr);
+      buffer->ProduceTransferableResource(frame_sink_holder->resource_manager(),
+                                          false, gfx::ColorSpace::CreateSRGB(),
+                                          nullptr);
   ASSERT_TRUE(resource);
 
   // Release buffer.
@@ -131,9 +131,9 @@ TEST_F(BufferTest, SolidColorReleaseCallback) {
   buffer->OnAttach();
   // Produce a transferable resource for the contents of the buffer.
   std::optional<viz::TransferableResource> resource =
-      buffer->ProduceTransferableResource(
-          frame_sink_holder->resource_manager(), nullptr, false,
-          gfx::ColorSpace::CreateSRGB(), nullptr);
+      buffer->ProduceTransferableResource(frame_sink_holder->resource_manager(),
+                                          false, gfx::ColorSpace::CreateSRGB(),
+                                          nullptr);
   // Solid color buffer is immediately released after commit.
   EXPECT_FALSE(resource);
 
@@ -171,7 +171,7 @@ TEST_F(BufferTest, IsLost) {
     // Acquire a texture transferable resource for the contents of the buffer.
     std::optional<viz::TransferableResource> resource =
         buffer->ProduceTransferableResource(
-            frame_sink_holder->resource_manager(), nullptr, false,
+            frame_sink_holder->resource_manager(), false,
             gfx::ColorSpace::CreateSRGB(), nullptr);
     ASSERT_TRUE(resource);
 
@@ -199,7 +199,7 @@ TEST_F(BufferTest, IsLost) {
     // buffer.
     std::optional<viz::TransferableResource> new_resource =
         buffer->ProduceTransferableResource(
-            frame_sink_holder->resource_manager(), nullptr, false,
+            frame_sink_holder->resource_manager(), false,
             gfx::ColorSpace::CreateSRGB(), nullptr);
     ASSERT_TRUE(new_resource);
     buffer->OnDetach();
@@ -227,9 +227,9 @@ TEST_F(BufferTest, OnLostResources) {
   buffer->OnAttach();
   // Acquire a texture transferable resource for the contents of the buffer.
   std::optional<viz::TransferableResource> resource =
-      buffer->ProduceTransferableResource(
-          frame_sink_holder->resource_manager(), nullptr, false,
-          gfx::ColorSpace::CreateSRGB(), nullptr);
+      buffer->ProduceTransferableResource(frame_sink_holder->resource_manager(),
+                                          false, gfx::ColorSpace::CreateSRGB(),
+                                          nullptr);
   ASSERT_TRUE(resource);
 
   viz::RasterContextProvider* context_provider =
@@ -268,9 +268,9 @@ TEST_F(BufferTest, SurfaceTreeHostDestruction) {
   buffer->OnAttach();
   // Produce a transferable resource for the contents of the buffer.
   std::optional<viz::TransferableResource> resource =
-      buffer->ProduceTransferableResource(
-          frame_sink_holder->resource_manager(), nullptr, false,
-          gfx::ColorSpace::CreateSRGB(), nullptr);
+      buffer->ProduceTransferableResource(frame_sink_holder->resource_manager(),
+                                          false, gfx::ColorSpace::CreateSRGB(),
+                                          nullptr);
   ASSERT_TRUE(resource);
 
   // Submit frame with resource.
@@ -321,9 +321,9 @@ TEST_F(BufferTest, SurfaceTreeHostLastFrame) {
   buffer->OnAttach();
   // Produce a transferable resource for the contents of the buffer.
   std::optional<viz::TransferableResource> resource =
-      buffer->ProduceTransferableResource(
-          frame_sink_holder->resource_manager(), nullptr, false,
-          gfx::ColorSpace::CreateSRGB(), nullptr);
+      buffer->ProduceTransferableResource(frame_sink_holder->resource_manager(),
+                                          false, gfx::ColorSpace::CreateSRGB(),
+                                          nullptr);
   ASSERT_TRUE(resource);
 
   // Submit frame with resource.
@@ -427,9 +427,9 @@ TEST_F(BufferTest, SurfaceTreeHostNotReclaimCachedFrameResources) {
   buffer->OnAttach();
   // Produce a transferable resource for the contents of the buffer.
   std::optional<viz::TransferableResource> resource =
-      buffer->ProduceTransferableResource(
-          frame_sink_holder->resource_manager(), nullptr, false,
-          gfx::ColorSpace::CreateSRGB(), nullptr);
+      buffer->ProduceTransferableResource(frame_sink_holder->resource_manager(),
+                                          false, gfx::ColorSpace::CreateSRGB(),
+                                          nullptr);
   ASSERT_TRUE(resource);
 
   // Submit frame with `resource`.
@@ -516,9 +516,9 @@ TEST_F(BufferTest, SurfaceTreeHostDiscardFrameNotReclaimNewFrameResources) {
   buffer->OnAttach();
   // Produce a transferable resource for the contents of the buffer.
   std::optional<viz::TransferableResource> resource =
-      buffer->ProduceTransferableResource(
-          frame_sink_holder->resource_manager(), nullptr, false,
-          gfx::ColorSpace::CreateSRGB(), nullptr);
+      buffer->ProduceTransferableResource(frame_sink_holder->resource_manager(),
+                                          false, gfx::ColorSpace::CreateSRGB(),
+                                          nullptr);
   ASSERT_TRUE(resource);
 
   frame_sink_holder->ClearPendingBeginFramesForTesting();
@@ -587,9 +587,9 @@ TEST_F(BufferTest, SurfaceTreeHostDiscardFrameNotReclaimInUseResources) {
   buffer->OnAttach();
   // Produce a transferable resource for the contents of the buffer.
   std::optional<viz::TransferableResource> resource =
-      buffer->ProduceTransferableResource(
-          frame_sink_holder->resource_manager(), nullptr, false,
-          gfx::ColorSpace::CreateSRGB(), nullptr);
+      buffer->ProduceTransferableResource(frame_sink_holder->resource_manager(),
+                                          false, gfx::ColorSpace::CreateSRGB(),
+                                          nullptr);
   ASSERT_TRUE(resource);
 
   // Submit frame with `resource`.

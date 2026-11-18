@@ -85,8 +85,8 @@ class WasmInJSInliningReducer : public Next {
     pending_caller_frame_state_ = {};
 
     if (descriptor->js_wasm_call_parameters) {
-      // TODO(353475584): Wrapper and body inlining in Turboshaft is only
-      // implemented for the Turbolev frontend right now.
+      // The only way we attach this metadata is in the Turbolev frontend when
+      // JS-to-Wasm wrapper inlining is enabled.
       CHECK(v8_flags.turbolev);
       CHECK(v8_flags.wasm_in_js_inlining_wrapper);
 
@@ -265,8 +265,25 @@ class WasmInJsInliningInterface {
     locals_.resize(decoder->num_locals());
 
     // Initialize the function parameters, which are part of the local space.
+    // For reference-typed parameters, we wrap the converted JS arguments in a
+    // `WasmTypeAnnotationOp` to propagate the static Wasm type information to
+    // `WasmGCTypedOptimizationReducer`.
+    // We only do this for reference types (is_ref()) because:
+    // 1. AnnotateWasmType requires a subtype of Object (Tagged pointer).
+    // 2. Primitive types (like i32, f64) are represented as raw machine types
+    //    (Word32, Float64) and do not benefit from Wasm GC optimizations.
+    // The `WasmTypeAnnotationOp` gets used and eliminated either in the
+    // `WasmGCTypedOptimizationReducer` (if optimizations are enabled) or just
+    // stripped in the `WasmLoweringReducer`.
     CHECK_LE(arguments_.size(), locals_.size());
-    std::copy(arguments_.begin(), arguments_.end(), locals_.begin());
+    for (size_t i = 0; i < arguments_.size(); ++i) {
+      ValueType type = decoder->sig_->GetParam(i);
+      V<Any> arg = arguments_[i];
+      if (type.is_ref()) {
+        arg = __ AnnotateWasmType(V<Object>::Cast(arg), type);
+      }
+      locals_[i] = arg;
+    }
 
     // Initialize the non-parameter locals.
     uint32_t index = static_cast<uint32_t>(decoder->sig_->parameter_count());
@@ -813,7 +830,7 @@ class WasmInJsInliningInterface {
         object.type, target,
         compiler::GetExactness(decoder->module_, target.heap_type())};
     result->op =
-        __ WasmTypeCast(object.get<Object>(), rtt, config, frame_state_);
+        __ WasmTypeCast(object.get<Object>(), rtt, frame_state_, config);
   }
 
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
@@ -832,7 +849,7 @@ class WasmInJsInliningInterface {
             type, null_succeeds ? wasm::kNullable : wasm::kNonNullable)};
     V<Map> rtt = OpIndex::Invalid();
     result->op =
-        __ WasmTypeCast(object.get<Object>(), rtt, config, frame_state_);
+        __ WasmTypeCast(object.get<Object>(), rtt, frame_state_, config);
   }
 
   // TODO(dlehmann,353475584): Support linear memory in the inlinee.

@@ -670,9 +670,6 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppBrowserTest, UseCounters) {
               .AddPermissionsPolicyWildcard(
                   network::mojom::PermissionsPolicyFeature::kDirectSockets)
               .AddPermissionsPolicyWildcard(
-                  network::mojom::PermissionsPolicyFeature::
-                      kDirectSocketsPrivate)
-              .AddPermissionsPolicyWildcard(
                   network::mojom::PermissionsPolicyFeature::kLocalNetwork)
               .AddPermissionsPolicyWildcard(
                   network::mojom::PermissionsPolicyFeature::kLoopbackNetwork))

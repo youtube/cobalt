@@ -150,7 +150,7 @@ public class TabletPhoneLayoutChangeTest {
         CriteriaHelper.pollUiThread(
                 () -> {
                     boolean isTabSwitcherShown =
-                            cta.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER);
+                            cta.getLayoutManager().isLayoutVisible(LayoutType.HUB);
                     Criteria.checkThat(isTabSwitcherShown, Matchers.is(true));
                 },
                 TIMEOUT_MS,
@@ -163,8 +163,7 @@ public class TabletPhoneLayoutChangeTest {
                     boolean isTabSwitcherShown =
                             newCta.getCompositorViewHolderSupplier().get() != null
                                     && newCta.getLayoutManager() != null
-                                    && newCta.getLayoutManager()
-                                            .isLayoutVisible(LayoutType.TAB_SWITCHER);
+                                    && newCta.getLayoutManager().isLayoutVisible(LayoutType.HUB);
                     Criteria.checkThat(isTabSwitcherShown, Matchers.is(true));
                 },
                 TIMEOUT_MS,

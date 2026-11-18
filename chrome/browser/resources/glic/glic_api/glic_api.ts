@@ -143,6 +143,8 @@ export declare interface InvokeOptions {
   zssConfig?: ZssConfig;
   /** Source-specific payload for the invocation. */
   payload?: InvocationPayload;
+  /** The ID of the tab to actuate on, if actuationTarget is kTargetSurface. */
+  actuationTabId?: string;
 }
 
 /** An update sent from the web client to the host. */
@@ -366,6 +368,15 @@ export declare interface GlicBrowserHost {
    */
   getContextForActorFromTab?
     (tabId: string, options: TabContextOptions): Promise<TabContextResult>;
+
+  /**
+   * Retrieves raw image bytes, MIME type, and metadata for an image node from
+   * the tab associated with `tabId`.
+   *
+   * @throws {Error} on failure.
+   */
+  getImageBytesFromTab?(tabId: string, documentId: string, domNodeId: number):
+      Promise<ImageBytesResult>;
 
   /**
    * Sets the maximum number of supported pinned tabs. Should not be called
@@ -1702,6 +1713,12 @@ export declare interface TabContextResult {
    */
   viewportScreenshot?: Screenshot;
   /**
+   * Serialized optimization_guide.proto.ScreenshotInfo from
+   * common_quality_data.proto. Provided if viewportScreenshot was requested and
+   * layout metadata is available.
+   */
+  screenshotInfo?: ReadableStream<Uint8Array>;
+  /**
    * PDF document data. Provided if requested, and the top level document in the
    * focused tab is a PDF.
    */
@@ -1963,6 +1980,30 @@ export declare interface Screenshot {
   mimeType: string;
   /** Image annotations for this screenshot. */
   originAnnotations: ImageOriginAnnotations;
+}
+
+/**
+ * Metadata about an image on the page.
+ */
+export declare interface ImageInfo {
+  /** The accessible name or descriptive caption of the image. */
+  caption?: string;
+  /** The origin of the page or document containing the image source. */
+  sourceOrigin?: string;
+  /** The URL source location of the image. It is empty if not available. */
+  url: string;
+  /** The image encoding format represented as a MIME type. */
+  mimeType?: string;
+}
+
+/**
+ * Result of retrieving image bytes.
+ */
+export declare interface ImageBytesResult {
+  /** Raw encoded image bytes. */
+  bytes: ArrayBuffer;
+  /** Metadata about the image. */
+  imageInfo: ImageInfo;
 }
 
 /**
@@ -3084,6 +3125,11 @@ export enum ActuationTarget {
   CURRENT_TAB = 2,
   // Forces actuation in a new tab.
   NEW_TAB = 3,
+  // Forces actuation on the target surface, if the surface is a valid tab.
+  // Note: kTargetSurface can be different than kCurrentTab if the target
+  // surface is not the foregrounded tab. This option has no effect if the
+  // surface does not resolve to a valid tab.
+  TARGET_SURFACE = 4,
 }
 
 ///////////////////////////////////////////////

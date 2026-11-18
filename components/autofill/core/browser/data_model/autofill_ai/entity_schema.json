@@ -104,7 +104,10 @@
       [ "Confirmation code" ]
     ],
     "import constraints": [],
-    "merge constraints": [],
+    "merge constraints": [
+      [ "Confirmation code" ],
+      [ "Ticket number" ]
+    ],
     "strike keys": [],
     "disambiguation order": [ "Departure airport", "Arrival airport", "Departure date", "Passenger name", "Flight number" ],
     "experiment feature": "AutofillAiWalletFlightReservation",
@@ -118,7 +121,9 @@
       [ "Id" ]
     ],
     "import constraints": [],
-    "merge constraints": [],
+    "merge constraints": [
+      [ "Id" ]
+    ],
     "strike keys": [],
     "disambiguation order": [ "Merchant name", "Product names", "Date" ],
     "experiment feature": "AutofillAiOrder",
@@ -132,7 +137,9 @@
       [ "Tracking number" ]
     ],
     "import constraints": [],
-    "merge constraints": [],
+    "merge constraints": [
+      [ "Tracking number" ]
+    ],
     "strike keys": [],
     "disambiguation order": [ "Merchant name", "Product names", "Order dates" ],
     "experiment feature": "AutofillAiShipment",

@@ -244,6 +244,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="2082238445998314030">전체 결과 <ph name="TOTAL_RESULTS" />개 중 <ph name="RESULT_NUMBER" />개</translation>
 <translation id="2091863218454846791">간단히 보기 표시 중</translation>
 <translation id="2093731487903423814">지난 15분</translation>
+<translation id="2094298041331405438">모든 시크릿 창을 닫으려면 여기를 탭하세요</translation>
 <translation id="2096577711562668473">자동 완성 서비스를 변경하시겠습니까?</translation>
 <translation id="2109384632594340939">프로필 사진</translation>
 <translation id="2111511281910874386">페이지로 이동</translation>
@@ -505,6 +506,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3114507951000454849">오늘의 뉴스 읽기 <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">세부정보 더보기</translation>
 <translation id="3123734510202723619">공지사항</translation>
+<translation id="3132267803114336523">모든 시크릿 창을 닫으려면 시크릿 모드 표시기를 탭하세요</translation>
 <translation id="3134385238404760368">최근 탭 없음</translation>
 <translation id="3135655388926735587">최근 탭을 탭합니다</translation>
 <translation id="314939179385989105">Chrome 홈페이지</translation>
@@ -613,6 +615,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3635073343384702370">비밀번호를 저장하면 Chrome에서 확인할 수 있습니다.</translation>
 <translation id="3636940436873918441">기본 언어</translation>
 <translation id="3637744895182738742">암호가 기억나지 않거나 이 설정을 변경하려면 <ph name="BEGIN_LINK" />계정에서 Chrome 데이터를 삭제<ph name="END_LINK" />하세요.</translation>
+<translation id="3649090831059057090"><ph name="WINDOW_TITLE" /> - <ph name="TAB_COUNT" /></translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" />: <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">Google 앱 홈으로 이동</translation>
 <translation id="368329460027487650">로그아웃했습니다. 로그인 옵션을 엽니다.</translation>
@@ -637,6 +640,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3739899004075612870"><ph name="PRODUCT_NAME" /> 북마크에 추가됨</translation>
 <translation id="3740290940447881599">이 사이트를 신뢰할 수 있는지 확인하세요</translation>
 <translation id="3740525748616366977">이 기기에서는 음성 검색을 사용할 수 없습니다.</translation>
+<translation id="3756823472711156529">그룹 복원</translation>
 <translation id="3763110477555836428">이 카드로 결제하면 실제 정보를 보호하기 위해 가상 카드 번호가 입력됩니다. Google 월렛에서 관리하세요. <ph name="BEGIN_LINK1" />가상 카드에 대해 자세히 알아보기<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">일부 데이터가 아직 저장되지 않음</translation>
 <translation id="3770620323585347665">창 이름 지정</translation>

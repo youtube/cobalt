@@ -38,7 +38,6 @@ if (_is_default_toolchain) {
   import("//chrome/version.gni")
   import("//components/autofill/android/browser/buildflags.gni")
   import("//components/password_manager/core/browser/buildflags.gni")
-  import("//components/plus_addresses/core/browser/buildflags.gni")
   import("//content/public/common/features.gni")
   import("//device/vr/buildflags/buildflags.gni")
   import("//printing/buildflags/buildflags.gni")
@@ -242,7 +241,6 @@ if (_is_default_toolchain) {
       "//components/payments/content/android:java_resources",
       "//components/permissions/android:java_resources",
       "//components/personal_context/android:personal_context_java_resources",
-      "//components/plus_addresses/core/browser/resources/strings:strings_grd",
       "//components/policy:app_restrictions_resources",
       "//components/strings:components_locale_settings_grd",
       "//components/strings:components_strings_grd",
@@ -262,12 +260,6 @@ if (_is_default_toolchain) {
       deps += [
         "//components/autofill/android:autofill_unbranded_browser_resources",
       ]
-    }
-
-    if (plus_addresses_use_internal_android_resources) {
-      deps += [ "//clank/components/plus_addresses:java_resources" ]
-    } else {
-      deps += [ "//components/plus_addresses/android:java_resources" ]
     }
 
     if (enable_screen_capture) {
@@ -596,7 +588,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/browser_window/public/android:factory_java",
       "//chrome/browser/ui/browser_window/public/android:java",
       "//chrome/browser/ui/messages/android:java",
-      "//chrome/browser/ui/plus_addresses/android:java",
       "//chrome/browser/ui/side_panel/android:factory_java",
       "//chrome/browser/ui/side_panel/android:java",
       "//chrome/browser/ui/side_panel_container/public:factory_java",
@@ -734,7 +725,6 @@ if (_is_default_toolchain) {
       "//components/payments/mojom:mojom_java",
       "//components/permissions/android:core_java",
       "//components/permissions/android:java",
-      "//components/plus_addresses/android:java",
       "//components/policy/android:policy_java",
       "//components/power_bookmarks/core:proto_java",
       "//components/prefs/android:java",
@@ -874,6 +864,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/enterprise/platform_auth:entra_auth_enum_javagen",
       "//chrome/browser/media/webrtc:java_enums",
       "//chrome/browser/notifications/scheduler/public:jni_enums",
+      "//chrome/browser/tips/android:jni_enums",
       "//components/dom_distiller/core:distiller_type_java",
       "//components/ntp_tiles:ntp_tiles_enums_java",
       "//components/offline_pages/core:offline_page_model_enums_java",
@@ -1187,6 +1178,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/hub/internal:junit",
       "//chrome/browser/incognito:incognito_junit_tests",
       "//chrome/browser/language/android:junit",
+      "//chrome/browser/lens:junit",
       "//chrome/browser/loading_modal/android:junit",
       "//chrome/browser/magic_stack/android:junit",
       "//chrome/browser/mandatory_reauth/android/internal:junit",
@@ -1262,7 +1254,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/android/whats_new:junit",
       "//chrome/browser/ui/browser_window/internal:junit",
       "//chrome/browser/ui/messages/android:junit",
-      "//chrome/browser/ui/plus_addresses/android:junit",
       "//chrome/browser/ui/side_panel_container/internal:junit",
       "//chrome/browser/ui/side_ui/internal:junit",
       "//chrome/browser/ui/side_ui/public:junit",
@@ -2435,7 +2426,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/touch_to_fill/password_manager/password_generation/android/internal:javatests",
       "//chrome/browser/ui/android/digital_credentials:javatests",
       "//chrome/browser/ui/android/webid/internal:javatests",
-      "//chrome/browser/ui/plus_addresses/android:javatests",
       "//chrome/browser/ui/side_panel_container/internal:javatests",
       "//components/embedder_support/android:virtual_structure_javatests",
     ]
@@ -3251,7 +3241,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/android/toolbar:adaptive_jni_headers",
       "//chrome/browser/ui/android/toolbar:jni_headers",
       "//chrome/browser/ui/android/webid:jni_headers",
-      "//chrome/browser/ui/plus_addresses/android:jni_headers",
       "//chrome/browser/util:jni_headers",
       "//chrome/browser/webauthn/android:jni_headers",
       "//components/browser_ui/device_lock/android:device_lock_bridge_jni_headers",
@@ -3347,7 +3336,6 @@ template("libmonochrome_tmpl") {
     deps = [
       "//android_webview",
       "//base:jni_onload",
-      "//components/crash/android:crashpad_main",
     ]
     if (defined(invoker.deps)) {
       deps += invoker.deps

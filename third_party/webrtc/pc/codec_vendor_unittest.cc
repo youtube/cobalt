@@ -16,7 +16,6 @@
 
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/media_types.h"
 #include "api/payload_type.h"
@@ -33,6 +32,7 @@
 #include "pc/rtp_parameters_conversion.h"
 #include "pc/session_description.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -74,7 +74,8 @@ const Codec kAudioCodecsAnswer[] = {
 };
 
 TEST(CodecVendorTest, TestSetAudioCodecs) {
-  FieldTrials trials("WebRTC-PayloadTypesInTransport/Disabled/");
+  FieldTrials trials =
+      CreateTestFieldTrials("WebRTC-PayloadTypesInTransport/Disabled/");
   std::vector<Codec> send_codecs = MAKE_VECTOR(kAudioCodecs1);
   std::vector<Codec> recv_codecs = MAKE_VECTOR(kAudioCodecs2);
 
@@ -143,8 +144,8 @@ TEST(CodecVendorTest, TestSetAudioCodecs) {
 }
 
 TEST(CodecVendorTest, VideoRtxIsIncludedWhenAskedFor) {
-  FieldTrials trials("WebRTC-PayloadTypesInTransport/Disabled/");
-  Environment env = CreateEnvironment(&trials);
+  Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-PayloadTypesInTransport/Disabled/"});
   FakeMediaEngine media_engine;
   std::vector<Codec> video_codecs({
       CreateVideoCodec(97, "vp8"),
@@ -164,8 +165,8 @@ TEST(CodecVendorTest, VideoRtxIsIncludedWhenAskedFor) {
 }
 
 TEST(CodecVendorTest, VideoRtxIsExcludedWhenNotAskedFor) {
-  FieldTrials trials("WebRTC-PayloadTypesInTransport/Disabled/");
-  Environment env = CreateEnvironment(&trials);
+  Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-PayloadTypesInTransport/Disabled/"});
   FakeMediaEngine media_engine;
   std::vector<Codec> video_codecs({
       CreateVideoCodec(97, "vp8"),
@@ -185,8 +186,8 @@ TEST(CodecVendorTest, VideoRtxIsExcludedWhenNotAskedFor) {
 }
 
 TEST(CodecVendorTest, PreferencesAffectCodecChoice) {
-  FieldTrials trials("WebRTC-PayloadTypesInTransport/Disabled/");
-  Environment env = CreateEnvironment(&trials);
+  Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-PayloadTypesInTransport/Disabled/"});
   FakeMediaEngine media_engine;
   std::vector<Codec> video_codecs({
       CreateVideoCodec(97, "vp8"),
@@ -216,8 +217,8 @@ TEST(CodecVendorTest, PreferencesAffectCodecChoice) {
 }
 
 TEST(CodecVendorTest, GetNegotiatedCodecsForAnswerSimple) {
-  FieldTrials trials("WebRTC-PayloadTypesInTransport/Disabled/");
-  Environment env = CreateEnvironment(&trials);
+  Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-PayloadTypesInTransport/Disabled/"});
   FakeMediaEngine media_engine;
   std::vector<Codec> video_codecs({
       CreateVideoCodec(97, "vp8"),
@@ -241,8 +242,8 @@ TEST(CodecVendorTest, GetNegotiatedCodecsForAnswerSimple) {
 }
 
 TEST(CodecVendorTest, GetNegotiatedCodecsForAnswerWithCollision) {
-  FieldTrials trials("WebRTC-PayloadTypesInTransport/Disabled/");
-  Environment env = CreateEnvironment(&trials);
+  Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-PayloadTypesInTransport/Disabled/"});
   FakeMediaEngine media_engine;
   std::vector<Codec> video_codecs({
       CreateVideoCodec(97, "vp8"),
@@ -449,7 +450,8 @@ TEST(CodecVendorMergeTest, MergeWithCollisionPicksFromTop) {
 }
 
 TEST(CodecVendorTest, ModifyVideoCodecsReplacesCodec) {
-  FieldTrials trials("WebRTC-PayloadTypesInTransport/Disabled/");
+  FieldTrials trials =
+      CreateTestFieldTrials("WebRTC-PayloadTypesInTransport/Disabled/");
   FakeMediaEngine media_engine;
   std::vector<Codec> video_codecs({
       CreateVideoCodec(97, "vp8"),

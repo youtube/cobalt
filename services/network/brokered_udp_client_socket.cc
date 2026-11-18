@@ -235,6 +235,21 @@ int BrokeredUdpClientSocket::Read(net::IOBuffer* buf,
   return socket_->Read(buf, buf_len, std::move(callback));
 }
 
+base::expected<net::DatagramsMetadata, net::Error>
+BrokeredUdpClientSocket::ReadMultiple(
+    net::IOBuffer* buf,
+    size_t buf_len,
+    size_t maximum_packet_size,
+    base::OnceCallback<void(base::expected<net::DatagramsMetadata, net::Error>)>
+        callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!socket_) {
+    return base::unexpected(net::ERR_SOCKET_NOT_CONNECTED);
+  }
+  return socket_->ReadMultiple(buf, buf_len, maximum_packet_size,
+                               std::move(callback));
+}
+
 int BrokeredUdpClientSocket::Write(
     net::IOBuffer* buf,
     int buf_len,

@@ -12,6 +12,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/not_fatal_until.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/syslog_logging.h"
 #include "base/time/time.h"
@@ -102,10 +103,10 @@ ReportScheduler::ReportScheduler(CreateParams params)
 
   if (report_generator_) {
     reporting_pref_name_ = std::string(kCloudReportingEnabled);
-    full_report_type_ = ReportType::kFull;
+    status_report_type_ = ReportType::kBrowser;
   } else {
     reporting_pref_name_ = std::string(kCloudProfileReportingEnabled);
-    full_report_type_ = ReportType::kProfileReport;
+    status_report_type_ = ReportType::kProfileReport;
   }
 
   require_policy_fetch_with_profile_id_ =
@@ -173,7 +174,7 @@ void ReportScheduler::OnDMTokenUpdated() {
   }
 }
 
-void ReportScheduler::UploadFullReport(base::OnceClosure on_report_uploaded) {
+void ReportScheduler::UploadReport(base::OnceClosure on_report_uploaded) {
   ReportTrigger trigger = kTriggerNone;
   if (IsReportingEnabled()) {
     trigger = kTriggerManual;
@@ -324,9 +325,26 @@ void ReportScheduler::GenerateAndUploadReport(ReportTrigger trigger) {
   if (active_report_generation_config_.report_trigger != kTriggerNone) {
     // A report is already being generated. Remember this trigger to be handled
     // once the current report completes.
+    if (trigger == ReportTrigger::kTriggerTimer &&
+        active_report_generation_config_.report_trigger ==
+            ReportTrigger::kTriggerTimer) {
+      // If a new timer trigger fires while a previous timer-triggered report
+      // is still active, it indicates that the previous report generation
+      // or upload has overrun the cycle (e.g. due to retries or slow
+      // generation).
+      base::UmaHistogramBoolean("Enterprise.CloudReporting.SchedulerOverrun",
+                                true);
+    }
     pending_triggers_ |= trigger;
     return;
   }
+
+  if (trigger == ReportTrigger::kTriggerTimer) {
+    base::UmaHistogramBoolean("Enterprise.CloudReporting.SchedulerOverrun",
+                              false);
+  }
+
+  report_generation_start_time_ = base::TimeTicks::Now();
 
   ReportType report_type = TriggerToReportType(trigger);
   SecuritySignalsMode signals_mode = SecuritySignalsMode::kNoSignals;
@@ -378,7 +396,7 @@ void ReportScheduler::OnReportGenerated(
     SYSLOG(ERROR)
         << "No cloud report can be generated. Likely the report is too large.";
     // Do not restart the periodic report timer, as it's likely that subsequent
-    // attempts to generate full reports would also fail.
+    // attempts to generate status reports would also fail.
     active_report_generation_config_ =
         ReportGenerationConfig(ReportTrigger::kTriggerNone);
     RunPendingTriggers();
@@ -485,13 +503,24 @@ void ReportScheduler::OnReportUploaded(ReportUploader::ReportStatus status) {
         SecuritySignalsMode::kNoSignals) {
       delegate_->OnSecuritySignalsUploaded();
 
-      // A full report includes security signals already, we don't need another
-      // security signals only report until the timer runs out again.
+      // A report with signals attached includes security signals already, we
+      // don't need another security signals only report until the timer runs
+      // out again.
       if (pending_triggers_ & ReportTrigger::kTriggerSecurity) {
         pending_triggers_ -= ReportTrigger::kTriggerSecurity;
       }
     }
   }
+
+  std::string_view report_type_suffix =
+      GetReportTypeMetricSuffix(active_report_generation_config_.report_type);
+  std::string_view signals_suffix = GetSecuritySignalsModeMetricSuffix(
+      active_report_generation_config_.security_signals_mode);
+
+  base::UmaHistogramLongTimes(
+      base::StrCat({"Enterprise.CloudReporting.ReportUploadLatency.",
+                    report_type_suffix, signals_suffix}),
+      base::TimeTicks::Now() - report_generation_start_time_);
 
   active_report_generation_config_ =
       ReportGenerationConfig(ReportTrigger::kTriggerNone);
@@ -587,7 +616,7 @@ ReportType ReportScheduler::TriggerToReportType(ReportTrigger trigger) {
       NOTREACHED();
     case ReportTrigger::kTriggerTimer:
     case ReportTrigger::kTriggerManual:
-      return full_report_type_;
+      return status_report_type_;
     case ReportTrigger::kTriggerUpdate:
       return ReportType::kBrowserVersion;
     case ReportTrigger::kTriggerNewVersion:

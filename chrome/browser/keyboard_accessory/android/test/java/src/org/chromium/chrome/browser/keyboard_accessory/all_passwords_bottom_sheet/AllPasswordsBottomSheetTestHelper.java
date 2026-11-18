@@ -30,8 +30,7 @@ public class AllPasswordsBottomSheetTestHelper {
                     /* formattedUsername= */ "ana@gmail.com",
                     /* originUrl= */ "https://example.com",
                     /* isAndroidCredential= */ false,
-                    /* appDisplayName= */ "",
-                    /* isPlusAddressUsername= */ true);
+                    /* appDisplayName= */ "");
     public static final Credential NO_ONE =
             new Credential(
                     /* username= */ "",
@@ -39,8 +38,7 @@ public class AllPasswordsBottomSheetTestHelper {
                     /* formattedUsername= */ "No Username",
                     /* originUrl= */ "https://m.example.xyz",
                     /* isAndroidCredential= */ false,
-                    /* appDisplayName= */ "",
-                    /* isPlusAddressUsername= */ false);
+                    /* appDisplayName= */ "");
     public static final Credential BOB =
             new Credential(
                     /* username= */ "Bob",
@@ -48,8 +46,7 @@ public class AllPasswordsBottomSheetTestHelper {
                     /* formattedUsername= */ "Bob",
                     /* originUrl= */ "android://com.facebook.org",
                     /* isAndroidCredential= */ true,
-                    /* appDisplayName= */ "facebook",
-                    /* isPlusAddressUsername= */ false);
+                    /* appDisplayName= */ "facebook");
     public static final List<Credential> TEST_CREDENTIALS = List.of(ANA, NO_ONE, BOB);
 
     private AllPasswordsBottomSheetTestHelper() {}

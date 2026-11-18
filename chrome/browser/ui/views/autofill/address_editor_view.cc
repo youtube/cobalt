@@ -34,7 +34,7 @@ namespace autofill {
 
 namespace {
 // Returns the View ID that can be used to lookup the input field for |type|.
-int GetInputFieldViewId(autofill::FieldType type) {
+int GetInputFieldViewId(FieldType type) {
   return static_cast<int>(type);
 }
 
@@ -53,7 +53,7 @@ void AddressEditorView::PreferredSizeChanged() {
   SizeToPreferredSize();
 }
 
-const autofill::AutofillProfile& AddressEditorView::GetAddressProfile() {
+const AutofillProfile& AddressEditorView::GetAddressProfile() {
   if (controller_->is_validatable()) {
     ValidateAllFields();
     CHECK(controller_->is_valid().has_value() && *controller_->is_valid())
@@ -98,14 +98,14 @@ bool AddressEditorView::ValidateAllFields() {
 
 void AddressEditorView::SelectCountryForTesting(const std::u16string& country) {
   auto* combobox = static_cast<views::Combobox*>(
-      GetViewByID(GetInputFieldViewId(autofill::ADDRESS_HOME_COUNTRY)));
+      GetViewByID(GetInputFieldViewId(ADDRESS_HOME_COUNTRY)));
   CHECK(combobox->SelectValue(country));
   OnSelectedCountryChanged(combobox);
   UpdateEditorView();
 }
 
 void AddressEditorView::SetTextInputFieldValueForTesting(
-    autofill::FieldType type,
+    FieldType type,
     const std::u16string& value) {
   views::Textfield* text_field =
       static_cast<views::Textfield*>(GetViewByID(GetInputFieldViewId(type)));
@@ -212,7 +212,7 @@ views::View* AddressEditorView::CreateInputField(const EditorField& field) {
       break;
     }
     case EditorField::ControlType::COMBOBOX: {
-      DCHECK_EQ(field.type, autofill::ADDRESS_HOME_COUNTRY);
+      DCHECK_EQ(field.type, ADDRESS_HOME_COUNTRY);
       std::unique_ptr<views::Combobox> combobox =
           CreateCountryCombobox(field.label);
       // |combobox| will now be owned by |row|.
@@ -230,7 +230,7 @@ std::unique_ptr<views::Combobox> AddressEditorView::CreateCountryCombobox(
   combobox->GetViewAccessibility().SetName(label);
 
   std::u16string initial_value =
-      controller_->GetProfileInfo(autofill::ADDRESS_HOME_COUNTRY);
+      controller_->GetProfileInfo(ADDRESS_HOME_COUNTRY);
 
   // TODO(crbug.com/40277889): check if it's possible that address country is
   // not in the combobox value list.
@@ -240,7 +240,7 @@ std::unique_ptr<views::Combobox> AddressEditorView::CreateCountryCombobox(
   }
 
   // Using autofill field type as a view ID.
-  combobox->SetID(GetInputFieldViewId(autofill::ADDRESS_HOME_COUNTRY));
+  combobox->SetID(GetInputFieldViewId(ADDRESS_HOME_COUNTRY));
   field_change_callbacks_.push_back(combobox->AddSelectedIndexChangedCallback(
       base::BindRepeating(&AddressEditorView::OnSelectedCountryChanged,
                           base::Unretained(this), combobox.get())));
@@ -270,13 +270,13 @@ void AddressEditorView::SaveFieldsToProfile() {
   // The country must be set first, because the profile uses the country to
   // interpret some of the data (e.g., phone numbers) passed to SetInfo.
   views::Combobox* combobox = static_cast<views::Combobox*>(
-      GetViewByID(GetInputFieldViewId(autofill::ADDRESS_HOME_COUNTRY)));
+      GetViewByID(GetInputFieldViewId(ADDRESS_HOME_COUNTRY)));
   // The combobox can be null when saving to temporary profile while updating
   // the view.
   if (combobox) {
     std::u16string country(
         combobox->GetTextForRow(combobox->GetSelectedIndex().value()));
-    controller_->SetProfileInfo(autofill::ADDRESS_HOME_COUNTRY, country);
+    controller_->SetProfileInfo(ADDRESS_HOME_COUNTRY, country);
   }
 
   for (const auto& field : text_fields_) {

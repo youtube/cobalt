@@ -217,8 +217,12 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
         msg.pacer_queue->bytes());
   }
   bandwidth_estimation_.UpdateEstimate(msg.at_time);
+  // Avoid ALR probing before the first transport feedback is received in
+  // order to avoid ALR probing if receive side BWE is used.
   probe_controller_->SetAlrStartTime(
-      alr_detector_.GetApplicationLimitedRegionStartTime());
+      first_transport_feedback_received_
+          ? alr_detector_.GetApplicationLimitedRegionStartTime()
+          : std::nullopt);
 
   auto probes = probe_controller_->Process(msg.at_time);
   update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),

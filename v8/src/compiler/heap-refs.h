@@ -247,6 +247,9 @@ struct ref_traits<False> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<Hole> : public ref_traits<HeapObject> {};
 
+template <>
+struct ref_traits<HashSeedWrapper> : public ref_traits<HeapObject> {};
+
 #define DEFINE_HOLE_TYPE(Name, name, Root) \
   template <>                              \
   struct ref_traits<Name> : public ref_traits<HeapObject> {};
@@ -1133,9 +1136,9 @@ class BytecodeArrayRef : public HeapObjectRef {
   uint32_t handler_table_size() const;
 };
 
-class ScriptContextTableRef : public FixedArrayBaseRef {
+class ScriptContextTableRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(ScriptContextTable, FixedArrayBaseRef)
+  DEFINE_REF_CONSTRUCTOR(ScriptContextTable, HeapObjectRef)
 
   IndirectHandle<ScriptContextTable> object() const;
 };

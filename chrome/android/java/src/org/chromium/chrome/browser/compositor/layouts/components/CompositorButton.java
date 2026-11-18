@@ -105,7 +105,12 @@ public class CompositorButton extends StripLayoutView {
             StripLayoutViewOnClickHandler clickHandler,
             StripLayoutViewOnKeyboardFocusHandler keyboardFocusHandler,
             float clickSlopDp) {
-        super(incognito, clickHandler, keyboardFocusHandler, context);
+        super(
+                incognito,
+                clickHandler,
+                keyboardFocusHandler,
+                /* accessibilityFocusHandler= */ null,
+                context);
         mResource = resource;
         mBackgroundResource = backgroundResource;
         mDrawBounds.set(0, 0, width, height);

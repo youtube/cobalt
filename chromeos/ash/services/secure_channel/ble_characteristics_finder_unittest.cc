@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_view_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
@@ -75,13 +76,15 @@ const char kOtherCharUUID[] = "09731422-048A-11E5-8418-1697F925EC7B";
 const char kOtherCharID[] = "other id";
 
 const std::vector<uint8_t>& GetCorrectEidValue() {
-  static const std::vector<uint8_t> kCorrectEidValue({0xAB, 0xCD});
-  return kCorrectEidValue;
+  static const base::NoDestructor<std::vector<uint8_t>> kCorrectEidValue(
+      std::vector<uint8_t>({0xAB, 0xCD}));
+  return *kCorrectEidValue;
 }
 
 const std::vector<uint8_t>& GetIncorrectEidValue() {
-  static const std::vector<uint8_t> kIncorrectEidValue({0xEF, 0xAB});
-  return kIncorrectEidValue;
+  static const base::NoDestructor<std::vector<uint8_t>> kIncorrectEidValue(
+      std::vector<uint8_t>({0xEF, 0xAB}));
+  return *kIncorrectEidValue;
 }
 
 }  //  namespace

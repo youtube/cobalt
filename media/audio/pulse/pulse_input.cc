@@ -18,6 +18,8 @@
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 using pulse::AutoPulseLock;
 using pulse::WaitForOperationCompletion;
 
@@ -129,7 +131,7 @@ void PulseAudioInputStream::Start(AudioInputCallback* callback) {
 
   if (!WaitForOperationCompletion(pa_mainloop_, operation, pa_context_,
                                   handle_)) {
-    callback_->OnError();
+    callback_->OnError(Error::kStartupFailed);
   }
 }
 
@@ -155,7 +157,7 @@ void PulseAudioInputStream::Stop() {
       pa_stream_flush(handle_, &pulse::StreamSuccessCallback, pa_mainloop_);
   if (!WaitForOperationCompletion(pa_mainloop_, operation, pa_context_,
                                   handle_)) {
-    callback_->OnError();
+    callback_->OnError(Error::kRuntimeError);
   }
 
   // Stop the stream.
@@ -164,7 +166,7 @@ void PulseAudioInputStream::Stop() {
       pa_stream_cork(handle_, 1, &pulse::StreamSuccessCallback, pa_mainloop_);
   if (!WaitForOperationCompletion(pa_mainloop_, operation, pa_context_,
                                   handle_)) {
-    callback_->OnError();
+    callback_->OnError(Error::kRuntimeError);
   }
   callback_ = nullptr;
 }
@@ -341,7 +343,7 @@ void PulseAudioInputStream::StreamNotifyCallback(pa_stream* s,
 
   if (s && stream->callback_ &&
       pa_stream_get_state(s) == PA_STREAM_FAILED) {
-    stream->callback_->OnError();
+    stream->callback_->OnError(Error::kRuntimeError);
   }
 
   pa_threaded_mainloop_signal(stream->pa_mainloop_, 0);

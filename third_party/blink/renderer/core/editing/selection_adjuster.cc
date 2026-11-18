@@ -384,8 +384,8 @@ PositionInFlatTree ComputeEndRespectingGranularity(
       start, end, granularity);
 }
 
-SelectionInDOMTree SelectionAdjuster::AdjustSelectionRespectingGranularity(
-    const SelectionInDOMTree& selection,
+SelectionInDomTree SelectionAdjuster::AdjustSelectionRespectingGranularity(
+    const SelectionInDomTree& selection,
     TextGranularity granularity,
     const WordInclusion inclusion = WordInclusion::kDefault) {
   return GranularityAdjuster::AdjustSelection(selection, granularity,
@@ -602,9 +602,9 @@ class ShadowBoundaryAdjuster final {
   }
 };
 
-SelectionInDOMTree
+SelectionInDomTree
 SelectionAdjuster::AdjustSelectionToAvoidCrossingShadowBoundaries(
-    const SelectionInDOMTree& selection) {
+    const SelectionInDomTree& selection) {
   return ShadowBoundaryAdjuster::AdjustSelection(selection);
 }
 SelectionInFlatTree
@@ -744,9 +744,9 @@ EditingBoundaryAdjuster::IsEditingBoundary<EditingInFlatTreeStrategy>(
   return IsEditable(node) != is_previous_node_editable;
 }
 
-SelectionInDOMTree
+SelectionInDomTree
 SelectionAdjuster::AdjustSelectionToAvoidCrossingEditingBoundaries(
-    const SelectionInDOMTree& selection) {
+    const SelectionInDomTree& selection) {
   return EditingBoundaryAdjuster::AdjustSelection(selection);
 }
 SelectionInFlatTree
@@ -821,8 +821,8 @@ class SelectionTypeAdjuster final {
   }
 };
 
-SelectionInDOMTree SelectionAdjuster::AdjustSelectionType(
-    const SelectionInDOMTree& selection) {
+SelectionInDomTree SelectionAdjuster::AdjustSelectionType(
+    const SelectionInDomTree& selection) {
   return SelectionTypeAdjuster::AdjustSelection(selection);
 }
 SelectionInFlatTree SelectionAdjuster::AdjustSelectionType(

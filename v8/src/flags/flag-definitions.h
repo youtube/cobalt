@@ -702,21 +702,24 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
 
-DEFINE_BOOL(turbolev_truncated_int32_phis, false,
+DEFINE_BOOL(turbolev_truncated_int32_phis, true,
             "Enable truncated to int32 representation in the phi selector")
-DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_truncated_int32_phis)
 
-DEFINE_EXPERIMENTAL_FEATURE(maglev_range_analysis,
-                            "Enable Maglev range value analysis pass")
+// TODO(victorgomes): Consider renaming this to turbolev range analysis, since
+// it doesn't not enable this pass in the maglev pipeline?
+DEFINE_BOOL(maglev_range_analysis, true,
+            "Enable Maglev range value analysis pass")
 DEFINE_DEVELOPER_FLAG(trace_maglev_range_analysis,
                       "Trace Maglev range value analysis pass")
 DEFINE_DEVELOPER_FLAG(trace_maglev_kna, "Trace Maglev known node aspects")
 DEFINE_BOOL(maglev_use_unreliable_maps, true,
             "Use unreliable unstable maps in Maglev")
-DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
 DEFINE_BOOL(maglev_range_verification, false,
             "Run integer range verifiction pass in Turbolev frontend pipeline")
 DEFINE_WEAK_IMPLICATION(maglev_assert, maglev_range_verification)
+DEFINE_BOOL(maglev_verify_dominance, false,
+            "verify dominance of eager deopt frame inputs")
+DEFINE_WEAK_IMPLICATION(maglev_assert, maglev_verify_dominance)
 
 DEFINE_UINT(
     concurrent_maglev_max_threads, 2,
@@ -781,6 +784,11 @@ DEFINE_BOOL(maglev_non_eager_inlining, false,
             "enable Maglev non-eager inlining")
 DEFINE_BOOL(turbolev_non_eager_inlining, true,
             "enable Turbolev non-eager inlining")
+DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_non_eager_inlining)
+DEFINE_EXPERIMENTAL_FEATURE(turbolev_non_eager_loop_peeling,
+                            "enable Turbolev non-eager loop peeling")
+DEFINE_DEVELOPER_FLAG(turbolev_trace_loop_peeling,
+                      "trace turbolev non-eager loop peeling decisions")
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_STRING(maglev_print_filter, "*",
@@ -863,10 +871,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
 #ifdef V8_TARGET_ARCH_64_BIT
 DEFINE_BOOL(additive_safe_int_feedback, true,
             "Enable the use of AdditiveSafeInteger feedback")
-DEFINE_EXPERIMENTAL_FEATURE(
-    turbolev_additive_safe_int_feedback,
-    "Enable the use of AdditiveSafeInteger feedback for Turbolev")
-DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_additive_safe_int_feedback)
+DEFINE_BOOL(turbolev_additive_safe_int_feedback, true,
+            "Enable the use of AdditiveSafeInteger feedback for Turbolev")
 
 // Additive safe ints are only used by TurboFan or Turbolev.
 DEFINE_NEG_IMPLICATION(jitless, additive_safe_int_feedback)
@@ -1180,6 +1186,11 @@ DEFINE_INT(minimum_invocations_before_optimization, 2,
 // dozen executions of the code instead of a few hundred or thousand. As a rule
 // of thumb, aiming for things to happen 5x to 10x sooner in this mode than
 // they otherwise would is probably not unreasonable.
+//
+// WARNING: Avoid adding implications to this flag unless they always make
+// sense. Unnecessary implications reduce default configuration coverage and
+// limit fuzzer exploration. Prefer flag randomization in fuzzer configs
+// instead.
 DEFINE_BOOL(jit_fuzzing, false,
             "Set JIT tiering thresholds suitable for JIT fuzzing")
 // Tier up to Maglev should happen soon afterwards.
@@ -1679,8 +1690,14 @@ DEFINE_BOOL(turbo_escape, true, "enable escape analysis")
 DEFINE_BOOL(turbo_allocation_folding, true, "TurboFan allocation folding")
 DEFINE_BOOL(turbo_instruction_scheduling, false,
             "enable instruction scheduling in TurboFan")
+DEFINE_BOOL(experimental_turbo_instruction_scheduling, false,
+            "enable experimental instruction scheduling in TurboFan")
+DEFINE_IMPLICATION(experimental_turbo_instruction_scheduling,
+                   turbo_instruction_scheduling)
 DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
             "randomly schedule instructions to stress dependency tracking")
+DEFINE_BOOL(trace_turbo_instruction_scheduling, false,
+            "trace TurboShaft's instruction scheduler")
 DEFINE_IMPLICATION(turbo_stress_instruction_scheduling,
                    turbo_instruction_scheduling)
 DEFINE_BOOL(turbo_store_elimination, true,
@@ -1756,7 +1773,7 @@ DEFINE_BOOL(turboshaft_wasm_load_elimination, true,
             "enable Turboshaft's WasmLoadElimination")
 
 DEFINE_BOOL(
-    wasm_in_js_inlining_body, false,
+    wasm_in_js_inlining_body, true,
     "inline Wasm code into JS functions via Turboshaft. This requires "
     "inlining the wrapper, see --wasm-in-js-inlining-wrapper. For controlling "
     "the inlining in the old Turbofan pipeline, see "
@@ -1764,12 +1781,13 @@ DEFINE_BOOL(
 // The Wasm-in-JS body inlining depends on the Turbolev-based JS-to-Wasm wrapper
 // inlining. Thus both require Turbolev and don't do anything without that.
 DEFINE_IMPLICATION(wasm_in_js_inlining_body, wasm_in_js_inlining_wrapper)
-// Both are staged behind --turbolev-future.
-DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_body)
-
-DEFINE_BOOL(wasm_in_js_inlining_wrapper, false,
+DEFINE_BOOL(wasm_in_js_inlining_wrapper, true,
             "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
-DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_wrapper)
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    wasm_in_js_inlining_opt,
+    "enable optimizations for Wasm-in-JS inlining in Turboshaft")
+DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_opt)
 
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
@@ -2195,6 +2213,9 @@ DEFINE_BOOL(wasm_bulkmem_inlining, true,
             "enable inline code generation for small bulk memory operations")
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
+DEFINE_EXPERIMENTAL_FEATURE(
+    wasm_random_rescheduling,
+    "enable Turbofan's random rescheduling phase for wasm functions")
 DEFINE_BOOL(wasm_loop_peeling, true, "enable loop peeling for wasm functions")
 DEFINE_SIZE_T(wasm_loop_peeling_max_size, 1000, "maximum size for peeling")
 DEFINE_DEVELOPER_FLAG(trace_wasm_loop_peeling, "trace wasm loop peeling")
@@ -2450,7 +2471,7 @@ DEFINE_BOOL(lazy_new_space_shrinking, false,
             "Enables the lazy new space shrinking strategy")
 DEFINE_BOOL(trim_descriptor_arrays_in_gc, true,
             "Shrink descriptor arrays during GCs")
-DEFINE_BOOL(trim_descriptor_arrays_in_gc_with_stack, true,
+DEFINE_BOOL(trim_descriptor_arrays_in_gc_with_stack, false,
             "Shrink descriptor arrays during GCs with stack")
 DEFINE_IMPLICATION(trim_descriptor_arrays_in_gc_with_stack,
                    trim_descriptor_arrays_in_gc)
@@ -2485,8 +2506,8 @@ DEFINE_INT(random_gc_interval, 0,
            "Collect garbage after random(0, X) V8 allocations. It overrides "
            "gc_interval.")
 DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
-DEFINE_INT(cppgc_random_gc_interval, 0,
-           "Collect garbage after random(0, X) cppgc allocations.")
+DEFINE_UINT(cppgc_random_gc_interval, 0,
+            "Collect garbage after random(0, X) cppgc allocations.")
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
 DEFINE_INT(dispatch_table_gc_interval, -1,
@@ -3571,6 +3592,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Enable strict terminating DCHECKs to prevent accidentally "
     "keeping on executing JS after terminating V8.")
 
+// WARNING: Avoid adding implications to this flag unless they always make
+// sense. Unnecessary implications reduce default configuration coverage and
+// limit fuzzer exploration. Prefer flag randomization in fuzzer configs
+// instead.
 DEFINE_BOOL(
     fuzzing, false,
     "Fuzzers use this flag to signal that they are ... fuzzing. This causes "
@@ -3622,6 +3647,11 @@ DEFINE_BOOL_READONLY(
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 // Sandbox fuzzing mode requires the memory corruption API.
+//
+// WARNING: Avoid adding implications to this flag unless they always make
+// sense. Unnecessary implications reduce default configuration coverage and
+// limit fuzzer exploration. Prefer flag randomization in fuzzer configs
+// instead.
 DEFINE_BOOL(sandbox_fuzzing, false,
             "Enable sandbox fuzzing mode. This exposes the memory corruption "
             "API and enables the sandbox crash filter to terminate the process "
@@ -4233,8 +4263,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     superspreading,
     "Allow arbitrary length spread arguments on supported builtins")
 
-DEFINE_EXPERIMENTAL_FEATURE(fast_proxy_ic, "Support proxy traps in ICs")
-DEFINE_WEAK_IMPLICATION(experimental_fuzzing, fast_proxy_ic)
+DEFINE_BOOL(fast_proxy_ic, false, "Support proxy traps in ICs")
+DEFINE_WEAK_IMPLICATION(future, fast_proxy_ic)
 
 DEFINE_BOOL(is_standalone_d8_shell, false,
             "Tells V8 it's running as part of the d8. This flag should not be "

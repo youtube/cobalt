@@ -211,7 +211,7 @@ public class TabSwitcherActionProvider implements Destroyable {
                         if (layoutType == LayoutType.BROWSING) {
                             mCachedButtonState = mModel.get(ActionProperties.BUTTON_STATE);
                             mModel.set(ActionProperties.BUTTON_STATE, ButtonState.UNCLICKABLE);
-                        } else if (layoutType == LayoutType.TAB_SWITCHER) {
+                        } else if (layoutType == LayoutType.HUB) {
                             mModel.set(TabSwitcherActionProperties.SHOW_TAB_SWITCHER_TRIGGER, null);
                         }
                     }

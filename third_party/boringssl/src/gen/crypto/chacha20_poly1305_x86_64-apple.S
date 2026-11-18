@@ -216,6 +216,7 @@ L$hash_ad_done:
 .private_extern _chacha20_poly1305_open_sse41
 
 .p2align	6
+.alt_entry _chacha20_poly1305_open_sse41
 _chacha20_poly1305_open_sse41:
 
 _CET_ENDBR
@@ -2083,6 +2084,7 @@ L$open_sse_128_xor_hash:
 .private_extern _chacha20_poly1305_seal_sse41
 
 .p2align	6
+.alt_entry _chacha20_poly1305_seal_sse41
 _chacha20_poly1305_seal_sse41:
 
 _CET_ENDBR
@@ -3747,6 +3749,7 @@ L$process_extra_hash_loop:
 	leaq	16(%rsi),%rsi
 	subq	$1,%r8
 	jmp	L$process_extra_hash_loop
+.alt_entry process_extra_in_trailer
 process_extra_in_trailer:
 	andq	$15,%rcx
 	movq	%rcx,%rbx
@@ -4065,6 +4068,7 @@ L$seal_sse_128_rounds:
 .private_extern _chacha20_poly1305_open_avx2
 
 .p2align	6
+.alt_entry _chacha20_poly1305_open_avx2
 _chacha20_poly1305_open_avx2:
 
 _CET_ENDBR
@@ -6231,6 +6235,7 @@ L$open_avx2_320_rounds:
 .private_extern _chacha20_poly1305_seal_avx2
 
 .p2align	6
+.alt_entry _chacha20_poly1305_seal_avx2
 _chacha20_poly1305_seal_avx2:
 
 _CET_ENDBR

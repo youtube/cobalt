@@ -14,6 +14,7 @@
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/arguments-inl.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
@@ -1020,8 +1021,7 @@ DirectHandle<Object> LookupIterator::FetchValue(
     DirectHandle<JSObject> holder = GetHolder<JSObject>();
     FieldIndex field_index =
         FieldIndex::ForDetails(holder->map(), property_details_);
-    if (allow_allocation == AllowAllocation::kNo && field_index.is_inobject() &&
-        field_index.is_double()) {
+    if (allow_allocation == AllowAllocation::kNo && field_index.is_double()) {
       return isolate_->factory()->undefined_value();
     }
     return JSObject::FastPropertyAt(

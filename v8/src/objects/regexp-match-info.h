@@ -18,11 +18,6 @@ namespace internal {
 class Object;
 class String;
 
-// TODO(jgruber): These should no longer be included here; instead, all
-// TorqueGeneratedFooAsserts should be emitted into a global .cc file.
-#include "torque-generated/src/objects/regexp-match-info-tq.inc"
-
-
 // The property RegExpMatchInfo includes the matchIndices array of the last
 // successful regexp match (an array of start/end index pairs for the match and
 // all the captured substrings), the invariant is that there are at least two
@@ -80,10 +75,7 @@ V8_OBJECT class RegExpMatchInfo : public TaggedArrayBase<RegExpMatchInfo, Smi> {
       3 * kTaggedSize;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   TaggedMember<Smi> number_of_capture_registers_;
   TaggedMember<String> last_subject_;
   TaggedMember<Object> last_input_;

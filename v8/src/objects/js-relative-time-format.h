@@ -30,8 +30,6 @@ class RelativeDateTimeFormatter;
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-relative-time-format-tq.inc"
-
 V8_OBJECT class JSRelativeTimeFormat : public JSObject {
  public:
   // Creates relative time format object with properties derived from input
@@ -88,7 +86,8 @@ V8_OBJECT class JSRelativeTimeFormat : public JSObject {
   inline Numeric numeric() const;
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_RELATIVE_TIME_FORMAT_FLAGS()
+  using NumericBit =
+      base::BitField<JSRelativeTimeFormat::Numeric, 0, 1, uint32_t>;
 
   static_assert(NumericBit::is_valid(Numeric::AUTO));
   static_assert(NumericBit::is_valid(Numeric::ALWAYS));

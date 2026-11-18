@@ -2670,7 +2670,7 @@ bool ParserBase<Impl>::VerifyCanHaveAutoAccessorOrThrow(
     default:
       impl()->ReportUnexpectedTokenAt(
           Scanner::Location(name_token_position,
-                            name_expression->position() == -1
+                            name_expression->position() < name_token_position
                                 ? name_token_position
                                 : name_expression->position()),
           Token::kAccessor);
@@ -2891,7 +2891,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     case ParsePropertyKind::kSpread:
       impl()->ReportUnexpectedTokenAt(
           Scanner::Location(name_token_position,
-                            name_expression->position() == -1
+                            name_expression->position() < name_token_position
                                 ? name_token_position
                                 : name_expression->position()),
           name_token);
@@ -4131,13 +4131,16 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   CheckStackOverflow();
 
   if (peek() == Token::kImport) {
-    result = ParseMemberExpression();
+    result = ParseImportExpressions();
     if (result->IsImportCallExpression()) {
       // new import() and new import.source() are never allowed.
+      // new import().prop and new import.source().prop are not allowed as well.
       impl()->ReportMessageAt(scanner()->location(),
                               MessageTemplate::kImportCallNotNewExpression);
       return impl()->FailureExpression();
     }
+    // import.meta is a valid MemberExpression.
+    result = ParseMemberExpressionContinuation(result);
   } else if (peek() == Token::kPeriod) {
     result = ParseNewTargetExpression();
     return ParseMemberExpressionContinuation(result);

@@ -52,7 +52,10 @@ use crate::{
     call_slice_getter,
     check_lib_error,
     config::ConfigurationError,
-    connection::methods::{verify_cert_task_from_ssl, waker_data_from_ssl},
+    connection::methods::{
+        verify_cert_task_from_ssl,
+        waker_data_from_ssl, //
+    },
     context::CertificateCache,
     crypto_buffer_wrapper,
     errors::{
@@ -475,12 +478,9 @@ impl Certificate {
                 bssl_sys::CRYPTO_BUFFER_len(self.ptr()),
             )
         };
-        if data.is_null() || len == 0 || len >= isize::MAX as usize {
-            return &[];
-        }
         unsafe {
             // Safety: `data` will be outlived by `self`
-            core::slice::from_raw_parts(data, len)
+            sanitize_slice(data, len).expect("buffer is too large")
         }
     }
 }
@@ -613,12 +613,26 @@ impl VerifyCertificateContext {
         let list = call_slice_getter!(bssl_sys::SSL_get0_signed_cert_timestamp_list, self.ptr())?;
         (!list.is_empty()).then_some(list)
     }
+
+    /// Get the Raw Public Key offered by the peer in the `ClientHello`.
+    pub fn get_peer_raw_public_key(&self) -> Option<Vec<u8>> {
+        let pkey = unsafe {
+            // Safety:
+            // - `self.ptr()` is a valid `SSL` handle.
+            // - `pkey` does not escape the current function frame.
+            NonNull::new(bssl_sys::SSL_get0_peer_rpk(self.ptr()))?
+        };
+        Some(marshal_evp_into_spki(pkey))
+    }
 }
 
 /// Custom certificate verification callback.
 ///
 /// It is recommended to avoid panicking in the trait implementation.
 /// A panic in this callback will lead to abort.
+///
+/// As a return value, one could use [`VerifyCertificateAccepted`] or [`VerifyCertificateRejected`]
+/// to deliver the results if the decision can be made immediately and synchronously.
 pub trait VerifyCertificate: Send + Sync {
     /// Decide whether a certificate chain is acceptable.
     ///
@@ -648,6 +662,26 @@ pub enum VerifyResult {
     Pending,
     /// The certificate chain is rejected possibly with an alert.
     Reject(Option<AlertDescription>),
+}
+
+/// Certificate verifier accepts the offered certificates.
+#[derive(Debug, Clone, Copy)]
+pub struct VerifyCertificateAccepted;
+
+impl VerifyCertificateTask for VerifyCertificateAccepted {
+    fn complete(&mut self, _: Option<&mut Context<'_>>) -> VerifyResult {
+        VerifyResult::Accept
+    }
+}
+
+/// Certificate verifier rejects the offered certificates.
+#[derive(Debug, Clone, Copy)]
+pub struct VerifyCertificateRejected(pub Option<AlertDescription>);
+
+impl VerifyCertificateTask for VerifyCertificateRejected {
+    fn complete(&mut self, _: Option<&mut Context<'_>>) -> VerifyResult {
+        VerifyResult::Reject(self.0)
+    }
 }
 
 /// Asynchronous custom certificate verification.
@@ -896,6 +930,21 @@ impl TryFrom<c_int> for CertificateVerificationMode {
             Err(mode)
         }
     }
+}
+
+pub(crate) fn marshal_evp_into_spki(pkey: NonNull<bssl_sys::EVP_PKEY>) -> Vec<u8> {
+    let buffer = bssl_crypto::cbb_to_buffer(64, |cbb| {
+        assert_eq!(
+            unsafe {
+                // Safety:
+                // - `cbb` is a valid pointer to `CBB` provided by `cbb_to_buffer`.
+                // - `pkey` is a valid pointer to `EVP_PKEY`.
+                bssl_sys::EVP_marshal_public_key(cbb, pkey.as_ptr())
+            },
+            1
+        );
+    });
+    buffer.as_ref().to_vec()
 }
 
 #[cfg(test)]

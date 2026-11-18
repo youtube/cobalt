@@ -47,8 +47,7 @@ class CONTENT_EXPORT DedicatedWorkerHostFactoryImpl
       network::mojom::ClientSecurityStatePtr creator_client_security_state,
       const PolicyContainerPolicies& creator_policies,
       base::WeakPtr<CrossOriginEmbedderPolicyReporter> creator_coep_reporter,
-      const std::optional<base::UnguessableToken>&
-          creator_network_restrictions_id);
+      const base::UnguessableToken& creator_network_restrictions_id);
 
   DedicatedWorkerHostFactoryImpl(const DedicatedWorkerHostFactoryImpl&) =
       delete;
@@ -92,7 +91,7 @@ class CONTENT_EXPORT DedicatedWorkerHostFactoryImpl
 
   base::WeakPtr<CrossOriginEmbedderPolicyReporter> creator_coep_reporter_;
 
-  const std::optional<base::UnguessableToken> creator_network_restrictions_id_;
+  const base::UnguessableToken creator_network_restrictions_id_;
 };
 
 }  // namespace content

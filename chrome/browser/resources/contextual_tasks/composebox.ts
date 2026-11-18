@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import './contextual_tasks_inner_composebox.js';
 import '//resources/cr_components/composebox/composebox_dropdown.js';
 import '//resources/cr_components/composebox/composebox.js';
 import '//resources/cr_components/localized_link/localized_link.js';
@@ -36,6 +37,7 @@ const ICON_TYPE_TO_NAME: {[id: number]: string} = {
   [IconType.kAdd]: 'add',
   [IconType.kFormatQuoteFilled]: 'quoteFilled',
   [IconType.kImage]: 'image',
+  [IconType.kFollowUp]: 'followUp',
   [IconType.kDrivePdf]: 'drivePdf',
   [IconType.kCheck]: 'check',
   [IconType.kInvertedFormatQuoteFilled]: 'invertedQuoteFilled',
@@ -149,6 +151,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
       lensButtonDisabled_: {type: Boolean},
       caretAnimationsEnabled_: {type: Boolean},
       usePecApi_: {type: Boolean},
+      useFork_: {type: Boolean},
       smartTabSharingVisible_: {type: Boolean},
       energyEffectEnabled_: {type: Boolean, reflect: true},
       energyEffectAnimationEnabled_: {type: Boolean, reflect: true},
@@ -163,6 +166,8 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   accessor isLensOverlayShowing: boolean = false;
   accessor isOverlayOpenForAimVisualSearch: boolean = false;
   accessor inputEnabled: boolean = true;
+  private focusRetryCount_ = 0;
+  private focusAnimationFrameId_: number|null = null;
 
   protected accessor zeroStateSuggestions_: AutocompleteResult = {
     input: '',
@@ -210,6 +215,8 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
       loadTimeData.getBoolean('caretAnimationEnabled');
   protected accessor usePecApi_: boolean =
       loadTimeData.getBoolean('contextualMenuUsePecApi');
+  protected accessor useFork_: boolean =
+      loadTimeData.getBoolean('useContextualTasksComposeboxFork');
   protected accessor smartTabSharingVisible_: boolean =
       loadTimeData.getBoolean('composeboxSmartTabSharingVisible');
   protected accessor energyEffectEnabled_: boolean =
@@ -361,13 +368,26 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   // Must have `$` access in updated to avoid violating Lit contract since
   // `willUpdate` runs before `render`, which will cause `$` to not be
   // populated yet.
-  override updated(changedProperties: PropertyValues<this>) {
+  override async updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
     if (changedProperties.has('isZeroState')) {
       if (this.isZeroState) {
         // Opening zero state triggers animation.
         this.$.composebox.animationState = GlowAnimationState.SUBMITTING;
-        this.glifAnimationState_ = GlifAnimationState.STARTED;
+        const limitingEnabled =
+            loadTimeData.getBoolean('contextMenuAnimationLimitingEnabled');
+        if (limitingEnabled) {
+          const {canShow: allowed} =
+              await this.pageHandler_.canShowNextboxAnimation();
+          if (allowed) {
+            this.glifAnimationState_ = GlifAnimationState.STARTED;
+            this.pageHandler_.recordNextboxAnimationImpression();
+          } else {
+            this.glifAnimationState_ = GlifAnimationState.INELIGIBLE;
+          }
+        } else {
+          this.glifAnimationState_ = GlifAnimationState.STARTED;
+        }
       } else {
         this.glifAnimationState_ = GlifAnimationState.INELIGIBLE;
       }
@@ -487,6 +507,10 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
     this.selectedMatchIndex_ = -1;
   }
 
+  override focus() {
+    this.$.composebox.focusInput();
+  }
+
   clearInputAndFocus(querySubmitted: boolean = false): void {
     const hadContent = this.$.composebox.input.trim().length > 0 ||
         this.$.composebox.hasFiles();
@@ -595,6 +619,36 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
 
   get resizeObserverForTesting() {
     return this.resizeObserver_;
+  }
+
+  tryFocus() {
+    if (this.focusAnimationFrameId_ !== null) {
+      cancelAnimationFrame(this.focusAnimationFrameId_);
+      this.focusAnimationFrameId_ = null;
+    }
+    this.focusRetryCount_ = 0;
+    this.runFocusLoop_();
+  }
+
+  private runFocusLoop_() {
+    this.focus();
+    if (this.isInputFocused_()) {
+      this.focusAnimationFrameId_ = null;
+      this.fire('composebox-focused');
+    } else if (this.focusRetryCount_ < 10) {
+      this.focusRetryCount_++;
+      this.focusAnimationFrameId_ =
+          requestAnimationFrame(() => this.runFocusLoop_());
+    } else {
+      this.focusAnimationFrameId_ = null;
+    }
+  }
+
+  private isInputFocused_(): boolean {
+    const inputEl = this.$.composebox.getInputElement()?.inputElement;
+    return inputEl ?
+        (inputEl.getRootNode() as ShadowRoot).activeElement === inputEl :
+        false;
   }
 }
 

@@ -84,7 +84,7 @@ public class TabSwitcherMultiWindowTest {
         }
         if (mCta1 != null) {
             moveActivityToFront(mCta1);
-            if (mCta1.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+            if (mCta1.getLayoutManager().isLayoutVisible(LayoutType.HUB)) {
                 leaveTabSwitcher(mCta1);
             }
         }

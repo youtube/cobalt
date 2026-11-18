@@ -3116,5 +3116,300 @@ TEST_F(TcpConnectJobTest, TwoConnectorsGetLoadState) {
   WaitForSuccess(kIpV6Endpoint1, service_endpoint);
 }
 
+class TcpConnectJobOptimisticDnsTest : public TcpConnectJobTest {
+ public:
+  TcpConnectJobOptimisticDnsTest() {
+    feature_list_.InitWithFeatures(
+        {features::kOptimisticDnsForTcp, features::kHappyEyeballsV2}, {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(TcpConnectJobOptimisticDnsTest, StaleAThenFreshA) {
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint2});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV4Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint2);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  EXPECT_EQ(request->resolve_host_params().cache_usage,
+            HostResolver::ResolveHostParameters::CacheUsage::
+                STALE_ALLOWED_WHILE_REFRESHING);
+
+  // t=0: Stale A provided
+  request->set_crypto_ready(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // t=50ms: Fresh A provided.
+  constexpr base::TimeDelta kFreshAArrivalTime = base::Milliseconds(50);
+  CHECK_LT(kFreshAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshAArrivalTime);
+  request->set_endpoints({fresh_endpoint}).CallOnServiceEndpointsUpdated();
+
+  // primary_connector_ is occupied connecting to the Stale IPv4 endpoint, and
+  // the 300ms slow_timer_ has not yet fired. The fresh IPv4 endpoint is queued.
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // Fast forward to t=299ms. Still no new connection.
+  FastForwardBy(TcpConnectJob::kIPv6FallbackTime - kFreshAArrivalTime -
+                base::Milliseconds(1));
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // Fast forward to t=300ms. Now the slow_timer_ fires.
+  FastForwardBy(base::Milliseconds(1));
+
+  // Since DNS is NOT complete, the newly created connector is restricted to
+  // IPv6. Fresh A is IPv4, so it is queued.
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // Now, DNS request completes.
+  request->CallOnServiceEndpointRequestFinished(OK);
+
+  // Now that DNS is complete, the second connector is no longer restricted to
+  // IPv6. It picks up the fresh IPv4 endpoint and starts connecting.
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+
+  // Explicitly fail the Stale A connection. This frees up the connectors.
+  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+
+  // Complete Fresh A.
+  connect_completers[1].Complete(OK);
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint2, fresh_endpoint,
+                 {ConnectionAttempt(kIpV4Endpoint1, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_F(TcpConnectJobOptimisticDnsTest, StaleAThenFreshAAAAThenFreshA) {
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  const auto fresh_endpoint_v6 = CreateServiceEndpoint({kIpV6Endpoint1});
+  const auto fresh_endpoint_v4 = CreateServiceEndpoint({kIpV4Endpoint2});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 3> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV4Endpoint1);  // Stale A
+  AddConnect(MockConnect(&connect_completers[1]),
+             kIpV6Endpoint1);  // Fresh AAAA
+  AddConnect(MockConnect(&connect_completers[2]), kIpV4Endpoint2);  // Fresh A
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale A provided
+  request->set_crypto_ready(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+  EXPECT_FALSE(connect_completers[2].is_connecting());
+
+  // t=15ms: Fresh AAAA provided.
+  constexpr base::TimeDelta kFreshAAAAArrivalTime = base::Milliseconds(15);
+  CHECK_LT(kFreshAAAAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshAAAAArrivalTime);
+  request->set_endpoints({fresh_endpoint_v6}).CallOnServiceEndpointsUpdated();
+
+  // primary_connector_ is occupied connecting to the Stale
+  // IPv4 endpoint, and the 300ms slow_timer_ has not yet fired. The fresh IPv6
+  // endpoint is queued.
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // t=20ms: Fresh A provided.
+  constexpr base::TimeDelta kFreshAArrivalTime = base::Milliseconds(20);
+  CHECK_LT(kFreshAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshAArrivalTime - kFreshAAAAArrivalTime);
+  request->set_endpoints({fresh_endpoint_v6, fresh_endpoint_v4})
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+  EXPECT_FALSE(connect_completers[2].is_connecting());
+
+  // t=300ms: slow_timer_ fires.
+  FastForwardBy(TcpConnectJob::kIPv6FallbackTime - kFreshAArrivalTime);
+
+  // The slow_timer_ fires and a new idle connector is created.
+  // Because the original primary_connector_ is connecting to IPv4, the two
+  // connectors swap. ipv4_connector_ now holds the active Stale IPv4
+  // connection. The new primary_connector_ is idle, picks up the queued
+  // fresh_endpoint_v6, and starts connecting. The fresh IPv6 connection starts
+  // at 300ms.
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+
+  // t=600ms: another slow_timer_ fires. But TcpConnectJob only supports 2
+  // concurrent connections!
+  FastForwardBy(base::Milliseconds(300));
+
+  // The fresh IPv4 endpoint remains queued because the
+  // ipv4_connector_ is still occupied with the Stale IPv4 connection.
+  EXPECT_FALSE(connect_completers[2].is_connecting());
+
+  request->CallOnServiceEndpointRequestFinished(OK);
+
+  // If Fresh AAAA fails, primary_connector_ is now free. But because
+  // ipv4_connector_ is still occupied with the Stale IPv4 endpoint, it remains
+  // queued.
+  connect_completers[1].Complete(ERR_CONNECTION_REFUSED);
+  EXPECT_FALSE(connect_completers[2].is_connecting());
+
+  // Now Stale A fails. Both are free. One of them should advance!
+  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+  EXPECT_TRUE(connect_completers[2].is_connecting());
+
+  // Complete Fresh A.
+  connect_completers[2].Complete(OK);
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint2, fresh_endpoint_v4,
+                 {ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED),
+                  ConnectionAttempt(kIpV4Endpoint1, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_F(TcpConnectJobOptimisticDnsTest, StaleAAAAThenDelayedFreshA) {
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV6Endpoint1});
+  const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint1);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale AAAA provided
+  request->set_crypto_ready(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // t=500ms: Fresh A provided.
+  constexpr base::TimeDelta kFreshAArrivalTime = base::Milliseconds(500);
+  CHECK_GT(kFreshAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshAArrivalTime);
+
+  // Since 500ms > 300ms, the slow_timer_ has already fired.
+  // And it created `ipv4_connector_`!
+  // When Fresh A arrives, `ipv4_connector_` is free and handles IPv4.
+  // It should IMMEDIATELY start connecting to Fresh A.
+  request->set_endpoints({fresh_endpoint}).CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+
+  // Complete Fresh A.
+  connect_completers[1].Complete(OK);
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint1, fresh_endpoint);
+}
+
+// Verify that enabling Optimistic DNS does not break standard Happy Eyeballs
+// behavior when no stale records are available.
+TEST_F(TcpConnectJobOptimisticDnsTest, NoStale_DelayedFreshAAAAThenA) {
+  const auto fresh_endpoint_v6 = CreateServiceEndpoint({kIpV6Endpoint1});
+  const auto fresh_endpoint_v4 = CreateServiceEndpoint({kIpV4Endpoint1});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint1);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=50ms: Fresh AAAA provided.
+  constexpr base::TimeDelta kFreshAAAAArrivalTime = base::Milliseconds(50);
+  CHECK_LT(kFreshAAAAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshAAAAArrivalTime);
+  request->set_crypto_ready(true)
+      .set_endpoints({fresh_endpoint_v6})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // t=100ms: Fresh A provided.
+  constexpr base::TimeDelta kFreshAArrivalTime = base::Milliseconds(100);
+  CHECK_LT(kFreshAArrivalTime, TcpConnectJob::kIPv6FallbackTime);
+  FastForwardBy(kFreshAArrivalTime - kFreshAAAAArrivalTime);
+  request->set_endpoints({fresh_endpoint_v6, fresh_endpoint_v4})
+      .CallOnServiceEndpointsUpdated();
+
+  // Because it has only been 50ms since the FIRST connection (Fresh AAAA)
+  // started, we do not start connecting to Fresh A yet.
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  // t=350ms (300ms after Fresh AAAA started):
+  FastForwardBy(TcpConnectJob::kIPv6FallbackTime -
+                (kFreshAArrivalTime - kFreshAAAAArrivalTime));
+  // ipv4_connector_ is created, but it is queued because primary_connector_ is
+  // still occupied.
+  EXPECT_FALSE(connect_completers[1].is_connecting());
+
+  request->CallOnServiceEndpointRequestFinished(OK);
+
+  // Fail Fresh AAAA.
+  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+  // Now primary_connector_ can advance to fresh_endpoint_v4.
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+
+  // Complete Fresh A.
+  connect_completers[1].Complete(OK);
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint1, fresh_endpoint_v4,
+                 {ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED)});
+}
+
+TEST_F(TcpConnectJobOptimisticDnsTest, StaleAAAA_FailsBeforeFreshArrives) {
+  const auto stale_endpoint = CreateServiceEndpoint({kIpV6Endpoint1});
+  const auto fresh_endpoint = CreateServiceEndpoint({kIpV4Endpoint1});
+  auto request = host_resolver_.AddFakeRequest();
+
+  std::array<MockConnectCompleter, 2> connect_completers;
+  AddConnect(MockConnect(&connect_completers[0]), kIpV6Endpoint1);
+  AddConnect(MockConnect(&connect_completers[1]), kIpV4Endpoint1);
+
+  EXPECT_THAT(InitAndStart(), IsError(ERR_IO_PENDING));
+
+  // t=0: Stale AAAA provided
+  request->set_crypto_ready(true)
+      .set_endpoints({stale_endpoint})
+      .set_aliases(kDnsAliases)
+      .CallOnServiceEndpointsUpdated();
+
+  EXPECT_TRUE(connect_completers[0].is_connecting());
+
+  // t=100ms: Stale AAAA connection fails.
+  FastForwardBy(base::Milliseconds(100));
+  connect_completers[0].Complete(ERR_CONNECTION_REFUSED);
+
+  // No connection is established yet.
+  EXPECT_FALSE(connect_job_->HasEstablishedConnection());
+
+  // t=200ms: Fresh A arrives.
+  FastForwardBy(base::Milliseconds(100));
+  request->set_endpoints({fresh_endpoint}).CallOnServiceEndpointsUpdated();
+
+  // Since there are no active connections, it should immediately start
+  // connecting to Fresh A.
+  EXPECT_TRUE(connect_completers[1].is_connecting());
+
+  connect_completers[1].Complete(OK);
+  EXPECT_TRUE(connect_job_->HasEstablishedConnection());
+  WaitForSuccess(kIpV4Endpoint1, fresh_endpoint,
+                 {ConnectionAttempt(kIpV6Endpoint1, ERR_CONNECTION_REFUSED)});
+}
+
 }  // namespace
 }  // namespace net

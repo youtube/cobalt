@@ -23,6 +23,7 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_metrics.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/data_sharing/collaboration_controller_delegate_desktop.h"
 #include "chrome/browser/ui/views/data_sharing/data_sharing_bubble_controller.h"
@@ -628,14 +629,7 @@ void RecentActivityRowView::OpenTabGroupEditDialog() {
     return;
   }
 
-  if (views::View* tab_group_header =
-          BrowserView::GetBrowserViewForBrowser(browser)
-              ->tab_strip_view()
-              ->GetTabGroupAnchorView(group_id.value())) {
-    TabGroupEditorBubbleView::Show(browser, group_id.value(), tab_group_header,
-                                   /*anchor_rect=*/std::nullopt,
-                                   /*stop_context_menu_propagation=*/false);
-  }
+  browser->tab_strip_model()->OpenTabGroupEditor(group_id.value());
 }
 
 void RecentActivityRowView::ManageSharing() {

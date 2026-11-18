@@ -15,6 +15,7 @@ section	.text code align=64
 
 
 
+p256_constants:
 $L$ord:
 	DQ	0xf3b9cac2fc632551,0xbce6faada7179e84,0xffffffffffffffff,0xffffffff00000000
 $L$ordK:

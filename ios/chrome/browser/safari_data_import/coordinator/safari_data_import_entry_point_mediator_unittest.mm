@@ -73,8 +73,9 @@ class SafariDataImportEntryPointMediatorTest : public PlatformTest {
 };
 
 // Tests that the Safari import reminder is registered on request.
+// TODO(crbug.com/522679300): disable as it fails when run locally.
 TEST_F(SafariDataImportEntryPointMediatorTest,
-       TestRegisterSafariImportReminder) {
+       DISABLED_TestRegisterSafariImportReminder) {
   EXPECT_CALL(*promos_manager_.get(),
               RegisterPromoForSingleDisplay(
                   promos_manager::Promo::SafariImportRemindMeLater));

@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/core/svg/svg_length_functions.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -135,7 +136,9 @@ void InlineBoxState::ComputeTextMetrics(const ComputedStyle& styleref,
   text_height = text_metrics.LineHeight();
 
   FontHeight emphasis_marks_outsets =
-      ComputeEmphasisMarkOutsets(styleref, base_font, paint_scale);
+      RuntimeEnabledFeatures::TextEmphasisAsRubyEnabled()
+          ? FontHeight::Empty()
+          : ComputeEmphasisMarkOutsets(styleref, base_font, paint_scale);
   LayoutUnit line_height = styleref.ComputedLineHeightAsFixed(base_font);
   if (!styleref.LineHeight().IsFixed() && paint_scale != 1.0f) {
     line_height *= paint_scale;

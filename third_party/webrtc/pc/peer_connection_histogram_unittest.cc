@@ -20,6 +20,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "api/create_modular_peer_connection_factory.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
@@ -42,6 +43,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -230,7 +232,10 @@ class PeerConnectionUsageHistogramTest : public ::testing::Test {
   typedef std::unique_ptr<PeerConnectionWrapperForUsageHistogramTest>
       WrapperPtr;
 
-  PeerConnectionUsageHistogramTest() : main_(&vss_) { metrics::Reset(); }
+  PeerConnectionUsageHistogramTest()
+      : env_(CreateTestEnvironment()), main_(&vss_) {
+    metrics::Reset();
+  }
 
   WrapperPtr CreatePeerConnection() {
     RTCConfiguration config;
@@ -310,6 +315,7 @@ class PeerConnectionUsageHistogramTest : public ::testing::Test {
       pcf_deps.network_manager = std::move(fake_network);
     }
     EnableFakeMedia(pcf_deps);
+    pcf_deps.env = env_;
 
     auto pc_factory = CreateModularPeerConnectionFactory(std::move(pcf_deps));
     pc_factory->SetOptions(factory_options);
@@ -341,6 +347,7 @@ class PeerConnectionUsageHistogramTest : public ::testing::Test {
     return kLocalAddrs[next_local_address_++];
   }
 
+  const Environment env_;
   int next_local_address_ = 0;
   VirtualSocketServer vss_;
   test::RunLoop main_;

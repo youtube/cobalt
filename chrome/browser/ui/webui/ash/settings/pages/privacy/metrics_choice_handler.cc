@@ -13,9 +13,9 @@
 
 namespace ash::settings {
 
-const char MetricsChoiceHandler::kGetMetricsConsentState[] =
+const char MetricsChoiceHandler::kGetMetricsChoiceState[] =
     "getMetricsConsentState";
-const char MetricsChoiceHandler::kUpdateMetricsConsent[] =
+const char MetricsChoiceHandler::kUpdateMetricsChoice[] =
     "updateMetricsConsent";
 
 MetricsChoiceHandler::MetricsChoiceHandler(
@@ -34,13 +34,13 @@ MetricsChoiceHandler::~MetricsChoiceHandler() = default;
 
 void MetricsChoiceHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
-      kUpdateMetricsConsent,
-      base::BindRepeating(&MetricsChoiceHandler::HandleUpdateMetricsConsent,
+      kUpdateMetricsChoice,
+      base::BindRepeating(&MetricsChoiceHandler::HandleUpdateMetricsChoice,
                           weak_ptr_factory_.GetWeakPtr()));
 
   web_ui()->RegisterMessageCallback(
-      kGetMetricsConsentState,
-      base::BindRepeating(&MetricsChoiceHandler::HandleGetMetricsConsentState,
+      kGetMetricsChoiceState,
+      base::BindRepeating(&MetricsChoiceHandler::HandleGetMetricsChoiceState,
                           weak_ptr_factory_.GetWeakPtr()));
 }
 
@@ -48,7 +48,7 @@ void MetricsChoiceHandler::OnJavascriptAllowed() {}
 
 void MetricsChoiceHandler::OnJavascriptDisallowed() {}
 
-void MetricsChoiceHandler::HandleGetMetricsConsentState(
+void MetricsChoiceHandler::HandleGetMetricsChoiceState(
     const base::ListValue& args) {
   AllowJavascript();
   CHECK_EQ(1U, args.size());
@@ -57,58 +57,57 @@ void MetricsChoiceHandler::HandleGetMetricsConsentState(
 
   base::DictValue response;
 
-  base::Value consent_pref =
-      ShouldUseUserConsent()
-          ? base::Value(::metrics::prefs::kMetricsUserConsent)
-          : base::Value(kStatsReportingPref);
+  base::Value choice_pref =
+      ShouldUseUserChoice() ? base::Value(::metrics::prefs::kMetricsUserConsent)
+                            : base::Value(kStatsReportingPref);
 
-  response.Set("prefName", std::move(consent_pref));
-  response.Set("isConfigurable", base::Value(IsMetricsConsentConfigurable()));
+  response.Set("prefName", std::move(choice_pref));
+  response.Set("isConfigurable", base::Value(IsMetricsChoiceConfigurable()));
 
   ResolveJavascriptCallback(callback_id, response);
 }
 
-void MetricsChoiceHandler::HandleUpdateMetricsConsent(
+void MetricsChoiceHandler::HandleUpdateMetricsChoice(
     const base::ListValue& args) {
   AllowJavascript();
   CHECK_EQ(2U, args.size());
   CHECK_EQ(args[1].type(), base::Value::Type::DICT);
 
   const base::Value& callback_id = args[0];
-  std::optional<bool> metrics_consent = args[1].GetDict().FindBool("consent");
-  CHECK(metrics_consent);
+  std::optional<bool> metrics_choice = args[1].GetDict().FindBool("consent");
+  CHECK(metrics_choice);
 
-  if (!ShouldUseUserConsent()) {
+  if (!ShouldUseUserChoice()) {
     auto* stats_reporting_controller = StatsReportingController::Get();
-    stats_reporting_controller->SetEnabled(profile_, *metrics_consent);
+    stats_reporting_controller->SetEnabled(profile_, *metrics_choice);
 
     // Re-read from |stats_reporting_controller|. If |profile_| is not owner,
-    // then the consent should not have changed to |metrics_consent|.
+    // then the choice should not have changed to |metrics_choice|.
     ResolveJavascriptCallback(
         callback_id, base::Value(stats_reporting_controller->IsEnabled()));
     return;
   }
 
-  metrics_service_->UpdateCurrentUserMetricsConsent(*metrics_consent);
-  std::optional<bool> user_metrics_consent =
-      metrics_service_->GetCurrentUserMetricsConsent();
-  CHECK(user_metrics_consent.has_value());
-  ResolveJavascriptCallback(callback_id, base::Value(*user_metrics_consent));
+  metrics_service_->UpdateCurrentUserMetricsChoice(*metrics_choice);
+  std::optional<bool> user_choice =
+      metrics_service_->GetCurrentUserMetricsChoice();
+  CHECK(user_choice.has_value());
+  ResolveJavascriptCallback(callback_id, base::Value(*user_choice));
 }
 
-bool MetricsChoiceHandler::IsMetricsConsentConfigurable() const {
+bool MetricsChoiceHandler::IsMetricsChoiceConfigurable() const {
   // TODO(b/333911538): In the interim, completely disable child users
-  // from being able to toggle consent in the settings. Once the parent sets
-  // the consent for the child during OOBE, it cannot be updated afterwards.
+  // from being able to toggle choice in the settings. Once the parent sets
+  // the choice for the child during OOBE, it cannot be updated afterwards.
   if (user_manager_->IsLoggedInAsChildUser()) {
     return false;
   }
 
-  return ShouldUseUserConsent() || user_manager_->IsCurrentUserOwner();
+  return ShouldUseUserChoice() || user_manager_->IsCurrentUserOwner();
 }
 
-bool MetricsChoiceHandler::ShouldUseUserConsent() const {
-  return metrics_service_->GetCurrentUserMetricsConsent().has_value();
+bool MetricsChoiceHandler::ShouldUseUserChoice() const {
+  return metrics_service_->GetCurrentUserMetricsChoice().has_value();
 }
 
 }  // namespace ash::settings

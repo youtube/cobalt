@@ -13,6 +13,7 @@
 #include <fstream>
 #include <memory>
 #include <optional>
+#include <span>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -26,13 +27,11 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/fpu.h"
-#include "src/base/hashmap.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
-#include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/bigint/bigint.h"
@@ -41,7 +40,6 @@
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
-#include "src/codegen/flush-instruction-cache.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
@@ -56,7 +54,6 @@
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/diagnostics/compilation-statistics.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/local-isolate.h"
 #include "src/execution/messages.h"
@@ -72,8 +69,6 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/local-heap-inl.h"
-#include "src/heap/local-heap.h"
-#include "src/heap/parked-scope.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/safepoint.h"
 #include "src/ic/stub-cache.h"
@@ -89,13 +84,12 @@
 #include "src/logging/metrics.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/hash-seed-inl.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/call-site-info-inl.h"
-#include "src/objects/call-site-info.h"
-#include "src/objects/elements.h"
 #include "src/objects/feedback-vector.h"
-#include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -108,7 +102,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor.h"
-#include "src/objects/prototype.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/source-text-module-inl.h"
@@ -1082,7 +1075,7 @@ class CallSiteBuilder {
     if (summary.code()->kind() != wasm::WasmCode::kWasmFunction) return;
     DirectHandle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = CallSiteInfo::kIsWasm;
-    if (wasm::is_asmjs_module(instance->module())) {
+    if (wasm::is_asmjs_module(summary.wasm_trusted_instance_data()->module())) {
       flags |= CallSiteInfo::kIsAsmJsWasm;
       if (summary.at_to_number_conversion()) {
         flags |= CallSiteInfo::kIsAsmJsAtNumberConversion;
@@ -1100,7 +1093,7 @@ class CallSiteBuilder {
       FrameSummary::WasmInterpretedFrameSummary const& summary) {
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = CallSiteInfo::kIsWasm | CallSiteInfo::kIsWasmInterpretedFrame;
-    DCHECK(!wasm::is_asmjs_module(instance->module()));
+    DCHECK(!wasm::is_asmjs_module(summary.instance_data()->module()));
     // We don't have any code object in the interpreter, so we pass 'undefined'.
     auto code = isolate_->factory()->undefined_value();
     AppendFrame(instance,
@@ -1992,8 +1985,7 @@ class CurrentScriptIdStackVisitor {
 class CurrentScriptIdsAndContextsStackVisitor {
  public:
   CurrentScriptIdsAndContextsStackVisitor(
-      Isolate* isolate,
-      v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data)
+      Isolate* isolate, std::span<StackTrace::ScriptIdAndContext> frame_data)
       : isolate_(isolate), frame_data_(frame_data) {
     DCHECK_LT(0, frame_data.size());
   }
@@ -2035,14 +2027,14 @@ class CurrentScriptIdsAndContextsStackVisitor {
   }
 
   Isolate* const isolate_;
-  v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data_;
+  std::span<StackTrace::ScriptIdAndContext> frame_data_;
   size_t cur_frame_ = 0;
 };
 
 class CurrentScriptDataStackVisitor {
  public:
-  CurrentScriptDataStackVisitor(
-      Isolate* isolate, v8::MemorySpan<StackTrace::ScriptData> frame_data)
+  CurrentScriptDataStackVisitor(Isolate* isolate,
+                                std::span<StackTrace::ScriptData> frame_data)
       : isolate_(isolate), frame_data_(frame_data) {
     DCHECK_LT(0, frame_data.size());
   }
@@ -2085,7 +2077,7 @@ class CurrentScriptDataStackVisitor {
   }
 
   Isolate* const isolate_;
-  v8::MemorySpan<StackTrace::ScriptData> frame_data_;
+  std::span<StackTrace::ScriptData> frame_data_;
   size_t cur_frame_ = 0;
 };
 
@@ -2126,7 +2118,7 @@ int Isolate::CurrentScriptId() {
 }
 
 size_t Isolate::CurrentScriptIdsAndContexts(
-    v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data) {
+    std::span<StackTrace::ScriptIdAndContext> frame_data) {
   if (frame_data.size() == 0) {
     return 0;
   }
@@ -2138,7 +2130,7 @@ size_t Isolate::CurrentScriptIdsAndContexts(
 }
 
 size_t Isolate::CurrentScriptData(
-    v8::MemorySpan<StackTrace::ScriptData> frame_data) {
+    std::span<StackTrace::ScriptData> frame_data) {
   if (frame_data.size() == 0) return 0;
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
               perfetto::StaticString(__func__));
@@ -4473,6 +4465,9 @@ void Isolate::AddSharedWasmMemory(
     DirectHandle<WasmMemoryObject> memory_object) {
   DirectHandle<WeakArrayList> shared_wasm_memories =
       factory()->shared_wasm_memories();
+  // Avoid adding the same memory object multiple times.
+  if (shared_wasm_memories->Contains(MakeWeak(*memory_object))) return;
+
   shared_wasm_memories = WeakArrayList::Append(
       this, shared_wasm_memories, MaybeObjectDirectHandle::Weak(memory_object));
   heap()->set_shared_wasm_memories(*shared_wasm_memories);
@@ -6378,6 +6373,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     ETWJITInterface::AddIsolate(this);
   }
 #endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
+
+  isolate_data_.cpu_features_ = CpuFeatures::SupportedFeatures();
 
   if (setup_delegate_ == nullptr) {
     setup_delegate_ = new SetupIsolateDelegate;

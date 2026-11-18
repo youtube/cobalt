@@ -96,14 +96,6 @@ const char* CrostiniResultString(const CrostiniResult res) {
   return "unknown code";
 }
 
-LinuxPackageInfo::LinuxPackageInfo() = default;
-LinuxPackageInfo::LinuxPackageInfo(LinuxPackageInfo&&) = default;
-LinuxPackageInfo::LinuxPackageInfo(const LinuxPackageInfo&) = default;
-LinuxPackageInfo& LinuxPackageInfo::operator=(LinuxPackageInfo&&) = default;
-LinuxPackageInfo& LinuxPackageInfo::operator=(const LinuxPackageInfo&) =
-    default;
-LinuxPackageInfo::~LinuxPackageInfo() = default;
-
 ContainerInfo::ContainerInfo(std::string container_name,
                              std::string container_username,
                              std::string container_homedir,

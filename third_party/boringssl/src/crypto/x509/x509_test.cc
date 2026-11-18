@@ -2037,8 +2037,8 @@ static bssl::UniquePtr<X509_NAME> MakeTestName(std::string_view common_name) {
 }
 
 static bssl::UniquePtr<X509> MakeTestCert(std::string_view issuer,
-                                          std::string_view subject, EVP_PKEY *key,
-                                          bool is_ca) {
+                                          std::string_view subject,
+                                          EVP_PKEY *key, bool is_ca) {
   UniquePtr<X509_NAME> issuer_name = MakeTestName(issuer);
   UniquePtr<X509_NAME> subject_name = MakeTestName(subject);
   UniquePtr<X509> cert(X509_new());
@@ -6421,7 +6421,7 @@ TEST(X509Test, AddExt) {
                            /*crit=*/1, X509V3_ADD_REPLACE_EXISTING));
   expect_extensions({{NID_subject_key_identifier, true, skid2_der}});
 
-  // `X509V3_ADD_REPLACE` adds a new extension if not preseent.
+  // `X509V3_ADD_REPLACE` adds a new extension if not present.
   EXPECT_EQ(
       1, X509_add1_ext_i2d(x509.get(), NID_basic_constraints, basic1_obj.get(),
                            /*crit=*/1, X509V3_ADD_REPLACE));
@@ -6433,7 +6433,7 @@ TEST(X509Test, AddExt) {
                                  X509V3_ADD_DELETE));
   expect_extensions({{NID_subject_key_identifier, true, skid2_der}});
 
-  // `X509V3_ADD_KEEP_EXISTING` adds a new extension if not preseent.
+  // `X509V3_ADD_KEEP_EXISTING` adds a new extension if not present.
   EXPECT_EQ(
       1, X509_add1_ext_i2d(x509.get(), NID_basic_constraints, basic1_obj.get(),
                            /*crit=*/1, X509V3_ADD_KEEP_EXISTING));

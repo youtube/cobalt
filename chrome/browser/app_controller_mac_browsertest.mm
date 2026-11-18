@@ -60,6 +60,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/cocoa/bookmarks/bookmark_menu_bridge.h"
+#include "chrome/browser/ui/cocoa/confirm_quit_panel_controller.h"
 #include "chrome/browser/ui/cocoa/history_menu_bridge.h"
 #include "chrome/browser/ui/cocoa/test/run_loop_testing.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
@@ -87,6 +88,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/no_renderer_crashes_assertion.h"
 #include "content/public/test/prerender_test_util.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "extensions/browser/app_window/app_window_registry.h"
@@ -192,18 +194,79 @@ class ProfileDestructionWaiter {
 @end
 
 @interface AppController (ConfirmQuitPanelTesting)
-- (BOOL)test_runConfirmQuitPanel;
+- (ConfirmQuitResult)test_confirmQuitIfNeeded;
 @end
 
 @implementation AppController (ConfirmQuitPanelTesting)
 
-- (BOOL)test_runConfirmQuitPanel {
-  return NO;
+- (ConfirmQuitResult)test_confirmQuitIfNeeded {
+  return ConfirmQuitResultAborted;
 }
 
 @end
 
+static BOOL g_use_mock_current_event = NO;
+static NSEvent* g_mock_current_event = nil;
+
+@interface NSApplication (ConfirmQuitTesting)
+- (NSEvent*)test_currentEvent;
+@end
+
+@implementation NSApplication (ConfirmQuitTesting)
+- (NSEvent*)test_currentEvent {
+  if (g_use_mock_current_event) {
+    return g_mock_current_event;
+  }
+  return [self test_currentEvent];
+}
+@end
+
+@interface ConfirmQuitPanelController (Testing)
+- (BOOL)test_runConfirmQuitLoopWithEvent:(NSEvent*)event
+                       dismissedCallback:(void (^)())dismissedCallback;
+@end
+
+@implementation ConfirmQuitPanelController (Testing)
+- (BOOL)test_runConfirmQuitLoopWithEvent:(NSEvent*)event
+                       dismissedCallback:(void (^)())dismissedCallback {
+  return YES;
+}
+@end
+
 namespace {
+
+class ScopedMockCurrentEvent {
+ public:
+  explicit ScopedMockCurrentEvent(NSEvent* event) {
+    g_mock_current_event = event;
+    g_use_mock_current_event = YES;
+    swizzler_ = std::make_unique<base::apple::ScopedObjCClassSwizzler>(
+        [NSApplication class], @selector(currentEvent),
+        @selector(test_currentEvent));
+  }
+
+  ~ScopedMockCurrentEvent() {
+    g_mock_current_event = nil;
+    g_use_mock_current_event = NO;
+  }
+
+ private:
+  std::unique_ptr<base::apple::ScopedObjCClassSwizzler> swizzler_;
+};
+
+class ScopedMockConfirmQuitPanel {
+ public:
+  ScopedMockConfirmQuitPanel() {
+    swizzler_ = std::make_unique<base::apple::ScopedObjCClassSwizzler>(
+        [ConfirmQuitPanelController class],
+        @selector(runConfirmQuitLoopWithEvent:dismissedCallback:),
+        @selector(test_runConfirmQuitLoopWithEvent:dismissedCallback:));
+  }
+  ~ScopedMockConfirmQuitPanel() = default;
+
+ private:
+  std::unique_ptr<base::apple::ScopedObjCClassSwizzler> swizzler_;
+};
 
 using AppControllerBrowserTest = InProcessBrowserTest;
 
@@ -258,8 +321,8 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, CommandDuringShutdown) {
 IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
                        CancelConfirmQuitResetsClosingAllBrowsers) {
   base::apple::ScopedObjCClassSwizzler swizzler(
-      [AppController class], @selector(runConfirmQuitPanel),
-      @selector(test_runConfirmQuitPanel));
+      [AppController class], @selector(confirmQuitIfNeeded),
+      @selector(test_confirmQuitIfNeeded));
 
   std::vector<bool> closing_all_browsers_notifications;
   base::CallbackListSubscription subscription =
@@ -814,7 +877,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenInRegularBrowser) {
   // See: https://crrev.com/c/4530255/comments/2aadb9cf_9a39d4bf
   [[NSNotificationCenter defaultCenter]
       postNotificationName:NSWindowDidBecomeMainNotification
-                    object:incognito_browser->window()
+                    object:incognito_browser->GetWindow()
                                ->GetNativeWindow()
                                .GetNativeNSWindow()];
   // Open a url.
@@ -861,7 +924,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
   // See: https://crrev.com/c/4530255/comments/2aadb9cf_9a39d4bf
   [[NSNotificationCenter defaultCenter]
       postNotificationName:NSWindowDidBecomeMainNotification
-                    object:incognito_browser->window()
+                    object:incognito_browser->GetWindow()
                                ->GetNativeWindow()
                                .GetNativeNSWindow()];
 
@@ -896,7 +959,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenUrlInGuestBrowser) {
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   EXPECT_EQ(1, guest_browser->tab_strip_model()->count());
   EXPECT_TRUE(guest_browser->profile()->IsGuestSession());
-  guest_browser->window()->Show();
+  guest_browser->GetWindow()->Show();
   EXPECT_EQ(guest_browser,
             GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser());
   // Assure that `windowDidBecomeMain` is called even if this browser process
@@ -905,7 +968,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenUrlInGuestBrowser) {
   // See: https://crrev.com/c/4530255/comments/2aadb9cf_9a39d4bf
   [[NSNotificationCenter defaultCenter]
       postNotificationName:NSWindowDidBecomeMainNotification
-                    object:guest_browser->window()
+                    object:guest_browser->GetWindow()
                                ->GetNativeWindow()
                                .GetNativeNSWindow()];
   // Open a url.
@@ -984,7 +1047,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
   // See: https://crrev.com/c/4530255/comments/2aadb9cf_9a39d4bf
   [[NSNotificationCenter defaultCenter]
       postNotificationName:NSWindowDidBecomeMainNotification
-                    object:incognito_browser->window()
+                    object:incognito_browser->GetWindow()
                                ->GetNativeWindow()
                                .GetNativeNSWindow()];
   // Open a url.
@@ -1177,6 +1240,106 @@ class AppControllerMainMenuBrowserTest : public InProcessBrowserTest {
  protected:
   AppControllerMainMenuBrowserTest() = default;
 };
+
+// Verifies that the Confirm Quit panel is shown when a browser window is
+// active, the kConfirmToQuitEnabled preference is enabled, and the quit is
+// keyboard-initiated.
+IN_PROC_BROWSER_TEST_F(AppControllerMainMenuBrowserTest,
+                       ConfirmQuitPanelShownWithBrowserWindowAndKeyQuit) {
+  g_browser_process->local_state()->SetBoolean(prefs::kConfirmToQuitEnabled,
+                                               true);
+
+  ASSERT_FALSE(GlobalBrowserCollection::GetInstance()->IsEmpty());
+
+  NSEvent* cmd_q_event = cocoa_test_event_utils::KeyEventWithKeyCode(
+      'q', 'q', NSEventTypeKeyDown, NSEventModifierFlagCommand);
+  ScopedMockCurrentEvent mock_event(cmd_q_event);
+  ScopedMockConfirmQuitPanel mock_quit_panel;
+
+  EXPECT_EQ([AppController.sharedController confirmQuitIfNeeded],
+            ConfirmQuitResultConfirmed);
+}
+
+// Verifies that the Confirm Quit panel is not shown when the
+// kConfirmToQuitEnabled preference is disabled and the quit is
+// keyboard-initiated.
+IN_PROC_BROWSER_TEST_F(AppControllerMainMenuBrowserTest,
+                       ConfirmQuitPanelNotShownWhenPrefDisabled) {
+  g_browser_process->local_state()->SetBoolean(prefs::kConfirmToQuitEnabled,
+                                               false);
+
+  ASSERT_FALSE(GlobalBrowserCollection::GetInstance()->IsEmpty());
+
+  NSEvent* cmd_q_event = cocoa_test_event_utils::KeyEventWithKeyCode(
+      'q', 'q', NSEventTypeKeyDown, NSEventModifierFlagCommand);
+  ScopedMockCurrentEvent mock_event(cmd_q_event);
+  ScopedMockConfirmQuitPanel mock_quit_panel;
+
+  EXPECT_EQ([AppController.sharedController confirmQuitIfNeeded],
+            ConfirmQuitResultNotPrompted);
+}
+
+// Verifies that the Confirm Quit panel is not shown when the quit is not
+// keyboard-initiated.
+IN_PROC_BROWSER_TEST_F(AppControllerMainMenuBrowserTest,
+                       ConfirmQuitPanelNotShownWithMouseQuit) {
+  g_browser_process->local_state()->SetBoolean(prefs::kConfirmToQuitEnabled,
+                                               true);
+
+  ASSERT_FALSE(GlobalBrowserCollection::GetInstance()->IsEmpty());
+
+  ScopedMockCurrentEvent mock_event(nil);
+  ScopedMockConfirmQuitPanel mock_quit_panel;
+
+  EXPECT_EQ([AppController.sharedController confirmQuitIfNeeded],
+            ConfirmQuitResultNotPrompted);
+}
+
+// Verifies that the Confirm Quit panel is not shown when a keyboard shortcut
+// other than the quit shortcut is pressed.
+IN_PROC_BROWSER_TEST_F(AppControllerMainMenuBrowserTest,
+                       ConfirmQuitPanelNotShownWithNonQuitKeyEvent) {
+  g_browser_process->local_state()->SetBoolean(prefs::kConfirmToQuitEnabled,
+                                               true);
+
+  ASSERT_FALSE(GlobalBrowserCollection::GetInstance()->IsEmpty());
+
+  // Cmd+S is not the Quit shortcut.
+  NSEvent* cmd_s_event = cocoa_test_event_utils::KeyEventWithKeyCode(
+      's', 's', NSEventTypeKeyDown, NSEventModifierFlagCommand);
+  ScopedMockCurrentEvent mock_event(cmd_s_event);
+  ScopedMockConfirmQuitPanel mock_quit_panel;
+
+  EXPECT_EQ([AppController.sharedController confirmQuitIfNeeded],
+            ConfirmQuitResultNotPrompted);
+}
+
+// Verifies that the Confirm Quit panel is not shown if there are no open
+// browser/app windows.
+IN_PROC_BROWSER_TEST_F(AppControllerMainMenuBrowserTest,
+                       ConfirmQuitPanelNotShownWithNoWindows) {
+  content::ScopedAllowRendererCrashes allow_renderer_crashes(
+      browser()
+          ->tab_strip_model()
+          ->GetActiveWebContents()
+          ->GetPrimaryMainFrame()
+          ->GetProcess());
+  g_browser_process->local_state()->SetBoolean(prefs::kConfirmToQuitEnabled,
+                                               true);
+
+  ui_test_utils::BrowserDestroyedObserver observer(browser());
+  chrome::CloseAllBrowsers();
+  observer.Wait();
+  ASSERT_TRUE(GlobalBrowserCollection::GetInstance()->IsEmpty());
+
+  NSEvent* cmd_q_event = cocoa_test_event_utils::KeyEventWithKeyCode(
+      'q', 'q', NSEventTypeKeyDown, NSEventModifierFlagCommand);
+  ScopedMockCurrentEvent mock_event(cmd_q_event);
+  ScopedMockConfirmQuitPanel mock_quit_panel;
+
+  EXPECT_EQ([AppController.sharedController confirmQuitIfNeeded],
+            ConfirmQuitResultNotPrompted);
+}
 
 IN_PROC_BROWSER_TEST_F(AppControllerMainMenuBrowserTest,
     HistoryMenuResetAfterProfileDeletion) {
@@ -1525,7 +1688,7 @@ IN_PROC_BROWSER_TEST_F(AppControllerHandoffBrowserTest, TestHandoffURLs) {
   EXPECT_EQ(g_handoff_title, u"");
 
   // Activate the original browser window.
-  browser()->window()->Show();
+  browser()->GetWindow()->Show();
   EXPECT_EQ(g_handoff_url, test_url2);
   EXPECT_EQ(g_handoff_title, u"Title Of Awesomeness");
 }

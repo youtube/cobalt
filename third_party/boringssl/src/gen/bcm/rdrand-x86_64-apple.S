@@ -33,6 +33,7 @@ _CET_ENDBR
 .private_extern _CRYPTO_rdrand_multiple8_buf
 
 .p2align	4
+.alt_entry _CRYPTO_rdrand_multiple8_buf
 _CRYPTO_rdrand_multiple8_buf:
 
 _CET_ENDBR

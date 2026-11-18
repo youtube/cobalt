@@ -54,6 +54,16 @@ public abstract class StripLayoutView implements VirtualView {
         void onKeyboardFocus(boolean isFocused, StripLayoutView view);
     }
 
+    /** Handler for accessibility focus on VirtualViews. */
+    public interface StripLayoutViewOnAccessibilityFocusHandler {
+        /**
+         * Handles accessibility focus on this {@param view}.
+         *
+         * @param view The {@link StripLayoutView} in question.
+         */
+        void onAccessibilityFocus(StripLayoutView view);
+    }
+
     /** A property for animations to use for changing the X offset of the view. */
     public static final FloatProperty<StripLayoutView> X_OFFSET =
             new FloatProperty<>("offsetX") {
@@ -129,6 +139,7 @@ public abstract class StripLayoutView implements VirtualView {
     // Event handlers.
     private final StripLayoutViewOnClickHandler mOnClickHandler;
     private final StripLayoutViewOnKeyboardFocusHandler mOnKeyboardFocusHandler;
+    private final @Nullable StripLayoutViewOnAccessibilityFocusHandler mOnAccessibilityFocusHandler;
 
     // Tab group share properties.
     private boolean mShowNotificationBubble;
@@ -140,16 +151,19 @@ public abstract class StripLayoutView implements VirtualView {
      * @param incognito The incognito state of the view.
      * @param clickHandler StripLayoutViewOnClickHandler for this view.
      * @param keyboardFocusHandler Handles keyboard focus gain/loss for this view.
+     * @param accessibilityFocusHandler Handles accessibility focus for this view.
      * @param context The context for the view.
      */
     protected StripLayoutView(
             boolean incognito,
             StripLayoutViewOnClickHandler clickHandler,
             StripLayoutViewOnKeyboardFocusHandler keyboardFocusHandler,
+            @Nullable StripLayoutViewOnAccessibilityFocusHandler accessibilityFocusHandler,
             Context context) {
         mIsIncognito = incognito;
         mOnClickHandler = clickHandler;
         mOnKeyboardFocusHandler = keyboardFocusHandler;
+        mOnAccessibilityFocusHandler = accessibilityFocusHandler;
         mContext = context;
     }
 
@@ -433,6 +447,13 @@ public abstract class StripLayoutView implements VirtualView {
     @Override
     public void handleClick(long time, int motionEventButtonState, int modifiers) {
         mOnClickHandler.onClick(time, this, motionEventButtonState, modifiers);
+    }
+
+    @Override
+    public void onAccessibilityFocused() {
+        if (mOnAccessibilityFocusHandler != null) {
+            mOnAccessibilityFocusHandler.onAccessibilityFocus(this);
+        }
     }
 
     /** Returns cached touch target bounds. */

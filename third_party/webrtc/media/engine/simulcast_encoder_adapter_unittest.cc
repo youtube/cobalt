@@ -25,7 +25,6 @@
 #include "absl/container/inlined_vector.h"
 #include "absl/functional/any_invocable.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/fec_controller_override.h"
 #include "api/field_trials.h"
 #include "api/make_ref_counted.h"
@@ -69,6 +68,7 @@
 #include "rtc_base/event.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -554,7 +554,7 @@ class TestSimulcastEncoderAdapterFake : public ::testing::Test,
   }
 
   void SetUp() override {
-    env_ = CreateEnvironment(field_trials_.CreateCopy());
+    env_ = CreateTestEnvironment({.field_trials = field_trials_.CreateCopy()});
     helper_ = std::make_unique<TestSimulcastEncoderAdapterFakeHelper>(
         env_, use_fallback_factory_,
         SdpVideoFormat("VP8", sdp_video_parameters_));
@@ -754,7 +754,7 @@ class TestSimulcastEncoderAdapterFake : public ::testing::Test,
 
  protected:
   FieldTrials field_trials_ = CreateTestFieldTrials();
-  Environment env_ = EnvironmentFactory().Create();
+  Environment env_ = CreateTestEnvironment();
   std::unique_ptr<TestSimulcastEncoderAdapterFakeHelper> helper_;
   std::unique_ptr<VideoEncoder> adapter_;
   VideoCodec codec_;

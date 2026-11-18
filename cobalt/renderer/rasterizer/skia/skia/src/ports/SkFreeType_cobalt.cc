@@ -22,7 +22,7 @@
 
 #include "base/logging.h"
 #include "include/core/SkFontStyle.h"
-#include "src/base/SkTSearch.h"
+#include "src/core/SkTSearch.h"
 #include "src/core/SkTraceEvent.h"
 
 #if !defined(FT_CONFIG_OPTION_USE_BROTLI)

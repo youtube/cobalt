@@ -123,7 +123,7 @@ void LocaleSwitchScreenBrowserTest::ProceedToLocaleSwitchScreen() {
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
   AccountInfo account_info = identity_manager->FindExtendedAccountInfoByGaiaId(
       FakeGaiaMixin::kFakeUserGaiaId);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.SetAllSupportedCapabilities(false);
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
 

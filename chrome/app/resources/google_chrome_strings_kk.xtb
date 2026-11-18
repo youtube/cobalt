@@ -403,6 +403,7 @@
 <translation id="5234764350956374838">Жабу</translation>
 <translation id="5239627039202700673">Хабарларда, құжаттарда және басқа қолданбаларда сілтемелерді басып, Chrome браузерін кез келген уақытта пайдаланыңыз.</translation>
 <translation id="5251420635869119124">Қонақтар Chrome қолданбасын ешқандай дерек қалдырмай пайдалана алады.</translation>
+<translation id="5271833978500241046">Оларды Chrome-дағы басқа Gemini функцияларымен бірге пайдаланыңыз.</translation>
 <translation id="5286907366254680517">Анықталды</translation>
 <translation id="5320351714793324716">Егер cookie файлдарына рұқсат берсеңіз, Chrome оларды алдын ала жүктеу кезінде пайдалануы мүмкін.</translation>
 <translation id="5321325624576443340">Google Lens қолжетімді емес. Кейінірек қайталап көріңіз.</translation>
@@ -441,15 +442,6 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="569897634095159764">Интернетке қосылу мүмкін емес. Прокси-сервер үшін аутентификация қажет.</translation>
 <translation id="5709557627224531708">Chrome браузерін әдепкі етіп орнатыңыз</translation>
 <translation id="5719246646468301581">Google Chrome және ChromeOS Қосымша қызмет көрсету шарттары</translation>
-<translation id="5719324992913248873">Бұл әрекет:
-          <ph name="LINE_BREAKS" />
-           • кейбір Chrome параметрлері мен Chrome таңбашаларын бастапқы күйге қайтарады;
-           <ph name="LINE_BREAK" />
-           • кеңейтімдерді өшіреді;
-           <ph name="LINE_BREAK" />
-           • cookie файлдарын және сайттың басқа уақытша деректерін жояды.
-            <ph name="LINE_BREAKS" />
-           Бетбелгілерге, тарихқа және сақталған құпия сөздерге ештеңе болмайды.</translation>
 <translation id="5736850870166430177">Егер сайт құпия сөзіңізді ұрлағысы келсе немесе зиянды файлды жүктеп алсаңыз, Chrome браузері URL мекенжайларын, сондай-ақ бет контенті бөліктерін Safe Browsing қызметіне жіберуі мүмкін.</translation>
 <translation id="5756509061973259733">Осы құрылғыда бұл аккаунтқа Chrome профилі тіркеліп қойған.</translation>
 <translation id="5759947850379142561">Google Lens-бен іздеу үшін кез келген мәтінді не суретті таңдаңыз немесе Google Lens-ден шығу үшін Escape пернесін басыңыз.</translation>
@@ -647,6 +639,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Деректеріңізді қорғау үшін Chrome-ға сіз соңғы уақытта кірмеген сайттардың рұқсаттарын өшіруге рұқсат беріңіз.</translation>
 <translation id="7629695634924605473">Құпия сөздеріңіз ұрланған жағдайда, Chrome бұл туралы хабарлайды.</translation>
+<translation id="7629898584100520089">Дағдылар сияқты ЖИ инновациялары Google аккаунтыңызға сақталады және Chrome Sync-тен бөлек басқарылады.</translation>
 <translation id="7641148173327520642">Жүйе әкімшісі Google Chrome браузерін <ph name="TARGET_URL_HOSTNAME" /> бетіне кіру кезінде <ph name="ALTERNATIVE_BROWSER_NAME" /> ашылатын етіп конфигурациялады.</translation>
 <translation id="7649070708921625228">Анықтама</translation>
 <translation id="7651907282515937834">Chrome Enterprise логотипі</translation>

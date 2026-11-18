@@ -33,8 +33,8 @@ std::string_view ReportTriggerToString(
 std::string_view TranslateReportType(
     enterprise_reporting::ReportType report_type) {
   switch (report_type) {
-    case enterprise_reporting::ReportType::kFull:
-      return "Full/Browser Report";
+    case enterprise_reporting::ReportType::kBrowser:
+      return "Browser Report";
     case enterprise_reporting::ReportType::kBrowserVersion:
       return "Browser Version Report";
     case enterprise_reporting::ReportType::kProfileReport:
@@ -76,7 +76,7 @@ ReportGenerationConfig::ReportGenerationConfig(
 
 ReportGenerationConfig::ReportGenerationConfig(ReportTrigger report_trigger)
     : ReportGenerationConfig(report_trigger,
-                             ReportType::kFull,
+                             ReportType::kBrowser,
                              SecuritySignalsMode::kNoSignals,
                              /*use_cookies=*/false) {}
 

@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "api/rtp_header_extension_id.h"
 #include "rtc_base/checks.h"
 #include "test/gtest.h"
@@ -388,6 +389,17 @@ TEST(RtpParametersTest, IsMixedCodec) {
   parameters = CreateRtpParametersWithCodecs({true, true, true},
                                              {std::nullopt, codec1, codec2});
   EXPECT_TRUE(parameters.IsMixedCodec());
+}
+
+TEST(RtpExtensionTest, ToStringAndStringifySanitize) {
+  RtpExtension ext("http://example.com/test\r\n\\foo", RtpHeaderExtensionId(1));
+
+  // ToString() should escape raw control characters and backslash
+  EXPECT_EQ(ext.ToString(),
+            "{uri: http://example.com/test\\r\\n\\\\foo, id: 1}");
+
+  // AbslStringify should do the same
+  EXPECT_EQ(absl::StrCat(ext), "[1 http://example.com/test\\r\\n\\\\foo]");
 }
 
 }  // namespace

@@ -387,6 +387,7 @@ struct RTC_EXPORT RtpExtension {
   ~RtpExtension();
 
   std::string ToString() const;
+  std::string SanitizedUriForLogging() const;
   bool operator==(const RtpExtension& rhs) const {
     return uri == rhs.uri && id == rhs.id && encrypt == rhs.encrypt;
   }
@@ -529,9 +530,11 @@ struct RTC_EXPORT RtpExtension {
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const RtpExtension& extension) {
     if (extension.encrypt) {
-      absl::Format(&sink, "[%v %s (encrypted)]", extension.id, extension.uri);
+      absl::Format(&sink, "[%v %s (encrypted)]", extension.id,
+                   extension.SanitizedUriForLogging());
     } else {
-      absl::Format(&sink, "[%v %s]", extension.id, extension.uri);
+      absl::Format(&sink, "[%v %s]", extension.id,
+                   extension.SanitizedUriForLogging());
     }
   }
 };

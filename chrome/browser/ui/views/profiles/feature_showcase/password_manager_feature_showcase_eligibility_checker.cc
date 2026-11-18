@@ -37,5 +37,5 @@ void PasswordManagerFeatureShowcaseEligibilityChecker::CheckEligibility(
 
 std::string
 PasswordManagerFeatureShowcaseEligibilityChecker::GetStepIdentifier() const {
-  return "password-manager";
+  return std::string(kFeatureShowcasePasswordManagerStepIdentifier);
 }

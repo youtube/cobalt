@@ -22,11 +22,7 @@ class BlockingAttribute final : public DOMTokenList {
       : DOMTokenList(*element, html_names::kBlockingAttr) {}
 
   static bool HasRenderToken(const String& attribute_value);
-  static bool HasFullFrameRateToken(const String& attribute_value);
   bool HasRenderToken() const { return contains(keywords::kRender); }
-  bool HasFullFrameRateToken() const {
-    return contains(keywords::kFullFrameRate);
-  }
   RenderBlockingLevel GetBlockingLevel() const;
 
   void OnAttributeValueChanged(const AtomicString& old_value,
@@ -35,7 +31,6 @@ class BlockingAttribute final : public DOMTokenList {
  private:
   HashSet<AtomicString>& SupportedTokens() const;
 
-  bool RenderBlockingFullFrameRateEnabled() const;
 
   bool ValidateTokenValue(const AtomicString&, ExceptionState&) const override;
 };

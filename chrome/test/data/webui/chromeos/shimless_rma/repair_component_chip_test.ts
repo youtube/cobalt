@@ -8,7 +8,7 @@ import {CrButtonElement} from 'chrome://resources/ash/common/cr_elements/cr_butt
 import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict_query.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {RepairComponentChip} from 'chrome://shimless-rma/repair_component_chip.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 

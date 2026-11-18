@@ -24,7 +24,7 @@ XRVisibilityMaskChangeEvent* XRVisibilityMaskChangeEvent::Create(
     vertices = DOMFloat32Array::Create(visibility_mask->vertices.size() * 2);
     auto vertices_span = vertices->AsSpan();
     auto mojom_span = visibility_mask->vertices;
-    for (size_t i = 0; i < mojom_span.size(); i++) {
+    for (wtf_size_t i = 0; i < mojom_span.size(); ++i) {
       vertices_span[2 * i] = mojom_span[i].x();
       vertices_span[2 * i + 1] = mojom_span[i].y();
     }

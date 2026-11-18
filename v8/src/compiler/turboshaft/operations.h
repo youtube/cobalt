@@ -7771,8 +7771,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
       OpEffects().CanLeaveCurrentFunction().CanDependOnChecks();
 
   WasmTypeCastOp(V<Object> object, OptionalV<Map> rtt,
-                 WasmTypeCheckConfig config,
-                 OptionalV<EagerFrameState> frame_state)
+                 OptionalV<EagerFrameState> frame_state,
+                 WasmTypeCheckConfig config)
       : Base(1 + rtt.valid() + frame_state.valid()),
         config(config),
         has_rtt(rtt.valid()),
@@ -7789,8 +7789,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    return fn(mapper.Map(object()), mapper.Map(rtt()), config,
-              mapper.Map(frame_state()));
+    return fn(mapper.Map(object()), mapper.Map(rtt()),
+              mapper.Map(frame_state()), config);
   }
 
   V<Object> object() const { return Base::input<Object>(0); }
@@ -7817,10 +7817,10 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
   auto options() const { return std::tuple{config}; }
 
   static WasmTypeCastOp& New(Graph* graph, V<Object> object, OptionalV<Map> rtt,
-                             WasmTypeCheckConfig config,
-                             OptionalV<EagerFrameState> frame_state) {
+                             OptionalV<EagerFrameState> frame_state,
+                             WasmTypeCheckConfig config) {
     return Base::New(graph, 1 + rtt.valid() + frame_state.valid(), object, rtt,
-                     config, frame_state);
+                     frame_state, config);
   }
 
   void Validate(const Graph& graph) const { DCHECK(config.is_valid()); }
@@ -7895,8 +7895,9 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
   bool is_nullable;
 
   static constexpr OpEffects effects =
-      SmiValuesAre31Bits() ? OpEffects().CanReadMemory()
-                           : OpEffects().CanReadMemory().CanAllocate();
+      SmiValuesAre31Bits()
+          ? OpEffects().CanReadMemory()
+          : OpEffects().CanReadMemory().CanAllocateWithoutIdentity();
 
   explicit AnyConvertExternOp(V<Object> object, SharedFlag is_shared,
                               bool is_nullable)

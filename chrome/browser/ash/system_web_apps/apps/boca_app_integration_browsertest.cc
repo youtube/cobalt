@@ -152,7 +152,7 @@ IN_PROC_BROWSER_TEST_P(BocaAppProviderIntegrationTest,
       future.GetCallback());
   Browser* const boca_app_browser =
       ash::FindSystemWebAppBrowser(profile(), ash::SystemWebAppType::BOCA);
-  boca_app_browser->window()->Close();
+  boca_app_browser->GetWindow()->Close();
   EXPECT_TRUE(future.Wait());
   EXPECT_FALSE(boca_session_manager()->end_session_callback_for_testing());
 }
@@ -182,7 +182,7 @@ IN_PROC_BROWSER_TEST_P(BocaAppProviderIntegrationTest,
   LaunchAndWait();
   auto* window =
       ash::FindSystemWebAppBrowser(profile(), ash::SystemWebAppType::BOCA)
-          ->window()
+          ->GetWindow()
           ->GetNativeWindow();
   ash::WindowState* window_state = ash::WindowState::Get(window);
   EXPECT_TRUE(window_state->IsFloated());
@@ -237,7 +237,7 @@ IN_PROC_BROWSER_TEST_P(BocaAppConsumerIntegrationTest,
   LaunchAndWait();
   auto* window =
       ash::FindSystemWebAppBrowser(profile(), ash::SystemWebAppType::BOCA)
-          ->window()
+          ->GetWindow()
           ->GetNativeWindow();
   ash::WindowState* window_state = ash::WindowState::Get(window);
   EXPECT_FALSE(window_state->IsFloated());
@@ -251,7 +251,7 @@ IN_PROC_BROWSER_TEST_P(BocaAppConsumerIntegrationTest,
       future.GetCallback());
   Browser* const boca_app_browser =
       ash::FindSystemWebAppBrowser(profile(), ash::SystemWebAppType::BOCA);
-  boca_app_browser->window()->Close();
+  boca_app_browser->GetWindow()->Close();
   // Callback never executed.
   EXPECT_TRUE(boca_session_manager()->end_session_callback_for_testing());
 }

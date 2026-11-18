@@ -82,7 +82,6 @@ class UrlBarMediator implements UrlBarTextContextMenuDelegate {
         mRichTextChangeListener = richTextChangeListener;
 
         mModel.set(UrlBarProperties.FOCUS_CHANGE_CALLBACK, this::onUrlFocusChange);
-        mModel.set(UrlBarProperties.SHOW_CURSOR, false);
         mModel.set(UrlBarProperties.TEXT_CONTEXT_MENU_DELEGATE, this);
         mModel.set(UrlBarProperties.HAS_URL_SUGGESTIONS, false);
         mModel.set(UrlBarProperties.TEXT_CHANGE_LISTENER, this::onTextChanged);
@@ -280,10 +279,6 @@ class UrlBarMediator implements UrlBarTextContextMenuDelegate {
         if (mIsReparenting) return;
         mHasFocus = focus;
 
-        if (mModel.get(UrlBarProperties.ALLOW_FOCUS)) {
-            mModel.set(UrlBarProperties.SHOW_CURSOR, mHasFocus);
-        }
-
         UrlBarTextState preCallbackState = mModel.get(UrlBarProperties.TEXT_STATE);
         mOnFocusChangeCallback.onResult(focus);
         boolean textChangedInFocusCallback =
@@ -324,9 +319,6 @@ class UrlBarMediator implements UrlBarTextContextMenuDelegate {
     /** Sets whether the view allows user focus. */
     public void setAllowFocus(boolean allowFocus) {
         mModel.set(UrlBarProperties.ALLOW_FOCUS, allowFocus);
-        if (allowFocus) {
-            mModel.set(UrlBarProperties.SHOW_CURSOR, mHasFocus);
-        }
     }
 
     /**

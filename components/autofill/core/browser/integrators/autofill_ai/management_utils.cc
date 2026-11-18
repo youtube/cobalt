@@ -132,7 +132,7 @@ std::string GetDeleteEntityTypeStringForI18n(EntityType entity_type) {
 DenseSet<EntityType> GetWritableEntityTypes(
     const GeoIpCountryCode& country_code) {
   DenseSet<EntityType> entity_types;
-  for (EntityType entity_type : autofill::DenseSet<EntityType>::all()) {
+  for (EntityType entity_type : DenseSet<EntityType>::all()) {
     if (!entity_type.enabled(country_code) || entity_type.read_only()) {
       continue;
     }

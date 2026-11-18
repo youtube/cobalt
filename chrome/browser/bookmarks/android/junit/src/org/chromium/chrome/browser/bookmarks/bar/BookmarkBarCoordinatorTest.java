@@ -66,6 +66,7 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInf
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlType;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.CompositorModelChangeProcessor;
@@ -484,6 +485,8 @@ public class BookmarkBarCoordinatorTest {
         // Initialize browser controls manager. Bookmark bar start height is 40.
         int topControlsHeight = 41;
         when(mBrowserControlsManager.getTopControlsHeight()).thenReturn(topControlsHeight);
+        when(mTopControlsStacker.getHeightFromLayerToTop(TopControlType.BOOKMARK_BAR))
+                .thenReturn(0);
 
         mCoordinator.onTopControlLayerHeightChanged(
                 mBrowserControlsManager.getTopControlsHeight(),
@@ -496,6 +499,9 @@ public class BookmarkBarCoordinatorTest {
 
         topControlsHeight = 51;
         when(mBrowserControlsManager.getTopControlsHeight()).thenReturn(topControlsHeight);
+        when(mTopControlsStacker.getHeightFromLayerToTop(TopControlType.BOOKMARK_BAR))
+                .thenReturn(10);
+
         mCoordinator.onTopControlLayerHeightChanged(
                 mBrowserControlsManager.getTopControlsHeight(),
                 mBrowserControlsManager.getTopControlsMinHeight());

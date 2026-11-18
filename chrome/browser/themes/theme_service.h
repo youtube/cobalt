@@ -24,6 +24,7 @@
 #include "extensions/common/extension_id.h"
 #include "ui/base/mojom/themes.mojom.h"
 #include "ui/base/theme_provider.h"
+#include "ui/color/color_provider_key.h"
 #include "ui/color/system_theme.h"
 
 class BrowserThemePack;
@@ -42,6 +43,7 @@ class ThemeServiceTest;
 
 namespace ui {
 class ColorProvider;
+struct ColorProviderKey;
 }  // namespace ui
 
 namespace user_prefs {
@@ -315,7 +317,20 @@ class ThemeService : public KeyedService,
     raw_ptr<const BrowserThemeProviderDelegate> delegate_;
   };
   friend class BrowserThemeProvider;
+  friend class BrowserWidget;
   friend class theme_service_internal::ThemeServiceTest;
+
+  // Returns a ColorProviderKey configured with Profile-scoped state. The
+  // `profile` param is necessary as the service itself may be keyed to the
+  // original profile.
+  // Note: Do not use this directly - any UI using colors from this directly can
+  // encounter consistency and contrast issues when inserted into its UI tree,
+  // since theme context is determined at the granularity of a UI tree (e.g.
+  // widget) and not a profile. Please instead fetch the ColorProvider from the
+  // UI tree into which the element is inserted (i.e. the host widget, web
+  // contents etc).
+  ui::ColorProviderKey GetColorProviderKey(const ui::ColorProviderKey& base_key,
+                                           const Profile* profile) const;
 
   // virtual for testing.
   virtual void DoSetTheme(const extensions::Extension* extension,

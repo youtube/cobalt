@@ -4131,7 +4131,10 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
       has_write_barrier ? g.UseUniqueRegister(base) : g.UseRegister(base),
       has_write_barrier ? g.UseUniqueRegister(index) : g.UseRegister(index),
       g.UseUniqueRegister(old_value), g.UseUniqueRegister(new_value)};
-  InstructionOperand outputs[1];
+  // When LSE is supported, CAS uses the same register for the |old_value| and
+  // output result. However, to avoid special cases, we let them be different
+  // registers at the expense of an extra mov instruction.
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
@@ -4139,15 +4142,10 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   }
   if (CpuFeatures::IsSupported(LSE)) {
     InstructionOperand temps[] = {g.TempRegister()};
-    // The tagged variant needs to not overwrite the input register to check
-    // whether the cas was successful and a write barrier needs to be executed.
-    outputs[0] = has_write_barrier ? g.DefineAsRegister(node)
-                                   : g.DefineSameAsInput(node, 2);
     selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                    arraysize(temps), temps);
   } else {
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    outputs[0] = g.DefineAsRegister(node);
     selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                    arraysize(temps), temps);
   }
@@ -6664,6 +6662,19 @@ bool TryCanonicalShuffle(InstructionSelector* selector, OpIndex node,
                      g.UseRegister(input0), g.UseRegister(input1),
                      g.UseImmediate(8));
       return true;
+    case CanonicalShuffle::kS16x8TopBottomInterleave: {
+      // Move the least-significant half of the vector to even elements, and
+      // the most-significant half to odd elements.
+      InstructionOperand temp = g.TempSimd128Register();
+      // Take the top half.
+      selector->Emit(
+          kArm64S128UnzipRight | LaneSizeField::encode(LaneSize::kL64), temp,
+          g.UseRegister(input0), g.UseRegister(input0));
+      // Interleave the top and bottom.
+      selector->Emit(kArm64S128ZipLeft | LaneSizeField::encode(LaneSize::kL16),
+                     g.DefineAsRegister(node), g.UseRegister(input0), temp);
+      return true;
+    }
   }
 
   if constexpr (ShuffleSize == kSimd128HalfSize ||

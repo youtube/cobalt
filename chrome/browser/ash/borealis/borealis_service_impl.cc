@@ -13,7 +13,6 @@ BorealisServiceImpl::BorealisServiceImpl(Profile* profile)
       context_manager_(profile),
       features_(profile_),
       installer_(profile_),
-      install_url_handler_(profile_),
       launch_options_(profile_),
       shutdown_monitor_(profile_),
       window_manager_(profile_),
@@ -39,10 +38,6 @@ BorealisFeatures& BorealisServiceImpl::Features() {
 
 BorealisInstaller& BorealisServiceImpl::Installer() {
   return installer_;
-}
-
-BorealisInstallUrlHandler& BorealisServiceImpl::InstallUrlHandler() {
-  return install_url_handler_;
 }
 
 BorealisLaunchOptions& BorealisServiceImpl::LaunchOptions() {

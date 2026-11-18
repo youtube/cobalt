@@ -1838,7 +1838,6 @@ class NetworkServiceCookieEncryptionBrowserTest : public ContentBrowserTest {
     }
 
     bool UseForEncryption() final { return true; }
-    bool IsCompatibleWithOsCryptSync() final { return false; }
 
     const std::vector<uint8_t> key_;
   };

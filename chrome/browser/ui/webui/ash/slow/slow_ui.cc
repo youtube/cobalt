@@ -7,12 +7,12 @@
 #include <memory>
 #include <string>
 
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/webui_url_constants.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/slow_resources.h"
 #include "chrome/grit/slow_resources_map.h"
@@ -105,7 +105,7 @@ void SlowHandler::RegisterMessages() {
 
 void SlowHandler::OnJavascriptAllowed() {
   user_pref_registrar_->Add(
-      prefs::kPerformanceTracingEnabled,
+      ash::prefs::kPerformanceTracingEnabled,
       base::BindRepeating(&SlowHandler::UpdatePage, base::Unretained(this)));
 }
 
@@ -115,12 +115,12 @@ void SlowHandler::OnJavascriptDisallowed() {
 
 void SlowHandler::HandleDisable(const base::ListValue& args) {
   PrefService* pref_service = profile_->GetPrefs();
-  pref_service->SetBoolean(prefs::kPerformanceTracingEnabled, false);
+  pref_service->SetBoolean(ash::prefs::kPerformanceTracingEnabled, false);
 }
 
 void SlowHandler::HandleEnable(const base::ListValue& args) {
   PrefService* pref_service = profile_->GetPrefs();
-  pref_service->SetBoolean(prefs::kPerformanceTracingEnabled, true);
+  pref_service->SetBoolean(ash::prefs::kPerformanceTracingEnabled, true);
 }
 
 void SlowHandler::LoadComplete(const base::ListValue& args) {
@@ -130,7 +130,8 @@ void SlowHandler::LoadComplete(const base::ListValue& args) {
 
 void SlowHandler::UpdatePage() {
   PrefService* pref_service = profile_->GetPrefs();
-  bool enabled = pref_service->GetBoolean(prefs::kPerformanceTracingEnabled);
+  bool enabled =
+      pref_service->GetBoolean(ash::prefs::kPerformanceTracingEnabled);
   base::Value pref_value(enabled);
   FireWebUIListener("tracing-pref-changed", pref_value);
 }

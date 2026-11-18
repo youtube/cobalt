@@ -117,7 +117,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AdaptiveToolbarButton.Shown"
-    enum="AdaptiveToolbarButtonVariant" expires_after="2026-10-04">
+    enum="AdaptiveToolbarButtonVariant" expires_after="2026-12-06">
   <owner>jinsukkiim@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -525,9 +525,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.IncognitoCCTCallerId" enum="IncognitoCCTCallerId"
-    expires_after="2026-03-23">
-  <owner>dullweber@google.com</owner>
-  <owner>arabm@google.com</owner>
+    expires_after="2026-12-05">
+  <owner>yawfrempong@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <owner>cct-team@google.com</owner>
   <summary>
@@ -535,6 +534,9 @@ chromium-metrics-reviews@google.com.
     feature name is recorded, for external calls, either Google App or
     Non-Google App categories are recorded. The metric is recorded when an
     Incognito CCT opening intent is received.
+
+    Warning: this histogram was expired from 2026-03-23 to 2026-12-04; data may
+    be missing.
   </summary>
 </histogram>
 

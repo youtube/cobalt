@@ -90,6 +90,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // vertical and regular horizontal size class.
 - (BOOL)isRegularXRegularSizeClass;
 
+// Returns YES if the application window is in windowed mode (multitasking).
+- (BOOL)isWindowedMode;
+
 // Stops primes performance metrics logging by calling into the
 // internal framework (should only be used by performance tests)
 - (void)primesStopLogging;

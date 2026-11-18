@@ -141,4 +141,36 @@ using chrome_test_util::TappableBookmarkNodeWithLabel;
       assertWithMatcher:grey_nil()];
 }
 
+// Tests that opening a bookmark when there are no active tabs (e.g. all tabs
+// closed) does not crash the app, and opens the bookmark successfully in a new
+// tab.
+- (void)testOpenBookmarkWithNoTabs {
+  // Add a bookmark programmatically.
+  [BookmarkEarlGrey addBookmarkWithTitle:@"TestBookmark"
+                                     URL:@"about:blank"
+                               inStorage:BookmarkStorageType::kLocalOrSyncable];
+
+  // Close all tabs programmatically.
+  [ChromeEarlGrey closeAllTabs];
+
+  // Start Bookmarks UI programmatically.
+  [ChromeCoordinatorAppInterface startBookmarksCoordinator];
+
+  // Open Mobile Bookmarks folder.
+  [BookmarkEarlGreyUI openMobileBookmarks];
+
+  // Tap the bookmark.
+  [[EarlGrey
+      selectElementWithMatcher:TappableBookmarkNodeWithLabel(@"TestBookmark")]
+      performAction:grey_tap()];
+
+  // Tapping the bookmark should close the bookmarks UI.
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                          kBookmarksHomeTableViewIdentifier)]
+      assertWithMatcher:grey_nil()];
+
+  // Verify that a tab was opened with the bookmark's URL.
+  [ChromeEarlGrey waitForMainTabCount:1];
+}
+
 @end

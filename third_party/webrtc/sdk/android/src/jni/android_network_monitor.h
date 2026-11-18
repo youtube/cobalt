@@ -102,19 +102,14 @@ class AndroidNetworkMonitor : public NetworkMonitorInterface {
   // Always expected to be called on the network thread.
   void SetNetworkInfos(const std::vector<NetworkInformation>& network_infos);
 
-  void NotifyConnectionTypeChanged(JNIEnv* env,
-                                   const JavaRef<jobject>& j_caller);
+  void NotifyConnectionTypeChanged(JNIEnv* env);
   void NotifyOfNetworkConnect(JNIEnv* env,
-                              const JavaRef<jobject>& j_caller,
                               const JavaRef<jobject>& j_network_info);
   void NotifyOfNetworkDisconnect(JNIEnv* env,
-                                 const JavaRef<jobject>& j_caller,
                                  jlong network_handle);
   void NotifyOfActiveNetworkList(JNIEnv* env,
-                                 const JavaRef<jobject>& j_caller,
                                  const JavaRef<jobjectArray>& j_network_infos);
   void NotifyOfNetworkPreference(JNIEnv* env,
-                                 const JavaRef<jobject>& j_caller,
                                  const JavaRef<jobject>& j_connection_type,
                                  jint preference);
 

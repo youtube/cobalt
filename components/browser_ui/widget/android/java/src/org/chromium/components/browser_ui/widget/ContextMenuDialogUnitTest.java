@@ -18,7 +18,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
-import android.widget.PopupWindow;
 import android.widget.TextView;
 
 import org.junit.After;
@@ -42,6 +41,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.dragdrop.DragEventDispatchHelper.DragEventDispatchDestination;
+import org.chromium.ui.widget.ChromePopupWindow;
 import org.chromium.ui.widget.UiWidgetFactory;
 
 /** Unit test for {@link ContextMenuDialog}. */
@@ -61,7 +61,7 @@ public class ContextMenuDialogUnitTest {
     TestDragDispatchingDestinationView mSpyDragDispatchingDestinationView;
 
     @Mock UiWidgetFactory mMockUiWidgetFactory;
-    @Spy PopupWindow mSpyPopupWindow;
+    private ChromePopupWindow mSpyPopupWindow;
     @Spy FrameLayout mMenuContentView;
 
     @Before

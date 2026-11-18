@@ -76,9 +76,8 @@ class AndroidAutofillProviderBridge {
   virtual void OnServerPredictionsAvailable() = 0;
 
   // Shows a Datalist popup.
-  virtual void ShowDatalistPopup(
-      base::span<const autofill::SelectOption> options,
-      bool is_rtl) = 0;
+  virtual void ShowDatalistPopup(base::span<const SelectOption> options,
+                                 bool is_rtl) = 0;
 
   // Hides the Datalist popup, if any is showing.
   virtual void HideDatalistPopup() = 0;

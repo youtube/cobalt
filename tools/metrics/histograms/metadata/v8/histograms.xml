@@ -1311,7 +1311,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="V8.LiftoffBailoutReasons" enum="LiftoffBailoutReason"
-    expires_after="2026-10-11">
+    expires_after="2026-12-13">
   <owner>ecmziegler@chromium.org</owner>
   <owner>clemensb@chromium.org</owner>
   <owner>wasm-runtime@chromium.org</owner>
@@ -1773,7 +1773,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="V8.WasmEngineMetadataSizeKiB" units="KB"
-    expires_after="2026-10-08">
+    expires_after="2026-12-13">
   <owner>ecmziegler@chromium.org</owner>
   <owner>clemensb@chromium.org</owner>
   <owner>wasm-runtime@google.com</owner>
@@ -1900,7 +1900,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="V8.WasmModuleCodeSizeMiB" units="MB"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>ecmziegler@chromium.org</owner>
   <owner>clemensb@chromium.org</owner>
   <owner>wasm-runtime@google.com</owner>
@@ -1923,7 +1923,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="V8.WasmModuleMetadataSizeKiB" units="KB"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>ecmziegler@chromium.org</owner>
   <owner>clemensb@chromium.org</owner>
   <owner>wasm-runtime@google.com</owner>

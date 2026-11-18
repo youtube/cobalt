@@ -20,7 +20,6 @@ include_rules = [
   "+chrome/browser/ash/policy/core",
   "+chrome/browser/ash/profiles",
   "+chrome/browser/ash/system",
-  "+chrome/browser/ash/system_web_apps/apps/personalization_app",
   "+chrome/browser/chromeos/extensions/vpn_provider",
   "+chrome/browser/enterprise/browser_management/management_identity.h",
   "+chrome/browser/media/router/discovery/access_code",

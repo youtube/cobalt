@@ -103,7 +103,7 @@ int X509_cmp(const X509 *a, const X509 *b) {
   const auto *b_impl = FromOpaque(b);
   // Fill in the `cert_hash` fields.
   //
-  // TODO(davidben): This may fail, in which case the the hash will be all
+  // TODO(davidben): This may fail, in which case the hash will be all
   // zeros. This produces a consistent comparison (failures are sticky), but
   // not a good one. OpenSSL now returns -2, but this is not a consistent
   // comparison and may cause misbehaving sorts by transitivity. For now, we

@@ -60,8 +60,9 @@ class AppMenuItemViewBinder {
             int id = model.get(AppMenuItemProperties.MENU_ITEM_ID);
             view.setId(id);
         } else if (key == AppMenuItemProperties.TITLE) {
-            ((TextView) view.findViewById(R.id.menu_item_text))
-                    .setText(model.get(AppMenuItemProperties.TITLE));
+            CharSequence title = model.get(AppMenuItemProperties.TITLE);
+            ((TextView) view.findViewById(R.id.menu_item_text)).setText(title);
+            view.setTooltipText(title);
         } else if (key == AppMenuItemProperties.TITLE_CONDENSED) {
             setContentDescription(view.findViewById(R.id.menu_item_text), model);
         } else if (key == AppMenuItemProperties.ENABLED) {
@@ -101,6 +102,17 @@ class AppMenuItemViewBinder {
             view.setHovered(model.get(AppMenuItemProperties.HAS_HOVER_BACKGROUND));
         } else if (key == AppMenuItemProperties.KEY_LISTENER) {
             view.setOnKeyListener(model.get(AppMenuItemProperties.KEY_LISTENER));
+        }
+    }
+
+    public static void bindHeaderItem(PropertyModel model, View view, PropertyKey key) {
+        if (key == AppMenuItemProperties.MENU_ITEM_ID) {
+            int id = model.get(AppMenuItemProperties.MENU_ITEM_ID);
+            view.setId(id);
+        } else if (key == AppMenuItemProperties.TITLE) {
+            CharSequence title = model.get(AppMenuItemProperties.TITLE);
+            ((TextView) view.findViewById(R.id.menu_item_text)).setText(title);
+            view.setTooltipText(title);
         }
     }
 
@@ -269,64 +281,21 @@ class AppMenuItemViewBinder {
     }
 
     public static void bindItemWithSubmenu(PropertyModel model, View view, PropertyKey key) {
-        if (key == AppMenuItemProperties.MENU_ITEM_ID) {
-            int id = model.get(AppMenuItemProperties.MENU_ITEM_ID);
-            view.setId(id);
-        } else if (key == AppMenuItemProperties.TITLE) {
-            ((TextView) view.findViewById(R.id.menu_item_text))
-                    .setText(model.get(AppMenuItemProperties.TITLE));
-        } else if (key == AppMenuItemProperties.TITLE_CONDENSED) {
-            setContentDescription(view.findViewById(R.id.menu_item_text), model);
-        } else if (key == AppMenuItemProperties.ENABLED) {
-            boolean enabled = model.get(AppMenuItemProperties.ENABLED);
-            view.setEnabled(enabled);
-        } else if (key == AppMenuItemProperties.HIGHLIGHTED) {
-            if (model.get(AppMenuItemProperties.HIGHLIGHTED)) {
-                ViewHighlighter.turnOnHighlight(
-                        view, new HighlightParams(HighlightShape.RECTANGLE));
-            } else {
-                ViewHighlighter.turnOffHighlight(view);
-            }
-        } else if (key == AppMenuItemWithSubmenuProperties.IS_EXPANDED) {
+        bindStandardItem(model, view, key);
+
+        if (key == AppMenuItemWithSubmenuProperties.IS_EXPANDED) {
             ((MenuItemWithSubmenuView) view)
                     .setIsExpanded(model.get(AppMenuItemWithSubmenuProperties.IS_EXPANDED));
-        } else if (key == AppMenuItemProperties.ICON) {
-            setIcon(view, model);
-        } else if (key == AppMenuItemProperties.ICON_SUPPLIER) {
-            LazyOneshotSupplier<Drawable> iconSupplier =
-                    model.get(AppMenuItemProperties.ICON_SUPPLIER);
-            if (iconSupplier != null) {
-                iconSupplier.onAvailable(
-                        (drawable) -> {
-                            model.set(AppMenuItemProperties.ICON, drawable);
-                        });
-                iconSupplier.get();
-            }
         } else if (key == AppMenuItemWithSubmenuProperties.CLICK_LISTENER) {
             view.setOnClickListener(model.get(AppMenuItemWithSubmenuProperties.CLICK_LISTENER));
-        } else if (key == AppMenuItemProperties.HOVER_LISTENER) {
-            view.setOnHoverListener(model.get(AppMenuItemProperties.HOVER_LISTENER));
-        } else if (key == AppMenuItemProperties.HAS_HOVER_BACKGROUND) {
-            view.setHovered(model.get(AppMenuItemProperties.HAS_HOVER_BACKGROUND));
-        } else if (key == AppMenuItemProperties.KEY_LISTENER) {
-            view.setOnKeyListener(model.get(AppMenuItemProperties.KEY_LISTENER));
         }
     }
 
     public static void bindSubmenuHeader(PropertyModel model, View view, PropertyKey key) {
-        if (key == AppMenuItemProperties.MENU_ITEM_ID) {
-            int id = model.get(AppMenuItemProperties.MENU_ITEM_ID);
-            view.setId(id);
-        } else if (key == AppMenuItemProperties.TITLE) {
-            ((TextView) view.findViewById(R.id.menu_item_text))
-                    .setText(model.get(AppMenuItemProperties.TITLE));
-        } else if (key == AppMenuItemProperties.ENABLED) {
-            boolean enabled = model.get(AppMenuItemProperties.ENABLED);
-            view.setEnabled(enabled);
-        } else if (key == AppMenuItemWithSubmenuProperties.CLICK_LISTENER) {
+        bindStandardItem(model, view, key);
+
+        if (key == AppMenuItemWithSubmenuProperties.CLICK_LISTENER) {
             view.setOnClickListener(model.get(AppMenuItemWithSubmenuProperties.CLICK_LISTENER));
-        } else if (key == AppMenuItemProperties.KEY_LISTENER) {
-            view.setOnKeyListener(model.get(AppMenuItemProperties.KEY_LISTENER));
         } else if (key == AppMenuSubmenuHeaderItemProperties.SHOULD_SHOW_ICON_ROW) {
             ViewGroup.LayoutParams params = view.getLayoutParams();
             assert params != null;

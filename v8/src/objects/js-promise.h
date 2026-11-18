@@ -8,17 +8,15 @@
 #include "include/v8-promise.h"
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/js-promise-tq.inc"
 
 // Representation of promise objects in the specification. Our layout of
 // JSPromise differs a bit from the layout in the specification, for example
@@ -101,7 +99,11 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
   DECL_VERIFIER(JSPromise)
 
   // Flags layout.
-  DEFINE_TORQUE_GENERATED_JS_PROMISE_FLAGS()
+  using StatusBits = base::BitField<Promise::PromiseState, 0, 2, uint32_t>;
+  using IsNativeResolverInvokedBit = StatusBits::Next<bool, 1>;
+  using HasHandlerBit = IsNativeResolverInvokedBit::Next<bool, 1>;
+  using IsSilentBit = HasHandlerBit::Next<bool, 1>;
+  using AsyncTaskIdBits = IsSilentBit::Next<uint32_t, 26>;
 
   static_assert(v8::Promise::kPending == 0);
   static_assert(v8::Promise::kFulfilled == 1);
@@ -120,6 +122,9 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
                                                 DirectHandle<Object> reactions,
                                                 DirectHandle<Object> argument,
                                                 PromiseReaction::Type type);
+} V8_OBJECT_END;
+
+V8_OBJECT class JSPromiseConstructor : public JSFunctionWithPrototype {
 } V8_OBJECT_END;
 
 }  // namespace internal

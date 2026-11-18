@@ -291,6 +291,232 @@ def _CheckAshSourcesForBadIncludes(input_api, output_api):
 
 
 ###############################################################################
+# Discourage new uses of Browser::window() in favor of Browser::GetWindow()
+# (https://crbug.com/496674143).
+###############################################################################
+
+# Methods declared on ui::BaseWindow. Browser::window() returns a
+# BrowserWindow*, but Browser::GetWindow() returns the narrower
+# ui::BaseWindow* directly. New code that only needs a BaseWindow method
+# should prefer GetWindow().
+_BASE_WINDOW_METHODS = (
+    'GetNativeWindow',
+    'Show',
+    'ShowInactive',
+    'Hide',
+    'Close',
+    'Activate',
+    'Deactivate',
+    'IsActive',
+    'IsVisible',
+    'IsFullscreen',
+    'IsMinimized',
+    'IsMaximized',
+    'Minimize',
+    'Maximize',
+    'Restore',
+    'GetBounds',
+    'GetRestoredBounds',
+    'GetRestoredState',
+    'SetBounds',
+)
+
+# Files in chrome/browser/ whose `window()` member belongs to a different
+# class (extensions::WindowController, extensions::AppWindow,
+# ash::WindowDimmer, etc.) and which should not be flagged.
+_BROWSER_WINDOW_GETTER_EXCLUDED_PATHS = (
+    'chrome/browser/extensions/api/tabs/tabs_api.cc',
+    'chrome/browser/extensions/api/tabs/tabs_test.cc',
+    'chrome/browser/extensions/api/tabs/windows_util_android.cc',
+    'chrome/browser/extensions/chrome_extension_function_details.cc',
+    'chrome/browser/extensions/extension_commands_global_registry_apitest.cc',
+    'chrome/browser/extensions/locked_fullscreen_window_apitest.cc',
+    'chrome/browser/extensions/window_controller_list.cc',
+    'chrome/browser/ui/views/extensions/windows_utils_views.cc',
+    'chrome/browser/ui/ash/shelf/chrome_shelf_controller_unittest.cc',
+    'chrome/browser/ui/webui/ash/parent_access/parent_access_dialog.cc',
+)
+
+
+def _CheckNoNewBrowserWindowGetter(input_api, output_api):
+    """Warns when new code calls `browser->window()->X()` for a method `X`
+    declared on ui::BaseWindow. Prefer `browser->GetWindow()->X()`, which
+    returns the narrower ui::BaseWindow* interface. See
+    https://crbug.com/496674143.
+
+    Operates on whole-file content so call sites that line-wrap between
+    `window()` and `->X(` are still caught.
+    """
+    # Match `<expr>->window()` or `<expr>.window()` followed (possibly across
+    # lines) by `->X(` where X is a ui::BaseWindow method. The leading `->`
+    # or `.` prevents matching bare `window()`, `app_window()`,
+    # `dialog_window()`, `root_window()`, etc.
+    method_alt = '|'.join(_BASE_WINDOW_METHODS)
+    pattern = input_api.re.compile(
+        r'(?:->|\.)\s*window\(\)\s*->\s*'
+        r'(?P<method>' + method_alt + r')\s*\(', input_api.re.DOTALL)
+    # Lines beginning with `//` (after optional whitespace) are treated as
+    # comments and ignored.
+    comment_pattern = input_api.re.compile(r'^\s*//')
+
+    def is_excluded(local_path):
+        unix_path = local_path.replace('\\', '/')
+        return unix_path in _BROWSER_WINDOW_GETTER_EXCLUDED_PATHS
+
+    problems = []
+    for f in input_api.AffectedFiles():
+        local_path = f.LocalPath()
+        if not local_path.endswith(('.cc', '.h', '.mm')):
+            continue
+        if is_excluded(local_path):
+            continue
+        changed_lines = {ln for ln, _ in f.ChangedContents()}
+        if not changed_lines:
+            continue
+        # Re-read the new contents as a single string so the regex can span
+        # newlines. Use NewContents() (a list of lines) joined with \n.
+        new_lines = f.NewContents()
+        contents = '\n'.join(new_lines)
+
+        # Precompute line-start offsets for quick offset->line conversion.
+        line_starts = [0]
+        for line in new_lines[:-1]:
+            line_starts.append(line_starts[-1] + len(line) + 1)
+
+        def offset_to_line(offset):
+            lo, hi = 0, len(line_starts) - 1
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                if line_starts[mid] <= offset:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            return lo + 1  # 1-based.
+
+        for match in pattern.finditer(contents):
+            start_line = offset_to_line(match.start())
+            method_line = offset_to_line(match.start('method'))
+            # Only flag if at least one line covered by the match (from the
+            # opening `(?:->|\.)window()` through the method name) is a
+            # changed line.
+            covered = range(start_line, method_line + 1)
+            if not any(ln in changed_lines for ln in covered):
+                continue
+            # Allow `// nocheck` on any covered line as an escape hatch.
+            if any(
+                    new_lines[ln - 1].rstrip().endswith(' nocheck')
+                    for ln in covered if 1 <= ln <= len(new_lines)):
+                continue
+            # Skip if the start line is itself a comment (heuristic: avoids
+            # flagging "// browser->window()->Show() is deprecated").
+            if comment_pattern.match(new_lines[start_line - 1]):
+                continue
+            problems.append('    %s:%d' % (local_path, method_line))
+
+    if not problems:
+        return []
+    return [
+        output_api.PresubmitPromptWarning(
+            'Browser::window() returns BrowserWindow* and is being '
+            'eliminated. For methods declared on ui::BaseWindow, prefer '
+            'Browser::GetWindow() which returns ui::BaseWindow* directly. '
+            'See https://crbug.com/496674143.\n'
+            'If the matched call is on an unrelated class whose window() '
+            'method happens to share a name (e.g. '
+            'extensions::WindowController, extensions::AppWindow, '
+            'ash::WindowDimmer), append "// nocheck" to the line containing '
+            'the method call or add the file to '
+            '_BROWSER_WINDOW_GETTER_EXCLUDED_PATHS in '
+            'chrome/browser/PRESUBMIT.py.\n' +
+            '\n'.join(problems))
+    ]
+
+
+def _CheckNoNewBrowserWindowMemberCall(input_api, output_api):
+    """Warns when new code calls `browser->window()`, `browser_->window()`,
+    or `browser()->window()`.
+
+    `Browser::window()` is being eliminated (https://crbug.com/496674143).
+    Callers should migrate to one of:
+      * `BrowserWindow::FromBrowser(browser)` -- the drop-in replacement,
+      * `BrowserView::GetBrowserViewForBrowser(browser)` -- when the caller
+        needs Views-specific API,
+      * `WebUIBrowserWindow::FromBrowser(browser)` -- when the caller needs
+        WebUI-browser-specific API,
+      * `Browser::GetWindow()` -- when the caller only needs ui::BaseWindow
+        API (this case is also flagged by `_CheckNoNewBrowserWindowGetter`
+        above, so this check skips it to avoid duplicate warnings).
+
+    To minimize false positives this check matches only the three by-far
+    most common receivers: `browser`, `browser_`, and `browser()`. Other
+    variable names (`my_browser->window()`, `the_browser_->window()`, etc.)
+    should still be migrated but won't trip this warning.
+    """
+    # Files that legitimately keep using `browser->window()` /
+    # `browser_->window()` (the declaration itself, the migration fallback
+    # inside BrowserWindow::FromBrowser, etc.). Entries should be removed
+    # once https://crbug.com/496674143 fully retires Browser::window().
+    allowed_files = (
+        'chrome/browser/ui/browser.h',
+        'chrome/browser/ui/views/frame/browser_window_factory.cc',
+    )
+
+    # Matches `browser->window()`, `browser_->window()`, or
+    # `browser()->window()`, tolerating whitespace. The `(?<![A-Za-z0-9_])`
+    # lookbehind prevents matching identifiers that merely end with
+    # `browser` (e.g. `my_browser`, `new_browser`, `GetBrowser`).
+    receiver = r'(?<![A-Za-z0-9_])browser(?:_|\s*\(\s*\))?\s*->\s*window\s*\(\s*\)'
+    call_pattern = input_api.re.compile(receiver)
+    # If the call is `<receiver>->X(` where X is on ui::BaseWindow,
+    # _CheckNoNewBrowserWindowGetter already warns; skip to avoid duplicates.
+    base_window_chain_pattern = input_api.re.compile(
+        receiver + r'\s*->\s*(?:' + '|'.join(_BASE_WINDOW_METHODS) +
+        r')\s*\(')
+    comment_pattern = input_api.re.compile(r'^\s*//')
+
+    def is_excluded(local_path):
+        unix_path = local_path.replace('\\', '/')
+        return unix_path in allowed_files
+
+    problems = []
+    for f in input_api.AffectedFiles():
+        local_path = f.LocalPath()
+        if not local_path.endswith(('.cc', '.h', '.mm')):
+            continue
+        if is_excluded(local_path):
+            continue
+        for line_num, line in f.ChangedContents():
+            if not call_pattern.search(line):
+                continue
+            if base_window_chain_pattern.search(line):
+                continue
+            if comment_pattern.match(line):
+                continue
+            if line.rstrip().endswith(' nocheck'):
+                continue
+            problems.append('    %s:%d' %
+                            (local_path.replace('\\', '/'), line_num))
+
+    if not problems:
+        return []
+    return [
+        output_api.PresubmitPromptWarning(
+            'Browser::window() is being eliminated '
+            '(https://crbug.com/496674143). Prefer '
+            'BrowserWindow::FromBrowser(browser) as a drop-in replacement, '
+            'or call BrowserView::GetBrowserViewForBrowser(browser) / '
+            'WebUIBrowserWindow::FromBrowser(browser) when the concrete '
+            'subclass is needed. For methods declared on ui::BaseWindow, '
+            'prefer Browser::GetWindow() instead.\n'
+            'If the matched call is on an unrelated class whose window() '
+            'method happens to share a name, append "// nocheck" to the '
+            'line or add the file to the allowlist in '
+            'chrome/browser/PRESUBMIT.py.\n' +
+            '\n'.join(problems))
+    ]
+
+
+###############################################################################
 # Check if all flag_descriptions are used from about_flags (cleanup)
 ###############################################################################
 
@@ -478,6 +704,8 @@ def _CommonChecks(input_api, output_api):
     results.extend(_CheckBuildFilesForIndirectAshSources(
         input_api, output_api))
     results.extend(_CheckAshSourcesForBadIncludes(input_api, output_api))
+    results.extend(_CheckNoNewBrowserWindowGetter(input_api, output_api))
+    results.extend(_CheckNoNewBrowserWindowMemberCall(input_api, output_api))
 
     if _FlagFilesHaveChanged(input_api):
         results.extend(

@@ -42,8 +42,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/map-tq-inl.inc"
-
 // `instance_descriptors_` is a TaggedMember<UnionOf<DescriptorArray,
 // WasmStruct>> on Wasm builds; the `instance_descriptors` and
 // `custom_descriptor` accessors are deliberately overlapping narrower views
@@ -1072,6 +1070,10 @@ Tagged<Map> Map::immediate_supertype_map() const {
   DCHECK(IsWasmObjectMap(this));
   // dependent_code_ slot is reused for the supertype map on Wasm maps.
   return Cast<Map>(dependent_code_.load());
+}
+bool Map::has_immediate_supertype_map() const {
+  DCHECK(IsWasmObjectMap(this));
+  return Is<Map>(dependent_code_.load());
 }
 void Map::set_immediate_supertype_map(Tagged<Map> value,
                                       WriteBarrierMode mode) {

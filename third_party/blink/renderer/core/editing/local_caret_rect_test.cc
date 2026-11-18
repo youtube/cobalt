@@ -35,7 +35,7 @@ class LocalCaretRectTest : public EditingTestBase {
   }
 };
 
-TEST_F(LocalCaretRectTest, DOMAndFlatTrees) {
+TEST_F(LocalCaretRectTest, DomAndFlatTrees) {
   const char* body_content =
       "<p id='host'><b slot='#one' id='one'>1</b></p><b id='two'>22</b>";
   const char* shadow_content =
@@ -2955,7 +2955,7 @@ TEST_F(LocalCaretRectTest, CollapsedSpace) {
                 Position(white_spaces, 2), TextAffinity::kDownstream)));
 }
 
-TEST_F(LocalCaretRectTest, AbsoluteCaretBoundsOfWithShadowDOM) {
+TEST_F(LocalCaretRectTest, AbsoluteCaretBoundsOfWithShadowDom) {
   const char* body_content =
       "<p id='host'><b slot='#one' id='one'>11</b><b name='#two' "
       "id='two'>22</b></p>";

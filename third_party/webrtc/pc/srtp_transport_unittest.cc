@@ -18,7 +18,7 @@
 #include <utility>
 #include <vector>
 
-#include "api/field_trials.h"
+#include "api/environment/environment.h"
 #include "api/rtp_header_extension_id.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/timestamp.h"
@@ -34,7 +34,7 @@
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "test/create_test_field_trials.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
 
@@ -60,18 +60,18 @@ class SrtpTransportTest : public ::testing::Test {
     bool rtcp_mux_enabled = true;
 
     rtp_packet_transport1_ =
-        std::make_unique<FakePacketTransport>("fake_packet_transport1");
+        std::make_unique<FakePacketTransport>(env_, "fake_packet_transport1");
     rtp_packet_transport2_ =
-        std::make_unique<FakePacketTransport>("fake_packet_transport2");
+        std::make_unique<FakePacketTransport>(env_, "fake_packet_transport2");
 
     bool asymmetric = false;
     rtp_packet_transport1_->SetDestination(rtp_packet_transport2_.get(),
                                            asymmetric);
 
     srtp_transport1_ =
-        std::make_unique<SrtpTransport>(rtcp_mux_enabled, field_trials_);
+        std::make_unique<SrtpTransport>(rtcp_mux_enabled, env_.field_trials());
     srtp_transport2_ =
-        std::make_unique<SrtpTransport>(rtcp_mux_enabled, field_trials_);
+        std::make_unique<SrtpTransport>(rtcp_mux_enabled, env_.field_trials());
 
     srtp_transport1_->SetRtpPacketTransport(rtp_packet_transport1_.get());
     srtp_transport2_->SetRtpPacketTransport(rtp_packet_transport2_.get());
@@ -282,6 +282,7 @@ class SrtpTransportTest : public ::testing::Test {
                                                    encrypted_headers);
   }
   test::RunLoop main_thread;
+  const Environment env_ = CreateTestEnvironment();
 
   std::unique_ptr<SrtpTransport> srtp_transport1_;
   std::unique_ptr<SrtpTransport> srtp_transport2_;
@@ -293,7 +294,6 @@ class SrtpTransportTest : public ::testing::Test {
   TransportObserver rtp_sink2_;
 
   int sequence_number_ = 0;
-  FieldTrials field_trials_ = CreateTestFieldTrials();
 };
 
 TEST_F(SrtpTransportTest, SendAndRecvPacket_AES_CM_128_HMAC_SHA1_80) {
@@ -354,12 +354,12 @@ TEST_F(SrtpTransportTest, TestSetParamsKeyTooShort) {
 }
 
 TEST_F(SrtpTransportTest, RemoveSrtpReceiveStream) {
-  FieldTrials field_trials =
-      CreateTestFieldTrials("WebRTC-SrtpRemoveReceiveStream/Enabled/");
-  auto srtp_transport =
-      std::make_unique<SrtpTransport>(/*rtcp_mux_enabled=*/true, field_trials);
-  auto rtp_packet_transport =
-      std::make_unique<FakePacketTransport>("fake_packet_transport_loopback");
+  Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-SrtpRemoveReceiveStream/Enabled/"});
+  auto srtp_transport = std::make_unique<SrtpTransport>(
+      /*rtcp_mux_enabled=*/true, env.field_trials());
+  auto rtp_packet_transport = std::make_unique<FakePacketTransport>(
+      env, "fake_packet_transport_loopback");
 
   bool asymmetric = false;
   rtp_packet_transport->SetDestination(rtp_packet_transport.get(), asymmetric);

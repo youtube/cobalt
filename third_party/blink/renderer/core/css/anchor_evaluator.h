@@ -10,7 +10,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_anchor_query_enums.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
-#include "third_party/blink/renderer/core/style/position_area.h"
+#include "third_party/blink/renderer/core/style/default_anchor_data.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/geometry/physical_offset.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
@@ -22,7 +22,6 @@ namespace blink {
 class AnchorQuery;
 class AnchorScope;
 class ComputedStyleBuilder;
-class StylePositionAnchor;
 
 class CORE_EXPORT AnchorEvaluator {
   DISALLOW_NEW();
@@ -72,15 +71,13 @@ class CORE_EXPORT AnchorEvaluator {
   // axis.), in which case the fallback should be used.
   virtual std::optional<LayoutUnit> Evaluate(
       const AnchorQuery&,
-      const StylePositionAnchor& position_anchor,
+      const DefaultAnchorData&,
       const std::optional<PositionAreaOffsets>&) = 0;
 
   // Take the computed position-area and position-anchor and compute the
   // physical offsets to inset the containing block with.
   virtual std::optional<PositionAreaOffsets>
-  ComputePositionAreaOffsetsForLayout(
-      const StylePositionAnchor& position_anchor,
-      PositionArea position_area) = 0;
+  ComputePositionAreaOffsetsForLayout(const DefaultAnchorData&) = 0;
 
   // Take the computed position-area and position-anchor from the builder and
   // compute the physical offset for anchor-center

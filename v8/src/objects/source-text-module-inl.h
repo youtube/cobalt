@@ -12,6 +12,7 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -19,8 +20,6 @@
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/source-text-module-tq-inl.inc"
 
 Tagged<String> ModuleRequest::specifier() const { return specifier_.load(); }
 void ModuleRequest::set_specifier(Tagged<String> value, WriteBarrierMode mode) {

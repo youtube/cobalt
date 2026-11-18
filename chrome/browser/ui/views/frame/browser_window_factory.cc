@@ -83,3 +83,40 @@ BrowserWindow::CreateBrowserWindow(Browser* browser,
 
   return std::unique_ptr<BrowserWindow, BrowserWindowDeleter>(view);
 }
+
+// static
+const BrowserWindow* BrowserWindow::FromBrowser(
+    const BrowserWindowInterface* browser) {
+  // See https://crbug.com/496674143 for the umbrella effort to remove
+  // Browser::window() in favor of this helper.
+  if (!browser) {
+    return nullptr;
+  }
+  // The two production subclasses (BrowserView, WebUIBrowserWindow) each
+  // register themselves under the BrowserWidget's NativeWindow properties, so
+  // for any given Browser at most one of these lookups will succeed.
+  if (auto* view = BrowserView::GetBrowserViewForBrowser(browser)) {
+    return view;
+  }
+  if (auto* webui = WebUIBrowserWindow::FromBrowser(browser)) {
+    return webui;
+  }
+  // Fallback for BrowserWindow implementations that are not reachable through
+  // the NativeWindow property table (notably TestBrowserWindow in unit tests,
+  // and the brief moment during Browser construction when window_ has been
+  // assigned but no NativeWindow exists yet). This preserves drop-in
+  // equivalence with the legacy `browser->window()` call and will be removed
+  // alongside `Browser::window()` once all callers have migrated
+  // (https://crbug.com/496674143).
+  const Browser* concrete = browser->GetBrowserForMigrationOnly();
+  return concrete ? concrete->window() : nullptr;
+}
+
+// static
+BrowserWindow* BrowserWindow::FromBrowser(BrowserWindowInterface* browser) {
+  // Implement the non-const overload in terms of the const one and cast the
+  // constness back off. Safe because the caller supplied a non-const browser.
+  // See //styleguide/c++/const.md#classes-of-const-in_correctness.
+  return const_cast<BrowserWindow*>(
+      FromBrowser(static_cast<const BrowserWindowInterface*>(browser)));
+}

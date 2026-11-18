@@ -171,6 +171,7 @@ rtc_library("create_test_environment") {
     "../api:time_controller",
     "../api/environment",
     "../api/environment:environment_factory",
+    "../api/environment:force_test_environment",
     "../api/rtc_event_log",
     "../rtc_base:checks",
     "../system_wrappers",
@@ -184,6 +185,7 @@ rtc_library("create_test_field_trials") {
   sources = [ "create_test_field_trials.h" ]
   deps = [
     "../api:field_trials",
+    "../api/environment:force_test_environment",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -662,8 +664,10 @@ if (rtc_include_tests) {
       deps = [
         ":test_main_lib",
         ":test_support",
+        "../api/environment:force_test_environment",
         "//third_party/abseil-cpp/absl/debugging:failure_signal_handler",
         "//third_party/abseil-cpp/absl/debugging:symbolize",
+        "//third_party/abseil-cpp/absl/flags:flag",
         "//third_party/abseil-cpp/absl/flags:parse",
       ]
     }
@@ -741,6 +745,7 @@ if (rtc_include_tests) {
         ":create_test_field_trials",
         ":test_support",
         "../api:field_trials",
+        "../api/environment:force_test_environment",
         "//third_party/abseil-cpp/absl/flags:flag",
         "//third_party/abseil-cpp/absl/strings:string_view",
       ]

@@ -1160,6 +1160,22 @@ bool HasKeyInMap(span<uint8_t> message, span<uint8_t> key) {
           SpanEquals(tokenizer.GetString8(), key)) {
         return true;
       }
+      // We only support matching STRING16 keys if the search key is ASCII.
+      if (tokenizer.TokenTag() == CBORTokenTag::STRING16) {
+        span<uint8_t> rep = tokenizer.GetString16WireRep();
+        if (rep.size() == key.size() * 2) {
+          bool matches = true;
+          for (size_t ii = 0; ii < key.size(); ++ii) {
+            if (key[ii] > 127 || rep[ii * 2] != key[ii] ||
+                rep[ii * 2 + 1] != 0) {
+              matches = false;
+              break;
+            }
+          }
+          if (matches)
+            return true;
+        }
+      }
     }
     tokenizer.Next();
     is_key = !is_key;

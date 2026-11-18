@@ -4851,7 +4851,7 @@ TEST_P(SSLVersionTest, Version) {
   EXPECT_EQ(SSL_version(server_.get()), placeholder);
 }
 
-// Tests that that `SSL_get_pending_cipher` is available during the ALPN
+// Tests that `SSL_get_pending_cipher` is available during the ALPN
 // selection callback.
 TEST_P(SSLVersionTest, ALPNCipherAvailable) {
   ASSERT_TRUE(UseCertAndKey(client_ctx_.get()));
@@ -5685,7 +5685,7 @@ TEST(SSLTest, OverrideChainAndKey) {
   bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
   ASSERT_TRUE(ctx);
 
-  // Configure one cert and key pair, then replace it with noather.
+  // Configure one cert and key pair, then replace it with another.
   std::vector<CRYPTO_BUFFER *> certs = {leaf1.get(), ca1.get()};
   ASSERT_TRUE(SSL_CTX_set_chain_and_key(ctx.get(), certs.data(), certs.size(),
                                         key1.get(), nullptr));
@@ -11791,10 +11791,10 @@ TEST(SSLTest, SignatureAlgorithmUsed) {
   // algorithm used.
   const uint16_t kPref = SSL_SIGN_RSA_PSS_RSAE_SHA384;
   static const uint16_t kPrefs[] = {kPref};
-  ASSERT_TRUE(SSL_CTX_set_signing_algorithm_prefs(
-      server_ctx.get(), kPrefs, std::size(kPrefs)));
-  ASSERT_TRUE(SSL_CTX_set_signing_algorithm_prefs(
-      client_ctx.get(), kPrefs, std::size(kPrefs)));
+  ASSERT_TRUE(SSL_CTX_set_signing_algorithm_prefs(server_ctx.get(), kPrefs,
+                                                  std::size(kPrefs)));
+  ASSERT_TRUE(SSL_CTX_set_signing_algorithm_prefs(client_ctx.get(), kPrefs,
+                                                  std::size(kPrefs)));
 
   SSL_CTX_set_info_callback(client_ctx.get(),
                             SignatureAlgorithmUsedInfoCallback);
@@ -11817,4 +11817,3 @@ TEST(SSLTest, SignatureAlgorithmUsed) {
 
 }  // namespace
 BSSL_NAMESPACE_END
-

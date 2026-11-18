@@ -150,6 +150,8 @@ class ChromeAutocompleteProviderClient : public AutocompleteProviderClient {
   void PromptPageTranslation() override;
   bool OpenJourneys(const std::string& query) override;
   void OpenLensOverlay(bool show) override;
+  bool ShouldOpenCoBrowsePanel() const override;
+  void OpenCoBrowsePanel() override;
   void IssueContextualSearchRequest(const GURL& destination_url,
                                     AutocompleteMatchType::Type match_type,
                                     bool is_zero_prefix_suggestion) override;

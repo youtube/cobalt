@@ -18,6 +18,7 @@
 #import "base/observer_list.h"
 #import "base/run_loop.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/task/sequenced_task_runner.h"
 #import "base/test/scoped_feature_list.h"
 #import "base/time/time.h"
 #import "components/keyed_service/core/keyed_service.h"
@@ -185,6 +186,26 @@ class MockDownloadRecordService : public DownloadRecordService {
 
   void GetDownloadByIdAsync(const std::string& download_id,
                             DownloadRecordCallback callback) override {}
+
+  void GetDownloadsPageAsync(const DownloadRecordQuery& query,
+                             DownloadRecordsPageCallback callback) override {
+    // Placeholder pagination stub: this mock predates the
+    // `kDownloadListPagination` rollout. Match the production *Async
+    // contract by posting an empty page to the calling sequence; this
+    // mock lets any caller that opportunistically tries the new API
+    // observe a well-formed empty response instead of crashing.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), std::vector<DownloadRecord>{}));
+  }
+
+  void GetDownloadsCountAsync(std::optional<DownloadFilterType> filter,
+                              DownloadRecordsCountCallback callback) override {
+    // See `GetDownloadsPageAsync` above for the rationale; posts 0
+    // asynchronously to match the *Async contract.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), 0u));
+  }
 
   void UpdateDownloadFilePathAsync(const std::string& download_id,
                                    const base::FilePath& file_path,

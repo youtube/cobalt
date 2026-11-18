@@ -1,27 +1,3 @@
 This is a testharness.js-based test.
-Found 12 FAIL, 0 TIMEOUT, 0 NOTRUN.
-[FAIL] ML-DSA-44 basic test verification with altered signature during call
-  assert_true: Signature verified expected true got false
-[FAIL] ML-DSA-65 basic test verification with altered signature during call
-  assert_true: Signature verified expected true got false
-[FAIL] ML-DSA-87 basic test verification with altered signature during call
-  assert_true: Signature verified expected true got false
-[FAIL] ML-DSA-44 basic test verification with transferred signature during call
-  assert_false: Signature is NOT verified expected false got true
-[FAIL] ML-DSA-65 basic test verification with transferred signature during call
-  assert_false: Signature is NOT verified expected false got true
-[FAIL] ML-DSA-87 basic test verification with transferred signature during call
-  assert_false: Signature is NOT verified expected false got true
-[FAIL] ML-DSA-44 basic test with altered plaintext during call
-  assert_true: Signature verified expected true got false
-[FAIL] ML-DSA-65 basic test with altered plaintext during call
-  assert_true: Signature verified expected true got false
-[FAIL] ML-DSA-87 basic test with altered plaintext during call
-  assert_true: Signature verified expected true got false
-[FAIL] ML-DSA-44 basic test with transferred plaintext during call
-  assert_false: Signature is NOT verified expected false got true
-[FAIL] ML-DSA-65 basic test with transferred plaintext during call
-  assert_false: Signature is NOT verified expected false got true
-[FAIL] ML-DSA-87 basic test with transferred plaintext during call
-  assert_false: Signature is NOT verified expected false got true
 Harness: the test ran to completion.
+

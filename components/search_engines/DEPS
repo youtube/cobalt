@@ -1,6 +1,7 @@
 include_rules = [
   "+components/country_codes",
   "+components/database_utils",
+  "+components/favicon",
   "+components/google/core",
   "+components/grit/components_scaled_resources.h",
   "+components/infobars/core",

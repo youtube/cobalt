@@ -434,6 +434,17 @@ GURL RemoveIgnoredSearchURLParameters(const GURL& url) {
   return processed_url;
 }
 
+GURL MaybeStripParamsForShopping(const GURL& url) {
+  std::string udm_value;
+  if (IsValidSearchResultsUrl(url) &&
+      net::GetValueForKeyInQuery(url, kModeParameterKey, &udm_value) &&
+      udm_value == kShoppingModeParameterValue) {
+    return net::AppendOrReplaceQueryParameter(url, kSrpStickinessSignalKey,
+                                              std::nullopt);
+  }
+  return url;
+}
+
 GURL GetSidePanelNewTabUrl(const GURL& side_panel_url, std::string vsrid) {
   if (side_panel_url.is_empty()) {
     return GURL();

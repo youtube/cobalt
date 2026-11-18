@@ -113,7 +113,7 @@ static void keccak_f(U64 state[25]) {
     //
     // From https://keccak.team/files/Keccak-reference-3.0.pdf, section
     // 1.2, the round constants are based on the output of a LFSR. Thus, as
-    // suggested in the appendix of of
+    // suggested in the appendix of
     // https://keccak.team/keccak_specs_summary.html, the values are
     // simply encoded here.
     static const uint64_t kRoundConstants[24] = {

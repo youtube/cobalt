@@ -6,8 +6,8 @@
 from __future__ import print_function
 
 import argparse
+import io
 import random
-import six
 import sys
 import zlib
 
@@ -141,7 +141,7 @@ def _GenerateMain(out, loop_count, closure_call_count, function_call_count):
 
 def Main():
   args = _ParseArguments()
-  out = six.StringIO()
+  out = io.StringIO()
   print('// WARNING: Generated source code. Do not edit.', file=out)
   print('//', file=out)
   print('// This file was generated with the following options:', file=out)

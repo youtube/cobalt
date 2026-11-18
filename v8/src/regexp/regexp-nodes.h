@@ -34,7 +34,8 @@ class Trace;
   VISIT(NegativeLookaroundChoice) \
   VISIT(BackReference)            \
   VISIT(Assertion)                \
-  VISIT(Text)
+  VISIT(Text)                     \
+  VISIT(UnanchoredAdvance)
 
 #define FORWARD_DECLARE(type) class type##Node;
 FOR_EACH_NODE_TYPE(FORWARD_DECLARE)
@@ -149,7 +150,7 @@ class EmitResult final {
 #define RETURN_IF_ERROR(stmt) \
   if (EmitResult r = (stmt); V8_UNLIKELY(r.IsError())) return r
 
-class Node : public ZoneObject {
+class V8_EXPORT_PRIVATE Node : public ZoneObject {
  public:
   explicit Node(Zone* zone)
       : replacement_(nullptr),
@@ -292,7 +293,7 @@ class Node : public ZoneObject {
   Zone* zone_;
 };
 
-class SeqNode : public Node {
+class V8_EXPORT_PRIVATE SeqNode : public Node {
  public:
   explicit SeqNode(Node* on_success)
       : Node(on_success->zone()), on_success_(on_success) {}
@@ -441,7 +442,7 @@ class ActionNode : public SeqNode {
   friend Zone;
 };
 
-class TextNode : public SeqNode {
+class V8_EXPORT_PRIVATE TextNode : public SeqNode {
  public:
   TextNode(ZoneList<TextElement>* elms, bool read_backward, Node* on_success)
       : SeqNode(on_success), elms_(elms), read_backward_(read_backward) {}
@@ -577,7 +578,21 @@ class BackReferenceNode : public SeqNode {
   bool read_backward_;
 };
 
-class EndNode : public Node {
+class UnanchoredAdvanceNode : public SeqNode {
+ public:
+  explicit UnanchoredAdvanceNode(Node* on_success) : SeqNode(on_success) {}
+  UnanchoredAdvanceNode* AsUnanchoredAdvanceNode() override { return this; }
+  void Accept(NodeVisitor* visitor) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(Compiler* compiler,
+                                        Trace* trace) override;
+  void GetQuickCheckDetails(QuickCheckDetails* details, Compiler* compiler,
+                            int characters_filled_in, bool not_at_start,
+                            int budget) override;
+  void FillInBMInfo(Isolate* isolate, int offset, int budget,
+                    BoyerMooreLookahead* bm, bool not_at_start) override;
+};
+
+class V8_EXPORT_PRIVATE EndNode : public Node {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
   EndNode(Action action, Zone* zone) : Node(zone), action_(action) {
@@ -595,7 +610,7 @@ class EndNode : public Node {
                     BoyerMooreLookahead* bm, bool not_at_start) override {}
   Action action() const { return action_; }
 
-  virtual bool IsBacktrack() const override { return action_ == BACKTRACK; }
+  bool IsBacktrack() const override { return action_ == BACKTRACK; }
 
  private:
   Action action_;

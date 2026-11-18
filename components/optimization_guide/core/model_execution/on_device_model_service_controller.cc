@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -177,16 +178,35 @@ OnDeviceModelServiceController::OnDeviceModelServiceController(
 
 OnDeviceModelServiceController::~OnDeviceModelServiceController() = default;
 
-std::vector<mojom::BrokerModelInfoPtr>
+std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>>
 OnDeviceModelServiceController::GetBrokerModels() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  std::vector<mojom::BrokerModelInfoPtr> models;
+  std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>> models;
   if (base_model_controller_ && base_model_controller_->model_metadata()) {
     auto model_info = mojom::BrokerModelInfo::New();
     model_info->name = "Base Model";
-    model_info->weights_path =
-        base_model_controller_->model_metadata()->model_path().AsUTF8Unsafe();
-    models.push_back(std::move(model_info));
+    base::FilePath path_to_measure =
+        base_model_controller_->model_metadata()->model_path();
+    model_info->weights_path = path_to_measure.AsUTF8Unsafe();
+
+    switch (base_model_controller_->model_metadata()->performance_hint()) {
+      case optimization_guide::proto::OnDeviceModelPerformanceHint::
+          ON_DEVICE_MODEL_PERFORMANCE_HINT_HIGHEST_QUALITY:
+        model_info->backend_type = "GPU (highest quality)";
+        break;
+      case optimization_guide::proto::OnDeviceModelPerformanceHint::
+          ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE:
+        model_info->backend_type = "GPU (fastest inference)";
+        break;
+      case optimization_guide::proto::OnDeviceModelPerformanceHint::
+          ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU:
+        model_info->backend_type = "CPU";
+        break;
+      default:
+        model_info->backend_type = "UNKNOWN";
+    }
+
+    models.emplace_back(std::move(model_info), std::move(path_to_measure));
   }
   return models;
 }

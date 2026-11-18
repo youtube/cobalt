@@ -11,7 +11,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/anchor_evaluator.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
-#include "third_party/blink/renderer/core/style/position_area.h"
+#include "third_party/blink/renderer/core/style/default_anchor_data.h"
 #include "third_party/blink/renderer/core/style/scoped_css_name.h"
 #include "third_party/blink/renderer/core/style/style_position_anchor.h"
 #include "third_party/blink/renderer/platform/geometry/length.h"
@@ -79,7 +79,7 @@ class CORE_EXPORT CSSLengthResolver {
 
   // The AnchorEvaluator used to evaluate anchor()/anchor-size() queries.
   virtual AnchorEvaluator* GetAnchorEvaluator() const { return nullptr; }
-  virtual const StylePositionAnchor& GetPositionAnchor() const;
+  virtual DefaultAnchorData GetDefaultAnchorData() const;
   virtual std::optional<PositionAreaOffsets> GetPositionAreaOffsets() const {
     return std::nullopt;
   }

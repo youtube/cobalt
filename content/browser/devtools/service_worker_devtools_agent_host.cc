@@ -31,6 +31,7 @@
 #include "ipc/constants.mojom.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/cookies/site_for_cookies.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 
@@ -476,7 +477,7 @@ ServiceWorkerDevToolsAgentHost::CreateNetworkFactoryParamsForDevTools() {
               ToOriginatingProcessId(rph->GetID()), origin),
       NetworkServiceDevToolsObserver::MakeSelfOwned(GetId()),
       /*client_security_state=*/nullptr,
-      /*network_restrictions_id=*/std::nullopt,
+      /*network_restrictions_id=*/network::GetTODONetworkRestrictionsId(),
       /*debug_tag=*/"SWDTAH::CreateNetworkFactoryParamsForDevTools",
       /*require_cross_site_request_for_cookies=*/false,
       /*is_for_service_worker_=*/false);

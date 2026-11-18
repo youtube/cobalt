@@ -459,8 +459,6 @@ using StringPropertySpecificKeyframeVector =
 
 using TransitionKeyframeEffectModel = KeyframeEffectModel<TransitionKeyframe>;
 using TransitionKeyframeVector = TransitionKeyframeEffectModel::KeyframeVector;
-using TransitionPropertySpecificKeyframeVector =
-    TransitionKeyframeEffectModel::PropertySpecificKeyframeVector;
 
 template <>
 struct DowncastTraits<KeyframeEffectModelBase> {

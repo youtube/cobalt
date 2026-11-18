@@ -54,9 +54,6 @@ struct TraceBytecode {
 struct TraceVirtualObjects {
   const VirtualObjectList& virtual_objects;
 };
-struct TraceKNA {
-  const KnownNodeAspects& kna;
-};
 
 // Trace graph building helpers.
 struct TraceNewNode {
@@ -188,11 +185,6 @@ class TraceLogger {
     return *this;
   }
 
-  TraceLogger& operator<<(const TraceKNA& tag) {
-    tag.kna.TraceLoadedProperties(this);
-    return *this;
-  }
-
   TraceLogger& operator<<(const TraceIdent& tag) {
     os_ << "          ";
     return *this;
@@ -220,6 +212,8 @@ class TraceLogger {
 
 // We assume that the class using this macro has a field tracer_.
 #define TRACE_INLINING(...) TRACE_IMPL(trace_inlining, tracer_, __VA_ARGS__)
+#define TRACE_PEEL(...) \
+  TRACE_IMPL(trace_loop_peeling, tracer_, "[loop-peeling] " << __VA_ARGS__)
 
 }  // namespace v8::internal::maglev
 

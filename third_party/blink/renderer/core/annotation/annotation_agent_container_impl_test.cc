@@ -434,7 +434,7 @@ TEST_F(AnnotationAgentContainerImplTest,
   FrameSelection& frame_selection = GetDocument().GetFrame()->Selection();
 
   Element* body = GetDocument().body();
-  frame_selection.SetSelection(SelectionInDOMTree::Builder()
+  frame_selection.SetSelection(SelectionInDomTree::Builder()
                                    .Collapse(Position(body->firstChild(), 0))
                                    .Build(),
                                SetSelectionOptions());
@@ -484,7 +484,7 @@ TEST_F(AnnotationAgentContainerImplTest,
   ASSERT_EQ("TEST ", PlainText(range));
 
   frame_selection.SetSelection(
-      SelectionInDOMTree::Builder().SetBaseAndExtent(range).Build(),
+      SelectionInDomTree::Builder().SetBaseAndExtent(range).Build(),
       SetSelectionOptions());
 
   // Right click on the selected text
@@ -559,7 +559,7 @@ TEST_F(AnnotationAgentContainerImplTest, CreateAgentFromSelection) {
   ASSERT_EQ("TEST ", PlainText(range));
 
   frame_selection.SetSelection(
-      SelectionInDOMTree::Builder().SetBaseAndExtent(range).Build(),
+      SelectionInDomTree::Builder().SetBaseAndExtent(range).Build(),
       SetSelectionOptions());
 
   const auto& selection_rect = CreateRange(range)->BoundingBox();
@@ -640,7 +640,7 @@ TEST_F(AnnotationAgentContainerImplTest, ShutdownDocumentWhileGenerating) {
   ASSERT_EQ("TARGET", PlainText(range));
 
   frame_selection.SetSelection(
-      SelectionInDOMTree::Builder().SetBaseAndExtent(range).Build(),
+      SelectionInDomTree::Builder().SetBaseAndExtent(range).Build(),
       SetSelectionOptions());
 
   // Right click on the selected text

@@ -143,7 +143,7 @@ TEST_F(DocumentSuggestionsServiceTest, EnsureIsSubjectToEnterpriseFeatures) {
             document_suggestions_service_->account_is_workspace_managed());
 
   // Make the the primary account subject to Enterprise policies.
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_is_subject_to_enterprise_features(true);
   identity_test_env_.UpdateAccountInfoForAccount(account_info);
 

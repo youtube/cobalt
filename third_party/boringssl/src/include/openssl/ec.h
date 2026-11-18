@@ -27,7 +27,7 @@ extern "C" {
 
 
 // point_conversion_form_t enumerates forms, as defined in X9.62 (ECDSA), for
-// the encoding of a elliptic curve point (x,y)
+// the encoding of an elliptic curve point (x,y)
 typedef enum {
   // POINT_CONVERSION_COMPRESSED indicates that the point is encoded as z||x,
   // where the octet z specifies which solution of the quadratic equation y

@@ -11,7 +11,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gtest_util.h"
 #include "base/test/task_environment.h"
-#include "components/user_education/common/product_messaging_controller.h"
+#include "components/user_education/product_messaging/product_messaging_controller.h"
+#include "components/user_education/product_messaging/product_messaging_policy_impl.h"
 #include "components/user_education/test/test_product_messaging_controller.h"
 #include "components/user_education/test/test_user_education_storage_service.h"
 #include "components/user_education/test/user_education_session_mocks.h"
@@ -23,7 +24,8 @@ namespace user_education::internal {
 
 namespace {
 
-DEFINE_LOCAL_REQUIRED_NOTICE_IDENTIFIER(kNoticeId);
+DEFINE_LOCAL_PRODUCT_MESSAGE_KEY(kNoticeId,
+                                 ProductMessageType::kLegalOrComplianceNotice);
 
 using PromoState = MessagingCoordinator::PromoState;
 
@@ -35,10 +37,15 @@ class MessagingCoordinatorTest : public testing::Test {
   ~MessagingCoordinatorTest() override = default;
 
   void SetUp() override {
-    controller_.Init(session_provider_, storage_service_);
+    controller_.Init(session_provider_, storage_service_,
+                     ProductMessagingPolicyImpl::CreateDefault());
   }
 
   ProductMessagingController& controller() { return controller_; }
+
+  bool IsMessageQueued(ProductMessageKey key) {
+    return controller_.GetMessageStatus(key) == ProductMessageStatus::kWaiting;
+  }
 
   void FlushEvents() {
     base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
@@ -48,14 +55,14 @@ class MessagingCoordinatorTest : public testing::Test {
   }
 
   void ExpectRequestPending(bool low, bool high) {
-    EXPECT_EQ(low, controller_.IsNoticeQueued(kLowPriorityNoticeId));
-    EXPECT_EQ(high, controller_.IsNoticeQueued(kHighPriorityNoticeId));
+    EXPECT_EQ(low, IsMessageQueued(kLowPriorityNoticeId));
+    EXPECT_EQ(high, IsMessageQueued(kHighPriorityNoticeId));
   }
 
   // Since this is a friend class of the coordinator, it can access these ids.
-  const RequiredNoticeId kLowPriorityNoticeId =
+  const ProductMessageKey kLowPriorityNoticeId =
       MessagingCoordinator::kLowPriorityNoticeId;
-  const RequiredNoticeId kHighPriorityNoticeId =
+  const ProductMessageKey kHighPriorityNoticeId =
       MessagingCoordinator::kHighPriorityNoticeId;
 
  private:
@@ -77,8 +84,8 @@ class MessagingCoordinatorTest : public testing::Test {
 #define EXPECT_STATE(State, LowPending, HighPending, LowAllowed, HighAllowed) \
   EXPECT_EQ(State, coordinator.promo_state_for_testing());                    \
   ExpectRequestPending(LowPending, HighPending);                              \
-  EXPECT_EQ(LowAllowed, coordinator.CanShowPromo(false));                     \
-  EXPECT_EQ(HighAllowed, coordinator.CanShowPromo(true))
+  EXPECT_EQ(LowAllowed, coordinator.ReadyToShow(false));                      \
+  EXPECT_EQ(HighAllowed, coordinator.ReadyToShow(true))
 
 TEST_F(MessagingCoordinatorTest, InitialState) {
   DECLARE_LOCALS();
@@ -90,7 +97,7 @@ TEST_F(MessagingCoordinatorTest, TransitionToLowPriorityPending) {
   coordinator.TransitionToState(PromoState::kLowPriorityPending);
   EXPECT_STATE(PromoState::kLowPriorityPending, true, false, false, false);
   EXPECT_CALL_IN_SCOPE(ready, Run, FlushEvents());
-  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, true);
+  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, false);
 }
 
 TEST_F(MessagingCoordinatorTest,
@@ -101,7 +108,7 @@ TEST_F(MessagingCoordinatorTest,
   coordinator.TransitionToState(PromoState::kLowPriorityPending);
   EXPECT_STATE(PromoState::kLowPriorityPending, true, false, false, false);
   EXPECT_CALL_IN_SCOPE(ready, Run, FlushEvents());
-  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, true);
+  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, false);
 }
 
 TEST_F(MessagingCoordinatorTest,
@@ -157,17 +164,17 @@ TEST_F(MessagingCoordinatorTest,
   coordinator.TransitionToState(PromoState::kHighPriorityPending);
   EXPECT_CALL_IN_SCOPE(ready, Run, FlushEvents());
   coordinator.TransitionToState(PromoState::kHighPriorityShowing);
-  EXPECT_STATE(PromoState::kHighPriorityShowing, false, false, false, true);
+  EXPECT_STATE(PromoState::kHighPriorityShowing, false, false, false, false);
 }
 
 TEST_F(MessagingCoordinatorTest,
-       TransitionToHighPriorityShowingFromLowPriorityPending) {
+       TransitionToHighPriorityShowingFromLowPriorityPendingFails) {
   DECLARE_LOCALS();
   EXPECT_ASYNC_CALL_IN_SCOPE(
       ready, Run,
       coordinator.TransitionToState(PromoState::kLowPriorityPending));
-  coordinator.TransitionToState(PromoState::kHighPriorityShowing);
-  EXPECT_STATE(PromoState::kHighPriorityShowing, false, false, false, true);
+  EXPECT_CHECK_DEATH(
+      coordinator.TransitionToState(PromoState::kHighPriorityShowing));
 }
 
 TEST_F(MessagingCoordinatorTest, TransitionToLowPriorityShowingFromNoneFails) {
@@ -219,15 +226,15 @@ TEST_F(MessagingCoordinatorTest,
 }
 
 TEST_F(MessagingCoordinatorTest,
-       TransitionToHighPriorityShowingFromHighPriorityShowing) {
+       TransitionToHighPriorityShowingFromHighPriorityShowingFails) {
   DECLARE_LOCALS();
   EXPECT_ASYNC_CALL_IN_SCOPE(
       ready, Run,
       coordinator.TransitionToState(PromoState::kHighPriorityPending));
   coordinator.TransitionToState(PromoState::kHighPriorityShowing);
   FlushEvents();
-  coordinator.TransitionToState(PromoState::kHighPriorityShowing);
-  EXPECT_STATE(PromoState::kHighPriorityShowing, false, false, false, true);
+  EXPECT_CHECK_DEATH(
+      coordinator.TransitionToState(PromoState::kHighPriorityShowing));
 }
 
 TEST_F(MessagingCoordinatorTest,
@@ -240,7 +247,7 @@ TEST_F(MessagingCoordinatorTest,
   coordinator.TransitionToState(PromoState::kLowPriorityPending);
   EXPECT_STATE(PromoState::kLowPriorityPending, true, false, false, false);
   EXPECT_CALL_IN_SCOPE(ready, Run, FlushEvents());
-  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, true);
+  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, false);
 }
 
 TEST_F(MessagingCoordinatorTest,
@@ -254,7 +261,7 @@ TEST_F(MessagingCoordinatorTest,
   coordinator.TransitionToState(PromoState::kLowPriorityPending);
   EXPECT_STATE(PromoState::kLowPriorityPending, true, false, false, false);
   EXPECT_CALL_IN_SCOPE(ready, Run, FlushEvents());
-  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, true);
+  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, false);
 }
 
 TEST_F(MessagingCoordinatorTest,
@@ -271,12 +278,13 @@ TEST_F(MessagingCoordinatorTest,
 }
 
 TEST_F(MessagingCoordinatorTest,
-       TransitionToHighPriorityPendingFromLowPriorityPendingWhenReadyFails) {
+       TransitionToHighPriorityPendingFromLowPriorityPendingWhenReady) {
   DECLARE_LOCALS();
   EXPECT_ASYNC_CALL_IN_SCOPE(
       ready, Run,
       coordinator.TransitionToState(PromoState::kLowPriorityPending));
-  EXPECT_CHECK_DEATH(
+  EXPECT_ASYNC_CALL_IN_SCOPE(
+      ready, Run,
       coordinator.TransitionToState(PromoState::kHighPriorityPending));
 }
 
@@ -346,7 +354,7 @@ TEST_F(MessagingCoordinatorTest,
   coordinator.TransitionToState(PromoState::kLowPriorityPending);
   EXPECT_STATE(PromoState::kLowPriorityPending, true, false, false, false);
   EXPECT_ASYNC_CALL_IN_SCOPE(ready, Run, FlushEvents());
-  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, true);
+  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, false);
 }
 
 TEST_F(MessagingCoordinatorTest,
@@ -359,7 +367,7 @@ TEST_F(MessagingCoordinatorTest,
   coordinator.TransitionToState(PromoState::kLowPriorityPending);
   EXPECT_STATE(PromoState::kLowPriorityPending, true, false, false, false);
   EXPECT_ASYNC_CALL_IN_SCOPE(ready, Run, FlushEvents());
-  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, true);
+  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, false);
 }
 
 TEST_F(MessagingCoordinatorTest,
@@ -376,14 +384,16 @@ TEST_F(MessagingCoordinatorTest,
 }
 
 TEST_F(MessagingCoordinatorTest,
-       TransitionToHighPriorityPendingFromHighPriorityShowingFails) {
+       TransitionToHighPriorityPendingFromHighPriorityShowing) {
   DECLARE_LOCALS();
   EXPECT_ASYNC_CALL_IN_SCOPE(
       ready, Run,
       coordinator.TransitionToState(PromoState::kHighPriorityPending));
   coordinator.TransitionToState(PromoState::kHighPriorityShowing);
-  EXPECT_CHECK_DEATH(
+  EXPECT_ASYNC_CALL_IN_SCOPE(
+      ready, Run,
       coordinator.TransitionToState(PromoState::kHighPriorityPending));
+  EXPECT_STATE(PromoState::kHighPriorityPending, false, false, false, true);
 }
 
 TEST_F(MessagingCoordinatorTest, HandleGrantedToOtherMessageWhileNoActivity) {
@@ -391,7 +401,7 @@ TEST_F(MessagingCoordinatorTest, HandleGrantedToOtherMessageWhileNoActivity) {
 
   // Have a third-party notification claim the handle. No events should be
   // triggered.
-  test::TestNotice notice(controller(), kNoticeId);
+  test::TestProductMessage notice(controller(), kNoticeId);
   FlushEvents();
   EXPECT_TRUE(notice.has_priority());
 }
@@ -404,7 +414,7 @@ TEST_F(MessagingCoordinatorTest,
 
   // Have a third-party notification claim the handle. This will come before the
   // low priority message in the queue.
-  test::TestNotice notice(controller(), kNoticeId);
+  test::TestProductMessage notice(controller(), kNoticeId);
   FlushEvents();
   EXPECT_TRUE(notice.has_priority());
   EXPECT_STATE(PromoState::kLowPriorityPending, true, false, false, false);
@@ -420,9 +430,9 @@ TEST_F(MessagingCoordinatorTest,
 
   // Have a third-party notification get in queue. Since the handle is already
   // held by the coordinator, it is kept.
-  test::TestNotice notice(controller(), kNoticeId);
+  test::TestProductMessage notice(controller(), kNoticeId);
   EXPECT_FALSE(notice.has_priority());
-  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, true);
+  EXPECT_STATE(PromoState::kLowPriorityPending, false, false, true, false);
 
   // Releasing the handle should allow the other notice to show.
   coordinator.TransitionToState(PromoState::kNone);
@@ -437,7 +447,7 @@ TEST_F(MessagingCoordinatorTest,
   EXPECT_ASYNC_CALL_IN_SCOPE(
       ready, Run,
       coordinator.TransitionToState(PromoState::kLowPriorityPending));
-  test::TestNotice notice(controller(), kNoticeId);
+  test::TestProductMessage notice(controller(), kNoticeId);
 
   // The other notice should seize priority when the handle is released.
   coordinator.TransitionToState(PromoState::kLowPriorityShowing);
@@ -455,10 +465,10 @@ TEST_F(MessagingCoordinatorTest,
   // Because the controller is currently *not* deterministic, we simply
   // determine that both are queued and then that one is granted.
   coordinator.TransitionToState(PromoState::kHighPriorityPending);
-  test::TestNotice notice(controller(), kNoticeId);
+  test::TestProductMessage notice(controller(), kNoticeId);
 
-  EXPECT_TRUE(controller().IsNoticeQueued(kNoticeId));
-  EXPECT_TRUE(controller().IsNoticeQueued(kHighPriorityNoticeId));
+  EXPECT_TRUE(IsMessageQueued(kNoticeId));
+  EXPECT_TRUE(IsMessageQueued(kHighPriorityNoticeId));
 
   // This may or may not be called, so make it so it doesn't care.
   EXPECT_CALL(ready, Run).WillRepeatedly([]() {});
@@ -467,10 +477,10 @@ TEST_F(MessagingCoordinatorTest,
 
   // Either the external message got priority or the coordinator got permission
   // to show the high-priority message, but not both.
-  EXPECT_NE(notice.has_priority(), coordinator.CanShowPromo(true));
-  EXPECT_NE(controller().IsNoticeQueued(kNoticeId), notice.has_priority());
-  EXPECT_NE(controller().IsNoticeQueued(kHighPriorityNoticeId),
-            coordinator.CanShowPromo(true));
+  EXPECT_NE(notice.has_priority(), coordinator.ReadyToShow(true));
+  EXPECT_NE(IsMessageQueued(kNoticeId), notice.has_priority());
+  EXPECT_NE(IsMessageQueued(kHighPriorityNoticeId),
+            coordinator.ReadyToShow(true));
 }
 
 TEST_F(MessagingCoordinatorTest,
@@ -483,7 +493,7 @@ TEST_F(MessagingCoordinatorTest,
 
   // Have a third-party notification get in queue. Since the handle is already
   // held by the coordinator, it is kept.
-  test::TestNotice notice(controller(), kNoticeId);
+  test::TestProductMessage notice(controller(), kNoticeId);
   EXPECT_FALSE(notice.has_priority());
   EXPECT_STATE(PromoState::kHighPriorityPending, false, false, false, true);
 
@@ -500,7 +510,7 @@ TEST_F(MessagingCoordinatorTest,
   EXPECT_ASYNC_CALL_IN_SCOPE(
       ready, Run,
       coordinator.TransitionToState(PromoState::kHighPriorityPending));
-  test::TestNotice notice(controller(), kNoticeId);
+  test::TestProductMessage notice(controller(), kNoticeId);
   coordinator.TransitionToState(PromoState::kHighPriorityShowing);
   FlushEvents();
   EXPECT_FALSE(notice.has_priority());

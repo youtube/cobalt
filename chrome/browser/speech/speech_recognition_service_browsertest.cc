@@ -173,6 +173,7 @@ class SpeechRecognitionServiceTest
   void SendAudioChunk(const std::vector<int16_t>& audio_data,
                       media::WavAudioHandler* handler,
                       size_t kMaxChunkSize);
+  void WaitForRecognitionResult(const std::string& expected_result);
 
   // The root directory for test files.
   base::FilePath test_data_dir_;
@@ -195,6 +196,9 @@ class SpeechRecognitionServiceTest
   std::unique_ptr<ChromeSpeechRecognitionService> service_;
 
   bool is_client_requesting_speech_recognition_ = true;
+
+  std::unique_ptr<base::RunLoop> run_loop_;
+  std::string expected_recognition_result_;
 };
 
 void SpeechRecognitionServiceTest::SetUp() {
@@ -216,7 +220,22 @@ void SpeechRecognitionServiceTest::OnSpeechRecognitionRecognitionEvent(
   // enabled whereas the one used by the Linux builder does not.
   std::erase(transcription, ',');
   recognition_results_.push_back(std::move(transcription));
+  if (run_loop_ &&
+      recognition_results_.back() == expected_recognition_result_) {
+    run_loop_->Quit();
+  }
   std::move(reply).Run(is_client_requesting_speech_recognition_);
+}
+
+void SpeechRecognitionServiceTest::WaitForRecognitionResult(
+    const std::string& expected_result) {
+  if (!recognition_results_.empty() &&
+      recognition_results_.back() == expected_result) {
+    return;
+  }
+  expected_recognition_result_ = expected_result;
+  run_loop_ = std::make_unique<base::RunLoop>();
+  run_loop_->Run();
 }
 
 void SpeechRecognitionServiceTest::OnSpeechRecognitionStopped() {
@@ -386,15 +405,11 @@ IN_PROC_BROWSER_TEST_F(SpeechRecognitionServiceTest, RecognizePhrase) {
     SendAudioChunk(audio_data, handler.get(), kMaxChunkSize);
   }
 
+  WaitForRecognitionResult("Hey Google Hey Google");
+
   speech_recognition_recognizer_.reset();
   base::RunLoop().RunUntilIdle();
 
-  // Sleep for 100ms to ensure SODA has returned real-time results.
-#if BUILDFLAG(IS_WIN)
-  ::Sleep(100);
-#else
-  usleep(100000);
-#endif
   ASSERT_GT(static_cast<int>(recognition_results_.size()), kReplayAudioCount);
   ASSERT_EQ(recognition_results_.back(), "Hey Google Hey Google");
 
@@ -454,7 +469,7 @@ IN_PROC_BROWSER_TEST_F(SpeechRecognitionServiceTest,
   // false`, informing the speech recognition service that it is no longer
   // requesting speech recognition.
   SendAudioChunk(audio_data, handler.get(), kMaxChunkSize);
-  base::RunLoop().RunUntilIdle();
+  WaitForRecognitionResult("Hey Google Hey Google");
 
   // Send an audio chunk to the service. It does not get transcribed.
   SendAudioChunk(audio_data, handler.get(), kMaxChunkSize);
@@ -462,12 +477,6 @@ IN_PROC_BROWSER_TEST_F(SpeechRecognitionServiceTest,
   speech_recognition_recognizer_.reset();
   base::RunLoop().RunUntilIdle();
 
-  // Sleep for 100ms to ensure SODA has returned real-time results.
-#if BUILDFLAG(IS_WIN)
-  ::Sleep(100);
-#else
-  usleep(100000);
-#endif
   ASSERT_GT(recognition_results_.size(), 3u);
   ASSERT_EQ(recognition_results_.back(), "Hey Google Hey Google");
 

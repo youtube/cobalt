@@ -141,8 +141,8 @@ void VideoFrameFactoryImpl::CreateVideoFrame(
     OnceOutputCB output_cb) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  gfx::Size coded_size = output_buffer->size();
-  gfx::Rect visible_rect(coded_size);
+  gfx::Size visible_size = output_buffer->visible_size();
+  gfx::Rect visible_rect(visible_size);
 
   auto output_buffer_renderer = std::make_unique<CodecOutputBufferRenderer>(
       std::move(output_buffer), codec_buffer_wait_coordinator_, GetDrDcLock());
@@ -158,8 +158,10 @@ void VideoFrameFactoryImpl::CreateVideoFrame(
 
   // Check that we can create a VideoFrame for this config before trying to
   // create the textures for it.
+  // Note, that we use visible_size in place of the coded size here, because
+  // coded size not known yet.
   if (!VideoFrame::IsValidConfig(pixel_format, VideoFrame::STORAGE_OPAQUE,
-                                 coded_size, visible_rect, natural_size)) {
+                                 visible_size, visible_rect, natural_size)) {
     LOG(ERROR) << __func__ << " unsupported video frame format";
     std::move(output_cb).Run(nullptr);
     return;

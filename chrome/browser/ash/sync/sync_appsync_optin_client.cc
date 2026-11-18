@@ -20,7 +20,6 @@
 
 namespace ash {
 
-constexpr char kOldDaemonStorePath[] = "/run/daemon-store/appsync-consent";
 constexpr char kDaemonStorePath[] = "/run/daemon-store/appsync-optin";
 constexpr char kDaemonStoreFileName[] = "opted-in";
 
@@ -39,16 +38,6 @@ void WriteOptinFile(base::FilePath filepath, bool opted_in) {
   }
 }
 
-void DeleteConsentDir(const base::FilePath& app_sync_consent_dir) {
-  if (!base::DirectoryExists(app_sync_consent_dir)) {
-    // defunct daemon-store directory does not exist, no need to migrate
-    return;
-  }
-
-  if (!base::DeletePathRecursively(app_sync_consent_dir)) {
-    DLOG(WARNING) << "Failed to delete " << app_sync_consent_dir;
-  }
-}
 }  // namespace
 
 std::string SyncAppsyncOptinClient::GetActiveProfileHash(
@@ -91,56 +80,22 @@ void SyncAppsyncOptinClient::UpdateOptinFile(
       base::BindOnce(&WriteOptinFile, app_sync_optin_path, opted_in));
 }
 
-void SyncAppsyncOptinClient::RemoveOldAppsyncDaemonDir(
-    const syncer::SyncService* sync_service) {
-  std::string hash = GetActiveProfileHash(sync_service);
-  if (hash.empty()) {
-    return;
-  }
-
-  base::FilePath app_sync_consent_dir = old_daemon_store_filepath_.Append(hash);
-
-  base::ThreadPool::PostTask(
-      FROM_HERE, {base::MayBlock()},
-      base::BindOnce(&DeleteConsentDir, app_sync_consent_dir));
-}
-
 SyncAppsyncOptinClient::SyncAppsyncOptinClient(
     syncer::SyncService* sync_service,
     user_manager::UserManager* user_manager)
     : SyncAppsyncOptinClient(sync_service,
                              user_manager,
-                             base::FilePath(kDaemonStorePath),
-                             base::FilePath(kOldDaemonStorePath)) {}
-
-SyncAppsyncOptinClient::SyncAppsyncOptinClient(
-    syncer::SyncService* sync_service,
-    user_manager::UserManager* user_manager,
-    const base::FilePath& daemon_store_filepath)
-    : SyncAppsyncOptinClient(sync_service,
-                             user_manager,
-                             daemon_store_filepath,
                              base::FilePath(kDaemonStorePath)) {}
 
 SyncAppsyncOptinClient::SyncAppsyncOptinClient(
     syncer::SyncService* sync_service,
     user_manager::UserManager* user_manager,
-    const base::FilePath& daemon_store_filepath,
-    const base::FilePath& old_daemon_store_filepath)
+    const base::FilePath& daemon_store_filepath)
     : sync_service_(sync_service),
       user_manager_(user_manager),
       is_apps_sync_enabled_(IsAppsSyncEnabledForSyncService(*sync_service)),
-      daemon_store_filepath_(daemon_store_filepath),
-      old_daemon_store_filepath_(old_daemon_store_filepath) {
+      daemon_store_filepath_(daemon_store_filepath) {
   sync_service_->AddObserver(this);
-  // When SyncAppsyncOptinClient is instantiated, it attempts to do 2 things:
-  // 1 - delete any existing directory at a legacy location
-  // 2 - create a file indicating a user's opt-in status to Apps Sync
-  // Either of these may safely fail, as they will be reattempted in the future,
-  // and the ordering of events does not matter as they interact with 2
-  // different directories.
-  // TODO(b/264677999): remove migration code on 2024-01-30.
-  RemoveOldAppsyncDaemonDir(sync_service);
   UpdateOptinFile(is_apps_sync_enabled_, sync_service);
 }
 

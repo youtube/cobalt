@@ -479,7 +479,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuViewInteractiveUITest,
   // extensions and dialogs are actually showing.
   WaitForAnimation();
 
-  // Verify extension is visible and tbere is a popped out action.
+  // Verify extension is visible and there is a popped out action.
   auto visible_icons = GetVisibleToolbarActionViews();
   ASSERT_EQ(1u, visible_icons.size());
   EXPECT_NE(std::nullopt, extensions_container->GetPoppedOutActionId());

@@ -369,10 +369,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
           {"WebSerialWorldIsolatedCache",
            raw_ref(features::kWebSerialWorldIsolatedCache)},
           {"SplitViewLinkOpen", raw_ref(features::kSplitViewLinkOpen)},
-#if BUILDFLAG(IS_MAC)
-          {"SystemDefaultAccentColors",
-           raw_ref(features::kUseSystemDefaultAccentColors)},
-#endif
           {"TopicsAPI", raw_ref(features::kPrivacySandboxAdsAPIsOverride),
            kSetOnlyIfOverridden},
           {"TopicsAPI", raw_ref(features::kPrivacySandboxAdsAPIsM1Override)},

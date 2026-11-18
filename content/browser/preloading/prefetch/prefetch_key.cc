@@ -31,6 +31,14 @@ PrefetchKey::PrefetchKey(
 
 PrefetchKey::~PrefetchKey() = default;
 
+std::optional<blink::DocumentToken> PrefetchKey::GetDocumentToken() const {
+  if (const auto* token_opt = std::get_if<std::optional<blink::DocumentToken>>(
+          &referring_document_token_or_nik_)) {
+    return *token_opt;
+  }
+  return std::nullopt;
+}
+
 PrefetchKey::PrefetchKey(PrefetchKey&& other) = default;
 
 PrefetchKey& PrefetchKey::operator=(PrefetchKey&& other) = default;

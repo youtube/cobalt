@@ -6726,7 +6726,7 @@ angle::Result ImageHelper::initLayerImageViewImpl(ContextVk *contextVk,
         ASSERT((contextVk->getFeatures().supportsYUVSamplerConversion.enabled));
         yuvConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO;
         yuvConversionInfo.pNext = nullptr;
-        ANGLE_TRY(contextVk->getShareGroup()->getYuvConversionCache().getSamplerYcbcrConversion(
+        ANGLE_TRY(contextVk->getYuvConversionCache().getSamplerYcbcrConversion(
             contextVk, conversionDesc, &yuvConversionInfo.conversion));
         AddToPNextChain(&viewInfo, &yuvConversionInfo);
 
@@ -8410,21 +8410,20 @@ void ImageHelper::removeStagedUpdates(ErrorContext *context,
     assertSubresourceUpdateRefCountsConsistent();
 }
 
-angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
-                                                      const gl::ImageIndex &index,
-                                                      const gl::Extents &glExtents,
-                                                      const gl::Offset &offset,
-                                                      const gl::InternalFormat &formatInfo,
-                                                      const gl::PixelUnpackState &unpack,
-                                                      GLenum type,
-                                                      const uint8_t *pixels,
-                                                      const Format &vkFormat,
-                                                      ImageFormatSupport formatSupport,
-                                                      const GLuint inputRowPitch,
-                                                      const GLuint inputDepthPitch,
-                                                      const GLuint inputSkipBytes,
-                                                      ApplyImageUpdate applyUpdate,
-                                                      bool *updateAppliedImmediatelyOut)
+angle::Result ImageHelper::stageSubresourceUpdate(ContextVk *contextVk,
+                                                  const gl::ImageIndex &index,
+                                                  const gl::Extents &glExtents,
+                                                  const gl::Offset &offset,
+                                                  const gl::InternalFormat &formatInfo,
+                                                  GLenum type,
+                                                  const uint8_t *pixels,
+                                                  const Format &vkFormat,
+                                                  ImageFormatSupport formatSupport,
+                                                  const GLuint inputRowPitch,
+                                                  const GLuint inputDepthPitch,
+                                                  const GLuint inputSkipBytes,
+                                                  ApplyImageUpdate applyUpdate,
+                                                  bool *updateAppliedImmediatelyOut)
 {
     *updateAppliedImmediatelyOut = false;
 
@@ -9366,33 +9365,6 @@ angle::Result ImageHelper::stagePartialClear(ContextVk *contextVk,
                                 SubresourceUpdate(aspectFlags, clearValue, textureType,
                                                   levelIndexGL, layerIndex, layerCount, clearArea));
     }
-    return angle::Result::Continue;
-}
-
-angle::Result ImageHelper::stageSubresourceUpdate(ContextVk *contextVk,
-                                                  const gl::ImageIndex &index,
-                                                  const gl::Extents &glExtents,
-                                                  const gl::Offset &offset,
-                                                  const gl::InternalFormat &formatInfo,
-                                                  const gl::PixelUnpackState &unpack,
-                                                  GLenum type,
-                                                  const uint8_t *pixels,
-                                                  const Format &vkFormat,
-                                                  ImageFormatSupport formatSupport,
-                                                  ApplyImageUpdate applyUpdate,
-                                                  bool *updateAppliedImmediatelyOut)
-{
-    GLuint inputRowPitch   = 0;
-    GLuint inputDepthPitch = 0;
-    GLuint inputSkipBytes  = 0;
-    ANGLE_TRY(calculateBufferInfo(contextVk, glExtents, formatInfo, unpack, type, index.usesTex3D(),
-                                  &inputRowPitch, &inputDepthPitch, &inputSkipBytes));
-
-    ANGLE_TRY(stageSubresourceUpdateImpl(contextVk, index, glExtents, offset, formatInfo, unpack,
-                                         type, pixels, vkFormat, formatSupport, inputRowPitch,
-                                         inputDepthPitch, inputSkipBytes, applyUpdate,
-                                         updateAppliedImmediatelyOut));
-
     return angle::Result::Continue;
 }
 

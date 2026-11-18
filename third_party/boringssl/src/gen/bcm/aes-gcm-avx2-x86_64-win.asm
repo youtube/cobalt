@@ -12,7 +12,9 @@ default	rel
 %include "boringssl_prefix_symbols_internal_x86_64_win_asm.inc"
 %endif
 section	.rdata rdata align=8
+
 ALIGN	16
+aes_gcm_avx2_constants:
 
 
 $L$bswap_mask:

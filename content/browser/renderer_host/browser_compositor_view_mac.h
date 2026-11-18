@@ -77,9 +77,7 @@ class CONTENT_EXPORT BrowserCompositorMac : public DelegatedFrameHostClient,
   // Update the renderer's SurfaceId to reflect the current dimensions of the
   // NSView. This will allocate a new SurfaceId, so should only be called
   // when necessary.
-  void UpdateSurfaceFromNSView(
-      const gfx::Size& new_size_dip,
-      bool refresh_rate_changed_on_same_display = false);
+  void UpdateSurfaceFromNSView(const gfx::Size& new_size_dip);
 
   // Update the renderer's SurfaceId to reflect |new_size_in_pixels| in
   // anticipation of the NSView resizing during auto-resize.

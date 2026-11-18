@@ -1664,6 +1664,44 @@ static void RemovePropertiesInStyle(
   style_to_remove_properties_from->RemovePropertiesInSet(properties_to_remove);
 }
 
+void EditingStyle::RemoveStyleFromContext(Element* element, Element* context) {
+  DCHECK(element);
+  if (!mutable_style_ || !context) {
+    return;
+  }
+
+  DCHECK_GE(element->GetDocument().Lifecycle().GetState(),
+            DocumentLifecycle::kStyleClean);
+  DCHECK(element->GetDocument().IsActive());
+
+  EditingStyle* computed_style =
+      MakeGarbageCollected<EditingStyle>(context, kEditingPropertiesInEffect);
+  if (!computed_style->mutable_style_) {
+    return;
+  }
+
+  if (!computed_style->mutable_style_->GetPropertyCSSValue(
+          CSSPropertyID::kBackgroundColor)) {
+    computed_style->mutable_style_->SetLonghandProperty(
+        CSSPropertyID::kBackgroundColor, CSSValueID::kTransparent);
+  }
+
+  mutable_style_ = GetPropertiesNotIn(
+      mutable_style_.Get(), element,
+      computed_style->mutable_style_->EnsureCSSStyleDeclaration(
+          element->GetExecutionContext()),
+      element->GetExecutionContext()->GetSecureContextMode());
+
+  if (IsStyleSpanOrSpanWithOnlyStyleAttribute(element)) {
+    if (GetProperty(CSSPropertyID::kDisplay) == CSSValueID::kInline) {
+      mutable_style_->RemoveProperty(CSSPropertyID::kDisplay);
+    }
+    if (GetProperty(CSSPropertyID::kFloat) == CSSValueID::kNone) {
+      mutable_style_->RemoveProperty(CSSPropertyID::kFloat);
+    }
+  }
+}
+
 void EditingStyle::RemoveStyleFromRulesAndContext(Element* element,
                                                   Element* context) {
   DCHECK(element);

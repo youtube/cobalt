@@ -877,7 +877,7 @@ TEST_F(TemporaryAppListSortTest, HandleFolderRename) {
 
   // Verify that:
   // (1) Temporary sort ends.
-  // (2) Sort order is commited.
+  // (2) Sort order is committed.
   // (3) Local positions are committed.
   EXPECT_FALSE(IsUnderTemporarySort());
   EXPECT_EQ(ash::AppListSortOrder::kNameReverseAlphabetical,

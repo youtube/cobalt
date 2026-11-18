@@ -27,7 +27,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_FRAME_SELECTION_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_FRAME_SELECTION_H_
 
+#include <unicode/ubidi.h>
+
 #include <memory>
+#include <optional>
 
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
@@ -160,8 +163,8 @@ class CORE_EXPORT FrameSelection final
   // layout.
   VisibleSelection ComputeVisibleSelectionInDomTreeDeprecated() const;
 
-  void SetSelection(const SelectionInDOMTree&, const SetSelectionOptions&);
-  void SetSelectionAndEndTyping(const SelectionInDOMTree&);
+  void SetSelection(const SelectionInDomTree&, const SetSelectionOptions&);
+  void SetSelectionAndEndTyping(const SelectionInDomTree&);
   void SelectAll(SetSelectionBy, bool canonicalize_selection = false);
   void SelectAll();
   void SelectSubString(const Element&, int offset, int count);
@@ -173,11 +176,11 @@ class CORE_EXPORT FrameSelection final
   // functions.
   // setSelectionDeprecated() returns true if didSetSelectionDeprecated() should
   // be called.
-  bool SetSelectionDeprecated(const SelectionInDOMTree&,
+  bool SetSelectionDeprecated(const SelectionInDomTree&,
                               const SetSelectionOptions&);
-  void DidSetSelectionDeprecated(const SelectionInDOMTree&,
+  void DidSetSelectionDeprecated(const SelectionInDomTree&,
                                  const SetSelectionOptions&);
-  void SetSelectionForAccessibility(const SelectionInDOMTree&,
+  void SetSelectionForAccessibility(const SelectionInDomTree&,
                                     const SetSelectionOptions&);
 
   // Call this after doing user-triggered selections to make it easy to delete
@@ -225,8 +228,6 @@ class CORE_EXPORT FrameSelection final
   void DidChangeFocus();
 
   const SelectionInDomTree& GetSelectionInDomTree() const;
-  // New code should use GetSelectionInDomTree(). This will be removed soon.
-  const SelectionInDOMTree& GetSelectionInDOMTree() const;
   bool IsDirectional() const;
 
   void DidAttachDocument(Document*);
@@ -258,6 +259,10 @@ class CORE_EXPORT FrameSelection final
   void PageActivationChanged();
 
   bool IsHandleVisible() const { return is_handle_visible_; }
+
+  // Bidi embedding level of the caret's current fragment. Used by FrameCaret
+  // for correct caret rendering at bidi boundaries.
+  std::optional<UBiDiLevel> CaretBidiLevel() const { return caret_bidi_level_; }
   void SetHandleVisibleForTesting() { is_handle_visible_ = true; }
   bool ShouldShrinkNextTap() const { return should_shrink_next_tap_; }
 
@@ -363,14 +368,14 @@ class CORE_EXPORT FrameSelection final
   void NotifyEventHandlerForSelectionChange();
   void NotifyDisplayLockForSelectionChange(
       Document& document,
-      const SelectionInDOMTree& old_selection,
-      const SelectionInDOMTree& new_selection);
+      const SelectionInDomTree& old_selection,
+      const SelectionInDomTree& new_selection);
 
   void FocusedOrActiveStateChanged();
 
   GranularityStrategy* GetGranularityStrategy();
 
-  void MoveRangeSelectionInternal(const SelectionInDOMTree&, TextGranularity);
+  void MoveRangeSelectionInternal(const SelectionInDomTree&, TextGranularity);
 
   // Returns the range corresponding to a |text_granularity| selection around
   // the caret. Returns a null range if the selection failed, either because
@@ -390,6 +395,18 @@ class CORE_EXPORT FrameSelection final
 
   TextGranularity granularity_;
   LayoutUnit x_pos_for_vertical_arrow_navigation_;
+
+  // Bidi embedding level of the caret's current fragment. Persisted across
+  // consecutive keyboard-driven caret movements to disambiguate which side
+  // of a bidi boundary the caret belongs to. Reset to nullopt on mouse
+  // clicks and programmatic selection changes.
+  std::optional<UBiDiLevel> caret_bidi_level_;
+
+  // Whether the previous visual caret movement placed the caret at a bidi
+  // boundary entry point. When true, the next boundary crossing is an EXIT
+  // and should skip the shared-x entry point to produce visible movement.
+  // Persisted alongside caret_bidi_level_ across keystrokes.
+  bool entered_bidi_run_ = false;
 
   bool focused_ : 1;
 

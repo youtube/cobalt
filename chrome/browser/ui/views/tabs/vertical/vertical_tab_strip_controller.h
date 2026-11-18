@@ -71,9 +71,10 @@ class VerticalTabStripController : public TabContextMenuController::Delegate {
   void ToggleTabGroupCollapsedState(const TabGroup* group,
                                     ToggleTabGroupCollapsedStateOrigin origin);
   void ShowGroupEditorBubble(const TabCollectionNode* group_node);
-  views::Widget* ShowGroupEditorBubble(const tab_groups::TabGroupId& group_id,
-                                       views::View* anchor_view,
-                                       bool stop_context_menu_propagation);
+  std::unique_ptr<views::Widget> ShowGroupEditorBubble(
+      const tab_groups::TabGroupId& group_id,
+      views::View* anchor_view,
+      bool stop_context_menu_propagation);
 
   tab_groups::TabGroupSyncService* GetTabGroupSyncService();
 

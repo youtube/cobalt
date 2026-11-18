@@ -7131,11 +7131,8 @@ GLenum Context::checkFramebufferStatus(GLenum target)
 
 void Context::compileShader(ShaderProgramID shader)
 {
-    Shader *shaderObject = GetValidShader(this, angle::EntryPoint::GLCompileShader, shader);
-    if (!shaderObject)
-    {
-        return;
-    }
+    Shader *shaderObject = getShaderNoResolveCompile(shader);
+    ASSERT(shaderObject != nullptr);
     shaderObject->compile(this, angle::JobResultExpectancy::Future);
 }
 
@@ -8136,7 +8133,7 @@ void Context::uniformBlockBinding(ShaderProgramID program,
 GLsync Context::fenceSync(GLenum condition, GLbitfield flags)
 {
     SyncID syncHandle;
-    if (!mState.mSyncManager->createSync(mImplementation.get(), this, &syncHandle))
+    if (!mState.mSyncManager->createSync(mImplementation.get(), &syncHandle))
     {
         handleExhaustionError(angle::EntryPoint::GLFenceSync);
         return nullptr;

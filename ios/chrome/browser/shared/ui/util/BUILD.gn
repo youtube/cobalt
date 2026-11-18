@@ -177,7 +177,10 @@ source_set("unit_tests") {
 source_set("eg2_tests") {
   configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
-  sources = [ "omnibox_util_egtest.mm" ]
+  sources = [
+    "multitasking_window_egtest.mm",
+    "omnibox_util_egtest.mm",
+  ]
   deps = [
     "//components/omnibox/browser:pref_names",
     "//ios/chrome/browser/shared/model/prefs:pref_names",

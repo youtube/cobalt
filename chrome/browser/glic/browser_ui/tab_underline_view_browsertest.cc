@@ -465,7 +465,7 @@ IN_PROC_BROWSER_TEST_F(TabUnderlineViewBrowserTest,
   ASSERT_OK(WaitForGlicClient(instance));
 
   // Pin both tabs on the instance's sharing manager.
-  auto& instance_sharing_manager = instance->sharing_manager();
+  auto& instance_sharing_manager = instance->GetSharingManagerInternal();
   instance_sharing_manager.PinTabs({handle1, handle2});
   EXPECT_TRUE(instance_sharing_manager.IsTabPinned(handle1));
   EXPECT_TRUE(instance_sharing_manager.IsTabPinned(handle2));

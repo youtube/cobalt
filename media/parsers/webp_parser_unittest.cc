@@ -200,8 +200,7 @@ TEST(WebPParserTest, ParseLossyWebP) {
   ASSERT_TRUE(stream.Initialize(file_path))
       << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
-  std::unique_ptr<Vp8FrameHeader> result = ParseWebPImage(
-      UNSAFE_TODO(base::span<const uint8_t>(stream.data(), stream.length())));
+  std::unique_ptr<Vp8FrameHeader> result = ParseWebPImage(stream.bytes());
   ASSERT_TRUE(result);
 
   ASSERT_TRUE(result->IsKeyframe());
@@ -227,8 +226,7 @@ TEST(WebPParserTest, ParseLosslessWebP) {
       << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
   // Should fail because WebP parser does not parse lossless webp images.
-  std::unique_ptr<Vp8FrameHeader> result = ParseWebPImage(
-      UNSAFE_TODO(base::span<const uint8_t>(stream.data(), stream.length())));
+  std::unique_ptr<Vp8FrameHeader> result = ParseWebPImage(stream.bytes());
   ASSERT_FALSE(result);
 }
 
@@ -246,8 +244,7 @@ TEST(WebPParserTest, ParseExtendedWebP) {
       << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
   // Should fail because WebP parser does not parse extended webp images.
-  std::unique_ptr<Vp8FrameHeader> result = ParseWebPImage(
-      UNSAFE_TODO(base::span<const uint8_t>(stream.data(), stream.length())));
+  std::unique_ptr<Vp8FrameHeader> result = ParseWebPImage(stream.bytes());
   ASSERT_FALSE(result);
 }
 

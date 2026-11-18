@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">AAAA</translation>
 <translation id="1013952917065545813">Poți să revii aici mai târziu ca să redeschizi file pe care le-ai închis recent.</translation>
 <translation id="1016495303386450659">Element actualizat</translation>
+<translation id="1018804590490383958">Scanează și completează automat</translation>
 <translation id="1019990162050689579">Activitatea din Aplicația Gemini</translation>
 <translation id="102916930470544692">Cheie de acces</translation>
 <translation id="1030376737535466765">Deschide Managerul de parole</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Actualizează browserul</translation>
 <translation id="4021931095789478915">Adaugă ${url} în lista de lecturi</translation>
 <translation id="4028871427853484857">Salvează în cont…</translation>
+<translation id="4036529942385659684">Afișează pagina de pornire după o perioadă de inactivitate</translation>
 <translation id="4038354071007134711">Aplicațiile de pe dispozitiv nu deschid fișierul.</translation>
 <translation id="4042870976416480368">Găsește în pagină</translation>
 <translation id="4045441967987592849">Redeschide</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Gestionează grupul</translation>
 <translation id="4172051516777682613">Afișați întotdeauna</translation>
 <translation id="417273154673973994">{count,plural, =1{Un grup de file a fost închis și salvat}few{{count} grupuri de file au fost închise și salvate}other{{count} de grupuri de file au fost închise și salvate}}</translation>
-<translation id="417612446554534067">Trimite pe dispozitivele tale</translation>
 <translation id="4180726336228139707">Numai pe acest dispozitiv</translation>
 <translation id="4181841719683918333">Limbi</translation>
 <translation id="4183350924949589798">Mai multă securitate?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Filele au fost închise și te-ai deconectat</translation>
 <translation id="4911042367886397055">Bine ai revenit, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Poți trimite în siguranță o copie a parolei unui membru al grupului de familie. <ph name="BEGIN_LINK" />Află mai multe<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Lupă</translation>
 <translation id="4917025507570489430">Poți folosi datele de navigare existente când te conectezi ca <ph name="USER_EMAIL" />. Organizația ta poate să vadă aceste date.</translation>
 <translation id="4918086044614829423">Acceptă</translation>
 <translation id="4930714375720679147">Activează</translation>
@@ -1549,6 +1551,7 @@ Trebuie să activezi Handoff în secțiunea General din Setări, iar dispozitive
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Alege poziția barei de adrese</translation>
 <translation id="6307241780749477694">Confirmă-ți identitatea pentru a obține toate parolele de pe acest dispozitiv</translation>
+<translation id="6307792728709337290">Salvează cardul în Contul Google pentru a completa automat datele asociate pentru această achiziție și achizițiile viitoare făcute în Chrome.</translation>
 <translation id="6316141353357700666">Alege parola pe care vrei să o folosești din lista care apare.</translation>
 <translation id="6321526113093607004">Adaugă în Marcaje</translation>
 <translation id="6327249202318869726">Gemini este dezactivat pentru contul tău. Contactează administratorul pentru mai multe informații.</translation>
@@ -2143,6 +2146,7 @@ Pentru a continua de pe computer, treci la <ph name="OTHER_EMAIL" />. Vei accesa
 <translation id="8263809106706527890">Este posibil ca setările browserului prestabilit să se fi modificat. Verifică în setări.</translation>
 <translation id="8264966119170358612">Unele dintre parolele salvate au fost expuse într-o încălcare a securității datelor independentă de Google. <ph name="BEGIN_LINK" />Află mai multe<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Te-ai deconectat de la contul <ph name="USER_NAME" /> în cadrul procesului de resetare a dispozitivului iPad. Pentru a te conecta din nou, atinge Continuă mai jos.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Vei completa informațiile la <ph name="URL" /></translation>
 <translation id="8275068909952022340">Mai multe…</translation>
 <translation id="8281781826761538115">Prestabilit – <ph name="DEFAULT_LOCALE" /></translation>

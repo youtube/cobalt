@@ -297,6 +297,9 @@ class VIEWS_EXPORT TableView : public View, public ui::TableModelObserver {
   bool GetSelectOnRemove() const;
   void SetSelectOnRemove(bool select_on_remove);
 
+  bool GetSelectOnFocus() const;
+  void SetSelectOnFocus(bool select_on_focus);
+
   // WARNING: this function forces a sort on every paint, and is therefore
   // expensive! It assumes you are calling SchedulePaint() at intervals for
   // the whole table. If your model is properly notifying the table, this is
@@ -494,6 +497,10 @@ class VIEWS_EXPORT TableView : public View, public ui::TableModelObserver {
   // Advances the active visible column (from the active visible column index)
   // in the specified direction.
   void AdvanceActiveVisibleColumn(AdvanceDirection direction);
+
+  // Selects the first row when the TableView gets focused based on whether
+  // the implementor of this View has explicitly requested it.
+  void MaybeSelectFirstRowWhenFocused();
 
   // Sets the selection to the specified index (in terms of the view).
   void SelectByViewIndex(std::optional<size_t> view_index);
@@ -694,6 +701,12 @@ class VIEWS_EXPORT TableView : public View, public ui::TableModelObserver {
   // If |select_on_remove_| is false: when a selected item is removed, no item
   // is selected then.
   bool select_on_remove_ = true;
+
+  // If |select_on_focus_| is true: when the TableView itself gains focus,
+  // it will automatically select the first row.
+  // If |select_on_focus_| is false: when the TableView itself gains focus,
+  // the entire table itself will be focused.
+  bool select_on_focus_ = false;
 
   // TODO(327473315): Only one of raw_ptr in this class is dangling. Find which
   // one.

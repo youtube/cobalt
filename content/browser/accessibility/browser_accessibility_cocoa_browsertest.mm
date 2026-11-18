@@ -30,6 +30,7 @@
 #include "ui/accessibility/platform/ax_private_webkit_constants_mac.h"
 #include "ui/accessibility/platform/ax_utils_mac.h"
 #include "ui/accessibility/platform/browser_accessibility.h"
+#include "ui/accessibility/platform/browser_accessibility_cocoa_test_helpers.h"
 #include "ui/accessibility/platform/browser_accessibility_mac.h"
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/accessibility/platform/browser_accessibility_manager_mac.h"
@@ -1299,6 +1300,68 @@ IN_PROC_BROWSER_TEST_F(BrowserAccessibilityCocoaAriaActionsBrowserTest,
   ASSERT_NE(nil, actions);
   ASSERT_EQ(1u, actions.count);
   EXPECT_NSEQ(@"Close", actions[0].name);
+}
+
+// Verifies the runtime surface-isolation contract on the
+// AXCustomActionNamesForTesting test attribute: when the runtime opt-in
+// has not been called, a same-process direct query via
+// -accessibilityAttributeValue: must NOT return projected custom-action
+// names. See kAXCustomActionNamesForTestingAttribute in
+// browser_accessibility_cocoa.mm for the contract.
+//
+// This fixture intentionally does not call
+// ui::EnableAXCustomActionNamesForTestingProjection(); the dump-test
+// base class is the only call site that does. Dump-test fixtures
+// elsewhere cover the opt-in-enabled path.
+IN_PROC_BROWSER_TEST_F(BrowserAccessibilityCocoaAriaActionsBrowserTest,
+                       CustomActionNamesForTestingNotExposedWithoutOptIn) {
+  ASSERT_FALSE(ui::IsAXCustomActionNamesForTestingProjectionEnabled())
+      << "Test invariant: the runtime opt-in must not be set for this "
+         "fixture. Did a previous test in the same process enable it?";
+
+  AccessibilityNotificationWaiter waiter(shell()->web_contents(),
+                                         ax::mojom::Event::kLoadComplete);
+  ASSERT_TRUE(NavigateToURL(shell(), GURL(R"HTML(data:text/html,
+      <div role="tab" id="my-tab" aria-actions="edit open delete">
+        your-file-name.pdf
+        <button id="edit">Edit</button>
+        <button id="open">Open</button>
+        <button id="delete">Delete</button>
+      </div>)HTML")));
+  ASSERT_TRUE(waiter.WaitForNotification());
+
+  ui::BrowserAccessibility* tab = FindNode(ax::mojom::Role::kTab);
+  ASSERT_NE(nullptr, tab);
+  BrowserAccessibilityCocoa* cocoa_tab =
+      base::apple::ObjCCastStrict<BrowserAccessibilityCocoa>(
+          tab->GetNativeViewAccessible().Get());
+
+  // Sanity check: the underlying production accessor still works, so any
+  // difference observed below is attributable to the runtime opt-in
+  // contract rather than a stale tree.
+  ASSERT_NE(nil, [cocoa_tab accessibilityCustomActions]);
+
+  // Intentionally exercises the deprecated legacy NSAccessibility
+  // attribute-by-string interface because that is exactly the surface
+  // we are claiming is gated, and same-process callers (including
+  // misbehaving production code) could still reach it.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  // The test attribute must not be advertised to enumeration.
+  NSArray* attribute_names = [cocoa_tab accessibilityAttributeNames];
+  EXPECT_FALSE(
+      [attribute_names containsObject:@"AXCustomActionNamesForTesting"])
+      << "AXCustomActionNamesForTesting must not be enumerated when the "
+         "runtime opt-in is not set.";
+
+  // The selector itself must short-circuit to nil when the runtime opt-in
+  // is not set, so direct same-process queries by string also see nothing.
+  id value =
+      [cocoa_tab accessibilityAttributeValue:@"AXCustomActionNamesForTesting"];
+  EXPECT_EQ(nil, value)
+      << "Direct -accessibilityAttributeValue: query for the test "
+         "attribute must return nil when the runtime opt-in is not set.";
+#pragma clang diagnostic pop
 }
 
 }  // namespace content

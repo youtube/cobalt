@@ -23,7 +23,6 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/rtc_error.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
@@ -32,7 +31,6 @@
 #include "p2p/base/port.h"
 #include "p2p/base/port_interface.h"
 #include "p2p/base/transport_description.h"
-#include "p2p/client/relay_port_factory_interface.h"
 #include "p2p/test/test_port.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/network.h"
@@ -127,14 +125,12 @@ class ConnectionTest : public ::testing::Test {
     return &networks_.back();
   }
 
-  std::unique_ptr<TestPort> CreateTestPort(
-      const SocketAddress& addr,
-      absl::string_view username,
-      absl::string_view password,
-      uint64_t tiebreaker,
-      const FieldTrialsView* field_trials = nullptr) {
+  std::unique_ptr<TestPort> CreateTestPort(const SocketAddress& addr,
+                                           absl::string_view username,
+                                           absl::string_view password,
+                                           uint64_t tiebreaker) {
     Port::PortParametersRef args = {
-        .env = CreateEnvironment(field_trials),
+        .env = env_,
         .network_thread = time_controller_.GetMainThread(),
         .socket_factory = &socket_factory_,
         .network = MakeNetwork(addr),
@@ -150,7 +146,7 @@ class ConnectionTest : public ::testing::Test {
   const Environment& env() const { return env_; }
 
   GlobalSimulatedTimeController time_controller_{Timestamp::Zero()};
-  const Environment env_ = CreateTestEnvironment();
+  const Environment env_ = CreateTestEnvironment({.time = &time_controller_});
   int num_state_changes_ = 0;
   std::unique_ptr<VirtualSocketServer> ss_;
   BasicPacketSocketFactory socket_factory_;

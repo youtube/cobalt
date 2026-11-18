@@ -5,45 +5,12 @@
 module toolbar_ui_api.mojom;
 
 import "components/browser_apis/browser_controls/browser_controls_api_data_model.mojom";
+import "components/browser_apis/ui_controllers/toolbar/extensions_bar_data_model.mojom";
+import "components/browser_apis/ui_controllers/toolbar/icon_handle.mojom";
 import "components/content_settings/core/common/content_settings_types.mojom";
 import "mojo/public/mojom/base/string16.mojom";
 import "mojo/public/mojom/base/time.mojom";
-import "skia/public/mojom/skcolor.mojom";
 import "ui/gfx/range/mojom/range.mojom";
-
-// A reference to a separately uploaded icon. See IconHandle in icon_handle.h
-// and webui_toolbar::IconTable.
-// Note that this can only be sent C++ -> JS; if you try to sent it towards
-// C++ you'll just end up with a null IconHandle, since the traits don't know
-// what IconTable (or other implementation!) is supposed to be interpreting the
-// number.
-struct IconHandle {
-  uint64 handle_id;
-};
-
-enum IconType {
-  kIconSet,
-  kMaskUrl,
-  kFullColorUrl,
-};
-
-// Used to update binding of an IconHandle.
-struct IconUpdate {
-  uint64 handle_id;
-  // If this is null, the icon is deleted.
-  // Otherwise, the semantics depend on icon_type:
-  // kIconSet: `icon_url_or_name` is the name of an icon provided by a
-  //           <cr-iconset>
-  // kMaskUrl: `icon_url_or_name` is a URL to a monochrome mask image,
-  //           which should be painted with current pen (for now).
-  // kFullColorUrl: `icon_url_or_name` is a URL to a multi-color image,
-  //                that's not controlled by pen colors.
-  string? icon_url_or_name;
-  IconType icon_type;
-
-  // Color to apply to vector icons.
-  skia.mojom.SkColor? color;
-};
 
 // The context menu types that can be opened with ToolbarUIService's
 // ShowContextMenu.
@@ -56,6 +23,7 @@ enum ContextMenuType {
   kBack,
   kForward,
   kHome,
+  kBatterySaver,
 
   // Pinned toolbar action buttons
   kPinnedActionNewIncognitoWindow,
@@ -234,7 +202,26 @@ struct AppMenuControlState {
   int32 trailing_margin;
 };
 
+enum AvatarToolbarButtonState {
+  kGuestSession,
+  kIncognitoProfile,
+  kExplicitTextShowing,
+  kOnSignin,
+  kShowIdentityName,
+  kSigninPending,
+  kSyncPaused,
+  kUpgradeClientError,
+  kPassphraseError,
+  kBookmarksLimitExceeded,
+  kSyncError,
+  kPasskeysLockedError,
+  kPromo,
+  kManagement,
+  kNormal,
+};
+
 struct AvatarControlState {
+  AvatarToolbarButtonState state;
   string icon_url;
   mojo_base.mojom.String16 text;
   mojo_base.mojom.String16 tooltip;
@@ -573,13 +560,19 @@ struct NavigationControlsState {
   HomeControlState home_control_state;
   AppMenuControlState app_menu_control_state;
   AvatarControlState avatar_control_state;
+  bool battery_saver_button_visible;
   LocationBarState location_bar_state;
+  // State of extensions.
+  array<extensions_bar.mojom.ExtensionActionInfo> extensions_state;
   // List of pinned toolbar action button states. Order corresponds to order
   // of the drawn buttons and duplicates imply duplicate buttons.
   array<PinnedToolbarActionState> pinned_toolbar_actions_state;
   // This is incremented every time a settings change may change the layout
   // constants.
   int32 layout_constants_version = 0;
+
+  // This is true if we're in touch mode.
+  bool touch_ui = false;
 };
 
 enum FocusRequestTarget {
@@ -594,4 +587,3 @@ enum FocusRequestTarget {
   // Focus the location bar and activate the default search provider keyword.
   kSearch,
 };
-

@@ -27,7 +27,8 @@ class RootTabCollectionNode : public TabCollectionNode,
   explicit RootTabCollectionNode(
       TabStripModel* tab_strip_model,
       CustomAddChildViewCallback add_node_view_to_parent,
-      CustomRemoveChildViewCallback remove_node_view_from_parent);
+      CustomRemoveChildViewCallback remove_node_view_from_parent,
+      TabStripOrientation orientation);
   ~RootTabCollectionNode() override;
 
   void Init();

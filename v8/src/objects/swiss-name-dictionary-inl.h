@@ -12,9 +12,11 @@
 
 #include "src/base/logging.h"
 #include "src/heap/heap.h"
-#include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
+#include "src/objects/hole.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
 
@@ -22,8 +24,6 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
-
-#include "torque-generated/src/objects/swiss-name-dictionary-tq-inl.inc"
 
 swiss_table::ctrl_t* SwissNameDictionary::CtrlTable() {
   return reinterpret_cast<ctrl_t*>(
@@ -729,9 +729,6 @@ bool SwissNameDictionary::IsEmptyOrDeleted(ctrl_t c) {
 // static
 swiss_table::ProbeSequence<SwissNameDictionary::kGroupWidth>
 SwissNameDictionary::probe(uint32_t hash, int capacity) {
-  if constexpr (V8_LOWER_LIMITS_MODE_BOOL) {
-    hash &= 0xf;
-  }
   // If |capacity| is 0, we must produce 1 here, such that the - 1 below
   // yields 0, which is the correct modulo mask for a table of capacity 0.
   int non_zero_capacity = capacity | (capacity == 0);

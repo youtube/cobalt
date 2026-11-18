@@ -264,7 +264,7 @@ class ProfileReportGeneratorIOSTest
     const base::FilePath path = profile_->GetStatePath();
     base::test::TestFuture<std::unique_ptr<em::ChromeUserProfileInfo>>
         test_future;
-    generator_.MaybeGenerate(path, ReportType::kFull,
+    generator_.MaybeGenerate(path, ReportType::kBrowser,
                              SecuritySignalsMode::kSignalsAttached,
                              test_future.GetCallback());
     auto report = test_future.Take();

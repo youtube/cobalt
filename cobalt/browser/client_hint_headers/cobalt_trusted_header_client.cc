@@ -26,6 +26,7 @@ namespace browser {
 CobaltTrustedHeaderClient::CobaltTrustedHeaderClient() = default;
 
 void CobaltTrustedHeaderClient::OnBeforeSendHeaders(
+    const GURL& url,
     const ::net::HttpRequestHeaders& headers,
     OnBeforeSendHeadersCallback callback) {
   ::net::HttpRequestHeaders mutable_headers(headers);

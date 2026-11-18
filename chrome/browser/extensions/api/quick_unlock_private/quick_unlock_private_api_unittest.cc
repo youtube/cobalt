@@ -884,7 +884,7 @@ TEST_P(QuickUnlockPrivateUnitTest, GetCredentialRequirements) {
   CheckGetCredentialRequirements(6, 8);
 
   // Verify that by setting a maximum length to be nonzero and smaller than the
-  // minimum length, the resulting maxium length will be equal to the minimum
+  // minimum length, the resulting maximum length will be equal to the minimum
   // length pref.
   pref_service->SetInteger(ash::prefs::kPinUnlockMaximumLength, 4);
   CheckGetCredentialRequirements(6, 6);

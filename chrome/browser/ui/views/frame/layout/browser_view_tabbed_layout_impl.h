@@ -39,6 +39,8 @@ class BrowserViewTabbedLayoutImpl : public BrowserViewLayoutImpl {
   gfx::Rect CalculateTopContainerLayout(ProposedLayout& layout,
                                         BrowserLayoutParams params,
                                         bool needs_exclusion) const override;
+  void OnLayoutParamsChanged(const BrowserLayoutParams& old_params,
+                             const BrowserLayoutParams& new_params) override;
   void ConfigureTopContainerBackground(
       const BrowserLayoutParams& params,
       CustomCornersBackground* background) override;

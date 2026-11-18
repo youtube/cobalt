@@ -1073,9 +1073,9 @@ void IdpNetworkRequestManager::FetchWellKnown(const GURL& provider,
     return;
   }
 
-  // If FedCmWebIdentitySubdomain is enabled, try the "web-identity." subdomain
-  // first and fall back to the apex URL if the fetch fails, returns a malformed
-  // response, or yields more than one provider_urls entry.
+  // If FedCmWebIdentitySubdomain is enabled, try the "web-identity.well-known."
+  // subdomain first and fall back to the apex URL if the fetch fails, returns
+  // a malformed response, or yields more than one provider_urls entry.
   if (webid::IsWebIdentitySubdomainEnabled()) {
     std::optional<GURL> subdomain_well_known_url =
         ComputeWebIdentitySubdomainWellKnownUrl(provider, kWellKnownPath);

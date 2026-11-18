@@ -1140,7 +1140,7 @@ TEST_F(ElementTrackerViewsTest, MinimizeMaximizeWhileHiddenDoesNotSendEvents) {
 
 TEST_F(ElementTrackerViewsTest, MinimizeMaximizeWhileShownDoesNotSendEvents) {
 #if BUILDFLAG(IS_MAC)
-  if (base::mac::MacOSMajorVersion() <= 13) {
+  if (base::mac::MacOSMajorVersion() == 13) {
     GTEST_SKIP()
         << "Flaky on MacOS 13 builders; see https://crbug.com/507411988";
   }
@@ -1188,7 +1188,7 @@ TEST_F(ElementTrackerViewsTest, MinimizeHideMaximizeSendsHideEvent) {
 
 TEST_F(ElementTrackerViewsTest, MinimizeShowMaximizeSendsShowEvent) {
 #if BUILDFLAG(IS_MAC)
-  if (base::mac::MacOSMajorVersion() <= 13) {
+  if (base::mac::MacOSMajorVersion() == 13) {
     GTEST_SKIP()
         << "Flaky on MacOS 13 builders; see https://crbug.com/507411988";
   }

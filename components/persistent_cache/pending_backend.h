@@ -52,6 +52,8 @@ struct COMPONENT_EXPORT(PERSISTENT_CACHE) PendingBackend {
                            VersionMismatchLeadsToFailedInitializeWhenReadOnly);
   FRIEND_TEST_ALL_PREFIXES(SQLiteBackendImplTest,
                            VersionMismatchDropsTablesWithReadWriteConnection);
+  FRIEND_TEST_ALL_PREFIXES(SQLiteBackendImplTest,
+                           BindFailsWhenDatabaseFileIsInvalid);
 
   explicit PendingBackend(sqlite_vfs::PendingFileSet pending_file_set);
 

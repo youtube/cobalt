@@ -70,11 +70,17 @@ class DeclarativePerformanceObserverTest : public RenderViewHostTestHarness {
  protected:
   void SetUp() override {
     RenderViewHostTestHarness::SetUp();
-    DeclarativePerformanceObserver::CreateForWebContents(web_contents());
     storage_partition_.set_network_context(&network_context_);
+  }
 
-    DeclarativePerformanceObserver::FromWebContents(web_contents())
-        ->SetStoragePartitionForTesting(&storage_partition_);
+  void CreateObserver(NavigationHandle* navigation_handle) {
+    DeclarativePerformanceObserver::CreateForCurrentDocument(main_rfh(),
+                                                             navigation_handle);
+    auto* observer =
+        DeclarativePerformanceObserver::GetForCurrentDocument(main_rfh());
+    if (observer) {
+      observer->SetStoragePartitionForTesting(&storage_partition_);
+    }
   }
 
   content::TestStoragePartition storage_partition_;
@@ -98,12 +104,10 @@ TEST_F(DeclarativePerformanceObserverTest, RecordsVisibilityStateOnCommit) {
   ON_CALL(navigation_handle, GetDeclarativePerformanceObserverPolicy())
       .WillByDefault(testing::Return(policy.get()));
 
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->DidFinishNavigation(&navigation_handle);
+  CreateObserver(&navigation_handle);
 
   // Trigger unload to flush metrics
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->RenderFrameDeleted(main_rfh());
+  DeclarativePerformanceObserver::DeleteForCurrentDocument(main_rfh());
 
   ASSERT_EQ(network_context_.reports().size(), 1u);
   const auto& report = network_context_.reports()[0];
@@ -160,18 +164,16 @@ TEST_F(DeclarativePerformanceObserverTest, ObservesVisibilityFlips) {
   ON_CALL(navigation_handle, GetDeclarativePerformanceObserverPolicy())
       .WillByDefault(testing::Return(policy.get()));
 
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->DidFinishNavigation(&navigation_handle);
+  CreateObserver(&navigation_handle);
+  auto* observer =
+      DeclarativePerformanceObserver::GetForCurrentDocument(main_rfh());
+  ASSERT_TRUE(observer);
 
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->OnVisibilityChanged(Visibility::HIDDEN);
-
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->OnVisibilityChanged(Visibility::VISIBLE);
+  observer->OnVisibilityChanged(Visibility::HIDDEN);
+  observer->OnVisibilityChanged(Visibility::VISIBLE);
 
   // Trigger unload to flush metrics
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->RenderFrameDeleted(main_rfh());
+  DeclarativePerformanceObserver::DeleteForCurrentDocument(main_rfh());
 
   ASSERT_EQ(network_context_.reports().size(), 2u);
 
@@ -246,12 +248,10 @@ TEST_F(DeclarativePerformanceObserverTest, RecordsNavigationTiming) {
   ON_CALL(navigation_handle, GetDeclarativePerformanceObserverPolicy())
       .WillByDefault(testing::Return(policy.get()));
 
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->DidFinishNavigation(&navigation_handle);
+  CreateObserver(&navigation_handle);
 
   // Trigger unload to flush metrics
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->RenderFrameDeleted(main_rfh());
+  DeclarativePerformanceObserver::DeleteForCurrentDocument(main_rfh());
 
   ASSERT_EQ(network_context_.reports().size(), 1u);
   const auto& report = network_context_.reports()[0];
@@ -343,14 +343,13 @@ TEST_F(DeclarativePerformanceObserverTest, RecordsBFCacheLifecycle) {
       .WillByDefault(testing::Return(policy.get()));
 
   // 1. Commit initial page
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->DidFinishNavigation(&navigation_handle);
+  CreateObserver(&navigation_handle);
+  auto* observer =
+      DeclarativePerformanceObserver::GetForCurrentDocument(main_rfh());
+  ASSERT_TRUE(observer);
 
   // 2. Enter BackForwardCache
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->RenderFrameHostStateChanged(
-          main_rfh(), RenderFrameHost::LifecycleState::kActive,
-          RenderFrameHost::LifecycleState::kInBackForwardCache);
+  observer->OnEnterBFCache();
 
   // Buffer should be flushed on entering BFCache
   ASSERT_EQ(network_context_.reports().size(), 1u);
@@ -383,12 +382,10 @@ TEST_F(DeclarativePerformanceObserverTest, RecordsBFCacheLifecycle) {
   restore_handle.set_is_error_page(false);
   restore_handle.set_is_served_from_bfcache(true);
 
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->DidFinishNavigation(&restore_handle);
+  observer->OnDidFinishNavigation(&restore_handle);
 
   // Trigger unload to flush metrics for the RESTORED session
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->RenderFrameDeleted(main_rfh());
+  DeclarativePerformanceObserver::DeleteForCurrentDocument(main_rfh());
 
   ASSERT_EQ(network_context_.reports().size(), 1u);
   const auto& report2 = network_context_.reports()[0];
@@ -434,8 +431,7 @@ TEST_F(DeclarativePerformanceObserverTest, RecordsPerformanceMarks) {
   ON_CALL(navigation_handle, GetDeclarativePerformanceObserverPolicy())
       .WillByDefault(testing::Return(policy.get()));
 
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->DidFinishNavigation(&navigation_handle);
+  CreateObserver(&navigation_handle);
 
   // Bind Mojo remote
   mojo::Remote<blink::mojom::DeclarativePerformanceObserverHost>
@@ -459,8 +455,7 @@ TEST_F(DeclarativePerformanceObserverTest, RecordsPerformanceMarks) {
   observer_remote.FlushForTesting();
 
   // Trigger unload to flush metrics
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->RenderFrameDeleted(main_rfh());
+  DeclarativePerformanceObserver::DeleteForCurrentDocument(main_rfh());
 
   ASSERT_EQ(network_context_.reports().size(), 1u);
   const auto& report = network_context_.reports()[0];
@@ -503,8 +498,7 @@ TEST_F(DeclarativePerformanceObserverTest,
   ON_CALL(navigation_handle, GetDeclarativePerformanceObserverPolicy())
       .WillByDefault(testing::Return(policy.get()));
 
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->DidFinishNavigation(&navigation_handle);
+  CreateObserver(&navigation_handle);
 
   // Bind Mojo remote
   mojo::Remote<blink::mojom::DeclarativePerformanceObserverHost>
@@ -531,8 +525,7 @@ TEST_F(DeclarativePerformanceObserverTest,
   observer_remote.FlushForTesting();
 
   // Trigger unload to flush metrics
-  DeclarativePerformanceObserver::FromWebContents(web_contents())
-      ->RenderFrameDeleted(main_rfh());
+  DeclarativePerformanceObserver::DeleteForCurrentDocument(main_rfh());
 
   ASSERT_EQ(network_context_.reports().size(), 1u);
   const auto& report = network_context_.reports()[0];
@@ -550,6 +543,64 @@ TEST_F(DeclarativePerformanceObserverTest,
   EXPECT_EQ(*(mark_entry->FindString("entryType")), "mark");
   EXPECT_EQ(*(mark_entry->FindString("name")), "allowed_mark");
   EXPECT_EQ(*(mark_entry->FindDouble("startTime")), 100.0);
+}
+
+TEST_F(DeclarativePerformanceObserverTest, RecordsPrerenderActivation) {
+  const GURL kPageURL("https://example.com/prerender.html");
+  const std::string kEndpoint("telemetry");
+
+  auto policy = network::mojom::DeclarativePerformanceObserverPolicy::New();
+  policy->reporting_endpoint = kEndpoint;
+  policy->entry_types.push_back(
+      network::mojom::PerformanceEntryType::kNavigation);
+
+  MockNavigationHandle initial_navigation_handle(kPageURL, main_rfh());
+  initial_navigation_handle.set_has_committed(true);
+  ON_CALL(initial_navigation_handle, GetDeclarativePerformanceObserverPolicy())
+      .WillByDefault(testing::Return(policy.get()));
+
+  base::TimeTicks nav_start = base::TimeTicks::Now();
+  ON_CALL(initial_navigation_handle, NavigationStart())
+      .WillByDefault(testing::Return(nav_start));
+
+  NavigationHandleTiming timing;
+  ON_CALL(initial_navigation_handle, GetNavigationHandleTiming())
+      .WillByDefault(testing::ReturnRef(timing));
+
+  CreateObserver(&initial_navigation_handle);
+
+  // Simulate prerender activation
+  MockNavigationHandle activation_navigation_handle(kPageURL, main_rfh());
+  activation_navigation_handle.set_has_committed(true);
+  activation_navigation_handle.set_is_prerendered_page_activation(true);
+
+  base::TimeTicks activation_start = nav_start + base::Milliseconds(123);
+  ON_CALL(activation_navigation_handle, NavigationStart())
+      .WillByDefault(testing::Return(activation_start));
+
+  auto* observer =
+      DeclarativePerformanceObserver::GetForCurrentDocument(main_rfh());
+  ASSERT_TRUE(observer);
+  observer->OnPrerenderActivation(&activation_navigation_handle);
+
+  // Trigger flush
+  DeclarativePerformanceObserver::DeleteForCurrentDocument(main_rfh());
+
+  ASSERT_EQ(network_context_.reports().size(), 1u);
+  const auto& report = network_context_.reports()[0];
+  EXPECT_EQ(report.type, "performance-observer");
+  EXPECT_EQ(report.group, kEndpoint);
+
+  const base::ListValue* report_entries = report.body.FindList("entries");
+  ASSERT_TRUE(report_entries);
+  ASSERT_EQ(report_entries->size(), 2u);  // navigation, session-end
+
+  const base::Value& nav_val = (*report_entries)[0];
+  const base::DictValue* nav_entry = nav_val.GetIfDict();
+  ASSERT_TRUE(nav_entry);
+  EXPECT_EQ(*(nav_entry->FindString("entryType")), "navigation");
+  EXPECT_EQ(*(nav_entry->FindString("deliveryType")), "navigational-prefetch");
+  EXPECT_EQ(*(nav_entry->FindDouble("activationStart")), 123.0);
 }
 
 }  // namespace

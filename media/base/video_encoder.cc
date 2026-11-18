@@ -100,13 +100,13 @@ uint8_t QIndexToQuantizer(VideoCodec codec, uint8_t q_index) {
 
 uint8_t QuantizerToQIndex(VideoCodec codec, uint8_t quantizer) {
   if (codec == VideoCodec::kAV1 || codec == VideoCodec::kVP9) {
-    uint8_t q_index = quantizer * 4;
-    if (q_index == 248) {
-      q_index = 249;
-    } else if (q_index == 252) {
-      q_index = 255;
+    if (quantizer == 62) {
+      return 249;
     }
-    return q_index;
+    if (quantizer == 63) {
+      return 255;
+    }
+    return quantizer * 4;
   }
   return quantizer;
 }

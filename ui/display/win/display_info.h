@@ -22,6 +22,7 @@ class DISPLAY_EXPORT DisplayInfo final {
   DisplayInfo(std::optional<HMONITOR> hmonitor,
               const MONITORINFOEX& monitor_info,
               float device_scale_factor,
+              float text_scale_multiplier,
               int color_depth,
               float sdr_white_level,
               Display::Rotation rotation,
@@ -35,6 +36,7 @@ class DISPLAY_EXPORT DisplayInfo final {
   DisplayInfo(int64_t id,
               const MONITORINFOEX& monitor_info,
               float device_scale_factor,
+              float text_scale_multiplier,
               int color_depth,
               float sdr_white_level,
               Display::Rotation rotation,
@@ -53,6 +55,7 @@ class DISPLAY_EXPORT DisplayInfo final {
   const gfx::Rect& screen_rect() const { return screen_rect_; }
   const gfx::Rect& screen_work_rect() const { return screen_work_rect_; }
   float device_scale_factor() const { return device_scale_factor_; }
+  float text_scale_multiplier() const { return text_scale_multiplier_; }
   int color_depth() const { return color_depth_; }
   float sdr_white_level() const { return sdr_white_level_; }
   Display::Rotation rotation() const { return rotation_; }
@@ -77,6 +80,7 @@ class DISPLAY_EXPORT DisplayInfo final {
   // Used to derive display::Display work areas, and for window placement logic.
   gfx::Rect screen_work_rect_;
   float device_scale_factor_;
+  float text_scale_multiplier_;
   int color_depth_;
   float sdr_white_level_;
   Display::Rotation rotation_;

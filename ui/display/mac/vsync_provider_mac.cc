@@ -22,19 +22,21 @@ VSyncProviderMac::VSyncProviderMac()
 VSyncProviderMac::~VSyncProviderMac() = default;
 
 bool VSyncProviderMac::IsDisplayLinkInBrowserValid(int64_t vsync_display_id) {
-  // Early exit when the weak pointer to the callback
-  // ExternalBeginFrameSourceMojoMac::NeedsBeginFrameWithId() is invalid.
-  if (!needs_begin_frame_callback_) {
-    return false;
-  }
-
   CGDirectDisplayID display_id =
       base::checked_cast<CGDirectDisplayID>(vsync_display_id);
 
-  // |callback_lists_| is updated on Viz thread. A lock is needed when this
-  // function is called on CrGpuMain or CompositorGpuThread (DrDC).
-  base::AutoLock lock(id_lock_);
-  return callback_lists_.find(display_id) != callback_lists_.end();
+  if (!task_runner_->BelongsToCurrentThread()) {
+    // |callback_lists_| and |needs_begin_frame_callback_| are updated on the
+    // Viz sequence. When this function is called on a non-Viz thread (CrGpuMain
+    // or CompositorGpuThread), we must acquire `id_lock_` to prevent data races
+    // and ensure memory visibility.
+    base::AutoLock lock(id_lock_);
+    return (needs_begin_frame_callback_ &&
+            (callback_lists_.find(display_id) != callback_lists_.end()));
+  } else {
+    return (needs_begin_frame_callback_ &&
+            (callback_lists_.find(display_id) != callback_lists_.end()));
+  }
 }
 
 void VSyncProviderMac::SetSupportedDisplayLinkId(int64_t vsync_display_id,
@@ -78,10 +80,10 @@ void VSyncProviderMac::RemoveSupportedDisplayLinkId(
 void VSyncProviderMac::RegisterCallback(VSyncCallbackMac::Callback callback,
                                         CGDirectDisplayID display_id) {
   if (!task_runner_->BelongsToCurrentThread()) {
-    task_runner_->PostTask(FROM_HERE,
-                           base::BindOnce(&VSyncProviderMac::RegisterCallback,
-                                          weak_factory_.GetWeakPtr(),
-                                          std::move(callback), display_id));
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&VSyncProviderMac::RegisterCallback,
+                                  base::Unretained(this), std::move(callback),
+                                  display_id));
     return;
   }
 
@@ -105,10 +107,10 @@ void VSyncProviderMac::RegisterCallback(VSyncCallbackMac::Callback callback,
 void VSyncProviderMac::UnregisterCallback(VSyncCallbackMac::Callback callback,
                                           CGDirectDisplayID display_id) {
   if (!task_runner_->BelongsToCurrentThread()) {
-    task_runner_->PostTask(FROM_HERE,
-                           base::BindOnce(&VSyncProviderMac::UnregisterCallback,
-                                          weak_factory_.GetWeakPtr(),
-                                          std::move(callback), display_id));
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&VSyncProviderMac::UnregisterCallback,
+                                  base::Unretained(this), std::move(callback),
+                                  display_id));
     return;
   }
 
@@ -155,6 +157,11 @@ void VSyncProviderMac::OnVSync(const VSyncParamsMac& params,
 void VSyncProviderMac::SetCallbackForRemoteNeedsBeginFrame(
     NeedsBeginFrameCB callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(vsync_sequence_checker_);
+
+  // |needs_begin_frame_callback_| is read from non-Viz threads in
+  // IsDisplayLinkInBrowserValid(), so writing to it must be protected
+  // by `id_lock_` to prevent data races.
+  base::AutoLock lock(id_lock_);
   needs_begin_frame_callback_ = std::move(callback);
 }
 

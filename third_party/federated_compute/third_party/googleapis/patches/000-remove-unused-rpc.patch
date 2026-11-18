@@ -1,0 +1,132 @@
+diff --git a/google/longrunning/operations.proto b/google/longrunning/operations.proto
+index 63df207d258db..84e758d5a9209 100644
+--- a/google/longrunning/operations.proto
++++ b/google/longrunning/operations.proto
+@@ -16,13 +16,9 @@ syntax = "proto3";
+ 
+ package google.longrunning;
+ 
+-import "google/api/annotations.proto";
+-import "google/api/client.proto";
+-import "google/api/field_behavior.proto";
+ import "google/protobuf/any.proto";
+ import "google/protobuf/descriptor.proto";
+ import "google/protobuf/duration.proto";
+-import "google/protobuf/empty.proto";
+ import "google/rpc/status.proto";
+ 
+ option csharp_namespace = "Google.LongRunning";
+@@ -33,89 +29,6 @@ option java_package = "com.google.longrunning";
+ option objc_class_prefix = "GLRUN";
+ option php_namespace = "Google\\LongRunning";
+ 
+-extend google.protobuf.MethodOptions {
+-  // Additional information regarding long-running operations.
+-  // In particular, this specifies the types that are returned from
+-  // long-running operations.
+-  //
+-  // Required for methods that return `google.longrunning.Operation`; invalid
+-  // otherwise.
+-  google.longrunning.OperationInfo operation_info = 1049;
+-}
+-
+-// Manages long-running operations with an API service.
+-//
+-// When an API method normally takes long time to complete, it can be designed
+-// to return [Operation][google.longrunning.Operation] to the client, and the
+-// client can use this interface to receive the real response asynchronously by
+-// polling the operation resource, or pass the operation resource to another API
+-// (such as Pub/Sub API) to receive the response.  Any API service that returns
+-// long-running operations should implement the `Operations` interface so
+-// developers can have a consistent client experience.
+-service Operations {
+-  option (google.api.default_host) = "longrunning.googleapis.com";
+-
+-  // Lists operations that match the specified filter in the request. If the
+-  // server doesn't support this method, it returns `UNIMPLEMENTED`.
+-  rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse) {
+-    option (google.api.http) = {
+-      get: "/v1/{name=operations}"
+-    };
+-    option (google.api.method_signature) = "name,filter";
+-  }
+-
+-  // Gets the latest state of a long-running operation.  Clients can use this
+-  // method to poll the operation result at intervals as recommended by the API
+-  // service.
+-  rpc GetOperation(GetOperationRequest) returns (Operation) {
+-    option (google.api.http) = {
+-      get: "/v1/{name=operations/**}"
+-    };
+-    option (google.api.method_signature) = "name";
+-  }
+-
+-  // Deletes a long-running operation. This method indicates that the client is
+-  // no longer interested in the operation result. It does not cancel the
+-  // operation. If the server doesn't support this method, it returns
+-  // `google.rpc.Code.UNIMPLEMENTED`.
+-  rpc DeleteOperation(DeleteOperationRequest) returns (google.protobuf.Empty) {
+-    option (google.api.http) = {
+-      delete: "/v1/{name=operations/**}"
+-    };
+-    option (google.api.method_signature) = "name";
+-  }
+-
+-  // Starts asynchronous cancellation on a long-running operation.  The server
+-  // makes a best effort to cancel the operation, but success is not
+-  // guaranteed.  If the server doesn't support this method, it returns
+-  // `google.rpc.Code.UNIMPLEMENTED`.  Clients can use
+-  // [Operations.GetOperation][google.longrunning.Operations.GetOperation] or
+-  // other methods to check whether the cancellation succeeded or whether the
+-  // operation completed despite cancellation. On successful cancellation,
+-  // the operation is not deleted; instead, it becomes an operation with
+-  // an [Operation.error][google.longrunning.Operation.error] value with a
+-  // [google.rpc.Status.code][google.rpc.Status.code] of `1`, corresponding to
+-  // `Code.CANCELLED`.
+-  rpc CancelOperation(CancelOperationRequest) returns (google.protobuf.Empty) {
+-    option (google.api.http) = {
+-      post: "/v1/{name=operations/**}:cancel"
+-      body: "*"
+-    };
+-    option (google.api.method_signature) = "name";
+-  }
+-
+-  // Waits until the specified long-running operation is done or reaches at most
+-  // a specified timeout, returning the latest state.  If the operation is
+-  // already done, the latest state is immediately returned.  If the timeout
+-  // specified is greater than the default HTTP/RPC timeout, the HTTP/RPC
+-  // timeout is used.  If the server does not support this method, it returns
+-  // `google.rpc.Code.UNIMPLEMENTED`.
+-  // Note that this method is on a best-effort basis.  It may return the latest
+-  // state before the specified timeout (including immediately), meaning even an
+-  // immediate response is no guarantee that the operation is done.
+-  rpc WaitOperation(WaitOperationRequest) returns (Operation) {}
+-}
+-
+ // This resource represents a long-running operation that is the result of a
+ // network API call.
+ message Operation {
+@@ -190,23 +103,6 @@ message ListOperationsRequest {
+   bool return_partial_success = 5;
+ }
+ 
+-// The response message for
+-// [Operations.ListOperations][google.longrunning.Operations.ListOperations].
+-message ListOperationsResponse {
+-  // A list of operations that matches the specified filter in the request.
+-  repeated Operation operations = 1;
+-
+-  // The standard List next-page token.
+-  string next_page_token = 2;
+-
+-  // Unordered list. Unreachable resources. Populated when the request sets
+-  // `ListOperationsRequest.return_partial_success` and reads across
+-  // collections e.g. when attempting to list all resources across all supported
+-  // locations.
+-  repeated string unreachable = 3
+-      [(google.api.field_behavior) = UNORDERED_LIST];
+-}
+-
+ // The request message for
+ // [Operations.CancelOperation][google.longrunning.Operations.CancelOperation].
+ message CancelOperationRequest {

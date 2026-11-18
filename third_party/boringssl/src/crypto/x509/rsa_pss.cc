@@ -35,7 +35,7 @@ using namespace bssl;
 static int rsa_pss_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
                       void *exarg) {
   if (operation == ASN1_OP_FREE_PRE) {
-    RSA_PSS_PARAMS *pss = (RSA_PSS_PARAMS *)*pval;
+    RSA_PSS_PARAMS *pss = asn1_load_ptr_as<RSA_PSS_PARAMS>(pval);
     X509_ALGOR_free(pss->maskHash);
   }
   return 1;

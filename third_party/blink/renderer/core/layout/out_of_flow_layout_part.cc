@@ -68,8 +68,6 @@ bool CalculateNonOverflowingRangeInOneAxis(
     LayoutUnit margin_box_end,
     LayoutUnit imcb_inset_start,
     LayoutUnit imcb_inset_end,
-    LayoutUnit position_area_start,
-    LayoutUnit position_area_end,
     bool has_non_auto_inset_start,
     bool has_non_auto_inset_end,
     std::optional<LayoutUnit>* out_scroll_min,
@@ -286,15 +284,17 @@ class OOFCandidateStyleIterator {
     // anchor-center offsets may need to be updated since the layout of the
     // anchor may have changed. anchor-center offsets are computed when a
     // default anchor is present.
-    const StylePositionAnchor& position_anchor = style.PositionAnchor();
+    const DefaultAnchorData default_anchor_data = style.GetDefaultAnchorData();
     using Type = StylePositionAnchor::Type;
-    switch (position_anchor.GetType()) {
+    switch (default_anchor_data.GetType()) {
       case Type::kNone:
         return false;
       case Type::kAuto:
         return static_cast<bool>(element.ImplicitAnchorElement());
       case Type::kName:
         return true;
+      case Type::kNormal:
+        NOTREACHED();
     }
   }
 
@@ -391,9 +391,9 @@ const Element* GetPositionAnchorElement(const BlockNode& node,
     return nullptr;
   }
 
-  const StylePositionAnchor& position_anchor = style.PositionAnchor();
+  const DefaultAnchorData default_anchor_data = style.GetDefaultAnchorData();
   using Type = StylePositionAnchor::Type;
-  switch (position_anchor.GetType()) {
+  switch (default_anchor_data.GetType()) {
     case Type::kNone:
       return nullptr;
     case Type::kAuto:
@@ -416,13 +416,15 @@ const Element* GetPositionAnchorElement(const BlockNode& node,
       if (const PhysicalAnchorReference* reference =
               anchor_map->AnchorReference(
                   anchored_box, actual_containing_block,
-                  ToAnchorScopedName(position_anchor.GetName(),
+                  ToAnchorScopedName(default_anchor_data.GetName(),
                                      anchored_box))) {
         DCHECK(reference->GetLayoutObject());
         return &reference->GetElement();
       }
       return nullptr;
     }
+    case Type::kNormal:
+      NOTREACHED();
   }
 }
 
@@ -480,7 +482,17 @@ void UpdatePositionVisibilityAfterLayout(
   }
 }
 
-LogicalRect CalculateScrollRect(const BlockNode& node,
+LogicalBoxSides CalculateScrollDirection(
+    const BlockNode& node,
+    WritingDirectionMode writing_direction) {
+  const bool has_top_overflow = node.HasTopOverflow();
+  const bool has_left_overflow = node.HasLeftOverflow();
+  return PhysicalBoxSides(has_top_overflow, !has_left_overflow,
+                          !has_top_overflow, has_left_overflow)
+      .ToLogical(writing_direction);
+}
+
+LogicalRect CalculateScrollRect(LogicalBoxSides scroll_direction,
                                 const LogicalRect& container_rect,
                                 const BoxStrut& padding,
                                 const LogicalRect& inflow_bounds) {
@@ -488,14 +500,9 @@ LogicalRect CalculateScrollRect(const BlockNode& node,
   // scrollable container. We want to *expand* the default rectange - so take
   // the direction of the scrollable area, and try and expand it in that
   // direction if possible.
-  const bool has_top_overflow = node.HasTopOverflow();
-  const bool has_left_overflow = node.HasLeftOverflow();
-  PhysicalToLogical<bool> overflow(node.Style().GetWritingDirection(),
-                                   has_top_overflow, !has_left_overflow,
-                                   !has_top_overflow, has_left_overflow);
   LogicalRect rect = container_rect;
 
-  if (overflow.InlineStart()) {
+  if (scroll_direction.inline_start) {
     const LayoutUnit offset =
         inflow_bounds.InlineStartOffset() - padding.inline_start;
     rect.ShiftInlineStartEdgeTo(std::min(offset, rect.InlineStartOffset()));
@@ -505,7 +512,7 @@ LogicalRect CalculateScrollRect(const BlockNode& node,
     rect.ShiftInlineEndEdgeTo(std::max(offset, rect.InlineEndOffset()));
   }
 
-  if (overflow.BlockStart()) {
+  if (scroll_direction.block_start) {
     const LayoutUnit offset =
         inflow_bounds.BlockStartOffset() - padding.block_start;
     rect.ShiftBlockStartEdgeTo(std::min(offset, rect.BlockStartOffset()));
@@ -567,6 +574,9 @@ OutOfFlowLayoutPart::OutOfFlowLayoutPart(BoxFragmentBuilder* container_builder)
           : LogicalSize();
   const LogicalRect container_rect(border_scrollbar.StartOffset(),
                                    container_size);
+  const LogicalBoxSides scroll_direction =
+      is_scroll_container ? CalculateScrollDirection(node, writing_direction)
+                          : LogicalBoxSides(false);
 
   // Compute the scrollable containing-block. See:
   // https://drafts.csswg.org/css-position-4/#scrollable-containing-block
@@ -574,26 +584,31 @@ OutOfFlowLayoutPart::OutOfFlowLayoutPart(BoxFragmentBuilder* container_builder)
   const std::optional<LogicalRect>& inflow_bounds =
       container_builder->InflowBounds();
   if (is_scroll_container && has_block_size && inflow_bounds) {
-    scroll_rect =
-        CalculateScrollRect(node, container_rect, padding, *inflow_bounds);
+    scroll_rect = CalculateScrollRect(scroll_direction, container_rect, padding,
+                                      *inflow_bounds);
   }
 
   default_containing_block_ = {.writing_direction = writing_direction,
                                .is_scroll_container = is_scroll_container,
                                .is_hidden_for_paint = is_hidden_for_paint,
                                .rect = container_rect,
-                               .scroll_rect = scroll_rect};
+                               .scroll_rect = scroll_rect,
+                               .scroll_direction = scroll_direction};
 
   if (std::optional<LogicalSize> viewport_size =
           InitialContainingBlockFixedSize(node)) {
     // "position: fixed" at the viewport doesn't ever use the `scroll_rect`.
+    // Additionally we consider all directions to be unscrollable as the
+    // fixed-pos won't contribute to the scrollable overflow.
     viewport_containing_block_ = {
         .writing_direction = writing_direction,
         .is_scroll_container = is_scroll_container,
         .is_hidden_for_paint = is_hidden_for_paint,
         .rect = {container_rect.offset,
                  ShrinkLogicalSize(*viewport_size, border_scrollbar)},
-        .scroll_rect = std::nullopt};
+        .scroll_rect = std::nullopt,
+        .scroll_limit_rect = scroll_rect,
+        .scroll_direction = LogicalBoxSides(false)};
   }
 }
 
@@ -814,7 +829,8 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
 
     return {.writing_direction = style.GetWritingDirection(),
             .is_hidden_for_paint = is_hidden_for_paint,
-            .rect = rect};
+            .rect = rect,
+            .scroll_direction = default_containing_block_.scroll_direction};
   };
 
   if (const LayoutInline* container = candidate.InlineContainer()) {
@@ -873,6 +889,8 @@ OutOfFlowLayoutPart::GetContainingBlockInfo(
           containing_block_fragment->IsHiddenForPaint(),
           padding_box_rect,
           std::nullopt,
+          std::nullopt,
+          LogicalBoxSides(false),
           fragmentainer_descendant.containing_block.RelativeOffset()};
 
       return containing_blocks_map_
@@ -1150,7 +1168,10 @@ void OutOfFlowLayoutPart::AddInlineContainingBlockInfo(
                             /* is_scroll_container */ false,
                             block_info.value->is_hidden_for_paint,
                             LogicalRect(container_offset, inline_cb_size),
-                            std::nullopt, total_relative_offset});
+                            /* scroll_rect */ std::nullopt,
+                            /* scroll_limit_rect */ std::nullopt,
+                            /* scroll_direction */ LogicalBoxSides(false),
+                            total_relative_offset});
   }
 }
 
@@ -2208,8 +2229,10 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
       if (const auto* offsets = iter.GetCurrentUsedScrollOffsets()) {
         non_overflowing_range.containing_block_range.Move(
             offsets
-                ->GetOffsetForAnchorForRangeAdjustment(
-                    non_overflowing_range.anchor_element.Get())
+                ->GetOffset(non_overflowing_range.anchor_element.Get(),
+                            RememberedScrollOffsetType::kRangeAdjustment,
+                            anchor_evaluator.NeedsScrollAdjustmentInX(),
+                            anchor_evaluator.NeedsScrollAdjustmentInY())
                 .value_or(PhysicalOffset()));
       }
 
@@ -2342,7 +2365,7 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   // If we have a valid default anchor, we use the scrollable containing-block:
   // https://drafts.csswg.org/css-position-4/#scrollable-containing-block
   const bool has_default_anchor =
-      anchor_evaluator.DefaultAnchor(candidate_style.PositionAnchor());
+      anchor_evaluator.DefaultAnchor(candidate_style.GetDefaultAnchorData());
 
   const ContainingBlockInfo& container_info = node_info.base_container_info;
   const LogicalRect base_rect = has_default_anchor && container_info.scroll_rect
@@ -2369,21 +2392,6 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   const PhysicalSize container_physical_content_size =
       ToPhysicalSize(container_rect.size,
                      node_info.default_writing_direction.GetWritingMode());
-
-  // The container insets. Don't use the position-area offsets directly as they
-  // may be clamped to produce non-negative space. Instead take the difference
-  // between the base, and adjusted container-info.
-  const BoxStrut container_insets = ([&]() -> BoxStrut {
-    const BoxStrut insets(
-        container_rect.offset.inline_offset - base_rect.offset.inline_offset,
-        base_rect.InlineEndOffset() - container_rect.InlineEndOffset(),
-        container_rect.offset.block_offset - base_rect.offset.block_offset,
-        base_rect.BlockEndOffset() - container_rect.BlockEndOffset());
-
-    // Convert into the candidate writing-direction.
-    return insets.ConvertToPhysical(node_info.default_writing_direction)
-        .ConvertToLogical(candidate_writing_direction);
-  })();
 
   // Create a constraint space to resolve border/padding/insets.
   const ConstraintSpace space = ([&]() -> ConstraintSpace {
@@ -2493,18 +2501,52 @@ OutOfFlowLayoutPart::TryCalculateOffset(
       ComputeAnchorCenterPosition(candidate_style, alignment,
                                   space.AvailableSize());
 
+  // Determine how much we are allowed to overflow the original
+  // containing-block (if applicable).
+  // See: https://drafts.csswg.org/css-align-3/#auto-safety-position
+  const BoxStrut overflow_limit_insets = ([&]() -> BoxStrut {
+    // If we are fixed-pos, and have a default anchor - use the scroll-rect
+    // instead of the original-rect as we can overflow *up to* that rectangle.
+    // NOTE: We can't exceed as fixed-pos don't contribute to the overflow.
+    // See: https://github.com/w3c/csswg-drafts/issues/14008
+    const LogicalRect overflow_limit_rect =
+        has_default_anchor && container_info.scroll_limit_rect
+            ? *container_info.scroll_limit_rect
+            : base_rect;
+
+    BoxStrut insets(container_rect, overflow_limit_rect);
+
+    // If we can scroll in the given direction, set the inset to "infinity".
+    if (container_info.scroll_direction.inline_start) {
+      insets.inline_start = LayoutUnit::Min();
+    }
+    if (container_info.scroll_direction.inline_end) {
+      insets.inline_end = LayoutUnit::Min();
+    }
+    if (container_info.scroll_direction.block_start) {
+      insets.block_start = LayoutUnit::Min();
+    }
+    if (container_info.scroll_direction.block_end) {
+      insets.block_end = LayoutUnit::Min();
+    }
+
+    // Convert into the candidate writing-direction.
+    return insets.ConvertToPhysical(node_info.default_writing_direction)
+        .ConvertToLogical(candidate_writing_direction);
+  })();
+
   OffsetInfo offset_info;
   LogicalOofDimensions& node_dimensions = offset_info.node_dimensions;
   offset_info.inline_size_depends_on_min_max_sizes = ComputeOofInlineDimensions(
       node_info.node, node_info.break_token, candidate_style, space, imcb,
       anchor_center_position, alignment, border_padding, replaced_size,
-      container_insets, inline_auto_size_behavior, block_auto_size_behavior,
-      container_writing_direction, &node_dimensions);
+      overflow_limit_insets, inline_auto_size_behavior,
+      block_auto_size_behavior, container_writing_direction, &node_dimensions);
   offset_info.initial_layout_result = ComputeOofBlockDimensions(
       node_info.node, node_info.break_token, candidate_style, space, imcb,
       anchor_center_position, alignment, border_padding, replaced_size,
-      container_insets, block_auto_size_behavior, container_writing_direction,
-      &node_dimensions);
+      overflow_limit_insets, block_auto_size_behavior,
+      container_writing_direction, &node_dimensions);
 
   if (try_fit_available_space) {
     const PhysicalToLogicalGetter has_non_auto_inset(
@@ -2530,7 +2572,6 @@ OutOfFlowLayoutPart::TryCalculateOffset(
         node_dimensions.MarginBoxInlineEnd(),
         imcb_for_position_fallback.inline_start,
         imcb_for_position_fallback.InlineEndOffset(),
-        container_insets.inline_start, container_insets.inline_end,
         has_non_auto_inset.InlineStart(), has_non_auto_inset.InlineEnd(),
         &scroll_range.inline_min, &scroll_range.inline_max);
 
@@ -2539,7 +2580,6 @@ OutOfFlowLayoutPart::TryCalculateOffset(
         node_dimensions.MarginBoxBlockEnd(),
         imcb_for_position_fallback.block_start,
         imcb_for_position_fallback.BlockEndOffset(),
-        container_insets.block_start, container_insets.block_end,
         has_non_auto_inset.BlockStart(), has_non_auto_inset.BlockEnd(),
         &scroll_range.block_min, &scroll_range.block_max);
 

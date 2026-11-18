@@ -19,7 +19,6 @@ gen_android_bp.py#create_modules_from_target.
 import argparse
 from typing import Set, List, Dict
 import glob
-import multiprocessing.dummy
 import json
 import tempfile
 import re
@@ -37,11 +36,6 @@ import components.cronet.tools.utils as cronet_utils  # pylint: disable=wrong-im
 import components.cronet.gn2bp.common as gn2bp_common  # pylint: disable=wrong-import-position
 import components.cronet.gn2bp.gen_android_bp as cronet_gn2bp  # pylint: disable=wrong-import-position
 
-# TODO: Move ARCHS to cronet_utils.
-_ARCHS = ["x86", "x64", "arm", "arm64", "riscv64"]
-# TODO: Move _OUT_DIR to cronet_utils.
-_OUT_DIR = os.path.join(REPOSITORY_ROOT, "out")
-
 
 def _extract_crate_path(args: List[str]) -> str:
     """Extracts the path where the crate actually exist from the args of a build script
@@ -56,18 +50,6 @@ def _extract_crate_path(args: List[str]) -> str:
     return args[args.index("--src-dir") + 1].replace("../../", "")
 
 
-def _get_toolchain_name(toolchain_label: str) -> str:
-    return toolchain_label[toolchain_label.find(":") + 1:]
-
-
-def _get_toolchain_label_from_label(target_label: str) -> str:
-    return target_label[target_label.find('(') + 1:-1]
-
-
-def _get_label_name_without_toolchain(target_label: str) -> str:
-    return target_label[:target_label.find("(")]
-
-
 def _build_rust_build_script_actions(
         out_path: str, host_variant: bool) -> Dict[str, Dict[str, any]]:
     targets_data = json.loads(
@@ -80,10 +62,10 @@ def _build_rust_build_script_actions(
         if gn2bp_common.is_rust_build_script(target_data.get("script", "")):
             # "clang_x64" assumes that the host uses clang to compile for the host machine.
             # which is mostly true, unless gcc is used which is a case that we don't care about.
-            if host_variant and _get_toolchain_name(
+            if host_variant and gn2bp_common.get_toolchain_name(
                     target_data['toolchain']).startswith("clang_x64"):
                 possible_candidates[target_name[2:]] = target_data
-            elif not host_variant and _get_toolchain_name(
+            elif not host_variant and gn2bp_common.get_toolchain_name(
                     target_data['toolchain']).startswith("android_clang_"):
                 possible_candidates[target_name[2:]] = target_data
 
@@ -93,7 +75,7 @@ def _build_rust_build_script_actions(
     # "toolchain_name/phony/A/B/C/D".
     cronet_utils.build_targets_list_chunking(out_path, [
         name if not host_variant else
-        f'{_get_toolchain_name(_get_toolchain_label_from_label(name))}/phony/{_get_label_name_without_toolchain(name.replace(":", "/"))}'
+        f'{gn2bp_common.get_toolchain_name(gn2bp_common.get_toolchain_label_from_label(name))}/phony/{gn2bp_common.label_without_toolchain(name.replace(":", "/"))}'
         for name in possible_candidates
     ])
     return possible_candidates
@@ -140,7 +122,7 @@ def _generate_and_copy_build_script_outputs_for_arch(arch: str,
     # beneath the repository root until gn2bp is tweaked to
     # deal with this small differences.
     target_name_to_build_script_output = {}
-    with tempfile.TemporaryDirectory(dir=_OUT_DIR) as gn_out_dir:
+    with tempfile.TemporaryDirectory(dir=gn2bp_common.OUT_DIR) as gn_out_dir:
         cronet_utils.gn(gn_out_dir,
                         ' '.join(cronet_utils.get_gn_args_for_aosp(arch)))
         candidate_targets = _build_rust_build_script_actions(
@@ -175,20 +157,16 @@ def _generate_build_scripts_outputs(
         archs: List[str],
         targets: List[str] = None) -> Dict[str, Dict[str, List[str]]]:
     build_scripts_output_per_arch = {}
-    with multiprocessing.dummy.Pool(len(archs)) as pool:
-        results = [
-            (arch,
-             pool.apply_async(_generate_and_copy_build_script_outputs_for_arch,
-                              (arch, False))) for arch in archs
-        ]
-        for (arch, result) in results:
-            build_script_output = result.get()
-            for (target_name, output) in build_script_output.items():
-                if targets and target_name not in targets:
-                    continue
-                if target_name not in build_scripts_output_per_arch:
-                    build_scripts_output_per_arch[target_name] = {}
-                build_scripts_output_per_arch[target_name][arch] = output
+    args_list = [(arch, False) for arch in archs]
+    results = gn2bp_common.run_concurrently(
+        _generate_and_copy_build_script_outputs_for_arch, args_list)
+    for arch, build_script_output in zip(archs, results):
+        for (target_name, output) in build_script_output.items():
+            if targets and target_name not in targets:
+                continue
+            if target_name not in build_scripts_output_per_arch:
+                build_scripts_output_per_arch[target_name] = {}
+            build_scripts_output_per_arch[target_name][arch] = output
 
     # Generate host-specific build script outputs
     build_script_output = _generate_and_copy_build_script_outputs_for_host()
@@ -233,7 +211,7 @@ def main():
         help='Path to file for which the output will be written to',
         required=True)
     args = parser.parse_args()
-    dump_build_scripts_outputs_to_file(args.output, _ARCHS)
+    dump_build_scripts_outputs_to_file(args.output, gn2bp_common.ARCHS)
 
 
 if __name__ == '__main__':

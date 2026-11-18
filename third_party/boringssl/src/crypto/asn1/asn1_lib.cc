@@ -14,6 +14,7 @@
 
 #include <openssl/asn1.h>
 
+#include <assert.h>
 #include <limits.h>
 #include <string.h>
 
@@ -110,7 +111,7 @@ int ASN1_get_object(const unsigned char **inp, long *out_len, int *out_tag,
   return constructed;
 }
 
-// class 0 is constructed constructed == 2 for indefinite length constructed
+// class 0 is constructed, constructed == 2 for indefinite length constructed
 void ASN1_put_object(unsigned char **pp, int constructed, int length, int tag,
                      int xclass) {
   unsigned char *p = *pp;
@@ -368,9 +369,9 @@ const unsigned char *ASN1_STRING_get0_data(const ASN1_STRING *str) {
   return str->data;
 }
 
-int bssl::asn1_parse_octet_string(CBS *cbs, ASN1_STRING *out,
-                                  CBS_ASN1_TAG tag) {
-  tag = tag == 0 ? CBS_ASN1_OCTETSTRING : tag;
+int bssl::asn1_parse_string_unchecked(CBS *cbs, ASN1_STRING *out, int str_type,
+                                      CBS_ASN1_TAG tag) {
+  assert(tag != 0);
   CBS child;
   if (!CBS_get_asn1(cbs, &child, tag)) {
     OPENSSL_PUT_ERROR(ASN1, ASN1_R_DECODE_ERROR);
@@ -379,8 +380,22 @@ int bssl::asn1_parse_octet_string(CBS *cbs, ASN1_STRING *out,
   if (!ASN1_STRING_set(out, CBS_data(&child), CBS_len(&child))) {
     return 0;
   }
-  out->type = V_ASN1_OCTET_STRING;
+  out->type = str_type;
   return 1;
+}
+
+int bssl::asn1_parse_octet_string(CBS *cbs, ASN1_STRING *out,
+                                  CBS_ASN1_TAG tag) {
+  // Nothing to check for OCTET STRING.
+  tag = tag == 0 ? CBS_ASN1_OCTETSTRING : tag;
+  return asn1_parse_string_unchecked(cbs, out, V_ASN1_OCTET_STRING, tag);
+}
+
+int bssl::asn1_parse_t61_string(CBS *cbs, ASN1_STRING *out, CBS_ASN1_TAG tag) {
+  // Nothing to check for T61String. We parse it as Latin-1 and all byte strings
+  // are valid Latin-1.
+  tag = tag == 0 ? CBS_ASN1_T61STRING : tag;
+  return asn1_parse_string_unchecked(cbs, out, V_ASN1_T61STRING, tag);
 }
 
 int bssl::asn1_marshal_octet_string(CBB *out, const ASN1_STRING *in,

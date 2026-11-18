@@ -23,6 +23,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/byte_conversions.h"
 #include "base/run_loop.h"
+#include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/synchronization/lock.h"
 #include "base/task/bind_post_task.h"
@@ -185,28 +186,41 @@ class FakeWriter final : public NoVarySearchCacheStorageFileOperations::Writer {
       : filesystem_(std::move(filesystem)), filename_(filename) {}
 
   bool Write(base::span<const uint8_t> data) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     filesystem_->Append(filename_, data);
     return true;
   }
 
+  void DetachFromCurrentSequence() override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    DETACH_FROM_SEQUENCE(sequence_checker_);
+  }
+
  private:
-  scoped_refptr<FakeFilesystem> filesystem_;
-  std::string filename_;
+  scoped_refptr<FakeFilesystem> filesystem_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+  std::string filename_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 // An implementation of FileOperations backed by a FakeFilesystem.
 class FakeFileOperations final : public NoVarySearchCacheStorageFileOperations {
  public:
   explicit FakeFileOperations(scoped_refptr<FakeFilesystem> filesystem)
-      : filesystem_(std::move(filesystem)) {}
+      : filesystem_(std::move(filesystem)) {
+    DETACH_FROM_SEQUENCE(sequence_checker_);
+  }
 
   bool Init() override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     init_called_ = true;
     return true;
   }
 
   base::expected<LoadResult, base::File::Error> Load(std::string_view filename,
                                                      size_t max_size) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     EXPECT_TRUE(init_called_);
     auto maybe_result = filesystem_->Load(filename);
     if (!maybe_result) {
@@ -222,6 +236,7 @@ class FakeFileOperations final : public NoVarySearchCacheStorageFileOperations {
   base::expected<void, base::File::Error> AtomicSave(
       std::string_view filename,
       base::span<const base::span<const uint8_t>> segments) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     EXPECT_TRUE(init_called_);
     const size_t total_size =
         std::accumulate(segments.begin(), segments.end(), size_t{0u},
@@ -242,14 +257,23 @@ class FakeFileOperations final : public NoVarySearchCacheStorageFileOperations {
 
   base::expected<std::unique_ptr<Writer>, base::File::Error> CreateWriter(
       std::string_view filename) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     EXPECT_TRUE(init_called_);
     filesystem_->Store(filename, {});
     return std::make_unique<FakeWriter>(filesystem_, filename);
   }
 
+  void DetachFromCurrentSequence() override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    DETACH_FROM_SEQUENCE(sequence_checker_);
+  }
+
  private:
-  bool init_called_ = false;
-  scoped_refptr<FakeFilesystem> filesystem_;
+  bool init_called_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
+  scoped_refptr<FakeFilesystem> filesystem_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 std::string QueryWithIParameter(size_t i) {
@@ -270,7 +294,7 @@ class NoVarySearchCacheStorageTestBase : public ::testing::TestWithParam<bool> {
     if (GetParam()) {
       enabled_features.push_back(
           {features::kNoVarySearchCacheLoadOnSeparateTaskRunner,
-           {{"priority", "USER_VISIBLE"}}});
+           {{"NoVarySearchCacheLoadTaskRunnerPriority", "USER_VISIBLE"}}});
     } else {
       disabled_features.push_back(
           features::kNoVarySearchCacheLoadOnSeparateTaskRunner);
@@ -974,11 +998,13 @@ TEST_P(NoVarySearchCacheStorageMockFilesystemInitCalledTest,
 
   // If more than two writes are attempted the test will fail.
   EXPECT_CALL(*writer, Write).WillOnce(Return(true)).WillOnce(Return(false));
+  EXPECT_CALL(*writer, DetachFromCurrentSequence());
 
   EXPECT_CALL(operations(), Load)
       .WillOnce(Return(base::unexpected(base::File::FILE_ERROR_NOT_FOUND)));
   EXPECT_CALL(operations(), AtomicSave).WillOnce(Return(base::ok()));
   EXPECT_CALL(operations(), CreateWriter).WillOnce(Return(std::move(writer)));
+  EXPECT_CALL(operations(), DetachFromCurrentSequence());
 
   TriggerLoad();
 
@@ -1007,6 +1033,7 @@ TEST_P(NoVarySearchCacheStorageMockFilesystemInitCalledTest,
   base::RunLoop run_loop;
 
   EXPECT_CALL(*writer, Write).WillOnce(Return(true));
+  EXPECT_CALL(*writer, DetachFromCurrentSequence());
 
   EXPECT_CALL(operations(), Load)
       .WillOnce(Return(base::unexpected(base::File::FILE_ERROR_NOT_FOUND)));
@@ -1016,6 +1043,7 @@ TEST_P(NoVarySearchCacheStorageMockFilesystemInitCalledTest,
           DoAll(RunClosure(run_loop.QuitClosure()),
                 Return(base::unexpected(base::File::FILE_ERROR_NO_SPACE))));
   EXPECT_CALL(operations(), CreateWriter).WillOnce(Return(std::move(writer)));
+  EXPECT_CALL(operations(), DetachFromCurrentSequence());
 
   TriggerLoad();
 

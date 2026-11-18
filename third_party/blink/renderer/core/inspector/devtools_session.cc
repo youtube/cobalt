@@ -151,7 +151,6 @@ DevToolsSession::DevToolsSession(
         main_receiver,
     mojo::PendingReceiver<mojom::blink::DevToolsSession> io_receiver,
     mojom::blink::DevToolsSessionStatePtr reattach_session_state,
-    const String& script_to_evaluate_on_load,
     bool client_expects_binary_responses,
     bool client_is_trusted,
     const String& session_id,
@@ -164,7 +163,6 @@ DevToolsSession::DevToolsSession(
       client_is_trusted_(client_is_trusted),
       v8_session_state_(kV8StateKey),
       v8_session_state_cbor_(&v8_session_state_, /*default_value=*/{}),
-      script_to_evaluate_on_load_(script_to_evaluate_on_load),
       session_id_(session_id),
       session_waits_for_debugger_(session_waits_for_debugger),
       injected_script_manager_(
@@ -187,6 +185,9 @@ DevToolsSession::DevToolsSession(
       injected_script_manager_->AddScriptToEvaluateOnNewDocument(
           entry.key, entry.value.Clone(), false);
     }
+    script_to_evaluate_on_load_ =
+        reattach_state->browser_originating_session_state
+            ->script_to_evaluate_on_load_once;
   }
 
   bool restore =

@@ -3564,7 +3564,8 @@ static const uint16_t kSigAlgs[] = {
 
 static const char kTLS12Ciphers[] =
     "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:"
-    "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+    "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:"
+    "TLS_RSA_WITH_AES_256_GCM_SHA384";
 
 static int Configure(SSLContext *ctx) {
   ctx->compliance_policy = ssl_compliance_policy_cnsa1_202603;

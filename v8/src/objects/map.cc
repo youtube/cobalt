@@ -19,21 +19,18 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/map-updater.h"
-#include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
-#include "src/objects/tagged-field.h"
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"
-#include "src/utils/ostreams.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8::internal {
 
@@ -427,6 +424,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case HEAP_NUMBER_TYPE:
       return kVisitHeapNumber;
 
+    case HASH_SEED_WRAPPER_TYPE:
+      return kVisitHashSeedWrapper;
+
     case FOREIGN_TYPE:
       return kVisitForeign;
 
@@ -479,9 +479,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case PROTOTYPE_SHARED_CLOSURE_INFO_TYPE:
       return kVisitPrototypeSharedClosureInfo;
 
-    case DEBUG_INFO_TYPE:
-      return kVisitDebugInfo;
-
     case CALL_SITE_INFO_TYPE:
       return kVisitCallSiteInfo;
 
@@ -509,8 +506,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
       return kVisitWasmArray;
-    case WASM_MEMORY_MAP_DESCRIPTOR_TYPE:
-      return kVisitWasmMemoryMapDescriptor;
     case WASM_FUNC_REF_TYPE:
       return kVisitWasmFuncRef;
     case WASM_GLOBAL_OBJECT_TYPE:

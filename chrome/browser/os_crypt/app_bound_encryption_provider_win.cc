@@ -262,10 +262,6 @@ bool AppBoundEncryptionProviderWin::UseForEncryption() {
   return support_level_ == os_crypt::SupportLevel::kSupported;
 }
 
-bool AppBoundEncryptionProviderWin::IsCompatibleWithOsCryptSync() {
-  return false;
-}
-
 base::expected<AppBoundEncryptionProviderWin::ReadWriteKeyData,
                AppBoundEncryptionProviderWin::KeyRetrievalStatus>
 AppBoundEncryptionProviderWin::RetrieveEncryptedKey() const {

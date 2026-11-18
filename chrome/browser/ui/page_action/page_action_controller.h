@@ -32,6 +32,8 @@ namespace actions {
 class ActionItem;
 }
 
+class BrowserWindowInterface;
+
 namespace base {
 class CallbackListSubscription;
 }
@@ -290,6 +292,9 @@ class PageActionController {
   // long as at least one ScopedPageActionActivity object exists for it.
   virtual ScopedPageActionActivity AddActivity(actions::ActionId action_id) = 0;
 
+  // Checks if the action with the given ID exists.
+  virtual bool ActionExists(actions::ActionId action_id) const = 0;
+
   // Adds an observer for the page action's underlying `PageActionModel`.
   virtual void AddObserver(
       actions::ActionId action_id,
@@ -390,6 +395,7 @@ class PageActionControllerImpl : public PageActionController,
       std::optional<AnchoredMessageExpandableContent> expandable_content)
       override;
   ScopedPageActionActivity AddActivity(actions::ActionId action_id) override;
+  bool ActionExists(actions::ActionId action_id) const override;
   void AddObserver(
       actions::ActionId action_id,
       base::ScopedObservation<PageActionModelInterface,
@@ -497,6 +503,16 @@ class PageActionControllerImpl : public PageActionController,
 
   base::WeakPtrFactory<PageActionControllerImpl> weak_factory_{this};
 };
+
+// Returns page action IDs that are present in the browser window's root action
+// item.
+std::vector<actions::ActionId> GetActivePageActionIds(
+    BrowserWindowInterface& bwi);
+
+// Returns page actions that are present in the browser window's root action
+// item.
+std::vector<actions::ActionItem*> GetActivePageActionItems(
+    BrowserWindowInterface& bwi);
 
 }  // namespace page_actions
 

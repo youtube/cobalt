@@ -22,7 +22,7 @@
 #include "absl/functional/any_invocable.h"
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
-#include "api/field_trials.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/rtc_error.h"
@@ -60,7 +60,7 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/unique_id_generator.h"
-#include "test/create_test_field_trials.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -214,19 +214,19 @@ class ChannelTest : public ::testing::Test {
       // Based on flags, create fake DTLS or raw packet transports.
 
       if (flags1 & RAW_PACKET_TRANSPORT) {
-        fake_rtp_packet_transport1_.reset(
-            new FakePacketTransport("channel1_rtp"));
+        fake_rtp_packet_transport1_ =
+            std::make_unique<FakePacketTransport>(env_, "channel1_rtp");
         if (!(flags1 & RTCP_MUX)) {
-          fake_rtcp_packet_transport1_.reset(
-              new FakePacketTransport("channel1_rtcp"));
+          fake_rtcp_packet_transport1_ =
+              std::make_unique<FakePacketTransport>(env_, "channel1_rtcp");
         }
       } else {
         // Confirmed to work with KT_RSA and KT_ECDSA.
-        fake_rtp_dtls_transport1_.reset(new FakeDtlsTransport(
-            "channel1", ICE_CANDIDATE_COMPONENT_RTP, network_thread_));
+        fake_rtp_dtls_transport1_ = std::make_unique<FakeDtlsTransport>(
+            env_, "channel1", ICE_CANDIDATE_COMPONENT_RTP, network_thread_);
         if (!(flags1 & RTCP_MUX)) {
-          fake_rtcp_dtls_transport1_.reset(new FakeDtlsTransport(
-              "channel1", ICE_CANDIDATE_COMPONENT_RTCP, network_thread_));
+          fake_rtcp_dtls_transport1_ = std::make_unique<FakeDtlsTransport>(
+              env_, "channel1", ICE_CANDIDATE_COMPONENT_RTCP, network_thread_);
         }
         if (flags1 & DTLS) {
           auto cert1 = RTCCertificate::Create(
@@ -239,19 +239,19 @@ class ChannelTest : public ::testing::Test {
       }
       // Based on flags, create fake DTLS or raw packet transports.
       if (flags2 & RAW_PACKET_TRANSPORT) {
-        fake_rtp_packet_transport2_.reset(
-            new FakePacketTransport("channel2_rtp"));
+        fake_rtp_packet_transport2_ =
+            std::make_unique<FakePacketTransport>(env_, "channel2_rtp");
         if (!(flags2 & RTCP_MUX)) {
-          fake_rtcp_packet_transport2_.reset(
-              new FakePacketTransport("channel2_rtcp"));
+          fake_rtcp_packet_transport2_ =
+              std::make_unique<FakePacketTransport>(env_, "channel2_rtcp");
         }
       } else {
         // Confirmed to work with KT_RSA and KT_ECDSA.
-        fake_rtp_dtls_transport2_.reset(new FakeDtlsTransport(
-            "channel2", ICE_CANDIDATE_COMPONENT_RTP, network_thread_));
+        fake_rtp_dtls_transport2_ = std::make_unique<FakeDtlsTransport>(
+            env_, "channel2", ICE_CANDIDATE_COMPONENT_RTP, network_thread_);
         if (!(flags2 & RTCP_MUX)) {
-          fake_rtcp_dtls_transport2_.reset(new FakeDtlsTransport(
-              "channel2", ICE_CANDIDATE_COMPONENT_RTCP, network_thread_));
+          fake_rtcp_dtls_transport2_ = std::make_unique<FakeDtlsTransport>(
+              env_, "channel2", ICE_CANDIDATE_COMPONENT_RTCP, network_thread_);
         }
         if (flags2 & DTLS) {
           auto cert2 = RTCCertificate::Create(
@@ -348,7 +348,7 @@ class ChannelTest : public ::testing::Test {
       PacketTransportInternal* rtp_packet_transport,
       PacketTransportInternal* rtcp_packet_transport) {
     auto rtp_transport = std::make_unique<RtpTransport>(
-        rtcp_packet_transport == nullptr, field_trials_);
+        rtcp_packet_transport == nullptr, env_.field_trials());
 
     SendTask(network_thread_,
              [&rtp_transport, rtp_packet_transport, rtcp_packet_transport] {
@@ -364,7 +364,7 @@ class ChannelTest : public ::testing::Test {
       DtlsTransportInternal* rtp_dtls_transport,
       DtlsTransportInternal* rtcp_dtls_transport) {
     auto dtls_srtp_transport = std::make_unique<DtlsSrtpTransport>(
-        rtcp_dtls_transport == nullptr, field_trials_);
+        rtcp_dtls_transport == nullptr, env_.field_trials());
 
     SendTask(network_thread_,
              [&dtls_srtp_transport, rtp_dtls_transport, rtcp_dtls_transport] {
@@ -1769,6 +1769,7 @@ class ChannelTest : public ::testing::Test {
   }
 
   test::RunLoop main_thread_;
+  const Environment env_ = CreateTestEnvironment();
   // TODO(pbos): Remove playout from all media channels and let renderers mute
   // themselves.
   const bool verify_playout_;
@@ -1799,7 +1800,6 @@ class ChannelTest : public ::testing::Test {
   Buffer rtcp_packet_;
   CandidatePairInterface* last_selected_candidate_pair_;
   UniqueRandomIdGenerator ssrc_generator_;
-  FieldTrials field_trials_ = CreateTestFieldTrials();
 };
 
 template <>

@@ -45,12 +45,14 @@ if (!is_win && !is_mac && !is_ios) {
     use_mold =
         # Requires a DEPS entry.
         build_with_chromium &&
+        # --ld-path is a clang-only flag.
+        is_clang &&
         # https://github.com/rui314/mold/issues/1592
         !using_sanitizer &&
         # Don't want to risk bugs for official builds.
         !is_official_build &&
-        # TODO(40208899): Enable more broadly.
-        target_os == "android" &&
+        (current_os == "android" || current_os == "linux") &&
+        # Have not tried "arm". Unlikely that non-official builds use it.
         (current_cpu == "x64" || current_cpu == "arm64" ||
          current_cpu == "x86")
   }
@@ -114,7 +116,7 @@ if (is_mac && use_lld) {
   declare_args() {
     # Enables the `--read-workers` flag for LLD.
     # Currently only implemented for Mach-O (macOS) in LLD.
-    enable_lld_read_workers = false
+    enable_lld_read_workers = true
   }
 
   if (enable_lld_read_workers) {

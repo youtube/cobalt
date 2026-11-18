@@ -91,6 +91,8 @@
   'd8/d8-os': [PASS, NO_VARIANTS],
   'd8/d8-performance-now': [PASS, NO_VARIANTS, ['mode != release or simulator_run', SKIP]],
   'regexp-global': [PASS, NO_VARIANTS],
+  'regexp-jetstream': [PASS, SLOW, NO_VARIANTS],
+  'regexp-not-jetstream': [PASS, SLOW, NO_VARIANTS],
   'regress/regress-4595': [PASS, NO_VARIANTS],
   'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
   'third_party/regexp-pcre/regexp-pcre': [PASS, NO_VARIANTS],
@@ -375,6 +377,9 @@
   'compiler/conditional-chain': [SKIP],
   'compiler/regress-815392': [SKIP],
   'es6/unicode-regexp-unanchored-advance': [SKIP],
+  # Hash collisions cause O(n^2) behavior, leading to timeout.
+  'lower_limits_mode/regress/regress-crbug-405910175-map': [SKIP],
+  'lower_limits_mode/regress/regress-crbug-405910175-set': [SKIP],
   'regress/regress-490': [SKIP],
   'regress/regress-655573': [SKIP],
   'regress/regress-862433': [SKIP],
@@ -848,6 +853,7 @@
   'regress/wasm/regress-513364114': [SKIP],
   'regress/wasm/regress-518229528': [SKIP],
   'regress/wasm/regress-518872404': [SKIP],
+  'regress/wasm/regress-521064735': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 
@@ -918,6 +924,7 @@
   # --experimental-wasm-wide-arithmetic
   'regress/wasm/regress-515525741': [SKIP],
   'regress/wasm/regress-516102112-1': [SKIP],
+  'regress/wasm/regress-simd-520944504': [SKIP],
   'wasm/wide-arithmetic': [SKIP],
 
   # --wasm-deopt
@@ -941,6 +948,7 @@
   'compiler/fast-api-calls-wasm': [SKIP],
   'regress/wasm/regress-403308742': [SKIP],
   'regress/wasm/regress-488943662': [SKIP],
+  'wasm/regression-521715545': [SKIP], # --wasm-code-coverage
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
@@ -989,7 +997,9 @@
   'regress/wasm/regress-509268941': [SKIP],
   'regress/wasm/regress-509674461': [SKIP],
   'regress/wasm/regress-511772679': [SKIP],
+  'regress/wasm/regress-518697709': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
+  'regress/wasm/regress-simd-518058891': [SKIP],
   'wasm/bit-shift-right': [SKIP],
   'wasm/bounds-check-turbofan': [SKIP],
   'wasm/enter-and-leave-debug-state': [SKIP],
@@ -1035,6 +1045,7 @@
   # --experimental-wasm-acquire-release
   'regress/wasm/regress-516102113': [SKIP],
   'regress/wasm/regress-518131466': [SKIP],
+  'wasm/acq-rel-*': [SKIP],
 
   # The interpreter call stack contains an additional top frame if we throw a
   # type-mismatch exception before executing the Wasm function.
@@ -1151,6 +1162,8 @@
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
   'regexp-unicode-sets': [PASS,FAIL],
+  'regexp-not-jetstream': [SKIP],
+  'regexp-jetstream': [SKIP],
 
   # The noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
@@ -2082,6 +2095,7 @@
   # Wasm code coverage is not supported yet.
   'regress/wasm/regress-488943662': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
+  'wasm/regression-521715545': [SKIP]
 }],  # arch in [ppc64, s390x]'
 
 ##############################################################################

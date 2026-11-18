@@ -3575,7 +3575,9 @@ ___
 }
 $code.=<<___;
 .section .rodata
+
 .align	64
+mont5_increments:
 .Linc:
 	.long	0,0, 1,1
 	.long	2,2, 2,2

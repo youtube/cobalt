@@ -85,7 +85,7 @@ void ApplyBlockElementCommand::DoApply(EditingState* editing_state) {
     const Position& new_end =
         PreviousPositionOf(visible_end, kCannotCrossEditingBoundary)
             .DeepEquivalent();
-    SelectionInDOMTree::Builder builder;
+    SelectionInDomTree::Builder builder;
     builder.Collapse(visible_start.ToPositionWithAffinity());
     if (new_end.IsNotNull())
       builder.Extend(new_end);
@@ -138,7 +138,7 @@ void ApplyBlockElementCommand::DoApply(EditingState* editing_state) {
     VisiblePosition end(VisiblePositionForIndex(end_index, end_scope));
     if (start.IsNotNull() && end.IsNotNull()) {
       SetEndingSelection(SelectionForUndoStep::From(
-          SelectionInDOMTree::Builder()
+          SelectionInDomTree::Builder()
               .Collapse(start.ToPositionWithAffinity())
               .Extend(end.DeepEquivalent())
               .Build()));
@@ -177,7 +177,7 @@ void ApplyBlockElementCommand::FormatSelection(
     if (editing_state->IsAborted())
       return;
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .Collapse(Position::BeforeNode(*placeholder))
             .Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {

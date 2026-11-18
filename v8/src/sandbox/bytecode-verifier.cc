@@ -83,8 +83,7 @@ void BytecodeVerifier::VerifyLight(IsolateForSandbox isolate,
     Check(handler < bytecode_length && valid_offsets.Contains(handler),
           "Invalid exception handler offset");
     int data = table.GetRangeData(i);
-    Check(data == interpreter::Register::invalid_value().index() ||
-              (data >= 0 && data < bytecode->register_count()),
+    Check((data >= 0 && data < bytecode->register_count()),
           "Invalid exception handler data");
   }
 }
@@ -248,6 +247,8 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
     FailVerification(
         "Bytecode does not end with a control-flow terminating instruction");
   }
+
+  Check(bytecode->frame_size() >= 0, "Invalid bytecode array frame size");
 
   // Finally perform lightweight verification for CFI. If we ever enable full
   // verification in production then we'd most likely want to avoid iterating

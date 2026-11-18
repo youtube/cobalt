@@ -13,7 +13,7 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/omnibox/ai_mode_button_config.h"
+#include "chrome/browser/ui/omnibox/ai_mode_button_service_factory.h"
 #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/search/omnibox_utils.h"
@@ -21,6 +21,8 @@
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/grit/branded_strings.h"
+#include "components/omnibox/browser/ai_mode_button_config.h"
+#include "components/omnibox/browser/ai_mode_button_service.h"
 #include "components/omnibox/browser/omnibox_pref_names.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/prefs/pref_service.h"
@@ -51,17 +53,21 @@ AiModePageActionIconView::AiModePageActionIconView(
       browser_(browser) {
   image_container_view()->SetFlipCanvasOnPaintForRTLUI(false);
 
-
   SetProperty(views::kElementIdentifierKey, kAiModePageActionIconElementId);
 
-  const auto& config = ai_mode_button_config::GetCurrentAiModeButtonConfig();
-  SetLabel(config.text);
+  if (browser_) {
+    if (auto* service =
+            AiModeButtonServiceFactory::GetForProfile(browser_->GetProfile())) {
+      if (const auto* config = service->GetCurrentConfig()) {
+        SetLabel(config->text);
+        GetViewAccessibility().SetName(config->a11y_label,
+                                       ax::mojom::NameFrom::kAttribute);
+      }
+    }
+  }
+
   SetUseTonalColorsWhenExpanded(true);
   SetBackgroundVisibility(BackgroundVisibility::kWithLabel);
-
-  // The accessible name prompts the user to ask Google AI Mode.
-  GetViewAccessibility().SetName(config.a11y_label,
-                                 ax::mojom::NameFrom::kAttribute);
 }
 
 AiModePageActionIconView::~AiModePageActionIconView() = default;

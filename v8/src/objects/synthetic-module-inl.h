@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/synthetic-module-tq-inl.inc"
-
 Tagged<String> SyntheticModule::name() const { return name_.load(); }
 void SyntheticModule::set_name(Tagged<String> value, WriteBarrierMode mode) {
   name_.store(this, value, mode);
@@ -38,6 +36,14 @@ Tagged<Foreign> SyntheticModule::evaluation_steps() const {
 void SyntheticModule::set_evaluation_steps(Tagged<Foreign> value,
                                            WriteBarrierMode mode) {
   evaluation_steps_.store(this, value, mode);
+}
+
+Tagged<Object> SyntheticModule::host_defined_options() const {
+  return host_defined_options_.load();
+}
+void SyntheticModule::set_host_defined_options(Tagged<Object> value,
+                                               WriteBarrierMode mode) {
+  host_defined_options_.store(this, value, mode);
 }
 }  // namespace internal
 }  // namespace v8

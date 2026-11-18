@@ -4,6 +4,7 @@
 
 #include "content/browser/webtransport/web_transport_connector_impl.h"
 
+#include "base/not_fatal_until.h"
 #include "base/strings/stringprintf.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -165,14 +166,16 @@ WebTransportConnectorImpl::WebTransportConnectorImpl(
     const url::Origin& origin,
     const net::NetworkAnonymizationKey& network_anonymization_key,
     network::mojom::ClientSecurityStatePtr client_security_state,
-    std::optional<base::UnguessableToken> network_restrictions_id)
+    const base::UnguessableToken& network_restrictions_id)
     : process_id_(process_id),
       frame_(std::move(frame)),
       origin_(origin),
       network_anonymization_key_(network_anonymization_key),
       client_security_state_(std::move(client_security_state)),
       throttle_context_(GetThrottleContext(process_id_, frame_)),
-      network_restrictions_id_(network_restrictions_id) {}
+      network_restrictions_id_(network_restrictions_id) {
+  CHECK(!network_restrictions_id.is_empty(), base::NotFatalUntil::M165);
+}
 
 WebTransportConnectorImpl::~WebTransportConnectorImpl() = default;
 

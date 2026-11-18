@@ -34,6 +34,11 @@ include_rules = [
   "+chrome/browser/ui/webui/ash/login",
   "+chrome/common/chrome_paths.h",
   "+chrome/common/chrome_switches.h",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
 ]
+
+specific_include_rules = {
+  "login_screen_default_policy_browsertest\\.cc": [
+    "+chrome/common/pref_names.h",
+  ],
+}

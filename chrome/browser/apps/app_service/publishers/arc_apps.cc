@@ -40,6 +40,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/grit/component_extension_resources.h"
 #include "chrome/grit/generated_resources.h"
+#include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "chromeos/ash/experiences/arc/arc_util.h"
 #include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_package.h"

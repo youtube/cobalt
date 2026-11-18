@@ -48,7 +48,7 @@ class ReportGenerator {
   virtual ~ReportGenerator();
 
   // Asynchronously generates a queue of report requests, providing them to
-  // |callback| when ready. If |report_type| is kFull, all details are
+  // `callback` when ready. If `report_type` is `kBrowser`, all details are
   // included for all loaded profiles. Otherwise, the report only contains
   // information that are needed by that particular type.
   virtual void Generate(ReportType report_type, ReportCallback callback);

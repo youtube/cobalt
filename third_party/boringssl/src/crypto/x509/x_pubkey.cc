@@ -132,9 +132,10 @@ BSSL_NAMESPACE_BEGIN
 
 // TODO(crbug.com/42290417): Remove this when `X509` and `X509_REQ` no longer
 // depend on the tables.
-IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_PUBKEY, X509_PUBKEY_new, X509_PUBKEY_free,
-                             CBS_ASN1_SEQUENCE, x509_parse_public_key_default,
-                             i2d_X509_PUBKEY)
+IMPLEMENT_EXTERN_ASN1_PARSE_INTO(X509_PUBKEY, X509_PUBKEY_new, X509_PUBKEY_free,
+                                 CBS_ASN1_SEQUENCE,
+                                 x509_parse_public_key_default,
+                                 x509_marshal_public_key)
 
 BSSL_NAMESPACE_END
 

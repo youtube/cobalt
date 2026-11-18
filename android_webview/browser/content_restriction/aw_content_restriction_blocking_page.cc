@@ -109,6 +109,8 @@ void AwContentRestrictionBlockingPage::PopulateInterstitialStrings(
       l10n_util::GetStringUTF16(IDS_WEBVIEW_CONTENT_RESTRICTION_LEARN_MORE));
   load_time_data.Set("backText", l10n_util::GetStringUTF16(
                                      IDS_WEBVIEW_CONTENT_RESTRICTION_GO_BACK));
+  load_time_data.Set("hide_back_link",
+                     !controller()->CanGoBackBeforeNavigation());
 }
 
 }  // namespace android_webview

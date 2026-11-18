@@ -93,7 +93,7 @@ class DtlsSrtpTransportIntegrationTest : public ::testing::Test {
   }
   std::unique_ptr<FakeIceTransportInternal> MakeIceTransport(IceRole role) {
     auto ice_transport = std::make_unique<FakeIceTransportInternal>(
-        "fake_" + absl::StrCat(static_cast<int>(role)), 0);
+        env_, "fake_" + absl::StrCat(static_cast<int>(role)), 0);
     ice_transport->SetAsync(true);
     ice_transport->SetAsyncDelay(0);
     ice_transport->SetIceRole(role);

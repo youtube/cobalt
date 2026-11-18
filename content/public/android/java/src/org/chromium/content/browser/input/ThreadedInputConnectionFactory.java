@@ -18,6 +18,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.Log;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.content_public.browser.HtmlMetadata;
 import org.chromium.content_public.browser.InputMethodManagerWrapper;
 
 /**
@@ -133,6 +134,7 @@ public class ThreadedInputConnectionFactory implements ChromiumBaseInputConnecti
             int selectionStart,
             int selectionEnd,
             String lastText,
+            HtmlMetadata htmlMetadata,
             EditorInfo outAttrs) {
         ImeUtils.checkOnUiThread();
 
@@ -146,6 +148,7 @@ public class ThreadedInputConnectionFactory implements ChromiumBaseInputConnecti
                 selectionStart,
                 selectionEnd,
                 lastText,
+                htmlMetadata,
                 outAttrs);
         if (DEBUG_LOGS) {
             Log.i(TAG, "initializeAndGet. outAttr: " + ImeUtils.getEditorInfoDebugString(outAttrs));

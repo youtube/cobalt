@@ -222,6 +222,7 @@ void AccessibilityTreeFormatterBlink::AddDefaultFilters(
   AddPropertyFilter(property_filters, "valueForRange*");
   AddPropertyFilter(property_filters, "minValueForRange*");
   AddPropertyFilter(property_filters, "maxValueForRange*");
+  AddPropertyFilter(property_filters, "ariaValueText*");
   AddPropertyFilter(property_filters, "autoComplete*");
   AddPropertyFilter(property_filters, "restriction*");
   AddPropertyFilter(property_filters, "keyShortcuts*");

@@ -650,6 +650,10 @@ void Database::DetachFromSequence() {
 void Database::CloseInternal(bool forced) {
   TRACE_EVENT0("sql", "Database::CloseInternal");
 
+  absl::Cleanup report_time = [this, timer = base::ElapsedTimer()] {
+    RecordTimingHistogram("Sql.Database.DatabaseCloseTime.", timer.Elapsed());
+  };
+
   CHECK_EQ(outstanding_blob_count_, 0U)
       << "All StreamingBlobHandles should be destroyed before closing "
          "sql::Database";
@@ -2714,6 +2718,13 @@ std::string Database::GetDiagnosticInfo(int sqlite_error_code,
   }
 
   return result;
+}
+
+bool Database::ReportMemoryUsage(base::trace_event::ProcessMemoryDump* pmd,
+                                 const std::string& dump_name) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return memory_dump_provider_ &&
+         memory_dump_provider_->ReportMemoryUsage(pmd, dump_name);
 }
 
 bool Database::FullIntegrityCheck(std::vector<std::string>* messages) {

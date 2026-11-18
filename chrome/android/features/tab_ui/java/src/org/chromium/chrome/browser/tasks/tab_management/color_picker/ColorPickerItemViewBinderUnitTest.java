@@ -18,6 +18,7 @@ import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
@@ -64,7 +65,11 @@ public class ColorPickerItemViewBinderUnitTest {
     public void setUp() throws Exception {
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
         mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
-        mColorPickerItemView = ColorPickerItemViewBinder.createItemView(mActivity);
+        // A placeholder parent FrameLayout is created to provide a ViewGroup context for inflation.
+        // This is necessary so that createItemView can resolve and preserve the view's
+        // layout parameters (e.g. 48dp touch target size) from the layout XML.
+        FrameLayout parent = new FrameLayout(mActivity);
+        mColorPickerItemView = ColorPickerItemViewBinder.createItemView(parent);
 
         mModel =
                 ColorPickerItemProperties.create(

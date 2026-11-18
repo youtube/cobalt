@@ -889,7 +889,15 @@ proto_library("blind_sign_auth_proto") {
 
   link_public_deps = [ "//base" ]
 
-  deps = [ "//third_party/anonymous_tokens:anonymous_tokens_cc_proto" ]
+  deps = [
+    "//third_party/anonymous_tokens:anonymous_tokens_cc_proto",
+    "//third_party/protobuf:timestamp_proto",
+  ]
+  if (use_fuzzing_engine) {
+    deps += [ "//third_party/protobuf:any_full_proto" ]
+  } else {
+    deps += [ "//third_party/protobuf:any_proto" ]
+  }
 
   import_dirs = [ "//third_party/anonymous_tokens/src/" ]
 
@@ -914,6 +922,12 @@ source_set("blind_sign_auth_test_support") {
     ":quiche_test_support",
     ":quiche_tool_support",
   ]
+  if (use_fuzzing_engine) {
+    deps += [ "//third_party/protobuf:any_full_proto" ]
+  } else {
+    deps += [ "//third_party/protobuf:any_proto" ]
+  }
+
   public_deps =
       [ "//third_party/anonymous_tokens:anonymous_tokens_test_support" ]
 }

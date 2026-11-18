@@ -166,7 +166,7 @@ class BrowserReportGeneratorTest : public ::testing::Test {
   void GenerateAndVerify() {
     base::RunLoop run_loop;
     generator_.Generate(
-        ReportType::kFull,
+        ReportType::kBrowser,
         base::BindLambdaForTesting(
             [&run_loop](std::unique_ptr<em::BrowserReport> report) {
               ASSERT_TRUE(report.get());

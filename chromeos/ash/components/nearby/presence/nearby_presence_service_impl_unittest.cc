@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
@@ -35,15 +36,24 @@ const char kEndpointId[] = "00000001";
 const char kStableDeviceId[] = "00000002";
 const char kMalformedTypeId[] = "not_nearby_presence";
 const char kMalformedClientId[] = "not_nearby";
-const std::vector<uint8_t> kMacAddress = {0x11, 0x11, 0x11, 0x11, 0x11, 0x11};
-const std::vector<uint8_t> kDeviceId = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
-                                        0xcd, 0xef, 0x01, 0x23, 0x45, 0x67,
-                                        0x89, 0xab, 0xcd, 0xef};
 const mojom::ActionType kAction1 = mojom::ActionType::kInstantTetheringAction;
 const mojom::ActionType kAction2 = mojom::ActionType::kActiveUnlockAction;
 const mojom::ActionType kAction3 = mojom::ActionType::kPhoneHubAction;
 
 constexpr auto kLatencyDelta = base::Milliseconds(123u);
+
+const std::vector<uint8_t>& GetMacAddress() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x11, 0x11, 0x11, 0x11, 0x11, 0x11});
+  return *val;
+}
+
+const std::vector<uint8_t>& GetDeviceId() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67,
+       0x89, 0xab, 0xcd, 0xef});
+  return *val;
+}
 
 namespace {
 
@@ -64,9 +74,9 @@ class FakeScanDelegate : public NearbyPresenceService::ScanDelegate {
     EXPECT_EQ(kDeviceName,
               presence_device.GetDeviceIdentityMetadata().device_name());
     EXPECT_EQ(
-        std::string(kMacAddress.begin(), kMacAddress.end()),
+        std::string(GetMacAddress().begin(), GetMacAddress().end()),
         presence_device.GetDeviceIdentityMetadata().bluetooth_mac_address());
-    EXPECT_EQ(std::string(kDeviceId.begin(), kDeviceId.end()),
+    EXPECT_EQ(std::string(GetDeviceId().begin(), GetDeviceId().end()),
               presence_device.GetDeviceIdentityMetadata().device_id());
 
     std::move(next_scan_delegate_callback_).Run();
@@ -82,9 +92,9 @@ class FakeScanDelegate : public NearbyPresenceService::ScanDelegate {
     EXPECT_EQ(kDeviceName,
               presence_device.GetDeviceIdentityMetadata().device_name());
     EXPECT_EQ(
-        std::string(kMacAddress.begin(), kMacAddress.end()),
+        std::string(GetMacAddress().begin(), GetMacAddress().end()),
         presence_device.GetDeviceIdentityMetadata().bluetooth_mac_address());
-    EXPECT_EQ(std::string(kDeviceId.begin(), kDeviceId.end()),
+    EXPECT_EQ(std::string(GetDeviceId().begin(), GetDeviceId().end()),
               presence_device.GetDeviceIdentityMetadata().device_id());
 
     std::move(next_scan_delegate_callback_).Run();
@@ -100,9 +110,9 @@ class FakeScanDelegate : public NearbyPresenceService::ScanDelegate {
     EXPECT_EQ(kDeviceName,
               presence_device.GetDeviceIdentityMetadata().device_name());
     EXPECT_EQ(
-        std::string(kMacAddress.begin(), kMacAddress.end()),
+        std::string(GetMacAddress().begin(), GetMacAddress().end()),
         presence_device.GetDeviceIdentityMetadata().bluetooth_mac_address());
-    EXPECT_EQ(std::string(kDeviceId.begin(), kDeviceId.end()),
+    EXPECT_EQ(std::string(GetDeviceId().begin(), GetDeviceId().end()),
               presence_device.GetDeviceIdentityMetadata().device_id());
 
     std::move(next_scan_delegate_callback_).Run();
@@ -210,7 +220,7 @@ class NearbyPresenceServiceImplTest : public testing::Test {
           mojom::PresenceDevice::New(
               kEndpointId, actions, kStableDeviceId,
               mojom::Metadata::New(mojom::PresenceDeviceType::kPhone,
-                                   kDeviceName, kMacAddress, kDeviceId),
+                                   kDeviceName, GetMacAddress(), GetDeviceId()),
               /*decrypt_shared_credential=*/nullptr));
       run_loop.Run();
     }
@@ -336,7 +346,7 @@ TEST_F(NearbyPresenceServiceImplTest, StartScan_DeviceChanged) {
         mojom::PresenceDevice::New(
             kEndpointId, actions, kStableDeviceId,
             mojom::Metadata::New(mojom::PresenceDeviceType::kPhone, kDeviceName,
-                                 kMacAddress, kDeviceId),
+                                 GetMacAddress(), GetDeviceId()),
             /*decrypt_shared_credential=*/nullptr));
     run_loop.Run();
   }
@@ -373,7 +383,7 @@ TEST_F(NearbyPresenceServiceImplTest, StartScan_DeviceLost) {
         mojom::PresenceDevice::New(
             kEndpointId, actions, kStableDeviceId,
             mojom::Metadata::New(mojom::PresenceDeviceType::kPhone, kDeviceName,
-                                 kMacAddress, kDeviceId),
+                                 GetMacAddress(), GetDeviceId()),
             /*decrypt_shared_credential=*/nullptr));
     run_loop.Run();
   }
@@ -414,7 +424,7 @@ TEST_F(NearbyPresenceServiceImplTest, EndScan) {
         mojom::PresenceDevice::New(
             kEndpointId, actions, kStableDeviceId,
             mojom::Metadata::New(mojom::PresenceDeviceType::kPhone, kDeviceName,
-                                 kMacAddress, kDeviceId),
+                                 GetMacAddress(), GetDeviceId()),
             /*decrypt_shared_credential=*/nullptr));
 
     // Allow the ScanObserver function to finish before checking EXPECTs.

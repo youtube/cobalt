@@ -12,7 +12,7 @@ import type {IpConfigInfoDrawerElement} from 'chrome://diagnostics/ip_config_inf
 import type {Network} from 'chrome://diagnostics/network_health_provider.mojom-webui.js';
 import type {CrExpandButtonElement} from 'chrome://resources/ash/common/cr_elements/cr_expand_button/cr_expand_button.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 

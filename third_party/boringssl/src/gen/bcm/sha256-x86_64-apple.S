@@ -1768,6 +1768,7 @@ K256:
 .private_extern _sha256_block_data_order_hw
 
 .p2align	6
+.alt_entry _sha256_block_data_order_hw
 _sha256_block_data_order_hw:
 
 _CET_ENDBR
@@ -1979,6 +1980,7 @@ L$oop_shaext:
 .private_extern _sha256_block_data_order_ssse3
 
 .p2align	6
+.alt_entry _sha256_block_data_order_ssse3
 _sha256_block_data_order_ssse3:
 
 _CET_ENDBR
@@ -3094,6 +3096,7 @@ L$epilogue_ssse3:
 .private_extern _sha256_block_data_order_avx
 
 .p2align	6
+.alt_entry _sha256_block_data_order_avx
 _sha256_block_data_order_avx:
 
 _CET_ENDBR

@@ -250,7 +250,7 @@ CORE_EXPORT int NextGraphemeBoundaryOf(const Node&, int current);
 
 // |disconnected| is optional output parameter having true if specified
 // positions don't have common ancestor.
-int16_t ComparePositionsInDOMTree(const Node* container_a,
+int16_t ComparePositionsInDomTree(const Node* container_a,
                                   int offset_a,
                                   const Node* container_b,
                                   int offset_b,

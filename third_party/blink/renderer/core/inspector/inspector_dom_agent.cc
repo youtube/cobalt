@@ -2053,10 +2053,10 @@ protocol::Response InspectorDOMAgent::getAnchorElement(
         AtomicString(anchor_specifier.value()),
         &querying_object->GetDocument()));
   } else {
-    const StylePositionAnchor& position_anchor =
-        box->StyleRef().PositionAnchor();
+    const DefaultAnchorData default_anchor_data =
+        box->StyleRef().GetDefaultAnchorData();
     using Type = StylePositionAnchor::Type;
-    switch (position_anchor.GetType()) {
+    switch (default_anchor_data.GetType()) {
       case Type::kNone:
         target_object = nullptr;
         break;
@@ -2064,8 +2064,10 @@ protocol::Response InspectorDOMAgent::getAnchorElement(
         target_object = box->AcceptableImplicitAnchor();
         break;
       case Type::kName:
-        target_object = box->FindTargetAnchor(position_anchor.GetName());
+        target_object = box->FindTargetAnchor(default_anchor_data.GetName());
         break;
+      case Type::kNormal:
+        NOTREACHED();
     }
   }
 

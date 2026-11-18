@@ -15,7 +15,7 @@
 #ifndef OPENSSL_HEADER_AEAD_H
 #define OPENSSL_HEADER_AEAD_H
 
-#include <openssl/base.h>   // IWYU pragma: export
+#include <openssl/base.h>  // IWYU pragma: export
 
 #if defined(__cplusplus)
 extern "C" {
@@ -326,7 +326,7 @@ OPENSSL_EXPORT int EVP_AEAD_CTX_seal(const EVP_AEAD_CTX *ctx, uint8_t *out,
 //
 // At most `in_len` bytes are written to `out`. In order to ensure success,
 // `max_out_len` should be at least `in_len`. On successful return, `*out_len`
-// is set to the the actual number of bytes written.
+// is set to the actual number of bytes written.
 //
 // The length of `nonce`, `nonce_len`, must be equal to the result of
 // `EVP_AEAD_nonce_length` for this AEAD.

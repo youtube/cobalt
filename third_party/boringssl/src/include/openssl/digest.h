@@ -314,7 +314,7 @@ OPENSSL_EXPORT void EVP_MD_CTX_set_flags(EVP_MD_CTX *ctx, int flags);
 
 // EVP_MD_CTX_FLAG_NON_FIPS_ALLOW is meaningless. In OpenSSL it permits non-FIPS
 // algorithms in FIPS mode. But BoringSSL FIPS mode doesn't prohibit algorithms
-// (it's up the the caller to use the FIPS module in a fashion compliant with
+// (it's up to the caller to use the FIPS module in a fashion compliant with
 // their needs). Thus this exists only to allow code to compile.
 #define EVP_MD_CTX_FLAG_NON_FIPS_ALLOW 0
 

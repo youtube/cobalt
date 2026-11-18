@@ -67,7 +67,7 @@ void RecursivelyGenerateFrameEntries(
     const blink::ExplodedFrameState& state,
     const std::vector<std::optional<std::u16string>>& referenced_files,
     NavigationEntryImpl::TreeNode* node) {
-  DCHECK(context);
+  CHECK(context, base::NotFatalUntil::M152);
   // Set a single-frame PageState on the entry.
   blink::ExplodedPageState page_state;
 
@@ -252,7 +252,7 @@ void RemoveTreeNodeFromParent(NavigationEntryImpl::TreeNode* node) {
     // we add it to the non-opt-in list here to be spec compliant (unless it's
     // currently opted-in, in which case this call will do nothing).
     ChildProcessSecurityPolicyImpl::GetInstance()
-        ->AddDefaultIsolatedOriginIfNeeded(
+        ->RecordDefaultOriginAgentClusterOriginIfNew(
             frame_entry->site_instance()->GetIsolationContext(),
             frame_entry->committed_origin().value(),
             true /* global_ walk_or_frame_removal */);
@@ -325,8 +325,9 @@ NavigationEntryImpl::TreeNode::CloneAndReplace(
   // |restore_context| should only ever be used when doing a deep clone, and
   // when there is no target.
   if (restore_context) {
-    DCHECK(!frame_navigation_entry && !target_frame_tree_node &&
-           clone_policy == ClonePolicy::kCloneFrameEntries);
+    CHECK(!frame_navigation_entry && !target_frame_tree_node &&
+              clone_policy == ClonePolicy::kCloneFrameEntries,
+          base::NotFatalUntil::M152);
   }
 
   // Clone this TreeNode, possibly replacing its FrameNavigationEntry.
@@ -544,8 +545,9 @@ void NavigationEntryImpl::SetDataURLAsString(
     scoped_refptr<base::RefCountedString> data_url) {
   if (data_url) {
     // A quick check that it's actually a data URL.
-    DCHECK(base::StartsWith(base::as_string_view(*data_url), url::kDataScheme,
-                            base::CompareCase::SENSITIVE));
+    CHECK(base::StartsWith(base::as_string_view(*data_url), url::kDataScheme,
+                           base::CompareCase::SENSITIVE),
+          base::NotFatalUntil::M152);
   }
   data_url_as_string_ = std::move(data_url);
 }
@@ -594,8 +596,8 @@ const std::optional<std::u16string>& NavigationEntryImpl::GetApplicationTitle()
 
 void NavigationEntryImpl::SetPageState(const blink::PageState& state,
                                        NavigationEntryRestoreContext* context) {
-  DCHECK(state.IsValid());
-  DCHECK(context);
+  CHECK(state.IsValid(), base::NotFatalUntil::M152);
+  CHECK(context, base::NotFatalUntil::M152);
 
   // SetPageState should only be called before the NavigationEntry has been
   // loaded, such as for restore (when there are no subframe
@@ -824,7 +826,7 @@ std::string NavigationEntryImpl::GetExtraHeaders() const {
 
 void NavigationEntryImpl::AddExtraHeaders(
     const std::string& more_extra_headers) {
-  DCHECK(!more_extra_headers.empty());
+  CHECK(!more_extra_headers.empty(), base::NotFatalUntil::M152);
   if (!extra_headers_.empty()) {
     extra_headers_ += "\r\n";
   }
@@ -870,7 +872,7 @@ std::unique_ptr<NavigationEntryImpl> NavigationEntryImpl::Clone() const {
 
 std::unique_ptr<NavigationEntryImpl> NavigationEntryImpl::CloneWithoutSharing(
     NavigationEntryRestoreContextImpl* restore_context) const {
-  DCHECK(restore_context);
+  CHECK(restore_context, base::NotFatalUntil::M152);
   return CloneAndReplaceInternal(nullptr, false, nullptr, nullptr,
                                  restore_context,
                                  ClonePolicy::kCloneFrameEntries);
@@ -1350,8 +1352,9 @@ void NavigationEntryImpl::RemoveEntryForFrame(FrameTreeNode* frame_tree_node,
 
 void NavigationEntryImpl::UpdateBackForwardCacheNotRestoredReasons(
     NavigationRequest* navigation_request) {
-  DCHECK(BackForwardCacheMetrics::IsCrossDocumentMainFrameHistoryNavigation(
-      navigation_request));
+  CHECK(BackForwardCacheMetrics::IsCrossDocumentMainFrameHistoryNavigation(
+            navigation_request),
+        base::NotFatalUntil::M152);
   if (!back_forward_cache_metrics()) {
     // Create a metrics object if there is none.
     FrameNavigationEntry* frame_navigation_entry =

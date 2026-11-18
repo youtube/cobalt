@@ -337,7 +337,7 @@ int nc_dns(const ASN1_IA5STRING *dns, const ASN1_IA5STRING *base,
   }
 
   // Wildcard partial-match handling ("*.bar.com" matching name constraint
-  // "foo.bar.com"). This only handles the case where the the dnsname and the
+  // "foo.bar.com"). This only handles the case where the dnsname and the
   // constraint match after removing the leftmost label, otherwise it is handled
   // by falling through to the check of whether the dnsname is fully within or
   // fully outside of the constraint.

@@ -41,10 +41,6 @@ class MlModelManager;
 class OutputTapper;
 class ReferenceSignalProvider;
 
-#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
-class ProcessingAudioFifo;
-#endif
-
 // Only do power monitoring for non-mobile platforms to save resources.
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 #define AUDIO_POWER_MONITORING
@@ -63,18 +59,20 @@ class ProcessingAudioFifo;
 //     InputController::|audio_callback_|::OnData()
 //     -> InputController::OnData()
 //     --> InputController::|audio_processor_handler_|::ProcessCapturedAudio()
-//     ---> InputController::DeliverProcessedAudio()
-//     ----> InputController::|sync_writer_|::Write()
+//     ---> |audio_processor_handler_|::ProcessCapturedAudioInternal()
+//     ----> InputController::DeliverProcessedAudio()
+//     -----> InputController::|sync_writer_|::Write()
 //
 // * With audio processing and a dedicated processing thread:
 //   Audio capture device thread:
 //     InputController::|audio_callback_|::OnData()
 //     -> InputController::OnData()
-//     --> InputController::|processing_fifo_|::PushData()
+//     --> InputController::|audio_processor_handler_|::ProcessCapturedAudio()
+//     ---> |audio_processor_handler_|::|processing_fifo_|::PushData()
 //   Audio processing thread:
-//     ---> InputController::|audio_processor_handler_|::ProcessCapturedAudio()
-//     ----> InputController::DeliverProcessedAudio()
-//     -----> InputController::|sync_writer_|::Write()
+//     ----> |audio_processor_handler_|::ProcessCapturedAudioInternal()
+//     -----> InputController::DeliverProcessedAudio()
+//     ------> InputController::|sync_writer_|::Write()
 //
 //     - InputController::|audio_processor_handler_| changes format from the
 //     AudioInputStream format to |params| provided to
@@ -141,10 +139,6 @@ class InputController final {
     SILENCE_STATE_AUDIO_AND_SILENCE = 3,
     SILENCE_STATE_MAX = SILENCE_STATE_AUDIO_AND_SILENCE
   };
-#endif
-
-#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
-  static constexpr int kProcessingFifoSize = 10;
 #endif
 
   // An event handler that receives events from the InputController. The
@@ -351,12 +345,6 @@ class InputController final {
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
   // Handles audio processing effects applied to the microphone capture audio.
   std::unique_ptr<AudioProcessorHandler> audio_processor_handler_;
-
-  // Offloads processing captured data to its own real time thread.
-  // Note: Ordering is important, as |processing_fifo_| must be destroyed before
-  // |audio_processing_handler_|.
-  std::unique_ptr<ProcessingAudioFifo> processing_fifo_;
-
   // Manages the |audio_processor_handler_| subscription to output audio.
   std::unique_ptr<OutputTapper> output_tapper_;
 #endif

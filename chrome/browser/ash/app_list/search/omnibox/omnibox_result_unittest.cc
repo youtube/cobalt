@@ -205,6 +205,7 @@ class OmniboxResultTest : public testing::Test {
 
     return std::make_unique<OmniboxResult>(
         profile_.get(), app_list_controller_delegate_.get(),
+        TemplateURLServiceFactory::GetForProfile(profile_.get()),
         CreateResult(match, /*controller=*/nullptr, bookmark_model_, input_),
         /*query=*/query, favicon_cache_.get());
   }

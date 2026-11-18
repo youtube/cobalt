@@ -288,6 +288,7 @@ if (rtc_include_tests) {
         "../../../rtc_base:stringutils",
         "../../../rtc_base/experiments:alr_experiment",
         "../../../system_wrappers",
+        "../../../test:create_test_environment",
         "../../../test:create_test_field_trials",
         "../../../test:test_support",
         "../../../test/network:emulated_network",

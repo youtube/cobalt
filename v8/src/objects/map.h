@@ -7,17 +7,19 @@
 
 #include <atomic>
 #include <optional>
+#include <span>
 
-#include "include/v8-memory-span.h"
+#include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/fixed-array-base.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/internal-index.h"
+#include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/prototype-info.h"
 #include "src/roots/roots.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -34,6 +36,7 @@ enum InstanceType : uint16_t;
   V(FeedbackMetadata)                \
   V(Filler)                          \
   V(HeapNumber)                      \
+  V(HashSeedWrapper)                 \
   V(Hole)                            \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
@@ -60,7 +63,6 @@ enum InstanceType : uint16_t;
   V(ContextCell)                      \
   V(CppHeapExternalObject)            \
   V(DataHandler)                      \
-  V(DebugInfo)                        \
   V(DescriptorArray)                  \
   V(StrongDescriptorArray)            \
   V(DoubleStringCache)                \
@@ -121,7 +123,6 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmFuncRef)             \
   IF_WASM(V, WasmGlobalObject)        \
   IF_WASM(V, WasmInstanceObject)      \
-  IF_WASM(V, WasmMemoryMapDescriptor) \
   IF_WASM(V, WasmMemoryObject)        \
   IF_WASM(V, WasmResumeData)          \
   IF_WASM(V, WasmStruct)              \
@@ -163,9 +164,7 @@ enum class ObjectFields {
 
 using MapHandles =
     DirectHandleSmallVector<Map, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
-using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
-
-#include "torque-generated/src/objects/map-tq.inc"
+using MapHandlesSpan = std::span<DirectHandle<Map>>;
 
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:
@@ -336,7 +335,13 @@ V8_OBJECT class Map : public HeapObject {
 
   // Bit positions for |bit_field|.
   struct Bits1 {
-    DEFINE_TORQUE_GENERATED_MAP_BIT_FIELDS1()
+    using IsCallableBit = base::BitField<bool, 0, 1, uint8_t>;
+    using HasNamedInterceptorBit = IsCallableBit::Next<bool, 1>;
+    using HasIndexedInterceptorBit = HasNamedInterceptorBit::Next<bool, 1>;
+    using IsUndetectableBit = HasIndexedInterceptorBit::Next<bool, 1>;
+    using IsAccessCheckNeededBit = IsUndetectableBit::Next<bool, 1>;
+    using IsConstructorBit = IsAccessCheckNeededBit::Next<bool, 1>;
+    using IsExtendedMapBit = IsConstructorBit::Next<bool, 1>;
   };
 
   //
@@ -346,7 +351,9 @@ V8_OBJECT class Map : public HeapObject {
 
   // Bit positions for |bit_field2|.
   struct Bits2 {
-    DEFINE_TORQUE_GENERATED_MAP_BIT_FIELDS2()
+    using NewTargetIsBaseBit = base::BitField<bool, 0, 1, uint8_t>;
+    using IsImmutablePrototypeBit = NewTargetIsBaseBit::Next<bool, 1>;
+    using ElementsKindBits = IsImmutablePrototypeBit::Next<ElementsKind, 6>;
   };
 
   //
@@ -366,7 +373,19 @@ V8_OBJECT class Map : public HeapObject {
 
   // Bit positions for |bit_field3|.
   struct Bits3 {
-    DEFINE_TORQUE_GENERATED_MAP_BIT_FIELDS3()
+    using EnumLengthBits = base::BitField<int32_t, 0, 10, uint32_t>;
+    using NumberOfOwnDescriptorsBits = EnumLengthBits::Next<int32_t, 10>;
+    using IsPrototypeMapBit = NumberOfOwnDescriptorsBits::Next<bool, 1>;
+    using IsDictionaryMapBit = IsPrototypeMapBit::Next<bool, 1>;
+    using OwnsDescriptorsBit = IsDictionaryMapBit::Next<bool, 1>;
+    using IsInRetainedMapListBit = OwnsDescriptorsBit::Next<bool, 1>;
+    using IsDeprecatedBit = IsInRetainedMapListBit::Next<bool, 1>;
+    using IsUnstableBit = IsDeprecatedBit::Next<bool, 1>;
+    using IsMigrationTargetBit = IsUnstableBit::Next<bool, 1>;
+    using IsExtensibleBit = IsMigrationTargetBit::Next<bool, 1>;
+    using MayHaveInterestingPropertiesBit = IsExtensibleBit::Next<bool, 1>;
+    using ConstructionCounterBits =
+        MayHaveInterestingPropertiesBit::Next<int32_t, 3>;
   };
 
   // Ensure that Torque-defined bit widths for |bit_field3| are as expected.
@@ -754,6 +773,7 @@ V8_OBJECT class Map : public HeapObject {
   // (i.e. the canonical RTT for their static type) here, for fast access
   // from type checks in generated code.
   DECL_ACCESSORS(immediate_supertype_map, Tagged<Map>)
+  inline bool has_immediate_supertype_map() const;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
@@ -1249,7 +1269,8 @@ V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
  public:
   // Bit positions for |bit_field_ex|.
   struct BitsEx {
-    DEFINE_TORQUE_GENERATED_EXTENDED_MAP_BIT_FIELDS()
+    using MapKindBits = base::BitField<ExtendedMapKind, 0, 3, uint8_t>;
+    using MapSizeInWordsBits = MapKindBits::Next<uint8_t, 5>;
   };
 
   inline uint8_t bit_field_ex() const;

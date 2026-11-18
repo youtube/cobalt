@@ -23,8 +23,6 @@
 #include "api/call/transport.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
-#include "api/field_trials.h"
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
 #include "api/rtp_header_extension_id.h"
@@ -65,7 +63,7 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/rate_limiter.h"
-#include "test/create_test_field_trials.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_transport.h"
@@ -179,11 +177,9 @@ class RtpVideoSenderTestFixture {
       scoped_refptr<FrameTransformerInterface> frame_transformer,
       const std::vector<int>& payload_types,
       absl::string_view field_trials = "")
-      : field_trials_(CreateTestFieldTrials(field_trials)),
-        time_controller_(Timestamp::Millis(1000000)),
-        env_(CreateEnvironment(&field_trials_,
-                               time_controller_.GetClock(),
-                               time_controller_.CreateTaskQueueFactory())),
+      : time_controller_(Timestamp::Millis(1000000)),
+        env_(CreateTestEnvironment(
+            {.field_trials = field_trials, .time = &time_controller_})),
         config_(CreateVideoSendStreamConfig(&transport_,
                                             ssrcs,
                                             rtx_ssrcs,
@@ -269,7 +265,6 @@ class RtpVideoSenderTestFixture {
   void SetSending(bool sending) { router_->SetSending(sending); }
 
  private:
-  FieldTrials field_trials_;
   NiceMock<MockTransport> transport_;
   NiceMock<MockRtcpIntraFrameObserver> encoder_feedback_;
   GlobalSimulatedTimeController time_controller_;
@@ -1616,8 +1611,7 @@ TEST(RtpVideoSenderTest, PostTaskRaceDoesNotLeadToDanglingPointer) {
   NiceMock<MockRtcpIntraFrameObserver> encoder_feedback;
 
   GlobalSimulatedTimeController time_controller(Timestamp::Millis(1000000));
-  Environment env = CreateEnvironment(time_controller.GetClock(),
-                                      time_controller.CreateTaskQueueFactory());
+  Environment env = CreateTestEnvironment({.time = &time_controller});
 
   VideoSendStream::Config config(&transport);
   config.rtp.ssrcs = {kSsrc1};

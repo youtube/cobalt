@@ -33,6 +33,7 @@
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -1284,6 +1285,8 @@ class SSLClientSocketZeroRTTTest : public SSLClientSocketTest {
   }
 
   SSLClientSocket* ssl_socket() { return ssl_socket_.get(); }
+
+  void DestroyClient() { ssl_socket_.reset(); }
 
  private:
   TestCompletionCallback callback_;
@@ -5544,6 +5547,46 @@ TEST_F(SSLClientSocketZeroRTTTest, ZeroRTTReject) {
   SSLInfo ssl_info;
   ASSERT_TRUE(GetSSLInfo(&ssl_info));
   EXPECT_EQ(SSLInfo::HANDSHAKE_FULL, ssl_info.handshake_type);
+}
+
+// Test that early data is cleared from the cache immediately when a read error
+// occurs, even if the socket is destroyed before the posted DoPeek task can
+// run. This prevents infinite retry loops in HttpNetworkTransaction.
+TEST_F(SSLClientSocketZeroRTTTest, ZeroRTTRejectNoRunLoop) {
+  ASSERT_TRUE(StartServer());
+  ASSERT_TRUE(RunInitialConnection());
+
+  SSLServerConfig server_config;
+  server_config.early_data_enabled = false;
+  server_config.version_max = SSL_PROTOCOL_VERSION_TLS1_3;
+  SetServerConfig(server_config);
+
+  // 0-RTT Connection
+  FakeBlockingStreamSocket* socket = MakeClient(true);
+  socket->BlockReadResult();
+  ASSERT_THAT(Connect(), IsOk());
+  constexpr std::string_view kRequest = "GET /zerortt HTTP/1.0\r\n\r\n";
+  EXPECT_EQ(static_cast<int>(kRequest.size()), WriteAndWait(kRequest));
+  socket->UnblockReadResult();
+  base::PlatformThread::Sleep(base::Milliseconds(100));
+
+  // Expect early data to be rejected.
+  auto buf = base::MakeRefCounted<IOBufferWithSize>(4096);
+  int rv = ReadAndWait(buf.get(), 4096);
+  EXPECT_EQ(ERR_EARLY_DATA_REJECTED, rv);
+
+  // Destroy the socket immediately without running the event loop.
+  // This simulates HttpNetworkTransaction destroying the socket on error.
+  DestroyClient();
+
+  // Try to connect again. Since the socket was destroyed immediately, the
+  // posted DoPeek task was cancelled. However, the cache should have been
+  // cleared during the read error mapping, so this connection should not
+  // attempt 0-RTT and should succeed.
+  socket = MakeClient(true);
+  ASSERT_THAT(Connect(), IsOk());
+  rv = MakeHTTPRequest(ssl_socket());
+  EXPECT_THAT(rv, IsOk());
 }
 
 TEST_F(SSLClientSocketZeroRTTTest, ZeroRTTWrongVersion) {

@@ -78,6 +78,8 @@ if (is_android) {
       "//sdk/android:native_api_jni",
       "//sdk/android:native_api_video",
     ]
+
+    java_targets = [ ":androidnativeapi" ]
   }
 
   android_resources("resources") {
@@ -87,9 +89,5 @@ if (is_android) {
       "res/layout/activity_main.xml",
       "res/values/strings.xml",
     ]
-
-    # Needed for Bazel converter.
-    resource_dirs = [ "res" ]
-    assert(resource_dirs != [])  # Mark as used.
   }
 }

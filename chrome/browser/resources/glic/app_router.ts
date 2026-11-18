@@ -3,18 +3,15 @@
 // found in the LICENSE file.
 
 import {assertNotReachedCase} from '//resources/js/assert.js';
-import {loadTimeData} from '//resources/js/load_time_data.js';
 import {getRequiredElement} from 'chrome://resources/js/util.js';
 
 import {BrowserProxyImpl} from './browser_proxy.js';
-import {FreAppController} from './fre/fre_app_controller.js';
-import type {ZoomAction} from './glic.mojom-webui.js';
-import {PanelStateKind, ProfileReadyState} from './glic.mojom-webui.js';
+import type {ProfileReadyState, ZoomAction} from './glic.mojom-webui.js';
+import {PanelStateKind} from './glic.mojom-webui.js';
 import {GlicAppController} from './glic_app_controller.js';
 
 export enum AppView {
   GLIC,
-  FRE
 }
 
 /**
@@ -24,9 +21,7 @@ export enum AppView {
  */
 export class AppRouter {
   private glicController: GlicAppController|undefined;
-  private freAppController: FreAppController|undefined;
   private glicContainer: HTMLElement;
-  private freContainer: HTMLElement;
   private browserProxy: BrowserProxyImpl;
   private currentView: AppView|undefined;
   private currentPanelStateKind: PanelStateKind|undefined;
@@ -34,27 +29,27 @@ export class AppRouter {
 
   constructor() {
     this.glicContainer = getRequiredElement('glic-app-container');
-    this.freContainer = getRequiredElement('fre-app-container');
     this.browserProxy = new BrowserProxyImpl();
     this.browserProxy.pageCallbackRouter.intentToShow.addListener(
-        this.intentToShow_.bind(this));
+        this.intentToShow_.bind(this),
+    );
     this.browserProxy.pageCallbackRouter.updatePageState.addListener(
-        this.updatePageState_.bind(this));
+        this.updatePageState_.bind(this),
+    );
     this.browserProxy.pageCallbackRouter.zoom.addListener(
-        this.zoom_.bind(this));
+        this.zoom_.bind(this),
+    );
     this.browserProxy.instanceId.subscribe(this.setInstanceId_.bind(this));
     // TODO(crbug.com/454120908): Remove this method after WebContents warming
     // is rolled out.
     this.browserProxy.pageCallbackRouter.setProfileReadyState.addListener(
-        this.setProfileReadyState_.bind(this));
+        this.setProfileReadyState_.bind(this),
+    );
     this.browserProxy.preloadPageCallbackRouter.setProfileReadyState
-        .addListener(this.setProfileReadyState_.bind(this));
-    const shouldShowFre = loadTimeData.getBoolean('shouldShowFre');
-    if (shouldShowFre) {
-      this.switchToView(AppView.FRE);
-    } else {
-      this.switchToView(AppView.GLIC);
-    }
+        .addListener(
+            this.setProfileReadyState_.bind(this),
+        );
+    this.switchToView(AppView.GLIC);
   }
 
   switchToView(view: AppView): void {
@@ -62,8 +57,6 @@ export class AppRouter {
       return;
     }
     this.glicContainer.hidden = true;
-    this.freContainer.hidden = true;
-    const previousView = this.currentView;
     this.currentView = view;
 
     switch (this.currentView) {
@@ -73,23 +66,8 @@ export class AppRouter {
           if (this.currentPanelStateKind !== undefined) {
             this.glicController.updatePageState(this.currentPanelStateKind);
           }
-          this.freAppController?.destroyWebview();
-          this.freAppController = undefined;
         }
         this.glicContainer.hidden = false;
-        break;
-      case AppView.FRE:
-        if (previousView === AppView.GLIC) {
-          throw new Error('Invalid view transition to FRE from GLIC');
-        }
-        if (!this.freAppController) {
-          this.freAppController = new FreAppController({
-            partitionString: 'persist:glicpart',
-            shouldSizeForDialog: false,
-            onClose: this.close.bind(this),
-          });
-        }
-        this.freContainer.hidden = false;
         break;
       default:
         assertNotReachedCase(this.currentView);
@@ -101,11 +79,6 @@ export class AppRouter {
   }
 
   private setProfileReadyState_(state: ProfileReadyState) {
-    // If the view is currently FRE, transition to GLIC once in a ready state.
-    if (this.currentView === AppView.FRE &&
-        state === ProfileReadyState.kReady) {
-      this.switchToView(AppView.GLIC);
-    }
     this.glicController?.setProfileReadyState(state);
   }
 

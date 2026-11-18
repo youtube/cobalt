@@ -334,7 +334,7 @@ OPENSSL_EXPORT int BIO_read_asn1(BIO *bio, uint8_t **out, size_t *out_len,
 #define BIO_NOCLOSE 0
 #define BIO_CLOSE 1
 
-// BIO_s_mem returns a `BIO_METHOD` that uses a in-memory buffer.
+// BIO_s_mem returns a `BIO_METHOD` that uses an in-memory buffer.
 OPENSSL_EXPORT const BIO_METHOD *BIO_s_mem(void);
 
 // BIO_new_mem_buf creates read-only BIO that reads from `len` bytes at `buf`.
@@ -386,7 +386,7 @@ OPENSSL_EXPORT int BIO_set_mem_eof_return(BIO *bio, int eof_value);
 // File descriptor BIOs.
 //
 // File descriptor BIOs are wrappers around the system's `read` and `write`
-// functions. If the close flag is set then then `close` is called on the
+// functions. If the close flag is set then `close` is called on the
 // underlying file descriptor when the BIO is freed.
 //
 // `BIO_reset` attempts to seek the file pointer to the start of file using

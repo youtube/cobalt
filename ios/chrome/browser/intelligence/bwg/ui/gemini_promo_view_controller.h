@@ -7,13 +7,13 @@
 
 #import <UIKit/UIKit.h>
 
-#import "ios/chrome/browser/intelligence/bwg/ui/gemini_fre_view_controller_protocol.h"
+#import "ios/chrome/browser/intelligence/bwg/ui/gemini_first_run_view_controller_protocol.h"
 
 @protocol GeminiPromoMutator;
 
 // Gemini promo View Controller.
 @interface GeminiPromoViewController
-    : UIViewController <GeminiFREViewControllerProtocol>
+    : UIViewController <GeminiFirstRunViewControllerProtocol>
 
 // The mutator for this view controller to communicate to the mediator.
 @property(nonatomic, weak) id<GeminiPromoMutator> mutator;

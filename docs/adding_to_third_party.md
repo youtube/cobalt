@@ -440,68 +440,49 @@ Use SPDX license identifiers (https://spdx.org/licenses/) when possible e.g.
 allowlist in
 [depot_tools/+/main:metadata/fields/custom/license_allowlist.py](https://source.chromium.org/chromium/chromium/tools/depot_tools/+/main:metadata/fields/custom/license_allowlist.py).
 
-If the dependency uses a license that is not in the allowlist, check the [license classification](#license-classifications) (see below):
+If the dependency uses a license that is not in the
+[license classification](#license-classifications)(see below) to determine what actions are
+required.
 
-* **For Permissive, Notice, or Reciprocal licenses**: The license will need to be added to the [allowlist](https://source.chromium.org/chromium/chromium/tools/depot_tools/+/main:metadata/fields/custom/license_allowlist.py) (see link for instructions).
-* **For Restricted or By-Exception-Only licenses** (Googlers can verify this via [go/lican](http://go/lican)):
-  1. **File a request**:
-     * **Googlers**: File a bug with OSL using [this template](http://b/issues/new?component=1450496&template=2332739) (see the [libaom exemption](http://b/issues/515617836) for an example).
-     * **External Contributors**: File a bug in the [Chromium > ThirdParty (1456923)](https://issues.chromium.org/issues/new?component=1456923) public tracker component. A member of the `//third_party/OWNERS` team will review it and file the OSL exception on your behalf.
-  2. **Exemption Resolution**: OSL will review the request and, if approved, instruct the reporter to either:
-     * Add the license to the [allowlist](https://source.chromium.org/chromium/chromium/tools/depot_tools/+/main:metadata/fields/custom/license_allowlist.py) (handled by the third-party review team); OR
-     * Include a [`restrictive_license_approval.proto`](https://source.chromium.org/chromium/chromium/tools/depot_tools/+/main:metadata/restrictive_license_approval.proto) file in your dependency's directory, with the `README.chromium`.
+## License Classifications
 
+Licenses used in our codebase fall into several categories. Notice-level and
+less restrictive licenses are allowed in all projects.
 
-### License Classifications
-
-Licenses used in our codebase fall into several categories of increasing
-restrictiveness, with notice-level and less restrictive licenses being allowed
-in all projects:
-
-* **Public Domain/Unencumbered/Permissive Licenses** - These licenses allow
-  you to do almost anything with the code, they may require attribution e.g.:
-  * [CC0-1.0](https://spdx.org/licenses/CC0-1.0.html).
-  * [Unlicense](https://spdx.org/licenses/Unlicense.html).
-* **Notice Licenses** - (Most open source licenses fall into this category)
-  These licenses are similar to permissive but have additional notice
-  requirements e.g.:
-  * [Apache-2.0](https://spdx.org/licenses/Apache-2.0.html): [`Any modified files
-      must carry prominent notices stating that you changed the
-      files`](https://source.chromium.org/chromium/chromium/src/+/main:third_party/catapult/third_party/coverage/LICENSE.txt;l=98).
-  * [BSD-3-Clause](https://spdx.org/licenses/BSD-3-Clause): [`3. Neither the
-     name of the copyright holder nor the names of its contributors may be
-     used to endorse or promote products derived from this software without
-     specific prior written
-     permission.`](https://source.chromium.org/chromium/chromium/src/+/main:ios/third_party/fishhook/LICENSE;drc=1308ce89bbb959047a73145a0ca4a2f5f7dde894;l=10).
-
-Additionally, open source projects like Chromium are also allowed to use reciprocal licenses:
-
-*   **Reciprocal Licenses** - These licenses require sharing modifications under
-    the same terms:
-
-    *   [MPL-1.1](https://spdx.org/licenses/MPL-1.1.html).
-    *   [APSL-2.0](https://spdx.org/licenses/APSL-2.0.html).
-
-*   **Restricted Licenses !Case-by-case Approval Required!** - These licenses
-    have stricter requirements but are allowed in some circumstances. These
-    licenses may require you to publish the code under the same terms and
-    conditions:
-
-    *   [LGPL-2.1](https://spdx.org/licenses/LGPL-2.1.html).
-    *   [GPL-2.0](https://spdx.org/licenses/GPL-2.0.html).
+| Classification | Description | Examples | Can I use it? |
+| :--- | :--- | :--- | :--- |
+| **Public Domain / Permissive** | Allow you to do almost anything, may require attribution. | [CC0-1.0](https://spdx.org/licenses/CC0-1.0.html), [Unlicense](https://spdx.org/licenses/Unlicense.html) | Yes |
+| **Notice** | Require copyright notice and attribution. | [Apache-2.0](https://spdx.org/licenses/Apache-2.0.html), [BSD-3-Clause](https://spdx.org/licenses/BSD-3-Clause) | Yes |
+| **Reciprocal** | Require sharing modifications under the same terms. | [MPL-1.1](https://spdx.org/licenses/MPL-1.1.html), [APSL-2.0](https://spdx.org/licenses/APSL-2.0.html) | Yes (allowed for open-source projects like Chromium) |
+| **Restricted** | Stricter requirements, case-by-case approval required. | [LGPL-2.1](https://spdx.org/licenses/LGPL-2.1.html), [GPL-2.0](https://spdx.org/licenses/GPL-2.0.html) | Requires [approval](#file-a-restricted-license-request) |
 
 Make sure you understand the license terms before checking in a dependency, and
 when making any local modifications or forks.
 
-The following restricted licenses are allowed under the following circumstances
-(this is not a definitive list):
+### Restricted Licenses
 
-* GPL licenses are allowed for all non-shipped dependencies.
-* LGPLv2.1 is always okay as long as it is part of the Chromium binary.
+Restricted licenses (like GPL) have stricter requirements and require
+case-by-case approval unless they have been added to the
+[allowlist](https://source.chromium.org/chromium/chromium/tools/depot_tools/+/main:metadata/fields/custom/license_allowlist.py)
+(e.g. LGPL).
+
+Common cases that are allowed (but still require a request):
+*   **[GPL-2.0](https://spdx.org/licenses/GPL-2.0.html)** licenses are allowed for all non-shipped dependencies.
+
+#### File a Restricted License Request
+
+*   **Googlers**: File a bug using [this bug template](http://b/issues/new?component=1450496&template=2332739).
+    If approved, you will be given a
+    [`restrictive_license_approval.textproto`](https://chromium.googlesource.com/chromium/tools/depot_tools/+/main/metadata/restrictive_license_approval.proto)
+    file to put next to your `README.chromium`.
+*   **External Contributors**: File a bug using [this bug template](https://g-issues.chromium.org/issues/new?component=1456923&template=2336896).
+    A member of the `//third_party/OWNERS` team will review it and handle this process on your
+    behalf.
 
 ## Multiple packages
 Adding multiple packages in a single third party directory is not recommended,
-because it does not follow the best practices for [third party dependency structure](#standard-dep-structure)
+because it does not follow the best practices for
+[third party dependency structure](#standard-dep-structure)
 and complicates vulnerability scanning.
 
 Each dependency should have its own third party directory with a few very
@@ -519,7 +500,8 @@ line to separate the data for each package:
 # Vulnerability Cover {#vulnerability-cover}
 
 All dependencies _must_ provide sufficient metadata to enable vulnerability scanning:
-* `URL` and (`Version` or `Revision`) match upstream identifiers (git, package manager, etc); or
+* `URL` and (`Version` or `Revision`) match upstream identifiers (git, package manager, etc);
+or
 * `CPEPrefix` and `Version`.
 
 There are limited exceptions for dependencies matching:

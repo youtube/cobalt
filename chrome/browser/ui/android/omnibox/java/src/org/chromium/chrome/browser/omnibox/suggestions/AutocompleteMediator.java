@@ -397,11 +397,12 @@ class AutocompleteMediator
      * @param brandedColorScheme The {@link @BrandedColorScheme}.
      */
     void updateVisualsForState(@BrandedColorScheme int brandedColorScheme) {
+        @FuseboxLayoutMode int fuseboxLayoutMode = getFuseboxLayoutMode();
         mDropdownViewInfoListManager.setBrandedColorScheme(brandedColorScheme);
+        mDropdownViewInfoListManager.setApplySideSpacing(
+                fuseboxLayoutMode != FuseboxLayoutMode.SUGGESTIONS_POPOVER);
         mListPropertyModel.set(SuggestionListProperties.COLOR_SCHEME, brandedColorScheme);
-        mListPropertyModel.set(
-                SuggestionListProperties.FUSEBOX_LAYOUT_MODE,
-                mFuseboxCoordinator.getFuseboxLayoutModeSupplier().get());
+        mListPropertyModel.set(SuggestionListProperties.FUSEBOX_LAYOUT_MODE, fuseboxLayoutMode);
         if (mOmniboxSuggestionsVisualStateObserver != null) {
             mOmniboxSuggestionsVisualStateObserver.onOmniboxSuggestionsBackgroundColorChanged(
                     OmniboxResourceProvider.getSuggestionsDropdownBackgroundColor(

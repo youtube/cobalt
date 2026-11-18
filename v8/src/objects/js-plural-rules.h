@@ -33,8 +33,6 @@ class LocalizedNumberRangeFormatter;
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-plural-rules-tq.inc"
-
 V8_OBJECT class JSPluralRules : public JSObject {
  public:
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSPluralRules> New(
@@ -64,7 +62,7 @@ V8_OBJECT class JSPluralRules : public JSObject {
 
   DECL_PRINTER(JSPluralRules)
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_PLURAL_RULES_FLAGS()
+  using TypeBit = base::BitField<JSPluralRules::Type, 0, 1, uint32_t>;
 
   static_assert(TypeBit::is_valid(Type::CARDINAL));
   static_assert(TypeBit::is_valid(Type::ORDINAL));

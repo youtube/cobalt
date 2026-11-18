@@ -412,6 +412,17 @@ class COMPONENT_EXPORT(X11) Connection final : public XProto,
   }
 
   template <typename T>
+  Future<void> SetArrayProperty(Window window,
+                                Atom name,
+                                Atom type,
+                                base::span<const T> values) {
+    static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4, "");
+    return SetArrayPropertyImpl(
+        window, name, type, 8u * sizeof(T),
+        base::subtle::reinterpret_span<const uint8_t>(values));
+  }
+
+  template <typename T>
   Future<void> SetProperty(Window window,
                            Atom name,
                            Atom type,

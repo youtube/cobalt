@@ -115,7 +115,7 @@ export class KeyArrowNavigationService {
    * @returns the current focused element
    */
   getElementAtFocusIndexForTesting(): HTMLElement {
-    return this.elements_[this.focusIndex_];
+    return this.elements_[this.focusIndex_]!;
   }
 
   /**

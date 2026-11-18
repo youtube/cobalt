@@ -33,6 +33,7 @@ class SplitTabMenuModel : public ui::SimpleMenuModel,
                           public ui::SimpleMenuModel::Delegate {
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kReversePositionMenuItem);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kToggleOrientationMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCloseMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCloseStartTabMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCloseEndTabMenuItem);

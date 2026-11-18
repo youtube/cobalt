@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {preventDefaultOnPoundLinkClicks, SecurityInterstitialCommandId, sendCommand} from 'chrome://interstitials/common/resources/interstitial_common.js';
+import {HIDDEN_CLASS, preventDefaultOnPoundLinkClicks, SecurityInterstitialCommandId, sendCommand} from 'chrome://interstitials/common/resources/interstitial_common.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
 function initPage() {
+  loadTimeData.data = window.loadTimeDataRaw;
   preventDefaultOnPoundLinkClicks();
   const learnMoreLink = document.querySelector('#learn-more-link');
   if (learnMoreLink) {
@@ -15,9 +17,14 @@ function initPage() {
 
   const backLink = document.querySelector('#back-link');
   if (backLink) {
-    backLink.addEventListener('click', function() {
-      sendCommand(SecurityInterstitialCommandId.CMD_DONT_PROCEED);
-    });
+    if (loadTimeData.valueExists('hide_back_link') &&
+        loadTimeData.getBoolean('hide_back_link')) {
+      backLink.classList.add(HIDDEN_CLASS);
+    } else {
+      backLink.addEventListener('click', function() {
+        sendCommand(SecurityInterstitialCommandId.CMD_DONT_PROCEED);
+      });
+    }
   }
 }
 

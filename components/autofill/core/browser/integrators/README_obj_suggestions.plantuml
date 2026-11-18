@@ -46,7 +46,7 @@ split
           :Defer to CredMan; <<output>>
           stop
         else (no)
-          #CCF:TouchToFillController;
+          #CCF:TouchToFillPasswordManagerController;
           :Show BottomSheet; <<output>>
           stop
         endif

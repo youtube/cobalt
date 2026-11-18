@@ -63,9 +63,6 @@ class ExtensionSettingsTestBase : public WebUIMochaBrowserTest {
   // Sets the DevMode status for the current profile.
   void SetDevModeEnabled(bool enabled);
 
-  // Sets whether to ignore errors for deprecated manifest versions.
-  void SetSilenceDeprecatedManifestVersionWarnings(bool silence);
-
   const base::FilePath& test_data_dir() { return test_data_dir_; }
 
  private:

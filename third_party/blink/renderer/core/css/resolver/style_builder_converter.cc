@@ -2314,11 +2314,16 @@ StylePositionAnchor StyleBuilderConverter::ConvertPositionAnchor(
     const CSSValue& value) {
   DCHECK(value.IsScopedValue());
   if (const auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
-    if (identifier_value->GetValueID() == CSSValueID::kNone) {
-      return StylePositionAnchor(StylePositionAnchor::Type::kNone);
+    switch (identifier_value->GetValueID()) {
+      case CSSValueID::kAuto:
+        return StylePositionAnchor(StylePositionAnchor::Type::kAuto);
+      case CSSValueID::kNone:
+        return StylePositionAnchor(StylePositionAnchor::Type::kNone);
+      case CSSValueID::kNormal:
+        return StylePositionAnchor(StylePositionAnchor::Type::kNormal);
+      default:
+        NOTREACHED();
     }
-    DCHECK_EQ(identifier_value->GetValueID(), CSSValueID::kAuto);
-    return StylePositionAnchor(StylePositionAnchor::Type::kAuto);
   }
   return StylePositionAnchor(ConvertCustomIdent(state, value));
 }

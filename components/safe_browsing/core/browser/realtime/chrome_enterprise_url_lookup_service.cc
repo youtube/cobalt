@@ -86,7 +86,9 @@ ChromeEnterpriseRealTimeUrlLookupService::
             get_content_area_account_email_callback,
         base::RepeatingCallback<bool()> is_profile_affiliated_callback,
         bool is_command_line_switch_supported,
-        IntelligentScanDelegate* intelligent_scan_delegate)
+        IntelligentScanDelegate* intelligent_scan_delegate,
+        base::RepeatingCallback<network::mojom::NetworkContext*()>
+            network_context_getter)
     : RealTimeUrlLookupServiceBase(url_loader_factory,
                                    cache_manager,
                                    get_user_population_callback,
@@ -94,7 +96,8 @@ ChromeEnterpriseRealTimeUrlLookupService::
                                    std::move(token_fetcher),
                                    pref_service,
                                    webui_delegate,
-                                   intelligent_scan_delegate),
+                                   intelligent_scan_delegate,
+                                   std::move(network_context_getter)),
       connectors_service_(connectors_service),
       pref_service_(pref_service),
       identity_manager_(identity_manager),

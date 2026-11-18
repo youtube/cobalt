@@ -138,7 +138,6 @@ int GetNumSpatialLayers(const VideoCodec& codec) {
   }
 }
 
-
 bool RequiresEncoderReset(const VideoCodec& prev_send_codec,
                           const VideoCodec& new_send_codec,
                           bool was_encode_called_since_last_initialization) {
@@ -1011,7 +1010,8 @@ void VideoStreamEncoder::ConfigureEncoder(VideoEncoderConfig config,
     //
     // Note: zero-hertz mode isn't enabled by this alone. Constraints also
     // have to be set up with min_fps = 0 and max_fps > 0.
-    if (config.content_type == VideoEncoderConfig::ContentType::kScreen) {
+    if (config.content_type == VideoEncoderConfig::ContentType::kScreen ||
+        config.allow_zero_hertz_video) {
       frame_cadence_adapter_->SetZeroHertzModeEnabled(
           FrameCadenceAdapterInterface::ZeroHertzModeParams{});
     } else {
@@ -1599,7 +1599,8 @@ void VideoStreamEncoder::OnEncoderSettingsChanged() {
   bool is_screenshare = encoder_settings.encoder_config().content_type ==
                         VideoEncoderConfig::ContentType::kScreen;
   degradation_preference_manager_->SetIsScreenshare(is_screenshare);
-  if (is_screenshare) {
+  if (is_screenshare ||
+      encoder_settings.encoder_config().allow_zero_hertz_video) {
     frame_cadence_adapter_->SetZeroHertzModeEnabled(
         FrameCadenceAdapterInterface::ZeroHertzModeParams{
             send_codec_.numberOfSimulcastStreams});

@@ -2294,6 +2294,8 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::CreateVideoEncoderConfig(
   VideoEncoderConfig encoder_config;
   encoder_config.codec_type = PayloadStringToCodecType(codec.name);
   encoder_config.video_format = SdpVideoFormat(codec.name, codec.params);
+  encoder_config.allow_zero_hertz_video =
+      parameters_.options.allow_zero_hertz_video.value_or(false);
 
   bool is_screencast = parameters_.options.is_screencast.value_or(false);
   if (is_screencast) {

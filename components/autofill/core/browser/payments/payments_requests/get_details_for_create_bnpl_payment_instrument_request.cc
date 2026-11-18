@@ -51,8 +51,7 @@ GetDetailsForCreateBnplPaymentInstrumentRequest::GetRequestContent() {
   base::DictValue request_dict;
   base::DictValue context;
   context.Set("language_code", request_details_.app_locale);
-  context.Set("billable_service",
-              payments::kUploadPaymentMethodBillableServiceNumber);
+  context.Set("billable_service", kUploadPaymentMethodBillableServiceNumber);
   if (request_details_.billing_customer_number != 0) {
     context.Set("customer_context",
                 BuildCustomerContextDictionary(

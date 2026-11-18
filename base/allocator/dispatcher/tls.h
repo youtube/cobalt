@@ -24,6 +24,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <string>
 
 #include "base/base_export.h"
 #include "base/check.h"
@@ -105,6 +106,7 @@ using OnThreadTerminationFunction = void (*)(void*);
 class BASE_EXPORT PThreadTLSSystem {
  public:
   PThreadTLSSystem();
+  ~PThreadTLSSystem();
 
   PThreadTLSSystem(const PThreadTLSSystem&) = delete;
   PThreadTLSSystem(PThreadTLSSystem&&);
@@ -128,6 +130,7 @@ class BASE_EXPORT PThreadTLSSystem {
   bool SetThreadSpecificData(void* data);
 
  private:
+  std::unique_ptr<std::string> crash_key_name_;
   base::debug::CrashKeyString* crash_key_ = nullptr;
   pthread_key_t data_access_key_ = 0;
 #if DCHECK_IS_ON()

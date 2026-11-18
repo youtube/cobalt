@@ -411,7 +411,9 @@ _CET_ENDBR
 .size	gcm_ghash_ssse3,.-gcm_ghash_ssse3
 
 .section	.rodata
+
 .align	16
+ghash_ssse3_constants:
 
 
 .Lreverse_bytes:

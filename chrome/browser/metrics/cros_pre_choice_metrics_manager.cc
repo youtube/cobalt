@@ -95,11 +95,11 @@ void CrOSPreChoiceMetricsManager::Enable() {
   // preferences.
   metrics::ChangeMetricsReportingState(
       metrics::MetricsReportingLevel::kBasic,
-      metrics::ChangeMetricsReportingStateCalledFrom::kCrosMetricsPreConsent);
+      metrics::ChangeMetricsReportingStateCalledFrom::kCrosMetricsPreChoice);
 
   // Propagate the change to metrics services. This will create the Client ID
-  // that will be used if the user consents to metrics. If pre-choice is being
-  // disabled do not update the permissions as it should not be changed.
+  // that will be used if the user chooses to enable metrics. If pre-choice is
+  // being disabled do not update the permissions as it should not be changed.
   g_browser_process->GetMetricsServicesManager()->UpdateUploadPermissions();
 
   // Register CrOSPreChoiceMetricsManager as the observer for policy change to

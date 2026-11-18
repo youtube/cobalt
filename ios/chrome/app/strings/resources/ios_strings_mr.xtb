@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">तुम्ही नुकतीच बंद केलेले टॅब पुन्हा उघडण्यासाठी, तुम्ही परत येथे येऊ शकता</translation>
 <translation id="1016495303386450659">आयटम अपडेट केला</translation>
+<translation id="1018804590490383958">स्कॅन करा आणि ऑटोफिल करा</translation>
 <translation id="1019990162050689579">Gemini ॲप ॲक्टिव्हिटी</translation>
 <translation id="102916930470544692">पासकी</translation>
 <translation id="1030376737535466765">Password Manager उघडा</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Nano Banana सह रीमिक्स करण्यासाठी इमेज अपलोड करा</translation>
 <translation id="1377508275003315939">पासवर्ड</translation>
 <translation id="1381022135873211423">{count,plural, =1{{count} पैकी {position} क्रमांकाचा पत्ता}other{{count} पैकी {position} क्रमांकाचा पत्ता}}</translation>
+<translation id="13813615483058219">काहीतरी चूक झाली. तुमचे इंटरनेट कनेक्शन तपासा, व्हॉल्यूम वाढवा किंवा पुन्हा प्रयत्न करा.</translation>
 <translation id="1383876407941801731">शोधा</translation>
 <translation id="138618066238211776"><ph name="USER_NAME" /> म्हणून पुढे सुरू ठेवा</translation>
 <translation id="138692594145659985">कार्ड सेव्ह करण्यासाठी पर्याय</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">तुमचा ब्राउझर अपडेट करा</translation>
 <translation id="4021931095789478915">वाचन सूचीमध्ये ${url} जोडा</translation>
 <translation id="4028871427853484857">खात्यामध्ये सेव्ह करा…</translation>
+<translation id="4036529942385659684">काही काळ इनॅक्टिव्हिटी आढळल्यास, स्टार्ट पेज दाखवा</translation>
 <translation id="4038354071007134711">या डिव्हाइसवरील कोणतीही ॲप्लिकेशन फाइल उघडू शकत नाही.</translation>
 <translation id="4042870976416480368">पेजमध्ये शोधा</translation>
 <translation id="4045441967987592849">पुन्हा उघडा</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">गट व्यवस्थापित करा</translation>
 <translation id="4172051516777682613">नेहमी दर्शवा</translation>
 <translation id="417273154673973994">{count,plural, =1{१ टॅब गट बंद आणि सेव्ह केला आहे}other{{count} टॅब गट बंद आणि सेव्ह केले आहेत}}</translation>
-<translation id="417612446554534067">तुमच्या डिव्हाइस वर पाठवा</translation>
 <translation id="4180726336228139707">फक्त या डिव्हाइसवर</translation>
 <translation id="4181841719683918333">भाषा</translation>
 <translation id="4183350924949589798">आणखी सुरक्षा हवी आहे का?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">टॅब बंद केले गेले होते; तुम्हाला साइन आउट केले गेले होते</translation>
 <translation id="4911042367886397055">तुमचे पुन्हा स्वागत आहे, <ph name="USER_NAME" /> !</translation>
 <translation id="4913626501929406101">तुम्ही तुमच्या पासवर्डची प्रत तुमच्या कुटुंब गटातील एखाद्या व्यक्तीशी सुरक्षितपणे शेअर करू शकता. <ph name="BEGIN_LINK" />अधिक जाणून घ्या<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">लेन्स</translation>
 <translation id="4917025507570489430">तुम्ही <ph name="USER_EMAIL" /> म्हणून साइन इन केलेले असते, तेव्हा सद्य ब्राउझिंग डेटा वापरू शकता. तुमची संस्था कदाचित हा डेटा पाहू शकते.</translation>
 <translation id="4918086044614829423">स्वीकारा</translation>
 <translation id="4930714375720679147">सुरू करा</translation>
@@ -1550,6 +1553,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">तुमच्या ॲड्रेस बारचे स्थान निवडा</translation>
 <translation id="6307241780749477694">तुम्हाला या डिव्हाइसवर तुमचे सर्व पासवर्ड मिळवण्यासाठी तुम्हीच आहात याची पडताळणी करा</translation>
+<translation id="6307792728709337290">या खरेदीसाठी आणि Chrome वर केलेल्या भविष्यातील खरेदीसाठी तुमचे कार्ड ऑटोफिल करण्याकरिता ते तुमच्या Google खाते मध्ये सेव्ह करा.</translation>
 <translation id="6316141353357700666">दिसणाऱ्या सूचीमधून तुम्हाला वापरायचा असलेला पासवर्ड निवडा.</translation>
 <translation id="6321526113093607004">बुकमार्क मध्ये जोडा</translation>
 <translation id="6327249202318869726">तुमच्या खात्यासाठी Gemini बंद केले आहे. अधिक माहितीसाठी तुमच्या ॲडमिनशी संपर्क साधा.</translation>
@@ -2144,6 +2148,7 @@
 <translation id="8263809106706527890">तुमच्या डीफॉल्ट ब्राउझर सेटिंग्जमध्ये बदल झाल्याची शक्यता आहे. तुम्ही सेटिंग्जमध्ये हे तपासू शकता.</translation>
 <translation id="8264966119170358612">तुमचे सेव्ह केलेले काही पासवर्ड हे Google ऐवजी तृतीय पक्षाच्या डेटा भंगामध्ये उघड झाले होते. <ph name="BEGIN_LINK" />अधिक जाणून घ्या<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">तुमच्या iPad रीसेटचा भाग म्हणून तुम्हाला <ph name="USER_NAME" /> खात्यामधून साइन आउट केले गेले होते. पुन्हा साइन इन करण्यासाठी, खाली "पुढे सुरू ठेवा" वर टॅप करा.</translation>
+<translation id="8270320981823560179">ड्राइव्ह</translation>
 <translation id="8273982424131314219">तुम्ही <ph name="URL" /> मध्ये माहिती भराल</translation>
 <translation id="8275068909952022340">आणखी…</translation>
 <translation id="8281781826761538115">डीफॉल्ट - <ph name="DEFAULT_LOCALE" /></translation>

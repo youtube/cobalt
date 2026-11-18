@@ -152,8 +152,6 @@ class CORE_EXPORT RemoteFrame final : public Frame,
                               bool is_pinch_gesture_active);
   // Called when the local root's visible viewport changes size.
   void DidChangeVisibleViewportSize(const gfx::Size& visible_viewport_size);
-  // Called when the local root's capture sequence number has changed.
-  void UpdateCaptureSequenceNumber(uint32_t sequence_number);
   // Called when the cursor accessibility scale factor changed.
   void CursorAccessibilityScaleFactorChanged(float scale_factor);
 

@@ -72,8 +72,6 @@
 #import "components/autofill/ios/form_util/form_handlers_java_script_feature.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/grit/components_resources.h"
-#import "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
-#import "components/plus_addresses/core/common/features.h"
 #import "components/prefs/ios/pref_observer_bridge.h"
 #import "components/prefs/pref_change_registrar.h"
 #import "components/prefs/pref_service.h"
@@ -199,11 +197,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
 
   // The pref service for which this agent was created.
   raw_ptr<PrefService> _prefService;
-
-  // The unique renderer ID of the most recent autocomplete field;
-  // tracks the currently-focused form element in order to force filling of
-  // the currently selected form element, even if it's non-empty.
-  FieldRendererId _pendingAutocompleteFieldID;
 
   // Suggestions state:
   // The most recent form suggestions.
@@ -404,7 +397,8 @@ bool HasGuid(const Suggestion::Payload& payload) {
         });
   }
 
-  if (suggestion.type == SuggestionType::kAddressEntry ||
+  if (suggestion.type == SuggestionType::kAutocompleteEntry ||
+      suggestion.type == SuggestionType::kAddressEntry ||
       suggestion.type == SuggestionType::kCreditCardEntry ||
       suggestion.type == SuggestionType::kVirtualCreditCardEntry ||
       suggestion.type == SuggestionType::kAddressFieldByFieldFilling ||
@@ -419,7 +413,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
           base::FeatureList::IsEnabled(
               autofill::features::kAutofillAiCreateEntityDataManager));
 
-    _pendingAutocompleteFieldID = fieldRendererID;
     if (_suggestionDelegate) {
       Suggestion autofill_suggestion(suggestion.type);
       autofill_suggestion.main_text.value =
@@ -449,16 +442,8 @@ bool HasGuid(const Suggestion::Payload& payload) {
     return;
   }
 
-  if (suggestion.type == SuggestionType::kAutocompleteEntry) {
-    // FormSuggestion is a simple, single value that can be filled out now.
-    [self fillField:SysNSStringToUTF8(fieldIdentifier)
-        fieldRendererID:fieldRendererID
-         formRendererID:formRendererID
-               formName:SysNSStringToUTF8(formName)
-                  value:SysNSStringToUTF16(suggestion.value)
-                inFrame:frame];
-  } else if (suggestion.type == SuggestionType::kUndoOrClear &&
-             !base::FeatureList::IsEnabled(kAutofillUndoIos)) {
+  if (suggestion.type == SuggestionType::kUndoOrClear &&
+      !base::FeatureList::IsEnabled(kAutofillUndoIos)) {
     const auto callback = [](__weak AutofillAgent* agent,
                              base::WeakPtr<web::WebFrame> frame,
                              FormRendererId formId,
@@ -481,10 +466,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
                        std::exchange(_suggestionHandledCompletion, nil)));
 
   } else {
-    // TODO(crbug.com/366247033): Remove this crash key once the underlying
-    // crash has been fixed.
-    SCOPED_CRASH_KEY_NUMBER("Bug366247033", "suggestion_type",
-                            static_cast<int>(suggestion.type));
     NOTREACHED();
   }
 }
@@ -640,12 +621,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
           break;
         }
 
-        // Filter out any key/value suggestions if the user hasn't typed yet.
-        if (popup_suggestion.type == SuggestionType::kAutocompleteEntry &&
-            _typedValue.length == 0) {
-          continue;
-        }
-
         // `value` will contain the text to be filled in the selected element
         // while `displayDescription` will contain a summary of the data to be
         // filled in the other elements.
@@ -734,6 +709,7 @@ bool HasGuid(const Suggestion::Payload& payload) {
       case SuggestionType::kOpenGemini:
       case SuggestionType::kAtMemoryNoConnection:
       case SuggestionType::kPersonalContextNotice:
+      case SuggestionType::kFetchingAmbientData:
         break;
     }
 
@@ -1212,7 +1188,7 @@ bool HasGuid(const Suggestion::Payload& payload) {
         }
       };
   AutofillJavaScriptFeature::GetInstance()->FillForm(
-      frame, std::move(data.payload), _pendingAutocompleteFieldID,
+      frame, std::move(data.payload),
       base::BindOnce(callback, weakSelf, frame->AsWeakPtr(),
                      std::exchange(_suggestionHandledCompletion, nil),
                      std::move(data.fieldToFormLookupMap), data.actionType));

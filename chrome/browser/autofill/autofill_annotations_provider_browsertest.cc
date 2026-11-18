@@ -50,7 +50,7 @@ class AutofillAnnotationsProviderBrowserTest : public InProcessBrowserTest {
  public:
   class TestAutofillManager : public BrowserAutofillManager {
    public:
-    explicit TestAutofillManager(autofill::ContentAutofillDriver* driver)
+    explicit TestAutofillManager(ContentAutofillDriver* driver)
         : BrowserAutofillManager(driver) {}
 
     [[nodiscard]] testing::AssertionResult WaitForFormsSeen(
@@ -59,9 +59,9 @@ class AutofillAnnotationsProviderBrowserTest : public InProcessBrowserTest {
     }
 
    private:
-    autofill::TestAutofillManagerWaiter forms_seen_waiter_{
+    TestAutofillManagerWaiter forms_seen_waiter_{
         *this,
-        {autofill::AutofillManagerEvent::kFormsSeen}};
+        {AutofillManagerEvent::kFormsSeen}};
   };
 
   void SetUpOnMainThread() override {
@@ -160,11 +160,10 @@ class AutofillAnnotationsProviderBrowserTest : public InProcessBrowserTest {
   }
 
  protected:
-  autofill::test::AutofillBrowserTestEnvironment autofill_test_environment_;
+  test::AutofillBrowserTestEnvironment autofill_test_environment_;
   TestAutofillClientInjector<TestContentAutofillClient>
       autofill_client_injector_;
-  autofill::TestAutofillManagerInjector<TestAutofillManager>
-      autofill_manager_injector_;
+  TestAutofillManagerInjector<TestAutofillManager> autofill_manager_injector_;
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
   std::optional<optimization_guide::proto::AnnotatedPageContent> page_content_;
 };

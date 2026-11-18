@@ -33,7 +33,6 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.CallbackHelper;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
@@ -130,7 +129,6 @@ public class ReaderModeToolbarButtonControllerTest {
     }
 
     @Test
-    @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
     public void testButtonClickDistilledPage_HidesReaderMode() {
         ReaderModeToolbarButtonController controller = createController();
 
@@ -144,7 +142,6 @@ public class ReaderModeToolbarButtonControllerTest {
     }
 
     @Test
-    @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
     public void buttonSpecChangesWhenInReaderMode() {
         ReaderModeToolbarButtonController controller = createController();
         assertEquals(
@@ -223,23 +220,5 @@ public class ReaderModeToolbarButtonControllerTest {
         assertFalse(controller.shouldShowButton(mMockTab));
 
         watcher.assertExpected();
-    }
-
-    @Test
-    @DisableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
-    public void testReaderModeShouldShowButton_whenDistillInAppDisabled() throws Exception {
-        // When ReaderModeDistillInApp is disabled, the button should always be "available" to be
-        // shown. The actual showing of the button is driven through ReaderModeActionProvider.
-        ReaderModeToolbarButtonController controller = createController();
-
-        when(mMockTab.getUrl()).thenReturn(new GURL("chrome-distiller://test"));
-        when(mDomDistillerUrlUtilsJni.isDistilledPage(any())).thenReturn(true);
-        controller.getTabSupplierObserverForTesting().onUrlUpdated(mMockTab);
-        assertTrue(controller.shouldShowButton(mMockTab));
-
-        when(mMockTab.getUrl()).thenReturn(new GURL("http://test.com"));
-        when(mDomDistillerUrlUtilsJni.isDistilledPage(any())).thenReturn(false);
-        controller.getTabSupplierObserverForTesting().onUrlUpdated(mMockTab);
-        assertTrue(controller.shouldShowButton(mMockTab));
     }
 }

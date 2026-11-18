@@ -132,11 +132,12 @@ TEST_F(ProcessRankPolicyAndroidTest, FocusedPage) {
             content::ChildProcessImportance::IMPORTANT);
 }
 
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
+// TODO(crbug.com/523088992): Re-enable this test on Android.
+#if BUILDFLAG(IS_ANDROID)
 #define MAYBE_FocusedNotVisiblePage DISABLED_FocusedNotVisiblePage
 #else
 #define MAYBE_FocusedNotVisiblePage FocusedNotVisiblePage
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 TEST_F(ProcessRankPolicyAndroidTest, MAYBE_FocusedNotVisiblePage) {
   graph_->PassToGraph(std::make_unique<ProcessRankPolicyAndroid>());
   MockPageGraph page_graph = CreateDefaultPage();
@@ -144,6 +145,10 @@ TEST_F(ProcessRankPolicyAndroidTest, MAYBE_FocusedNotVisiblePage) {
 
   page_graph.page.get()->SetIsFocused(true);
   page_graph.page.get()->SetIsVisible(false);
+
+  // Bypass the recently visible timer.
+  task_environment()->FastForwardBy(
+      base::Seconds(chrome::android::kProtectRecentlyVisibleTabDuration.Get()));
 
   EXPECT_EQ(web_contents()->GetPrimaryMainFrameImportanceForTesting(),
             content::ChildProcessImportance::NORMAL);
@@ -308,12 +313,13 @@ TEST_F(ProcessRankPolicyAndroidTest,
             content::ChildProcessImportance::NOT_PERCEPTIBLE);
 }
 
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
-#define MAYBE_RecentlyVisiblePage DISABLED_RecentlyVisiblePage
-#else
-#define MAYBE_RecentlyVisiblePage RecentlyVisiblePage
-#endif
-TEST_F(ProcessRankPolicyAndroidTest, MAYBE_RecentlyVisiblePage) {
+TEST_F(ProcessRankPolicyAndroidTest, RecentlyVisiblePage) {
+  if (base::android::device_info::is_desktop()) {
+    GTEST_SKIP()
+        << "ProtectRecentlyVisibleTab feature is always enabled on android "
+           "desktop. The feature is tested at "
+           "ProcessRankPolicyAndroidTest::ProtectRecentlyVisibleTab";
+  }
   if (!content::IsNotPerceptibleImportanceSupported()) {
     GTEST_SKIP() << "NOT_PERCEPTIBLE importance is not supported.";
   }
@@ -351,17 +357,17 @@ TEST_F(ProcessRankPolicyAndroidTest, AudiblePage) {
             content::ChildProcessImportance::NOT_PERCEPTIBLE);
 }
 
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
-#define MAYBE_RecentlyAudiblePage DISABLED_RecentlyAudiblePage
-#else
-#define MAYBE_RecentlyAudiblePage RecentlyAudiblePage
-#endif
-TEST_F(ProcessRankPolicyAndroidTest, MAYBE_RecentlyAudiblePage) {
+TEST_F(ProcessRankPolicyAndroidTest, RecentlyAudiblePage) {
   if (!content::IsNotPerceptibleImportanceSupported()) {
     GTEST_SKIP() << "NOT_PERCEPTIBLE importance is not supported.";
   }
-  scoped_feature_list_.InitAndEnableFeature(
-      chrome::android::kProtectedTabsAndroid);
+  scoped_feature_list_.InitWithFeaturesAndParameters(
+      /*enabled_features=*/
+      {{chrome::android::kProtectedTabsAndroid, {}},
+       // Effectively disable the recently visible timer.
+       {chrome::android::kProtectRecentlyVisibleTab,
+        {{"duration_in_seconds", "0"}}}},
+      /*disabled_features=*/{});
   graph_->PassToGraph(std::make_unique<ProcessRankPolicyAndroid>(true));
   MockPageGraph page_graph = CreateDefaultPage();
   DefaultNavigation(page_graph.page.get());
@@ -724,11 +730,12 @@ TEST_F(ProcessRankPolicyAndroidTest, HadUserEditsPage) {
             content::ChildProcessImportance::NOT_PERCEPTIBLE);
 }
 
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
+// TODO(crbug.com/523088992): Re-enable this test on Android.
+#if BUILDFLAG(IS_ANDROID)
 #define MAYBE_NonVisiblePage DISABLED_NonVisiblePage
 #else
 #define MAYBE_NonVisiblePage NonVisiblePage
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 TEST_F(ProcessRankPolicyAndroidTest, MAYBE_NonVisiblePage) {
   scoped_feature_list_.InitAndEnableFeature(
       chrome::android::kProtectedTabsAndroid);
@@ -738,6 +745,10 @@ TEST_F(ProcessRankPolicyAndroidTest, MAYBE_NonVisiblePage) {
 
   page_graph.page.get()->SetIsFocused(false);
   page_graph.page.get()->SetIsVisible(false);
+
+  // Bypass the recently visible timer.
+  task_environment()->FastForwardBy(
+      base::Seconds(chrome::android::kProtectRecentlyVisibleTabDuration.Get()));
 
   EXPECT_EQ(web_contents()->GetPrimaryMainFrameImportanceForTesting(),
             content::ChildProcessImportance::NORMAL);
@@ -889,7 +900,6 @@ TEST_F(ProcessRankPolicyAndroidTest, ProtectRecentlyVisibleTab) {
 
   // Advance time by the protection duration.
   task_environment()->FastForwardBy(kDuration);
-  base::RunLoop().QuitWhenIdle();
 
   // The page should no longer be protected.
   EXPECT_EQ(web_contents()->GetPrimaryMainFrameImportanceForTesting(),

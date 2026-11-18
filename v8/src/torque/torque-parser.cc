@@ -1153,7 +1153,7 @@ std::optional<ParseResult> MakeClassDeclaration(
   if (transient) abstract_type_flags |= AbstractTypeFlag::kTransient;
   TypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
       constexpr_name, abstract_type_flags, constexpr_extends,
-      generates ? UnwrapTNodeTypeName(*generates) : name->value);
+      generates ? *generates : name->value);
   constexpr_decl->pos = name->pos;
   result.push_back(constexpr_decl);
 
@@ -1266,14 +1266,17 @@ std::optional<ParseResult> MakeStructDeclaration(
 
 std::optional<ParseResult> MakeBitFieldStructDeclaration(
     ParseResultIterator* child_results) {
+  AnnotationSet annotations(child_results, {}, {ANNOTATION_CPP_SCOPE});
+  std::optional<std::string> cpp_scope =
+      annotations.GetStringParam(ANNOTATION_CPP_SCOPE);
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Bitfield struct", name, "UpperCamelCase");
   }
   auto extends = child_results->NextAs<TypeExpression*>();
   auto fields = child_results->NextAs<std::vector<BitFieldDeclaration>>();
-  Declaration* decl =
-      MakeNode<BitFieldStructDeclaration>(name, extends, std::move(fields));
+  Declaration* decl = MakeNode<BitFieldStructDeclaration>(
+      name, extends, std::move(fields), std::move(cpp_scope));
   return ParseResult{decl};
 }
 
@@ -2886,8 +2889,8 @@ struct TorqueGrammar : Grammar {
             ListAllowIfAnnotation<StructFieldExpression>(&structField),
             Token("}")},
            AsSingletonVector<Declaration*, MakeStructDeclaration>()),
-      Rule({Token("bitfield"), Token("struct"), &name, Token("extends"), &type,
-            Token("{"),
+      Rule({annotations, Token("bitfield"), Token("struct"), &name,
+            Token("extends"), &type, Token("{"),
             ListAllowIfAnnotation<BitFieldDeclaration>(&bitFieldDeclaration),
             Token("}")},
            AsSingletonVector<Declaration*, MakeBitFieldStructDeclaration>()),

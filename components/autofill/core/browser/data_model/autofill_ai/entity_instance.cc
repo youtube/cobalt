@@ -604,9 +604,8 @@ bool EntityInstance::IsServerInstance() const {
     case RecordType::kLocal:
       return false;
     case RecordType::kServerWallet:
-      return true;
     case RecordType::kPersonalContext:
-      return false;
+      return true;
   }
   NOTREACHED();
 }

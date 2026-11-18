@@ -17,7 +17,9 @@
 #include "components/omnibox/browser/favicon_cache.h"
 #include "components/omnibox/browser/omnibox.mojom-shared.h"
 #include "components/omnibox/browser/omnibox_client.h"
+#include "ui/gfx/image/image.h"
 
+class AiModeButtonService;
 class Browser;
 class ChromeAutocompleteSchemeClassifier;
 class GURL;
@@ -65,6 +67,7 @@ class ChromeOmniboxClient final : public OmniboxClient {
   bookmarks::BookmarkModel* GetBookmarkModel() override;
   AutocompleteControllerEmitter* GetAutocompleteControllerEmitter() override;
   TemplateURLService* GetTemplateURLService() override;
+  AiModeButtonService* GetAiModeButtonService() override;
   const AutocompleteSchemeClassifier& GetSchemeClassifier() const override;
   AutocompleteClassifier* GetAutocompleteClassifier() override;
   omnibox::OmniboxPopupCloser* GetOmniboxPopupCloser() override;
@@ -109,6 +112,9 @@ class ChromeOmniboxClient final : public OmniboxClient {
   gfx::Image GetFaviconForKeywordSearchProvider(
       const TemplateURL* template_url,
       FaviconFetchedCallback on_favicon_fetched) override;
+  gfx::Image GetFaviconForIconUrl(const GURL& icon_url,
+                                  FaviconFetchedCallback on_favicon_fetched,
+                                  bool notify_on_empty) override;
   void OnTextChanged(const AutocompleteMatch& current_match,
                      bool user_input_in_progress,
                      const std::u16string& user_text,

@@ -41,6 +41,7 @@ L$oop_enc1_1:
 .private_extern _aes_hw_decrypt
 
 .p2align	4
+.alt_entry _aes_hw_decrypt
 _aes_hw_decrypt:
 
 _CET_ENDBR
@@ -66,6 +67,7 @@ L$oop_dec1_2:
 
 
 .p2align	4
+.alt_entry _aesni_encrypt2
 _aesni_encrypt2:
 
 	movups	(%rcx),%xmm0
@@ -97,6 +99,7 @@ L$enc_loop2:
 
 
 .p2align	4
+.alt_entry _aesni_decrypt2
 _aesni_decrypt2:
 
 	movups	(%rcx),%xmm0
@@ -128,6 +131,7 @@ L$dec_loop2:
 
 
 .p2align	4
+.alt_entry _aesni_encrypt3
 _aesni_encrypt3:
 
 	movups	(%rcx),%xmm0
@@ -164,6 +168,7 @@ L$enc_loop3:
 
 
 .p2align	4
+.alt_entry _aesni_decrypt3
 _aesni_decrypt3:
 
 	movups	(%rcx),%xmm0
@@ -200,6 +205,7 @@ L$dec_loop3:
 
 
 .p2align	4
+.alt_entry _aesni_encrypt4
 _aesni_encrypt4:
 
 	movups	(%rcx),%xmm0
@@ -242,6 +248,7 @@ L$enc_loop4:
 
 
 .p2align	4
+.alt_entry _aesni_decrypt4
 _aesni_decrypt4:
 
 	movups	(%rcx),%xmm0
@@ -284,6 +291,7 @@ L$dec_loop4:
 
 
 .p2align	4
+.alt_entry _aesni_encrypt6
 _aesni_encrypt6:
 
 	movups	(%rcx),%xmm0
@@ -340,6 +348,7 @@ L$enc_loop6_enter:
 
 
 .p2align	4
+.alt_entry _aesni_decrypt6
 _aesni_decrypt6:
 
 	movups	(%rcx),%xmm0
@@ -396,6 +405,7 @@ L$dec_loop6_enter:
 
 
 .p2align	4
+.alt_entry _aesni_encrypt8
 _aesni_encrypt8:
 
 	movups	(%rcx),%xmm0
@@ -462,6 +472,7 @@ L$enc_loop8_enter:
 
 
 .p2align	4
+.alt_entry _aesni_decrypt8
 _aesni_decrypt8:
 
 	movups	(%rcx),%xmm0
@@ -530,6 +541,7 @@ L$dec_loop8_enter:
 .private_extern _aes_hw_ecb_encrypt
 
 .p2align	4
+.alt_entry _aes_hw_ecb_encrypt
 _aes_hw_ecb_encrypt:
 
 _CET_ENDBR
@@ -876,6 +888,7 @@ L$ecb_ret:
 .private_extern _aes_hw_ctr32_encrypt_blocks
 
 .p2align	4
+.alt_entry _aes_hw_ctr32_encrypt_blocks
 _aes_hw_ctr32_encrypt_blocks:
 
 _CET_ENDBR
@@ -1365,6 +1378,7 @@ L$ctr32_epilogue:
 .private_extern _aes_hw_cbc_encrypt
 
 .p2align	4
+.alt_entry _aes_hw_cbc_encrypt
 _aes_hw_cbc_encrypt:
 
 _CET_ENDBR
@@ -1908,6 +1922,7 @@ L$cbc_ret:
 .private_extern _aes_hw_encrypt_key_to_decrypt_key
 
 .p2align	4
+.alt_entry _aes_hw_encrypt_key_to_decrypt_key
 _aes_hw_encrypt_key_to_decrypt_key:
 
 _CET_ENDBR
@@ -1948,6 +1963,7 @@ L$dec_key_inverse:
 .private_extern _aes_hw_set_encrypt_key_base
 
 .p2align	4
+.alt_entry _aes_hw_set_encrypt_key_base
 _aes_hw_set_encrypt_key_base:
 
 
@@ -2164,6 +2180,7 @@ L$key_expansion_256b:
 .private_extern _aes_hw_set_encrypt_key_alt
 
 .p2align	4
+.alt_entry _aes_hw_set_encrypt_key_alt
 _aes_hw_set_encrypt_key_alt:
 
 
@@ -2368,7 +2385,9 @@ L$enc_key_ret_alt:
 
 
 .section	__DATA,__const
+
 .p2align	6
+aesni_constants:
 L$bswap_mask:
 .byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
 L$increment32:

@@ -16,6 +16,7 @@
 namespace sessions {
 class SessionCommand;
 class CommandStorageManager;
+class CommandStorageBackend;
 
 class CommandStorageManagerTestHelper {
  public:
@@ -28,6 +29,9 @@ class CommandStorageManagerTestHelper {
       const CommandStorageManagerTestHelper&) = delete;
 
   ~CommandStorageManagerTestHelper() = default;
+
+  CommandStorageBackend* GetCleartextBackend();
+  CommandStorageBackend* GetEncryptedBackend();
 
   // This posts the task to the SequencedWorkerPool, or run immediately
   // if the SequencedWorkerPool has been shutdown.
@@ -43,6 +47,9 @@ class CommandStorageManagerTestHelper {
   std::vector<std::unique_ptr<SessionCommand>> ReadLastSessionCommands();
 
   scoped_refptr<base::SequencedTaskRunner> GetBackendTaskRunner();
+
+  // Returns true if the CommandStorageManager should write cleartext files.
+  bool ShouldWriteCleartextFiles();
 
   // Returns true if the CommandStorageManager should write encrypted files.
   bool ShouldWriteEncryptedFiles();

@@ -663,14 +663,17 @@ TEST_F(IdpNetworkRequestManagerTest, ComputeWebIdentitySubdomainWellKnownUrl) {
                 GURL("https://localhost:8000/test/"), kWellKnownPath));
 
   // Standard registrable-domain provider: subdomain prepended.
-  EXPECT_EQ("https://web-identity.google.com/.well-known/web-identity",
-            ComputeWebIdentitySubdomainWellKnownUrl(
-                GURL("https://www.google.com:8000/test/"), kWellKnownPath));
+  EXPECT_EQ(
+      "https://web-identity.well-known.google.com/.well-known/web-identity",
+      ComputeWebIdentitySubdomainWellKnownUrl(
+          GURL("https://www.google.com:8000/test/"), kWellKnownPath));
 
-  // Provider already on a subdomain still uses eTLD+1 with web-identity. label.
-  EXPECT_EQ("https://web-identity.example.com/.well-known/web-identity",
-            ComputeWebIdentitySubdomainWellKnownUrl(
-                GURL("https://idp.example.com/foo"), kWellKnownPath));
+  // Provider already on a subdomain still uses eTLD+1 with
+  // web-identity.well-known. label.
+  EXPECT_EQ(
+      "https://web-identity.well-known.example.com/.well-known/web-identity",
+      ComputeWebIdentitySubdomainWellKnownUrl(
+          GURL("https://idp.example.com/foo"), kWellKnownPath));
 
   // IP literal: no eTLD+1 -> nullopt.
   EXPECT_EQ(std::nullopt,
@@ -1914,10 +1917,10 @@ class IdpNetworkRequestManagerWebIdentitySubdomainTest
 
  protected:
   // The subdomain (preferred) and apex (fallback) URLs that the implementation
-  // computes for kTestIdpUrl ("https://idp.test"). The "web-identity" label is
-  // the spec-defined prefix; not arbitrary.
+  // computes for kTestIdpUrl ("https://idp.test"). The
+  // "web-identity.well-known" label is the spec-defined prefix; not arbitrary.
   static constexpr char kSubdomainWellKnownUrl[] =
-      "https://web-identity.idp.test/.well-known/web-identity";
+      "https://web-identity.well-known.idp.test/.well-known/web-identity";
 
   // Wires a response for the subdomain URL, then runs FetchWellKnown() through
   // the existing kTestIdpUrl helper. If `apex_data` is non-null, an apex

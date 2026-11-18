@@ -10,6 +10,8 @@
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 AudioInputStreamDataInterceptor::AudioInputStreamDataInterceptor(
     CreateDebugRecorderCB create_debug_recorder_cb,
     AudioInputStream* stream)
@@ -97,8 +99,8 @@ void AudioInputStreamDataInterceptor::OnData(
   debug_recorder_->OnData(source);
 }
 
-void AudioInputStreamDataInterceptor::OnError() {
-  callback_->OnError();
+void AudioInputStreamDataInterceptor::OnError(Error error_code) {
+  callback_->OnError(error_code);
 }
 
 }  // namespace media

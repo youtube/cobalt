@@ -40,6 +40,7 @@ import androidx.annotation.IdRes;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.filters.MediumTest;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -52,7 +53,6 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
-import org.chromium.base.test.util.DisableLeakChecks;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
@@ -110,11 +110,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Restriction({
     DeviceRestriction.RESTRICTION_TYPE_NON_AUTO,
     GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_20W02
-})
-@DisableLeakChecks({
-    "crbug.com/512491896 (DataSharingUiDelegateAndroid)",
-    "crbug.com/512493320 (DataSharingUiDelegateAndroid)",
-    "crbug.com/512492355 (DataSharingUiDelegateAndroid)"
 })
 public class CollaborationIntegrationTest {
 
@@ -205,6 +200,13 @@ public class CollaborationIntegrationTest {
                         .getSpec();
     }
 
+    @After
+    public void tearDown() {
+        if (mDataSharingUIDelegate != null) {
+            mDataSharingUIDelegate.resetForTesting();
+        }
+    }
+
     /* Sets up preview data for the group ID. */
     private void setFakePreviewData() {
         ThreadUtils.runOnUiThreadBlocking(
@@ -253,7 +255,7 @@ public class CollaborationIntegrationTest {
         // tab group id it should watch for, but it needs to see that it's now associated with a
         // valid collaboration id. And while the DataSharingService is what has member information
         // for a collaboration id, the SharedGroupObserver cannot link its tab group id to the
-        // collaboration id that it'll be informed about until teh TabGroupSyncService lets it know
+        // collaboration id that it'll be informed about until the TabGroupSyncService lets it know
         // about the mapping. Once both of these happen, we're safe to continue, but the order of
         // these is not deterministic and we must wait for both.
         int startingAddedCount =

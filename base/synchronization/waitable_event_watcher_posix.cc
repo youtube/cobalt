@@ -102,7 +102,7 @@ void AsyncCallbackHelper(Flag* flag,
                          WaitableEvent* event) {
   // Runs on the sequence that called StartWatching().
   if (!flag->value()) {
-    // This is to let the WaitableEventWatcher know that the event has occured.
+    // This is to let the WaitableEventWatcher know that the event has occurred.
     flag->Set();
     std::move(callback).Run(event);
   }

@@ -28,11 +28,6 @@
                      openItemInNewTab:(id<ReadingListListItem>)item
                             incognito:(BOOL)incognito;
 
-// Opens the offline version of the entry corresponding to the `item` in a new
-// tab, if available.
-- (void)readingListListViewController:(UIViewController*)viewController
-              openItemOfflineInNewTab:(id<ReadingListListItem>)item;
-
 // Notifies the delegate that the reading list has been loaded.
 - (void)didLoadContent;
 

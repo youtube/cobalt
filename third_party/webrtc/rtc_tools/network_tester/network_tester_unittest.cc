@@ -14,7 +14,6 @@
 
 #include "api/environment/environment.h"
 #include "rtc_base/random.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_tools/network_tester/test_controller.h"
 #include "test/create_test_environment.h"
 #include "test/gtest.h"
@@ -25,14 +24,14 @@
 namespace webrtc {
 
 TEST(NetworkTesterTest, ServerClient) {
-  // Use a unique port rather than a hard-coded one to avoid collision when
-  // running the test in parallel in stress runs. Skipping all reserved ports.
-  const int MIN_PORT = 49152;
-  const int MAX_PORT = 65535;
-  int port = Random(TimeMicros()).Rand(MIN_PORT, MAX_PORT);
-
   test::RunLoop main_thread;
   Environment env = CreateTestEnvironment();
+
+  // Use a unique port rather than a hard-coded one to avoid collision when
+  // running the test in parallel in stress runs. Skipping all reserved ports.
+  const int kMinPort = 49152;
+  const int kMaxPort = 65535;
+  int port = Random(env.clock().TimeInMicroseconds()).Rand(kMinPort, kMaxPort);
 
   TestController client(
       env, 0, 0, test::ResourcePath("network_tester/client_config", "dat"),

@@ -269,6 +269,7 @@ De lo contrario, la configuración de privacidad bloqueará esta acción. Esto p
 <translation id="1407135791313364759">Abrir todas</translation>
 <translation id="1408696301184924537">Para autocompletar este IBAN la próxima vez, guárdalo en tu Cuenta de Google</translation>
 <translation id="1408787208417187241">Grapas triples en la parte superior</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> de <ph name="NUM_MATCHES_IN_GROUP" /> en el grupo <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Las demás personas que usen este dispositivo no verán tu actividad, por lo que puedes navegar de forma más privada. Esto no cambiará la forma en que recopilan los datos los sitios web que visitas ni los servicios que usan, incluido Google. Se guardarán las descargas, los favoritos y los elementos de la lista de lectura.</translation>
 <translation id="1410941016594047814">Sobre para invitación</translation>
 <translation id="1413235258620101697">Se encriptará el CVC de esta tarjeta y se guardará en la Billetera de Google para agilizar las confirmaciones de compras</translation>
@@ -660,6 +661,7 @@ De lo contrario, la configuración de privacidad bloqueará esta acción. Esto p
 <translation id="2045871135676061132">Sobre Personal</translation>
 <translation id="2046951263634619614">Librerías</translation>
 <translation id="2048261947532620704">Traduciendo página</translation>
+<translation id="2055016614992422886">Conversación</translation>
 <translation id="2059166748188874810">Municipalidad</translation>
 <translation id="2059202684901022309">55.88 × 86.36 cm</translation>
 <translation id="2064568741209980952">Créditos y préstamos</translation>
@@ -3558,6 +3560,7 @@ Para ocultar las opciones de pago más tarde, ve a la <ph name="BEGIN_LINK" />co
 <translation id="6550245281449521513">No se permite el bloqueo del mouse</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nuevo</translation>
 <translation id="6552566579578780089">Pagos</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> de <ph name="NUM_MATCHES_IN_GROUP" /> en el grupo <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Última visita: hace <ph name="NUM_DAYS" /> días</translation>
 <translation id="6556866813142980365">Rehacer</translation>
 <translation id="6557715786897013164">35.6 × 43.2 cm (14 × 17 in)</translation>

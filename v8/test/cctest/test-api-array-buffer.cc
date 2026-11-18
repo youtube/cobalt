@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <span>
+
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/base/strings.h"
@@ -1101,7 +1103,7 @@ void TestArrayBufferViewGetContent(const char* source, void* expected) {
 
   auto view = v8::Local<v8::ArrayBufferView>::Cast(CompileRun(source));
   uint8_t buffer[i::JSTypedArray::kMaxSizeInHeap];
-  v8::MemorySpan<uint8_t> storage(buffer);
+  std::span<uint8_t> storage(buffer);
   storage = view->GetContents(storage);
   CHECK_EQ(view->ByteLength(), storage.size());
   if (expected) {
@@ -1301,4 +1303,54 @@ TEST(ArrayBuffer_ImmutableBackingStore) {
       v8::ArrayBuffer::New(isolate, shared_backing_store);
 
   CHECK(ab->IsImmutable());
+}
+
+TEST(ArrayBuffer_CopyArrayBufferBytes) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  auto ab1 = v8::ArrayBuffer::New(isolate, 6);
+  auto ab2 = v8::ArrayBuffer::New(isolate, 4);
+  std::memcpy(ab1->Data(), "123456", 6);
+  std::memcpy(ab2->Data(), "ABCD", 4);
+  CHECK_EQ(0, ab1->CopyArrayBufferBytes(0, 0, ab2, 0));
+  CHECK_EQ(0, ab1->CopyArrayBufferBytes(6, 0, ab2, 6));
+  CHECK_EQ(0, ab1->CopyArrayBufferBytes(0, 4, ab2, 6));
+  CHECK_EQ(0, std::memcmp(ab2->Data(), "ABCD", 4));
+  CHECK_EQ(4, ab1->CopyArrayBufferBytes(0, 6, ab2, 0));
+  CHECK_EQ(0, std::memcmp(ab2->Data(), "1234", 4));
+  CHECK_EQ(2, ab1->CopyArrayBufferBytes(0, 6, ab2, 2));
+  CHECK_EQ(0, std::memcmp(ab2->Data(), "1212", 4));
+  ab2->Detach(v8::Local<v8::Value>()).Check();
+  CHECK_EQ(0, ab1->CopyArrayBufferBytes(0, 6, ab2, 0));
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 6);
+  CHECK(backing_store);
+  v8::internal::BackingStore* i_backing_store =
+      reinterpret_cast<v8::internal::BackingStore*>(backing_store.get());
+  i_backing_store->set_is_immutable(true);
+  CHECK(i_backing_store->is_immutable());
+  std::shared_ptr<v8::BackingStore> shared_backing_store =
+      std::move(backing_store);
+  auto ab3 = v8::ArrayBuffer::New(isolate, shared_backing_store);
+  CHECK(ab3->IsImmutable());
+  CHECK_EQ(0, ab1->CopyArrayBufferBytes(0, 6, ab3, 0));
+}
+
+TEST(SharedArrayBuffer_CopyArrayBufferBytes) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  auto ab1 = v8::SharedArrayBuffer::New(isolate, 6);
+  auto ab2 = v8::SharedArrayBuffer::New(isolate, 4);
+  std::memcpy(ab1->Data(), "123456", 6);
+  std::memcpy(ab2->Data(), "ABCD", 4);
+  CHECK_EQ(0, ab1->CopyArrayBufferBytes(0, 0, ab2, 0));
+  CHECK_EQ(0, ab1->CopyArrayBufferBytes(6, 0, ab2, 6));
+  CHECK_EQ(0, ab1->CopyArrayBufferBytes(0, 4, ab2, 6));
+  CHECK_EQ(0, std::memcmp(ab2->Data(), "ABCD", 4));
+  CHECK_EQ(4, ab1->CopyArrayBufferBytes(0, 6, ab2, 0));
+  CHECK_EQ(0, std::memcmp(ab2->Data(), "1234", 4));
+  CHECK_EQ(2, ab1->CopyArrayBufferBytes(0, 6, ab2, 2));
+  CHECK_EQ(0, std::memcmp(ab2->Data(), "1212", 4));
 }

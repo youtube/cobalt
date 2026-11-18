@@ -6,10 +6,12 @@
 #define SERVICES_WEBNN_ORT_ORT_SESSION_OPTIONS_H_
 
 #include <optional>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/types/expected.h"
 #include "base/types/pass_key.h"
 #include "services/webnn/ort/scoped_ort_types.h"
 #include "services/webnn/public/mojom/webnn_device.mojom.h"
@@ -26,13 +28,15 @@ class Environment;
 class SessionOptions final : public base::RefCountedThreadSafe<SessionOptions> {
  public:
   // The `device_type` would be used to configure ONNX Runtime EP.
-  static scoped_refptr<SessionOptions> Create(OrtHardwareDeviceType device_type,
-                                              scoped_refptr<Environment> env);
+  static base::expected<scoped_refptr<SessionOptions>, std::string> Create(
+      OrtHardwareDeviceType device_type,
+      scoped_refptr<Environment> env);
 
   SessionOptions(base::PassKey<SessionOptions>,
                  ScopedOrtSessionOptions session_options,
                  OrtHardwareDeviceType device_type,
-                 scoped_refptr<Environment> env);
+                 scoped_refptr<Environment> env,
+                 const OrtEpDevice* first_selected_device);
 
   SessionOptions(const SessionOptions&) = delete;
   SessionOptions& operator=(const SessionOptions&) = delete;

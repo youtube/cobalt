@@ -482,14 +482,7 @@ void LocationBarView::Init() {
 
   std::vector<actions::ActionItem*> page_action_items = {};
   if (browser_) {
-    actions::ActionItem* root_action_item =
-        browser_->browser_actions()->root_action_item();
-    for (actions::ActionId action_id : page_actions::kActionIds) {
-      if (actions::ActionItem* item = actions::ActionManager::Get().FindAction(
-              action_id, root_action_item)) {
-        page_action_items.emplace_back(item);
-      }
-    }
+    page_action_items = page_actions::GetActivePageActionItems(*browser_);
   }
 
   // We don't need to bridge the new page action container with the legacy one
@@ -568,7 +561,8 @@ void LocationBarView::Init() {
   // Because AIM eligibility can change during the lifecycle of the
   // `LocationBarView`, the AI Mode page action is added regardless of
   // eligibility, but its visibility is toggled to match eligibility.
-  if (base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint)) {
+  if (browser_ &&
+      base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint)) {
     // Position in the leading position, like the entrypoint for
     // kLensOverlayHomework above. While both chips may be enabled, they will
     // not appear at the same time due to different focus behavior. The

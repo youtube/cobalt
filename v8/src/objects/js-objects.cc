@@ -30,11 +30,14 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
-#include "src/objects/dictionary.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/field-type.h"
+#include "src/objects/fixed-array-base.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -2731,8 +2734,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return WasmInstanceObject::kHeaderSize;
     case WASM_MEMORY_OBJECT_TYPE:
       return WasmMemoryObject::kHeaderSize;
-    case WASM_MEMORY_MAP_DESCRIPTOR_TYPE:
-      return WasmMemoryMapDescriptor::kHeaderSize;
     case WASM_MODULE_OBJECT_TYPE:
       return WasmModuleObject::kHeaderSize;
     case WASM_TABLE_OBJECT_TYPE:

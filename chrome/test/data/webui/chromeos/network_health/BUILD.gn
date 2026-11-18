@@ -5,7 +5,7 @@
 import("../../build_webui_tests.gni")
 
 build_webui_tests("build") {
-  cc_test_files = [ "../cr_components_chromeos_v3_browsertest.js" ]
+  cc_test_files = [ "../cr_components_chromeos_v3_browsertest.cc" ]
   files = [
     "fake_network_diagnostics_routines.ts",
     "network_diagnostics_test.ts",

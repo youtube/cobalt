@@ -16,6 +16,10 @@ InlineCursor NGContainingLineBoxOf(const PositionWithAffinity& position) {
     return InlineCursor();
   InlineCursor line = caret_position.cursor;
   line.MoveToContainingLine();
+  if (RuntimeEnabledFeatures::EditingLineMovementWithRubyFixEnabled() && line &&
+      line.Current().IsRubyAnnotationLine()) {
+    line.MoveToPreviousLine();
+  }
   return line;
 }
 

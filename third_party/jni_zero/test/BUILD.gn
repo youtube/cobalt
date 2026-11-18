@@ -74,3 +74,25 @@ android_apk("jni_zero_compile_check_apk") {
   srcjar_deps = [ ":libjni_zero_compile_check__jni_registration" ]
   proguard_enabled = true
 }
+
+generate_jni("jni_processor_test_jni") {
+  sources = [ "java/src/org/jni_zero/JniProcessorTest.java" ]
+  enable_resolved_types_validation = true
+}
+
+android_library("test_jni_processor_java") {
+  sources = [
+    "java/src/org/jni_zero/JniProcessorTest.java",
+    "java/src/org/jni_zero/OuterClass.java",
+  ]
+  deps = [
+    ":jni_processor_test_jni_java",
+    "//third_party/jni_zero:jni_zero_java",
+  ]
+  annotation_processor_deps = [ "//third_party/jni_zero:validator_processor" ]
+
+  _resolved_types_path =
+      "$target_gen_dir/jni_processor_test_jni.resolved_types.txt"
+  processor_args_javac = [ "jni_zero.resolved_types_path=" +
+                           rebase_path(_resolved_types_path, root_build_dir) ]
+}

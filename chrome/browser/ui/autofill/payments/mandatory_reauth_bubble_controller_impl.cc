@@ -244,7 +244,7 @@ void MandatoryReauthBubbleControllerImpl::OnBubbleClosed(
 #if BUILDFLAG(IS_ANDROID)
 void MandatoryReauthBubbleControllerImpl::OnClosed(JNIEnv* env,
                                                    int32_t closed_reason) {
-  OnBubbleClosed(static_cast<autofill::PaymentsUiClosedReason>(closed_reason));
+  OnBubbleClosed(static_cast<PaymentsUiClosedReason>(closed_reason));
 }
 #endif
 

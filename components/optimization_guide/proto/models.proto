@@ -283,6 +283,8 @@ enum OptimizationTarget {
       75;
   // Target for contextual tasks multi-turn tab relevance.
   OPTIMIZATION_TARGET_CONTEXTUAL_TASKS_MULTI_TURN_TAB_RELEVANCE = 76;
+  // Target for the Voice Isolation Denoiser used in the WebRTC AEC.
+  OPTIMIZATION_TARGET_WEBRTC_VOICE_ISOLATION_DENOISER = 77;
 }
 
 // The model engine versions that can be used to do model inference.

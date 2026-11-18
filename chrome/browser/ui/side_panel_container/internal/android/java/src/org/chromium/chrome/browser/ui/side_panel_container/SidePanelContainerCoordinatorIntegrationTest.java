@@ -235,7 +235,7 @@ public class SidePanelContainerCoordinatorIntegrationTest {
         // Arrange: Get WebContents.
         var webContents = mResponsivePageStation.getTab().getWebContents();
         assertNotNull(webContents);
-        int originalWebContentsWidth = webContents.getWidth();
+        int originalWebContentsWidth = ThreadUtils.runOnUiThreadBlocking(webContents::getWidth);
 
         // Act: Open the side panel.
         var coordinator = getSidePanelContainerCoordinator();
@@ -254,8 +254,11 @@ public class SidePanelContainerCoordinatorIntegrationTest {
         // Note: we choose not to assert the exact width of the WebContents as the
         // exact width is hard to obtain due to rounding errors during "dp<->px" conversion on
         // different bots (WebContents#getWidth() returns a value in dp).
-        int webContentsWidthAfterSidePanelOpen = webContents.getWidth();
-        assertTrue(webContentsWidthAfterSidePanelOpen < originalWebContentsWidth);
+        CriteriaHelper.pollUiThread(
+                () -> webContents.getWidth() < originalWebContentsWidth,
+                "WebContents width did not decrease.");
+        int webContentsWidthAfterSidePanelOpen =
+                ThreadUtils.runOnUiThreadBlocking(webContents::getWidth);
 
         // Act: Close the side panel.
         ThreadUtils.runOnUiThreadBlocking(
@@ -268,8 +271,9 @@ public class SidePanelContainerCoordinatorIntegrationTest {
         //
         // Similarly, we don't assert "webContents.getWidth() == originalWebContentsWidth" to avoid
         // rounding errors in "dp<->px" conversion.
-        int webContentsWidthAfterSidePanelClose = webContents.getWidth();
-        assertTrue(webContentsWidthAfterSidePanelClose > webContentsWidthAfterSidePanelOpen);
+        CriteriaHelper.pollUiThread(
+                () -> webContents.getWidth() > webContentsWidthAfterSidePanelOpen,
+                "WebContents width did not increase.");
     }
 
     @Test

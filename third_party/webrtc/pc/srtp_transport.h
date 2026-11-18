@@ -133,6 +133,7 @@ class SrtpTransport : public RtpTransport {
   bool writable_ = false;
 
   int decryption_failure_count_ = 0;
+  int rtcp_decryption_failure_count_ = 0;
 
   bool enable_cryptex_ = false;
   bool require_cryptex_ = false;

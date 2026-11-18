@@ -26,10 +26,11 @@
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/app_bar_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/guided_tour_commands.h"
+#import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
@@ -80,8 +81,8 @@
       HandlerForProtocol(regularDispatcher, SceneCommands);
   id<TabGridCommands> tabGridHandler =
       HandlerForProtocol(regularDispatcher, TabGridCommands);
-  id<BWGCommands> geminiHandler =
-      HandlerForProtocol(regularDispatcher, BWGCommands);
+  id<GeminiCommands> geminiHandler =
+      HandlerForProtocol(regularDispatcher, GeminiCommands);
 
   SceneState* sceneState = _regularBrowser->GetSceneState();
 
@@ -146,6 +147,7 @@
                          tabGridState:sceneState.tabGridState
                        incognitoState:sceneState.incognitoState];
   _mediator.sceneHandler = sceneHandler;
+  _mediator.lensHandler = HandlerForProtocol(regularDispatcher, LensCommands);
   _mediator.delegate = self;
   _mediator.tabGridHandler = tabGridHandler;
   _mediator.settingsHandler =

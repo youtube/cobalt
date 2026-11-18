@@ -9,5 +9,3 @@ UNKNOWN focusable has_input_focus
 ++++++++++++UNKNOWN label='control.'
 ++++++++++UNKNOWN label='<newline>'
 ++++++++++++UNKNOWN label='<newline>'
-++++++++++UNKNOWN label='<newline>'
-++++++++++++UNKNOWN label='<newline>'

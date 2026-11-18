@@ -15,6 +15,17 @@ namespace media {
 // from an already-allocated block of data, and can't be cross origin at all.
 class MEDIA_EXPORT CrossOriginDataSource : public DataSource {
  public:
+  class MEDIA_EXPORT Factory {
+   public:
+    virtual ~Factory() = default;
+    virtual void Create(
+        const GURL& uri,
+        CacheMode cache_mode,
+        EncodingMode encoding_mode,
+        base::OnceCallback<void(std::unique_ptr<CrossOriginDataSource>)>
+            cb) = 0;
+  };
+
   virtual const std::string& GetMimeType() const = 0;
 
   // Allows the data source to perform any additional initialization steps.

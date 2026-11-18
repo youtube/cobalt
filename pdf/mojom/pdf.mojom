@@ -101,6 +101,9 @@ struct InkTypefaceRun {
   array<InkGlyphInfo> glyphs;
   // If true the text is horizontal, if false the text is vertical.
   bool is_horizontal;
+  // Whether the text needs to be artificially bolded / italicized.
+  bool is_synthetic_bold;
+  bool is_synthetic_italic;
 };
 
 [EnableIf=enable_pdf_ink2]

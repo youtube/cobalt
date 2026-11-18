@@ -64,7 +64,7 @@ class HistorySyncCapabilitiesFetcherTest
   void SetAccountInfoCanShowUnrestrictedOptInsCapability(
       AccountInfo account,
       signin::Tribool capability) {
-    AccountCapabilitiesTestMutator mutator(&account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account);
     mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
         capability == signin::Tribool::kTrue);
     identity_test_env_.UpdateAccountInfoForAccount(account);

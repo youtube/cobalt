@@ -37,7 +37,7 @@ class BrowserReportGeneratorIOSTest : public PlatformTest {
     const base::FilePath profile_path = profile_->GetStatePath();
     const std::string profile_name = profile_->GetProfileName();
     generator_.Generate(
-        ReportType::kFull,
+        ReportType::kBrowser,
         base::BindLambdaForTesting(
             [&run_loop, &profile_path,
              &profile_name](std::unique_ptr<em::BrowserReport> report) {

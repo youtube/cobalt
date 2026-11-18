@@ -64,7 +64,7 @@ public class TabSwitcherUtilsUnitTest {
         when(mTabModel.getTabById(TAB_ID_1)).thenReturn(mTab);
         when(mTab.getId()).thenReturn(TAB_ID_1);
 
-        when(mLayoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(true);
+        when(mLayoutManager.isLayoutVisible(LayoutType.HUB)).thenReturn(true);
     }
 
     @Test

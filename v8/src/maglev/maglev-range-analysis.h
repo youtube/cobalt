@@ -14,6 +14,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/utils/bit-vector.h"
 
 #define TRACE_RANGE(...)                                      \
@@ -356,7 +357,7 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(LoadTaggedField* node, const ProcessingState&) {
-    if (node->load_type() == LoadType::kSmi) {
+    if (node->type() == NodeType::kSmi) {
       UnionUpdate(node, Range::Smi());
     }
     return ProcessResult::kContinue;
@@ -487,13 +488,7 @@ class RangeProcessor {
   }
 
   void ProcessPhis(BasicBlock* block, BasicBlock* pred) {
-    int predecessor_id = -1;
-    for (int i = 0; i < block->predecessor_count(); ++i) {
-      if (block->predecessor_at(i) == pred) {
-        predecessor_id = i;
-        break;
-      }
-    }
+    int predecessor_id = block->get_predecessor_index(pred);
     DCHECK_NE(predecessor_id, -1);
     for (Phi* phi : *block->phis()) {
       Range phi_range = ranges_.Get(pred, phi->input_node(predecessor_id));

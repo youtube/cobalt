@@ -254,16 +254,16 @@ class MetricsService {
   // Returns the current user metrics consent if it should be applied to
   // determine metrics reporting state.
   //
-  // See comments at MetricsServiceClient::GetCurrentUserMetricsConsent() for
+  // See comments at MetricsServiceClient::GetCurrentUserMetricsChoice() for
   // more details.
-  std::optional<bool> GetCurrentUserMetricsConsent() const;
+  std::optional<bool> GetCurrentUserMetricsChoice() const;
 
   // Returns the current logged in user id. See comments at
   // MetricsServiceClient::GetCurrentUserId() for more details.
   std::optional<std::string> GetCurrentUserId() const;
 
   // Updates the current user metrics consent. No-ops if no user has logged in.
-  void UpdateCurrentUserMetricsConsent(bool user_metrics_consent);
+  void UpdateCurrentUserMetricsChoice(bool user_choice);
 
   // Forces the client ID to be reset and generates a new client ID. This will
   // be called when a user re-consents to metrics collection and the user had

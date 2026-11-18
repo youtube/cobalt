@@ -962,7 +962,7 @@ bool CampaignsMatcher::MatchMinorUser(
     const AccountInfo account_info =
         identity_manager->FindExtendedAccountInfoByGaiaId(gaia_id);
     // TODO: b/333896450 - find a better signal for minor mode.
-    capability = account_info.capabilities.can_use_manta_service();
+    capability = account_info.GetAccountCapabilities().can_use_manta_service();
   }
 
   if (capability == signin::Tribool::kUnknown) {

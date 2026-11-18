@@ -67,7 +67,7 @@ source_set("unittests") {
     "//services/audio/public/mojom",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/blink/public/mojom:mojom_platform",
+    "//third_party/blink/public/common",
   ]
 }
 
@@ -245,6 +245,7 @@ source_set("impl") {
     "//chrome/browser/history",
     "//chrome/browser/media/webrtc",
     "//chrome/browser/preloading/prefetch/no_state_prefetch",
+    "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/browser_window",
     "//components/content_settings/browser",
@@ -345,6 +346,10 @@ source_set("impl") {
         "cdm_storage_id.cc",
         "cdm_storage_id_key.cc",
       ]
+      if (is_chrome_branded) {
+        sources +=
+            [ "//chrome/browser/internal/google_chrome_cdm_storage_id_key.h" ]
+      }
       if (enable_rlz) {
         deps += [ "//rlz:rlz_lib" ]
       }

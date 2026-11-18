@@ -273,7 +273,7 @@ TEST_F(SyncConfirmationHandlerTest, TestAvatarChangeWhenPrimaryAccountReady) {
 
 TEST_F(SyncConfirmationHandlerTest, TestScreenModeChangedWhenCapabilityReady) {
   // Both account info and capability are required to trigger SetAccountInfo.
-  AccountCapabilitiesTestMutator mutator(&account_info_.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info_);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       false);
   identity_test_env()->UpdateAccountInfoForAccount(account_info_);
@@ -297,7 +297,7 @@ TEST_F(SyncConfirmationHandlerTest, TestScreenModeChangedWhenCapabilityReady) {
 
 TEST_F(SyncConfirmationHandlerTest, TestScreenModeChangeImmuneToAltering) {
   // Both account info and capability are required to trigger SetAccountInfo.
-  AccountCapabilitiesTestMutator mutator(&account_info_.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info_);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       false);
   identity_test_env()->UpdateAccountInfoForAccount(account_info_);
@@ -515,7 +515,7 @@ TEST_F(SyncConfirmationHandlerTest, UserVisibleLatencyIsRecordedImmediately) {
     GTEST_SKIP() << "Latency tracking is only implemented in minor mode.";
   }
 
-  AccountCapabilitiesTestMutator mutator(&account_info_.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info_);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       false);
   identity_test_env()->UpdateAccountInfoForAccount(account_info_);
@@ -558,7 +558,7 @@ TEST_F(SyncConfirmationHandlerTest, UserVisibleLatencyIsRecordedLater) {
                   "Signin.AccountCapabilities.FetchLatency"),
               ::testing::IsEmpty());
 
-  AccountCapabilitiesTestMutator mutator(&account_info_.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info_);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       false);
   identity_test_env()->UpdateAccountInfoForAccount(account_info_);
@@ -588,7 +588,7 @@ TEST_F(SyncConfirmationHandlerTest, UserVisibleLatencyIsNotRecordedTwice) {
                   "Signin.AccountCapabilities.UserVisibleLatency"),
               ::testing::IsEmpty());
 
-  AccountCapabilitiesTestMutator mutator(&account_info_.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info_);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       false);
   identity_test_env()->UpdateAccountInfoForAccount(account_info_);

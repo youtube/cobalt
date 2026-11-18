@@ -35,6 +35,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/maglev/maglev-reducer.h"
 #include "src/maglev/maglev-tracer.h"
 #include "src/objects/bytecode-array.h"
@@ -264,8 +265,9 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node);
 
-  // Called when a block is killed by an unconditional eager deopt.
-  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
+  // CRTP hook for MaglevReducer::EmitAbruptBlockEnd: registers the
+  // just-finished block in the graph and snapshots the interpreter frame.
+  void OnAbruptBlockEnd(BasicBlock* block);
 
   template <bool is_possible_map_change = true>
   void ResetBuilderCachedState();
@@ -464,8 +466,6 @@ class MaglevGraphBuilder {
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth,
                                  compiler::ScopeInfoRef* scope_info);
   void EscapeContext();
-  MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
-                                            int index, VariableMode* mode);
   ReduceResult BuildLoadContextSlot(ValueNode* context, size_t depth,
                                     int slot_index, ContextMode context_mode,
                                     compiler::ScopeInfoRef scope_info);
@@ -473,9 +473,6 @@ class MaglevGraphBuilder {
                                      int slot_index, ValueNode* value,
                                      ContextMode context_mode,
                                      compiler::ScopeInfoRef scope_info);
-  ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
-                             StoreMap::Kind kind);
-
   ReduceResult BuildExtendPropertiesBackingStore(compiler::MapRef map,
                                                  ValueNode* receiver,
                                                  ValueNode* property_array);
@@ -517,10 +514,6 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs);
-
-  ReduceResult BuildThrow(Throw::Function function, ValueNode* input = nullptr);
-
-  ReduceResult BuildAbort(AbortReason reason);
 
   void Print(const char* str);
   void Print(ValueNode* value);
@@ -863,14 +856,9 @@ class MaglevGraphBuilder {
 #define MAGLEV_GRAPH_BUILDER_REDUCED_BUILTINS(V) \
   V(ArrayConstructor)                            \
   V(ArrayForEach)                                \
-  V(ArrayIsArray)                                \
   V(ArrayIteratorPrototypeNext)                  \
   V(ArrayMap)                                    \
-  V(ArrayPrototypeAt)                            \
-  V(ArrayPrototypeEntries)                       \
   V(ArrayPrototypeSlice)                         \
-  V(ArrayPrototypeKeys)                          \
-  V(ArrayPrototypeValues)                        \
   V(ArrayPrototypePush)                          \
   V(ArrayPrototypePop)                           \
   V(ArrayPrototypeSort)                          \
@@ -1099,8 +1087,6 @@ class MaglevGraphBuilder {
       compiler::MapRef map, ValueNode* length, ValueNode* elements,
       const compiler::SlackTrackingPrediction& slack_tracking_prediction,
       AllocationType allocation_type);
-  ReduceResult BuildAndAllocateJSArrayIterator(ValueNode* array,
-                                               IterationKind iteration_kind);
 
   MaybeReduceResult TryBuildAndAllocateJSGeneratorObject(ValueNode* closure,
                                                          ValueNode* receiver);
@@ -1172,6 +1158,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckStringOrStringWrapper(ValueNode* object);
   ReduceResult BuildCheckStringOrOddball(ValueNode* object);
   ReduceResult BuildCheckSymbol(ValueNode* object);
+  ReduceResult BuildCheckBigInt(ValueNode* object);
   ReduceResult BuildCheckMaps(
       ValueNode* object, base::Vector<const compiler::MapRef> maps,
       std::optional<ValueNode*> map = {},
@@ -1227,30 +1214,16 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildLoadMap(ValueNode* object);
 
-  ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc,
-                               AllocationType allocation_type);
-
-  void BuildInitializeStore(vobj::Field desc, InlinedAllocation* alloc,
-                            AllocationType allocation_type, ValueNode* value,
-                            StoreTaggedMode store_mode,
-                            MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
-  void BuildInitializeStore_Tagged(vobj::Field desc, InlinedAllocation* alloc,
-                                   AllocationType allocation_type,
-                                   ValueNode* value, StoreTaggedMode store_mode,
-                                   MaybeAssignedFlag maybe_assigned);
-  void BuildInitializeStore_TrustedPointer(vobj::Field desc,
-                                           InlinedAllocation* alloc,
-                                           AllocationType allocation_type,
-                                           ValueNode* value);
-
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
   std::optional<ValueNode*> TryBuildLoadTaggedFieldFromAllocation(
       ValueNode* object, int offset);
+  MaybeReduceResult TryBuildLoadFixedDoubleArrayElementFromAllocation(
+      ValueNode* elements, int index);
   bool TryElideWriteBarrierForAllocation(ValueNode* object, ValueNode* value);
 
   ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
-                                    LoadType type = LoadType::kUnknown,
+                                    NodeType type = NodeType::kUnknown,
                                     bool is_const = false,
                                     PropertyKey key = PropertyKey::None()) {
     return reducer_.BuildLoadTaggedField(object, offset, type, is_const, key);
@@ -1279,9 +1252,10 @@ class MaglevGraphBuilder {
   ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
                                            ValueNode* index, ValueNode* value);
 
-  ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
   ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements,
-                                                ValueNode* index);
+                                                ValueNode* index) {
+    return reducer_.BuildLoadFixedDoubleArrayElement(elements, index);
+  }
   ReduceResult BuildStoreFixedDoubleArrayElement(ElementsKind elements_kind,
                                                  ValueNode* elements,
                                                  ValueNode* index,
@@ -1349,7 +1323,7 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
   ReduceResult BuildLoadJSArrayLength(ValueNode* js_array,
-                                      LoadType length_type = LoadType::kSmi);
+                                      NodeType length_type = NodeType::kSmi);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
   ReduceResult BuildLoadElements(
@@ -1492,15 +1466,9 @@ class MaglevGraphBuilder {
 
   VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
 
-  InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
-      AllocationType allocation_type, VirtualObject* value);
-
-  void ClearCurrentAllocationBlock();
-
   void AddDeoptUse(ValueNode* node);
   void AddMaterializedDeoptUse(ValueNode* node);
   void AddDeoptUse(VirtualObject* alloc);
-  void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
   void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data);
 
@@ -1517,8 +1485,6 @@ class MaglevGraphBuilder {
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
 
-  ReduceResult BuildInlinedAllocation(VirtualObject* object,
-                                      AllocationType allocation);
   ValueNode* BuildInlinedArgumentsElements(int start_index, int length);
   ValueNode* BuildInlinedUnmappedArgumentsElements(int mapped_count);
 
@@ -1966,8 +1932,6 @@ class MaglevGraphBuilder {
   // TODO(leszeks): Allow having a stack of these.
   ForInState current_for_in_state = ForInState();
 
-  AllocationBlock* current_allocation_block_ = nullptr;
-
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
 
@@ -2058,7 +2022,7 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
                 (NodeT::kProperties.can_deopt() ||
                  NodeT::kProperties.can_throw() ||
                  NodeT::kProperties.can_allocate())) {
-    ClearCurrentAllocationBlock();
+    reducer_.ClearCurrentAllocationBlock();
   }
 
   // Don't do anything for nodes without side effects.

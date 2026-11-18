@@ -10,7 +10,6 @@
 #include "chrome/browser/android/resource_mapper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ssl/known_interception_disclosure_infobar_delegate.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/messages/android/message_dispatcher_bridge.h"
 #include "components/messages/android/message_enums.h"
 #include "components/strings/grit/components_strings.h"

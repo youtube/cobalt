@@ -456,7 +456,6 @@ if (rtc_include_tests) {
       "../../api:scoped_refptr",
       "../../api/audio:audio_processing",
       "../../api/audio:builtin_audio_processing_builder",
-      "../../api/environment:environment_factory",
       "../../api/numerics",
       "../../api/test/metrics:global_metrics_logger_and_exporter",
       "../../api/test/metrics:metric",

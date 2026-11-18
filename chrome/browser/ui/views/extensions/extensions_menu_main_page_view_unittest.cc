@@ -44,6 +44,7 @@
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/vector_icons.h"
 #include "ui/views/view_utils.h"
+#include "ui/views/views_switches.h"
 
 namespace {
 
@@ -193,6 +194,8 @@ ExtensionsMenuMainPageViewUnitTest::menu_entries() {
 
 void ExtensionsMenuMainPageViewUnitTest::SetUp() {
   ExtensionsToolbarUnitTest::SetUp();
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      views::switches::kDisableInputEventActivationProtectionForTesting);
   // Menu needs web contents at construction, so we need to add them to every
   // test.
   web_contents_tester_ = AddWebContentsAndGetTester();

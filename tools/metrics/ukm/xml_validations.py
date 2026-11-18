@@ -103,9 +103,8 @@ _TIME_UNIT_EVENT_METRIC_ALLOWLIST = frozenset({
     ('AdsInterestGroup.AuctionLatency.V2',
      'NumBidsAbortedByBuyerCumulativeTimeout'),
     ('AmpPageLoad', 'SubFrame.InteractiveTiming.FirstInputDelay4'),
-    ('AmpPageLoad',
-     'SubFrame.InteractiveTiming.UserInteractionLatency.HighPercentile2.MaxEventDuration'
-     ),
+    ('AmpPageLoad', 'SubFrame.InteractiveTiming.UserInteractionLatency.'
+     'HighPercentile2.MaxEventDuration'),
     ('AmpPageLoad',
      'SubFrame.InteractiveTiming.WorstUserInteractionLatency.MaxEventDuration2'
      ), ('AppListAppClickData', 'TimeSinceLastClick'),
@@ -172,9 +171,8 @@ _TIME_UNIT_EVENT_METRIC_ALLOWLIST = frozenset({
     ('HistoryNavigation', 'FirstInputDelayAfterBackForwardCacheRestore'),
     ('HistoryNavigation', 'ForegroundDurationAfterBackForwardCacheRestore'),
     ('HistoryNavigation', 'TimeSinceNavigatedAwayFromDocument'),
-    ('HistoryNavigation',
-     'UserInteractionLatencyAfterBackForwardCacheRestore.HighPercentile2.MaxEventDuration'
-     ),
+    ('HistoryNavigation', 'UserInteractionLatencyAfterBackForwardCacheRestore.'
+     'HighPercentile2.MaxEventDuration'),
     ('HistoryNavigation',
      'WorstUserInteractionLatencyAfterBackForwardCacheRestore.MaxEventDuration2'
      ), ('IOS.ReaderMode.Distiller.Latency', 'Latency'),
@@ -263,15 +261,14 @@ _TIME_UNIT_EVENT_METRIC_ALLOWLIST = frozenset({
     ('PageLoad',
      'InteractiveTiming.UserInteractionLatency.HighPercentile2.MaxEventDuration'
      ),
-    ('PageLoad',
-     'InteractiveTiming.UserInteractionLatencyAtFirstOnHidden.HighPercentile2.MaxEventDuration'
-     ),
+    ('PageLoad', 'InteractiveTiming.UserInteractionLatencyAtFirstOnHidden.'
+     'HighPercentile2.MaxEventDuration'),
     ('PageLoad',
      'InteractiveTiming.WorstUserInteractionLatency.MaxEventDuration'),
     ('PageLoad', 'InteractiveTimingBeforeSoftNavigation.INPTime'),
-    ('PageLoad',
-     'InteractiveTimingBeforeSoftNavigation.UserInteractionLatency.HighPercentile2.MaxEventDuration'
-     ), ('PageLoad', 'MainFrameResource.ConnectDelay'),
+    ('PageLoad', 'InteractiveTimingBeforeSoftNavigation.UserInteractionLatency.'
+     'HighPercentile2.MaxEventDuration'),
+    ('PageLoad', 'MainFrameResource.ConnectDelay'),
     ('PageLoad', 'MainFrameResource.DNSDelay'),
     ('PageLoad', 'PageTiming.ForegroundDuration'),
     ('PageLoad', 'PageTiming.TotalForegroundDuration'),
@@ -323,7 +320,8 @@ _TIME_UNIT_EVENT_METRIC_ALLOWLIST = frozenset({
     ('PrerenderPageLoad',
      'InteractiveTiming.WorstUserInteractionLatency.MaxEventDuration'),
     ('PrerenderPageLoad',
-     'InteractiveTimingBeforeSoftNavigation.UserInteractionLatency.HighPercentile2.MaxEventDuration'),
+     'InteractiveTimingBeforeSoftNavigation.UserInteractionLatency.'
+     'HighPercentile2.MaxEventDuration'),
     ('Responsiveness.UserInteraction', 'MaxEventDuration'),
     ('ServiceWorker.MainResourceLoadCompleted', 'CacheLookupTime'),
     ('ServiceWorker.MainResourceLoadCompleted', 'RouterEvaluationTime'),
@@ -470,7 +468,8 @@ def _split_words_in_metric_name(metric_name: str) -> list[str]:
   E.g. 'Something.HTMLParseTimeV20' gets split into
       ['something', 'html', 'parse', 'time', 'v', '20']
   """
-  # Metric names are CamelCase possibly containing periods, initialisms, or numbers.
+  # Metric names are CamelCase possibly containing periods, initialisms, or
+  # numbers.
   camel_case_word_matcher = r'[A-Z]?[a-z]+'
   initialisms_or_uppercase_word_matcher = r'[A-Z]+(?=[A-Z][a-z]|\b|\d)'
   numbers_matcher = r'\d+'
@@ -652,4 +651,51 @@ class UkmXmlValidation:
                     'time_units': ','.join(sorted(TIME_UNITS)),
                 })
 
+    return (not errors, errors)
+
+  def check_event_names_case_insensitive_uniqueness(
+      self) -> tuple[bool, list[str]]:
+    """Checks that event names are unique case-insensitively.
+
+    This is a server-side requirement when events are compiled into protobuf
+    messages.
+    """
+    errors: list[str] = []
+    seen_events: dict[str, str] = {}
+    for event_node in self.config.getElementsByTagName('event'):
+      event_name = event_node.getAttribute('name')
+      event_name_lower = event_name.lower()
+      if event_name_lower in seen_events:
+        errors.append(f"Event name '{event_name}' collides with "
+                      f"'{seen_events[event_name_lower]}' case-insensitively. "
+                      'Please pick a different event name.')
+      else:
+        seen_events[event_name_lower] = event_name
+    return (not errors, errors)
+
+  def check_metric_names_case_insensitive_uniqueness(
+      self) -> tuple[bool, list[str]]:
+    """Checks that metric names are unique case-insensitively.
+
+    Multiple events can use the same metric name, but they must use the exact
+    same casing.
+    This is a server-side requirement when metrics are compiled into protobuf
+    messages.
+    """
+    errors: list[str] = []
+    seen_metrics: dict[str, str] = {}
+    for event_node in self.config.getElementsByTagName('event'):
+      event_name = event_node.getAttribute('name')
+      for metric_node in event_node.getElementsByTagName('metric'):
+        metric_name = metric_node.getAttribute('name')
+        metric_name_lower = metric_name.lower()
+        if metric_name_lower in seen_metrics:
+          if seen_metrics[metric_name_lower] != metric_name:
+            errors.append(
+                f"Metric name '{metric_name}' in event '{event_name}' "
+                f"collides with '{seen_metrics[metric_name_lower]}' case-"
+                'insensitively. Switch the casing in the new event to match '
+                'or pick a different metric name.')
+        else:
+          seen_metrics[metric_name_lower] = metric_name
     return (not errors, errors)

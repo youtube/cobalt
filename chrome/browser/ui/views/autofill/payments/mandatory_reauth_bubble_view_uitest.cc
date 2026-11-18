@@ -102,11 +102,11 @@ class MandatoryReauthBubbleViewUiTest
 
     if (controller->GetMandatoryReauthBubbleType() ==
         MandatoryReauthBubbleType::kConfirmation) {
-      return static_cast<autofill::MandatoryReauthConfirmationBubbleView*>(
+      return static_cast<MandatoryReauthConfirmationBubbleView*>(
           controller->GetBubbleView());
     }
 
-    return static_cast<autofill::MandatoryReauthOptInBubbleView*>(
+    return static_cast<MandatoryReauthOptInBubbleView*>(
         controller->GetBubbleView());
   }
 

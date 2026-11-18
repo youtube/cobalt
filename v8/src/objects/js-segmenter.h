@@ -29,8 +29,6 @@ class BreakIterator;
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-segmenter-tq.inc"
-
 V8_OBJECT class JSSegmenter : public JSObject {
  public:
   // Creates segmenter object with properties derived from input locales and
@@ -74,7 +72,8 @@ V8_OBJECT class JSSegmenter : public JSObject {
                                              Granularity granularity);
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_SEGMENTER_FLAGS()
+  using GranularityBits =
+      base::BitField<JSSegmenter::Granularity, 0, 2, uint32_t>;
 
   static_assert(GranularityBits::is_valid(Granularity::GRAPHEME));
   static_assert(GranularityBits::is_valid(Granularity::WORD));

@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "base/barrier_closure.h"
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/containers/flat_map.h"
 #include "base/files/file.h"
@@ -169,6 +170,7 @@
 #include "services/network/net_log_exporter.h"
 #include "services/network/network_qualities_pref_delegate.h"
 #include "services/network/network_service.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_service_buildflags.h"
 #include "services/network/public/cpp/resolve_host_client_base.h"
@@ -1787,6 +1789,132 @@ TEST_F(NetworkContextTest, DiskCacheSize) {
   histogram_tester.ExpectUniqueSample("HttpCache.MaxFileSizeOnInit",
                                       max_file_size / 1024, 1);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(NetworkContextTest, SetHttpCacheMaxSizeAfterBackendInit) {
+  mojom::NetworkContextParamsPtr context_params =
+      CreateNetworkContextParamsForTesting();
+  // Explicitly clear file_paths to force in-memory cache.
+  context_params->file_paths.reset();
+  context_params->http_cache_enabled = true;
+
+  const base::ByteSize kInitialSize = base::MiBU(20);
+  const base::ByteSize kNewSize = base::MiBU(10);
+  context_params->http_cache_max_size =
+      base::checked_cast<int32_t>(kInitialSize.InBytes());
+
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(context_params));
+
+  disk_cache::Backend* backend = WaitForCacheBackend(*network_context);
+  ASSERT_TRUE(backend);
+
+  // Verify initial size.
+  EXPECT_EQ(kInitialSize, backend->GetMaxBytesForTesting());
+
+  // Call the Mojo endpoint.
+  network_context->SetHttpCacheMaxSize(kNewSize, false);
+
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return backend->GetMaxBytesForTesting() == kNewSize; }));
+
+  // Verify that setting size to 0 doesn't crash.
+  // (It could result in any size.)
+  network_context->SetHttpCacheMaxSize(base::ByteSize(0), true);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(NetworkContextTest, SetHttpCacheMaxSizeBeforeUnforcedBackendInit) {
+  mojom::NetworkContextParamsPtr context_params =
+      CreateNetworkContextParamsForTesting();
+  // Explicitly clear file_paths to force in-memory cache.
+  context_params->file_paths.reset();
+  context_params->http_cache_enabled = true;
+
+  const base::ByteSize kInitialSize = base::MiBU(20);
+  const base::ByteSize kNewSize = base::MiBU(10);
+  context_params->http_cache_max_size =
+      base::checked_cast<int32_t>(kInitialSize.InBytes());
+
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(context_params));
+
+  // There should not be a backend yet.
+  ASSERT_EQ(nullptr, network_context->url_request_context()
+                         ->http_transaction_factory()
+                         ->GetCache()
+                         ->GetCurrentBackend());
+
+  // Invoke the resize before calling `WaitForCacheBackend()` to ensure
+  // the operation is queued or correctly forces initialization.
+  network_context->SetHttpCacheMaxSize(kNewSize, false);
+  task_environment_.RunUntilIdle();
+
+  // There should still not be a backend yet.
+  ASSERT_EQ(nullptr, network_context->url_request_context()
+                         ->http_transaction_factory()
+                         ->GetCache()
+                         ->GetCurrentBackend());
+
+  // Now trigger the initialization and wait.
+  disk_cache::Backend* backend = WaitForCacheBackend(*network_context);
+  ASSERT_TRUE(backend);
+
+  // Verify the new limit is successfully applied to the underlying backend.
+  EXPECT_EQ(kNewSize, backend->GetMaxBytesForTesting());
+}
+
+TEST_F(NetworkContextTest, SetHttpCacheMaxSizeBeforeForcedBackendInit) {
+  mojom::NetworkContextParamsPtr context_params =
+      CreateNetworkContextParamsForTesting();
+  // Explicitly clear file_paths to force in-memory cache.
+  context_params->file_paths.reset();
+  context_params->http_cache_enabled = true;
+
+  const base::ByteSize kInitialSize = base::MiBU(20);
+  const base::ByteSize kNewSize = base::MiBU(10);
+  context_params->http_cache_max_size =
+      base::checked_cast<int32_t>(kInitialSize.InBytes());
+
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(context_params));
+
+  // There should not be a backend yet.
+  ASSERT_EQ(nullptr, network_context->url_request_context()
+                         ->http_transaction_factory()
+                         ->GetCache()
+                         ->GetCurrentBackend());
+
+  // Invoke the resize before calling `WaitForCacheBackend()` to ensure
+  // the operation is queued or correctly forces initialization.
+  network_context->SetHttpCacheMaxSize(kNewSize, true);
+
+  // Now trigger the initialization and wait.
+  disk_cache::Backend* backend = WaitForCacheBackend(*network_context);
+  ASSERT_TRUE(backend);
+
+  // Verify the new limit is successfully applied to the underlying backend.
+  EXPECT_EQ(kNewSize, backend->GetMaxBytesForTesting());
+}
+
+TEST_F(NetworkContextTest, SetHttpCacheMaxSizeNoCache) {
+  mojom::NetworkContextParamsPtr context_params =
+      CreateNetworkContextParamsForTesting();
+  context_params->http_cache_enabled = false;
+
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(context_params));
+
+  // There should not be an HTTP Cache at all.
+  ASSERT_EQ(nullptr, network_context->url_request_context()
+                         ->http_transaction_factory()
+                         ->GetCache());
+
+  // Ensure this doesn't crash when the internal `GetCache()` returns nullptr.
+  network_context->SetHttpCacheMaxSize(base::MiBU(10), true);
+  task_environment_.RunUntilIdle();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // This makes sure that network_session_configurator::ChooseCacheType is
 // connected to NetworkContext.
@@ -6039,7 +6167,7 @@ TEST_F(NetworkContextTest, PreconnectOne) {
 
   network_context->PreconnectSockets(
       1, test_server.base_url(), network::mojom::CredentialsMode::kInclude,
-      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::NetworkAnonymizationKey(), GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
   connection_listener.WaitForAcceptedConnections(1u);
@@ -6056,18 +6184,18 @@ TEST_F(NetworkContextTest, PreconnectDifferentCredentialsMode) {
 
   network_context->PreconnectSockets(
       1, test_server.base_url(), network::mojom::CredentialsMode::kOmit,
-      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::NetworkAnonymizationKey(), GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
   network_context->PreconnectSockets(
       1, test_server.base_url(), network::mojom::CredentialsMode::kInclude,
-      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::NetworkAnonymizationKey(), GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
   network_context->PreconnectSockets(
       1, test_server.base_url(),
       network::mojom::CredentialsMode::kOmitBug_775438_Workaround,
-      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::NetworkAnonymizationKey(), GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
 
@@ -6122,7 +6250,7 @@ TEST_F(NetworkContextTest, PreconnectHSTS) {
 
     network_context->PreconnectSockets(
         1, server_http_url, network::mojom::CredentialsMode::kOmit,
-        network_anonymization_key, /*network_restrictions_id=*/std::nullopt,
+        network_anonymization_key, GetTestNetworkRestrictionsId(),
         net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
         std::nullopt, mojo::NullRemote());
     connection_listener.WaitForAcceptedConnections(1u);
@@ -6135,7 +6263,7 @@ TEST_F(NetworkContextTest, PreconnectHSTS) {
         server_http_url.GetHost(), expiry, false);
     network_context->PreconnectSockets(
         1, server_http_url, network::mojom::CredentialsMode::kOmit,
-        network_anonymization_key, /*network_restrictions_id=*/std::nullopt,
+        network_anonymization_key, GetTestNetworkRestrictionsId(),
         net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
         std::nullopt, mojo::NullRemote());
     connection_listener.WaitForAcceptedConnections(1u);
@@ -6157,7 +6285,7 @@ TEST_F(NetworkContextTest, PreconnectZero) {
 
   network_context->PreconnectSockets(
       0, test_server.base_url(), network::mojom::CredentialsMode::kInclude,
-      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::NetworkAnonymizationKey(), GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
   base::RunLoop().RunUntilIdle();
@@ -6181,7 +6309,7 @@ TEST_F(NetworkContextTest, PreconnectTwo) {
 
   network_context->PreconnectSockets(
       2, test_server.base_url(), network::mojom::CredentialsMode::kInclude,
-      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::NetworkAnonymizationKey(), GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
   connection_listener.WaitForAcceptedConnections(2u);
@@ -6202,7 +6330,7 @@ TEST_F(NetworkContextTest, PreconnectFour) {
 
   network_context->PreconnectSockets(
       4, test_server.base_url(), network::mojom::CredentialsMode::kInclude,
-      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::NetworkAnonymizationKey(), GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
 
@@ -6228,7 +6356,7 @@ TEST_F(NetworkContextTest, PreconnectMax) {
 
   network_context->PreconnectSockets(
       76, test_server.base_url(), network::mojom::CredentialsMode::kInclude,
-      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::NetworkAnonymizationKey(), GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
 
@@ -6268,12 +6396,12 @@ TEST_F(NetworkContextTest, PreconnectNetworkIsolationKey) {
   const auto kNak2 = net::NetworkAnonymizationKey::CreateSameSite(kSiteBar);
   network_context->PreconnectSockets(
       1, test_server.base_url(), network::mojom::CredentialsMode::kOmit, kKey1,
-      /*network_restrictions_id=*/std::nullopt,
+      GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
   network_context->PreconnectSockets(
       2, test_server.base_url(), network::mojom::CredentialsMode::kOmit, kKey2,
-      /*network_restrictions_id=*/std::nullopt,
+      GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
   connection_listener.WaitForAcceptedConnections(3u);
@@ -7110,7 +7238,8 @@ class TestURLLoaderHeaderClient : public mojom::TrustedURLLoaderHeaderClient {
     TestHeaderClient& operator=(const TestHeaderClient&) = delete;
 
     // network::mojom::TrustedHeaderClient:
-    void OnBeforeSendHeaders(const net::HttpRequestHeaders& headers,
+    void OnBeforeSendHeaders(const GURL& request_url,
+                             const net::HttpRequestHeaders& headers,
                              OnBeforeSendHeadersCallback callback) override {
       auto new_headers = headers;
       for (const auto& [name, value] : request_headers_to_set_) {
@@ -7406,7 +7535,8 @@ class HangingTestURLLoaderHeaderClient
     TestHeaderClient& operator=(const TestHeaderClient&) = delete;
 
     // network::mojom::TrustedHeaderClient:
-    void OnBeforeSendHeaders(const net::HttpRequestHeaders& headers,
+    void OnBeforeSendHeaders(const GURL& request_url,
+                             const net::HttpRequestHeaders& headers,
                              OnBeforeSendHeadersCallback callback) override {
       saved_request_headers_ = headers;
       saved_on_before_send_headers_callback_ = std::move(callback);
@@ -10018,10 +10148,6 @@ TEST_F(NetworkContextTest, PreconnectRequestWithNetworkRestrictionsID) {
             0);
 }
 
-// ExemptUrlFromNetworkRevocationForNonce(exempted_url, nonce) exempts
-// future requests that have the same "url without filename" as `exempted_url`
-// under the nonce `nonce`.
-
 TEST_F(NetworkContextTest, ClearNetworkRestrictionsTest) {
   std::unique_ptr<NetworkContext> network_context =
       CreateContextWithParams(CreateNetworkContextParamsForTesting());
@@ -12237,9 +12363,11 @@ TEST_F(EarlyCookieLoadOnPreconnectTest, Basic) {
   net::EmbeddedTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
+  base::HistogramTester histogram_tester;
+
   network_context->PreconnectSockets(
       1, test_server.base_url(), network::mojom::CredentialsMode::kInclude,
-      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::NetworkAnonymizationKey(), GetTestNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
       std::nullopt, mojo::NullRemote());
 
@@ -12253,6 +12381,9 @@ TEST_F(EarlyCookieLoadOnPreconnectTest, Basic) {
             store->commands()[1].type);
   EXPECT_EQ(net::CookieMonster::GetKey(test_server.base_url().host()),
             store->commands()[1].key);
+
+  histogram_tester.ExpectUniqueSample("Cookie.OnPreconnect.LoadCookie", true,
+                                      1);
 }
 
 }  // namespace

@@ -9,6 +9,7 @@ import {ContextualSearchInputStateDeletionType} from 'chrome://resources/cr_comp
 import {ContextUploadErrorType, ContextUploadStatus, InputType, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {DriveDisclaimerStatus} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {ToolMode as ComposeboxToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -37,7 +38,9 @@ import * as testSupport from './test_support.js';
 
           // Autocomplete queried once when composebox is opened.
           assertEquals(
-              testProxy.searchboxHandler.getCallCount('queryAutocomplete'), 1);
+              testProxy.searchboxHandler.getCallCount(
+                  'queryAutocompleteWithSuggestInventory'),
+              1);
           const id = testSupport.generateZeroId();
           await testSupport.uploadFileAndVerify(
               testProxy, id,
@@ -52,7 +55,9 @@ import * as testSupport from './test_support.js';
           assertEquals(
               testProxy.searchboxHandler.getCallCount('stopAutocomplete'), 1);
           assertEquals(
-              testProxy.searchboxHandler.getCallCount('queryAutocomplete'), 2);
+              testProxy.searchboxHandler.getCallCount(
+                  'queryAutocompleteWithSuggestInventory'),
+              2);
 
           // The suggest request should be triggered before the file has
           // finished uploading.
@@ -78,7 +83,9 @@ import * as testSupport from './test_support.js';
           assertEquals(
               testProxy.searchboxHandler.getCallCount('stopAutocomplete'), 2);
           assertEquals(
-              testProxy.searchboxHandler.getCallCount('queryAutocomplete'), 3);
+              testProxy.searchboxHandler.getCallCount(
+                  'queryAutocompleteWithSuggestInventory'),
+              3);
         });
 
         test('uploading image file without flag does nothing', async () => {
@@ -89,7 +96,9 @@ import * as testSupport from './test_support.js';
 
           // Autocomplete queried once when composebox is opened.
           assertEquals(
-              testProxy.searchboxHandler.getCallCount('queryAutocomplete'), 1);
+              testProxy.searchboxHandler.getCallCount(
+                  'queryAutocompleteWithSuggestInventory'),
+              1);
           const id = testSupport.generateZeroId();
           await testSupport.uploadFileAndVerify(
               testProxy, id,
@@ -102,7 +111,9 @@ import * as testSupport from './test_support.js';
           // Autocomplete should not be queried again since the uploaded file is
           // an image and the image suggest flag is disabled.
           assertEquals(
-              testProxy.searchboxHandler.getCallCount('queryAutocomplete'), 1);
+              testProxy.searchboxHandler.getCallCount(
+                  'queryAutocompleteWithSuggestInventory'),
+              1);
         });
 
         test(
@@ -115,7 +126,8 @@ import * as testSupport from './test_support.js';
 
               // Autocomplete queried once when composebox is opened.
               assertEquals(
-                  testProxy.searchboxHandler.getCallCount('queryAutocomplete'),
+                  testProxy.searchboxHandler.getCallCount(
+                      'queryAutocompleteWithSuggestInventory'),
                   1);
               const id = testSupport.generateZeroId();
               await testSupport.uploadFileAndVerify(
@@ -133,7 +145,8 @@ import * as testSupport from './test_support.js';
                   testProxy.searchboxHandler.getCallCount('stopAutocomplete'),
                   1);
               assertEquals(
-                  testProxy.searchboxHandler.getCallCount('queryAutocomplete'),
+                  testProxy.searchboxHandler.getCallCount(
+                      'queryAutocompleteWithSuggestInventory'),
                   2);
             });
 
@@ -630,8 +643,14 @@ import * as testSupport from './test_support.js';
 
               // Autocomplete queried once when composebox is opened for ZPS.
               assertEquals(
-                  testProxy.searchboxHandler.getCallCount('queryAutocomplete'),
+                  testProxy.searchboxHandler.getCallCount(
+                      'queryAutocompleteWithSuggestInventory'),
                   1);
+
+              testProxy.searchboxHandler.setPromiseResolveFor(
+                  'getDriveDisclaimerStatus', {
+                    status: DriveDisclaimerStatus.kAccepted,
+                  });
 
               testProxy.searchboxHandler.setPromiseResolveFor(
                   'onDriveUploadClicked', {
@@ -1192,7 +1211,9 @@ import * as testSupport from './test_support.js';
           testSupport.createComposeboxElement(testProxy);
           // Autocomplete queried once when composebox is created.
           assertEquals(
-              testProxy.searchboxHandler.getCallCount('queryAutocomplete'), 1);
+              testProxy.searchboxHandler.getCallCount(
+                  'queryAutocompleteWithSuggestInventory'),
+              1);
 
           const matches = [createSearchMatchForTesting()];
           testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
@@ -1223,7 +1244,9 @@ import * as testSupport from './test_support.js';
               new Event('input'));
           await microtasksFinished();
           assertEquals(
-              testProxy.searchboxHandler.getCallCount('queryAutocomplete'), 2);
+              testProxy.searchboxHandler.getCallCount(
+                  'queryAutocompleteWithSuggestInventory'),
+              2);
         });
 
         test('add file context fails', async () => {
@@ -1451,6 +1474,122 @@ suite('NewTabPageComposeboxUploadContextTest', () => {
     loadTimeData.overrideValues({
       useNtpComposeboxFork: false,
     });
+  });
+
+  test('addSearchContext handles file attachments', async () => {
+    loadTimeData.overrideValues({composeboxShowZps: true});
+    testSupport.createComposeboxElement(testProxy);
+    testProxy.element.searchboxNextEnabled = true;
+
+    await microtasksFinished();
+
+    const fileAttachment = {
+      uuid: testSupport.FAKE_TOKEN_STRING,
+      name: 'test.jpg',
+      imageDataUrl: 'data:image/jpeg;base64,...',
+      mimeType: 'image/jpeg',
+      errorType: null,
+      iconUrl: null,
+    };
+
+    const context = {
+      input: 'hello world',
+      files: [],
+      attachments: [
+        {fileAttachment: fileAttachment, tabAttachment: undefined},
+      ],
+      toolMode: ToolMode.kUnspecified,
+    };
+
+    testProxy.element.addSearchContext(context);
+    await microtasksFinished();
+
+    // Verify file added.
+    const files = testProxy.element.$.carousel.files;
+    assertEquals(1, files.length);
+    assertEquals('test.jpg', files[0]!.name);
+  });
+
+  test('addSearchContext rejects invalid file attachments', async () => {
+    loadTimeData.overrideValues({composeboxShowZps: true});
+    testSupport.createComposeboxElement(testProxy);
+    testProxy.element.searchboxNextEnabled = true;
+
+    await microtasksFinished();
+
+    const fileAttachment = {
+      uuid: testSupport.FAKE_TOKEN_STRING,
+      name: 'test.txt',
+      imageDataUrl: null,
+      mimeType: 'text/plain',
+      errorType:
+          ContextUploadErrorType.kBrowserProcessingUnsupportedFileTypeError,
+      iconUrl: null,
+    };
+
+    const context = {
+      input: 'hello world',
+      files: [],
+      attachments: [
+        {fileAttachment: fileAttachment, tabAttachment: undefined},
+      ],
+      toolMode: ToolMode.kUnspecified,
+    };
+
+    testProxy.element.addSearchContext(context);
+    await microtasksFinished();
+
+    // Verify file is NOT added to carousel.
+    assertFalse(!!$$<HTMLElement>(testProxy.element, '#carousel'));
+    // Verify correct error message is shown.
+    assertEquals(
+        loadTimeData.getString('composeFileTypesAllowedError'),
+        testProxy.element.$.errorScrim.errorMessage);
+  });
+
+  test('addSearchContext handles tab attachments', async () => {
+    loadTimeData.overrideValues(
+        {composeboxShowZps: true, tabFaviconChipsToCoinsEnabled: false});
+    testSupport.createComposeboxElement(testProxy);
+    testProxy.element.searchboxNextEnabled = true;
+
+    await microtasksFinished();
+
+    const tabAttachment = {
+      tabId: 10,
+      title: 'Tab Title',
+      url: 'http://example.com',
+    };
+
+    const context = {
+      input: 'hello world',
+      files: [],
+      attachments: [
+        {fileAttachment: undefined, tabAttachment: tabAttachment},
+      ],
+      toolMode: ToolMode.kUnspecified,
+    };
+
+    testProxy.searchboxHandler.setPromiseResolveFor(
+        testSupport.ADD_TAB_CONTEXT_FN, testSupport.FAKE_TOKEN_STRING);
+
+    testProxy.element.addSearchContext(context);
+    await microtasksFinished();
+
+    // Verify proxy was called with correct delayUpload argument
+    assertEquals(
+        1,
+        testProxy.searchboxHandler.getCallCount(
+            testSupport.ADD_TAB_CONTEXT_FN));
+    const [tabId, delayUpload] =
+        testProxy.searchboxHandler.getArgs(testSupport.ADD_TAB_CONTEXT_FN)[0];
+    assertEquals(10, tabId);
+    assertFalse(delayUpload);
+
+    // Verify tab added.
+    const files = testProxy.element.$.carousel.files;
+    assertEquals(1, files.length);
+    assertEquals('Tab Title', files[0]!.name);
   });
 
   test(

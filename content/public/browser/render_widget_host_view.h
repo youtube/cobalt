@@ -252,9 +252,6 @@ class CONTENT_EXPORT RenderWidgetHostView {
       base::TimeDelta timeout,
       base::OnceCallback<void(const CopyFromSurfaceResult&)> callback) = 0;
 
-  // Ensures that all surfaces are synchronized for the next call to
-  // CopyFromSurface. This is used by web tests.
-  virtual void EnsureSurfaceSynchronizedForWebTest() = 0;
 
   // Creates a video capturer, which will allow the caller to receive a stream
   // of media::VideoFrames captured from this view. The capturer is configured

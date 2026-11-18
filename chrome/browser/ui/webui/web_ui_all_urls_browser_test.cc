@@ -7,6 +7,7 @@
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/ui/webui/webui_urls_for_test.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -63,6 +64,7 @@ WebUIAllUrlsBrowserTest::WebUIAllUrlsBrowserTest() {
 #endif
 
   enabled_features.push_back(features::kTabsFromOtherDevicesSidePanel);
+  enabled_features.push_back(contextual_cueing::kContextualCueingV2);
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   enabled_features.push_back(switches::kFirstRunDesktopRefresh);

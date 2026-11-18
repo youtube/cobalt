@@ -691,7 +691,7 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
   mojo::Receiver<mojom::FrameSinksMetricsRecorder> metrics_receiver_{this};
   mojo::Receiver<mojom::FrameSinkManagerTestApi> test_api_receiver_{this};
 
-  base::ObserverList<FrameSinkObserver>::Unchecked observer_list_;
+  base::ObserverList<FrameSinkObserver> observer_list_;
 
 #if BUILDFLAG(IS_MAC)
   // Only one ExternalBeginFrameSourceMojoMac object is created and is

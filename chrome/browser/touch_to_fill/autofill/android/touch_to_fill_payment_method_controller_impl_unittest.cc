@@ -15,6 +15,8 @@
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_delegate_android_impl.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view_controller.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_test_helper.h"
 #include "chrome/browser/ui/autofill/payments/android_bnpl_ui_delegate.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/autofill/content/browser/test_autofill_client_injector.h"
@@ -24,7 +26,7 @@
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
-#include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_delegate.h"
+#include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_payment_method_delegate.h"
 #include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/payments/payments_util.h"
 #include "components/autofill/core/browser/payments/test_legal_message_line.h"
@@ -147,6 +149,10 @@ class MockTouchToFillDelegateAndroidImpl
               (std::optional<int64_t> extracted_amount),
               (override));
   MOCK_METHOD(void,
+              IbanSuggestionSelected,
+              ((std::variant<Iban::Guid, Iban::InstrumentId> backend_id)),
+              (override));
+  MOCK_METHOD(void,
               OnDismissed,
               (bool dismissed_by_user, bool should_reshow),
               (override));
@@ -191,15 +197,31 @@ class TouchToFillPaymentMethodControllerImplTest
 
   void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
+
+    tab_model_.emplace(profile());
+    TabModelList::AddTabModel(&*tab_model_);
+    tab_model_->SetWebContentsList({web_contents()});
+    tab_model_->SetIsActiveModel(true);
+
     NavigateAndCommit(GURL("about:blank"));
-    autofill_manager().set_touch_to_fill_delegate(
+    FocusWebContentsOnMainFrame();
+    ASSERT_TRUE(web_contents()->GetFocusedFrame());
+    autofill_manager().set_touch_to_fill_payment_method_delegate(
         std::make_unique<MockTouchToFillDelegateAndroidImpl>(
             &autofill_manager()));
     mock_view_ = std::make_unique<MockTouchToFillPaymentMethodViewImpl>();
   }
 
+  void AddSecondWebContents() {
+    CHECK(!second_web_contents_);
+    second_web_contents_ = content::WebContents::Create(
+        content::WebContents::CreateParams(profile()));
+    tab_model_->SetWebContentsList(
+        {second_web_contents_.get(), web_contents()});
+  }
+
   void SetUpIbanFormField() {
-    some_form_data_ = autofill::test::CreateTestIbanFormData();
+    some_form_data_ = test::CreateTestIbanFormData();
     some_form_ = some_form_data_.global_id();
     some_field_ = test::MakeFieldGlobalId();
   }
@@ -212,6 +234,8 @@ class TouchToFillPaymentMethodControllerImplTest
 
   void TearDown() override {
     mock_view_.reset();
+    second_web_contents_.reset();
+    TabModelList::RemoveTabModel(&*tab_model_);
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
@@ -230,7 +254,7 @@ class TouchToFillPaymentMethodControllerImplTest
 
   MockTouchToFillDelegateAndroidImpl& ttf_delegate() {
     return *static_cast<MockTouchToFillDelegateAndroidImpl*>(
-        autofill_manager().touch_to_fill_delegate());
+        autofill_manager().touch_to_fill_payment_method_delegate());
   }
 
   const std::vector<CreditCard> credit_cards_ = {test::GetCreditCard(),
@@ -299,9 +323,13 @@ class TouchToFillPaymentMethodControllerImplTest
       autofill_client_injector_;
   TestAutofillManagerInjector<TestBrowserAutofillManager>
       autofill_manager_injector_;
+
+  std::optional<TestTabModel> tab_model_;
+  std::unique_ptr<content::WebContents> second_web_contents_;
+
   FormData some_form_data_ =
-      autofill::test::CreateTestCreditCardFormData(/*is_https=*/true,
-                                                   /*use_month_type=*/false);
+      test::CreateTestCreditCardFormData(/*is_https=*/true,
+                                         /*use_month_type=*/false);
   FormGlobalId some_form_ = some_form_data_.global_id();
   FieldGlobalId some_field_ = test::MakeFieldGlobalId();
 };
@@ -506,8 +534,7 @@ TEST_F(TouchToFillPaymentMethodControllerImplTest,
 TEST_F(TouchToFillPaymentMethodControllerImplTest,
        ShowBnplIssuersOnPreexistingView) {
   base::MockOnceClosure mock_cancel_callback;
-  base::MockOnceCallback<void(autofill::BnplIssuer)>
-      mock_selected_issuer_callback;
+  base::MockOnceCallback<void(BnplIssuer)> mock_selected_issuer_callback;
   EXPECT_CALL(*mock_view_,
               ShowPaymentMethods(
                   &payment_method_controller(), ElementsAreArray(suggestions_),
@@ -531,8 +558,7 @@ TEST_F(TouchToFillPaymentMethodControllerImplTest,
 TEST_F(TouchToFillPaymentMethodControllerImplTest,
        ShowBnplIssuersAbortsIfNoViewAvailable) {
   base::MockOnceClosure mock_cancel_callback;
-  base::MockOnceCallback<void(autofill::BnplIssuer)>
-      mock_selected_issuer_callback;
+  base::MockOnceCallback<void(BnplIssuer)> mock_selected_issuer_callback;
   EXPECT_CALL(*mock_view_, ShowBnplIssuers).Times(0);
   EXPECT_CALL(ttf_delegate(), SetCancelCallback).Times(0);
   EXPECT_CALL(ttf_delegate(), SetSelectedIssuerCallback).Times(0);
@@ -604,6 +630,30 @@ TEST_F(TouchToFillPaymentMethodControllerImplTest, BnplSuggestionSelected) {
   EXPECT_CALL(ttf_delegate(), BnplSuggestionSelected(extracted_amount));
   payment_method_controller().BnplSuggestionSelected(/*JNIEnv*=*/nullptr,
                                                      extracted_amount);
+}
+
+// Tests that accepting a (credit card) suggestion on TTF from an inactive tab
+// is a no-op.
+TEST_F(TouchToFillPaymentMethodControllerImplTest,
+       CreditCardSuggestionSelected_AbortsIfInactiveWebContents) {
+  MockTouchToFillPaymentMethodViewImpl* raw_mock_view = mock_view_.get();
+
+  OnBeforeAskForValuesToFill();
+  payment_method_controller().ShowPaymentMethods(
+      std::move(mock_view_), ttf_delegate().GetWeakPointer(), suggestions_);
+  OnAfterAskForValuesToFill();
+
+  AddSecondWebContents();
+
+  // Expect that Hide() is called on the view, and the delegate is NOT called.
+  EXPECT_CALL(*raw_mock_view, Hide());
+  EXPECT_CALL(ttf_delegate(), CreditCardSuggestionSelected).Times(0);
+
+  payment_method_controller().CreditCardSuggestionSelected(
+      /*env=*/nullptr, "some_guid", /*is_virtual=*/false);
+
+  testing::Mock::VerifyAndClearExpectations(raw_mock_view);
+  testing::Mock::VerifyAndClearExpectations(&ttf_delegate());
 }
 
 TEST_F(TouchToFillPaymentMethodControllerImplTest, ShowErrorScreenOnNewView) {

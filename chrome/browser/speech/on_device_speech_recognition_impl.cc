@@ -117,9 +117,7 @@ void OnDeviceSpeechRecognitionImpl::Available(
     //   downloadable 'unavailable' in if one or more language is unavailable
     media::mojom::AvailabilityStatus status = GetMaskedAvailabilityStatus(
         language_config.value().language_name, quality);
-    if (status < overall_status) {
-      overall_status = status;
-    }
+    overall_status = std::min(overall_status, status);
   }
 
   std::move(callback).Run(overall_status);

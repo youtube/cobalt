@@ -151,11 +151,7 @@ class AmountExtractionManager {
       FieldType field_type) const;
 
   // Fetch the page content for the AI-based amount extraction.
-  virtual void FetchAiPageContent();
-
-  // Callback function for `AutofillClient::GetAiPageContent`.
-  virtual void OnAiPageContentReceived(
-      std::optional<optimization_guide::proto::AnnotatedPageContent> result);
+  void FetchAiPageContent();
 
   // Trigger the search for the final checkout amount from the DOM of the
   // current page.
@@ -174,10 +170,10 @@ class AmountExtractionManager {
   // `Reset()`.
   bool SeenUnsupportedCurrencyForPageLoad() const;
 
- private:
-  friend class AmountExtractionManagerTest;
-  friend class AmountExtractionManagerTestApi;
-  friend class BnplManager;
+ protected:
+  // Callback function for `AutofillClient::GetAiPageContent`.
+  void OnAiPageContentReceived(
+      std::optional<optimization_guide::proto::AnnotatedPageContent> result);
 
   // Invoked after the amount extraction process completes.
   // `extracted_amount` provides the extracted amount upon success and an
@@ -187,14 +183,22 @@ class AmountExtractionManager {
       base::TimeTicks search_request_start_timestamp,
       const std::string& extracted_amount);
 
-  // Invoked once the amount extraction from the model executor is complete.
-  virtual void OnCheckoutAmountReceivedFromAi(
-      optimization_guide::OptimizationGuideModelExecutionResult result,
-      std::unique_ptr<optimization_guide::ModelQualityLogEntry> log_entry);
-
   // Checks whether the current amount search has reached the timeout or not.
   // If so, cancel the ongoing search.
   virtual void OnTimeoutReached();
+
+  // Cancels in-progress requests and resets the state. Also invalidates
+  // `AmountExtractionManager` weak pointers from the factory.
+  virtual void Reset();
+
+ private:
+  friend class AmountExtractionManagerTestApi;
+  friend class BnplManager;
+
+  // Invoked once the amount extraction from the model executor is complete.
+  void OnCheckoutAmountReceivedFromAi(
+      optimization_guide::OptimizationGuideModelExecutionResult result,
+      std::unique_ptr<optimization_guide::ModelQualityLogEntry> log_entry);
 
   // Checks eligibility of features depending on amount extraction result, and
   // returns the eligible features.
@@ -204,10 +208,6 @@ class AmountExtractionManager {
   // Gets the driver associated with the main frame as the final checkout
   // amount is on the main frame.
   AutofillDriver* GetMainFrameDriver();
-
-  // Cancels in-progress requests and resets the state. Also invalidates
-  // `AmountExtractionManager` weak pointers from the factory.
-  virtual void Reset();
 
   // Logs the result of the AI-based amount extraction, but only if a result
   // has not been logged already.

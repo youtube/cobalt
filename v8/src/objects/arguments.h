@@ -18,8 +18,6 @@ namespace internal {
 
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/arguments-tq.inc"
-
 // Superclass for all objects with instance type {JS_ARGUMENTS_OBJECT_TYPE}
 V8_OBJECT class JSArgumentsObject : public JSObject {
  public:
@@ -145,7 +143,7 @@ V8_OBJECT class AliasedArgumentsEntry : public Struct {
 // the outer JSArgumentsObject:
 // - FAST_SLOPPY_ARGUMENTS_ELEMENTS: HOLEY_ELEMENTS
 // - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
-class SloppyArgumentsElements
+V8_OBJECT class SloppyArgumentsElements
     : public TaggedArrayBase<SloppyArgumentsElements, UnionOf<Smi, Hole>> {
   using Super = TaggedArrayBase<SloppyArgumentsElements, UnionOf<Smi, Hole>>;
 
@@ -180,14 +178,11 @@ class SloppyArgumentsElements
       2 * kTaggedSize;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   TaggedMember<Context> context_;
   TaggedMember<UnionOf<FixedArray, NumberDictionary>> arguments_;
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
-};
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

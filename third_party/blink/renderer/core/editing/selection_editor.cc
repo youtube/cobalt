@@ -60,7 +60,7 @@ void SelectionEditor::AssertSelectionValid() const {
 }
 
 void SelectionEditor::ClearVisibleSelection() {
-  selection_ = SelectionInDOMTree();
+  selection_ = SelectionInDomTree();
   cached_visible_selection_in_dom_tree_ = VisibleSelection();
   cached_visible_selection_in_flat_tree_ = VisibleSelectionInFlatTree();
   cached_visible_selection_in_dom_tree_is_dirty_ = true;
@@ -112,7 +112,7 @@ bool SelectionEditor::ComputeAbsoluteBounds(gfx::Rect& anchor,
   return has_selection_bounds_;
 }
 
-const SelectionInDOMTree& SelectionEditor::GetSelectionInDOMTree() const {
+const SelectionInDomTree& SelectionEditor::GetSelectionInDomTree() const {
   AssertSelectionValid();
   return selection_;
 }
@@ -135,11 +135,11 @@ void SelectionEditor::MarkCacheDirty() {
 }
 
 void SelectionEditor::SetSelectionAndEndTyping(
-    const SelectionInDOMTree& new_selection) {
+    const SelectionInDomTree& new_selection) {
   new_selection.AssertValidFor(GetDocument());
   DCHECK_NE(selection_, new_selection);
 
-  const SelectionInDOMTree old_selection = selection_;
+  const SelectionInDomTree old_selection = selection_;
 
   ClearDocumentCachedRange();
   MarkCacheDirty();
@@ -194,13 +194,13 @@ void SelectionEditor::DidChangeChildren(
   }
   selection_.ResetDirectionCache();
   MarkCacheDirty();
-  DidFinishDOMMutation();
+  DidFinishDomMutation();
 }
 
 void SelectionEditor::DidFinishTextChange(const Position& new_anchor,
                                           const Position& new_focus) {
   if (new_anchor == selection_.anchor_ && new_focus == selection_.focus_) {
-    DidFinishDOMMutation();
+    DidFinishDomMutation();
     return;
   }
   selection_.anchor_ = new_anchor;
@@ -209,7 +209,7 @@ void SelectionEditor::DidFinishTextChange(const Position& new_anchor,
 
   // See: https://w3c.github.io/selection-api/#selectionchange-event
   TextControlElement* text_control =
-      EnclosingTextControl(GetSelectionInDOMTree().Anchor());
+      EnclosingTextControl(GetSelectionInDomTree().Anchor());
   if (text_control && !text_control->IsInShadowTree()) {
     text_control->ScheduleSelectionchangeEvent();
   } else {
@@ -217,10 +217,10 @@ void SelectionEditor::DidFinishTextChange(const Position& new_anchor,
   }
 
   MarkCacheDirty();
-  DidFinishDOMMutation();
+  DidFinishDomMutation();
 }
 
-void SelectionEditor::DidFinishDOMMutation() {
+void SelectionEditor::DidFinishDomMutation() {
   AssertSelectionValid();
 }
 
@@ -255,7 +255,7 @@ void SelectionEditor::DidInsertNode(const Node& node) {
   if (new_anchor == old_anchor && new_focus == old_focus) {
     return;
   }
-  selection_ = SelectionInDOMTree::Builder()
+  selection_ = SelectionInDomTree::Builder()
                    .SetBaseAndExtent(new_anchor, new_focus)
                    .Build();
 }
@@ -278,7 +278,7 @@ void SelectionEditor::ContextDestroyed() {
   style_version_for_flat_tree_ = static_cast<uint64_t>(-1);
   style_version_for_absolute_bounds_ = static_cast<uint64_t>(-1);
 #endif
-  selection_ = SelectionInDOMTree();
+  selection_ = SelectionInDomTree();
   cached_visible_selection_in_dom_tree_ = VisibleSelection();
   cached_visible_selection_in_flat_tree_ = VisibleSelectionInFlatTree();
   cached_visible_selection_in_dom_tree_is_dirty_ = true;
@@ -326,7 +326,7 @@ void SelectionEditor::NodeChildrenWillBeRemoved(ContainerNode& container) {
   if (new_anchor == old_anchor && new_focus == old_focus) {
     return;
   }
-  selection_ = SelectionInDOMTree::Builder()
+  selection_ = SelectionInDomTree::Builder()
                    .SetBaseAndExtent(new_anchor, new_focus)
                    .Build();
   MarkCacheDirty();
@@ -354,7 +354,7 @@ void SelectionEditor::NodeWillBeRemoved(Node& node_to_be_removed) {
     return;
   }
 
-  selection_ = SelectionInDOMTree::Builder()
+  selection_ = SelectionInDomTree::Builder()
                    .SetBaseAndExtent(new_anchor, new_focus)
                    .Build();
   MarkCacheDirty();
@@ -410,7 +410,7 @@ void SelectionEditor::DidUpdateCharacterData(CharacterData* node,
   // The fragment check is a performance optimization. See
   // http://trac.webkit.org/changeset/30062.
   if (selection_.IsNone() || !node || !node->isConnected()) {
-    DidFinishDOMMutation();
+    DidFinishDomMutation();
     return;
   }
   const Position& new_anchor = UpdatePositionAfterAdoptingTextReplacement(
@@ -459,7 +459,7 @@ void SelectionEditor::DidMergeTextNodes(
     const NodeWithIndex& node_to_be_removed_with_index,
     unsigned old_length) {
   if (selection_.IsNone()) {
-    DidFinishDOMMutation();
+    DidFinishDomMutation();
     return;
   }
   const Position& new_anchor = UpdatePostionAfterAdoptingTextNodesMerged(
@@ -491,7 +491,7 @@ static Position UpdatePostionAfterAdoptingTextNodeSplit(
 
 void SelectionEditor::DidSplitTextNode(const Text& old_node) {
   if (selection_.IsNone() || !old_node.isConnected()) {
-    DidFinishDOMMutation();
+    DidFinishDomMutation();
     return;
   }
   const Position& new_anchor =

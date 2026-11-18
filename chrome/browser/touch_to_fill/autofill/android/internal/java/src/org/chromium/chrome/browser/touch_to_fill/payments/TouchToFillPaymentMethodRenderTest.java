@@ -489,6 +489,7 @@ public class TouchToFillPaymentMethodRenderTest {
 
     @After
     public void tearDown() {
+        runOnUiThreadBlocking(() -> mCoordinator.hideSheet());
         setRtlForTesting(false);
         try {
             finishActivity(mActivityTestRule.getActivity());

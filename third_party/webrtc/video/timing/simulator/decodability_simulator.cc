@@ -20,6 +20,7 @@
 #include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/units/data_size.h"
+#include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/encoded_frame.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
@@ -148,6 +149,11 @@ class DecodabilitySimulatorStream : public RtcEventLogDriver::StreamInterface {
       const RtpPacketSimulator::SimulatedPacket& simulated_packet) override {
     RTC_DCHECK_RUN_ON(&sequence_checker_);
     receiver_.InsertSimulatedPacket(simulated_packet);
+  }
+
+  void UpdateMaxRtt(TimeDelta max_rtt) override {
+    RTC_DCHECK_RUN_ON(&sequence_checker_);
+    assembler_.UpdateMaxRtt(max_rtt);
   }
 
   void Close() override {

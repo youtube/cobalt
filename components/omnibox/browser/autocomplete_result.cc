@@ -29,6 +29,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "base/trace_event/typed_macros.h"
+#include "build/android_buildflags.h"
 #include "build/build_config.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/actions/contextual_search_action.h"
@@ -77,9 +78,11 @@ typedef AutocompleteMatchType ACMatchType;
 
 namespace {
 
-constexpr bool is_android = !!BUILDFLAG(IS_ANDROID);
+constexpr bool is_android_any = !!BUILDFLAG(IS_ANDROID);
+constexpr bool is_android_desktop = !!BUILDFLAG(IS_DESKTOP_ANDROID);
+constexpr bool is_android_mobile = is_android_any && !is_android_desktop;
 constexpr bool is_ios = !!BUILDFLAG(IS_IOS);
-constexpr bool is_desktop = !(is_android || is_ios);
+constexpr bool is_desktop = !(is_android_mobile || is_ios);
 
 // Rotates |it| to be in the front of |matches|.
 // |it| must be a valid iterator of |matches| or equal to |matches->end()|.
@@ -132,9 +135,9 @@ size_t AutocompleteResult::GetMaxMatches(
     bool is_zero_suggest,
     AutocompleteInput::FeaturedKeywordMode featured_keyword_mode) {
   constexpr size_t kDefaultMaxAutocompleteMatches =
-      is_android ? 10 : (is_ios ? 10 : 8);
+      is_android_mobile ? 10 : (is_ios ? 10 : 8);
   constexpr size_t kDefaultMaxZeroSuggestMatches =
-      is_android ? 15 : (is_ios ? 20 : 8);
+      is_android_mobile ? 15 : (is_ios ? 20 : 8);
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   constexpr size_t kMaxFeaturedKeywordAutocompleteMatches = 9;
 #endif
@@ -185,7 +188,7 @@ size_t AutocompleteResult::GetMaxMatches(
 
 // static
 size_t AutocompleteResult::GetDynamicMaxMatches() {
-  constexpr const int kDynamicMaxMatchesLimit = is_android ? 15 : 10;
+  constexpr const int kDynamicMaxMatchesLimit = is_android_mobile ? 15 : 10;
   if (!base::FeatureList::IsEnabled(omnibox::kDynamicMaxAutocomplete))
     return AutocompleteResult::GetMaxMatches();
   return base::GetFieldTrialParamByFeatureAsInt(
@@ -195,7 +198,7 @@ size_t AutocompleteResult::GetDynamicMaxMatches() {
 }
 
 AutocompleteResult::AutocompleteResult()
-    : max_url_matches_(is_android || is_ios ? 5 : 7) {
+    : max_url_matches_(is_android_mobile || is_ios ? 5 : 7) {
   matches_.reserve(kMaxAutocompletePositionValue);
 
   static uint32_t next_sequence_id = 1;
@@ -351,8 +354,9 @@ void AutocompleteResult::Sort(
 
   // Because tail suggestions are a "last resort", we cull the tail suggestions
   // if there are any non-default, non-tail suggestions.
-  if (!is_android && !is_ios)
+  if (!is_android_mobile && !is_ios) {
     MaybeCullTailSuggestions(&matches_, comparing_object);
+  }
 
   DeduplicateMatches(input, template_url_service);
 
@@ -465,7 +469,7 @@ void AutocompleteResult::SortAndCull(
   // current input & platform are supported, delegate to the framework.
   if (is_zero_suggest) {
     PSections sections;
-    if constexpr (is_android) {
+    if constexpr (is_android_mobile) {
       if (omnibox::IsNTPPage(page_classification)) {
         sections.push_back(std::make_unique<AndroidNTPZpsSection>(
             suggestion_groups_map_, mia_enabled));
@@ -704,19 +708,17 @@ void AutocompleteResult::SortAndCull(
     matches_ = Section::GroupMatches(std::move(sections), matches_);
   } else if (use_grouping_for_non_zps) {
     PSections sections;
-    if constexpr (is_android) {
-      if (omnibox::IsAndroidHub(page_classification)) {
-        sections.push_back(
-            std::make_unique<AndroidHubNonZPSSection>(suggestion_groups_map_));
-      } else if (omnibox::IsComposebox(page_classification)) {
-        sections.push_back(std::make_unique<AndroidComposeboxNonZPSSection>(
-            suggestion_groups_map_));
-      } else {
-        bool show_only_search_suggestions =
-            omnibox::IsCustomTab(page_classification);
-        sections.push_back(std::make_unique<AndroidNonZPSSection>(
-            show_only_search_suggestions, suggestion_groups_map_));
-      }
+    if (is_android_any && omnibox::IsAndroidHub(page_classification)) {
+      sections.push_back(
+          std::make_unique<AndroidHubNonZPSSection>(suggestion_groups_map_));
+    } else if (is_android_any && omnibox::IsComposebox(page_classification)) {
+      sections.push_back(std::make_unique<AndroidComposeboxNonZPSSection>(
+          suggestion_groups_map_));
+    } else if (is_android_mobile) {
+      bool show_only_search_suggestions =
+          omnibox::IsCustomTab(page_classification);
+      sections.push_back(std::make_unique<AndroidNonZPSSection>(
+          show_only_search_suggestions, suggestion_groups_map_));
     } else {
       sections.push_back(
           std::make_unique<DesktopNonZpsSection>(suggestion_groups_map_));
@@ -807,7 +809,7 @@ void AutocompleteResult::TrimOmniboxActions(bool is_zero_suggest) {
   //   (Android only)
   // - TAB_SWITCH actions are not considered because they're never attached.
   //   On Android, the tab switch match is attached as ACTION_IN_SUGGEST.
-  if constexpr (!is_android && !is_ios) {
+  if constexpr (is_desktop) {
     return;
   }
 
@@ -815,7 +817,7 @@ void AutocompleteResult::TrimOmniboxActions(bool is_zero_suggest) {
                                            OmniboxActionId::PEDAL};
   std::vector<OmniboxActionId> include_pedals_and_others;
   std::vector<OmniboxActionId> exclude_pedals;
-  if constexpr (is_android) {
+  if constexpr (is_android_any) {
     include_pedals_and_others.push_back(OmniboxActionId::ACTION_IN_SUGGEST);
     exclude_pedals.push_back(OmniboxActionId::ACTION_IN_SUGGEST);
   }
@@ -831,7 +833,7 @@ void AutocompleteResult::TrimOmniboxActions(bool is_zero_suggest) {
       matches_[index].FilterAndSortActionsInSuggest();
     }
 
-    if constexpr (!is_android) {
+    if constexpr (!is_android_any) {
       continue;
     }
     // Android-specific fine-grained filtering of ACTION_IN_SUGGEST.
@@ -1096,7 +1098,7 @@ void AutocompleteResult::ConvertOpenTabMatches(
 #endif
       if (!match.from_keyword ||
           match.type != AutocompleteMatchType::OPEN_TAB) {
-        if constexpr (is_android) {
+        if constexpr (is_android_any) {
 #if BUILDFLAG(IS_ANDROID)
           // On Android, we attach the action to allow switching to tab.
           // This ensures the "Switch to Tab" button/chip is always available.

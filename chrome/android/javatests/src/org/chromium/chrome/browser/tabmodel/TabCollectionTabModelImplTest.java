@@ -3412,7 +3412,7 @@ public class TabCollectionTabModelImplTest {
         // Exit the tab switcher to fulfill AutoResetCtaTransitTestRule for future tests.
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         LayoutManagerChrome layoutManager = cta.getLayoutManager();
-        LayoutTestUtils.waitForLayout(layoutManager, LayoutType.TAB_SWITCHER);
+        LayoutTestUtils.waitForLayout(layoutManager, LayoutType.HUB);
         clickFirstCardFromTabSwitcher(cta);
         LayoutTestUtils.waitForLayout(layoutManager, LayoutType.BROWSING);
 

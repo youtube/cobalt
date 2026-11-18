@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "api/create_modular_peer_connection_factory.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -31,6 +32,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/pc/sctp/fake_sctp_transport.h"
@@ -95,7 +97,8 @@ class PeerConnectionDataChannelBaseTest : public ::testing::Test {
   typedef std::unique_ptr<PeerConnectionWrapperForDataChannelTest> WrapperPtr;
 
   explicit PeerConnectionDataChannelBaseTest(SdpSemantics sdp_semantics)
-      : vss_(new VirtualSocketServer()),
+      : env_(CreateTestEnvironment()),
+        vss_(new VirtualSocketServer()),
         main_(vss_.get()),
         sdp_semantics_(sdp_semantics) {
 #ifdef WEBRTC_ANDROID
@@ -118,6 +121,7 @@ class PeerConnectionDataChannelBaseTest : public ::testing::Test {
     auto factory_deps = CreatePeerConnectionFactoryDependencies();
     FakeSctpTransportFactory* fake_sctp_transport_factory =
         static_cast<FakeSctpTransportFactory*>(factory_deps.sctp_factory.get());
+    factory_deps.env = env_;
     scoped_refptr<PeerConnectionFactoryInterface> pc_factory =
         CreateModularPeerConnectionFactory(std::move(factory_deps));
     pc_factory->SetOptions(factory_options);
@@ -158,6 +162,7 @@ class PeerConnectionDataChannelBaseTest : public ::testing::Test {
     data_desc->set_port(port);
   }
 
+  const Environment env_;
   std::unique_ptr<VirtualSocketServer> vss_;
   test::RunLoop main_;
   const SdpSemantics sdp_semantics_;

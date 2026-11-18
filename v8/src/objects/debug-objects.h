@@ -12,7 +12,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/objects/trusted-pointer.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -28,13 +27,28 @@ class StackTraceInfo;
 class BytecodeArray;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/debug-objects-tq.inc"
-
 // The DebugInfo class holds additional information for a function being
 // debugged.
-V8_OBJECT class DebugInfo : public Struct {
+V8_OBJECT class DebugInfo : public ExposedTrustedObject {
  public:
-  DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
+  // Bit positions in |flags|.
+  using HasBreakInfoBit = base::BitField<bool, 0, 1, uint32_t>;
+  using PreparedForDebugExecutionBit = HasBreakInfoBit::Next<bool, 1>;
+  using HasCoverageInfoBit = PreparedForDebugExecutionBit::Next<bool, 1>;
+  using BreakAtEntryBit = HasCoverageInfoBit::Next<bool, 1>;
+  using CanBreakAtEntryBit = BreakAtEntryBit::Next<bool, 1>;
+  using DebugExecutionModeBit = CanBreakAtEntryBit::Next<bool, 1>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kHasBreakInfo = HasBreakInfoBit::kMask,
+    kPreparedForDebugExecution = PreparedForDebugExecutionBit::kMask,
+    kHasCoverageInfo = HasCoverageInfoBit::kMask,
+    kBreakAtEntry = BreakAtEntryBit::kMask,
+    kCanBreakAtEntry = CanBreakAtEntryBit::kMask,
+    kDebugExecutionMode = DebugExecutionModeBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 6;
 
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;
@@ -61,8 +75,12 @@ V8_OBJECT class DebugInfo : public Struct {
   inline Tagged<BytecodeArray> OriginalBytecodeArray(Isolate* isolate);
   inline Tagged<BytecodeArray> DebugBytecodeArray(Isolate* isolate);
 
-  DECL_TRUSTED_POINTER_ACCESSORS(original_bytecode_array, BytecodeArray)
-  DECL_TRUSTED_POINTER_ACCESSORS(debug_bytecode_array, BytecodeArray)
+  DECL_PROTECTED_POINTER_ACCESSORS(original_bytecode_array, BytecodeArray)
+  DECL_RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(original_bytecode_array,
+                                                   BytecodeArray)
+  DECL_PROTECTED_POINTER_ACCESSORS(debug_bytecode_array, BytecodeArray)
+  DECL_RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(debug_bytecode_array,
+                                                   BytecodeArray)
 
   // --- Break points ---
   // --------------------
@@ -132,7 +150,10 @@ V8_OBJECT class DebugInfo : public Struct {
   inline void set_debugging_id(int value);
 
   // Bit positions in |debugger_hints|.
-  DEFINE_TORQUE_GENERATED_DEBUGGER_HINTS()
+  using SideEffectStateBits = base::BitField<int32_t, 0, 2, uint32_t>;
+  using DebugIsBlackboxedBit = SideEffectStateBits::Next<bool, 1>;
+  using ComputedDebugIsBlackboxedBit = DebugIsBlackboxedBit::Next<bool, 1>;
+  using DebuggingIdBits = ComputedDebugIsBlackboxedBit::Next<int32_t, 20>;
 
   static const int kNoDebuggingId = 0;
 
@@ -179,10 +200,8 @@ V8_OBJECT class DebugInfo : public Struct {
   TaggedMember<FixedArray> break_points_;
   TaggedMember<Smi> flags_;
   TaggedMember<UnionOf<CoverageInfo, Undefined>> coverage_info_;
-  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
-      original_bytecode_array_;
-  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
-      debug_bytecode_array_;
+  ProtectedTaggedMember<UnionOf<BytecodeArray, Zero>> original_bytecode_array_;
+  ProtectedTaggedMember<UnionOf<BytecodeArray, Zero>> debug_bytecode_array_;
 } V8_OBJECT_END;
 
 // The BreakPointInfo class holds information for break points set in a
@@ -331,7 +350,9 @@ V8_OBJECT class StackFrameInfo : public Struct {
   inline void set_flags(int value);
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
+  using IsConstructorBit = base::BitField<bool, 0, 1, uint32_t>;
+  using BytecodeOffsetOrSourcePositionBits =
+      IsConstructorBit::Next<int32_t, 30>;
 
   using BodyDescriptor = StructBodyDescriptor;
 

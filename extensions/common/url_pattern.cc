@@ -123,12 +123,9 @@ std::string_view StripTrailingWildcard(std::string_view path) {
   return path;
 }
 
-// Removes trailing dot from |host_piece| if any.
+// Removes trailing dot(s) from |host_piece| if any.
 std::string_view CanonicalizeHostForMatching(std::string_view host_piece) {
-  if (base::EndsWith(host_piece, ".")) {
-    host_piece.remove_suffix(1);
-  }
-  return host_piece;
+  return base::TrimString(host_piece, ".", base::TRIM_TRAILING);
 }
 
 }  // namespace

@@ -22,5 +22,5 @@ rootWebArea
 ++++++++++labelText
 ++++++++++++staticText name='Range Slider'
 ++++++++++++++inlineTextBox name='Range Slider'
-++++++++slider horizontal name='Range Slider Minimum' value='10' valueForRange=10.00 minValueForRange=0.00 maxValueForRange=90.00
-++++++++slider horizontal name='Range Slider Maximum' value='90' valueForRange=90.00 minValueForRange=10.00 maxValueForRange=100.00
+++++++++slider horizontal name='Range Slider Minimum' value='10' ariaValueText='10' valueForRange=10.00 minValueForRange=0.00 maxValueForRange=90.00
+++++++++slider horizontal name='Range Slider Maximum' value='90' ariaValueText='90' valueForRange=90.00 minValueForRange=10.00 maxValueForRange=100.00

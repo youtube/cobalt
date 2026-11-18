@@ -20,6 +20,7 @@ import {assert} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
+import {htmlEscape} from 'chrome://resources/js/util.js';
 import type {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -295,7 +296,7 @@ export class PasswordsSectionElement extends PasswordsSectionElementBase {
       return this.i18nAdvanced('emptyStateImportSyncing', {
         substitutions: [
           this.i18n('localPasswordManager'),
-          this.accountEmail,
+          htmlEscape(this.accountEmail),
         ],
       });
     }

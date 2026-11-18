@@ -846,17 +846,6 @@ No modifications.
                     append('  # Reduce binary size. https:crbug.com/954584\n')
                     append('  ignore_proguard_configs = true\n')
                     append('  proguard_configs = ["material_design.flags"]\n')
-                    append('\n')
-                    append('  # Ensure ConstraintsLayout is not included by unused layouts:\n')
-                    append('  # https://crbug.com/1292510\n')
-                    // Keep in sync with the copy in fetch_all.py.
-                    append('  resource_exclusion_globs = [\n')
-                    append('      "res/layout*/*calendar*",\n')
-                    append('      "res/layout*/*chip_input*",\n')
-                    append('      "res/layout*/*clock*",\n')
-                    append('      "res/layout*/*picker*",\n')
-                    append('      "res/layout*/*time*",\n')
-                    append('  ]\n')
                 }
                 break
             case 'com_google_ar_core':

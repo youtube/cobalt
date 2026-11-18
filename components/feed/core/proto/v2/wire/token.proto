@@ -13,8 +13,8 @@ option optimize_for = LITE_RUNTIME;
 
 message Token {
   optional ContentId parent_id = 2;
-  // Deprecated: web_feed_token
   reserved 1001;
+  reserved "web_feed_token";
   optional NextPageToken next_page_token = 1002;
   optional bytes in_place_update_token = 1003;
   optional bytes story_token = 1004;

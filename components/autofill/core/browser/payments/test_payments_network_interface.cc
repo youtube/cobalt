@@ -84,7 +84,7 @@ void TestPaymentsNetworkInterface::GetCardUploadDetails(
 }
 
 void TestPaymentsNetworkInterface::UploadCard(
-    const payments::UploadCardRequestDetails& request_details,
+    const UploadCardRequestDetails& request_details,
     base::OnceCallback<void(PaymentsRpcResult,
                             const UploadCardResponseDetails&)> callback) {
   upload_card_addresses_ = request_details.profiles;

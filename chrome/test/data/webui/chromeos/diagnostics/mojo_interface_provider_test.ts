@@ -8,7 +8,7 @@ import {FakeNetworkHealthProvider} from 'chrome://diagnostics/fake_network_healt
 import {FakeSystemDataProvider} from 'chrome://diagnostics/fake_system_data_provider.js';
 import {FakeSystemRoutineController} from 'chrome://diagnostics/fake_system_routine_controller.js';
 import {getNetworkHealthProvider, getSystemDataProvider, getSystemRoutineController, setNetworkHealthProviderForTesting, setSystemDataProviderForTesting, setSystemRoutineControllerForTesting} from 'chrome://diagnostics/mojo_interface_provider.js';
-import {assertEquals} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals} from 'chrome://webui-test/chai_assert.js';
 
 suite('fakeMojoProviderTestSuite', function() {
   test('SettingGettingTestProvider', () => {

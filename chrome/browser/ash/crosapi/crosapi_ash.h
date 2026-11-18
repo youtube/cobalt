@@ -31,7 +31,6 @@ class InSessionAuth;
 
 namespace crosapi {
 
-class LocalPrinterAsh;
 
 // Implementation of Crosapi in Ash. It provides a set of APIs that
 // crosapi clients, such as lacros-chrome, can call into.
@@ -58,8 +57,6 @@ class CrosapiAsh : public mojom::Crosapi {
   void BindInSessionAuth(
       mojo::PendingReceiver<chromeos::auth::mojom::InSessionAuth> receiver)
       override;
-  void BindLocalPrinter(
-      mojo::PendingReceiver<mojom::LocalPrinter> receiver) override;
   void BindMachineLearningService(
       mojo::PendingReceiver<
           chromeos::machine_learning::mojom::MachineLearningService> receiver)
@@ -80,7 +77,6 @@ class CrosapiAsh : public mojom::Crosapi {
       mojo::PendingReceiver<mojom::TelemetryDiagnosticRoutinesService> receiver)
       override;
 
-  LocalPrinterAsh* local_printer_ash() { return local_printer_ash_.get(); }
 
   ash::ProbeServiceAsh* probe_service_ash() { return probe_service_ash_.get(); }
 
@@ -88,7 +84,6 @@ class CrosapiAsh : public mojom::Crosapi {
   // Called when a connection is lost.
   void OnDisconnected();
 
-  std::unique_ptr<LocalPrinterAsh> local_printer_ash_;
   std::unique_ptr<ash::TelemetryDiagnosticsRoutineServiceAsh>
       telemetry_diagnostic_routine_service_ash_;
   std::unique_ptr<ash::ProbeServiceAsh> probe_service_ash_;

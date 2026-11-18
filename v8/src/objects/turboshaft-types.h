@@ -5,20 +5,20 @@
 #ifndef V8_OBJECTS_TURBOSHAFT_TYPES_H_
 #define V8_OBJECTS_TURBOSHAFT_TYPES_H_
 
+#include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/objects/heap-object.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/turboshaft-types-tq.inc"
-
 class TurboshaftFloatSpecialValues {
  public:
-  DEFINE_TORQUE_GENERATED_TURBOSHAFT_FLOAT_SPECIAL_VALUES()
+  using NanBit = base::BitField<bool, 0, 1, uint32_t>;
+  using MinusZeroBit = NanBit::Next<bool, 1>;
+  using UnusedBits = MinusZeroBit::Next<uint32_t, 30>;
 };
 
 V8_OBJECT class TurboshaftType : public HeapObject {

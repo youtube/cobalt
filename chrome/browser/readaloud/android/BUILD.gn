@@ -124,6 +124,8 @@ android_library("features_java") {
     "//third_party/android_deps:guava_android_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/jni_zero:jni_zero_java",
+    "//ui/accessibility:accessibility_features_java",
+    "//ui/accessibility:accessibility_features_native_map_java",
   ]
   srcjar_deps = [ ":features_jni_headers" ]
 }
@@ -251,6 +253,7 @@ robolectric_library("junit") {
     "//chrome/browser/feature_engagement:java",
     "//chrome/browser/flags:java",
     "//chrome/browser/fullscreen/android:java",
+    "//chrome/browser/glic:public_java",
     "//chrome/browser/language/android:base_module_java",
     "//chrome/browser/language/android:java",
     "//chrome/browser/language/android:junit",
@@ -286,6 +289,7 @@ robolectric_library("junit") {
     "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit",
     "//third_party/mockito:mockito_java",
+    "//ui/accessibility:accessibility_features_java",
     "//ui/android:ui_java",
     "//ui/android:ui_java_test_support",
     "//url:gurl_java",
@@ -421,5 +425,9 @@ static_library("native") {
     "//components/prefs",
   ]
 
-  public_deps = [ ":features_jni_headers" ]
+  public_deps = [
+    ":features_jni_headers",
+    "//chrome/browser/readaloud",
+    "//chrome/browser/readaloud:impl",
+  ]
 }

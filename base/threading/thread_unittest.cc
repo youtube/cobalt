@@ -90,7 +90,7 @@ using EventList = std::vector<ThreadEvent>;
 class CaptureToEventList : public Thread {
  public:
   // This Thread pushes events into the vector |event_list| to show
-  // the order they occured in. |event_list| must remain valid for the
+  // the order they occurred in. |event_list| must remain valid for the
   // lifetime of this thread.
   explicit CaptureToEventList(EventList* event_list)
       : Thread("none"), event_list_(event_list) {}

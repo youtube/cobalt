@@ -55,6 +55,7 @@
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 namespace blink {
 
@@ -347,6 +348,8 @@ class SourceBuffer final : public EventTarget,
   // track creation off-the-main thread.
   Vector<String> audio_track_ids_for_crossthread_removal_;
   Vector<String> video_track_ids_for_crossthread_removal_;
+
+  const perfetto::NamedTrack trace_track_;
 };
 
 }  // namespace blink

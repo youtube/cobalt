@@ -648,27 +648,31 @@ MultiStep GlicActorUiTest::GetPageContextForActorTab() {
     EXPECT_NE(tab_handle_, TabHandle::Null())
         << "GetPageContextForActorTab must be called after starting a task in "
            "a tab, e.g. using StartActorTaskInNewTab";
-    GetGlicInstanceImpl()->host().sharing_manager().GetContextForActorFromTab(
-        tab_handle_, *options.get(),
-        base::BindLambdaForTesting([&](GlicGetContextResult result) {
-          if (result.has_value()) {
-            mojo_base::ProtoWrapper& serialized_apc =
-                *result.value()
-                     ->get_tab_context()
-                     ->annotated_page_data->annotated_page_content;
-            viewport_screenshot_ = std::move(
-                result.value()->get_tab_context()->viewport_screenshot);
-            annotated_page_content_ = std::make_unique<AnnotatedPageContent>(
-                serialized_apc.As<AnnotatedPageContent>().value());
-            actor::ActorTabData* tab_data =
-                actor::ActorTabData::From(tab_handle_.Get());
-            if (tab_data) {
-              tab_data->DidObserveContent(*annotated_page_content_,
-                                          actor::ApcSource::kActor);
-            }
-          }
-          run_loop.Quit();
-        }));
+    GetGlicInstanceImpl()
+        ->host()
+        .GetSharingManagerInternal()
+        .GetContextForActorFromTab(
+            tab_handle_, *options.get(),
+            base::BindLambdaForTesting([&](GlicGetContextResult result) {
+              if (result.has_value()) {
+                mojo_base::ProtoWrapper& serialized_apc =
+                    *result.value()
+                         ->get_tab_context()
+                         ->annotated_page_data->annotated_page_content;
+                viewport_screenshot_ = std::move(
+                    result.value()->get_tab_context()->viewport_screenshot);
+                annotated_page_content_ =
+                    std::make_unique<AnnotatedPageContent>(
+                        serialized_apc.As<AnnotatedPageContent>().value());
+                actor::ActorTabData* tab_data =
+                    actor::ActorTabData::From(tab_handle_.Get());
+                if (tab_data) {
+                  tab_data->DidObserveContent(*annotated_page_content_,
+                                              actor::ApcSource::kActor);
+                }
+              }
+              run_loop.Quit();
+            }));
 
     run_loop.Run();
   }));

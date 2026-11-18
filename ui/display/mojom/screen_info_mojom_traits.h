@@ -19,6 +19,10 @@ struct COMPONENT_EXPORT(DISPLAY_SHARED_MOJOM_TRAITS)
     return r.device_scale_factor;
   }
 
+  static float text_scale_multiplier(const display::ScreenInfo& r) {
+    return r.text_scale_multiplier;
+  }
+
   static const gfx::DisplayColorSpaces& display_color_spaces(
       const display::ScreenInfo& r) {
     return r.display_color_spaces;

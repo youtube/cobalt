@@ -138,7 +138,8 @@ void WebUISplitTabsControl::OnTabStripModelChanged(
 void WebUISplitTabsControl::OnSplitTabChanged(const SplitTabChange& change) {
   if (change.type == SplitTabChange::Type::kAdded ||
       change.type == SplitTabChange::Type::kRemoved ||
-      change.type == SplitTabChange::Type::kContentsChanged) {
+      change.type == SplitTabChange::Type::kContentsChanged ||
+      change.type == SplitTabChange::Type::kVisualsChanged) {
     UpdateState();
   }
 }

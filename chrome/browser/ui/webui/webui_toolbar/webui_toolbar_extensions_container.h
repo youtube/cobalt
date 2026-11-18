@@ -7,9 +7,11 @@
 
 #include <map>
 
+#include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/views/extensions/extensions_container_views.h"
+#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_extensions_container_observer.h"
 #include "components/browser_apis/ui_controllers/toolbar/extensions_bar.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -20,17 +22,30 @@
 class BrowserWindowInterface;
 class ExtensionsMenuCoordinator;
 
+namespace webui_toolbar {
+class IconTable;
+}
+
 class WebUIToolbarExtensionsContainer
     : public ExtensionsContainer,
       public ExtensionsContainerViews,
       public ToolbarActionsModel::Observer,
       public extensions_bar::mojom::PageHandler {
  public:
+  // `push_icon_table_updates` controls whether this instance is responsible for
+  // pushing IconTable updates via Mojo.
   WebUIToolbarExtensionsContainer(
       BrowserWindowInterface& browser,
       views::Widget* widget,
-      base::WeakPtr<content::WebContents> web_contents);
+      base::WeakPtr<content::WebContents> web_contents,
+      webui_toolbar::IconTable* icon_table,
+      bool push_icon_table_updates);
   ~WebUIToolbarExtensionsContainer() override;
+
+  // Send extensions UI change notifications to `observer`. `Bind()` cannot be
+  // called if an observer is set and an observer cannot be set if `Bind()` is
+  // called.
+  void SetObserver(WebUIToolbarExtensionsContainerObserver* observer);
 
   // ExtensionsContainer:
   ToolbarActionViewModel* GetActionForId(const std::string& action_id) override;
@@ -96,6 +111,8 @@ class WebUIToolbarExtensionsContainer
   const raw_ref<BrowserWindowInterface> browser_;
   const raw_ptr<views::Widget> widget_;
   const base::WeakPtr<content::WebContents> web_contents_;
+  const bool push_icon_table_updates_;
+  const raw_ptr<webui_toolbar::IconTable> icon_table_;
   const raw_ref<ToolbarActionsModel> model_;
   base::ScopedObservation<ToolbarActionsModel, ToolbarActionsModel::Observer>
       observe_actions_{this};
@@ -112,6 +129,8 @@ class WebUIToolbarExtensionsContainer
 
   // Coordinator to show and hide the ExtensionsMenuView.
   const std::unique_ptr<ExtensionsMenuCoordinator> extensions_menu_coordinator_;
+
+  raw_ptr<WebUIToolbarExtensionsContainerObserver> observer_ = nullptr;
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_WEBUI_TOOLBAR_WEBUI_TOOLBAR_EXTENSIONS_CONTAINER_H_

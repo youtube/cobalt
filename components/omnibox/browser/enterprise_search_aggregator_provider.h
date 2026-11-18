@@ -174,15 +174,10 @@ class EnterpriseSearchAggregatorProvider : public AutocompleteProvider {
                         int response_code,
                         std::optional<std::string> response_body);
 
-  // Callback for parsing the response JSON string into `base::Value` in an
-  // isolated process.
-  void OnJsonParsedIsolated(int request_index,
-                            base::expected<base::Value, std::string> result);
-
-  // Called after parsing the response JSON string into `base::Value`, either in
-  // the main or an isolated process. Will use the `Parse*()` methods below to
-  // further parse the `base::Value` into `RequestParsed` and update
-  // `requests[request_index]` with the `RequestParsed.
+  // Called after parsing the response JSON string into `base::Value`. Will use
+  // the `Parse*()` methods below to further parse the `base::Value` into
+  // `RequestParsed` and update `requests[request_index]` with the
+  // `RequestParsed.
   void HandleParsedJson(int request_index,
                         const std::optional<base::DictValue>& response_value);
 

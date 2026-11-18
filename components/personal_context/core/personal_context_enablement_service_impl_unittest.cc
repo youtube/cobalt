@@ -42,11 +42,6 @@ class MockPersonalContextEnablementServiceObserver
 class PersonalContextEnablementServiceImplTest : public testing::Test {
  public:
   PersonalContextEnablementServiceImplTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kPersonalContext,
-                              features::kPersonalContextFirstRun},
-        /*disabled_features=*/{});
-
     SetPrefs();
     CreateService("us");
     SignIn("test@gmail.com");
@@ -152,31 +147,6 @@ TEST_F(PersonalContextEnablementServiceImplTest, ForcedEnablementState) {
     EXPECT_EQ(service().GetEnablementState(),
               PersonalContextEnablementState::kEnabled);
   }
-}
-
-// Verifies that the service is disabled when all related feature flags are off.
-TEST_F(PersonalContextEnablementServiceImplTest, DisabledWhenFeaturesAreOff) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      /*enabled_features=*/{},
-      /*disabled_features=*/{features::kPersonalContext,
-                             features::kPersonalContextFirstRun});
-
-  EXPECT_EQ(PersonalContextEnablementServiceImplTestApi(&service())
-                .ComputeEnablementState(),
-            PersonalContextEnablementState::kDisabledNotEligible);
-}
-
-// Verifies that the main feature flag (kPersonalContext) is a hard requirement.
-TEST_F(PersonalContextEnablementServiceImplTest, DisabledWhenMainFeatureIsOff) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kPersonalContextFirstRun},
-      /*disabled_features=*/{features::kPersonalContext});
-
-  EXPECT_EQ(PersonalContextEnablementServiceImplTestApi(&service())
-                .ComputeEnablementState(),
-            PersonalContextEnablementState::kDisabledNotEligible);
 }
 
 // Verifies that the service is enabled when all feature flags and other
@@ -448,12 +418,8 @@ TEST_F(PersonalContextEnablementServiceImplTest,
 
 TEST_F(PersonalContextEnablementServiceImplTest,
        DisabledWhenAccountSettingsServiceNotAvailableAndOptInEnabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kPersonalContext,
-                            features::kPersonalContextFirstRun,
-                            features::kPersonalContextFirstRunOptIn},
-      /*disabled_features=*/{});
+  base::test::ScopedFeatureList feature_list{
+      features::kPersonalContextFirstRunOptIn};
 
   service_ = std::make_unique<PersonalContextEnablementServiceImpl>(
       nullptr, identity_test_env_.identity_manager(), &pref_service_,
@@ -465,12 +431,8 @@ TEST_F(PersonalContextEnablementServiceImplTest,
 
 TEST_F(PersonalContextEnablementServiceImplTest,
        NeedsOptInWhenAccountOptedOutOfContextAndOptInEnabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kPersonalContext,
-                            features::kPersonalContextFirstRun,
-                            features::kPersonalContextFirstRunOptIn},
-      /*disabled_features=*/{});
+  base::test::ScopedFeatureList feature_list{
+      features::kPersonalContextFirstRunOptIn};
 
   PersonalContextEnablementServiceImplTestApi(&service())
       .ComputeEnablementState();
@@ -488,12 +450,8 @@ TEST_F(PersonalContextEnablementServiceImplTest,
 
 TEST_F(PersonalContextEnablementServiceImplTest,
        NeedsOptInWhenNoContextSourcesEnabledAndOptInEnabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kPersonalContext,
-                            features::kPersonalContextFirstRun,
-                            features::kPersonalContextFirstRunOptIn},
-      /*disabled_features=*/{});
+  base::test::ScopedFeatureList feature_list{
+      features::kPersonalContextFirstRunOptIn};
 
   PersonalContextEnablementServiceImplTestApi(&service())
       .ComputeEnablementState();

@@ -4,6 +4,7 @@
 
 #include <string_view>
 
+#include "ash/constants/ash_pref_names.h"
 #include "base/auto_reset.h"
 #include "base/check_deref.h"
 #include "base/containers/map_util.h"
@@ -20,7 +21,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_paths.h"
-#include "chrome/common/pref_names.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/extension_registry_observer.h"
@@ -87,8 +87,8 @@ class AutoTruster : public extensions::ExtensionRegistryObserver {
     if (extension->permissions_data()->HasAPIPermission("documentScan")) {
       PrefService* prefs =
           Profile::FromBrowserContext(browser_context)->GetPrefs();
-      ScopedListPrefUpdate update(prefs,
-                                  prefs::kDocumentScanAPITrustedExtensions);
+      ScopedListPrefUpdate update(
+          prefs, ash::prefs::kDocumentScanAPITrustedExtensions);
       update->Append(extension->id());
     }
   }

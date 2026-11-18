@@ -21,7 +21,7 @@ import {ButtonState, ShimlessRma} from 'chrome://shimless-rma/shimless_rma.js';
 import type {StateResult} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
 import {RmadErrorCode, State} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
 import {disableAllButtons, enableAllButtons} from 'chrome://shimless-rma/shimless_rma_util.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise, isVisible} from 'chrome://webui-test/test_util.js';
 

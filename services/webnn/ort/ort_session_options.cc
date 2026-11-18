@@ -123,9 +123,9 @@ std::optional<uint32_t> GetBatchedMatMulKDimensionLimit(
 }  // namespace
 
 // static
-scoped_refptr<SessionOptions> SessionOptions::Create(
-    OrtHardwareDeviceType device_type,
-    scoped_refptr<Environment> env) {
+base::expected<scoped_refptr<SessionOptions>, std::string>
+SessionOptions::Create(OrtHardwareDeviceType device_type,
+                       scoped_refptr<Environment> env) {
   ScopedTrace scoped_trace("SessionOptions::Create");
 
   scoped_trace.AddStep("Create session options");
@@ -197,30 +197,29 @@ scoped_refptr<SessionOptions> SessionOptions::Create(
         /*config_value=*/config_entry.value.c_str()));
   }
 
-  return base::MakeRefCounted<SessionOptions>(base::PassKey<SessionOptions>(),
-                                              std::move(session_options),
-                                              device_type, std::move(env));
+  base::span<const OrtEpDevice* const> registered_ep_devices =
+      env->GetRegisteredEpDevices();
+  std::vector<const OrtEpDevice*> selected_ep_devices =
+      Environment::SelectEpDevices(registered_ep_devices, device_type);
+  if (selected_ep_devices.empty()) {
+    return base::unexpected("No execution provider device available.");
+  }
+
+  return base::MakeRefCounted<SessionOptions>(
+      base::PassKey<SessionOptions>(), std::move(session_options), device_type,
+      std::move(env), selected_ep_devices.front());
 }
 
 SessionOptions::SessionOptions(base::PassKey<SessionOptions>,
                                ScopedOrtSessionOptions session_options,
                                OrtHardwareDeviceType device_type,
-                               scoped_refptr<Environment> env)
+                               scoped_refptr<Environment> env,
+                               const OrtEpDevice* first_selected_device)
     : session_options_(std::move(session_options)),
       device_type_(device_type),
-      env_(std::move(env)) {
+      env_(std::move(env)),
+      first_selected_device_(first_selected_device) {
   CHECK(session_options_.get());
-
-  base::span<const OrtEpDevice* const> registered_ep_devices =
-      env_->GetRegisteredEpDevices();
-  std::vector<const OrtEpDevice*> selected_ep_devices =
-      Environment::SelectEpDevices(registered_ep_devices, device_type);
-  // ORT guarantees that the default CPU EP is registered.
-  // `Environment::SelectEpDevices` will always select the the default CPU EP as
-  // a fallback.
-  CHECK(!selected_ep_devices.empty());
-
-  first_selected_device_ = selected_ep_devices.front();
   CHECK(first_selected_device_);
 
   batched_matmul_k_dimension_limit_ =

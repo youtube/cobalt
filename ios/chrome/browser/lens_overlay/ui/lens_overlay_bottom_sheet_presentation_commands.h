@@ -26,6 +26,12 @@ enum class LensOverlayBottomSheetInfoMessageType {
 // Request resizing the bottom sheet to minimum size.
 - (void)requestMinimizeBottomSheet;
 
+// Hides the search bar.
+- (void)hideSearchBar;
+
+// Shows the search bar.
+- (void)showSearchBar;
+
 // Handle a selection result loaded in the bottom sheet.
 - (void)adjustForSelectionResult;
 

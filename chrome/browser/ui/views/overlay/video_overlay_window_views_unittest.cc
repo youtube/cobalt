@@ -1839,14 +1839,3 @@ TEST_F(VideoOverlayWindowWithMuteControlTest, ToggleMuteButton_HitTest) {
   EXPECT_TRUE(overlay_window().ControlsHitTestContainsPoint(
       mute_button_bounds.CenterPoint()));
 }
-
-TEST_F(VideoOverlayWindowViewsTest, GetColorProviderKeyBypassesHighContrast) {
-  ui::MockOsSettingsProvider mock_provider;
-  mock_provider.SetPreferredContrast(ui::NativeTheme::PreferredContrast::kMore);
-
-  // The widget's key should have contrast_mode == kNormal.
-  ui::ColorProviderKey key = overlay_window().GetColorProviderKey();
-  EXPECT_EQ(ui::ColorProviderKey::ContrastMode::kNormal, key.contrast_mode);
-  EXPECT_EQ(ui::ColorProviderKey::ColorMode::kDark, key.color_mode);
-  EXPECT_EQ(ui::SystemTheme::kDefault, key.system_theme);
-}

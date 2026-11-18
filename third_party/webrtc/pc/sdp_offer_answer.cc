@@ -1760,7 +1760,7 @@ void SdpOfferAnswerHandler::Initialize(
       std::make_unique<WebRtcSessionDescriptionFactory>(
           context, this, pc_->session_id(), pc_->dtls_enabled(),
           std::move(cert_generator), std::move(certificate),
-          [this](const scoped_refptr<RTCCertificate>& certificate) {
+          [this](scoped_refptr<RTCCertificate> certificate) {
             RTC_DCHECK_RUN_ON(signaling_thread());
             transport_controller_s()->SetLocalCertificate(certificate);
           },

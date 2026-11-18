@@ -4,6 +4,7 @@
 
 #include "content/browser/renderer_host/navigation_transitions/navigation_entry_screenshot_manager.h"
 
+#include "base/debug/crash_logging.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
@@ -28,9 +29,12 @@ NavigationEntryScreenshotManager::NavigationEntryScreenshotManager()
       tick_clock_(base::DefaultTickClock::GetInstance()),
       cleanup_delay_(
           NavigationTransitionConfig::GetCleanupDelayForInvisibleCaches()) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  CHECK_CURRENTLY_ON(content::BrowserThread::UI, base::NotFatalUntil::M152);
   max_cache_size_in_bytes_ =
       NavigationTransitionConfig::ComputeCacheSizeInBytes();
+  UpdateMaxCacheSizeCrashKey();
+  UpdateCurrentCacheSizeCrashKey();
+
   if (auto* screen = display::Screen::Get()) {
     screen->AddObserver(this);
   }
@@ -72,8 +76,10 @@ void NavigationEntryScreenshotManager::OnScreenshotCached(
     Register(cache);
   }
   // We shouldn't be able to capture anything greater than the budget.
+  SCOPED_CRASH_KEY_NUMBER("DNT", "screenshot_size_bytes", size);
   CHECK_LE(size, max_cache_size_in_bytes_);
   current_cache_size_in_bytes_ += size;
+  UpdateCurrentCacheSizeCrashKey();
 
   EvictIfOutOfMemoryBudget();
 }
@@ -89,6 +95,7 @@ void NavigationEntryScreenshotManager::OnScreenshotRemoved(
 
   CHECK_GE(current_cache_size_in_bytes_, size);
   current_cache_size_in_bytes_ -= size;
+  UpdateCurrentCacheSizeCrashKey();
 
   if (cache->IsEmpty()) {
     Unregister(cache);
@@ -107,6 +114,7 @@ void NavigationEntryScreenshotManager::OnScreenshotCompressed(
 
   current_cache_size_in_bytes_ -= old_size;
   current_cache_size_in_bytes_ += new_size;
+  UpdateCurrentCacheSizeCrashKey();
 }
 
 void NavigationEntryScreenshotManager::OnVisibilityChanged(
@@ -128,12 +136,13 @@ bool NavigationEntryScreenshotManager::IsEmpty() const {
 }
 
 void NavigationEntryScreenshotManager::RecalculateCacheSize() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  CHECK_CURRENTLY_ON(content::BrowserThread::UI, base::NotFatalUntil::M152);
   // Recalculate the max cache size based on the size of the new primary screen.
   // Keep the maximum size calculated from all screens that were ever added.
   max_cache_size_in_bytes_ =
       std::max(max_cache_size_in_bytes_,
                NavigationTransitionConfig::ComputeCacheSizeInBytes());
+  UpdateMaxCacheSizeCrashKey();
 }
 
 void NavigationEntryScreenshotManager::Register(
@@ -237,6 +246,20 @@ void NavigationEntryScreenshotManager::RecordScreenshotCacheSize() {
       "Navigation.GestureTransition.ScreenshotCacheSize",
       current_cache_size_in_bytes_ / (1024 * 1024));
   RecordScreenshotCacheSizeAfterDelay();
+}
+
+void NavigationEntryScreenshotManager::UpdateMaxCacheSizeCrashKey() {
+  static auto* const max_cache_size_key = base::debug::AllocateCrashKeyString(
+      "dnt_max_cache_size_bytes", base::debug::CrashKeySize::Size32);
+  base::debug::SetCrashKeyString(
+      max_cache_size_key, base::ToString(max_cache_size_in_bytes_));
+}
+
+void NavigationEntryScreenshotManager::UpdateCurrentCacheSizeCrashKey() {
+  static auto* const current_size_key = base::debug::AllocateCrashKeyString(
+      "dnt_current_cache_size_bytes", base::debug::CrashKeySize::Size32);
+  base::debug::SetCrashKeyString(
+      current_size_key, base::ToString(current_cache_size_in_bytes_));
 }
 
 }  // namespace content

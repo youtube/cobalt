@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/variations/variations_layers.h"
-#include "components/variations/variations_seed_processor.h"
-
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -12,6 +9,9 @@
 #include "components/variations/entropy_provider.h"
 #include "components/variations/processed_study.h"
 #include "components/variations/proto/study.pb.h"
+#include "components/variations/proto/study_fuzzable.pb.h"
+#include "components/variations/variations_layers.h"
+#include "components/variations/variations_seed_processor.h"
 #include "testing/libfuzzer/proto/lpm_interface.h"
 
 namespace variations {
@@ -43,9 +43,13 @@ void CreateTrialFromStudyFuzzer(const Study& study) {
   }
 }
 
-DEFINE_PROTO_FUZZER(const Study& study) {
+DEFINE_PROTO_FUZZER(const fuzzable::variations::Study& study) {
+  variations::Study lite_study;
+  if (!lite_study.ParseFromString(study.SerializeAsString())) {
+    return;
+  }
   static Environment env;
-  CreateTrialFromStudyFuzzer(study);
+  CreateTrialFromStudyFuzzer(lite_study);
 }
 
 }  // namespace variations

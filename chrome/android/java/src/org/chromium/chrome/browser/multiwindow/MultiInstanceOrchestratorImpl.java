@@ -7,9 +7,7 @@ package org.chromium.chrome.browser.multiwindow;
 import static org.chromium.chrome.browser.multiwindow.MultiInstanceManager.INVALID_WINDOW_ID;
 
 import android.app.Activity;
-import android.app.ApplicationExitInfo;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.StringRes;
@@ -26,6 +24,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.app.tab_activity_glue.ReparentingTabsTask;
+import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
@@ -35,17 +34,19 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tabmodel.AsyncTabCreationParams;
+import org.chromium.chrome.browser.tabmodel.HeadlessTabModelSelectorImpl;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabList;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 /** Implements {@link MultiInstanceOrchestrator} as a singleton. */
@@ -57,23 +58,6 @@ import java.util.Set;
     private final TabReparentingDelegate mTabReparentingDelegate;
     private final Map<Activity, MultiInstanceManager> mActivityMultiInstanceManagerAssignments =
             new HashMap<>();
-
-    /**
-     * List of crashed windows pending recovery. This is used during deferred recovery, when a crash
-     * is detected during browser process initialization but before any eligible {@link
-     * ChromeTabbedActivity} has registered. Once a tabbed activity is initialized, it consumes this
-     * list to trigger the recovery flow.
-     */
-    private List<CrashRecoveryWindowInfo> mWindowsPendingCrashRecovery = new ArrayList<>();
-
-    /**
-     * List of crashed windows captured at the very beginning of the process lifetime, during the
-     * registration of the first activity. Storing this initial snapshot avoids a race condition
-     * where the newly launched activity marks itself as recoverable during its early
-     * initialization, which would otherwise corrupt the crash recovery data before the
-     * process-level exit reason is processed.
-     */
-    private @Nullable List<CrashRecoveryWindowInfo> mInitialCrashedWindows;
 
     /** Returns the singleton instance for {@link MultiInstanceOrchestrator}. */
     public static MultiInstanceOrchestrator getInstance() {
@@ -91,6 +75,36 @@ import java.util.Set;
     private MultiInstanceOrchestratorImpl(TabReparentingDelegate tabReparentingDelegate) {
         mTabReparentingDelegate = tabReparentingDelegate;
         ApplicationStatus.registerStateListenerForAllActivities(this::onActivityStateChange);
+
+        TabWindowManagerSingleton.getInstance().addObserver(createTabWindowManagerObserver());
+    }
+
+    private TabWindowManager.Observer createTabWindowManagerObserver() {
+        return new TabWindowManager.Observer() {
+            @Override
+            public void onTabModelSelectorAdded(TabModelSelector selector) {
+                int windowId =
+                        TabWindowManagerSingleton.getInstance().getWindowIdForSelector(selector);
+                if (windowId == INVALID_WINDOW_ID
+                        || !(selector instanceof HeadlessTabModelSelectorImpl)) {
+                    return;
+                }
+
+                MultiInstanceHeadlessTabModelObserver observer =
+                        new MultiInstanceHeadlessTabModelObserver(
+                                (HeadlessTabModelSelectorImpl) selector, windowId);
+
+                // Clean up the observer if the selector is destroyed.
+                selector.addObserver(
+                        new TabModelSelectorObserver() {
+                            @Override
+                            public void onDestroyed() {
+                                selector.removeObserver(this);
+                                observer.destroy();
+                            }
+                        });
+            }
+        };
     }
 
     @Override
@@ -98,74 +112,29 @@ import java.util.Set;
         assert !mActivityMultiInstanceManagerAssignments.containsKey(activity)
                 : "A MultiInstanceManager for this Activity already exists.";
         if (mActivityMultiInstanceManagerAssignments.isEmpty()) {
-            mInitialCrashedWindows = ChromeMultiInstancePersistentStore.readCrashRecoveryData();
+            // Evaluate and persist crash recovery metadata when the first activity is initialized
+            // in the browser process.
+            TabbedCrashRecoveryDelegate.getInstance().initializeCrashRecoveryMetadata();
         }
         mActivityMultiInstanceManagerAssignments.put(activity, multiInstanceManager);
-        if (ChromeMultiInstancePersistentStore.readIsCrashRecoveryPending()) {
-            // Initiate any pending crash recovery tasks.
-            if (activity instanceof ChromeTabbedActivity tabbedActivity) {
-                TabbedCrashRecoveryDelegate.getInstance()
-                        .initiateCrashRecovery(
-                                tabbedActivity.getModalDialogManagerSupplier(),
-                                tabbedActivity,
-                                mWindowsPendingCrashRecovery);
-                ChromeMultiInstancePersistentStore.writeIsCrashRecoveryPending(false);
-                mWindowsPendingCrashRecovery = new ArrayList<>();
-            }
-        }
     }
 
     @Override
-    public void onForegroundBrowserProcessInitialized(int previousProcessExitReason) {
-        if (!ChromeFeatureList.sSessionRestoreAfterCrash.isEnabled()
-                || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
+    public void onForegroundBrowserProcessInitialized() {
+        if (!ChromeFeatureList.sSessionRestoreAfterCrash.isEnabled()) return;
 
-        // Set up the orchestrator to initiate crash recovery for windows from a
-        // previous session if and when applicable.
-        boolean crashRecoveryNeeded =
-                (previousProcessExitReason == ApplicationExitInfo.REASON_CRASH
-                        || previousProcessExitReason == ApplicationExitInfo.REASON_CRASH_NATIVE
-                        || previousProcessExitReason == ApplicationExitInfo.REASON_ANR);
-        // TODO(crbug.com/513629106): Try to include ApplicationExitInfo.REASON_EXIT_SELF but
-        // only for debug build
-        if (!crashRecoveryNeeded) return;
-
-        List<CrashRecoveryWindowInfo> crashedWindows =
-                mInitialCrashedWindows != null
-                        ? mInitialCrashedWindows
-                        : ChromeMultiInstancePersistentStore.readCrashRecoveryData();
-        mInitialCrashedWindows = null;
-
-        // If there are no crash-recoverable instances (for example, there were no
-        // active ChromeTabbedActivity's when the previous process crashed), there is
-        // nothing to do.
-        if (crashedWindows == null || crashedWindows.isEmpty()) return;
-
-        // Prepare for deferred crash recovery.
-        if (mActivityMultiInstanceManagerAssignments.isEmpty()) {
-            // This means that there are no eligible activities to initiate crash
-            // recovery when the browser process starts after an unclean exit. Track
-            // this as a pending task that can be addressed when the next
-            // ChromeTabbedActivity is registered with the orchestrator.
-            ChromeMultiInstancePersistentStore.writeIsCrashRecoveryPending(true);
-            mWindowsPendingCrashRecovery = crashedWindows;
-            return;
+        // If a ChromeTabbedActivity has already initialized, immediate crash recovery was already
+        // evaluated / handled. Do not set a pending crash recovery state.
+        for (Activity activity : mActivityMultiInstanceManagerAssignments.keySet()) {
+            if (activity instanceof ChromeTabbedActivity) {
+                return;
+            }
         }
 
-        // Initiate crash recovery immediately.
-        assert mActivityMultiInstanceManagerAssignments.size() == 1
-                : "Expected only one activity to be launched.";
-
-        Entry<Activity, MultiInstanceManager> assignment =
-                mActivityMultiInstanceManagerAssignments.entrySet().iterator().next();
-        Activity activity = assignment.getKey();
-        assert activity instanceof ChromeTabbedActivity;
-        ChromeTabbedActivity tabbedActivity = (ChromeTabbedActivity) activity;
-        TabbedCrashRecoveryDelegate.getInstance()
-                .initiateCrashRecovery(
-                        tabbedActivity.getModalDialogManagerSupplier(),
-                        tabbedActivity,
-                        crashedWindows);
+        // This means that there is no ChromeTabbedActivity to initiate crash recovery when the
+        // browser process starts after a crash. Track this as a pending task that can be
+        // addressed when the next ChromeTabbedActivity is registered with the orchestrator.
+        TabbedCrashRecoveryDelegate.getInstance().maybeDeferCrashRecovery();
     }
 
     @Override
@@ -677,7 +646,5 @@ import java.util.Set;
 
     /* package */ void clearAssignmentsForTesting() {
         mActivityMultiInstanceManagerAssignments.clear();
-        mWindowsPendingCrashRecovery = new ArrayList<>();
-        mInitialCrashedWindows = null;
     }
 }

@@ -143,10 +143,10 @@ class CustomizeChromeUI
 
   // theme_color_picker::mojom::ThemeColorPickerHandlerFactory:
   void CreateThemeColorPickerHandler(
-      mojo::PendingReceiver<theme_color_picker::mojom::ThemeColorPickerHandler>
-          handler,
       mojo::PendingRemote<theme_color_picker::mojom::ThemeColorPickerClient>
-          client) override;
+          client,
+      mojo::PendingReceiver<theme_color_picker::mojom::ThemeColorPickerHandler>
+          handler) override;
 
   // side_panel::customize_chrome::mojom::WallpaperSearchHandlerFactory:
   void CreateWallpaperSearchHandler(

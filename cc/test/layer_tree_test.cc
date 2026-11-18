@@ -611,10 +611,10 @@ class LayerTreeHostForTesting : public LayerTreeHost {
     return host_impl;
   }
 
-  void SetNeedsCommit() override {
+  void SetNeedsCommit(bool urgent) override {
     if (!test_started_)
       return;
-    LayerTreeHost::SetNeedsCommit();
+    LayerTreeHost::SetNeedsCommit(urgent);
   }
 
   void SetNeedsUpdateLayers() override {

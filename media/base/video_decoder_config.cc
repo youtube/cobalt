@@ -101,7 +101,8 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
          mime_type() == config.mime_type() &&
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-         hdr_metadata() == config.hdr_metadata() && level() == config.level();
+         hdr_metadata() == config.hdr_metadata() && level() == config.level() &&
+         spatial_format() == config.spatial_format();
 }
 
 std::string VideoDecoderConfig::AsHumanReadableString() const {
@@ -125,7 +126,8 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", mime_type: " << mime_type()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-    << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
+    << ", color space: " << color_space_info().ToGfxColorSpace().ToString()
+    << ", spatial format: [" << spatial_format().ToString() << "]";
 
   if (!hdr_metadata().IsEmpty()) {
     s << ", hdr metadata: " << hdr_metadata().ToString();

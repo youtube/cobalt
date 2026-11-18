@@ -683,7 +683,7 @@ bool NameInfo::HasNameEligibleForPhoneticNameMigration() const {
   UErrorCode error = U_ZERO_ERROR;
 
   std::string full_name = base::UTF16ToUTF8(name_->GetValue());
-  re2::RE2::GlobalReplace(&full_name, autofill::kCjkNameSeparatorsRe, "");
+  re2::RE2::GlobalReplace(&full_name, kCjkNameSeparatorsRe, "");
   const std::u16string processed_full_name = base::UTF8ToUTF16(full_name);
 
   for (base::i18n::UTF16CharIterator iter(processed_full_name); !iter.end();

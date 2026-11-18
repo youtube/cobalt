@@ -59,10 +59,26 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Warned"/>
 </enum>
 
+<!-- LINT.IfChange(BrowserManagementStatus) -->
+
+<enum name="BrowserManagementStatus">
+  <int value="0" label="Unmanaged (None)"/>
+  <int value="1" label="Computer Local (&lt;= 3 policies)"/>
+  <int value="2" label="Computer Local (&gt; 3 policies)"/>
+  <int value="3" label="Domain Local"/>
+  <int value="4" label="Cloud"/>
+  <int value="5" label="Cloud Domain"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/policy/core/common/enterprise_management_metrics_service.h:BrowserManagementStatus) -->
+
 <enum name="CertificatePrivateKeySource">
   <int value="0" label="Unexportable"/>
   <int value="1" label="Software"/>
   <int value="2" label="OsSoftware"/>
+  <int value="3" label="Android"/>
+  <int value="4" label="ChromeOsHardware"/>
+  <int value="5" label="ChromeOsSoftware"/>
 </enum>
 
 <enum name="CertificateProvisioningError">
@@ -502,6 +518,15 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Load token from file"/>
 </enum>
 
+<enum name="EnterpriseCloudPolicyLocalCacheWriteStatus">
+  <summary>
+    Result status of local policy persistence disk cache writes.
+  </summary>
+  <int value="0" label="Success"/>
+  <int value="1" label="Directory Creation Failed"/>
+  <int value="2" label="File Write Failed"/>
+</enum>
+
 <enum name="EnterpriseCloudReportingPolicyStatus">
   <int value="0" label="No policy set"/>
   <int value="1" label="User cloud policy set only"/>
@@ -570,6 +595,8 @@ chromium-metrics-reviews@google.com.
   <int value="37" label="FAILURE_OPERATION_TIMEOUT"/>
 </enum>
 
+<!-- LINT.IfChange(EnterpriseDeviceManagementStatus) -->
+
 <enum name="EnterpriseDeviceManagementStatus">
   <summary>
     Status codes produced by DeviceManagementService for requests made to the
@@ -603,6 +630,17 @@ chromium-metrics-reviews@google.com.
   <int value="907" label="SERVICE_ENTERPRISE_TOS_HAS_NOT_BEEN_ACCEPTED"/>
   <int value="908" label="SERVICE_ILLEGAL_ACCOUNT_FOR_PACKAGED_EDU_LICENSE"/>
   <int value="909" label="SERVICE_INVALID_PACKAGED_DEVICE_FOR_KIOSK"/>
+  <int value="910" label="SERVICE_ORG_UNIT_ENROLLMENT_LIMIT_EXCEEEDED"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/policy/core/common/cloud/cloud_policy_constants.h:DeviceManagementStatus) -->
+
+<enum name="EnterpriseDiskCacheDecryptionFailureReason">
+  <summary>Reasons why cache decryption failed.</summary>
+  <int value="0" label="Read Past EOF"/>
+  <int value="1" label="Underlying Read Failed"/>
+  <int value="2" label="Ciphertext Too Short"/>
+  <int value="3" label="AEAD Open Failed"/>
 </enum>
 
 <enum name="EnterpriseDiskCacheError">
@@ -2454,6 +2492,7 @@ chromium-metrics-reviews@google.com.
   <int value="1456" label="RestrictBackgroundFetchFromServiceWorkerEnabled"/>
   <int value="1457" label="GeminiEnterpriseSettings"/>
   <int value="1458" label="RestrictYouTubeCookiesDeletion"/>
+  <int value="1459" label="AutofillSettings"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">
@@ -2817,6 +2856,18 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="not yet owned"/>
   <int value="2" label="ownership taken"/>
 </enum>
+
+<!-- LINT.IfChange(PlatformManagementStatus) -->
+
+<enum name="PlatformManagementStatus">
+  <int value="0" label="Unmanaged (None)"/>
+  <int value="1" label="Computer Local"/>
+  <int value="2" label="Domain Local"/>
+  <int value="3" label="Cloud"/>
+  <int value="4" label="Cloud Domain"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/policy/core/common/enterprise_management_metrics_service.h:PlatformManagementStatus) -->
 
 <enum name="PromotionBannerAction">
   <int value="0" label="Promotion banner dismissed">

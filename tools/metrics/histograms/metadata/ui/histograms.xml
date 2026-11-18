@@ -357,7 +357,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DefaultBrowser.InfoBar.TimesShownBeforeAccept" units="count"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>agale@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
   <summary>
@@ -512,6 +512,32 @@ chromium-metrics-reviews@google.com.
     <variant name="HttpProgIdRegistryValidation"
         summary="the HTTP default client's program ID from the registry"/>
   </token>
+</histogram>
+
+<histogram
+    name="InitialWebUI.NewWindow.AllSources.BrowserWindow.FirstPaint.FromConstructor"
+    units="ms" expires_after="2026-11-08">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Deprecated. Replaced by WithExistingWindow and WithoutExistingWindow
+    variants. Records the time from immediately before the Browser constructor
+    is called to 'First Paint' of the new browser window. Aggregated across all
+    sources.
+  </summary>
+</histogram>
+
+<histogram
+    name="InitialWebUI.NewWindow.AllSources.ReloadButton.FirstPaint.FromConstructor"
+    units="ms" expires_after="2026-11-08">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Deprecated. Replaced by WithExistingWindow and WithoutExistingWindow
+    variants. Records the time from immediately before the Browser constructor
+    is called to first paint of the Reload Button in the new browser window.
+    Aggregated across all sources.
+  </summary>
 </histogram>
 
 <histogram
@@ -723,6 +749,63 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="InitialWebUI.Startup.WithoutExistingWindow.BrowserWindow.FirstPaint"
+    units="ms" expires_after="2026-09-06">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Deprecated. Removed the WithExistingWindow and WithoutExistingWindow
+    dimension from Startup metrics, since they do not apply during startup.
+    Records the time from browser application startup to the first presentation
+    of the browser window onto the screen when no existing window is present.
+  </summary>
+</histogram>
+
+<histogram
+    name="InitialWebUI.Startup.WithoutExistingWindow.BrowserWindowToReloadButton.FirstPaintGap"
+    units="ms" expires_after="2026-09-13">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Deprecated. Removed the WithExistingWindow and WithoutExistingWindow
+    dimension from Startup metrics, since they do not apply during startup.
+    Records the delay between the native browser window's first presentation
+    (paint) and the Reload Button first paint during startup when no existing
+    window is present.
+  </summary>
+</histogram>
+
+<histogram
+    name="InitialWebUI.Startup.WithoutExistingWindow.ReloadButton.FirstContentfulPaint"
+    units="ms" expires_after="2026-09-06">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Deprecated. Removed the WithExistingWindow and WithoutExistingWindow
+    dimension from Startup metrics, since they do not apply during startup.
+    Records the time spent initializing a newly constructed ReloadButton in
+    standard browser application startup. The timer starts immediately after the
+    browser application startup, and ends immediately after a contentful paint
+    of the view is requested when no existing window is present.
+  </summary>
+</histogram>
+
+<histogram
+    name="InitialWebUI.Startup.WithoutExistingWindow.ReloadButton.FirstPaint"
+    units="ms" expires_after="2026-09-06">
+  <owner>mych@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Deprecated. Removed the WithExistingWindow and WithoutExistingWindow
+    dimension from Startup metrics, since they do not apply during startup.
+    Records the time spent initializing a newly constructed ReloadButton in
+    standard browser application startup. The timer starts immediately after the
+    browser application startup, and ends immediately after a paint of the view
+    is requested when no existing window is present.
+  </summary>
+</histogram>
+
+<histogram
     name="InitialWebUI.Startup{Scenario}.BrowserWindow.ClosedBeforeFirstPaint{StartupTemperature}"
     units="ms" expires_after="2026-12-31">
   <owner>annasato@chromium.org</owner>
@@ -872,7 +955,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InitialWebUI.Toolbar.ParseFinishedToFirstUpdate" units="ms"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>leimy@chromium.org</owner>
   <owner>chrome-webium-product-eng@google.com</owner>
   <summary>
@@ -1045,6 +1128,17 @@ chromium-metrics-reviews@google.com.
   <summary>Records the reason why a snackbar was dismissed.</summary>
 </histogram>
 
+<histogram name="Snackbar.QueueDepthAtInsertion" units="Snackbars"
+    expires_after="2026-12-31">
+  <owner>vpasupathy@google.com</owner>
+  <owner>chrome-ui-security-bugs@google.com</owner>
+  <summary>
+    Records the combined size of the standard and persistent snackbar queues at
+    the exact moment a new snackbar is inserted via add(). Used to detect queue
+    spam and DoS conditions.
+  </summary>
+</histogram>
+
 <histogram name="Snackbar.Shown" enum="SnackbarIdentifier"
     expires_after="never">
 <!-- expires-never: Required as long as snackbars exist. -->
@@ -1053,6 +1147,17 @@ chromium-metrics-reviews@google.com.
   <owner>src/chrome/browser/ui/messages/OWNERS</owner>
   <summary>
     Records the identifier of a snackbar every time one is shown.
+  </summary>
+</histogram>
+
+<histogram name="Snackbar.TimerDrift" units="ms" expires_after="2026-12-31">
+  <owner>vpasupathy@google.com</owner>
+  <owner>chrome-ui-security-bugs@google.com</owner>
+  <summary>
+    Records the difference between the actual time a snackbar was dismissed due
+    to timeout and its requested duration. Tracks the exact uptimeMillis() to
+    detect Android UI thread stalls or deadlocks that delay security notices.
+    Capped at 60 seconds.
   </summary>
 </histogram>
 
@@ -1217,7 +1322,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ColorsStylesheetServingDuration" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-13">
   <owner>skau@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1268,7 +1373,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.Preload.Reason" enum="WebUIPreloadReason"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>kerenzhu@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <owner>robliao@chromium.org</owner>

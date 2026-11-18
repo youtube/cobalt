@@ -26,7 +26,7 @@ TEST_F(PreferredAppsConverterTest, ConvertSimpleEntry) {
   GURL filter_url = GURL("https://www.google.com/abc");
   auto intent_filter = apps_util::MakeIntentFilterForUrlScope(filter_url);
 
-  apps::PreferredAppsList preferred_apps;
+  apps::PreferredAppsList preferred_apps(/*delegate=*/nullptr);
   preferred_apps.Init();
   preferred_apps.AddPreferredApp(kAppId1, intent_filter);
   auto converted_value =
@@ -77,7 +77,7 @@ TEST_F(PreferredAppsConverterTest, ConvertUpgradedSimpleEntryJson) {
   GURL filter_url = GURL("https://www.google.com/abc");
   auto intent_filter = apps_util::MakeIntentFilterForUrlScope(filter_url);
 
-  apps::PreferredAppsList preferred_apps;
+  apps::PreferredAppsList preferred_apps(/*delegate=*/nullptr);
   preferred_apps.Init();
   preferred_apps.AddPreferredApp(kAppId1, intent_filter);
   auto converted_value =
@@ -156,7 +156,7 @@ TEST_F(PreferredAppsConverterTest, ParseSimpleEntryJson) {
   auto intent_filter = apps_util::MakeIntentFilterForUrlScope(
       filter_url, /*omit_port_for_testing=*/true);
   intent_filter->conditions.erase(intent_filter->conditions.begin());
-  apps::PreferredAppsList preferred_apps;
+  apps::PreferredAppsList preferred_apps(/*delegate=*/nullptr);
   preferred_apps.Init();
   preferred_apps.AddPreferredApp(kAppId1, intent_filter);
   auto& expected_entry = preferred_apps.GetReference();
@@ -204,7 +204,7 @@ TEST_F(PreferredAppsConverterTest, ParseUpgradedSimpleEntryJson) {
   GURL filter_url = GURL("https://www.google.com/abc");
   auto intent_filter = apps_util::MakeIntentFilterForUrlScope(filter_url);
 
-  apps::PreferredAppsList preferred_apps;
+  apps::PreferredAppsList preferred_apps(/*delegate=*/nullptr);
   preferred_apps.Init();
   preferred_apps.AddPreferredApp(kAppId1, intent_filter);
   auto& expected_entry = preferred_apps.GetReference();
@@ -248,7 +248,7 @@ TEST_F(PreferredAppsConverterTest, ParseEmptyPortEntryJson) {
   ASSERT_TRUE(test_value);
   auto parsed_entry = apps::ParseValueToPreferredApps(test_value.value());
 
-  apps::PreferredAppsList preferred_apps_list;
+  apps::PreferredAppsList preferred_apps_list(/*delegate=*/nullptr);
   preferred_apps_list.Init();
   preferred_apps_list.AddPreferredApp(
       kAppId1,
@@ -602,13 +602,13 @@ TEST_F(PreferredAppsConverterTest, UpgradePreferredApp) {
   GURL filter_url = GURL("https://www.google.com/abc");
   auto old_intent_filter = apps_util::MakeIntentFilterForUrlScope(filter_url);
 
-  apps::PreferredAppsList old_preferred_apps;
+  apps::PreferredAppsList old_preferred_apps(/*delegate=*/nullptr);
   old_preferred_apps.Init();
   old_preferred_apps.AddPreferredApp(kAppId1, old_intent_filter);
 
   auto new_intent_filter = apps_util::MakeIntentFilterForUrlScope(filter_url);
 
-  apps::PreferredAppsList new_preferred_apps;
+  apps::PreferredAppsList new_preferred_apps(/*delegate=*/nullptr);
   new_preferred_apps.Init();
   new_preferred_apps.AddPreferredApp(kAppId1, new_intent_filter);
 

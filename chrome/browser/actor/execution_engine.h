@@ -25,13 +25,13 @@
 #include "chrome/browser/actor/tab_observation_strategy.h"
 #include "chrome/browser/actor/tools/tool_controller.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
-#include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/buildflags.h"
 #include "components/actor/core/aggregated_journal.h"
-#include "components/actor/core/origin_checker.h"
+#include "components/actor/core/origin_gating_cache.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_service.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_throttle.h"
@@ -293,6 +293,10 @@ class ExecutionEngine : public ToolDelegate,
 
   State state() const { return state_; }
 
+  const OriginGatingCache& origin_gating_cache() const {
+    return origin_gating_cache_;
+  }
+
   // Currently, navigations are generally forced to happen in the same tab (see
   // https://crbug.com/420669167 ). In some cases we need to drop this
   // restriction for certain tools to function.
@@ -464,10 +468,10 @@ class ExecutionEngine : public ToolDelegate,
 
   // Manages the sets of origins that have been allowed for navigations and that
   // the user has been prompted about.
-  OriginChecker origin_checker_;
+  OriginGatingCache origin_gating_cache_;
   // This will allow us to store already-recorded origins to avoid duplication
   // of dark launch metrics.
-  OriginChecker dark_launch_origin_checker_;
+  OriginGatingCache dark_launch_origin_gating_cache_;
 
   TabObservationStrategy observation_strategy_;
 

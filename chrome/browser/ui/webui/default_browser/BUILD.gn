@@ -48,11 +48,16 @@ mojom("modal_mojo_bindings") {
 if (is_win) {
   source_set("visual_guided_setter") {
     sources = [
+      "guided_setter_overlay_window_win.cc",
+      "guided_setter_overlay_window_win.h",
       "visual_guided_setter_ui.cc",
       "visual_guided_setter_ui.h",
     ]
 
-    public_deps = [ "//base" ]
+    public_deps = [
+      "//base",
+      "//ui/gfx",
+    ]
 
     deps = [
       "//chrome/app/theme:chrome_unscaled_resources",
@@ -63,10 +68,24 @@ if (is_win) {
       "//chrome/common",
       "//content/public/browser",
       "//ui/base/interaction",
-      "//ui/gfx",
+      "//ui/views",
       "//ui/web_dialogs",
       "//ui/webui",
       "//url",
+    ]
+  }
+
+  source_set("unit_tests") {
+    testonly = true
+    sources = [ "guided_setter_overlay_window_win_unittest.cc" ]
+    deps = [
+      ":visual_guided_setter",
+      "//base",
+      "//base/test:test_support",
+      "//testing/gtest",
+      "//ui/gfx",
+      "//ui/views",
+      "//ui/views:test_support",
     ]
   }
 }

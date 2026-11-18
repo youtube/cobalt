@@ -127,7 +127,7 @@ void WriteBarrier::SharedSlow(Tagged<TrustedObject> host,
   if (!MemoryChunk::FromHeapObject(host)->InWritableSharedSpace()) {
     MutablePage* host_chunk_metadata =
         MutablePage::FromHeapObject(Isolate::Current(), host);
-    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::ATOMIC>(
         host_chunk_metadata, host_chunk_metadata->Offset(slot.address()));
   }
 }
@@ -160,6 +160,13 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   table.Mark(space, handle, slot.address());
+
+  if (marking_barrier->is_minor() && HeapLayout::InYoungGeneration(host)) {
+    MutablePage* host_page =
+        MutablePage::FromHeapObject(marking_barrier->heap()->isolate(), host);
+    RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::Insert<AccessMode::ATOMIC>(
+        host_page, host_page->Offset(slot.address()));
+  }
 #endif  // V8_COMPRESS_POINTERS
 }
 

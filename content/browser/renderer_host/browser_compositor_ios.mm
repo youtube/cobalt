@@ -58,7 +58,7 @@ BrowserCompositorIOS::~BrowserCompositorIOS() {
 }
 
 DelegatedFrameHost* BrowserCompositorIOS::GetDelegatedFrameHost() {
-  DCHECK(delegated_frame_host_);
+  CHECK(delegated_frame_host_, base::NotFatalUntil::M152);
   return delegated_frame_host_.get();
 }
 
@@ -216,7 +216,7 @@ void BrowserCompositorIOS::TransitionToState(State new_state) {
   // First, detach from the current compositor, if there is one.
   delegated_frame_host_->DetachFromCompositor();
   if (state_ == UseParentLayerCompositor) {
-    DCHECK(root_layer_->parent());
+    CHECK(root_layer_->parent(), base::NotFatalUntil::M152);
     state_ = HasNoCompositor;
     root_layer_->parent()->RemoveObserver(this);
     root_layer_->parent()->Remove(root_layer_.get());
@@ -240,7 +240,7 @@ void BrowserCompositorIOS::TransitionToState(State new_state) {
 
   // Attach to the new compositor.
   if (new_state == UseParentLayerCompositor) {
-    DCHECK(parent_ui_layer_);
+    CHECK(parent_ui_layer_, base::NotFatalUntil::M152);
     parent_ui_layer_->Add(root_layer_.get());
     parent_ui_layer_->AddObserver(this);
     state_ = UseParentLayerCompositor;
@@ -264,7 +264,7 @@ void BrowserCompositorIOS::TransitionToState(State new_state) {
     Unsuspend();
     state_ = HasOwnCompositor;
   }
-  DCHECK_EQ(state_, new_state);
+  CHECK_EQ(state_, new_state, base::NotFatalUntil::M152);
   delegated_frame_host_->AttachToCompositor(GetCompositor());
   delegated_frame_host_->WasShown(GetRendererLocalSurfaceId(), dfh_size_dip_,
                                   /*record_tab_switch_time_request=*/{});
@@ -353,16 +353,16 @@ void BrowserCompositorIOS::DidNavigate() {
 
 void BrowserCompositorIOS::SetParentUiLayer(ui::Layer* new_parent_ui_layer) {
   if (new_parent_ui_layer) {
-    DCHECK(new_parent_ui_layer->GetCompositor());
+    CHECK(new_parent_ui_layer->GetCompositor(), base::NotFatalUntil::M152);
   }
 
   // Set |parent_ui_layer_| to the new value, which potentially not match the
   // value of |root_layer_->parent()|. The call to UpdateState will re-parent
   // |root_layer_|.
-  DCHECK_EQ(root_layer_->parent(), parent_ui_layer_);
+  CHECK_EQ(root_layer_->parent(), parent_ui_layer_, base::NotFatalUntil::M152);
   parent_ui_layer_ = new_parent_ui_layer;
   UpdateState();
-  DCHECK_EQ(root_layer_->parent(), parent_ui_layer_);
+  CHECK_EQ(root_layer_->parent(), parent_ui_layer_, base::NotFatalUntil::M152);
 }
 
 void BrowserCompositorIOS::ForceNewSurfaceForTesting() {
@@ -396,7 +396,7 @@ void BrowserCompositorIOS::TransformPointToRootSurface(gfx::PointF* point) {
 }
 
 void BrowserCompositorIOS::LayerDestroyed(ui::Layer* layer) {
-  DCHECK_EQ(layer, parent_ui_layer_);
+  CHECK_EQ(layer, parent_ui_layer_, base::NotFatalUntil::M152);
   SetParentUiLayer(nullptr);
 }
 
@@ -454,7 +454,7 @@ void BrowserCompositorIOS::InvalidateSurface() {
 }
 
 void BrowserCompositorIOS::Suspend() {
-  DCHECK(compositor_);
+  CHECK(compositor_, base::NotFatalUntil::M152);
   // Requests a compositor lock without a timeout.
   compositor_suspended_lock_ =
       compositor_->GetCompositorLock(nullptr, base::TimeDelta());

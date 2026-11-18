@@ -19,6 +19,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/schemeful_site.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/connection_change_observer_client.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -71,12 +72,15 @@ void AccountFetcherFactoryGaia::PrepareForFetchingAccountCapabilities() {
   // Pre-connect the HTTPS socket to the Account Capabilities server URL.
   // This means that a fetch in the near future will be able to re-use this
   // connection, which saves on the HTTPS connection establishment round-trips.
+  // Account capabilities fetches are browser-wide sign-in operations not
+  // associated with any page/frame, so no Connection Allowlist restrictions
+  // should apply.
   signin_client_->GetNetworkContext()->PreconnectSockets(
       /*num_streams=*/1, GetAccountCapabilitiesUrl(),
       google_apis::GetOmitCredentialsModeForGaiaRequests(),
       net::NetworkAnonymizationKey::CreateSameSite(
           net::SchemefulSite(GetAccountCapabilitiesUrl())),
-      /*network_restrictions_id=*/std::nullopt,
+      network::GetNoOpNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(),
       /*keepalive_config=*/std::nullopt, mojo::NullRemote());
 }

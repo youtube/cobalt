@@ -210,7 +210,7 @@ class ArcAppListPrefs : public KeyedService,
                                  const AppInfo& app_info) {}
     // Notifies an observer that app states have been changed.
     //
-    // State includes the the following AppInfo fields:
+    // State includes the following AppInfo fields:
     //  - sticky
     //  - notifications_enabled
     //  - ready

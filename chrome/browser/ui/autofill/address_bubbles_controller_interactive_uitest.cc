@@ -47,8 +47,8 @@ class BaseAddressBubblesControllerTest
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
-  autofill::ContentAutofillClient* autofill_client() {
-    return autofill::ContentAutofillClient::FromWebContents(web_contents());
+  ContentAutofillClient* autofill_client() {
+    return ContentAutofillClient::FromWebContents(web_contents());
   }
 
   virtual void TriggerBubble() = 0;

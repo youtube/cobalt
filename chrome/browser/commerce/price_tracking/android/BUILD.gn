@@ -10,6 +10,21 @@ generate_jni("jni_headers") {
   sources = [ "java/src/org/chromium/chrome/browser/price_tracking/PriceTrackingNotificationBridge.java" ]
 }
 
+source_set("price_tracking_notification_bridge") {
+  public = [ "price_tracking_notification_bridge.h" ]
+  sources = [ "price_tracking_notification_bridge.cc" ]
+  public_deps = [
+    "//base",
+    "//components/optimization_guide/core",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+  ]
+  deps = [
+    ":jni_headers",
+    "//chrome/browser/profiles",
+    "//content/public/browser",
+  ]
+}
+
 android_resources("java_resources") {
   sources = [
     "java/res/drawable/price_tracking_button_background.xml",

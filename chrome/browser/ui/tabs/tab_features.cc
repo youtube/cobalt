@@ -46,7 +46,9 @@
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/task_manager/web_contents_tags.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/autofill/bubble_manager.h"
+#include "chrome/browser/ui/autofill/payments/omnibox_autofill_bubble_controller.h"
 #include "chrome/browser/ui/autofill/payments/omnibox_autofill_page_action_controller.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -204,47 +206,61 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
             pinned_actions_model);
     page_action_controller->Initialize(
         tab,
-        std::vector<actions::ActionId>(page_actions::kActionIds.begin(),
-                                       page_actions::kActionIds.end()),
+        page_actions::GetActivePageActionIds(*tab.GetBrowserWindowInterface()),
         page_actions::PageActionPropertiesProvider());
     page_action_controller_ = std::move(page_action_controller);
 
-    translate_page_action_controller_ =
-        std::make_unique<TranslatePageActionController>(tab);
+    if (page_action_controller_->ActionExists(kActionShowTranslate)) {
+      translate_page_action_controller_ =
+          std::make_unique<TranslatePageActionController>(tab);
+    }
 
-    memory_saver_chip_controller_ =
-        std::make_unique<memory_saver::MemorySaverChipController>(
-            *page_action_controller_);
+    if (page_action_controller_->ActionExists(kActionShowMemorySaverChip)) {
+      memory_saver_chip_controller_ =
+          std::make_unique<memory_saver::MemorySaverChipController>(
+              *page_action_controller_);
+    }
 
-    if (IsPageActionMigrated(PageActionIconType::kIntentPicker)) {
+    if (IsPageActionMigrated(PageActionIconType::kIntentPicker) &&
+        page_action_controller_->ActionExists(kActionShowIntentPicker)) {
       intent_picker_view_page_action_controller_ =
           std::make_unique<IntentPickerViewPageActionController>(tab);
     }
 
-    file_system_access_page_action_controller_ =
-        std::make_unique<FileSystemAccessPageActionController>(tab);
+    if (page_action_controller_->ActionExists(kActionShowFileSystemAccess)) {
+      file_system_access_page_action_controller_ =
+          std::make_unique<FileSystemAccessPageActionController>(tab);
+    }
 
-    if (IsPageActionMigrated(PageActionIconType::kZoom)) {
+    if (IsPageActionMigrated(PageActionIconType::kZoom) &&
+        page_action_controller_->ActionExists(kActionZoomNormal)) {
       zoom_view_controller_ = std::make_unique<zoom::ZoomViewController>(
           tab, *page_action_controller_);
     }
 
-    pwa_install_page_action_controller_ =
-        std::make_unique<PwaInstallPageActionController>(
-            tab, *page_action_controller_);
+    if (page_action_controller_->ActionExists(kActionInstallPwa)) {
+      pwa_install_page_action_controller_ =
+          std::make_unique<PwaInstallPageActionController>(
+              tab, *page_action_controller_);
+    }
 
-    commerce_price_insights_page_action_view_controller_ =
-        GetUserDataFactory()
-            .CreateInstance<commerce::PriceInsightsPageActionViewController>(
-                tab, tab, *page_action_controller_);
+    if (page_action_controller_->ActionExists(kActionCommercePriceInsights)) {
+      commerce_price_insights_page_action_view_controller_ =
+          GetUserDataFactory()
+              .CreateInstance<commerce::PriceInsightsPageActionViewController>(
+                  tab, tab, *page_action_controller_);
+    }
 
-    if (IsPageActionMigrated(PageActionIconType::kManagePasswords)) {
+    if (IsPageActionMigrated(PageActionIconType::kManagePasswords) &&
+        page_action_controller_->ActionExists(
+            kActionShowPasswordsBubbleOrPage)) {
       manage_passwords_page_action_controller_ =
           std::make_unique<ManagePasswordsPageActionController>(
               *page_action_controller_);
     }
 
-    if (IsPageActionMigrated(PageActionIconType::kCookieControls)) {
+    if (IsPageActionMigrated(PageActionIconType::kCookieControls) &&
+        page_action_controller_->ActionExists(kActionShowCookieControls)) {
       cookie_controls_page_action_controller_ =
           GetUserDataFactory()
               .CreateInstance<CookieControlsPageActionController>(
@@ -252,7 +268,8 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
       cookie_controls_page_action_controller_->Init();
     }
 
-    if (IsPageActionMigrated(PageActionIconType::kLensOverlayHomework)) {
+    if (IsPageActionMigrated(PageActionIconType::kLensOverlayHomework) &&
+        page_action_controller_->ActionExists(kActionLensOverlayHomework)) {
       lens_overlay_homework_page_action_controller_ =
           GetUserDataFactory()
               .CreateInstance<LensOverlayHomeworkPageActionController>(
@@ -261,7 +278,8 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
     if (IsPageActionMigrated(PageActionIconType::kBookmarkStar) &&
         tab.GetBrowserWindowInterface()->GetType() ==
-            BrowserWindowInterface::TYPE_NORMAL) {
+            BrowserWindowInterface::TYPE_NORMAL &&
+        page_action_controller_->ActionExists(kActionBookmarkThisTab)) {
       bookmark_page_action_controller_ =
           GetUserDataFactory().CreateInstance<BookmarkPageActionController>(
               tab, tab, profile->GetPrefs(), *page_action_controller_);
@@ -269,16 +287,19 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
 #if !BUILDFLAG(IS_ANDROID)
     if (base::FeatureList::IsEnabled(
-            record_replay::features::kRecordReplayBase)) {
+            record_replay::features::kRecordReplayBase) &&
+        page_action_controller_->ActionExists(kActionRecordReplay)) {
       record_replay_page_action_controller_ =
           GetUserDataFactory().CreateInstance<RecordReplayPageActionController>(
               tab, tab, *page_action_controller_);
     }
 #endif
 
-    js_optimizations_page_action_controller_ =
-        std::make_unique<JsOptimizationsPageActionController>(
-            tab, *page_action_controller_);
+    if (page_action_controller_->ActionExists(kActionShowJsOptimizationsIcon)) {
+      js_optimizations_page_action_controller_ =
+          std::make_unique<JsOptimizationsPageActionController>(
+              tab, *page_action_controller_);
+    }
   }
 
   // Features that are only enabled for normal browser windows. By default most
@@ -345,7 +366,9 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
                                                                          &tab);
     }
 
-    if (tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
+    if (tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups() &&
+        page_action_controller_->ActionExists(
+            kActionShowCollaborationRecentActivity)) {
       collaboration_messaging_page_action_controller_ =
           GetUserDataFactory()
               .CreateInstance<CollaborationMessagingPageActionController>(
@@ -421,7 +444,8 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
   // This block instantiates the page action controllers that depends on the
   // `commerce_ui_tab_helper_` and not need to be created before.
-  if (commerce_ui_tab_helper_) {
+  if (commerce_ui_tab_helper_ &&
+      page_action_controller_->ActionExists(kActionCommerceDiscounts)) {
     commerce_discounts_page_action_view_controller_ =
         GetUserDataFactory()
             .CreateInstance<commerce::DiscountsPageActionViewController>(
@@ -434,10 +458,15 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   }
 
   if (base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableOmniboxAutofill)) {
+          autofill::features::kAutofillEnableOmniboxAutofill) &&
+      page_action_controller_->ActionExists(kActionAutofillPayment)) {
     omnibox_autofill_page_action_controller_ =
         std::make_unique<autofill::OmniboxAutofillPageActionController>(
             tab, *page_action_controller_);
+    omnibox_autofill_bubble_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<autofill::OmniboxAutofillBubbleController>(
+                tab, tab, tab.GetContents());
   }
 
   customize_chrome_side_panel_controller_ =
@@ -700,6 +729,14 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
   if (glic_selection_observer_) {
     glic_selection_observer_ =
         std::make_unique<glic::GlicSelectionObserver>(new_contents);
+  }
+
+  if (omnibox_autofill_bubble_controller_) {
+    omnibox_autofill_bubble_controller_.reset();
+    omnibox_autofill_bubble_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<autofill::OmniboxAutofillBubbleController>(
+                *tab, *tab, new_contents);
   }
 }
 

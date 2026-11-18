@@ -34,7 +34,7 @@ build_webui_tests("build") {
     "link_click_test.ts",
     "searched_label_test.ts",
     "test_browser_proxy.ts",
-    "test_foreign_session_browser_proxy.ts",
+    "fake_foreign_session_page_handler.ts",
     "test_util.ts",
   ]
 
@@ -54,5 +54,6 @@ build_webui_tests("build") {
     "//ui/webui/resources/cr_components/commerce:build_ts",
     "//ui/webui/resources/cr_components/history:build_ts",
     "//ui/webui/resources/js:build_ts",
+    "//ui/webui/resources/mojo:build_ts",
   ]
 }

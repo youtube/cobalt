@@ -5,7 +5,10 @@
 #import <XCTest/XCTest.h>
 
 #import "base/ios/ios_util.h"
+#import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#import "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #import "components/autofill/core/common/autofill_debug_features.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/ios/common/features.h"
@@ -17,6 +20,7 @@
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_app_interface.h"
 #import "ios/chrome/browser/device_reauth/test/reauthentication_app_interface.h"
 #import "ios/chrome/browser/policy/model/policy_earl_grey_utils.h"
+#import "ios/chrome/browser/settings/autofill/autofill_ai/test/autofill_ai_settings_test_util.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_constants.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
@@ -65,6 +69,25 @@ NSString* const kFirstRedressName = @"Entity 1";
 NSString* const kSecondRedressName = @"Entity 2";
 NSString* const kFirstRedressNumber = @"111";
 NSString* const kSecondRedressNumber = @"222";
+
+// Constants for adding a vehicle entity.
+NSString* const kVehicleMake = @"Audi";
+NSString* const kVehiclePlateNumber = @"654321";
+
+// Helper function to get the title for the identity documents section.
+NSString* IdentitySectionTitle() {
+  return l10n_util::GetNSString(IDS_AUTOFILL_IDENTITY_DOCS_TITLE);
+}
+
+// Helper function to get the title for the profiles section.
+NSString* ProfilesSectionTitle() {
+  return l10n_util::GetNSString(IDS_AUTOFILL_ADDRESSES);
+}
+
+// Helper function to get the title for the travels section.
+NSString* TravelSectionTitle() {
+  return l10n_util::GetNSString(IDS_AUTOFILL_TRAVEL_TITLE);
+}
 
 // Return the edit button from the navigation bar.
 id<GREYMatcher> NavigationBarEditButton() {
@@ -143,14 +166,18 @@ id<GREYMatcher> TextFieldWithLabel(NSString* textFieldLabel) {
       [self isRunningTest:@selector(testVerificationSwitchReauthFailure)] ||
       [self isRunningTest:@selector(testVerificationSwitchReauthSuccess)] ||
       [self isRunningTest:@selector(testEditButtonEnablesOnAddingEntity)] ||
-      [self isRunningTest:@selector(testAutoExitEditModeOnDeletion)]) {
+      [self isRunningTest:@selector(testAutoExitEditModeOnDeletion)] ||
+      [self isRunningTest:@selector(
+                              testDeleteLastEntityInSectionRemovesSection)] ||
+      [self isRunningTest:@selector(testSimultaneousRowAndSectionDeletion)]) {
     config.features_enabled.push_back(
         autofill::features::kAutofillAiCreateEntityDataManager);
     config.features_enabled.push_back(
         autofill::features::kAutofillAiWithDataSchema);
   }
 
-  if ([self isRunningTest:@selector(testAddAndDeleteEntityUsingMenu)]) {
+  if ([self isRunningTest:@selector(testAddAndDeleteEntityUsingMenu)] ||
+      [self isRunningTest:@selector(testSimultaneousRowAndSectionDeletion)]) {
     config.features_enabled.push_back(
         autofill::features::debug::kAutofillAiForceOptIn);
   }
@@ -266,6 +293,90 @@ id<GREYMatcher> TextFieldWithLabel(NSString* textFieldLabel) {
           IDS_IOS_SETTINGS_EDIT_AUTOFILL_ADDRESS_REQUIREMENT_ERROR,
           countOfrrors)),
       grey_sufficientlyVisible(), nil);
+}
+
+// Adds a vehicle entity via the UI.
+- (void)addVehicleEntityViaUI {
+  [[EarlGrey selectElementWithMatcher:SettingsToolbarAddButton()]
+      performAction:grey_tap()];
+
+  // Tap the "Vehicle" menu item.
+  id<GREYMatcher> vehicleMenuItem =
+      grey_allOf(grey_accessibilityLabel(base::SysUTF16ToNSString(
+                     autofill::EntityType(autofill::EntityTypeName::kVehicle)
+                         .GetNameForI18n())),
+                 grey_accessibilityTrait(UIAccessibilityTraitButton),
+                 grey_sufficientlyVisible(), nil);
+  [[EarlGrey selectElementWithMatcher:vehicleMenuItem]
+      performAction:grey_tap()];
+
+  // Fill "Make".
+  [[EarlGrey
+      selectElementWithMatcher:
+          [AutofillAISettingsTestUtil
+              textFieldForType:autofill::AttributeTypeName::kVehicleMake]]
+      performAction:grey_replaceText(kVehicleMake)];
+
+  // Fill "License plate".
+  [[EarlGrey selectElementWithMatcher:
+                 [AutofillAISettingsTestUtil
+                     textFieldForType:autofill::AttributeTypeName::
+                                          kVehiclePlateNumber]]
+      performAction:grey_replaceText(kVehiclePlateNumber)];
+
+  // Save the entity.
+  id<GREYMatcher> saveButton = chrome_test_util::ButtonWithAccessibilityLabel(
+      l10n_util::GetNSString(IDS_IOS_SAVE_ENTITY_IN_SETTINGS_BUTTON_TEXT));
+  [[EarlGrey selectElementWithMatcher:saveButton] performAction:grey_tap()];
+}
+
+// Helper to sign in, open Autofill profiles settings, and save initial test
+// entities.
+- (void)setUpSettingsWithTestEntities {
+  [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
+  [self openAutofillProfilesSettings];
+
+  [AutofillAppInterface saveExampleProfile];
+  [AutofillAppInterface savePassportEntity];
+  [AutofillAppInterface saveVehicleEntity];
+
+  // Verify that profile, travel and identity document entities are visible.
+  [[[EarlGrey
+      selectElementWithMatcher:grey_accessibilityLabel(TravelSectionTitle())]
+         usingSearchAction:grey_scrollInDirection(kGREYDirectionDown, 200)
+      onElementWithMatcher:grey_accessibilityID(kAutofillProfileTableViewID)]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityLabel(ProfilesSectionTitle())]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityLabel(IdentitySectionTitle())]
+      assertWithMatcher:grey_sufficientlyVisible()];
+}
+
+// Helper to enter edit mode, select and delete `rowsToDelete`.
+- (void)deleteEntityRows:(NSArray<NSString*>*)rowsToDelete {
+  // Switch to edit mode.
+  [[EarlGrey selectElementWithMatcher:NavigationBarEditButton()]
+      performAction:grey_tap()];
+
+  for (NSString* rowLabel in rowsToDelete) {
+    [[EarlGrey
+        selectElementWithMatcher:grey_allOf(grey_accessibilityLabel(rowLabel),
+                                            grey_sufficientlyVisible(), nil)]
+        performAction:grey_tap()];
+  }
+
+  // Tap the "Delete" button in the bottom toolbar.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::
+                                          SettingsBottomToolbarDeleteButton()]
+      performAction:grey_tap()];
+
+  // Tap the confirm button in the action sheet.
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_DELETE_ACTION_TITLE)] performAction:grey_tap()];
+  WaitForActivityOverlayToDisappear();
 }
 
 // Test that the page for viewing Autofill profile details is accessible.
@@ -464,6 +575,61 @@ id<GREYMatcher> TextFieldWithLabel(NSString* textFieldLabel) {
       base::test::ios::WaitUntilConditionOrTimeout(
           base::test::ios::kWaitForUIElementTimeout, wait_for_disappearance),
       @"Passport cell did not disappear.");
+}
+
+// Tests that deleting the last entity in a section removes the section.
+- (void)testDeleteLastEntityInSectionRemovesSection {
+  [self setUpSettingsWithTestEntities];
+
+  NSString* passportName =
+      base::SysUTF16ToNSString(autofill::test::PassportEntityOptions().name);
+  [self deleteEntityRows:@[ passportName ]];
+
+  // Verify that the "Identity Docs" section should be gone, while the other two
+  // sections (Travel and Profiles) should remain.
+  [[[EarlGrey
+      selectElementWithMatcher:grey_accessibilityLabel(TravelSectionTitle())]
+         usingSearchAction:grey_scrollInDirection(kGREYDirectionDown, 200)
+      onElementWithMatcher:grey_accessibilityID(kAutofillProfileTableViewID)]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityLabel(IdentitySectionTitle())]
+      assertWithMatcher:grey_nil()];
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityLabel(ProfilesSectionTitle())]
+      assertWithMatcher:grey_sufficientlyVisible()];
+}
+
+// Tests mixed deletion of a section and a row.
+- (void)testSimultaneousRowAndSectionDeletion {
+  [self setUpSettingsWithTestEntities];
+
+  // Add a second vehicle via UI to have a multi-row section.
+  [self addVehicleEntityViaUI];
+
+  // Scroll to the bottom of the page to make sure that all the entities are
+  // visible.
+  [self
+      scrollDownWithMatcher:grey_accessibilityID(kAutofillProfileTableViewID)];
+
+  NSString* passportName =
+      base::SysUTF16ToNSString(autofill::test::PassportEntityOptions().name);
+
+  [self deleteEntityRows:@[ passportName, kVehicleMake ]];
+
+  // Verify that the "Identity Docs" section should be gone, while the other two
+  // sections (Travel and Profiles) should remain.
+  [[[EarlGrey
+      selectElementWithMatcher:grey_accessibilityLabel(TravelSectionTitle())]
+         usingSearchAction:grey_scrollInDirection(kGREYDirectionDown, 200)
+      onElementWithMatcher:grey_accessibilityID(kAutofillProfileTableViewID)]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityLabel(IdentitySectionTitle())]
+      assertWithMatcher:grey_nil()];
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityLabel(ProfilesSectionTitle())]
+      assertWithMatcher:grey_sufficientlyVisible()];
 }
 
 // Checks that the toolbar "Add" button's enabled state changes based on the

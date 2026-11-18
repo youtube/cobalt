@@ -6,6 +6,7 @@
 
 #import "base/check_op.h"
 #import "base/memory/ptr_util.h"
+#import "ios/chrome/app/application_delegate/startup_information.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_callback_manager.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presentation_context.h"
@@ -177,10 +178,11 @@ void OverlayPresenterImpl::SetActiveWebState(web::WebState* web_state) {
     return;
   }
 
-  // If presenting_ is true and there is no previously active request, this
-  // is likely because the presenting overlay is still in the process of being
-  // dismissed and multiple tabs have been opened in the process.
-  if (!previously_active_request) {
+  // If presenting_ is true and the previously active request is not the
+  // currently presented request, this is likely because the presenting overlay
+  // is still in the process of being dismissed and multiple tabs have been
+  // opened in the process.
+  if (previously_active_request != presented_request_) {
     return;
   }
 
@@ -226,9 +228,11 @@ OverlayRequest* OverlayPresenterImpl::GetActiveRequest() const {
 #pragma mark UI Presentation and Dismissal helpers
 
 void OverlayPresenterImpl::PresentOverlayForActiveRequest() {
-  // Don't show an infobar if the profile isn't in its normal state.
+  // Don't show an infobar if the profile isn't in its normal state, or if the
+  // application is terminating.
   if (profile_state_ &&
-      profile_state_.initStage < ProfileInitStage::kNormalUI) {
+      (profile_state_.initStage < ProfileInitStage::kNormalUI ||
+       profile_state_.startupInformation.isTerminating)) {
     return;
   }
 

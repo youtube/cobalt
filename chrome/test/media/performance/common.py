@@ -556,6 +556,7 @@ def install_and_setup_chrome(args, chrome_version):
 
         # Create and run the batch script
         batch_script_content = (
+            'DisplaySwitch.exe /external\n'
             f'set PATH=%PATH%;{remote_tmp_dir}/{driver_dir}\n'
             f'cd /d "{remote_tmp_dir}/{driver_dir}"\n'
             f'"{remote_tmp_dir}/{driver_dir}/chromedriver.exe" '
@@ -585,7 +586,7 @@ def install_and_setup_chrome(args, chrome_version):
             args.sender, args.username,
             (f'powershell -Command '
               '"schtasks /create /tn StartChromeDriverTask /tr '
-             f'\'{batch_script_path}\' /sc ONCE /st 23:59 /f"'),
+             f'\'{batch_script_path}\' /sc ONCE /st 23:59 /IT /f"'),
             blocking=True)
         send_ssh_command(args.sender, args.username,
                          'powershell -Command '

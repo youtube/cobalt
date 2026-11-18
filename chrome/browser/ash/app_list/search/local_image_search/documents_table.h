@@ -21,10 +21,6 @@ namespace app_list {
 
 class SqlDatabase;
 
-enum class DocumentType : int {
-  kImage = 0,
-};
-
 // A wrapper around the SQLite `documents` table. It stores documents (files)
 // metadata.
 class DocumentsTable {

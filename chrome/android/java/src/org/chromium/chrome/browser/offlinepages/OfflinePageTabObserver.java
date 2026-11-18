@@ -341,7 +341,7 @@ public class OfflinePageTabObserver extends EmptyTabObserver
     }
 
     void maybeShowReloadSnackbar(@Nullable Tab tab, boolean isNetworkEvent) {
-        // Exclude Offline Previews, as there is a seperate UI for previews.
+        // Exclude Offline Previews, as there is a separate UI for previews.
         if (tab == null
                 || tab.isFrozen()
                 || tab.isHidden()

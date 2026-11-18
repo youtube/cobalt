@@ -94,6 +94,8 @@ BASE_DECLARE_FEATURE(kBackToOpener);
 BASE_DECLARE_FEATURE(kHorizontalTabStripComboButton);
 BASE_DECLARE_FEATURE_PARAM(bool, kHorizontalTabStripComboButtonShowStartOnly);
 
+BASE_DECLARE_FEATURE(kTabStripUnification);
+
 bool IsVerticalTabsFeatureEnabled();
 
 bool IsVerticalTabsExpandOnHoverFeatureEnabled();

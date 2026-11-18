@@ -942,7 +942,7 @@ public class RecentTabsRowAdapter extends BaseExpandableListAdapter {
         Drawable image =
                 UiUtils.getTintedDrawable(
                         mActivity,
-                        R.drawable.ic_features_24dp,
+                        R.drawable.ic_grid_view_24dp,
                         R.color.default_icon_color_tint_list);
         viewHolder.imageView.setImageDrawable(image);
     }

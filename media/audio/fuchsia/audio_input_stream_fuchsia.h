@@ -19,6 +19,8 @@ class AudioManagerFuchsia;
 
 class MEDIA_EXPORT AudioInputStreamFuchsia : public AudioInputStream {
  public:
+  using Error = AudioInputStream::AudioInputCallback::Error;
+
   // Caller must ensure that manager outlives the stream.
   AudioInputStreamFuchsia(AudioManagerFuchsia* manager,
                           const AudioParameters& parameters,
@@ -42,7 +44,7 @@ class MEDIA_EXPORT AudioInputStreamFuchsia : public AudioInputStream {
   void OnPacketProduced(fuchsia::media::StreamPacket packet);
 
   // Reports an error to |callback_| and disconnects |capturer_|.
-  void ReportError();
+  void ReportError(Error error_code);
 
   const raw_ptr<AudioManagerFuchsia> manager_;
   AudioParameters parameters_;

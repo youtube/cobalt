@@ -61,9 +61,12 @@ MirroringGpuFactoriesFactory::GetInstance() {
   static constexpr int32_t kStreamId = 0;
 
   auto gpu_channel_host = gpu_->EstablishGpuChannelSync();
-  context_provider_ = viz::ContextProviderCommandBuffer::CreateForGL(
+
+  context_provider_ = viz::ContextProviderCommandBuffer::CreateForRaster(
       gpu_channel_host, kStreamId, gpu::SchedulingPriority::kHigh,
-      GURL("chrome://gpu/CastStreaming"),
+      GURL("chrome://gpu/CastStreaming"), /*automatic_flushes=*/false,
+      /*support_locking=*/false, gpu::SharedMemoryLimits::ForMailboxContext(),
+
       viz::command_buffer_metrics::ContextType::VIDEO_CAPTURE);
 
   cast_environment_->PostTask(

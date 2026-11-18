@@ -1,6 +1,1 @@
-monorail: {
-  component: "Blink>Media>PictureInPicture"
-}
-buganizer_public: {
-  component_id: 1456334
-}
+mixins: "//third_party/blink/renderer/modules/picture_in_picture/COMMON_METADATA"

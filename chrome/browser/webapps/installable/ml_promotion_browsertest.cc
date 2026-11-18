@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/task/current_thread.h"
@@ -19,7 +20,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
@@ -762,6 +762,7 @@ IN_PROC_BROWSER_TEST_F(MLPromotionBrowserTest,
 
   // Refreshing the page should exit the pipeline early, and should not crash.
   web_app::NavigateViaLinkClickToURLAndWait(browser(), GetUrlOuterApp());
+  ml_promoter()->AwaitMetricsCollectionTasksCompleteForTesting();
   task_runner_->RunPendingTasks();
 }
 
@@ -894,8 +895,8 @@ class MLPromotionInstallDialogBrowserTest
         InstallAppForCurrentWebContents(/*install_locally=*/true);
         break;
       case InstallDialogState::kCreateShortcutDialog:
-        auto_accept_ = std::make_unique<
-            web_app::test::ScopedAutoAcceptCreateShortcutDialog>();
+        auto_accept_ = web_app::SetPwaInstallationAutoRespondForTesting(
+            web_app::InstallDialogTestResponse::kAcceptAndLaunch);
         chrome::ExecuteCommand(browser(), IDC_CREATE_SHORTCUT);
         break;
     }
@@ -905,7 +906,7 @@ class MLPromotionInstallDialogBrowserTest
     return GetParam() == InstallDialogState::kCreateShortcutDialog;
   }
 
-  std::unique_ptr<web_app::test::ScopedAutoAcceptCreateShortcutDialog>
+  std::optional<base::AutoReset<web_app::InstallDialogTestResponse>>
       auto_accept_;
 };
 

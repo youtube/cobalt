@@ -6,10 +6,12 @@
 
 #include <array>
 
+#include "base/feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/glic/common/application_hotkey_delegate.h"
+#include "chrome/browser/glic/public/features.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
-#include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/profiles/profile.h"
@@ -21,7 +23,7 @@ namespace glic {
 
 namespace {
 constexpr LocalHotkeyManager::Command kSupportedCommands[] = {
-    LocalHotkeyManager::Command::kOpenGlic,
+    LocalHotkeyManager::Command::kPanelToggle,
     LocalHotkeyManager::Command::kCaptureRegion,
 };
 }  // namespace
@@ -60,9 +62,15 @@ void InstanceIndependentHotkeyManager::RequestCaptureRegion() {
 bool InstanceIndependentHotkeyManager::AcceleratorPressed(
     LocalHotkeyManager::Command command) {
   switch (command) {
-    case LocalHotkeyManager::Command::kOpenGlic:
+    case LocalHotkeyManager::Command::kPanelToggle:
+      // If the hotkey is scoped globally (i.e. local scope is disabled),
+      // it is handled globally by GlicBackgroundModeManager. Let this local
+      // manager pass through to prevent duplicate triggering inside Chrome.
+      if (!base::FeatureList::IsEnabled(features::kGlicHotkeyLocalScope)) {
+        return false;
+      }
       coordinator_->Toggle(GetActiveGlicEligibleBrowser(profile_),
-                           /*prevent_close=*/true,
+                           /*prevent_close=*/false,
                            mojom::InvocationSource::kOsHotkey);
       return true;
 #if !BUILDFLAG(IS_ANDROID)

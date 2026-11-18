@@ -38,7 +38,7 @@ cargo_crate("lib") {
   cargo_pkg_name = "derivre"
   cargo_pkg_description = "A derivative-based regular expression engine"
   cargo_pkg_repository = "https://github.com/microsoft/derivre"
-  cargo_pkg_version = "0.3.11"
+  cargo_pkg_version = "0.3.12"
 
   allow_unsafe = false
 
@@ -46,9 +46,9 @@ cargo_crate("lib") {
     "//third_party/rust/anyhow/v1:lib",
     "//third_party/rust/bytemuck/v1:lib",
     "//third_party/rust/bytemuck_derive/v1:lib",
-    "//third_party/rust/hashbrown/v0_15:lib",
+    "//third_party/rust/hashbrown/v0_17:lib",
     "//third_party/rust/regex_syntax/v0_8:lib",
-    "//third_party/rust/strum/v0_27:lib",
+    "//third_party/rust/strum/v0_28:lib",
   ]
   features = [ "compress" ]
 

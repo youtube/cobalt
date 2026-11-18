@@ -179,7 +179,7 @@ void CobaltVideoOverlayWindow::SetPreviousSlideButtonVisibility(
 void CobaltVideoOverlayWindow::SetPlaybackControlsVisibility(bool is_visible) {}
 
 void CobaltVideoOverlayWindow::SetImmersiveVideoOptions(
-    blink::mojom::ImmersiveOptionsPtr options) {}
+    const content::ImmersiveOptions& options) {}
 
 void CobaltVideoOverlayWindow::SetMediaPosition(
     const media_session::MediaPosition& position) {}

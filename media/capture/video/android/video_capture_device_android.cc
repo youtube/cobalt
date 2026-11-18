@@ -506,6 +506,13 @@ void VideoCaptureDeviceAndroid::OnHardwareBufferAvailableOnMainThread(
   }
 
   const base::TimeDelta capture_time = base::Nanoseconds(timestamp);
+  // Since the zero copy path uses HardwareBuffer.USAGE_VIDEO_ENCODE, the
+  // timestamps will use CLOCK_MONOTONIC, as per the Android ImageReader
+  // documentation. This is the same as chromium TimeTicks, so the timestamp can
+  // be converted directly.
+  const base::TimeTicks reference_time =
+      base::TimeTicks::FromJavaNanoTime(timestamp);
+
   base::AutoLock lock(lock_);
   if (!client_) {
     return;
@@ -514,10 +521,10 @@ void VideoCaptureDeviceAndroid::OnHardwareBufferAvailableOnMainThread(
   VideoFrameMetadata metadata;
   metadata.ycbcr_info = ycbcr_info_;
 
-  client_->OnIncomingCapturedImage(
-      std::move(shared_image), format, rotation, current_time, capture_time,
-      /*capture_begin_timestamp=*/{}, format.frame_size, metadata,
-      /*frame_feedback_id=*/0);
+  client_->OnIncomingCapturedImage(std::move(shared_image), format, rotation,
+                                   reference_time, capture_time, reference_time,
+                                   format.frame_size, metadata,
+                                   /*frame_feedback_id=*/0);
 }
 
 void VideoCaptureDeviceAndroid::OnHardwareBufferAvailable(

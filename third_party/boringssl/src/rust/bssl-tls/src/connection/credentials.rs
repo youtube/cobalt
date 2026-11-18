@@ -18,10 +18,16 @@ use alloc::{
 };
 use core::{
     ffi::CStr,
-    ptr::null, //
+    ptr::{
+        NonNull,
+        null, //
+    }, //
 };
 
-use bssl_x509::{params::CertificateVerificationParams, store::X509Store};
+use bssl_x509::{
+    params::CertificateVerificationParams,
+    store::X509Store, //
+};
 
 use super::{
     Client,
@@ -60,11 +66,8 @@ where
         &mut self,
         mode: CertificateVerificationMode,
     ) -> &mut Self {
-        let ctx = self.ptr();
-        unsafe {
-            // Safety: this method only updates the mode value.
-            bssl_sys::SSL_set_verify(ctx, mode as _, None);
-        }
+        self.as_in_handshake()
+            .set_certificate_verification_mode(mode);
         self
     }
 
@@ -85,27 +88,14 @@ where
     where
         V: VerifyCertificate + 'static,
     {
-        let ctx = self.ptr();
-        unsafe {
-            // Safety: we only install our own vtable.
-            bssl_sys::SSL_set_custom_verify(
-                ctx,
-                mode as _,
-                Some(cert_cb::<super::methods::RustConnectionMethods<M>>),
-            );
-        }
-        self.get_connection_methods().verify_certificate_methods = Some(Box::new(verifier) as _);
+        self.as_in_handshake()
+            .set_certificate_verifier(mode, verifier);
         self
     }
 
     /// Remove custom certificate verifier.
     pub fn without_certificate_verifier(&mut self, mode: CertificateVerificationMode) -> &mut Self {
-        let ctx = self.ptr();
-        unsafe {
-            // Safety: we only uninstall the vtable.
-            bssl_sys::SSL_set_custom_verify(ctx, mode as _, None);
-        }
-        self.get_connection_methods().verify_certificate_methods = None;
+        self.as_in_handshake().remove_certificate_verifier(mode);
         self
     }
 }
@@ -133,10 +123,56 @@ where
 }
 
 /// # Custom certificate verification
-impl<M> TlsConnectionInHandshake<'_, Client, M>
+impl<R, M> TlsConnectionInHandshake<'_, R, M>
 where
     M: HasTlsConnectionMethod,
 {
+    /// Configure the certificate verification mode.
+    pub fn set_certificate_verification_mode(
+        &mut self,
+        mode: CertificateVerificationMode,
+    ) -> &mut Self {
+        let ctx = self.ptr();
+        unsafe {
+            // Safety: this method only updates the mode value.
+            bssl_sys::SSL_set_verify(ctx, mode as _, None);
+        }
+        self
+    }
+
+    /// Configure the certificate verifier.
+    pub fn set_certificate_verifier<V>(
+        &mut self,
+        mode: CertificateVerificationMode,
+        verifier: V,
+    ) -> &mut Self
+    where
+        V: VerifyCertificate + 'static,
+    {
+        let ctx = self.ptr();
+        unsafe {
+            // Safety: we only install our own vtable.
+            bssl_sys::SSL_set_custom_verify(
+                ctx,
+                mode as _,
+                Some(cert_cb::<super::methods::RustConnectionMethods<M>>),
+            );
+        }
+        self.get_connection_methods().verify_certificate_methods = Some(Box::new(verifier) as _);
+        self
+    }
+
+    /// Remove custom certificate verifier.
+    pub fn remove_certificate_verifier(&mut self, mode: CertificateVerificationMode) -> &mut Self {
+        let ctx = self.ptr();
+        unsafe {
+            // Safety: we only uninstall the vtable.
+            bssl_sys::SSL_set_custom_verify(ctx, mode as _, None);
+        }
+        self.get_connection_methods().verify_certificate_methods = None;
+        self
+    }
+
     /// Get the certificate verification mode set by [`Self::set_certificate_verification_mode`].
     pub fn get_certificate_verification_mode(&self) -> Option<CertificateVerificationMode> {
         unsafe {
@@ -286,6 +322,28 @@ impl<R, M> TlsConnectionInHandshake<'_, R, M> {
     }
 }
 
+/// # Sessions
+impl<R, M> TlsConnectionInHandshake<'_, R, M> {
+    /// Disable session creation.
+    pub fn disable_session(&mut self) -> &mut Self {
+        let ptr = self.ptr();
+        unsafe {
+            // Safety: the validity of the handle `ptr` is witnessed by `self`.
+            bssl_sys::SSL_set_mode(ptr, super::ConnectionMode::MODE_NO_SESSION_CREATION.bits());
+        }
+        self
+    }
+
+    /// Set the session for resumption.
+    pub fn set_session(&mut self, session: &crate::sessions::TlsSession) -> &mut Self {
+        unsafe {
+            // Safety: self.ptr and session.0 are valid.
+            bssl_sys::SSL_set_session(self.ptr.as_ptr(), session.0.as_ptr());
+        }
+        self
+    }
+}
+
 impl<'a, R, M> EstablishedTlsConnection<'a, R, M> {
     /// Export keying material from this connection into a buffer of a chosen length,
     /// as per [RFC 5705].
@@ -340,29 +398,14 @@ impl<R, M> TlsConnection<R, M> {
         ty.try_into().ok().and_then(|ty: u8| ty.try_into().ok())
     }
 
-    /// Get the peer's raw public key as DER-encoded SubjectPublicKeyInfo.
+    /// Get the peer's raw public key as DER-encoded `SubjectPublicKeyInfo`.
     pub fn get_peer_raw_public_key(&self) -> Option<Vec<u8>> {
         let pkey = unsafe {
             // Safety:
             // - `self.ptr()` is a valid `SSL` handle.
             // - `pkey` does not escape the current function frame.
-            bssl_sys::SSL_get0_peer_rpk(self.ptr())
+            NonNull::new(bssl_sys::SSL_get0_peer_rpk(self.ptr()))?
         };
-        if pkey.is_null() {
-            return None;
-        }
-
-        let buffer = bssl_crypto::cbb_to_buffer(64, |cbb| {
-            assert_eq!(
-                unsafe {
-                    // Safety:
-                    // - `cbb` is a valid pointer to `CBB` provided by `cbb_to_buffer`.
-                    // - `pkey` is a valid pointer to `EVP_PKEY`.
-                    bssl_sys::EVP_marshal_public_key(cbb, pkey)
-                },
-                1
-            );
-        });
-        Some(buffer.as_ref().to_vec())
+        Some(crate::credentials::marshal_evp_into_spki(pkey))
     }
 }

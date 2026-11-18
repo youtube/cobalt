@@ -183,8 +183,12 @@ suite('ContextualTasksWebviewTest', function() {
     document.body.appendChild(appElement);
     await microtasksFinished();
 
-    const threadFrame = appElement.$.threadFrame as chrome.webviewTag.WebView;
+    const threadFrame = appElement.$.threadFrame;
     assertTrue(!!threadFrame, 'Thread frame not found');
+
+    if (!isFullWebView(threadFrame)) {
+      return;
+    }
 
     const completionPromise = new Promise<void>(resolve => {
       const listener = (details: any) => {

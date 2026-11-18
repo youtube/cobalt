@@ -26,8 +26,6 @@ namespace wasm {
 class WasmValue;
 }  // namespace wasm
 
-#include "torque-generated/src/debug/debug-wasm-objects-tq.inc"
-
 class ArrayList;
 class WasmFrame;
 class WasmInstanceObject;
@@ -37,7 +35,7 @@ class WasmInterpreterEntryFrame;
 class WasmModuleObject;
 class WasmTableObject;
 
-class WasmValueObject : public JSObject {
+V8_OBJECT class WasmValueObject : public JSObject {
  public:
   DECL_ACCESSORS(type, Tagged<String>)
   DECL_ACCESSORS(value, Tagged<Object>)
@@ -62,7 +60,7 @@ class WasmValueObject : public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmValueObject);
-};
+} V8_OBJECT_END;
 
 DirectHandle<JSObject> GetWasmDebugProxy(WasmFrame* frame);
 

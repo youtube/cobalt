@@ -23,6 +23,8 @@ $flavour = "linux32" if (!$flavour or $flavour eq "void");
 
 my %GLOBALS;
 my $dotinlocallabels=($flavour=~/linux/)?1:0;
+my $current_segment;
+my %segment_had_labels;
 
 ################################################################
 # directives which need special treatment on different platforms
@@ -217,6 +219,10 @@ while(my $line=<>) {
     $line =~ s|^\s+||;		# ... and skip white spaces in beginning...
     $line =~ s|\s+$||;		# ... and at the end
 
+    if ($line =~ /^(\.data|\.text|\.section)\b(?:\s+(\S+))?/) {
+	$current_segment = $2 // $1;
+    }
+
     if ($flavour =~ /64/) {
 	my $copy = $line;
 	# Also remove line comments.
@@ -231,11 +237,31 @@ while(my $line=<>) {
 	$line =~ s|\bL(\w{2,})|\.L$1|g	if ($dotinlocallabels);
     }
 
-    {
-	$line =~ s|(^[\.\w]+)\:\s*||;
+    if ($line =~ s|(^[\.\w]+)\:\s*||) {
 	my $label = $1;
 	if ($label) {
-	    printf "%s:",($GLOBALS{$label} or $label);
+	    my $name = ($GLOBALS{$label} or $label);
+	    if ($name =~ /^\.?L/) {
+		if (!$segment_had_labels{$current_segment}) {
+		    # With `.subsections_via_symbols`, an asm-local label
+		    # cannot be the first label of a section.
+		    die "Section $current_segment starts with an asm-local .Label - please add at least a file-local label at the start";
+		}
+	    } else {
+		if ($segment_had_labels{$current_segment}++ && $flavour =~ /ios/) {
+		    # The macOS linker may split object files at symbol
+		    # definitions to eliminate dead code. It however is unable
+		    # to track jumps across these bounds, and also, for some
+		    # data objects it may cause layout to change. Marking every
+		    # symbol an alternate entry point is safe and should turn
+		    # the optimization into a NOP for these assembly files and
+		    # may add necessary relocations. It however is invalid to
+		    # mark the _first_ symbol of a section so, as it always is
+		    # considered an entry point.
+		    printf ".alt_entry %s\n", $name;
+		}
+	    }
+	    printf "%s:", $name;
 	}
     }
 

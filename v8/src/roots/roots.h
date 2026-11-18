@@ -117,6 +117,7 @@ class RootVisitor;
   V(Map, feedback_metadata_map, FeedbackMetadataArrayMap)                      \
   V(Map, feedback_vector_map, FeedbackVectorMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
+  V(Map, hash_seed_wrapper_map, HashSeedWrapperMap)                            \
   V(Map, function_template_info_map, FunctionTemplateInfoMap)                  \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, instruction_stream_map, InstructionStreamMap)                         \
@@ -177,6 +178,7 @@ class RootVisitor;
   V(Map, protected_fixed_array_map, ProtectedFixedArrayMap)                    \
   V(Map, protected_weak_fixed_array_map, ProtectedWeakFixedArrayMap)           \
   V(Map, interpreter_data_map, InterpreterDataMap)                             \
+  V(Map, debug_info_map, DebugInfoMap)                                         \
   V(Map, shared_function_info_wrapper_map, SharedFunctionInfoWrapperMap)       \
   V(Map, trusted_foreign_map, TrustedForeignMap)                               \
   V(Map, uncompiled_data_without_preparse_data_map,                            \
@@ -283,7 +285,7 @@ class RootVisitor;
   V(RegisteredSymbolTable, empty_symbol_table, EmptySymbolTable)               \
   V(ContextCell, undefined_context_cell, UndefinedContextCell)                 \
   /* Hash seed */                                                              \
-  V(ByteArray, hash_seed, HashSeed)                                            \
+  V(HashSeedWrapper, hash_seed, HashSeed)                                      \
   V(FixedArray, preallocated_number_string_table,                              \
     PreallocatedNumberStringTable)                                             \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)

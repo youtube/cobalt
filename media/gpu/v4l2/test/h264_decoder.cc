@@ -453,7 +453,7 @@ void H264Decoder::FlushDPB() {
 
 void H264Decoder::InitializeDecoderLogic() {
   parser_ = std::make_unique<H264Parser>();
-  parser_->SetStream(data_stream_->data(), data_stream_->length());
+  parser_->SetStream(data_stream_->bytes());
 
   // Advance through NALUs until the first SPS.  The start of the decodable
   // data in an h.264 bistreams starts with an SPS.
@@ -904,7 +904,7 @@ void H264Decoder::FinishPicture(H264SliceMetadata picture, const int sps_id) {
 std::unique_ptr<H264Decoder> H264Decoder::Create(
     const base::MemoryMappedFile& stream) {
   auto parser = std::make_unique<H264Parser>();
-  parser->SetStream(stream.data(), stream.length());
+  parser->SetStream(stream.bytes());
 
   // Advance through NALUs until the first SPS.  The start of the decodable
   // data in an h.264 bistreams starts with an SPS.

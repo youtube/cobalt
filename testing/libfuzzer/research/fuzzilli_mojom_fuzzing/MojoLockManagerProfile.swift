@@ -89,136 +89,138 @@ extension ILType {
         ])
 }
 
-private let lockManager = ObjectGroup(
-    name: MojoStrings.lockManager,
-    instanceType: .jsLockManager,
-    properties: [
-        "$interfaceName": .string
-    ],
-    methods: [
-        "getRemote": [] => .jsLockManagerRemote
-    ]
-)
+extension ObjectGroup {
+    fileprivate static let lockManager = ObjectGroup(
+        name: MojoStrings.lockManager,
+        instanceType: .jsLockManager,
+        properties: [
+            "$interfaceName": .string
+        ],
+        methods: [
+            "getRemote": [] => .jsLockManagerRemote
+        ]
+    )
 
-private let lockManagerRemote = ObjectGroup(
-    name: MojoStrings.lockManagerRemote,
-    instanceType: .jsLockManagerRemote,
-    properties: [
-        "$": .jsLockManagerRemoteWrapper
-    ],
-    methods: [
-        "requestLock": [
-            .string, .plain(.jsLockMode), .plain(.jsWaitMode),
-            .plain(.jsLockRequestRemote),
-        ] => .undefined,
-        "queryState": [] => .jsPromise,  // Returns {requested: [LockInfo], held: [LockInfo]}
-    ]
-)
+    fileprivate static let lockManagerRemote = ObjectGroup(
+        name: MojoStrings.lockManagerRemote,
+        instanceType: .jsLockManagerRemote,
+        properties: [
+            "$": .jsLockManagerRemoteWrapper
+        ],
+        methods: [
+            "requestLock": [
+                .string, .plain(.jsLockMode), .plain(.jsWaitMode),
+                .plain(.jsLockRequestRemote),
+            ] => .undefined,
+            "queryState": [] => .jsPromise,  // Returns {requested: [LockInfo], held: [LockInfo]}
+        ]
+    )
 
-private let lockManagerRemoteWrapper = ObjectGroup(
-    name: MojoStrings.lockManagerRemoteWrapper,
-    instanceType: .jsLockManagerRemoteWrapper,
-    properties: [:],
-    methods: [
-        "close": [] => .undefined
-    ]
-)
+    fileprivate static let lockManagerRemoteWrapper = ObjectGroup(
+        name: MojoStrings.lockManagerRemoteWrapper,
+        instanceType: .jsLockManagerRemoteWrapper,
+        properties: [:],
+        methods: [
+            "close": [] => .undefined
+        ]
+    )
 
-private let lockRequestCallbackRouter = ObjectGroup(
-    name: MojoStrings.lockRequestCallbackRouter,
-    instanceType: .jsLockRequestCallbackRouter,
-    properties: [
-        "$": .jsLockRequestCallbackRouterReceiverHelper,
-        "granted": .jsLockRequestGrantedCallbackReceiver,
-        "failed": .jsLockRequestFailedCallbackReceiver,
-    ],
-    methods: [:]
-)
+    fileprivate static let lockRequestCallbackRouter = ObjectGroup(
+        name: MojoStrings.lockRequestCallbackRouter,
+        instanceType: .jsLockRequestCallbackRouter,
+        properties: [
+            "$": .jsLockRequestCallbackRouterReceiverHelper,
+            "granted": .jsLockRequestGrantedCallbackReceiver,
+            "failed": .jsLockRequestFailedCallbackReceiver,
+        ],
+        methods: [:]
+    )
 
-private let lockRequestCallbackRouterReceiverHelper = ObjectGroup(
-    name: MojoStrings.lockRequestCallbackRouterReceiverHelper,
-    instanceType: .jsLockRequestCallbackRouterReceiverHelper,
-    properties: [:],
-    methods: [
-        "associateAndPassRemote": [] => .jsLockRequestRemote,
-        "closeBindings": [] => .undefined,
-    ]
-)
+    fileprivate static let lockRequestCallbackRouterReceiverHelper = ObjectGroup(
+        name: MojoStrings.lockRequestCallbackRouterReceiverHelper,
+        instanceType: .jsLockRequestCallbackRouterReceiverHelper,
+        properties: [:],
+        methods: [
+            "associateAndPassRemote": [] => .jsLockRequestRemote,
+            "closeBindings": [] => .undefined,
+        ]
+    )
 
-private let lockRequestGrantedCallbackReceiver = ObjectGroup(
-    name: MojoStrings.lockRequestGrantedCallbackReceiver,
-    instanceType: .jsLockRequestGrantedCallbackReceiver,
-    properties: [:],
-    methods: [
-        "addListener": [
-            .plain(.function([.plain(.jsLockHandleRemote)] => .undefined))
-        ] => .integer
-    ]
-)
+    fileprivate static let lockRequestGrantedCallbackReceiver = ObjectGroup(
+        name: MojoStrings.lockRequestGrantedCallbackReceiver,
+        instanceType: .jsLockRequestGrantedCallbackReceiver,
+        properties: [:],
+        methods: [
+            "addListener": [
+                .plain(.function([.plain(.jsLockHandleRemote)] => .undefined))
+            ] => .integer
+        ]
+    )
 
-private let lockRequestFailedCallbackReceiver = ObjectGroup(
-    name: MojoStrings.lockRequestFailedCallbackReceiver,
-    instanceType: .jsLockRequestFailedCallbackReceiver,
-    properties: [:],
-    methods: [
-        "addListener": [.plain(.function([] => .undefined))] => .integer
-    ]
-)
+    fileprivate static let lockRequestFailedCallbackReceiver = ObjectGroup(
+        name: MojoStrings.lockRequestFailedCallbackReceiver,
+        instanceType: .jsLockRequestFailedCallbackReceiver,
+        properties: [:],
+        methods: [
+            "addListener": [.plain(.function([] => .undefined))] => .integer
+        ]
+    )
 
-private let lockRequestRemote = ObjectGroup(
-    name: MojoStrings.lockRequestRemote,
-    instanceType: .jsLockRequestRemote,
-    properties: [:],
-    methods: [:]
-)
+    fileprivate static let lockRequestRemote = ObjectGroup(
+        name: MojoStrings.lockRequestRemote,
+        instanceType: .jsLockRequestRemote,
+        properties: [:],
+        methods: [:]
+    )
 
-private let lockHandleCallbackRouter = ObjectGroup(
-    name: MojoStrings.lockHandleCallbackRouter,
-    instanceType: .jsLockHandleCallbackRouter,
-    properties: [
-        "$": .jsLockHandleCallbackRouterReceiverHelper
-    ],
-    methods: [:]
-)
+    fileprivate static let lockHandleCallbackRouter = ObjectGroup(
+        name: MojoStrings.lockHandleCallbackRouter,
+        instanceType: .jsLockHandleCallbackRouter,
+        properties: [
+            "$": .jsLockHandleCallbackRouterReceiverHelper
+        ],
+        methods: [:]
+    )
 
-private let lockHandleCallbackRouterReceiverHelper = ObjectGroup(
-    name: MojoStrings.lockHandleCallbackRouterReceiverHelper,
-    instanceType: .jsLockHandleCallbackRouterReceiverHelper,
-    properties: [:],
-    methods: [
-        "associateAndPassRemote": [] => .jsLockHandleRemote,
-        "closeBindings": [] => .undefined,
-    ]
-)
+    fileprivate static let lockHandleCallbackRouterReceiverHelper = ObjectGroup(
+        name: MojoStrings.lockHandleCallbackRouterReceiverHelper,
+        instanceType: .jsLockHandleCallbackRouterReceiverHelper,
+        properties: [:],
+        methods: [
+            "associateAndPassRemote": [] => .jsLockHandleRemote,
+            "closeBindings": [] => .undefined,
+        ]
+    )
 
-private let lockHandleRemote = ObjectGroup(
-    name: MojoStrings.lockHandleRemote,
-    instanceType: .jsLockHandleRemote,
-    properties: [
-        "$": .jsLockHandleRemoteWrapper
-    ],
-    methods: [:]
-)
+    fileprivate static let lockHandleRemote = ObjectGroup(
+        name: MojoStrings.lockHandleRemote,
+        instanceType: .jsLockHandleRemote,
+        properties: [
+            "$": .jsLockHandleRemoteWrapper
+        ],
+        methods: [:]
+    )
 
-private let lockHandleRemoteWrapper = ObjectGroup(
-    name: MojoStrings.lockHandleRemoteWrapper,
-    instanceType: .jsLockHandleRemoteWrapper,
-    properties: [:],
-    methods: [
-        "close": [] => .undefined
-    ]
-)
+    fileprivate static let lockHandleRemoteWrapper = ObjectGroup(
+        name: MojoStrings.lockHandleRemoteWrapper,
+        instanceType: .jsLockHandleRemoteWrapper,
+        properties: [:],
+        methods: [
+            "close": [] => .undefined
+        ]
+    )
 
-private let lockInfo = ObjectGroup(
-    name: MojoStrings.lockInfo,
-    instanceType: .jsLockInfo,
-    properties: [
-        "name": .string,
-        "mode": .jsLockMode,
-        "client_id": .string,
-    ],
-    methods: [:]
-)
+    fileprivate static let lockInfo = ObjectGroup(
+        name: MojoStrings.lockInfo,
+        instanceType: .jsLockInfo,
+        properties: [
+            "name": .string,
+            "mode": .jsLockMode,
+            "client_id": .string,
+        ],
+        methods: [:]
+    )
+}
 
 private let mojoBuiltins: [String: ILType] = [
     MojoStrings.lockManager: .jsLockManager,
@@ -241,54 +243,6 @@ private let MojoLockManagerFuzzer = ProgramTemplate("MojoLockManagerFuzzer") {
 
     // Generate random code to use the objects further
     b.build(n: 20)
-}
-
-/// Mojo variant of the builtin `BuiltinGenerator` that operates only on "Mojo"
-/// objects instead of all the objects in the JavaScript environment, most of
-/// which are unrelated to the interface. This generates emits a variable of a
-/// random Mojo type for use by other CodeGenerators
-private let MojoBuiltinGenerator = CodeGenerator("MojoBuiltinGenerator") { b in
-    let mojoBuiltinNames = Array(mojoBuiltins.keys)
-    let randomMojoBuiltin = chooseUniform(from: mojoBuiltinNames)
-    b.createNamedVariable(forBuiltin: randomMojoBuiltin)
-}
-
-/// Creates a LockRequestCallbackRouter variable and constructs it for use by
-/// other CodeGenerators
-private let MojoLockRequestCallbackRouterGenerator = CodeGenerator(
-    "MojoLockRequestCallbackRouterGenerator",
-    produces: [.jsLockRequestCallbackRouter]
-) { b in
-    let routerBuiltin = b.createNamedVariable(
-        forBuiltin: MojoStrings.lockRequestCallbackRouter)
-    b.construct(routerBuiltin, withArgs: [])
-}
-
-/// Creates a LockManager variable and calls getRemote on it to get a
-/// LockManagerRemote for use by other CodeGenerators. Although
-/// MojoBuiltinGenerator and MojoMethodCallGenerator can together generate the
-/// same code, this dedicated generator increases the frequency of
-/// LockManagerRemote objects in programs.
-private let MojoLockManagerRemoteGenerator = CodeGenerator(
-    "MojoLockManagerRemoteGenerator", produces: [.jsLockManagerRemote]
-) { b in
-    let managerStatic = b.createNamedVariable(
-        forBuiltin: MojoStrings.lockManager)
-    b.callMethod("getRemote", on: managerStatic, withArgs: [])
-}
-
-/// Produces a LockRequestRemote, either using an existing
-/// LockRequestCallbackRouter or generating one on demand, for use by other
-/// CodeGenerators. Although existing generators can together generate the same
-/// code, this dedicated generator increases the frequency of LockRequestRemote
-/// objects in programs.
-private let MojoLockRequestRemoteGenerator = CodeGenerator(
-    "MojoLockRequestRemoteGenerator",
-    inputs: .required(.jsLockRequestCallbackRouter),
-    produces: [.jsLockRequestRemote]
-) { b, router in
-    let helper = b.getProperty("$", of: router)
-    b.callMethod("associateAndPassRemote", on: helper, withArgs: [])
 }
 
 /// Emits code for adding a callback to a callback router. Since correctly
@@ -334,16 +288,19 @@ private func isTargetObject(type: ILType) -> Bool {
 /// method calls, generating any arguments that are not available.
 private let MojoMethodCallGenerator = CodeGenerator("MojoMethodCallGenerator") {
     b in
-    let targetVar = b.findVariable { isTargetObject(type: b.type(of: $0)) }
-    guard let obj = targetVar else { return }
+    // Pick a variable among all Mojo variables with methods
+    var targetVar = b.findVariable {
+        let type = b.type(of: $0)
+        return isTargetObject(type: type) && !type.methods.isEmpty
+            && type.group != MojoStrings.lockManager
+    }
 
-    // ~20% of the time, try to close the object if it has a `$` wrapper.
-    // This triggers disconnected channels while requests are queued or held.
-    if probability(0.2),
-        b.type(of: obj).properties.contains("$")
-    {
-        let wrapper = b.getProperty("$", of: obj)
-        b.callMethod("close", on: wrapper, withArgs: [])
+    // If we can't find a Mojo object in scope, create the LockManager remote
+    guard let obj = targetVar else {
+        let primaryStatic = b.createNamedVariable(
+            forBuiltin: MojoStrings.lockManager)
+        b.callMethod(
+            "getRemote", on: primaryStatic, withArgs: [])
         return
     }
 
@@ -351,12 +308,11 @@ private let MojoMethodCallGenerator = CodeGenerator("MojoMethodCallGenerator") {
         b.loadString("EXPERIMENTAL_lock_manager_crash")
     }
 
-    // Only call known Mojo methods to avoid random JS pollution
-    guard let methodName = b.type(of: obj).randomMethod() else { return }
-
+    let methodName = b.type(of: obj).randomMethod()!
     let signatures = b.methodSignatures(of: methodName, on: obj)
     let signature = chooseUniform(from: signatures)
-    let arguments = b.findOrGenerateArguments(forSignature: signature)
+    let arguments = b.findOrGenerateArguments(
+        forSignature: signature, maxNumberOfVariablesToGenerate: 500)
     b.callMethod(methodName, on: obj, withArgs: arguments, guard: false)
 }
 
@@ -406,40 +362,35 @@ let mojoLockManagerProfile = Profile(
     ] + v8Profile.startupTests,
     // TODO(crbug.com/500389756) Investigate automatic generation of weights
     additionalCodeGenerators: [
-        (MojoBuiltinGenerator, 100),
-        (MojoMethodCallGenerator, 80),
-        (MojoPropertyRetrievalGenerator, 80),
-        (MojoLockRequestCallbackRouterGenerator, 100),
-        (MojoLockManagerRemoteGenerator, 100),
-        (MojoLockRequestRemoteGenerator, 100),
-        (MojoRouterListenerGenerator, 80),
-
-    ],
+        (MojoMethodCallGenerator, 10000),
+        (MojoPropertyRetrievalGenerator, 10000),
+        (MojoRouterListenerGenerator, 5000),
+    ] + commonMojoCodeGenerators,
     additionalProgramTemplates: WeightedList([
         // Heavily bias Fuzzilli to use the ProgramTemplate that establishes a Mojo connection.
         (MojoLockManagerFuzzer, 1000)
     ]),
     disabledCodeGenerators: mojoDisabledGenerators,
     disabledMutators: v8Profile.disabledMutators,
-    additionalBuiltins: mojoBuiltins,
+    additionalBuiltins: mojoBuiltins.merging(commonMojoBuiltins) { (existing, _) in existing },
     additionalObjectGroups: [
-        lockManager,
-        lockManagerRemote,
-        lockManagerRemoteWrapper,
-        lockRequestCallbackRouter,
-        lockRequestCallbackRouterReceiverHelper,
-        lockRequestGrantedCallbackReceiver,
-        lockRequestFailedCallbackReceiver,
-        lockRequestRemote,
-        lockHandleCallbackRouter,
-        lockHandleCallbackRouterReceiverHelper,
-        lockHandleRemote,
-        lockHandleRemoteWrapper,
-        lockInfo,
-    ],
+        .lockManager,
+        .lockManagerRemote,
+        .lockManagerRemoteWrapper,
+        .lockRequestCallbackRouter,
+        .lockRequestCallbackRouterReceiverHelper,
+        .lockRequestGrantedCallbackReceiver,
+        .lockRequestFailedCallbackReceiver,
+        .lockRequestRemote,
+        .lockHandleCallbackRouter,
+        .lockHandleCallbackRouterReceiverHelper,
+        .lockHandleRemote,
+        .lockHandleRemoteWrapper,
+        .lockInfo,
+    ] + commonMojoObjectGroups,
     additionalEnumerations: [
         .jsLockMode, .jsWaitMode,
-    ],
-    additionalOptionsBags: [],
+    ] + commonMojoEnumerations,
+    additionalOptionsBags: [] + commonMojoOptionsBags,
     optionalPostProcessor: nil
 )

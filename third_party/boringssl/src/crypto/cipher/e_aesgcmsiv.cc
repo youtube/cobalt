@@ -271,11 +271,11 @@ void gcm_siv_asm_polyval(uint8_t out_tag[16], Span<const CRYPTO_IOVEC> iovecs,
     return true;
   };
 
-  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(aadvecs, f_whole,
-                                                               f_final);
+  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(
+      aadvecs, f_whole, f_final);
 
-  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(iovecs, f_whole,
-                                                               f_final);
+  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(
+      iovecs, f_whole, f_final);
 
   uint8_t length_block[16];
   CRYPTO_store_u64_le(length_block, ad_len * 8);
@@ -847,8 +847,8 @@ void gcm_siv_polyval(uint8_t out_tag[16], Span<const CRYPTO_IOVEC> iovecs,
     return true;
   };
 
-  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(aadvecs, f_whole,
-                                                               f_final);
+  bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(
+      aadvecs, f_whole, f_final);
 
   if (encrypt) {
     bssl::iovec::ForEachBlockRange<AES_BLOCK_SIZE, /*WriteOut=*/false>(
@@ -904,7 +904,7 @@ void gcm_siv_keys(const struct aead_aes_gcm_siv_ctx *gcm_siv_ctx,
   }
 
   OPENSSL_memcpy(out_keys->auth_key, key_material, 16);
-  // Note the `ctr128_f` function uses a big-endian couner, while AES-GCM-SIV
+  // Note the `ctr128_f` function uses a big-endian counter, while AES-GCM-SIV
   // uses a little-endian counter. We ignore the return value and only use
   // `block128_f`. This has a significant performance cost for the fallback
   // bitsliced AES implementations (bsaes and aes_nohw).

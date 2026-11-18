@@ -49,6 +49,12 @@ bool HasIsolatedStorage(const std::string& extension_id,
 bool HasIsolatedStorage(const Extension& extension,
                         content::BrowserContext* context);
 
+// Returns whether the extension with `extension_id` is force installed by
+// policy, and fills `reason` (if non-null) with expository text.
+bool IsExtensionForceInstalled(const std::string& extension_id,
+                               content::BrowserContext* context,
+                               std::u16string* reason = nullptr);
+
 // Sets whether `extension_id` can run in an incognito window. Reloads the
 // extension if it's enabled since this permission is applied at loading time
 // only. Note that an ExtensionService must exist.

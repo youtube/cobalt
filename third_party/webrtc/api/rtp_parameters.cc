@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "absl/strings/ascii.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "api/rtc_error.h"
 #include "api/rtp_header_extension_id.h"
@@ -229,13 +230,17 @@ RtpParameters::~RtpParameters() = default;
 
 std::string RtpExtension::ToString() const {
   StringBuilder sb;
-  sb << "{uri: " << uri;
+  sb << "{uri: " << SanitizedUriForLogging();
   sb << ", id: " << id;
   if (encrypt) {
     sb << ", encrypt";
   }
   sb << "}";
   return sb.Release();
+}
+
+std::string RtpExtension::SanitizedUriForLogging() const {
+  return absl::CEscape(uri);
 }
 
 bool RtpExtension::IsSupportedForAudio(absl::string_view uri) {

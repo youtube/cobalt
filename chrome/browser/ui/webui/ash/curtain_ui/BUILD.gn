@@ -11,13 +11,13 @@ static_library("curtain_ui") {
   ]
 
   deps = [
+    "//ash/constants",
     "//ash/strings",
     "//ash/webui/common",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/chromeos/remote_maintenance_curtain:resources",
     "//chrome/browser/resources/chromeos/remote_maintenance_curtain:resources_grit",
     "//chrome/browser/ui/webui/ash/login",
-    "//chrome/common",
     "//content/public/browser",
     "//content/public/common",
     "//ui/webui",

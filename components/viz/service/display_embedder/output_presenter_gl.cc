@@ -204,10 +204,6 @@ void OutputPresenterGL::SetVSyncDisplayID(int64_t display_id,
   presenter_->SetVSyncDisplayID(display_id, force_update);
 }
 
-void OutputPresenterGL::RefreshRateChangedOnSameDisplay() {
-  presenter_->RefreshRateChangedOnSameDisplay();
-}
-
 #if BUILDFLAG(IS_APPLE)
 void OutputPresenterGL::SetMaxPendingSwaps(int max_pending_swaps) {
   presenter_->SetMaxPendingSwaps(max_pending_swaps);

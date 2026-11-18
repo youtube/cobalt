@@ -19,17 +19,16 @@ struct AdapterInfo;
 enum class WebGPUBlocklistReason : uint64_t {
   None = 0,
   StringPatternOther = 1,
-  DynamicArrayIndexInStruct = 1 << 1,
-  IndirectComputeRootConstants = 1 << 2,
-  WindowsLimitedSupport = 1 << 3,
-  AndroidGLES = 1 << 4,
-  AndroidLimitedSupport = 1 << 5,
-  AMDMissingDrmFormatModifier = 1 << 6,
-  CPUAdapter = 1 << 7,
-  D3D11 = 1 << 8,
-  Consteval22ndBit = 1 << 9,
-  QualcommWindows = 1 << 10,
-  StringPatternQualcommWindows = 1 << 11,
+  IndirectComputeRootConstants = 1 << 1,
+  WindowsLimitedSupport = 1 << 2,
+  AndroidGLES = 1 << 3,
+  AndroidLimitedSupport = 1 << 4,
+  AMDMissingDrmFormatModifier = 1 << 5,
+  CPUAdapter = 1 << 6,
+  D3D11 = 1 << 7,
+  Consteval22ndBit = 1 << 8,
+  QualcommWindows = 1 << 9,
+  StringPatternQualcommWindows = 1 << 10,
   // When adding an enum, update kKnownReasons with a description.
 };
 

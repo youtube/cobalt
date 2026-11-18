@@ -233,18 +233,6 @@ class TabStripModelDelegate {
   // Glic related delegation (see GlicKeyedService and GlicSharingManager).
   // Note: 'Pinning' in Glic is a distinct notion.
 
-  // Returns true if the tab is Glic-pinned.
-  virtual bool IsTabGlicPinned(tabs::TabHandle tab_handle) = 0;
-
-  // Glic-pins the tab and returns true if successful.
-  virtual bool GlicPinTabs(base::span<const tabs::TabHandle> tab_handles) = 0;
-
-  // Glic-unpins the tab and returns true if successful.
-  virtual bool GlicUnpinTabs(base::span<const tabs::TabHandle> tab_handles) = 0;
-
-  // Opens the Glic window if not already open.
-  virtual void OpenGlicWindowFromSharedTab() = 0;
-
   // Unpins the specified tabs from all Glic conversations.
   virtual void GlicUnpinTabsFromAllConversations(
       base::span<const tabs::TabHandle> tab_handles);

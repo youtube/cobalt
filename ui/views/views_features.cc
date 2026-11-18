@@ -11,6 +11,14 @@ namespace views::features {
 
 // Please keep alphabetized.
 
+// When enabled, the screen capture exclusion feature (such as
+// SetExcludeFromScreenCapture) is allowed even when running inside a remote
+// session. By default, it is disabled to prevent excluded windows (such as
+// Picture-in-Picture) from being completely hidden from the remote user's
+// local view of that remote session.
+BASE_FEATURE(kAllowWindowCaptureExclusionInRemoteSessions,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Used to apply the initial URL to the WebContents in WebView. This is a kill
 // switch for this new logic, see crbug.com/456058558.
 // TODO(https://crbug.com/456058558): Remove this flag once the feature becomes

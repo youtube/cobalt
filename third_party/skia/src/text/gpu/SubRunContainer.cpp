@@ -21,12 +21,11 @@
 #include "include/core/SkSurfaceProps.h"
 #include "include/core/SkTypes.h"
 #include "include/effects/SkDashPathEffect.h"
-#include "include/private/base/SkFloatingPoint.h"
-#include "include/private/base/SkOnce.h"
-#include "include/private/base/SkTArray.h"
-#include "include/private/base/SkTLogic.h"
-#include "include/private/base/SkTo.h"
-#include "src/base/SkZip.h"
+#include "include/private/SkFloatingPoint.h"
+#include "include/private/SkOnce.h"
+#include "include/private/SkTArray.h"
+#include "include/private/SkTLogic.h"
+#include "include/private/SkTo.h"
 #include "src/core/SkDevice.h"
 #include "src/core/SkDistanceFieldGen.h"
 #include "src/core/SkEnumerate.h"
@@ -42,6 +41,7 @@
 #include "src/core/SkStrikeCache.h"
 #include "src/core/SkStrikeSpec.h"
 #include "src/core/SkWriteBuffer.h"
+#include "src/core/SkZip.h"
 #include "src/gpu/MaskFormat.h"
 #include "src/text/GlyphRun.h"
 #include "src/text/StrikeForGPU.h"
@@ -892,7 +892,7 @@ public:
             , fUseLCDText{useLCDText}
             , fAntiAliased{antiAliased}
             , fMatrixRange{matrixRange} {
-        SkASSERT(fVertexFiller.maskFormat() == MaskFormat::kA8);
+        SkASSERT_RELEASE(fVertexFiller.maskFormat() == MaskFormat::kA8);
     }
 
     static SubRunOwner Make(SkZip<const SkPackedGlyphID, const SkPoint> accepted,
@@ -942,6 +942,8 @@ public:
         auto vertexFiller = make_vertex_filler_from_buffer(buffer, alloc, &glyphVector.value(),
                                                            skglyph::kSDFT, kGlyphInsetting);
         if (!buffer.validate(vertexFiller.has_value())) { return nullptr; }
+
+        if (!buffer.validate(vertexFiller->maskFormat() == MaskFormat::kA8)) { return nullptr; }
 
         return alloc->makeUnique<SDFTSubRun>(useLCD,
                                              isAntiAliased,

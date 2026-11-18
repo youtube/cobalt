@@ -24,11 +24,11 @@
 #import "ios/web/public/web_state_observer.h"
 #import "ios/web/public/web_state_user_data.h"
 
-@protocol BWGCommands;
-@protocol HelpCommands;
-@protocol LocationBarBadgeCommands;
+@protocol GeminiCommands;
 @class GeminiPageContext;
+@protocol HelpCommands;
 enum class IOSGeminiInvocationPageType;
+@protocol LocationBarBadgeCommands;
 
 namespace gemini {
 enum class FloatyUpdateSource;
@@ -94,7 +94,7 @@ class GeminiTabHelper : public web::WebStateObserver,
   std::optional<std::string> GetServerId();
 
   // Set the Gemini commands handler, used to show/hide the Gemini UI.
-  void SetGeminiCommandsHandler(id<BWGCommands> handler);
+  void SetGeminiHandler(id<GeminiCommands> handler);
 
   // Set help commands handler, for showing in-product help UI.
   void SetHelpCommandsHandler(id<HelpCommands> handler);
@@ -250,7 +250,7 @@ class GeminiTabHelper : public web::WebStateObserver,
   raw_ptr<web::WebState> web_state_ = nullptr;
 
   // Commands handler for Gemini commands.
-  __weak id<BWGCommands> gemini_commands_handler_ = nullptr;
+  __weak id<GeminiCommands> gemini_handler_ = nullptr;
 
   // Commands handler for help commands.
   __weak id<HelpCommands> help_commands_handler_ = nullptr;
@@ -284,6 +284,11 @@ class GeminiTabHelper : public web::WebStateObserver,
   // The service managing zero-state suggestions.
   std::unique_ptr<ai::ZeroStateSuggestionsService>
       zero_state_suggestions_service_;
+
+  // Whether Gemini contextual features (such as zero-state suggestions and
+  // Image Remix) are eligible to be shown on the current page, based on the
+  // optimization guide decision.
+  bool gemini_contextual_eligibility_ = false;
 
   // Callback to be run when the page has finished loading.
   base::RepeatingClosure page_loaded_callback_;

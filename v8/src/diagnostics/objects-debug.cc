@@ -33,6 +33,7 @@
 #include "src/objects/foreign-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/hash-seed-wrapper-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type.h"
@@ -313,6 +314,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case DOUBLE_STRING_CACHE_TYPE:
       Cast<DoubleStringCache>(this)->DoubleStringCacheVerify(isolate);
+      break;
+    case HASH_SEED_WRAPPER_TYPE:
+      Cast<HashSeedWrapper>(this)->HashSeedWrapperVerify(isolate);
       break;
 
 #define MAKE_TORQUE_CASE(Name, TYPE)                \
@@ -1850,6 +1854,10 @@ void PrimitiveHeapObject::PrimitiveHeapObjectVerify(Isolate* isolate) {
 void HeapNumber::HeapNumberVerify(Isolate* isolate) {
   PrimitiveHeapObjectVerify(isolate);
   CHECK(Is<HeapNumber>(this));
+}
+
+void HashSeedWrapper::HashSeedWrapperVerify(Isolate* isolate) {
+  CHECK(Is<HashSeedWrapper>(this));
 }
 
 void Oddball::OddballVerify(Isolate* isolate) {
@@ -3500,10 +3508,6 @@ void WasmArray::WasmArrayVerify(Isolate* isolate) {
   CHECK(Is<WasmArray>(this));
 }
 
-void WasmMemoryMapDescriptor::WasmMemoryMapDescriptorVerify(Isolate* isolate) {
-  CHECK(Is<WasmMemoryMapDescriptor>(this));
-}
-
 void WasmMemoryObject::WasmMemoryObjectVerify(Isolate* isolate) {
   CHECK(Is<WasmMemoryObject>(this));
   Object::VerifyPointer(isolate, array_buffer());
@@ -3681,15 +3685,15 @@ void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
 }
 
 void DebugInfo::DebugInfoVerify(Isolate* isolate) {
-  CHECK(Is<Struct>(this));
+  CHECK(Is<ExposedTrustedObject>(this));
   CHECK(Is<DebugInfo>(this));
   Object::VerifyPointer(isolate, shared());
   Object::VerifyPointer(isolate, break_points());
   Object::VerifyPointer(isolate, coverage_info());
   CHECK_IMPLIES(has_original_bytecode_array(),
-                IsBytecodeArray(original_bytecode_array(isolate)));
+                IsBytecodeArray(original_bytecode_array()));
   CHECK_IMPLIES(has_debug_bytecode_array(),
-                IsBytecodeArray(debug_bytecode_array(isolate)));
+                IsBytecodeArray(debug_bytecode_array()));
 }
 
 void BreakPointInfo::BreakPointInfoVerify(Isolate* isolate) {

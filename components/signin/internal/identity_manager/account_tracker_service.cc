@@ -335,14 +335,21 @@ void AccountTrackerService::SetAccountCapabilities(
   DCHECK(accounts_.contains(account_id));
   AccountInfo& account_info = accounts_[account_id];
 
-  bool modified = account_info.capabilities.UpdateWith(account_capabilities);
+  AccountCapabilities updated_capabilities =
+      account_info.GetAccountCapabilities();
+  bool modified = updated_capabilities.UpdateWith(account_capabilities);
+  if (modified) {
+    account_info = AccountInfo::Builder(account_info)
+                       .UpdateAccountCapabilitiesWith(updated_capabilities)
+                       .Build();
+  }
 
 #if !(BUILDFLAG(IS_CHROMEOS))
   // Set the child account status based on the account capabilities.
   modified = UpdateAccountInfoChildStatus(
-                 account_info,
-                 account_info.capabilities.is_subject_to_parental_controls() ==
-                     signin::Tribool::kTrue) ||
+                 account_info, account_info.GetAccountCapabilities()
+                                       .is_subject_to_parental_controls() ==
+                                   signin::Tribool::kTrue) ||
              modified;
 #endif
 

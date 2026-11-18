@@ -8,14 +8,14 @@
 #include <stdint.h>
 
 #include <optional>
+#include <span>
 #include <string_view>
 
 #include "include/v8-exception.h"
-#include "include/v8-memory-span.h"
+#include "src/base/bit-field.h"
 #include "src/handles/handles.h"
 #include "src/objects/contexts.h"
 #include "src/objects/struct.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -28,8 +28,6 @@ class StructBodyDescriptor;
 namespace internal {
 
 class FunctionTemplateRareData;
-
-#include "torque-generated/src/objects/templates-tq.inc"
 
 struct CFunctionWithSignature {
   const Address address;
@@ -98,7 +96,9 @@ V8_OBJECT class TemplateInfo : public HeapObject {
 
   // Bit position in the template_info_base_flags, from least significant bit
   // position.
-  DEFINE_TORQUE_GENERATED_TEMPLATE_INFO_FLAGS()
+  using IsCacheableBit = base::BitField<bool, 0, 1, uint32_t>;
+  using ShouldPromoteToReadOnlyBit = IsCacheableBit::Next<bool, 1>;
+  using SerialNumberBits = ShouldPromoteToReadOnlyBit::Next<uint32_t, 29>;
 
   TaggedMember<Smi> template_info_flags_;
 } V8_OBJECT_END;
@@ -330,7 +330,18 @@ V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
   CFunctionWithSignature GetCFunction(uint32_t index) const;
 
   // Bit position in the flag, from least significant bit position.
-  DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()
+  using IsObjectTemplateCallHandlerBit = base::BitField<bool, 0, 1, uint32_t>;
+  using HasSideEffectsBit = IsObjectTemplateCallHandlerBit::Next<bool, 1>;
+  using UndetectableBit = HasSideEffectsBit::Next<bool, 1>;
+  using NeedsAccessCheckBit = UndetectableBit::Next<bool, 1>;
+  using ReadOnlyPrototypeBit = NeedsAccessCheckBit::Next<bool, 1>;
+  using RemovePrototypeBit = ReadOnlyPrototypeBit::Next<bool, 1>;
+  using AcceptAnyReceiverBit = RemovePrototypeBit::Next<bool, 1>;
+  using PublishedBit = AcceptAnyReceiverBit::Next<bool, 1>;
+  using AllowedReceiverInstanceTypeRangeStartBits =
+      PublishedBit::Next<InstanceType, 12>;
+  using AllowedReceiverInstanceTypeRangeEndBits =
+      AllowedReceiverInstanceTypeRangeStartBits::Next<InstanceType, 12>;
 
   // C function pointer that can be called from native code.
   inline Address callback(IsolateForSandbox isolate) const;
@@ -468,7 +479,10 @@ V8_OBJECT class ObjectTemplateInfo : public TemplateInfoWithProperties {
   TaggedMember<Smi> data_;
 
  private:
-  DEFINE_TORQUE_GENERATED_OBJECT_TEMPLATE_INFO_FLAGS()
+  using IsImmutablePrototypeBit = base::BitField<bool, 0, 1, uint32_t>;
+  using IsCodeKindBit = IsImmutablePrototypeBit::Next<bool, 1>;
+  using EmbedderFieldCountBits = IsCodeKindBit::Next<int32_t, 28>;
+  friend class TorqueGeneratedBitFieldAsserts;
 } V8_OBJECT_END;
 
 V8_OBJECT class DictionaryTemplateInfo : public TemplateInfo {
@@ -476,12 +490,12 @@ V8_OBJECT class DictionaryTemplateInfo : public TemplateInfo {
   using BodyDescriptor = StructBodyDescriptor;
 
   static DirectHandle<DictionaryTemplateInfo> Create(
-      Isolate* isolate, const v8::MemorySpan<const std::string_view>& names);
+      Isolate* isolate, const std::span<const std::string_view>& names);
 
   static DirectHandle<JSObject> NewInstance(
       DirectHandle<NativeContext> context,
       DirectHandle<DictionaryTemplateInfo> self,
-      const MemorySpan<MaybeLocal<Value>>& property_values);
+      const std::span<MaybeLocal<Value>>& property_values);
 
   DECL_PRINTER(DictionaryTemplateInfo)
   DECL_VERIFIER(DictionaryTemplateInfo)

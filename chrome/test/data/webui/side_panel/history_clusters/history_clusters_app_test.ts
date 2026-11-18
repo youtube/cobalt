@@ -5,7 +5,7 @@
 import 'chrome://history-clusters-side-panel.top-chrome/history_clusters.js';
 
 import type {HistoryClustersAppElement} from 'chrome://history-clusters-side-panel.top-chrome/history_clusters.js';
-import {BrowserProxyImpl, HistoryEmbeddingsBrowserProxyImpl, HistoryEmbeddingsPageHandlerRemote, PageCallbackRouter, PageHandlerRemote} from 'chrome://history-clusters-side-panel.top-chrome/history_clusters.js';
+import {BrowserProxyImpl, historyEmbeddingsBrowserProxyFactory, HistoryEmbeddingsPageHandlerRemote, PageCallbackRouter, PageHandlerRemote} from 'chrome://history-clusters-side-panel.top-chrome/history_clusters.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
@@ -26,8 +26,9 @@ suite('HistoryClustersAppWithEmbeddingsTest', () => {
         new BrowserProxyImpl(clustersHandler, callbackRouter));
 
     embeddingsHandler = TestMock.fromClass(HistoryEmbeddingsPageHandlerRemote);
-    HistoryEmbeddingsBrowserProxyImpl.setInstance(
-        new HistoryEmbeddingsBrowserProxyImpl(embeddingsHandler));
+    const {instance} =
+        historyEmbeddingsBrowserProxyFactory.createForTest(embeddingsHandler);
+    historyEmbeddingsBrowserProxyFactory.setInstance(instance);
 
     loadTimeData.overrideValues({
       enableHistoryEmbeddings: true,

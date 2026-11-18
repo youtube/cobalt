@@ -44,7 +44,7 @@ class BASE_EXPORT PreFreezeBackgroundMemoryTrimmer {
   static void PostDelayedBackgroundTask(
       scoped_refptr<base::SequencedTaskRunner> task_runner,
       const base::Location& from_here,
-      OnceCallback<void(void)> task,
+      OnceClosure task,
       base::TimeDelta delay) LOCKS_EXCLUDED(lock()) {
     PostDelayedBackgroundTask(
         task_runner, from_here,

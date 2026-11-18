@@ -17,7 +17,6 @@
 #include "base/observer_list.h"
 #include "chromeos/crosapi/mojom/account_manager.mojom.h"
 #include "components/account_manager_core/account_manager_facade.h"
-#include "components/account_manager_core/account_upsertion_result.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
@@ -29,7 +28,7 @@ namespace account_manager {
 class AccountManager;
 
 // ChromeOS-specific implementation of |AccountManagerFacade| that talks to
-// |account_manager::AccountManager| over Mojo. Used by both Lacros and Ash.
+// |account_manager::AccountManager| over Mojo.
 class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
     : public AccountManagerFacade,
       public crosapi::mojom::AccountManagerObserver {
@@ -57,17 +56,6 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
       const AccountKey& account,
       base::OnceCallback<void(const GoogleServiceAuthError&)> callback)
       override;
-  void ShowAddAccountDialog(AccountAdditionSource source) override;
-  void ShowAddAccountDialog(
-      AccountAdditionSource source,
-      base::OnceCallback<void(const account_manager::AccountUpsertionResult&
-                                  result)> callback) override;
-  void ShowReauthAccountDialog(
-      AccountAdditionSource source,
-      const std::string& email,
-      base::OnceCallback<void(const account_manager::AccountUpsertionResult&
-                                  result)> callback) override;
-  void ShowManageAccountsSettings() override;
   std::unique_ptr<OAuth2AccessTokenFetcher> CreateAccessTokenFetcher(
       const AccountKey& account,
       OAuth2AccessTokenConsumer* consumer) override;
@@ -87,26 +75,7 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
 
  private:
   FRIEND_TEST_ALL_PREFIXES(AccountManagerFacadeImplTest,
-                           ShowAddAccountDialogCallsMojo);
-  FRIEND_TEST_ALL_PREFIXES(AccountManagerFacadeImplTest,
                            GetAccountsHangsWhenRemoteIsNull);
-  FRIEND_TEST_ALL_PREFIXES(AccountManagerFacadeImplTest,
-                           ShowAddAccountDialogUMA);
-  FRIEND_TEST_ALL_PREFIXES(AccountManagerFacadeImplTest,
-                           ShowReauthAccountDialogCallsMojo);
-  FRIEND_TEST_ALL_PREFIXES(
-      AccountManagerFacadeImplTest,
-      ShowAddAccountDialogSetsCorrectOptionsForAdditionFromAsh);
-  FRIEND_TEST_ALL_PREFIXES(
-      AccountManagerFacadeImplTest,
-      ShowAddAccountDialogSetsCorrectOptionsForAdditionFromLacros);
-  FRIEND_TEST_ALL_PREFIXES(
-      AccountManagerFacadeImplTest,
-      ShowAddAccountDialogSetsCorrectOptionsForAdditionFromArc);
-  FRIEND_TEST_ALL_PREFIXES(AccountManagerFacadeImplTest,
-                           ShowReauthAccountDialogUMA);
-  FRIEND_TEST_ALL_PREFIXES(AccountManagerFacadeImplTest,
-                           ShowManageAccountsSettingsCallsMojo);
   FRIEND_TEST_ALL_PREFIXES(AccountManagerFacadeImplTest,
                            InitializationStatusIsCorrectlySet);
   FRIEND_TEST_ALL_PREFIXES(
@@ -142,15 +111,6 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
 
   void OnReceiverReceived(
       mojo::PendingReceiver<AccountManagerObserver> receiver);
-  // Callback for `crosapi::mojom::AccountManager::ShowAddAccountDialog`.
-  void OnSigninDialogActionFinished(
-      base::OnceCallback<
-          void(const account_manager::AccountUpsertionResult& result)> callback,
-      crosapi::mojom::AccountUpsertionResultPtr mojo_result);
-  void FinishUpsertAccount(
-      base::OnceCallback<
-          void(const account_manager::AccountUpsertionResult& result)> callback,
-      const account_manager::AccountUpsertionResult& result);
 
   void GetAccountsInternal(
       base::OnceCallback<void(const std::vector<Account>&)> callback);

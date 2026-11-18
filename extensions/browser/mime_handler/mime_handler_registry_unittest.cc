@@ -296,10 +296,27 @@ TEST_F(MimeHandlerRegistryTest, AllowlistedExtensionRegisteredWhenUsingDict) {
 }
 
 TEST_F(MimeHandlerRegistryTest, FlagDisabledRegistrationByChannel) {
-  // With the kill-switch flag disabled, the dict format is still available on
-  // dev/canary/trunk via the `channel: "dev"` entry in
-  // `_manifest_features.json`; beta/stable fall back to the flag and parse
-  // nothing.
+  base::test::ScopedFeatureList disable_flag;
+  disable_flag.InitAndDisableFeature(extensions_features::kApiMimeHandler);
+
+  for (auto channel :
+       {version_info::Channel::UNKNOWN, version_info::Channel::CANARY,
+        version_info::Channel::DEV, version_info::Channel::BETA,
+        version_info::Channel::STABLE}) {
+    SCOPED_TRACE(version_info::GetChannelString(channel));
+    ScopedCurrentChannel scoped_channel(channel);
+    auto ext = CreateMimeHandlerExtension(
+        std::string(version_info::GetChannelString(channel)), kPdfMimeType,
+        kViewerUrl);
+    LoadExtension(ext.get());
+    EXPECT_TRUE(registry()->GetHandlerForMimeType(kPdfMimeType).empty());
+    UnloadExtension(ext.get());
+  }
+}
+
+TEST_F(MimeHandlerRegistryTest, FlagDefaultRegistrationByChannel) {
+  // Without an explicit override, handler registration is available on
+  // dev/canary/trunk and suppressed on beta/stable.
   static constexpr std::array kCases =
       std::to_array<std::pair<version_info::Channel, bool>>({
           {version_info::Channel::UNKNOWN, true},  // Trunk.
@@ -313,8 +330,8 @@ TEST_F(MimeHandlerRegistryTest, FlagDisabledRegistrationByChannel) {
     SCOPED_TRACE(testing::Message()
                  << "channel=" << version_info::GetChannelString(channel));
     ScopedCurrentChannel scoped_channel(channel);
-    base::test::ScopedFeatureList disable_flag;
-    disable_flag.InitAndDisableFeature(extensions_features::kApiMimeHandler);
+    base::test::ScopedFeatureList no_override;
+    no_override.InitWithEmptyFeatureAndFieldTrialLists();
 
     auto ext = CreateMimeHandlerExtension(
         std::string(version_info::GetChannelString(channel)), kPdfMimeType,
@@ -327,6 +344,25 @@ TEST_F(MimeHandlerRegistryTest, FlagDisabledRegistrationByChannel) {
       EXPECT_TRUE(registry()->GetHandlerForMimeType(kPdfMimeType).empty());
     }
 
+    UnloadExtension(ext.get());
+  }
+}
+
+TEST_F(MimeHandlerRegistryTest, FlagEnabledRegistrationByChannel) {
+  base::test::ScopedFeatureList enable_flag;
+  enable_flag.InitAndEnableFeature(extensions_features::kApiMimeHandler);
+
+  for (auto channel :
+       {version_info::Channel::UNKNOWN, version_info::Channel::CANARY,
+        version_info::Channel::DEV, version_info::Channel::BETA,
+        version_info::Channel::STABLE}) {
+    SCOPED_TRACE(version_info::GetChannelString(channel));
+    ScopedCurrentChannel scoped_channel(channel);
+    auto ext = CreateMimeHandlerExtension(
+        std::string(version_info::GetChannelString(channel)), kPdfMimeType,
+        kViewerUrl);
+    LoadExtension(ext.get());
+    EXPECT_EQ(ext->id(), registry()->GetHandlerForMimeType(kPdfMimeType));
     UnloadExtension(ext.get());
   }
 }

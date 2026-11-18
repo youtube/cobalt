@@ -93,17 +93,17 @@ static int x509_marshal_name_entry(CBB *cbb, const X509_NAME_ENTRY *entry,
   return CBB_flush(cbb);
 }
 
-static int i2d_x509_name_entry(const X509_NAME_ENTRY *entry, uint8_t **out) {
-  return I2DFromCBB(/*initial_capacity=*/16, out, [&](CBB *cbb) -> bool {
-    return x509_marshal_name_entry(cbb, entry, /*canonicalize=*/0);
-  });
+static int x509_marshal_name_entry_no_canon(CBB *cbb,
+                                            const X509_NAME_ENTRY *entry) {
+  return x509_marshal_name_entry(cbb, entry, /*canonicalize=*/0);
 }
 
 BSSL_NAMESPACE_BEGIN
 
-IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_NAME_ENTRY, X509_NAME_ENTRY_new,
-                             X509_NAME_ENTRY_free, CBS_ASN1_SEQUENCE,
-                             x509_parse_name_entry, i2d_x509_name_entry)
+IMPLEMENT_EXTERN_ASN1_PARSE_INTO(X509_NAME_ENTRY, X509_NAME_ENTRY_new,
+                                 X509_NAME_ENTRY_free, CBS_ASN1_SEQUENCE,
+                                 x509_parse_name_entry,
+                                 x509_marshal_name_entry_no_canon)
 
 BSSL_NAMESPACE_END
 
@@ -327,8 +327,9 @@ int i2d_X509_NAME(const X509_NAME *in, uint8_t **outp) {
   return len;
 }
 
-IMPLEMENT_EXTERN_ASN1_SIMPLE(X509_NAME, X509_NAME_new, X509_NAME_free,
-                             CBS_ASN1_SEQUENCE, x509_parse_name, i2d_X509_NAME)
+IMPLEMENT_EXTERN_ASN1_PARSE_INTO(X509_NAME, X509_NAME_new, X509_NAME_free,
+                                 CBS_ASN1_SEQUENCE, x509_parse_name,
+                                 x509_marshal_name)
 
 static int asn1_marshal_string_canon(CBB *cbb, const ASN1_STRING *in) {
   int (*decode_func)(CBS *, uint32_t *);

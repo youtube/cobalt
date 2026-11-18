@@ -6,14 +6,16 @@
 
 #include <algorithm>
 #include <memory>
-#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notimplemented.h"
 #include "base/profiler/sample_metadata.h"
+#include "base/strings/strcat.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -143,6 +145,32 @@ void ProxyMain::DidCompletePageScaleAnimation() {
   layer_tree_host_->DidCompletePageScaleAnimation();
 }
 
+bool ProxyMain::IsEmbeddedFrame() const {
+  return layer_tree_host_->GetSettings().is_for_embedded_frame;
+}
+
+void ProxyMain::RecordBeginMainFrameMetrics(
+    const BeginMainFrameReasons& begin_main_frame_reason,
+    const base::ElapsedTimer& timer,
+    std::string_view suffix) const {
+  constexpr size_t num_buckets = 1 << begin_main_frame_reason.size();
+
+  base::UmaHistogramCustomMicrosecondsTimes(
+      base::StrCat({"Compositing.BeginMainFrame.TimeUs", suffix}),
+      timer.Elapsed(), base::Microseconds(1), base::Seconds(10), 50);
+
+  base::UmaHistogramExactLinear(
+      base::StrCat({"Compositing.BeginMainFrame.BMFReason9", suffix}),
+      begin_main_frame_reason.to_ulong(), num_buckets);
+
+  std::string_view embedded_suffix =
+      IsEmbeddedFrame() ? ".Embedded" : ".NonEmbedded";
+  base::UmaHistogramExactLinear(
+      base::StrCat(
+          {"Compositing.BeginMainFrame.BMFReason9", embedded_suffix, suffix}),
+      begin_main_frame_reason.to_ulong(), num_buckets);
+}
+
 void ProxyMain::BeginMainFrame(
     std::unique_ptr<BeginMainFrameAndCommitState> begin_main_frame_state) {
   DCHECK(IsMainThread());
@@ -159,22 +187,13 @@ void ProxyMain::BeginMainFrame(
       begin_main_frame_reason_ | begin_main_frame_state->reason;
   absl::Cleanup maybe_record_metrics_and_idle = [&] {
     if (record_metrics) {
-      constexpr size_t num_buckets = 1 << begin_main_frame_reason.size();
-      UMA_HISTOGRAM_ENUMERATION("Compositing.BeginMainFrame.MainResult",
-                                reason);
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Compositing.BeginMainFrame.TimeUs", timer->Elapsed(),
-          base::Microseconds(1), base::Seconds(10), 50);
-      UMA_HISTOGRAM_ENUMERATION("Compositing.BeginMainFrame.BMFReason6",
-                                begin_main_frame_reason.to_ulong(),
-                                num_buckets);
+      base::UmaHistogramEnumeration("Compositing.BeginMainFrame.MainResult",
+                                    reason);
+
+      RecordBeginMainFrameMetrics(begin_main_frame_reason, *timer, "");
       if (reason == CommitEarlyOutReason::kFinishedNoUpdates) {
-        UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-            "Compositing.BeginMainFrame.TimeUs.NoUpdate", timer->Elapsed(),
-            base::Microseconds(1), base::Seconds(10), 50);
-        UMA_HISTOGRAM_ENUMERATION(
-            "Compositing.BeginMainFrame.BMFReason6.NoUpdate",
-            begin_main_frame_reason.to_ulong(), num_buckets);
+        RecordBeginMainFrameMetrics(begin_main_frame_reason, *timer,
+                                    ".NoUpdate");
       }
     }
     if (reason != CommitEarlyOutReason::kNoEarlyOut) {
@@ -703,7 +722,7 @@ void ProxyMain::SetNeedsUpdateLayers() {
   }
 }
 
-void ProxyMain::SetNeedsCommit() {
+void ProxyMain::SetNeedsCommit(bool urgent) {
   DCHECK(IsMainThread());
   // If we are currently animating, make sure we don't skip the commit. Note
   // that requesting a commit during the layer update stage means we need to
@@ -714,9 +733,8 @@ void ProxyMain::SetNeedsCommit() {
     return;
   }
   if (SendCommitRequestToImplThreadIfNeeded(BeginMainFrameReason::kOther,
-                                            COMMIT_PIPELINE_STAGE,
-                                            /* urgent = */ false)) {
-    TRACE_EVENT_INSTANT("cc", "ProxyMain::SetNeedsCommit");
+                                            COMMIT_PIPELINE_STAGE, urgent)) {
+    TRACE_EVENT_INSTANT("cc", "ProxyMain::SetNeedsCommit", "urgent", urgent);
   }
 }
 
@@ -843,11 +861,6 @@ void ProxyMain::StopDeferringCommits() {
   layer_tree_host_->OnDeferCommitsChanged(false, reason);
 }
 
-void ProxyMain::SetShouldThrottleFrameRate(bool flag) {
-  ImplThreadTaskRunner()->PostTask(
-      FROM_HERE, base::BindOnce(&ProxyImpl::SetShouldThrottleFrameRate,
-                                base::Unretained(proxy_impl_.get()), flag));
-}
 
 void ProxyMain::SetRequestHighFramerate(bool flag) {
   ImplThreadTaskRunner()->PostTask(
@@ -1139,7 +1152,7 @@ void ProxyMain::CompositeImmediatelyForTest(base::TimeTicks frame_begin_time,
                                             bool raster,
                                             base::OnceClosure callback) {
   synchronous_composite_for_test_callback_ = std::move(callback);
-  SetNeedsCommit();
+  SetNeedsCommit(false);
 }
 
 double ProxyMain::GetAverageThroughput() const {

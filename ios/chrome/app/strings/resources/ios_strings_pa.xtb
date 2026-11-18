@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">ਹਾਲ ਹੀ ਵਿੱਚ ਬੰਦ ਕੀਤੀਆਂ ਟੈਬਾਂ ਨੂੰ ਮੁੜ-ਖੋਲ੍ਹਣ ਲਈ ਤੁਸੀਂ ਇੱਥੇ ਵਾਪਸ ਆ ਸਕਦੇ ਹੋ</translation>
 <translation id="1016495303386450659">ਆਈਟਮ ਅੱਪਡੇਟ ਕੀਤੀ ਗਈ</translation>
+<translation id="1018804590490383958">ਸਕੈਨ ਕਰੋ ਅਤੇ ਆਟੋਫਿਲ ਕਰੋ</translation>
 <translation id="1019990162050689579">Gemini ਐਪ ਸੰਬੰਧੀ ਸਰਗਰਮੀ</translation>
 <translation id="102916930470544692">ਪਾਸਕੀ</translation>
 <translation id="1030376737535466765">Password Manager ਖੋਲ੍ਹੋ</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">ਆਪਣੇ ਬ੍ਰਾਊਜ਼ਰ ਨੂੰ ਅੱਪਡੇਟ ਕਰੋ</translation>
 <translation id="4021931095789478915">ਪੜ੍ਹਨ-ਸੂਚੀ ਵਿੱਚ ${url} ਸ਼ਾਮਲ ਕਰੋ</translation>
 <translation id="4028871427853484857">ਖਾਤੇ ਵਿੱਚ ਰੱਖਿਅਤ ਕਰੋ…</translation>
+<translation id="4036529942385659684">ਅਕਿਰਿਆਸ਼ੀਲਤਾ ਦੀ ਮਿਆਦ ਤੋਂ ਬਾਅਦ ਸ਼ੁਰੂਆਤੀ ਪੰਨਾ ਦਿਖਾਓ</translation>
 <translation id="4038354071007134711">ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਮੌਜੂਦ ਕੋਈ ਵੀ ਐਪਲੀਕੇਸ਼ਨ ਫਾਈਲ ਨਹੀਂ ਖੋਲ੍ਹ ਸਕਦੀ।</translation>
 <translation id="4042870976416480368">ਪੰਨੇ ਵਿੱਚ ਲੱਭੋ</translation>
 <translation id="4045441967987592849">ਦੁਬਾਰਾ ਖੋਲ੍ਹੋ</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">ਗਰੁੱਪ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ</translation>
 <translation id="4172051516777682613">ਹਮੇਸ਼ਾਂ ਦਿਖਾਓ</translation>
 <translation id="417273154673973994">{count,plural, =1{1 ਟੈਬ ਗਰੁੱਪ ਨੂੰ ਬੰਦ ਅਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ}one{{count} ਟੈਬ ਗਰੁੱਪਾਂ ਨੂੰ ਬੰਦ ਕੀਤਾ ਗਿਆ ਅਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ}other{{count} ਟੈਬ ਗਰੁੱਪਾਂ ਨੂੰ ਬੰਦ ਕੀਤਾ ਗਿਆ ਅਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ}}</translation>
-<translation id="417612446554534067">ਆਪਣੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਭੇਜੋ</translation>
 <translation id="4180726336228139707">ਸਿਰਫ਼ ਇਸ ਡੀਵਾਈਸ 'ਤੇ</translation>
 <translation id="4181841719683918333">ਭਾਸ਼ਾਵਾਂ</translation>
 <translation id="4183350924949589798">ਕੀ ਹੋਰ ਸੁਰੱਖਿਆ ਦੀ ਲੋੜ ਹੈ?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">ਟੈਬਾਂ ਬੰਦ ਹੋ ਗਈਆਂ ਸਨ; ਤੁਹਾਨੂੰ ਸਾਈਨ-ਆਊਟ ਹੋ ਗਏ ਸੀ</translation>
 <translation id="4911042367886397055">ਮੁੜ ਜੀ ਆਇਆਂ ਨੂੰ, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">ਤੁਸੀਂ ਆਪਣੇ ਪਰਿਵਾਰ ਗਰੁੱਪ ਵਿੱਚ ਕਿਸੇ ਨਾਲ ਆਪਣੇ ਪਾਸਵਰਡ ਦੀ ਇੱਕ ਕਾਪੀ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸਾਂਝਾ ਕਰ ਸਕਦੇ ਹੋ। <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">ਲੈਂਸ</translation>
 <translation id="4917025507570489430">ਤੁਸੀਂ <ph name="USER_EMAIL" /> ਵਜੋਂ ਸਾਈਨ-ਇਨ ਹੋਣ 'ਤੇ, ਮੌਜੂਦਾ ਬ੍ਰਾਊਜ਼ਿੰਗ ਡਾਟੇ ਦੀ ਵਰਤੋਂ ਕਰ ਸਕਦੇ ਹੋ। ਤੁਹਾਡੀ ਸੰਸਥਾ ਇਸ ਡਾਟੇ ਨੂੰ ਦੇਖ ਸਕਦੀ ਹੈ।</translation>
 <translation id="4918086044614829423">ਸਵੀਕਾਰ ਕਰੋ</translation>
 <translation id="4930714375720679147">ਚਾਲੂ ਕਰੋ</translation>
@@ -1549,6 +1551,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">ਆਪਣੇ ਪਤਾ ਬਾਰ ਦੀ ਸਥਿਤੀ ਚੁਣੋ</translation>
 <translation id="6307241780749477694">ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਆਪਣੇ ਸਾਰੇ ਪਾਸਵਰਡ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ ਆਪਣੀ ਪਛਾਣ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ</translation>
+<translation id="6307792728709337290">ਆਪਣੇ Google ਖਾਤੇ ਵਿੱਚ ਆਪਣੇ ਕਾਰਡ ਨੂੰ ਰੱਖਿਅਤ ਕਰੋ, ਤਾਂ ਜੋ ਇਸ ਖਰੀਦ ਅਤੇ Chrome 'ਤੇ ਕੀਤੀਆਂ ਜਾਣ ਵਾਲੀਆਂ ਭਵਿੱਖੀ ਖਰੀਦਾਂ ਲਈ ਇਸਨੂੰ ਆਟੋਫਿਲ ਕੀਤਾ ਜਾ ਸਕੇ।</translation>
 <translation id="6316141353357700666">ਦਿਖਾਈ ਦੇਣ ਵਾਲੀ ਸੂਚੀ ਵਿੱਚੋਂ ਉਹ ਪਾਸਵਰਡ ਚੁਣੋ ਜੋ ਤੁਸੀਂ ਵਰਤਣਾ ਚਾਹੁੰਦੇ ਹੋ।</translation>
 <translation id="6321526113093607004">ਬੁੱਕਮਾਰਕਾਂ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ</translation>
 <translation id="6327249202318869726">ਤੁਹਾਡੇ ਖਾਤੇ ਲਈ Gemini ਬੰਦ ਹੈ। ਹੋਰ ਜਾਣਕਾਰੀ ਲਈ ਆਪਣੇ ਪ੍ਰਸ਼ਾਸਕ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।</translation>
@@ -2143,6 +2146,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="8263809106706527890">ਤੁਹਾਡੀਆਂ ਪੂਰਵ-ਨਿਰਧਾਰਿਤ ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਕੋਈ ਤਬਦੀਲੀ ਹੋਈ ਹੋ ਸਕਦੀ ਹੈ। ਤੁਸੀਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਜਾ ਕੇ ਇਸਦੀ ਜਾਂਚ ਕਰ ਸਕਦੇ ਹੋ।</translation>
 <translation id="8264966119170358612">ਤੁਹਾਡੇ ਰੱਖਿਅਤ ਕੀਤੇ ਪਾਸਵਰਡਾਂ ਵਿੱਚੋਂ ਕੁਝ ਗੈਰ-Google ਡਾਟਾ ਉਲੰਘਣਾ ਵਿੱਚ ਪ੍ਰਗਟ ਹੋਏ ਸਨ। <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">ਤੁਹਾਨੂੰ ਤੁਹਾਡੇ iPad ਰੀਸੈੱਟ ਕਰਨ ਦੇ ਹਿੱਸੇ ਵਜੋਂ ਆਪਣੇ ਖਾਤੇ <ph name="USER_NAME" /> ਤੋਂ ਸਾਈਨ-ਆਊਟ ਕੀਤਾ ਗਿਆ ਸੀ। ਦੁਬਾਰਾ ਸਾਈਨ-ਇਨ ਕਰਨ ਲਈ, ਹੇਠਾਂ "ਜਾਰੀ ਰੱਖੋ" 'ਤੇ ਟੈਪ ਕਰੋ।</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">ਤੁਸੀਂ <ph name="URL" /> ਵਿੱਚ ਜਾਣਕਾਰੀ ਭਰੋਗੇ</translation>
 <translation id="8275068909952022340">ਹੋਰ…</translation>
 <translation id="8281781826761538115">ਪੂਰਵ-ਨਿਰਧਾਰਤ - <ph name="DEFAULT_LOCALE" /></translation>

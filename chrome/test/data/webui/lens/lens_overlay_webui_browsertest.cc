@@ -214,6 +214,14 @@ IN_PROC_BROWSER_TEST_F(LensOverlayTest, PostSelectionRenderer) {
   RunOverlayTest("lens/overlay/post_selection_renderer_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(LensOverlayTest, MultiRegionSelection) {
+  RunOverlayTest("lens/overlay/multi_region_selection_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(LensOverlayTest, LineSelection) {
+  RunOverlayTest("lens/overlay/line_selection_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(LensOverlayTest, FindWordsInRegion) {
   RunOverlayTest("lens/overlay/find_words_in_region_test.js", "mocha.run()");
 }

@@ -207,6 +207,30 @@ IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
 }
 
 IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
+                       OpenSplitActiveDoesNotCrash) {
+  GURL url("https://www.google.com");
+  const BookmarkNode* node =
+      model()->AddURL(model()->other_node(), 0, u"Goog", url);
+  std::string node_id = base::NumberToString(node->id());
+
+  // Browser starts with one tab.
+  ASSERT_EQ(1, browser()->tab_strip_model()->count());
+
+  auto new_tab_function =
+      base::MakeRefCounted<BookmarkManagerPrivateOpenInNewTabFunction>();
+  std::string args = base::StringPrintf(
+      R"(["%s", {"active": true, "split": true}])", node_id.c_str());
+
+  ASSERT_TRUE(
+      api_test_utils::RunFunction(new_tab_function.get(), args, GetProfile()));
+
+  // Verify the tab was opened.
+  EXPECT_EQ(2, browser()->tab_strip_model()->count());
+  // The new tab should be active.
+  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
+}
+
+IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
                        RunOpenInNewTabFunctionFolder) {
   auto new_tab_function =
       base::MakeRefCounted<BookmarkManagerPrivateOpenInNewTabFunction>();

@@ -12,7 +12,6 @@
 
 namespace blink {
 
-class ModuleRecord;
 class ModuleScript;
 
 // The ModuleRecordResolver interface is used from V8 module bindings

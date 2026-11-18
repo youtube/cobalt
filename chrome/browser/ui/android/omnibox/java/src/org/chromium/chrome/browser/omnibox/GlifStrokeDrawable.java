@@ -36,9 +36,9 @@ public class GlifStrokeDrawable extends Drawable {
 
     private final Rect mSharpBounds = new Rect();
     private final Rect mBlurBounds = new Rect();
-    private final float mCornerRadius;
     private final float mStrokePx;
     private float mBlurStrokePx;
+    private float mCornerRadius;
 
     private final FloatProperty<GlifStrokeDrawable> mBlurProperty =
             new FloatProperty<>("blur") {
@@ -114,6 +114,10 @@ public class GlifStrokeDrawable extends Drawable {
         mAnimator.cancel();
     }
 
+    void setCornerRadius(float cornerRadius) {
+        mCornerRadius = cornerRadius;
+    }
+
     @Override
     protected void onBoundsChange(Rect bounds) {
         super.onBoundsChange(bounds);
@@ -153,5 +157,9 @@ public class GlifStrokeDrawable extends Drawable {
 
     Paint getBlurPaintForTesting() {
         return mBlurPaint;
+    }
+
+    public float getCornerRadiusForTesting() {
+        return mCornerRadius;
     }
 }

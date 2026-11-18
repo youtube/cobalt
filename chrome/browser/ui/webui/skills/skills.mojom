@@ -15,6 +15,10 @@ struct InitialDialogState {
   skills.mojom.Skill skill;
 };
 
+// ----------------------------------------------------------------------------
+// V1 skills interfaces.
+// ----------------------------------------------------------------------------
+
 // Factory ensures that the Page and PageHandler interfaces are always created
 // together without requiring an initialization call from the WebUI to the
 // handler.
@@ -38,7 +42,7 @@ struct BrowseSkillsInitialState {
   array<TopicInfo> topics_info_list;
 };
 
-// Called from TS side of chrome://skills (Renderer -> Browser)
+// Called from TS side of chrome://skills (Renderer -> Browser).
 interface PageHandler {
   // Called when the user wants to either add or edit a skill.
   // `dialog_type` determines whether to open the add or edit dialog.
@@ -122,3 +126,14 @@ interface DialogHandler {
   // Gets the signed in user's email.
   GetSignedInEmail() => (string email);
 };
+
+// ----------------------------------------------------------------------------
+// V2 skills interfaces.
+// ----------------------------------------------------------------------------
+
+// Called from TS side of chrome://skills (Renderer -> Browser).
+interface SkillsPageHandler {
+  // Sync necessary cookies to the webview partition.
+  SyncCookies() => (bool success);
+};
+

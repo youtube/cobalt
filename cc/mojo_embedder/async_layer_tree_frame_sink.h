@@ -107,14 +107,6 @@ class CC_MOJO_EMBEDDER_EXPORT AsyncLayerTreeFrameSink
     // feedback from the `CompositorFrameSink`. To be used with
     // `auto_needs_begin_frame`.
     bool manual_begin_frame = false;
-
-    // If it has value(n), internal begin frame source will be used when n
-    // consecutive "did not produce frame" are observed. It will stop using
-    // internal begin frame source when there's a submitted compositor frame.
-    // This should be mutually exclusive from synthetic_begin_frame_source.
-    // And `auto_needs_begin_frame` will be true if this is set.
-    std::optional<int>
-        num_did_not_produce_frame_before_internal_begin_frame_source;
   };
 
   AsyncLayerTreeFrameSink(
@@ -157,12 +149,6 @@ class CC_MOJO_EMBEDDER_EXPORT AsyncLayerTreeFrameSink
     return last_hit_test_data_;
   }
 
-  bool use_internal_begin_frame_source_for_testing() const {
-    return use_internal_begin_frame_source_;
-  }
-
-  void SetTimeSourceOfInternalBeginFrameForTesting(
-      std::unique_ptr<viz::DelayBasedTimeSource> source);
 
  private:
   friend class AsyncLayerTreeFrameSinkSimpleTest;
@@ -189,7 +175,6 @@ class CC_MOJO_EMBEDDER_EXPORT AsyncLayerTreeFrameSink
 
   void UpdateNeedsBeginFramesInternal(bool needs_begin_frames);
 
-  void UpdateInternalBeginFrameSource(bool use_internal_source);
 
   void SendManualBeginFrame();
 
@@ -243,13 +228,6 @@ class CC_MOJO_EMBEDDER_EXPORT AsyncLayerTreeFrameSink
   bool use_begin_frame_presentation_feedback_ = false;
   viz::FrameTimingDetailsMap timing_details_;
 
-  // Use internal delay based begin frame source when there're many undrawn
-  // frames recently.
-  std::optional<int>
-      num_did_not_produce_frame_before_internal_begin_frame_source_;
-  uint64_t num_did_not_produce_frame_since_last_submit_ = 0;
-  bool use_internal_begin_frame_source_ = false;
-  std::unique_ptr<viz::DelayBasedBeginFrameSource> internal_begin_frame_source_;
 
   uint64_t manual_sequence_number_ = 0;
 

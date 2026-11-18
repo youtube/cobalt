@@ -539,13 +539,14 @@ void SSLErrorHandlerDelegateImpl::OnBlockingPageReady(
                                 std::move(interstitial_page)));
 }
 
-}  // namespace
-
 ConfigSingleton& GetConfig() {
   static base::NoDestructor<ConfigSingleton> config;
   return *config;
 }
 
+}  // namespace
+
+// static
 void SSLErrorHandler::HandleSSLError(
     content::WebContents* web_contents,
     net::Error cert_error,
@@ -565,16 +566,16 @@ void SSLErrorHandler::HandleSSLError(
   int options_mask = security_interstitials::CalculateSSLErrorOptionsMask(
       cert_error, hard_override_disabled, ssl_info.is_fatal_cert_error);
 
-  SSLErrorHandler* error_handler = new SSLErrorHandler(
-      std::unique_ptr<SSLErrorHandler::Delegate>(
-          new SSLErrorHandlerDelegateImpl(
-              web_contents, ssl_info, web_contents->GetBrowserContext(),
-              cert_error, options_mask, request_url, captive_portal_service,
-              std::move(blocking_page_factory),
-              GetConfig().on_blocking_page_shown_callback(),
-              std::move(blocking_page_ready_callback))),
-      web_contents, cert_error, ssl_info, network_time_tracker,
-      captive_portal_service, request_url);
+  auto delegate = std::make_unique<SSLErrorHandlerDelegateImpl>(
+      web_contents, ssl_info, web_contents->GetBrowserContext(), cert_error,
+      options_mask, request_url, captive_portal_service,
+      std::move(blocking_page_factory),
+      GetConfig().on_blocking_page_shown_callback(),
+      std::move(blocking_page_ready_callback));
+  // Protected ctor.
+  auto* error_handler = new SSLErrorHandler(
+      std::move(delegate), web_contents, cert_error, ssl_info,
+      network_time_tracker, captive_portal_service, request_url);
   web_contents->SetUserData(UserDataKey(), base::WrapUnique(error_handler));
   error_handler->StartHandlingError();
 }

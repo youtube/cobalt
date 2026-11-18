@@ -210,7 +210,7 @@ impl Point {
     }
 
     pub fn to_x962_uncompressed(&self) -> Buffer {
-        // Safety: arguments are valid, `EC_KEY` ensures that the the group is
+        // Safety: arguments are valid, `EC_KEY` ensures that the group is
         // correct for the point, and a `Point` is always finite.
         unsafe {
             to_x962(
@@ -235,7 +235,7 @@ impl Point {
     /// WARNING: compressed form is rarely used and is not as well supported as
     /// the uncompressed form.
     pub fn to_x962_compressed(&self) -> Buffer {
-        // Safety: arguments are valid, `EC_KEY` ensures that the the group is
+        // Safety: arguments are valid, `EC_KEY` ensures that the group is
         // correct for the point, and a `Point` is always finite.
         unsafe {
             to_x962(
@@ -503,7 +503,7 @@ impl Key {
         // Safety: `self.0` is valid by construction.
         let group = unsafe { bssl_sys::EC_KEY_get0_group(self.0) };
         let point = unsafe { bssl_sys::EC_KEY_get0_public_key(self.0) };
-        // Safety: arguments are valid, `EC_KEY` ensures that the the group is
+        // Safety: arguments are valid, `EC_KEY` ensures that the group is
         // correct for the point, and a `Key` always holds a finite public point.
         unsafe {
             to_x962(
@@ -520,7 +520,7 @@ impl Key {
         // Safety: `self.0` is valid by construction.
         let group = unsafe { bssl_sys::EC_KEY_get0_group(self.0) };
         let point = unsafe { bssl_sys::EC_KEY_get0_public_key(self.0) };
-        // Safety: arguments are valid, `EC_KEY` ensures that the the group is
+        // Safety: arguments are valid, `EC_KEY` ensures that the group is
         // correct for the point, and a `Key` always holds a finite public point.
         unsafe {
             to_x962(

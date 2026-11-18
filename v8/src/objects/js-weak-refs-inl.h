@@ -11,6 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,8 +19,6 @@
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/js-weak-refs-tq-inl.inc"
 
 Tagged<NativeContext> JSFinalizationRegistry::native_context() const {
   return native_context_.load();

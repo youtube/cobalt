@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">ЖЖЖЖ</translation>
 <translation id="1013952917065545813">Жақында жапқан қойындыларды қайта ашу үшін осы жерге оралуыңызға болады.</translation>
 <translation id="1016495303386450659">Элемент жаңартылды</translation>
+<translation id="1018804590490383958">Сканерлеу және автоматты түрде толтыру</translation>
 <translation id="1019990162050689579">Gemini қолданбаларын пайдалану тарихы</translation>
 <translation id="102916930470544692">Кіру кілті</translation>
 <translation id="1030376737535466765">Password Manager қызметін ашу</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Браузерді жаңартыңыз</translation>
 <translation id="4021931095789478915">Оқу тізіміне ${url} қосу</translation>
 <translation id="4028871427853484857">Аккаунтта сақтау…</translation>
+<translation id="4036529942385659684">Әрекетсіздік кезеңінен кейін бастау бетін көрсету</translation>
 <translation id="4038354071007134711">Бұл құрылғыдағы қолданбалардың осы файлды ашуы мүмкін емес.</translation>
 <translation id="4042870976416480368">Беттен табу</translation>
 <translation id="4045441967987592849">Қайта ашу</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Топты басқару</translation>
 <translation id="4172051516777682613">Әрқашан көрсету</translation>
 <translation id="417273154673973994">{count,plural, =1{1 қойындылар тобы жабылды және сақталды.}other{{count} қойындылар тобы жабылды және сақталды.}}</translation>
-<translation id="417612446554534067">Құрылғыларға жіберу</translation>
 <translation id="4180726336228139707">Тек осы құрылғыда</translation>
 <translation id="4181841719683918333">Тілдер</translation>
 <translation id="4183350924949589798">Қауіпсіздікті күшейткіңіз келе ме?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Қойындылар жабылды; аккаунттан шығарылдыңыз</translation>
 <translation id="4911042367886397055"><ph name="USER_NAME" />, қайта оралғаныңызға қуаныштымыз!</translation>
 <translation id="4913626501929406101">Құпия сөзіңіздің көшірмесін отбасылық топтағы адамдармен қауіпсіз түрде бөлісе аласыз. <ph name="BEGIN_LINK" />Толық ақпарат<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Үлкейткіш әйнек</translation>
 <translation id="4917025507570489430">Бұрыннан бар браузерді пайдалану деректерін <ph name="USER_EMAIL" /> аккаунтына кірген кезде пайдалануға болады. Ұйымыңыз бұл деректерді көреді.</translation>
 <translation id="4918086044614829423">Қабылдау</translation>
 <translation id="4930714375720679147">Қосу</translation>
@@ -1549,6 +1551,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Мекенжай жолағын жылжытыңыз</translation>
 <translation id="6307241780749477694">Бұл құрылғыдағы барлық құпия сөзді алу үшін жеке басыңызды растаңыз.</translation>
+<translation id="6307792728709337290">Chrome-дағы осы және болашақтағы сатып алу транзакцияларында картаны автоматты түрде толтыру үшін оны Google аккаунтыңызға сақтаңыз.</translation>
 <translation id="6316141353357700666">Шығатын тізімнен қолданғыңыз келетін құпия сөзді таңдаңыз.</translation>
 <translation id="6321526113093607004">Бетбелгілерге қосу</translation>
 <translation id="6327249202318869726">Аккаунтыңызда Gemini өшірілген. Толық ақпарат алу үшін әкімшіге хабарласыңыз.</translation>
@@ -2143,6 +2146,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="8263809106706527890">Әдепкі браузер параметрлеріне өзгеріс енгізілген болуы мүмкін. Мұны параметрлерден тексере аласыз.</translation>
 <translation id="8264966119170358612">Google-дан тыс қызметтерде деректер қауіпсіздігі бұзылуына байланысты кейбір сақталған құпия сөздеріңіз жария болды. <ph name="BEGIN_LINK" />Толығырақ<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">iPad бастапқы күйіне қайтарылған кезде, аккаунтыңыздан (<ph name="USER_NAME" />) шығарылдыңыз. Аккаунтқа қайта кіру үшін төмендегі "Жалғастыру" түймесін түртіңіз.</translation>
+<translation id="8270320981823560179">Диск</translation>
 <translation id="8273982424131314219"><ph name="URL" /> бетінде ақпаратты толтырасыз</translation>
 <translation id="8275068909952022340">Қосымша…</translation>
 <translation id="8281781826761538115">Әдепкі - <ph name="DEFAULT_LOCALE" /></translation>

@@ -29,11 +29,6 @@ bool TextfieldController::HandleGestureEvent(
   return false;
 }
 
-ui::mojom::DragOperation TextfieldController::OnDrop(
-    const ui::DropTargetEvent& event) {
-  return ui::mojom::DragOperation::kNone;
-}
-
 views::View::DropCallback TextfieldController::CreateDropCallback(
     const ui::DropTargetEvent& event) {
   return base::NullCallback();

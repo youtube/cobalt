@@ -11,7 +11,7 @@ import {setShimlessRmaServiceForTesting} from 'chrome://shimless-rma/mojo_interf
 import {ShimlessRma} from 'chrome://shimless-rma/shimless_rma.js';
 import type {StateResult} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
 import {WrapupRestockPage} from 'chrome://shimless-rma/wrapup_restock_page.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 suite('wrapupRestockPageTest', function() {

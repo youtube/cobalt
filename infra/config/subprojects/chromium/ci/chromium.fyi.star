@@ -1461,7 +1461,6 @@ ci.builder(
                     "--mutter-display=1280x800",
                     "--test-launcher-filter-file=../../testing/buildbot/filters/ozone-linux.browser_tests_mutter.filter;../../testing/buildbot/filters/linux-arm64-wayland-rel-fyi.browser_tests.filter",
                 ],
-                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     shards = 20,
                 ),
@@ -1470,7 +1469,6 @@ ci.builder(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/linux-arm64-wayland-rel-fyi.content_browsertests.filter",
                 ],
-                retry_only_failed_tests = True,
             ),
             "interactive_ui_tests": targets.mixin(
                 args = [
@@ -1756,7 +1754,7 @@ fyi_ios_builder(
 )
 
 fyi_ios_builder(
-    name = "ios26-sdk-device",
+    name = "ios27-sdk-device",
     description_html = (
         "Validates that Chromium on iOS compiles for device using the latest iOS SDK." +
         "Particularly useful during WWDC season when new beta SDKs are being frequently" +
@@ -1796,7 +1794,7 @@ fyi_ios_builder(
     cpu = cpu.ARM64,
     console_view_entry = [
         consoles.console_view_entry(
-            category = "iOS|iOS26",
+            category = "iOS|iOS27",
             short_name = "dev",
         ),
     ],
@@ -1805,7 +1803,7 @@ fyi_ios_builder(
 )
 
 fyi_ios_builder(
-    name = "ios26-sdk-simulator",
+    name = "ios27-sdk-simulator",
     schedule = "0 1,5,9,13,17,21 * * *",
     triggered_by = [],
     builder_spec = builder_config.builder_spec(
@@ -1832,7 +1830,7 @@ fyi_ios_builder(
     ),
     targets = targets.bundle(
         targets = [
-            "ios26_sdk_simulator_tests",
+            "ios27_sdk_simulator_tests",
         ],
         additional_compile_targets = [
             "all",
@@ -1844,7 +1842,7 @@ fyi_ios_builder(
             "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_26_beta",
+            "xcode_27_beta",
             "xctest",
         ],
     ),
@@ -1852,15 +1850,15 @@ fyi_ios_builder(
     cpu = cpu.ARM64,
     console_view_entry = [
         consoles.console_view_entry(
-            category = "iOS|iOS26",
-            short_name = "sdk26",
+            category = "iOS|iOS27",
+            short_name = "sdk27",
         ),
     ],
     xcode = xcode.xcode_beta,
 )
 
 fyi_ios_builder(
-    name = "ios18-beta-simulator",
+    name = "ios26-beta-simulator",
     schedule = "0 0,4,8,12,16,20 * * *",
     triggered_by = [],
     builder_spec = builder_config.builder_spec(
@@ -1887,11 +1885,11 @@ fyi_ios_builder(
             "xctest",
         ],
     ),
-    # ios18-beta-sim compiles with xcode version n-1, but
+    # ios26-beta-sim compiles with xcode version n-1, but
     # runs testers with xcode n during an xcode roll.
     targets = targets.bundle(
         targets = [
-            "ios18_beta_simulator_tests",
+            "ios26_beta_simulator_tests",
         ],
         additional_compile_targets = [
             "all",
@@ -1903,7 +1901,7 @@ fyi_ios_builder(
             "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_26_beta",
+            "xcode_27_beta",
             "xctest",
         ],
     ),
@@ -1913,13 +1911,13 @@ fyi_ios_builder(
     os = os.MAC_BETA,
     cpu = cpu.ARM64,
     console_view_entry = consoles.console_view_entry(
-        category = "iOS|iOS18",
-        short_name = "ios18",
+        category = "iOS|iOS26",
+        short_name = "ios26",
     ),
 )
 
 fyi_ios_builder(
-    name = "ios26-beta-simulator",
+    name = "ios27-beta-simulator",
     schedule = "0 3,7,11,15,19,23 * * *",
     triggered_by = [],
     builder_spec = builder_config.builder_spec(
@@ -1946,7 +1944,7 @@ fyi_ios_builder(
     ),
     targets = targets.bundle(
         targets = [
-            "ios26_beta_simulator_tests",
+            "ios27_beta_simulator_tests",
         ],
         additional_compile_targets = [
             "all",
@@ -1958,7 +1956,7 @@ fyi_ios_builder(
             "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_26_beta",
+            "xcode_27_beta",
             "xctest",
         ],
     ),
@@ -1969,14 +1967,14 @@ fyi_ios_builder(
     cpu = cpu.ARM64,
     console_view_entry = [
         consoles.console_view_entry(
-            category = "iOS|iOS26",
-            short_name = "ios26",
+            category = "iOS|iOS27",
+            short_name = "ios27",
         ),
     ],
 )
 
 fyi_ios_builder(
-    name = "ios18-sdk-simulator",
+    name = "ios26-sdk-simulator",
     schedule = "0 2,6,10,14,18,22 * * *",
     triggered_by = [],
     builder_spec = builder_config.builder_spec(
@@ -2003,11 +2001,11 @@ fyi_ios_builder(
             "xctest",
         ],
     ),
-    # ios18-sdk-sim compiles with xcode version n, and runs
+    # ios26-sdk-sim compiles with xcode version n, and runs
     # testers with xcode n during an xcode roll.
     targets = targets.bundle(
         targets = [
-            "ios18_sdk_simulator_tests",
+            "ios26_sdk_simulator_tests",
         ],
         additional_compile_targets = [
             "all",
@@ -2019,15 +2017,15 @@ fyi_ios_builder(
             "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_26_beta",
+            "xcode_27_beta",
             "xctest",
         ],
     ),
     os = os.MAC_BETA,
     cpu = cpu.ARM64,
     console_view_entry = consoles.console_view_entry(
-        category = "iOS|iOS18",
-        short_name = "sdk18",
+        category = "iOS|iOS26",
+        short_name = "sdk26",
     ),
     xcode = xcode.xcode_beta,
 )
@@ -2463,7 +2461,6 @@ fyi_mac_builder(
         targets = ["trees_in_viz_disabled_tests"],
         mixins = [
             "mac_15_x64",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "blink_web_tests": targets.mixin(
@@ -2481,9 +2478,6 @@ fyi_mac_builder(
                 ),
             ),
             "content_browsertests": targets.mixin(
-                # Only retry the individual failed tests instead of rerunning
-                # entire shards.
-                # crbug.com/1475852
                 swarming = targets.swarming(
                     shards = 12,
                 ),
@@ -2540,7 +2534,6 @@ ci.builder(
         mixins = [
             "x86-64",
             "win10",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "blink_web_tests": targets.mixin(
@@ -2558,9 +2551,6 @@ ci.builder(
                 ),
             ),
             "browser_tests": targets.mixin(
-                # Only retry the individual failed tests instead of rerunning
-                # entire shards.
-                # crbug.com/1473501
                 swarming = targets.swarming(
                     # This is for slow test execution that often becomes a
                     # critical path of swarming jobs. crbug.com/868114
@@ -2624,7 +2614,6 @@ ci.builder(
         mixins = [
             "x86-64",
             "linux-jammy",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "browser_tests": targets.mixin(
@@ -2700,7 +2689,6 @@ ci.builder(
             "has_native_resultdb_integration",
             "linux-jammy",
             "x86-64",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
@@ -2774,7 +2762,6 @@ ci.builder(
         targets = ["trees_in_viz_enabled_tests"],
         mixins = [
             "linux-jammy",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "blink_web_tests": targets.mixin(

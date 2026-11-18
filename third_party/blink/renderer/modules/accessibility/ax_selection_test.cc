@@ -276,7 +276,7 @@ TEST_F(AccessibilitySelectionTest, SetSelectionInText) {
   AXSelection::Builder builder(GetAXObjectCache());
   const AXSelection ax_selection =
       builder.SetAnchor(ax_base).SetFocus(ax_extent).Build();
-  const SelectionInDOMTree dom_selection = ax_selection.AsSelection();
+  const SelectionInDomTree dom_selection = ax_selection.AsSelection();
   EXPECT_EQ(text, dom_selection.Anchor().AnchorNode());
   EXPECT_EQ(3, dom_selection.Anchor().OffsetInContainerNode());
   EXPECT_EQ(text, dom_selection.Focus().AnchorNode());
@@ -390,7 +390,7 @@ TEST_F(AccessibilitySelectionTest, SetSelectionInTextWithWhiteSpace) {
   AXSelection::Builder builder(GetAXObjectCache());
   const AXSelection ax_selection =
       builder.SetAnchor(ax_base).SetFocus(ax_extent).Build();
-  const SelectionInDOMTree dom_selection = ax_selection.AsSelection();
+  const SelectionInDomTree dom_selection = ax_selection.AsSelection();
   EXPECT_EQ(text, dom_selection.Anchor().AnchorNode());
   EXPECT_EQ(8, dom_selection.Anchor().OffsetInContainerNode());
   EXPECT_EQ(text, dom_selection.Focus().AnchorNode());
@@ -433,7 +433,7 @@ TEST_F(AccessibilitySelectionTest, SetSelectionAcrossLineBreak) {
   AXSelection::Builder builder(GetAXObjectCache());
   const AXSelection ax_selection =
       builder.SetAnchor(ax_base).SetFocus(ax_extent).Build();
-  const SelectionInDOMTree dom_selection = ax_selection.AsSelection();
+  const SelectionInDomTree dom_selection = ax_selection.AsSelection();
   EXPECT_EQ(paragraph, dom_selection.Anchor().AnchorNode());
   EXPECT_EQ(1, dom_selection.Anchor().OffsetInContainerNode());
   EXPECT_EQ(line2, dom_selection.Focus().AnchorNode());
@@ -483,7 +483,7 @@ TEST_F(AccessibilitySelectionTest, SetSelectionAcrossLineBreakInEditableText) {
   AXSelection::Builder builder(GetAXObjectCache());
   const AXSelection ax_selection =
       builder.SetAnchor(ax_base).SetFocus(ax_extent).Build();
-  const SelectionInDOMTree dom_selection = ax_selection.AsSelection();
+  const SelectionInDomTree dom_selection = ax_selection.AsSelection();
   EXPECT_EQ(paragraph, dom_selection.Anchor().AnchorNode());
   EXPECT_EQ(1, dom_selection.Anchor().OffsetInContainerNode());
   EXPECT_EQ(line2, dom_selection.Focus().AnchorNode());
@@ -561,7 +561,7 @@ TEST_F(AccessibilitySelectionTest, SetSelectionInDisplayNone) {
 
   const auto hidden_1_first = Position::FirstPositionInNode(*hidden_1);
   const auto hidden_2_first = Position::FirstPositionInNode(*hidden_2);
-  const auto selection = SelectionInDOMTree::Builder()
+  const auto selection = SelectionInDomTree::Builder()
                              .SetBaseAndExtent(hidden_1_first, hidden_2_first)
                              .Build();
 
@@ -1941,7 +1941,7 @@ TEST_F(AccessibilitySelectionTest, InvalidSelectionOnAShadowRoot) {
   const Position extent = Position::EditingPositionOf(shadow_root, 1);
 
   const auto selection =
-      SelectionInDOMTree::Builder().SetBaseAndExtent(base, extent).Build();
+      SelectionInDomTree::Builder().SetBaseAndExtent(base, extent).Build();
   EXPECT_FALSE(
       AXSelection::FromSelection(selection, GetAXObjectCache()).IsValid());
 }

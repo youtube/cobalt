@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 
+class SidePanelEntry;
 class SidePanelEntryKey;
 
 // The SidePanelToolbarPinningController is responsible for updating the pin
@@ -48,6 +49,8 @@ class SidePanelToolbarPinningController
 
   // Toggles the pin state for `entry_key` when invoked.
   void UpdatePinState(SidePanelEntryKey entry_key);
+
+  bool ShouldShowActiveInToolbar(const SidePanelEntry* entry);
 
   void UpdateActiveState(SidePanelEntryKey key, bool show_active_in_toolbar);
 

@@ -22,8 +22,6 @@ namespace internal {
 class ClassLiteral;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/literal-objects-tq.inc"
-
 V8_OBJECT class PrototypeSharedClosureInfo : public Struct {
  public:
   inline Tagged<ObjectBoilerplateDescription> boilerplate_description() const;
@@ -56,7 +54,7 @@ V8_OBJECT class PrototypeSharedClosureInfo : public Struct {
 // value pairs. In addition to the properties, it provides the projected number
 // of properties in the backing store. This number includes properties with
 // computed names that are not in the list.
-class ObjectBoilerplateDescription
+V8_OBJECT class ObjectBoilerplateDescription
     : public TaggedArrayBase<ObjectBoilerplateDescription, Object> {
   using Super = TaggedArrayBase<ObjectBoilerplateDescription, Object>;
 
@@ -104,14 +102,11 @@ class ObjectBoilerplateDescription
   static constexpr int ValueIndex(int i) { return i * kElementsPerEntry + 1; }
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   TaggedMember<Smi> backing_store_size_;
   TaggedMember<Smi> flags_;
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
-};
+} V8_OBJECT_END;
 
 V8_OBJECT class ArrayBoilerplateDescription : public Struct {
  public:

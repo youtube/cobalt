@@ -239,6 +239,11 @@ class DataTypeSyncBridge {
   // * Known fields that are just defined in the proto and not actively used
   // (e.g. a partially-implemented functionality or a functionality guarded by a
   // feature toggle).
+  //
+  // Note that implementing this method is not enough to support unknown fields,
+  // the bridge must also use GetPossiblyTrimmedRemoteSpecifics() from the
+  // processor before calling Put() to preserve them.
+  //
   // Refer to the following documentation before implementing this method:
   // https://www.chromium.org/developers/design-documents/sync/old-sync-clients-data-override-protection/
   virtual sync_pb::EntitySpecifics TrimAllSupportedFieldsFromRemoteSpecifics(

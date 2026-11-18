@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.actor.ui;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
-
 import android.content.Context;
 
 import androidx.annotation.VisibleForTesting;
@@ -23,7 +21,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.actor.ActorKeyedService;
 import org.chromium.chrome.browser.actor.ActorKeyedServiceFactory;
 import org.chromium.chrome.browser.actor.StoppedReason;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.content_public.browser.ImeAdapter;
@@ -124,9 +122,16 @@ public class ActorUiTabController implements UserData {
     private final ObserverList<Observer> mObservers = new ObserverList<>();
     private @Nullable UiTabState mCurrentState;
 
-    /** Returns the controller for a given tab, creating it if necessary. */
-    public static @Nullable ActorUiTabController from(Tab tab) {
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.GLIC)) return null;
+    /**
+     * Returns the controller for a given tab, creating it if necessary.
+     *
+     * @param tab The tab to get the controller for.
+     * @return The controller for the given tab, or null if the tab is null, destroyed, or if the
+     *     tab's profile is not eligible for Glic (e.g. incognito profiles).
+     */
+    public static @Nullable ActorUiTabController from(@Nullable Tab tab) {
+        if (tab == null || tab.isDestroyed()) return null;
+        if (!GlicEnabling.isProfileEligible(tab.getProfile())) return null;
 
         ActorUiTabController controller = tab.getUserDataHost().getUserData(USER_DATA_KEY);
         if (controller == null) {
@@ -175,18 +180,21 @@ public class ActorUiTabController implements UserData {
             @ControlOwnership int handoffOwner,
             @TabIndicatorStatus int indicator,
             boolean borderGlow) {
-        if (tab == null || tab.isDestroyed()) {
+        ActorUiTabController controller = from(tab);
+
+        // TODO(crbug.com/520161144): `controller` should never be null here, since this call is
+        // coming from native counter part.
+        if (controller == null) {
             return false;
         }
 
-        assumeNonNull(from(tab))
-                .onUiTabStateChange(
-                        new UiTabState(
-                                tab.getId(),
-                                new ActorOverlayState(overlayActive, overlayGlow, overlayClick),
-                                new HandoffButtonState(handoffActive, handoffOwner),
-                                indicator,
-                                borderGlow));
+        controller.onUiTabStateChange(
+                new UiTabState(
+                        tab.getId(),
+                        new ActorOverlayState(overlayActive, overlayGlow, overlayClick),
+                        new HandoffButtonState(handoffActive, handoffOwner),
+                        indicator,
+                        borderGlow));
         return true;
     }
 
@@ -218,9 +226,15 @@ public class ActorUiTabController implements UserData {
 
     @CalledByNative
     @SuppressWarnings("unused")
-    boolean maybeDeferNavigation(
-            @JniType("GURL") GURL url, Callback<Boolean> navigationConfirmedCallback) {
-        return showConfirmationDialog(navigationConfirmedCallback);
+    private static boolean maybeDeferNavigation(
+            Tab tab, @JniType("GURL") GURL url, Callback<Boolean> navigationConfirmedCallback) {
+        ActorUiTabController controller = from(tab);
+        // TODO(crbug.com/520161144): `controller` should never be null here, since this call is
+        // coming from native counter part.
+        if (controller == null) {
+            return false;
+        }
+        return controller.showConfirmationDialog(navigationConfirmedCallback);
     }
 
     /** Returns true if an Actor task is currently active on this tab. */

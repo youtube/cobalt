@@ -295,7 +295,7 @@ public class ManualFillingIntegrationTest {
         whenDisplayed(withChild(withId(R.id.keyboard_accessory_sheet_frame)));
 
         LayoutTestUtils.startShowingAndWaitForLayout(
-                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.TAB_SWITCHER, false);
+                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.HUB, false);
 
         LayoutTestUtils.startShowingAndWaitForLayout(
                 mActivityTestRule.getActivity().getLayoutManager(), LayoutType.BROWSING, false);

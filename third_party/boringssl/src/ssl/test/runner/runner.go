@@ -1365,7 +1365,7 @@ type shimProcess struct {
 }
 
 // newShimProcess starts a new shim with the specified executable, flags, and
-// environment. It internally creates a TCP listener and adds the the -port
+// environment. It internally creates a TCP listener and adds the -port
 // flag.
 func newShimProcess(dispatcher *shimDispatcher, shimPath string, flags []string, env []string) (*shimProcess, error) {
 	listener, err := dispatcher.NewShim()

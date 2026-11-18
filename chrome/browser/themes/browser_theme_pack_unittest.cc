@@ -101,10 +101,7 @@ class BrowserThemePackTest : public ::testing::Test {
   void LoadDisplayPropertiesDictionary(const base::DictValue* value);
   void ParseThemeImages(const extensions::ThemeInfo::ThemeImages* value,
                         TestFilePathMap* out_file_paths);
-  void ResetTabGroupColorPaletteShades();
-  void LoadTabGroupColorPaletteShadesJSON(const std::string& json);
-  void LoadTabGroupColorPaletteShadesDictionary(const base::DictValue* value);
-  void VerifyTabGroupColorPaletteShades();
+
   bool LoadRawBitmapsTo(const TestFilePathMap& out_file_paths);
 
   // This function returns void in order to be able use ASSERT_...
@@ -254,67 +251,7 @@ void BrowserThemePackTest::ParseThemeImages(
   theme_pack_->BuildSourceImagesArray(*out_file_paths);
 }
 
-void BrowserThemePackTest::ResetTabGroupColorPaletteShades() {
-  theme_pack_->tab_group_color_palette_shades_ =
-      std::array<BrowserThemePack::TabGroupColorPaletteShadesPair,
-                 BrowserThemePack::kTabGroupColorPaletteLength>{};
-}
 
-void BrowserThemePackTest::LoadTabGroupColorPaletteShadesJSON(
-    const std::string& json) {
-  LoadTabGroupColorPaletteShadesDictionary(
-      &base::JSONReader::Read(json, base::JSON_PARSE_CHROMIUM_EXTENSIONS)
-           ->GetDict());
-}
-
-void BrowserThemePackTest::LoadTabGroupColorPaletteShadesDictionary(
-    const base::DictValue* value) {
-  theme_pack_->SetTabGroupColorPaletteShadesFromJSON(value);
-}
-
-void BrowserThemePackTest::VerifyTabGroupColorPaletteShades() {
-  const std::array<BrowserThemePack::TabGroupColorPaletteShadesPair,
-                   BrowserThemePack::kTabGroupColorPaletteLength>&
-      tab_group_color_palette_shades =
-          theme_pack_->tab_group_color_palette_shades_;
-
-  std::array<BrowserThemePack::TabGroupColorPaletteShadesPair,
-             BrowserThemePack::kTabGroupColorPaletteLength>
-      expected_tab_group_color_palette_shades{};
-
-  expected_tab_group_color_palette_shades[0].id =
-      static_cast<int>(tab_groups::TabGroupColorId::kRed);
-
-  // Expected standard shades for hue = 40
-  constexpr std::array<SkColor, ui::kGeneratedShadesCount> kExpectedShades = {
-      SkColorSetRGB(0xFF, 0xED, 0xE7),  // Shade 50
-      SkColorSetRGB(0xFF, 0xDC, 0xD0),  // Shade 100
-      SkColorSetRGB(0xFF, 0xC1, 0xAA),  // Shade 200
-      SkColorSetRGB(0xFF, 0xA6, 0x83),  // Shade 300
-      SkColorSetRGB(0xFF, 0x87, 0x56),  // Shade 400
-      SkColorSetRGB(0xFA, 0x6E, 0x2F),  // Shade 500
-      SkColorSetRGB(0xE4, 0x5F, 0x20),  // Shade 600
-      SkColorSetRGB(0xCB, 0x52, 0x19),  // Shade 700
-      SkColorSetRGB(0xB3, 0x46, 0x11),  // Shade 800
-      SkColorSetRGB(0x9F, 0x3D, 0x0E),  // Shade 900
-      SkColorSetRGB(0x5A, 0x3D, 0x32),  // Shade 1000
-  };
-
-  std::copy(kExpectedShades.begin(), kExpectedShades.end(),
-            expected_tab_group_color_palette_shades[0].shades.begin());
-
-  for (size_t i = 0; i < BrowserThemePack::kTabGroupColorPaletteLength; ++i) {
-    const auto& actual = tab_group_color_palette_shades[i];
-    const auto& expected = expected_tab_group_color_palette_shades[i];
-
-    EXPECT_EQ(actual.id, expected.id) << "Mismatch at index " << i << " for ID";
-
-    for (size_t j = 0; j < ui::kGeneratedShadesCount; ++j) {
-      EXPECT_EQ(actual.shades[j], expected.shades[j])
-          << "Mismatch at index " << i << " shade " << j;
-    }
-  }
-}
 
 bool BrowserThemePackTest::LoadRawBitmapsTo(
     const TestFilePathMap& out_file_paths) {
@@ -1344,143 +1281,7 @@ TEST_F(BrowserThemePackTest, JpegThemeFrame) {
   EXPECT_FALSE(theme->is_valid());
 }
 
-TEST_F(BrowserThemePackTest, SetTabGroupColorPaletteShadesFromJSONTest) {
-  ResetTabGroupColorPaletteShades();
 
-  std::string tab_group_color_palette_json =
-      // invalid key with valid value, will be ignored.
-      "{ \"invalid_key\": 23, "
-      // valid key with invalid value, will be ignored.
-      "  \"grey_override\": 361, "
-      // valid key with valid value, will be translated.
-      "  \"red_override\": 40 } ";
-  LoadTabGroupColorPaletteShadesJSON(tab_group_color_palette_json);
-
-  VerifyTabGroupColorPaletteShades();
-
-  ResetTabGroupColorPaletteShades();
-}
-
-TEST_F(BrowserThemePackTest, TabGroupColorPaletteCustomizationTest) {
-  // Tests whether the Tab Group-specific colorIds are set correctly based on
-  // the background color and theme provided.
-  ui::ColorProvider provider;
-  ui::ColorMixer& mixer = provider.AddMixer();
-
-  // Randomly set the background colors that influence Tab Group-specific
-  // ColorIds. The selected shade depends on whether the background color is
-  // considered dark.
-  mixer[kColorTabBackgroundInactiveFrameActive] = {SkColorSetRGB(20, 20, 20)};
-  mixer[kColorTabBackgroundInactiveFrameInactive] = {SkColorSetRGB(34, 34, 34)};
-  mixer[ui::kColorMenuBackground] = {SkColorSetRGB(15, 23, 30)};
-  mixer[kColorBookmarkBarBackground] = {SkColorSetRGB(255, 250, 200)};
-  mixer[kColorThumbnailTabStripBackgroundActive] = {
-      SkColorSetRGB(220, 230, 240)};
-  mixer[kColorThumbnailTabStripBackgroundInactive] = {
-      SkColorSetRGB(245, 245, 245)};
-
-  // Customizing the red Tab Group color using hue 40.
-  std::string tab_group_color_palette_json = R"({ "red_override": 40 })";
-  LoadTabGroupColorPaletteShadesJSON(tab_group_color_palette_json);
-  theme_pack().AddColorMixers(&provider, ui::ColorProviderKey());
-
-  // Standard shades of hue 40.
-  constexpr std::array<SkColor, ui::kGeneratedShadesCount> shades = {
-      SkColorSetRGB(0xFF, 0xED, 0xE7),  // Shade 50
-      SkColorSetRGB(0xFF, 0xDC, 0xD0),  // Shade 100
-      SkColorSetRGB(0xFF, 0xC1, 0xAA),  // Shade 200
-      SkColorSetRGB(0xFF, 0xA6, 0x83),  // Shade 300
-      SkColorSetRGB(0xFF, 0x87, 0x56),  // Shade 400
-      SkColorSetRGB(0xFA, 0x6E, 0x2F),  // Shade 500
-      SkColorSetRGB(0xE4, 0x5F, 0x20),  // Shade 600
-      SkColorSetRGB(0xCB, 0x52, 0x19),  // Shade 700
-      SkColorSetRGB(0xB3, 0x46, 0x11),  // Shade 800
-      SkColorSetRGB(0x9F, 0x3D, 0x0E),  // Shade 900
-      SkColorSetRGB(0x5A, 0x3D, 0x32),  // Shade 1000
-  };
-
-  enum ShadeIndex {
-    k50,
-    k100,
-    k200,
-    k300,
-    k400,
-    k500,
-    k600,
-    k700,
-    k800,
-    k900,
-    k1000
-  };
-
-  SkColor expected;
-  SkColor actual;
-
-  // kColorTabGroupTabStripFrameActiveRed
-  expected = color_utils::IsDark(
-                 provider.GetColor(kColorTabBackgroundInactiveFrameActive))
-                 ? shades[k300]
-                 : shades[k600];
-  actual = provider.GetColor(kColorTabGroupTabStripFrameActiveRed);
-  EXPECT_EQ(expected, actual);
-
-  // kColorTabGroupTabStripFrameInactiveRed
-  expected = color_utils::IsDark(
-                 provider.GetColor(kColorTabBackgroundInactiveFrameInactive))
-                 ? shades[k300]
-                 : shades[k600];
-  actual = provider.GetColor(kColorTabGroupTabStripFrameInactiveRed);
-  EXPECT_EQ(expected, actual);
-
-  // kColorTabGroupDialogRed
-  expected = provider.GetColor(kColorTabGroupContextMenuRed);
-  actual = provider.GetColor(kColorTabGroupDialogRed);
-  EXPECT_EQ(expected, actual);
-
-  // kColorTabGroupContextMenuRed
-  expected = color_utils::IsDark(provider.GetColor(ui::kColorMenuBackground))
-                 ? shades[k300]
-                 : shades[k600];
-  actual = provider.GetColor(kColorTabGroupContextMenuRed);
-  EXPECT_EQ(expected, actual);
-
-  // kColorSavedTabGroupForegroundRed
-  expected = color_utils::IsDark(provider.GetColor(kColorBookmarkBarBackground))
-                 ? shades[k100]
-                 : shades[k800];
-  actual = provider.GetColor(kColorSavedTabGroupForegroundRed);
-  EXPECT_EQ(expected, actual);
-
-  // kColorSavedTabGroupOutlineRed
-  expected = color_utils::IsDark(provider.GetColor(kColorBookmarkBarBackground))
-                 ? shades[k300]
-                 : shades[k700];
-  actual = provider.GetColor(kColorSavedTabGroupOutlineRed);
-  EXPECT_EQ(expected, actual);
-
-  // kColorTabGroupBookmarkBarRed
-  expected = color_utils::IsDark(provider.GetColor(kColorBookmarkBarBackground))
-                 ? shades[k1000]
-                 : shades[k50];
-  actual = provider.GetColor(kColorTabGroupBookmarkBarRed);
-  EXPECT_EQ(expected, actual);
-
-  // kColorThumbnailTabStripTabGroupFrameActiveRed
-  expected = color_utils::IsDark(
-                 provider.GetColor(kColorThumbnailTabStripBackgroundActive))
-                 ? shades[k300]
-                 : shades[k600];
-  actual = provider.GetColor(kColorThumbnailTabStripTabGroupFrameActiveRed);
-  EXPECT_EQ(expected, actual);
-
-  // kColorThumbnailTabStripTabGroupFrameInactiveRed
-  expected = color_utils::IsDark(
-                 provider.GetColor(kColorThumbnailTabStripBackgroundInactive))
-                 ? shades[k300]
-                 : shades[k600];
-  actual = provider.GetColor(kColorThumbnailTabStripTabGroupFrameInactiveRed);
-  EXPECT_EQ(expected, actual);
-}
 
 TEST_F(VerticalBrowserThemePackTest, FrameImageNotCropped) {
   // Tests that we do not crop the height of IDR_THEME_FRAME elements when

@@ -53,8 +53,8 @@ public final class ParameterizedRunner extends Suite {
 
     /**
      * ParentRunner calls collectInitializationErrors() to check for errors in Test class.
-     * Parameterized tests are written in unconventional ways, therefore, this method is
-     * overridden and validation is done seperately.
+     * Parameterized tests are written in unconventional ways, therefore, this method is overridden
+     * and validation is done separately.
      */
     @Override
     protected void collectInitializationErrors(List<Throwable> errors) {

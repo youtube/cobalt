@@ -17,6 +17,7 @@
 #include <cstring>
 
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "third_party/blink/renderer/platform/audio/audio_array.h"
 
 namespace blink {
@@ -62,7 +63,7 @@ void PrepareFilterForConv(const float* filter_p,
 void Conv(const float* source_p,
           const float* prepared_filter_p,
           float* dest_p,
-          uint32_t frames_to_process,
+          size_t frames_to_process,
           size_t filter_size) {
   const float* const dest_end_p = UNSAFE_TODO(dest_p + frames_to_process);
 
@@ -98,78 +99,75 @@ void Conv(const float* source_p,
 }
 
 // dest[k] = source1[k] + source2[k]
-void Vadd(const float* source1p,
-          const float* source2p,
-          float* dest_p,
-          uint32_t frames_to_process) {
-  const float* const source1_end_p = UNSAFE_TODO(source1p + frames_to_process);
+void Vadd(base::span<const float> source1,
+          base::span<const float> source2,
+          base::span<float> dest) {
+  DCHECK_EQ(source1.size(), dest.size());
+  DCHECK_EQ(source2.size(), dest.size());
+  DCHECK(IsAligned(source1.data()));
+  DCHECK_EQ(0u, dest.size() % kPackedFloatsPerRegister);
 
-  DCHECK(IsAligned(source1p));
-  DCHECK_EQ(0u, frames_to_process % kPackedFloatsPerRegister);
-
-#define ADD_ALL(loadSource2, storeDest)              \
-  while (source1p < source1_end_p) {                 \
-    MType m_source1 = MM_PS(load)(source1p);         \
-    MType m_source2 = MM_PS(loadSource2)(source2p);  \
-    MType m_dest = MM_PS(add)(m_source1, m_source2); \
-    MM_PS(storeDest)(dest_p, m_dest);                \
-    source1p += kPackedFloatsPerRegister;            \
-    source2p += kPackedFloatsPerRegister;            \
-    dest_p += kPackedFloatsPerRegister;              \
+#define ADD_ALL(loadSource2, storeDest)                                   \
+  for (size_t i = 0; i < dest.size(); i += kPackedFloatsPerRegister) {    \
+    MType m_source1 =                                                     \
+        MM_PS(load)(source1.subspan(i, kPackedFloatsPerRegister).data()); \
+    MType m_source2 = MM_PS(loadSource2)(                                 \
+        source2.subspan(i, kPackedFloatsPerRegister).data());             \
+    MType m_dest = MM_PS(add)(m_source1, m_source2);                      \
+    MM_PS(storeDest)(dest.subspan(i, kPackedFloatsPerRegister).data(),    \
+                     m_dest);                                             \
   }
 
-  if (IsAligned(source2p)) {
+  const float* dest_p = dest.data();
+  if (IsAligned(source2.data())) {
     if (IsAligned(dest_p)) {
-      UNSAFE_TODO(ADD_ALL(load, store));
+      ADD_ALL(load, store);
     } else {
-      UNSAFE_TODO(ADD_ALL(load, storeu));
+      ADD_ALL(load, storeu);
     }
   } else {
     if (IsAligned(dest_p)) {
-      UNSAFE_TODO(ADD_ALL(loadu, store));
+      ADD_ALL(loadu, store);
     } else {
-      UNSAFE_TODO(ADD_ALL(loadu, storeu));
+      ADD_ALL(loadu, storeu);
     }
   }
-
 #undef ADD_ALL
 }
 
-// dest[k] = source1[k] - source2[k]
-void Vsub(const float* source1p,
-          const float* source2p,
-          float* dest_p,
-          uint32_t frames_to_process) {
-  const float* const source1_end_p = UNSAFE_TODO(source1p + frames_to_process);
+void Vsub(base::span<const float> source1,
+          base::span<const float> source2,
+          base::span<float> dest) {
+  DCHECK_EQ(source1.size(), dest.size());
+  DCHECK_EQ(source2.size(), dest.size());
+  DCHECK(IsAligned(source1.data()));
+  DCHECK_EQ(0u, dest.size() % kPackedFloatsPerRegister);
 
-  DCHECK(IsAligned(source1p));
-  DCHECK_EQ(0u, frames_to_process % kPackedFloatsPerRegister);
-
-#define SUB_ALL(loadSource2, storeDest)              \
-  while (source1p < source1_end_p) {                 \
-    MType m_source1 = MM_PS(load)(source1p);         \
-    MType m_source2 = MM_PS(loadSource2)(source2p);  \
-    MType m_dest = MM_PS(sub)(m_source1, m_source2); \
-    MM_PS(storeDest)(dest_p, m_dest);                \
-    source1p += kPackedFloatsPerRegister;            \
-    source2p += kPackedFloatsPerRegister;            \
-    dest_p += kPackedFloatsPerRegister;              \
+#define SUB_ALL(loadSource2, storeDest)                                   \
+  for (size_t i = 0; i < dest.size(); i += kPackedFloatsPerRegister) {    \
+    MType m_source1 =                                                     \
+        MM_PS(load)(source1.subspan(i, kPackedFloatsPerRegister).data()); \
+    MType m_source2 = MM_PS(loadSource2)(                                 \
+        source2.subspan(i, kPackedFloatsPerRegister).data());             \
+    MType m_dest = MM_PS(sub)(m_source1, m_source2);                      \
+    MM_PS(storeDest)(dest.subspan(i, kPackedFloatsPerRegister).data(),    \
+                     m_dest);                                             \
   }
 
-  if (IsAligned(source2p)) {
+  const float* dest_p = dest.data();
+  if (IsAligned(source2.data())) {
     if (IsAligned(dest_p)) {
-      UNSAFE_TODO(SUB_ALL(load, store));
+      SUB_ALL(load, store);
     } else {
-      UNSAFE_TODO(SUB_ALL(load, storeu));
+      SUB_ALL(load, storeu);
     }
   } else {
     if (IsAligned(dest_p)) {
-      UNSAFE_TODO(SUB_ALL(loadu, store));
+      SUB_ALL(loadu, store);
     } else {
-      UNSAFE_TODO(SUB_ALL(loadu, storeu));
+      SUB_ALL(loadu, storeu);
     }
   }
-
 #undef SUB_ALL
 }
 
@@ -179,7 +177,7 @@ void Vclip(const float* source_p,
            const float* low_threshold_p,
            const float* high_threshold_p,
            float* dest_p,
-           uint32_t frames_to_process) {
+           size_t frames_to_process) {
   const float* const source_end_p = UNSAFE_TODO(source_p + frames_to_process);
 
   DCHECK(IsAligned(source_p));
@@ -209,10 +207,10 @@ void Vclip(const float* source_p,
 
 // *max_p = max(*max_p, source_max) where
 // source_max = max(abs(source[k])) for all k
-void Vmaxmgv(const float* source_p, float* max_p, uint32_t frames_to_process) {
+void Vmaxmgv(const float* source_p, float* max_p, size_t frames_to_process) {
   constexpr uint32_t kMask = 0x7FFFFFFFu;
   float kMask_float;
-  UNSAFE_TODO(std::memcpy(&kMask_float, &kMask, 4));
+  UNSAFE_TODO(std::memcpy(&kMask_float, &kMask, sizeof(float)));
   const float* const source_end_p = UNSAFE_TODO(source_p + frames_to_process);
 
   DCHECK(IsAligned(source_p));
@@ -237,40 +235,39 @@ void Vmaxmgv(const float* source_p, float* max_p, uint32_t frames_to_process) {
 }
 
 // dest[k] = source1[k] * source2[k]
-void Vmul(const float* source1p,
-          const float* source2p,
-          float* dest_p,
-          uint32_t frames_to_process) {
-  const float* const source1_end_p = UNSAFE_TODO(source1p + frames_to_process);
+void Vmul(base::span<const float> source1,
+          base::span<const float> source2,
+          base::span<float> dest) {
+  DCHECK_EQ(source1.size(), dest.size());
+  DCHECK_EQ(source2.size(), dest.size());
+  DCHECK(IsAligned(source1.data()));
+  DCHECK_EQ(0u, dest.size() % kPackedFloatsPerRegister);
 
-  DCHECK(IsAligned(source1p));
-  DCHECK_EQ(0u, frames_to_process % kPackedFloatsPerRegister);
-
-#define MULTIPLY_ALL(loadSource2, storeDest)         \
-  while (source1p < source1_end_p) {                 \
-    MType m_source1 = MM_PS(load)(source1p);         \
-    MType m_source2 = MM_PS(loadSource2)(source2p);  \
-    MType m_dest = MM_PS(mul)(m_source1, m_source2); \
-    MM_PS(storeDest)(dest_p, m_dest);                \
-    source1p += kPackedFloatsPerRegister;            \
-    source2p += kPackedFloatsPerRegister;            \
-    dest_p += kPackedFloatsPerRegister;              \
+#define MULTIPLY_ALL(loadSource2, storeDest)                              \
+  for (size_t i = 0; i < dest.size(); i += kPackedFloatsPerRegister) {    \
+    MType m_source1 =                                                     \
+        MM_PS(load)(source1.subspan(i, kPackedFloatsPerRegister).data()); \
+    MType m_source2 = MM_PS(loadSource2)(                                 \
+        source2.subspan(i, kPackedFloatsPerRegister).data());             \
+    MType m_dest = MM_PS(mul)(m_source1, m_source2);                      \
+    MM_PS(storeDest)(dest.subspan(i, kPackedFloatsPerRegister).data(),    \
+                     m_dest);                                             \
   }
 
-  if (IsAligned(source2p)) {
+  const float* dest_p = dest.data();
+  if (IsAligned(source2.data())) {
     if (IsAligned(dest_p)) {
-      UNSAFE_TODO(MULTIPLY_ALL(load, store));
+      MULTIPLY_ALL(load, store);
     } else {
-      UNSAFE_TODO(MULTIPLY_ALL(load, storeu));
+      MULTIPLY_ALL(load, storeu);
     }
   } else {
     if (IsAligned(dest_p)) {
-      UNSAFE_TODO(MULTIPLY_ALL(loadu, store));
+      MULTIPLY_ALL(loadu, store);
     } else {
-      UNSAFE_TODO(MULTIPLY_ALL(loadu, storeu));
+      MULTIPLY_ALL(loadu, storeu);
     }
   }
-
 #undef MULTIPLY_ALL
 }
 
@@ -278,7 +275,7 @@ void Vmul(const float* source1p,
 void Vsma(const float* source_p,
           const float* scale,
           float* dest_p,
-          uint32_t frames_to_process) {
+          size_t frames_to_process) {
   const float* const source_end_p = UNSAFE_TODO(source_p + frames_to_process);
 
   DCHECK(IsAligned(source_p));
@@ -309,7 +306,7 @@ void Vsma(const float* source_p,
 void Vsmul(const float* source_p,
            const float* scale,
            float* dest_p,
-           uint32_t frames_to_process) {
+           size_t frames_to_process) {
   const float* const source_end_p = UNSAFE_TODO(source_p + frames_to_process);
 
   DCHECK(IsAligned(source_p));
@@ -339,7 +336,7 @@ void Vsmul(const float* source_p,
 void Vsadd(const float* source_p,
            const float* addend,
            float* dest_p,
-           uint32_t frames_to_process) {
+           size_t frames_to_process) {
   const float* const source_end_p = UNSAFE_TODO(source_p + frames_to_process);
 
   DCHECK(IsAligned(source_p));
@@ -366,7 +363,7 @@ void Vsadd(const float* source_p,
 }
 
 // sum += sum(source[k]^2) for all k
-void Vsvesq(const float* source_p, float* sum_p, uint32_t frames_to_process) {
+void Vsvesq(const float* source_p, float* sum_p, size_t frames_to_process) {
   const float* const source_end_p = UNSAFE_TODO(source_p + frames_to_process);
 
   DCHECK(IsAligned(source_p));
@@ -394,7 +391,7 @@ void Zvmul(const float* real1p,
            const float* imag2p,
            float* real_dest_p,
            float* imag_dest_p,
-           uint32_t frames_to_process) {
+           size_t frames_to_process) {
   DCHECK(IsAligned(real1p));
   DCHECK_EQ(0u, frames_to_process % kPackedFloatsPerRegister);
 

@@ -17,6 +17,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/types/expected.h"
+#include "build/build_config.h"
 #include "components/accessibility_annotator/core/mock_accessibility_query_service.h"
 #include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
 #include "components/autofill/core/browser/at_memory/at_memory_utils.h"
@@ -83,8 +84,8 @@ class MockBrowserAutofillManager : public TestBrowserAutofillManager {
               FillOrPreviewField,
               (mojom::ActionPersistence action_persistence,
                mojom::FieldActionType action_type,
-               const FormData& form,
-               const FormFieldData& field,
+               const FormGlobalId& form_id,
+               const FieldGlobalId& field_id,
                const std::u16string& value,
                FillingProduct filling_product,
                std::optional<FieldType> field_type_used),
@@ -151,7 +152,7 @@ class AtMemoryManagerTest : public testing::Test,
     webdata_helper().WaitUntilIdle();
   }
 
-  autofill::test::AutofillUnitTestEnvironment autofill_test_environment_;
+  test::AutofillUnitTestEnvironment autofill_test_environment_;
   base::test::TaskEnvironment task_environment_;
   raw_ptr<accessibility_annotator::MockAccessibilityQueryService>
       mock_query_service_ptr_ = nullptr;
@@ -311,8 +312,9 @@ TEST_F(AtMemoryManagerTest, FillSensitiveAutofillAiData_AttributeSuccess) {
                          passport_attribute->GetCompleteRawInfo(),
                          FillingProduct::kAtMemory, _));
 
-  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill, form,
-                                      field, suggestion);
+  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill,
+                                      form.global_id(), field.global_id(),
+                                      suggestion);
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.AtMemory.Funnel.SuggestionAccepted", true, 1);
@@ -378,13 +380,16 @@ TEST_F(AtMemoryManagerTest, FillSensitiveAutofillAiData_EntitySuccess) {
                          mojom::FieldActionType::kReplaceAtMemoryTrigger, _, _,
                          expected_primary_value, FillingProduct::kAtMemory, _));
 
-  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill, form,
-                                      field, suggestion);
+  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill,
+                                      form.global_id(), field.global_id(),
+                                      suggestion);
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.AtMemory.Funnel.SuggestionAccepted", true, 1);
   histogram_tester.ExpectUniqueSample(
       "Autofill.AtMemory.Funnel.SuggestionFilled", true, 1);
+  histogram_tester.ExpectTotalCount(
+      "Autofill.AtMemory.Funnel.TimeToFetchUnmasked", 1);
 }
 
 // Tests that when fetching the unmasked entity instance fails, the manager
@@ -432,16 +437,18 @@ TEST_F(AtMemoryManagerTest, FillSensitiveAutofillAiData_FetchFailed) {
 
   EXPECT_CALL(autofill_client(),
               ShowAutofillAiFetchFromWalletFailureNotification());
-  EXPECT_CALL(autofill_manager(), FillOrPreviewField(_, _, _, _, _, _, _))
-      .Times(0);
+  EXPECT_CALL(autofill_manager(), FillOrPreviewField).Times(0);
 
-  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill, form,
-                                      field, suggestion);
+  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill,
+                                      form.global_id(), field.global_id(),
+                                      suggestion);
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.AtMemory.Funnel.SuggestionAccepted", true, 1);
   histogram_tester.ExpectUniqueSample(
       "Autofill.AtMemory.Funnel.SuggestionFilled", false, 1);
+  histogram_tester.ExpectTotalCount(
+      "Autofill.AtMemory.Funnel.TimeToFetchUnmasked", 0);
 }
 
 // Tests that SPII entries and metadata are filtered out from the search
@@ -583,8 +590,9 @@ TEST_F(AtMemoryManagerTest, FillNonSensitiveData_Success) {
                          mojom::FieldActionType::kReplaceAtMemoryTrigger, _, _,
                          expected_value, FillingProduct::kAtMemory, _));
 
-  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill, form,
-                                      field, suggestion);
+  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill,
+                                      form.global_id(), field.global_id(),
+                                      suggestion);
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.AtMemory.Funnel.SuggestionAccepted", true, 1);
@@ -618,7 +626,7 @@ TEST_F(AtMemoryManagerTest, FillOverlappingPopups) {
       autofill_client().GetPaymentsAutofillClient()->GetIbanAccessManager();
 
   base::OnceCallback<void(const std::u16string& value)> fetch_callback;
-  EXPECT_CALL(*mock_iban_access_manager, FetchValue(_, _))
+  EXPECT_CALL(*mock_iban_access_manager, FetchValue)
       .WillOnce(
           [&](const Suggestion::Payload& payload,
               base::OnceCallback<void(const std::u16string& value)> callback) {
@@ -626,8 +634,9 @@ TEST_F(AtMemoryManagerTest, FillOverlappingPopups) {
           });
 
   // 2. Accept async suggestion on Popup 1.
-  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill, form,
-                                      field, suggestion);
+  manager().FillOrPreviewSearchResult(mojom::ActionPersistence::kFill,
+                                      form.global_id(), field.global_id(),
+                                      suggestion);
 
   // 3. Hide Popup 1.
   manager().OnPopupHidden();
@@ -638,14 +647,16 @@ TEST_F(AtMemoryManagerTest, FillOverlappingPopups) {
       histogram_tester.GetAllSamples("Autofill.AtMemory.Funnel.PopupDisplayed"),
       BucketsAre(
           Bucket(AutofillMetrics::AtMemoryTriggerSource::kTypedTrigger, 1)));
-  // - QuerySubmitted, SuggestionAccepted, SuggestionFilled are not logged yet
-  // because Popup 1's async fill is still pending.
+  // - QuerySubmitted, SuggestionAccepted, SuggestionFilled, TimeToFetchUnmasked
+  // are not logged yet because Popup 1's async fill is still pending.
   histogram_tester.ExpectTotalCount("Autofill.AtMemory.Funnel.QuerySubmitted",
                                     0);
   histogram_tester.ExpectTotalCount(
       "Autofill.AtMemory.Funnel.SuggestionAccepted", 0);
   histogram_tester.ExpectTotalCount("Autofill.AtMemory.Funnel.SuggestionFilled",
                                     0);
+  histogram_tester.ExpectTotalCount(
+      "Autofill.AtMemory.Funnel.TimeToFetchUnmasked", 0);
 
   // 4. Show Popup 2 (overlapping with the pending async fill of Popup 1).
   base::MockCallback<AtMemoryManager::UpdateSuggestionsCallback>
@@ -690,6 +701,9 @@ TEST_F(AtMemoryManagerTest, FillOverlappingPopups) {
   EXPECT_THAT(histogram_tester.GetAllSamples(
                   "Autofill.AtMemory.Funnel.SuggestionFilled"),
               BucketsAre(Bucket(true, 1)));
+  // - TimeToFetchUnmasked should be logged.
+  histogram_tester.ExpectTotalCount(
+      "Autofill.AtMemory.Funnel.TimeToFetchUnmasked", 1);
 }
 
 // Tests that the personal context notice is appended when the feature is
@@ -713,10 +727,14 @@ TEST_F(AtMemoryManagerTest, PersonalContextEnabled_AppendsNoticeSuggestion) {
 
   manager().OnFilterChanged(u"");
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  EXPECT_TRUE(suggestions.empty());
+#else
   ASSERT_EQ(1u, suggestions.size());
   EXPECT_EQ(SuggestionType::kPersonalContextNotice, suggestions[0].type);
   EXPECT_EQ(Suggestion::FiltrationPolicy::kStatic,
             suggestions[0].filtration_policy);
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 }
 
 // Tests that the personal context notice is not appended when the feature is

@@ -80,6 +80,8 @@ source_set("common") {
   public_deps = [
     ":constants",
     ":helpers",
+    "//remoting/protocol",
+    "//remoting/signaling",
   ]
 
   deps += [
@@ -97,9 +99,7 @@ source_set("common") {
     "//remoting/host/base",
     "//remoting/host/native_messaging",
     "//remoting/proto/ftl/v1:ftl_messages",
-    "//remoting/protocol",
     "//remoting/resources",
-    "//remoting/signaling",
     "//services/network/public/cpp",
   ]
 

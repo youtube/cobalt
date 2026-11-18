@@ -5,7 +5,7 @@
 package org.chromium.chrome.browser.gesturenav;
 
 import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.ACTION;
-import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.ALLOW_NAV;
+import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.ACTIVATION_STATUS;
 import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.BUBBLE_OFFSET;
 import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.CLOSE_INDICATOR;
 import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.DIRECTION;
@@ -38,7 +38,7 @@ class GestureNavigationViewBinder {
                             model.get(DIRECTION), model.get(EDGE), model.get(CLOSE_INDICATOR));
                     break;
                 case GestureAction.RELEASE_BUBBLE:
-                    topView.releaseBubble(model.get(ALLOW_NAV));
+                    topView.releaseBubble(model.get(ACTIVATION_STATUS));
                     break;
                 case GestureAction.RESET_BUBBLE:
                     topView.resetBubble();

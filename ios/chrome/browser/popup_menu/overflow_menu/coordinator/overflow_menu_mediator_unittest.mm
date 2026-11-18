@@ -249,6 +249,7 @@ class OverflowMenuMediatorTest : public PlatformTest {
     [orderer_ disconnect];
     overlay_presenter_->SetPresentationContext(nullptr);
     overlay_presenter_ = nullptr;
+    web_state_ = nullptr;
     browser_.reset();
 
     CleanupNSUserDefaults();
@@ -490,7 +491,7 @@ class OverflowMenuMediatorTest : public PlatformTest {
   std::unique_ptr<ReadingListModel> reading_list_model_;
   std::unique_ptr<TestingPrefServiceSimple> profilePrefs_;
   std::unique_ptr<TestingPrefServiceSimple> localStatePrefs_;
-  raw_ptr<web::FakeWebState, DanglingUntriaged> web_state_;
+  raw_ptr<web::FakeWebState> web_state_;
   std::unique_ptr<web::NavigationItem> navigation_item_;
   UIViewController* baseViewController_;
   translate::LanguageDetectionModel language_detection_model_;
@@ -580,7 +581,7 @@ TEST_F(OverflowMenuMediatorTest, TestFeedbackItemHiddenWhenCapabilityFalse) {
   AccountInfo account_info =
       identity_manager()->FindExtendedAccountInfo(core_account_info);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_submit_feedback(false);
 
   signin::UpdateAccountInfoForAccount(identity_manager(), account_info);
@@ -620,7 +621,7 @@ TEST_F(OverflowMenuMediatorTest, TestFeedbackItemShownWhenCapabilityTrue) {
   AccountInfo account_info =
       identity_manager()->FindExtendedAccountInfo(core_account_info);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_submit_feedback(true);
 
   signin::UpdateAccountInfoForAccount(identity_manager(), account_info);

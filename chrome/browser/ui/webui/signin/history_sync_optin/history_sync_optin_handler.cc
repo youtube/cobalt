@@ -234,7 +234,8 @@ void HistorySyncOptinHandler::DispatchAccountInfoUpdate(
     return;
   }
 
-  ScreenMode screen_mode = GetHistorySyncScreenMode(info.capabilities);
+  ScreenMode screen_mode =
+      GetHistorySyncScreenMode(info.GetAccountCapabilities());
   if (!screen_mode_changed_ && screen_mode != ScreenMode::kPending) {
     OnScreenModeChanged(screen_mode);
   }

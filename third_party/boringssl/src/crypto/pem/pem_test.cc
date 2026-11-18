@@ -514,4 +514,44 @@ TEST(PEMTest, ParsingErrorsAndSuccesses) {
   }
 }
 
+// The placeholder ANY PRIVATE KEY value is not a valid key type.
+TEST(PEMTest, AnyPrivateKey) {
+  {
+    static const char kInput[] = R"(
+-----BEGIN ANY PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgBw8IcnrUoEqc3VnJ
+TYlodwi1b8ldMHcO6NHJzgqLtGqhRANCAATmK2niv2Wfl74vHg2UikzVl2u3qR4N
+Rvvdqakendy6WgHn1peoChj5w8SjHlbifINI2xYaHPUdfvGULUvPciLB
+-----END ANY PRIVATE KEY-----
+)";
+    bssl::UniquePtr<BIO> bio(BIO_new_mem_buf(kInput, -1));
+    ASSERT_TRUE(bio);
+    bssl::UniquePtr<EVP_PKEY> pkey(
+        PEM_read_bio_PrivateKey(bio.get(), nullptr, nullptr, nullptr));
+    EXPECT_FALSE(pkey);
+    EXPECT_TRUE(ErrorEquals(ERR_get_error(), ERR_LIB_PEM, PEM_R_NO_START_LINE));
+  }
+
+  {
+    static const char kInput[] = R"(
+-----BEGIN ANY PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgBw8IcnrUoEqc3VnJ
+TYlodwi1b8ldMHcO6NHJzgqLtGqhRANCAATmK2niv2Wfl74vHg2UikzVl2u3qR4N
+Rvvdqakendy6WgHn1peoChj5w8SjHlbifINI2xYaHPUdfvGULUvPciLB
+-----END ANY PRIVATE KEY-----
+-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgBw8IcnrUoEqc3VnJ
+TYlodwi1b8ldMHcO6NHJzgqLtGqhRANCAATmK2niv2Wfl74vHg2UikzVl2u3qR4N
+Rvvdqakendy6WgHn1peoChj5w8SjHlbifINI2xYaHPUdfvGULUvPciLB
+-----END PRIVATE KEY-----
+)";
+    bssl::UniquePtr<BIO> bio(BIO_new_mem_buf(kInput, -1));
+    ASSERT_TRUE(bio);
+    bssl::UniquePtr<EVP_PKEY> pkey(
+        PEM_read_bio_PrivateKey(bio.get(), nullptr, nullptr, nullptr));
+    ASSERT_TRUE(pkey);
+    EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_EC);
+  }
+}
+
 }  // namespace

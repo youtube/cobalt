@@ -16,5 +16,6 @@ mojom("mojom") {
     "//components/omnibox/browser:mojo_bindings",
     "//mojo/public/mojom/base",
     "//ui/gfx/geometry/mojom",
+    "//ui/gfx/range/mojom",
   ]
 }

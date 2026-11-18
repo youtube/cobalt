@@ -1195,6 +1195,8 @@ both_builders(
     properties = {
         "cmake_args": {
             "CMAKE_BUILD_TYPE": "Release",
+            "CMAKE_EXE_LINKER_FLAGS": "-Wl,-dead_strip",
+            "CMAKE_SHARED_LINKER_FLAGS": "-Wl,-dead_strip",
         },
     },
 )
@@ -1223,6 +1225,8 @@ both_builders(
     MAC_ARM64_HOST,
     properties = {
         "cmake_args": {
+            "CMAKE_EXE_LINKER_FLAGS": "-Wl,-dead_strip",
+            "CMAKE_SHARED_LINKER_FLAGS": "-Wl,-dead_strip",
             "RUST_BINDINGS": "aarch64-apple-darwin",
         },
         # Also build and test the Rust code.

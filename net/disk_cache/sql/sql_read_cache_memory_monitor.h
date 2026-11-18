@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "base/memory/ref_counted.h"
+#include "net/base/io_buffer.h"
 #include "net/base/net_export.h"
 
 namespace disk_cache {
@@ -33,6 +34,22 @@ class NET_EXPORT_PRIVATE SqlReadCacheMemoryMonitor
 
   const int64_t max_size_;
   std::atomic<int64_t> current_size_{0};
+};
+
+// A `net::IOBuffer` implementation that wraps a `std::vector<uint8_t>` and
+// releases its allocated bytes from a `SqlReadCacheMemoryMonitor` upon
+// destruction. The caller is responsible for allocating the bytes in the
+// monitor before creating this buffer.
+class NET_EXPORT_PRIVATE MonitoredVectorIOBuffer : public net::IOBuffer {
+ public:
+  MonitoredVectorIOBuffer(base::span<const uint8_t> data,
+                          scoped_refptr<SqlReadCacheMemoryMonitor> monitor);
+
+ private:
+  ~MonitoredVectorIOBuffer() override;
+
+  scoped_refptr<SqlReadCacheMemoryMonitor> monitor_;
+  std::vector<uint8_t> vector_;
 };
 
 }  // namespace disk_cache

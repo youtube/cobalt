@@ -18,6 +18,7 @@
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
@@ -80,59 +81,61 @@ constexpr char kGoogleAllowedUrl[] =
 constexpr char kGoogleAllowedUrlPattern[] =
     "*://googlechromelabs.github.io/cros-sample-telemetry-extension/test-page/"
     "*";
-
-const std::vector<ExtensionInfoTestParams> kAllExtensionInfoTestParams{
-    // Make sure the Google extension is allowed for every OEM.
-    ExtensionInfoTestParams(
-        /*extension_id=*/kGoogleExtensionId,
-        /*app_ui_url=*/kGoogleAllowedUrl,
-        /*matches_origin=*/kGoogleAllowedUrlPattern,
-        /*manufacturer=*/"HP"),
-    ExtensionInfoTestParams(
-        /*extension_id=*/kGoogleExtensionId,
-        /*app_ui_url=*/kGoogleAllowedUrl,
-        /*matches_origin=*/kGoogleAllowedUrlPattern,
-        /*manufacturer=*/"ASUS"),
-    ExtensionInfoTestParams(
-        /*extension_id=*/kGoogleExtensionId,
-        /*app_ui_url=*/kGoogleAllowedUrl,
-        /*matches_origin=*/kGoogleAllowedUrlPattern,
-        /*manufacturer=*/"Acer"),
-    ExtensionInfoTestParams(
-        /*extension_id=*/kGoogleExtensionId,
-        /*app_ui_url=*/kGoogleAllowedUrl,
-        /*matches_origin=*/kGoogleAllowedUrlPattern,
-        /*manufacturer=*/"Lenovo"),
-    // Make sure the extensions of each OEM are allowed on their device.
-    ExtensionInfoTestParams(
-        /*extension_id=*/"alnedpmllcfpgldkagbfbjkloonjlfjb",
-        /*app_ui_url=*/"https://hpcs-appschr.hpcloud.hp.com",
-        /*matches_origin=*/"https://hpcs-appschr.hpcloud.hp.com/*",
-        /*manufacturer=*/"HP"),
-    ExtensionInfoTestParams(
-        /*extension_id=*/"hdnhcpcfohaeangjpkcjkgmgmjanbmeo",
-        /*app_ui_url=*/
-        "https://dlcdnccls.asus.com/app/myasus_for_chromebook/ ",
-        /*matches_origin=*/"https://dlcdnccls.asus.com/*",
-        /*manufacturer=*/"ASUS"),
-    ExtensionInfoTestParams(
-        /*extension_id=*/"aoefhlbfcighemjpchndkhonjfjoehnm",
-        /*app_ui_url=*/"https://acerpartners.com/acerbooster",
-        /*matches_origin=*/"https://acerpartners.com/*",
-        /*manufacturer=*/"Acer"),
-    ExtensionInfoTestParams(
-        /*extension_id=*/"mconamggkmbalafmibfjlcmimnlbgmlb",
-        /*app_ui_url=*/"https://chromebookdiags.lenovo.com",
-        /*matches_origin=*/"https://chromebookdiags.lenovo.com/*",
-        /*manufacturer=*/"Lenovo"),
-    ExtensionInfoTestParams(
-        /*extension_id=*/"hoalheabnfilagemmocodoambpgngdcd",
-        /*app_ui_url=*/"https://cscpwa.asus.com",
-        /*matches_origin=*/"https://cscpwa.asus.com/*",
-        /*manufacturer=*/"ASUS"),
-};
-
 constexpr char kUserEmail[] = "user@example.com";
+
+const std::vector<ExtensionInfoTestParams>& GetAllExtensionInfoTestParams() {
+  static const base::NoDestructor<std::vector<ExtensionInfoTestParams>> val({
+      // Make sure the Google extension is allowed for every OEM.
+      ExtensionInfoTestParams(
+          /*extension_id=*/kGoogleExtensionId,
+          /*app_ui_url=*/kGoogleAllowedUrl,
+          /*matches_origin=*/kGoogleAllowedUrlPattern,
+          /*manufacturer=*/"HP"),
+      ExtensionInfoTestParams(
+          /*extension_id=*/kGoogleExtensionId,
+          /*app_ui_url=*/kGoogleAllowedUrl,
+          /*matches_origin=*/kGoogleAllowedUrlPattern,
+          /*manufacturer=*/"ASUS"),
+      ExtensionInfoTestParams(
+          /*extension_id=*/kGoogleExtensionId,
+          /*app_ui_url=*/kGoogleAllowedUrl,
+          /*matches_origin=*/kGoogleAllowedUrlPattern,
+          /*manufacturer=*/"Acer"),
+      ExtensionInfoTestParams(
+          /*extension_id=*/kGoogleExtensionId,
+          /*app_ui_url=*/kGoogleAllowedUrl,
+          /*matches_origin=*/kGoogleAllowedUrlPattern,
+          /*manufacturer=*/"Lenovo"),
+      // Make sure the extensions of each OEM are allowed on their device.
+      ExtensionInfoTestParams(
+          /*extension_id=*/"alnedpmllcfpgldkagbfbjkloonjlfjb",
+          /*app_ui_url=*/"https://hpcs-appschr.hpcloud.hp.com",
+          /*matches_origin=*/"https://hpcs-appschr.hpcloud.hp.com/*",
+          /*manufacturer=*/"HP"),
+      ExtensionInfoTestParams(
+          /*extension_id=*/"hdnhcpcfohaeangjpkcjkgmgmjanbmeo",
+          /*app_ui_url=*/
+          "https://dlcdnccls.asus.com/app/myasus_for_chromebook/ ",
+          /*matches_origin=*/"https://dlcdnccls.asus.com/*",
+          /*manufacturer=*/"ASUS"),
+      ExtensionInfoTestParams(
+          /*extension_id=*/"aoefhlbfcighemjpchndkhonjfjoehnm",
+          /*app_ui_url=*/"https://acerpartners.com/acerbooster",
+          /*matches_origin=*/"https://acerpartners.com/*",
+          /*manufacturer=*/"Acer"),
+      ExtensionInfoTestParams(
+          /*extension_id=*/"mconamggkmbalafmibfjlcmimnlbgmlb",
+          /*app_ui_url=*/"https://chromebookdiags.lenovo.com",
+          /*matches_origin=*/"https://chromebookdiags.lenovo.com/*",
+          /*manufacturer=*/"Lenovo"),
+      ExtensionInfoTestParams(
+          /*extension_id=*/"hoalheabnfilagemmocodoambpgngdcd",
+          /*app_ui_url=*/"https://cscpwa.asus.com",
+          /*matches_origin=*/"https://cscpwa.asus.com/*",
+          /*manufacturer=*/"ASUS"),
+  });
+  return *val;
+}
 
 // Tests that Chrome OS System Extensions must fulfill the requirements to
 // access Telemetry Extension APIs. All tests are parameterized with the
@@ -361,7 +364,7 @@ TEST_P(ApiGuardDelegateTest, NoError) {
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ApiGuardDelegateTest,
-                         testing::ValuesIn(kAllExtensionInfoTestParams));
+                         testing::ValuesIn(GetAllExtensionInfoTestParams()));
 
 class ApiGuardDelegateAffiliatedUserTest : public ApiGuardDelegateTest {
  public:
@@ -489,7 +492,7 @@ TEST_P(ApiGuardDelegateAffiliatedUserTest, NoError) {
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ApiGuardDelegateAffiliatedUserTest,
-                         testing::ValuesIn(kAllExtensionInfoTestParams));
+                         testing::ValuesIn(GetAllExtensionInfoTestParams()));
 
 class WebContentsCloseWaiter : public content::WebContentsObserver {
  public:

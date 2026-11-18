@@ -88,8 +88,6 @@ class RTC_EXPORT PacketTransportInternal {
   void NotifyReadyToSend(PacketTransportInternal* packet_transport);
 
   // Emitted when receiving state changes to true.
-  [[deprecated]] void SubscribeReceivingState(
-      absl::AnyInvocable<void(PacketTransportInternal*)> callback);
   void SubscribeReceivingState(
       void* tag,
       absl::AnyInvocable<void(PacketTransportInternal*)> callback);

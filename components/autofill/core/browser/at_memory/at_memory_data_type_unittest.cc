@@ -56,9 +56,9 @@ TEST(AtMemoryDataTypeTest, ToAtMemoryDataType) {
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kCreditCardNameOnCard),
               Optional(VariantWith<FieldType>(CREDIT_CARD_NAME_FULL)));
 
-  EXPECT_THAT(ToAtMemoryDataType(EntryType::kVehicle),
-              Optional(VariantWith<autofill::EntityType>(
-                  autofill::EntityType(EntityTypeName::kVehicle))));
+  EXPECT_THAT(
+      ToAtMemoryDataType(EntryType::kVehicle),
+      Optional(VariantWith<EntityType>(EntityType(EntityTypeName::kVehicle))));
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kVehicleMake),
               Optional(VariantWith<AttributeType>(
                   AttributeType(AttributeTypeName::kVehicleMake))));
@@ -66,58 +66,58 @@ TEST(AtMemoryDataTypeTest, ToAtMemoryDataType) {
               Optional(VariantWith<AttributeType>(
                   AttributeType(AttributeTypeName::kVehiclePlateState))));
 
-  EXPECT_THAT(ToAtMemoryDataType(EntryType::kPassportFull),
-              Optional(VariantWith<autofill::EntityType>(
-                  autofill::EntityType(EntityTypeName::kPassport))));
+  EXPECT_THAT(
+      ToAtMemoryDataType(EntryType::kPassportFull),
+      Optional(VariantWith<EntityType>(EntityType(EntityTypeName::kPassport))));
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kPassportNumber),
               Optional(VariantWith<AttributeType>(
                   AttributeType(AttributeTypeName::kPassportNumber))));
 
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kFlightReservationFull),
-              Optional(VariantWith<autofill::EntityType>(
-                  autofill::EntityType(EntityTypeName::kFlightReservation))));
+              Optional(VariantWith<EntityType>(
+                  EntityType(EntityTypeName::kFlightReservation))));
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kFlightReservationFlightNumber),
               Optional(VariantWith<AttributeType>(AttributeType(
                   AttributeTypeName::kFlightReservationFlightNumber))));
 
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kNationalIdCardFull),
-              Optional(VariantWith<autofill::EntityType>(
-                  autofill::EntityType(EntityTypeName::kNationalIdCard))));
+              Optional(VariantWith<EntityType>(
+                  EntityType(EntityTypeName::kNationalIdCard))));
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kNationalIdCardNumber),
               Optional(VariantWith<AttributeType>(
                   AttributeType(AttributeTypeName::kNationalIdCardNumber))));
 
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kRedressNumberFull),
-              Optional(VariantWith<autofill::EntityType>(
-                  autofill::EntityType(EntityTypeName::kRedressNumber))));
+              Optional(VariantWith<EntityType>(
+                  EntityType(EntityTypeName::kRedressNumber))));
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kRedressNumberNumber),
               Optional(VariantWith<AttributeType>(
                   AttributeType(AttributeTypeName::kRedressNumberNumber))));
 
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kKnownTravelerNumberFull),
-              Optional(VariantWith<autofill::EntityType>(
-                  autofill::EntityType(EntityTypeName::kKnownTravelerNumber))));
+              Optional(VariantWith<EntityType>(
+                  EntityType(EntityTypeName::kKnownTravelerNumber))));
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kKnownTravelerNumberNumber),
               Optional(VariantWith<AttributeType>(AttributeType(
                   AttributeTypeName::kKnownTravelerNumberNumber))));
 
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kDriversLicenseFull),
-              Optional(VariantWith<autofill::EntityType>(
-                  autofill::EntityType(EntityTypeName::kDriversLicense))));
+              Optional(VariantWith<EntityType>(
+                  EntityType(EntityTypeName::kDriversLicense))));
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kDriversLicenseNumber),
               Optional(VariantWith<AttributeType>(
                   AttributeType(AttributeTypeName::kDriversLicenseNumber))));
 
-  EXPECT_THAT(ToAtMemoryDataType(EntryType::kOrderFull),
-              Optional(VariantWith<autofill::EntityType>(
-                  autofill::EntityType(EntityTypeName::kOrder))));
+  EXPECT_THAT(
+      ToAtMemoryDataType(EntryType::kOrderFull),
+      Optional(VariantWith<EntityType>(EntityType(EntityTypeName::kOrder))));
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kOrderId),
               Optional(VariantWith<AttributeType>(
                   AttributeType(AttributeTypeName::kOrderId))));
 
-  EXPECT_THAT(ToAtMemoryDataType(EntryType::kShipmentFull),
-              Optional(VariantWith<autofill::EntityType>(
-                  autofill::EntityType(EntityTypeName::kShipment))));
+  EXPECT_THAT(
+      ToAtMemoryDataType(EntryType::kShipmentFull),
+      Optional(VariantWith<EntityType>(EntityType(EntityTypeName::kShipment))));
   EXPECT_THAT(ToAtMemoryDataType(EntryType::kShipmentTrackingNumber),
               Optional(VariantWith<AttributeType>(
                   AttributeType(AttributeTypeName::kShipmentTrackingNumber))));

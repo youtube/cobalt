@@ -1019,11 +1019,9 @@ void MakeCredentialRequestHandler::SpecializeRequestForAuthenticator(
   }
 
   if (request->hmac_secret) {
-    bool supports_prf_or_hmac_secret_mc = auth_options.supports_prf;
-    if (base::FeatureList::IsEnabled(device::kWebAuthnHmacSecretMcExtension)) {
-      supports_prf_or_hmac_secret_mc |= auth_options.supports_hmac_secret &&
-                                        auth_options.supports_hmac_secret_mc;
-    }
+    bool supports_prf_or_hmac_secret_mc =
+        auth_options.supports_prf || (auth_options.supports_hmac_secret &&
+                                      auth_options.supports_hmac_secret_mc);
     request->prf = supports_prf_or_hmac_secret_mc;
     request->hmac_secret =
         !auth_options.supports_prf && auth_options.supports_hmac_secret;

@@ -58,9 +58,6 @@ class PLATFORM_EXPORT CanvasResource : public gpu::ClientImage {
       const gpu::SyncToken& sync_token,
       bool is_lost)>;
 
-  using LastUnrefCallback = base::OnceCallback<void(
-      scoped_refptr<blink::CanvasResource> canvas_resource)>;
-
   // Returns true if this instance creates TransferableResources for usage with
   // GPU compositing.
   virtual bool CreatesAcceleratedTransferableResources() const = 0;
@@ -238,9 +235,6 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
   void PrepareForWebGPUDummyMailbox();
 
  private:
-  friend class Canvas2DResourceProviderSharedImage;
-  friend class CanvasNon2DResourceProviderSharedImage;
-
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> ContextProviderWrapper()
       const override;
   void VerifySyncToken() override;

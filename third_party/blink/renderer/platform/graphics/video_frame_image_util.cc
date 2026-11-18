@@ -133,6 +133,8 @@ scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
   media_flags.setAlphaf(1.0f);
   media_flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
   media_flags.setBlendMode(SkBlendMode::kSrc);
+  media_flags.setTargetedHdrHeadroom(
+      cc::PaintFlags::TargetedHdrHeadroom::kDisableEverything);
 
   std::unique_ptr<media::PaintCanvasVideoRenderer> local_video_renderer;
   if (!video_renderer) {
@@ -188,6 +190,7 @@ scoped_refptr<StaticBitmapImage> DrawAndSnapshotToImage(
         PaintImageBuilder::WithDefault()
             .set_id(cc::PaintImage::GetNextId())
             .set_image(std::move(sk_image), PaintImage::GetNextContentId())
+            .set_hdr_metadata(info.hdr_metadata)
             .TakePaintImage();
   }
 
@@ -333,6 +336,7 @@ CanvasSnapshotInfo CreateSnapshotProviderInfoForVideoFrame(
                                                     : kPremul_SkAlphaType,
       .color_space = reinterpret_video_as_srgb ? gfx::ColorSpace::CreateSRGB()
                                                : frame.CompatRGBColorSpace(),
+      .hdr_metadata = frame.hdr_metadata(),
       // TODO(https://crbug.com/40230609): N32 may be incorrect when drawing
       // high bit depth frames destined for a high bit depth canvas.
       .format = GetN32FormatForCanvas(),

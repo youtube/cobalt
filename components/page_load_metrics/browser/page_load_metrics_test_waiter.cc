@@ -75,6 +75,9 @@ class WaiterMetricsObserver final : public PageLoadMetricsObserver {
       content::RenderFrameHost* rfh,
       const std::vector<blink::UseCounterFeature>&) override;
 
+  void OnCustomUserTimingMarkObserved(
+      const std::vector<mojom::CustomUserTimingMarkPtr>& timings) override;
+
   void OnDidFinishSubFrameNavigation(
       content::NavigationHandle* navigation_handle) override;
   void FrameSizeChanged(content::RenderFrameHost* render_frame_host,
@@ -214,6 +217,11 @@ void PageLoadMetricsTestWaiter::AddWebFeatureExpectation(
 void PageLoadMetricsTestWaiter::AddUseCounterFeatureExpectation(
     const blink::UseCounterFeature& feature) {
   expected_.feature_tracker_.TestAndSet(feature);
+}
+
+void PageLoadMetricsTestWaiter::AddCustomUserTimingMarkExpectation(
+    const std::string& mark_name) {
+  expected_.custom_user_timing_marks_.insert(mark_name);
 }
 
 void PageLoadMetricsTestWaiter::AddSubframeNavigationExpectation() {
@@ -444,6 +452,19 @@ void PageLoadMetricsTestWaiter::OnFeaturesUsageObserved(
 
   if (ExpectationsSatisfied() && run_loop_)
     run_loop_->Quit();
+}
+
+void PageLoadMetricsTestWaiter::OnCustomUserTimingMarksObserved(
+    content::RenderFrameHost* rfh,
+    const std::vector<page_load_metrics::mojom::CustomUserTimingMarkPtr>&
+        timings) {
+  for (const auto& timing : timings) {
+    observed_.custom_user_timing_marks_.insert(timing->mark_name);
+  }
+
+  if (ExpectationsSatisfied() && run_loop_) {
+    run_loop_->Quit();
+  }
 }
 
 void PageLoadMetricsTestWaiter::OnMainFrameRectChanged(
@@ -750,6 +771,17 @@ bool PageLoadMetricsTestWaiter::
          expected_num_soft_navigation_largest_contentful_paint_;
 }
 
+bool PageLoadMetricsTestWaiter::CustomUserTimingMarksExpectationsSatisfied()
+    const {
+  for (const auto& mark : expected_.custom_user_timing_marks_) {
+    if (observed_.custom_user_timing_marks_.find(mark) ==
+        observed_.custom_user_timing_marks_.end()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool PageLoadMetricsTestWaiter::ExpectationsSatisfied() const {
   for (const auto& entries : expected_.page_bfcache_restore_fields_) {
     auto it = observed_.page_bfcache_restore_fields_.find(entries.first);
@@ -777,7 +809,8 @@ bool PageLoadMetricsTestWaiter::ExpectationsSatisfied() const {
          NumLargestContentfulPaintTextSatisfied() &&
          LargestContentfulPaintGreaterThanExpectationSatisfied() &&
          SoftNavigationCountExpectationSatisfied() &&
-         SoftNavigationLargestContentfulPaintExpectationSatisfied();
+         SoftNavigationLargestContentfulPaintExpectationSatisfied() &&
+         CustomUserTimingMarksExpectationsSatisfied();
 }
 
 void PageLoadMetricsTestWaiter::AssertExpectationsSatisfied() const {
@@ -794,6 +827,7 @@ void PageLoadMetricsTestWaiter::AssertExpectationsSatisfied() const {
   EXPECT_TRUE(CpuTimeExpectationsSatisfied());
   EXPECT_TRUE(MainFrameRectExpectationsSatisfied());
   EXPECT_TRUE(MainFrameViewportRectExpectationsSatisfied());
+  EXPECT_TRUE(CustomUserTimingMarksExpectationsSatisfied());
 }
 
 void PageLoadMetricsTestWaiter::ResetExpectations() {
@@ -886,6 +920,13 @@ void WaiterMetricsObserver::OnFeaturesUsageObserved(
     const std::vector<blink::UseCounterFeature>& features) {
   if (waiter_) {
     waiter_->OnFeaturesUsageObserved(nullptr, features);
+  }
+}
+
+void WaiterMetricsObserver::OnCustomUserTimingMarkObserved(
+    const std::vector<mojom::CustomUserTimingMarkPtr>& timings) {
+  if (waiter_) {
+    waiter_->OnCustomUserTimingMarksObserved(nullptr, timings);
   }
 }
 

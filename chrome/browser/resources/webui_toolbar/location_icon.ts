@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './icon_from_table.js';
+import '/shared/icon_from_table.js';
 
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {TrackedElementManager} from '//resources/js/tracked_element/tracked_element_manager.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {DragEventSource} from '//resources/mojo/ui/base/dragdrop/mojom/drag_drop_types.mojom-webui.js';
+import {LhsChipIdentifier, SecurityLevel} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
+import type {SecurityChipState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 import {BrowserProxyImpl} from './browser_proxy.js';
 import {getCss} from './location_icon.css.js';
 import {getHtml} from './location_icon.html.js';
 import {PointerProxyImpl} from './pointer_proxy.js';
-import {LhsChipIdentifier, SecurityLevel} from './toolbar_ui_api_data_model.mojom-webui.js';
-import type {SecurityChipState} from './toolbar_ui_api_data_model.mojom-webui.js';
 
 export interface LocationIconElement {
   $: {

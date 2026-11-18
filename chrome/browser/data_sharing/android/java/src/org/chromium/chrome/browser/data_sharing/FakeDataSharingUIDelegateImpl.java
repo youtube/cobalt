@@ -137,4 +137,15 @@ public class FakeDataSharingUIDelegateImpl implements DataSharingUIDelegate {
     public void overrideAvatarColor(GaiaId gaiaId, @ColorInt int color) {
         mGaiaIdToAvatarColor.put(gaiaId, color);
     }
+
+    /** Resets all configs and callbacks to prevent memory leaks. */
+    public void resetForTesting() {
+        mCreateUiConfig = null;
+        mJoinUiConfig = null;
+        mManageUiConfig = null;
+        mShowCreateFlowCallback = null;
+        mShowJoinFlowCallback = null;
+        mShowManageFlowCallback = null;
+        mGaiaIdToAvatarColor.clear();
+    }
 }

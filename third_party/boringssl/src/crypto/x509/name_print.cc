@@ -127,7 +127,7 @@ static int do_name_ex(BIO *out, const X509_NAME *n, int indent,
     const ASN1_OBJECT *fn = X509_NAME_ENTRY_get_object(ent);
     const ASN1_STRING *val = X509_NAME_ENTRY_get_data(ent);
     assert((flags & XN_FLAG_FN_MASK) == XN_FLAG_FN_SN);
-    // Print the short name if available, othewise serialize the OID.
+    // Print the short name if available, otherwise serialize the OID.
     char objtmp[80];
     const char *objbuf = nullptr;
     int fn_nid = OBJ_obj2nid(fn);

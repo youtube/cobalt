@@ -8,7 +8,6 @@
         "module_name": "//third_party/angle/src/tests:angle_unittests",
         "module_scheme": "gtest",
         "name": "angle_unittests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -38,7 +37,6 @@
         "module_name": "//gpu:gl_tests",
         "module_scheme": "gtest",
         "name": "gl_tests_passthrough",
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -72,7 +70,6 @@
           "--gerrit-patchset=${patch_set}",
           "--buildbucket-id=${buildbucket_build_id}"
         ],
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -99,7 +96,6 @@
         "module_name": "//chrome/test:xr_browser_tests",
         "module_scheme": "gtest",
         "name": "xr_browser_tests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -140,7 +136,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -189,7 +184,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -229,7 +223,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -269,7 +262,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -313,7 +305,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -362,7 +353,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -403,7 +393,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -443,7 +432,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {
@@ -485,7 +473,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "containment_type": "AUTO",
           "dimensions": {

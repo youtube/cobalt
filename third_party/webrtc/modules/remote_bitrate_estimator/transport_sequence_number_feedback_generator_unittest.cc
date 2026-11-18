@@ -456,7 +456,8 @@ TEST_F(TransportSequenceNumberFeedbackGeneneratorTest,
 TEST_F(TransportSequenceNumberFeedbackGeneneratorTest,
        TimeUntilNextProcessIsMinIntervalOn300kbps) {
   feedback_generator_.OnSendBandwidthEstimateChanged(
-      DataRate::BitsPerSec(300'000));
+      DataRate::BitsPerSec(300'000), /*is_bandwidth_limited=*/true,
+      /*transport_overhead=*/std::nullopt);
   EXPECT_EQ(feedback_generator_.Process(clock_.CurrentTime()),
             kMinSendInterval);
 }
@@ -466,7 +467,9 @@ TEST_F(TransportSequenceNumberFeedbackGeneneratorTest,
   // TimeUntilNextProcess should be limited by `kMaxSendIntervalMs` when
   // bitrate is small. We choose 0 bps as a special case, which also tests
   // erroneous behaviors like division-by-zero.
-  feedback_generator_.OnSendBandwidthEstimateChanged(DataRate::Zero());
+  feedback_generator_.OnSendBandwidthEstimateChanged(
+      DataRate::Zero(), /*is_bandwidth_limited=*/true,
+      /*transport_overhead=*/std::nullopt);
   EXPECT_EQ(feedback_generator_.Process(clock_.CurrentTime()),
             kMaxSendInterval);
 }
@@ -474,7 +477,8 @@ TEST_F(TransportSequenceNumberFeedbackGeneneratorTest,
 TEST_F(TransportSequenceNumberFeedbackGeneneratorTest,
        TimeUntilNextProcessIsMaxIntervalOn20kbps) {
   feedback_generator_.OnSendBandwidthEstimateChanged(
-      DataRate::BitsPerSec(20'000));
+      DataRate::BitsPerSec(20'000), /*is_bandwidth_limited=*/true,
+      /*transport_overhead=*/std::nullopt);
   EXPECT_EQ(feedback_generator_.Process(clock_.CurrentTime()),
             kMaxSendInterval);
 }
@@ -482,7 +486,8 @@ TEST_F(TransportSequenceNumberFeedbackGeneneratorTest,
 TEST_F(TransportSequenceNumberFeedbackGeneneratorTest,
        TwccReportsUse5PercentOfAvailableBandwidth) {
   feedback_generator_.OnSendBandwidthEstimateChanged(
-      DataRate::BitsPerSec(80'000));
+      DataRate::BitsPerSec(80'000), /*is_bandwidth_limited=*/true,
+      /*transport_overhead=*/std::nullopt);
   // 80kbps * 0.05 = TwccReportSize(68B * 8b/B) * 1000ms / SendInterval(136ms)
   EXPECT_EQ(feedback_generator_.Process(clock_.CurrentTime()),
             TimeDelta::Millis(136));

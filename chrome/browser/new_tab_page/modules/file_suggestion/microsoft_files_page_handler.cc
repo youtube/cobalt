@@ -8,9 +8,11 @@
 #include <string>
 
 #include "base/i18n/time_formatting.h"
+#include "base/json/json_reader.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/values.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service_factory.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/file_suggestion.mojom.h"
 #include "chrome/browser/new_tab_page/modules/microsoft_modules_helper.h"
@@ -473,10 +475,8 @@ void MicrosoftFilesPageHandler::ParseFakeData(GetFilesCallback callback) {
                                GetTimeNowAsString(), GetTimeNowAsString(),
                                GetTimeNowAsString(), GetTimeNowAsString(),
                                GetTimeNowAsString());
-  data_decoder::DataDecoder::ParseJsonIsolated(
-      fake_data,
-      base::BindOnce(&MicrosoftFilesPageHandler::OnJsonParsed,
-                     weak_factory_.GetWeakPtr(), std::move(callback)));
+  std::move(callback).Run(ProcessParsedJson(
+      base::JSONReader::ReadDict(fake_data, base::JSON_PARSE_RFC)));
 }
 
 void MicrosoftFilesPageHandler::OnJsonReceived(
@@ -505,43 +505,41 @@ void MicrosoftFilesPageHandler::OnJsonReceived(
 
   url_loader_.reset();
 
+  std::vector<file_suggestion::mojom::FilePtr> suggestions;
   if (net_error == net::OK && response_body) {
-    data_decoder::DataDecoder::ParseJsonIsolated(
-        *response_body,
-        base::BindOnce(&MicrosoftFilesPageHandler::OnJsonParsed,
-                       weak_factory_.GetWeakPtr(), std::move(callback)));
+    suggestions = ProcessParsedJson(
+        base::JSONReader::ReadDict(*response_body, base::JSON_PARSE_RFC));
   } else {
     RecordFilesRequestResult(request_result_.value());
-    std::move(callback).Run(std::vector<file_suggestion::mojom::FilePtr>());
   }
+  std::move(callback).Run(std::move(suggestions));
 }
 
-void MicrosoftFilesPageHandler::OnJsonParsed(
-    GetFilesCallback callback,
-    data_decoder::DataDecoder::ValueOrError result) {
-  if (!result.has_value()) {
+std::vector<file_suggestion::mojom::FilePtr>
+MicrosoftFilesPageHandler::ProcessParsedJson(
+    std::optional<base::DictValue> dict) {
+  if (!dict) {
     RecordFilesRequestResult(MicrosoftFilesRequestResult::kJsonParseError);
-    std::move(callback).Run(std::vector<file_suggestion::mojom::FilePtr>());
-    return;
+    return std::vector<file_suggestion::mojom::FilePtr>();
   }
 
   std::vector<file_suggestion::mojom::FilePtr> suggestions;
   switch (variation_type_) {
     case NtpSharepointModuleDataType::kTrendingInsights:
     case NtpSharepointModuleDataType::kTrendingInsightsFakeData:
-      suggestions = GetTrendingFiles(std::move(result->GetDict()));
+      suggestions = GetTrendingFiles(std::move(*dict));
       break;
     case NtpSharepointModuleDataType::kNonInsights:
     case NtpSharepointModuleDataType::kNonInsightsFakeData:
-      suggestions = GetRecentlyUsedAndSharedFiles(std::move(result->GetDict()));
+      suggestions = GetRecentlyUsedAndSharedFiles(std::move(*dict));
       break;
     case NtpSharepointModuleDataType::kCombinedSuggestions:
-      suggestions = GetAggregatedFileSuggestions(std::move(result->GetDict()));
+      suggestions = GetAggregatedFileSuggestions(std::move(*dict));
       break;
   }
 
   RecordRequestMetrics();
-  std::move(callback).Run(std::move(suggestions));
+  return suggestions;
 }
 
 std::vector<file_suggestion::mojom::FilePtr>

@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 
+#include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/managed.h"
@@ -24,8 +25,6 @@ namespace v8 {
 namespace internal {
 
 class DisplayNamesInternal;
-
-#include "torque-generated/src/objects/js-display-names-tq.inc"
 
 V8_OBJECT class JSDisplayNames : public JSObject {
  public:
@@ -79,7 +78,10 @@ V8_OBJECT class JSDisplayNames : public JSObject {
   inline LanguageDisplay language_display() const;
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_DISPLAY_NAMES_FLAGS()
+  using StyleBits = base::BitField<JSDisplayNames::Style, 0, 2, uint32_t>;
+  using FallbackBit = StyleBits::Next<JSDisplayNames::Fallback, 1>;
+  using LanguageDisplayBit =
+      FallbackBit::Next<JSDisplayNames::LanguageDisplay, 1>;
 
   static_assert(StyleBits::is_valid(Style::kLong));
   static_assert(StyleBits::is_valid(Style::kShort));

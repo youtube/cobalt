@@ -11,6 +11,7 @@
 #include "components/global_media_controls/public/media_item_manager.h"
 #include "components/media_message_center/media_notification_util.h"
 #include "content/public/browser/media_session.h"
+#include "content/public/browser/render_frame_host.h"
 #include "services/media_session/public/cpp/media_image_manager.h"
 #include "services/media_session/public/cpp/media_metadata.h"
 #include "ui/gfx/image/image_skia.h"
@@ -155,9 +156,10 @@ void PresentationRequestNotificationItem::UpdatePickerWithMetadata() {
   if (!provider_->is_bound()) {
     return;
   }
-  // If we have metadata from the media session, use that.
-  media_session::MediaMetadata data =
-      metadata_.value_or(media_session::MediaMetadata{});
+  media_session::MediaMetadata data;
+  if (metadata_.has_value() && ShouldShowMediaSessionMetadata()) {
+    data = *metadata_;
+  }
 
   if (media_message_center::IsOriginGoodForDisplay(request_.frame_origin)) {
     // `request_` has more accurate origin info than `metadata_` e.g. when the
@@ -179,12 +181,17 @@ void PresentationRequestNotificationItem::UpdatePickerWithImages() {
   if (!provider_->is_bound()) {
     return;
   }
-  (*provider_)->OnArtworkImageChanged(artwork_image_);
-  if (!favicon_image_.isNull()) {
+
+  const bool should_show_metadata = ShouldShowMediaSessionMetadata();
+  (*provider_)
+      ->OnArtworkImageChanged(should_show_metadata ? artwork_image_
+                                                   : gfx::ImageSkia());
+
+  if (should_show_metadata && !favicon_image_.isNull()) {
     (*provider_)->OnFaviconImageChanged(favicon_image_);
     return;
   }
-  // Otherwise, get one ourselves.
+
   auto* web_contents = GetWebContentsFromPresentationRequest(request_);
   if (web_contents) {
     favicon::FaviconDriver* favicon_driver =
@@ -208,4 +215,22 @@ void PresentationRequestNotificationItem::OnFaviconBitmap(
     const SkBitmap& bitmap) {
   favicon_image_ = GetCorrectColorTypeImage(bitmap).value_or(gfx::ImageSkia());
   UpdatePickerWithImages();
+}
+
+bool PresentationRequestNotificationItem::ShouldShowMediaSessionMetadata()
+    const {
+  auto* web_contents = GetWebContentsFromPresentationRequest(request_);
+  if (!web_contents) {
+    return false;
+  }
+  auto* media_session = GetMediaSession(web_contents);
+  if (!media_session) {
+    return false;
+  }
+  content::RenderFrameHost* routed_frame = media_session->GetRoutedFrame();
+  if (!routed_frame) {
+    return true;
+  }
+  return routed_frame->GetLastCommittedOrigin().IsSameOriginWith(
+      request_.frame_origin);
 }

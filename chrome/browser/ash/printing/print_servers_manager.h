@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "chrome/browser/ash/printing/enterprise/print_servers_policy_provider.h"
 #include "chrome/browser/ash/printing/print_server.h"
 #include "chrome/browser/ash/printing/printer_detector.h"
 #include "chrome/browser/ash/printing/printer_installation_manager.h"
@@ -25,8 +24,16 @@ class PrefRegistrySyncable;
 
 namespace ash {
 
+class PrintServersPolicyProvider;
 class PrinterDetector;
 class ServerPrintersProvider;
+
+enum class ServerPrintersFetchingMode {
+  // Use the first 16 print servers.
+  kStandard,
+  // Use print servers selected via ChoosePrintServers().
+  kSingleServerOnly,
+};
 
 struct PrintServersConfig {
   PrintServersConfig();
@@ -34,7 +41,8 @@ struct PrintServersConfig {
   PrintServersConfig(const PrintServersConfig&);
   PrintServersConfig& operator=(const PrintServersConfig&);
 
-  ServerPrintersFetchingMode fetching_mode;
+  ServerPrintersFetchingMode fetching_mode =
+      ServerPrintersFetchingMode::kStandard;
   std::vector<PrintServer> print_servers;
 };
 

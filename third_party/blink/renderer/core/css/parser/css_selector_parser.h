@@ -107,8 +107,7 @@ class CORE_EXPORT CSSSelectorParser {
       HeapVector<CSSSelector>&);
 
   static ActiveNavigationCondition* ParseActiveNavigationCondition(
-      CSSParserTokenStream&,
-      const Document&);
+      CSSParserTokenStream&);
 
  private:
   enum ResultFlag {

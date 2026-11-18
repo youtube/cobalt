@@ -35,9 +35,6 @@ BASE_FEATURE(kAsyncRetryOnTooManyConnectionErrors,
 
 BASE_FEATURE(kAvoidH2Reprioritization, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCapReferrerToOriginOnCrossOrigin,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kAsyncDns,
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || \
     BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
@@ -46,6 +43,8 @@ BASE_FEATURE(kAsyncDns,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+BASE_FEATURE(kOptimisticDnsForTcp, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAddressSorterConnectCache, base::FEATURE_DISABLED_BY_DEFAULT);
 

@@ -10,7 +10,6 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/web_applications/test/web_app_icon_test_utils.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
@@ -111,8 +110,12 @@ IN_PROC_BROWSER_TEST_P(CreateShortcutConfirmationViewBrowserTest,
       GURL("https://example.com"));
   app_info->title = u"Test app";
 
-  web_app::test::ScopedAutoAcceptCreateShortcutDialog auto_accept;
-  web_app::test::ScopedAutoCheckChromeOsOpenInWindow auto_check;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
+  base::AutoReset<web_app::CreateShortcutDialogCheckState> auto_check =
+      web_app::SetCreateShortcutDialogCheckStateForTesting(
+          web_app::CreateShortcutDialogCheckState::kChecked);
   bool is_accepted = false;
   std::unique_ptr<web_app::WebAppInstallInfo> install_info;
   auto callback = [&is_accepted, &install_info](
@@ -217,8 +220,12 @@ IN_PROC_BROWSER_TEST_P(CreateShortcutConfirmationViewBrowserTest,
 
 IN_PROC_BROWSER_TEST_P(CreateShortcutConfirmationViewBrowserTest,
                        NormalizeTitles) {
-  web_app::test::ScopedAutoAcceptCreateShortcutDialog auto_accept;
-  web_app::test::ScopedAutoCheckChromeOsOpenInWindow auto_check;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
+  base::AutoReset<web_app::CreateShortcutDialogCheckState> auto_check =
+      web_app::SetCreateShortcutDialogCheckStateForTesting(
+          web_app::CreateShortcutDialogCheckState::kChecked);
 
   struct TestCases {
     std::u16string input;

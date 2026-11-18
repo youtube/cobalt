@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">您可回來重新開啟最近關閉的分頁</translation>
 <translation id="1016495303386450659">已更新項目</translation>
+<translation id="1018804590490383958">掃瞄並自動填入</translation>
 <translation id="1019990162050689579">Gemini 應用程式活動</translation>
 <translation id="102916930470544692">密鑰</translation>
 <translation id="1030376737535466765">開啟「密碼管理工具」</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">上載圖片以使用 Nano Banana 改圖</translation>
 <translation id="1377508275003315939">密碼</translation>
 <translation id="1381022135873211423">{count,plural, =1{第 {position} 個地址，總共有 {count} 個}other{第 {position} 個地址，總共有 {count} 個}}</translation>
+<translation id="13813615483058219">發生問題。請檢查互聯網連線、調高音量或再試一次。</translation>
 <translation id="1383876407941801731">搜尋</translation>
 <translation id="138618066238211776">以<ph name="USER_NAME" />的身分繼續</translation>
 <translation id="138692594145659985">付款卡儲存選項</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">更新瀏覽器</translation>
 <translation id="4021931095789478915">將 ${url} 新增至閱讀清單</translation>
 <translation id="4028871427853484857">儲存在帳戶中…</translation>
+<translation id="4036529942385659684">閒置一段時間後顯示起始頁面</translation>
 <translation id="4038354071007134711">此裝置上沒有可開啟該檔案的應用程式。</translation>
 <translation id="4042870976416480368">在網頁中搜尋</translation>
 <translation id="4045441967987592849">重開</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">管理群組</translation>
 <translation id="4172051516777682613">永遠顯示</translation>
 <translation id="417273154673973994">{count,plural, =1{已關閉並儲存 1 個分頁群組}other{已關閉並儲存 {count} 個分頁群組}}</translation>
-<translation id="417612446554534067">傳送至你的裝置</translation>
 <translation id="4180726336228139707">只儲存在此裝置上</translation>
 <translation id="4181841719683918333">語言</translation>
 <translation id="4183350924949589798">想增強安全性嗎？</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">系統已關閉分頁並將你登出</translation>
 <translation id="4911042367886397055"><ph name="USER_NAME" />，歡迎回來！</translation>
 <translation id="4913626501929406101">你可安全地與家庭群組的成員分享密碼副本。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">透鏡</translation>
 <translation id="4917025507570489430">當你以 <ph name="USER_EMAIL" /> 的身分登入，就能使用現有的瀏覽資料。你的機構或可查閱有關資料。</translation>
 <translation id="4918086044614829423">接受</translation>
 <translation id="4930714375720679147">開啟</translation>
@@ -1549,6 +1552,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">選擇網址列位置</translation>
 <translation id="6307241780749477694">你必須驗證身分，才能取得此裝置上的所有密碼</translation>
+<translation id="6307792728709337290">將付款卡儲存至 Google 帳戶後，只要在 Chrome 中購物都能自動填入資料。</translation>
 <translation id="6316141353357700666">從顯示清單中選取要使用的密碼。</translation>
 <translation id="6321526113093607004">新增至「書籤」</translation>
 <translation id="6327249202318869726">你的帳戶已關閉 Gemini。請聯絡管理員瞭解詳情。</translation>
@@ -2141,6 +2145,7 @@
 <translation id="8263809106706527890">預設瀏覽器設定可能已有變更，你可在設定中查看。</translation>
 <translation id="8264966119170358612">非 Google 資料外洩中包含部分您儲存的密碼。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">您已在重設 iPad 時登出帳戶 (<ph name="USER_NAME" />)，如要重新登入，請輕按下方的 [繼續]。</translation>
+<translation id="8270320981823560179">雲端硬碟</translation>
 <translation id="8273982424131314219">你將在 <ph name="URL" /> 中填入資料</translation>
 <translation id="8275068909952022340">更多…</translation>
 <translation id="8281781826761538115">預設 - <ph name="DEFAULT_LOCALE" /></translation>

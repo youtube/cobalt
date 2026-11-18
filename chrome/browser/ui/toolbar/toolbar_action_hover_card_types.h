@@ -12,7 +12,8 @@ enum class ToolbarActionHoverCardUpdateType {
   kHover,
   kEvent,
   kToolbarActionUpdated,
-  kToolbarActionRemoved
+  kToolbarActionRemoved,
+  kFocus
 };
 
 #endif  // CHROME_BROWSER_UI_TOOLBAR_TOOLBAR_ACTION_HOVER_CARD_TYPES_H_

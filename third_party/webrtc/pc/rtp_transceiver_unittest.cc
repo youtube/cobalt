@@ -312,7 +312,8 @@ TEST_F(RtpTransceiverTest, CanUnsetChannelOnStoppedTransceiver) {
 TEST_F(RtpTransceiverTestWithFakeCall, TransportNameIsUpdated) {
   const std::string content_name("my_mid");
 
-  auto fake_dtls = std::make_unique<FakeDtlsTransport>("test_transport", false);
+  auto fake_dtls =
+      std::make_unique<FakeDtlsTransport>(env(), "test_transport", false);
   auto rtp_transport = std::make_unique<RtpTransport>(/*rtcp_mux_enabled=*/true,
                                                       env().field_trials());
   rtp_transport->SetRtpPacketTransport(fake_dtls.get());
@@ -1139,7 +1140,8 @@ TEST_F(RtpTransceiverTestWithFakeCall,
 TEST_F(RtpTransceiverTestWithFakeCall, OnNetworkRouteChangedForwardsToChannel) {
   const std::string content_name("my_mid");
 
-  auto fake_dtls = std::make_unique<FakeDtlsTransport>("test_transport", false);
+  auto fake_dtls =
+      std::make_unique<FakeDtlsTransport>(env(), "test_transport", false);
   auto rtp_transport = std::make_unique<RtpTransport>(/*rtcp_mux_enabled=*/true,
                                                       env().field_trials());
   rtp_transport->SetRtpPacketTransport(fake_dtls.get());
@@ -1185,7 +1187,8 @@ TEST_F(RtpTransceiverTestWithFakeCall,
        OnNetworkRouteChangedForwardsToVideoChannel) {
   const std::string content_name("my_mid");
 
-  auto fake_dtls = std::make_unique<FakeDtlsTransport>("test_transport", false);
+  auto fake_dtls =
+      std::make_unique<FakeDtlsTransport>(env(), "test_transport", false);
   auto rtp_transport = std::make_unique<RtpTransport>(/*rtcp_mux_enabled=*/true,
                                                       env().field_trials());
   rtp_transport->SetRtpPacketTransport(fake_dtls.get());
@@ -1240,7 +1243,7 @@ TEST_F(RtpTransceiverDoubleThreadTest,
                                                       env().field_trials());
   context()->network_thread()->BlockingCall([&]() {
     fake_dtls = std::make_unique<FakeDtlsTransport>(
-        "test_transport", 0, context()->network_thread());
+        env(), "test_transport", 0, context()->network_thread());
     rtp_transport->SetRtpPacketTransport(fake_dtls.get());
   });
 

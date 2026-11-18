@@ -24,7 +24,6 @@
 #include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "api/neteq/default_neteq_controller_factory.h"
 #include "api/neteq/default_neteq_factory.h"
@@ -86,7 +85,7 @@ int DeletePacketsAndReturnOk(PacketList* packet_list) {
 
 class NetEqImplTest : public ::testing::Test {
  protected:
-  NetEqImplTest() : clock_(0), env_(CreateEnvironment(&clock_)) {
+  NetEqImplTest() : clock_(0), env_(CreateTestEnvironment({.time = &clock_})) {
     config_.sample_rate_hz = 8000;
   }
 

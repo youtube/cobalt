@@ -50,7 +50,6 @@
 #include "third_party/blink/renderer/core/dom/document_type.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/dom/element.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/events/add_event_listener_options_resolved.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
@@ -66,6 +65,7 @@
 #include "third_party/blink/renderer/core/dom/node-inl.h"
 #include "third_party/blink/renderer/core/dom/node_cloning_data.h"
 #include "third_party/blink/renderer/core/dom/node_lists_node_data.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/dom/processing_instruction.h"
 #include "third_party/blink/renderer/core/dom/range.h"
@@ -322,7 +322,7 @@ void Node::DumpStatistics() {
             << elements_with_attribute_storage << " x " << sizeof(ElementData)
             << "Bytes\n"
             << "  Number of Elements with RareData: " << elements_with_rare_data
-            << " x " << sizeof(ElementRareDataVector) << "Bytes\n"
+            << " x " << sizeof(NodeRareData) << "Bytes\n"
             << "  Number of Elements with NamedNodeMap: "
             << elements_with_named_node_map << " x " << sizeof(NamedNodeMap)
             << "Bytes";
@@ -360,8 +360,8 @@ Node* Node::FromDomNodeId(DOMNodeId dom_node_id) {
   return DOMNodeIds::NodeForId(dom_node_id);
 }
 
-ElementRareDataVector& Node::CreateRareData() {
-  data_ = ElementRareDataVector::Create();
+NodeRareData& Node::CreateRareData() {
+  data_ = NodeRareData::Create();
   return *data_;
 }
 
@@ -1074,20 +1074,32 @@ void Node::after(
 }
 
 namespace {
-bool CanInsertHTMLToParent(Node* child) {
-  const ContainerNode* parent = child->parentNode();
-  return parent && (parent->IsElementNode() || parent->IsShadowRoot());
+ContainerNode* ParentForHTMLInsertion(Node* self,
+                                      ExceptionState& exception_state) {
+  ContainerNode* parent = self->parentNode();
+  if (!parent || parent->IsElementNode() || parent->IsShadowRoot()) {
+    return parent;
+  }
+
+  if (parent->IsDocumentFragment() &&
+      To<DocumentFragment>(parent)->IsTemplateContent()) {
+    return parent->ParentOrShadowHostOrTemplateHostNode();
+  }
+
+  exception_state.ThrowDOMException(DOMExceptionCode::kHierarchyRequestError,
+                                    "Invalid parent for HTML insertion");
+  return nullptr;
 }
 }  // namespace
 
 void Node::replaceWithHTML(const String& html,
                            SetHTMLOptions* options,
                            ExceptionState& exception_state) {
-  if (CanInsertHTMLToParent(this)) {
-    parentNode()->ReplaceChildWithHTML(
+  if (ContainerNode* parent = ParentForHTMLInsertion(this, exception_state)) {
+    parent->ReplaceChildWithHTML(
         this, html,
         FragmentParserConfig::ForContainer(
-            parentNode(), Sanitizer::Mode::kSafe, trusted_types_names::kNode,
+            parent, Sanitizer::Mode::kSafe, trusted_types_names::kNode,
             trusted_types_names::kReplaceWithHTML),
         FragmentParserOptions(options), exception_state);
   }
@@ -1097,92 +1109,119 @@ void Node::replaceWithHTMLUnsafe(
     const V8UnionStringOrTrustedHTML* html,
     V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
     ExceptionState& exception_state) {
-  if (!CanInsertHTMLToParent(this)) {
+  FragmentParserOptions resolved_options = FragmentParserOptions::From(options);
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(), trusted_types_names::kNode,
+      trusted_types_names::kReplaceWithHTMLUnsafe, exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+
+  ContainerNode* parent = ParentForHTMLInsertion(this, exception_state);
+  if (!parent) {
     return;
   }
   const FragmentParserConfig config = FragmentParserConfig::ForContainer(
-      parentNode(), Sanitizer::Mode::kUnsafe, trusted_types_names::kNode,
+      parent, Sanitizer::Mode::kUnsafe, trusted_types_names::kNode,
       trusted_types_names::kReplaceWithHTMLUnsafe);
 
-  parentNode()->ReplaceChildWithHTML(
-      this,
-      TrustedTypesCheckForHTML(html, GetExecutionContext(),
-                               config.interface_name, config.property_name,
-                               exception_state),
-      config, FragmentParserOptions::From(options), exception_state);
+  parent->ReplaceChildWithHTML(this, compliant_string, config, resolved_options,
+                               exception_state);
 }
 
 void Node::beforeHTML(const String& html,
                       SetHTMLOptions* options,
                       ExceptionState& exception_state) {
-  if (CanInsertHTMLToParent(this)) {
-    parentNode()->InsertHTMLBefore(
-        this, html,
-        FragmentParserConfig::ForContainer(parentNode(), Sanitizer::Mode::kSafe,
-                                           trusted_types_names::kNode,
-                                           trusted_types_names::kBeforeHTML),
-        FragmentParserOptions(options), exception_state);
+  ContainerNode* parent = ParentForHTMLInsertion(this, exception_state);
+  if (!parent) {
+    return;
   }
+  parent->InsertHTMLBefore(
+      this, html,
+      FragmentParserConfig::ForContainer(parent, Sanitizer::Mode::kSafe,
+                                         trusted_types_names::kNode,
+                                         trusted_types_names::kBeforeHTML),
+      FragmentParserOptions(options), exception_state);
 }
 
 void Node::beforeHTMLUnsafe(
     const V8UnionStringOrTrustedHTML* html,
     V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
     ExceptionState& exception_state) {
-  if (!CanInsertHTMLToParent(this)) {
+  FragmentParserOptions resolved_options = FragmentParserOptions::From(options);
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(), trusted_types_names::kNode,
+      trusted_types_names::kBeforeHTMLUnsafe, exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+
+  ContainerNode* parent = ParentForHTMLInsertion(this, exception_state);
+  if (!parent) {
     return;
   }
   const FragmentParserConfig config = FragmentParserConfig::ForContainer(
-      parentNode(), Sanitizer::Mode::kUnsafe, trusted_types_names::kNode,
+      parent, Sanitizer::Mode::kUnsafe, trusted_types_names::kNode,
       trusted_types_names::kBeforeHTMLUnsafe);
 
-  parentNode()->InsertHTMLBefore(
-      this,
-      TrustedTypesCheckForHTML(html, GetExecutionContext(),
-                               config.interface_name, config.property_name,
-                               exception_state),
-      config, FragmentParserOptions::From(options), exception_state);
+  parent->InsertHTMLBefore(this, compliant_string, config, resolved_options,
+                           exception_state);
 }
 
 void Node::afterHTML(const String& html,
                      SetHTMLOptions* options,
                      ExceptionState& exception_state) {
-  if (CanInsertHTMLToParent(this)) {
-    parentNode()->InsertHTMLBefore(
-        nextSibling(), html,
-        FragmentParserConfig::ForContainer(parentNode(), Sanitizer::Mode::kSafe,
-                                           trusted_types_names::kNode,
-                                           trusted_types_names::kAfterHTML),
-        FragmentParserOptions(options), exception_state);
+  ContainerNode* parent = ParentForHTMLInsertion(this, exception_state);
+  if (!parent) {
+    return;
   }
+  parent->InsertHTMLBefore(
+      nextSibling(), html,
+      FragmentParserConfig::ForContainer(parent, Sanitizer::Mode::kSafe,
+                                         trusted_types_names::kNode,
+                                         trusted_types_names::kAfterHTML),
+      FragmentParserOptions(options), exception_state);
 }
 
 void Node::afterHTMLUnsafe(
     const V8UnionStringOrTrustedHTML* html,
     V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
     ExceptionState& exception_state) {
-  if (!CanInsertHTMLToParent(this)) {
+  FragmentParserOptions resolved_options = FragmentParserOptions::From(options);
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(), trusted_types_names::kNode,
+      trusted_types_names::kAfterHTMLUnsafe, exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+
+  ContainerNode* parent = ParentForHTMLInsertion(this, exception_state);
+  if (!parent) {
     return;
   }
   const FragmentParserConfig config = FragmentParserConfig::ForContainer(
-      parentNode(), Sanitizer::Mode::kUnsafe, trusted_types_names::kNode,
+      parent, Sanitizer::Mode::kUnsafe, trusted_types_names::kNode,
       trusted_types_names::kAfterHTMLUnsafe);
 
-  parentNode()->InsertHTMLBefore(
-      nextSibling(),
-      TrustedTypesCheckForHTML(html, GetExecutionContext(),
-                               config.interface_name, config.property_name,
-                               exception_state),
-      config, FragmentParserOptions::From(options), exception_state);
+  parent->InsertHTMLBefore(nextSibling(), compliant_string, config,
+                           resolved_options, exception_state);
 }
 
 WritableStream* Node::streamBeforeHTMLUnsafe(
     ScriptState* script_state,
     V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
     ExceptionState& exception_state) {
+  std::optional<FragmentParserOptions> resolved_options =
+      TrustedTypesCheckForStreaming(
+          FragmentParserOptions::From(options),
+          ExecutionContext::From(script_state), trusted_types_names::kNode,
+          trusted_types_names::kStreamBeforeHTMLUnsafe, exception_state);
+  if (!resolved_options) {
+    return nullptr;
+  }
   return HTMLStream::Create(
       script_state, parentNode(), this, Sanitizer::Mode::kUnsafe,
-      FragmentParserOptions::From(options), trusted_types_names::kNode,
+      *resolved_options, trusted_types_names::kNode,
       trusted_types_names::kStreamBeforeHTMLUnsafe, exception_state);
 }
 
@@ -1199,9 +1238,17 @@ WritableStream* Node::streamAfterHTMLUnsafe(
     ScriptState* script_state,
     V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
     ExceptionState& exception_state) {
+  std::optional<FragmentParserOptions> resolved_options =
+      TrustedTypesCheckForStreaming(
+          FragmentParserOptions::From(options),
+          ExecutionContext::From(script_state), trusted_types_names::kNode,
+          trusted_types_names::kStreamAfterHTMLUnsafe, exception_state);
+  if (!resolved_options) {
+    return nullptr;
+  }
   return HTMLStream::Create(
       script_state, parentNode(), nextSibling(), Sanitizer::Mode::kUnsafe,
-      FragmentParserOptions::From(options), trusted_types_names::kNode,
+      *resolved_options, trusted_types_names::kNode,
       trusted_types_names::kStreamAfterHTMLUnsafe, exception_state);
 }
 
@@ -1218,11 +1265,19 @@ WritableStream* Node::streamReplaceWithHTMLUnsafe(
     ScriptState* script_state,
     V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
     ExceptionState& exception_state) {
-  return HTMLStream::Create(
-      script_state, parentNode(), nextSibling(), Sanitizer::Mode::kUnsafe,
-      FragmentParserOptions::From(options), trusted_types_names::kNode,
-      trusted_types_names::kStreamReplaceWithHTMLUnsafe, exception_state,
-      [&]() { remove(); });
+  std::optional<FragmentParserOptions> resolved_options =
+      TrustedTypesCheckForStreaming(
+          FragmentParserOptions::From(options),
+          ExecutionContext::From(script_state), trusted_types_names::kNode,
+          trusted_types_names::kStreamReplaceWithHTMLUnsafe, exception_state);
+  if (!resolved_options) {
+    return nullptr;
+  }
+  return HTMLStream::Create(script_state, parentNode(), nextSibling(),
+                            Sanitizer::Mode::kUnsafe, *resolved_options,
+                            trusted_types_names::kNode,
+                            trusted_types_names::kStreamReplaceWithHTMLUnsafe,
+                            exception_state, [&]() { remove(); });
 }
 
 WritableStream* Node::streamReplaceWithHTML(ScriptState* script_state,

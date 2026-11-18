@@ -34,8 +34,6 @@
 #include "api/call/transport.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
-#include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
 #include "api/payload_type.h"
@@ -76,7 +74,6 @@
 #include "rtc_base/dscp.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "test/create_test_environment.h"
-#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_audio_decoder_factory.h"
@@ -249,8 +246,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
  public:
   explicit WebRtcVoiceEngineTestFake(absl::string_view field_trials_string = "")
       : use_null_apm_(GetParam()),
-        field_trials_(CreateTestFieldTrials(field_trials_string)),
-        env_(CreateEnvironment(&field_trials_)),
+        env_(CreateTestEnvironment({.field_trials = field_trials_string})),
         adm_(test::MockAudioDeviceModule::CreateStrict()),
         apm_(use_null_apm_
                  ? nullptr
@@ -891,7 +887,6 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
  protected:
   test::RunLoop run_loop_;
   const bool use_null_apm_;
-  FieldTrials field_trials_;
   const Environment env_;
   scoped_refptr<test::MockAudioDeviceModule> adm_;
   scoped_refptr<StrictMock<test::MockAudioProcessing>> apm_;
@@ -1326,7 +1321,6 @@ class WebRtcVoiceEngineTestWithAdaptivePtime
 };
 
 TEST_P(WebRtcVoiceEngineTestWithAdaptivePtime, AdaptivePtimeFieldTrial) {
-  // field_trials_.Set("WebRTC-Audio-AdaptivePtime", "enabled:true");
   EXPECT_TRUE(SetupSendStream());
   EXPECT_TRUE(GetAudioNetworkAdaptorConfig(kSsrcX));
 }
@@ -2341,12 +2335,12 @@ TEST_P(WebRtcVoiceEngineTestFake, SetSendCodecsCaseInsensitive) {
 
 TEST_P(WebRtcVoiceEngineTestFake,
        SupportsTransportSequenceNumberHeaderExtension) {
-  const std::vector<RtpExtension> header_extensions =
-      GetDefaultEnabledRtpHeaderExtensions(*engine_,
-                                           /* field_trials= */ nullptr);
+  const std::vector<RtpHeaderExtensionCapability> header_extensions =
+      GetDefaultEnabledRtpHeaderCapabilities(*engine_,
+                                             /* field_trials= */ nullptr);
   EXPECT_THAT(
       header_extensions,
-      Contains(::testing::Field("uri", &RtpExtension::uri,
+      Contains(::testing::Field("uri", &RtpHeaderExtensionCapability::uri,
                                 RtpExtension::kTransportSequenceNumberUri)));
 }
 
@@ -3364,9 +3358,15 @@ TEST_P(WebRtcVoiceEngineTestFake, ConfiguresAudioReceiveStreamRtpExtensions) {
   }
 
   // Set up receive extensions.
-  const std::vector<RtpExtension> header_extensions =
-      GetDefaultEnabledRtpHeaderExtensions(*engine_,
-                                           /* field_trials= */ nullptr);
+  const auto header_extensions_caps =
+      GetDefaultEnabledRtpHeaderCapabilities(*engine_,
+                                             /* field_trials= */ nullptr);
+  std::vector<RtpExtension> header_extensions;
+  for (const auto& cap : header_extensions_caps) {
+    header_extensions.emplace_back(
+        cap.uri, cap.preferred_id.value_or(RtpHeaderExtensionId::NotSet()),
+        cap.preferred_encrypt);
+  }
   AudioReceiverParameters recv_parameters;
   recv_parameters.extensions = header_extensions;
   receive_channel_->SetReceiverParameters(recv_parameters);
@@ -3866,9 +3866,8 @@ TEST(WebRtcVoiceEngineTest, CollectRecvCodecs) {
 }
 
 TEST(WebRtcVoiceEngineTest, CollectRecvCodecsWithLatePtAssignment) {
-  FieldTrials field_trials =
-      CreateTestFieldTrials("WebRTC-PayloadTypesInTransport/Enabled/");
-  Environment env = CreateEnvironment(&field_trials);
+  Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-PayloadTypesInTransport/Enabled/"});
 
   for (bool use_null_apm : {false, true}) {
     std::vector<AudioCodecSpec> specs;

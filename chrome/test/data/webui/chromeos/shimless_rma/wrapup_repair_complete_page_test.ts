@@ -16,7 +16,7 @@ import {ShimlessRma} from 'chrome://shimless-rma/shimless_rma.js';
 import type {StateResult} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
 import {ShutdownMethod} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
 import {WrapupRepairCompletePage} from 'chrome://shimless-rma/wrapup_repair_complete_page.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 

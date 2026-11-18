@@ -1235,7 +1235,6 @@ class CONTENT_EXPORT WebContentsImpl
   VisibleTimeRequestTrigger& GetVisibleTimeRequestTrigger() final;
   gfx::mojom::DelegatedInkPointRenderer* GetDelegatedInkRenderer(
       ui::Compositor* compositor) override;
-  void OnInputIgnored(const blink::WebInputEvent& event) override;
 #if BUILDFLAG(IS_ANDROID)
   gfx::PointF GetCurrentTouchSequenceOffset() override;
 #endif

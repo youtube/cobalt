@@ -831,9 +831,15 @@ BookmarkManagerPrivateOpenInNewTabFunction::RunOnReady() {
     if (browser) {
       TabStripModel* tab_strip =
           browser->GetBrowserForMigrationOnly()->tab_strip_model();
+      const int new_tab_index = tab_strip->GetIndexOfWebContents(new_contents);
+      // Handle the situation where the bookmark is opened in a different window
+      // (happens when opening certain internal pages in incognito mode)
+      if (new_tab_index == TabStripModel::kNoTab ||
+          new_tab_index == tab_strip->active_index()) {
+        return RespondNow(NoArguments());
+      }
       tab_strip->AddToNewSplit(
-          {tab_strip->GetIndexOfWebContents(new_contents)},
-          split_tabs::SplitTabVisualData(),
+          {new_tab_index}, split_tabs::SplitTabVisualData(),
           split_tabs::SplitTabCreatedSource::kExtensionsApi);
     }
   }

@@ -39,6 +39,7 @@
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_store.h"
 #include "components/policy/core/common/configuration_policy_provider.h"
+#include "components/policy/core/common/features.h"
 #include "components/policy/core/common/policy_logger.h"
 #include "components/prefs/pref_service.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -240,6 +241,14 @@ void ChromeBrowserCloudManagementController::Init(
         << "No machine level policy manager exists.";
     return;
   }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  if (policy_manager->extension_install_store() &&
+      !base::FeatureList::IsEnabled(
+          features::kEnableExtensionInstallPolicyFetching)) {
+    policy_manager->extension_install_store()->Clear();
+  }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   // If there exists an enrollment token, then there are three states:
   //   1/ There also exists a valid DM token.  This machine is already

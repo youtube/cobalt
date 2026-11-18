@@ -440,7 +440,9 @@ $L$SEH_end_gcm_ghash_ssse3_7:
 
 
 section	.rdata rdata align=8
+
 ALIGN	16
+ghash_ssse3_constants:
 
 
 $L$reverse_bytes:

@@ -112,6 +112,7 @@
 #include "net/cookies/cookie_access_result.h"
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_util.h"
+#include "net/cookies/parsed_cookie.h"
 #include "net/filter/gzip_header.h"
 #include "net/filter/gzip_source_stream.h"
 #include "net/filter/mock_source_stream.h"
@@ -2231,7 +2232,7 @@ bool SetCookie(
   const bool has_partition_key = cookie_partition_key.has_value();
   const bool is_nonced =
       net::CookiePartitionKey::HasNonce(cookie_partition_key);
-  const bool has_attribute = base::ToLowerASCII(value).contains(";partitioned");
+  const bool has_attribute = net::ParsedCookie(value).IsPartitioned();
   if (!has_partition_key) {
     DCHECK(!has_attribute);
   }
@@ -2668,16 +2669,17 @@ bool RenderProcessHostWatcher::Wait() {
   allow_renderer_crashes_.reset();
   // Call this here just in case something else quits the RunLoop.
   observation_.Reset();
-  return result;
+  return result && success_;
 }
-void RenderProcessHostWatcher::OnEvent() {
+void RenderProcessHostWatcher::OnEvent(bool success) {
+  success_ = success;
   waiter_helper_.OnEvent();
   observation_.Reset();
 }
 
 void RenderProcessHostWatcher::RenderProcessReady(RenderProcessHost* host) {
   if (type_ == WATCH_FOR_PROCESS_READY) {
-    OnEvent();
+    OnEvent(true);
   }
 }
 
@@ -2687,15 +2689,16 @@ void RenderProcessHostWatcher::RenderProcessExited(
   did_exit_normally_ =
       info.status == base::TERMINATION_STATUS_NORMAL_TERMINATION;
   if (type_ == WATCH_FOR_PROCESS_EXIT) {
-    OnEvent();
+    OnEvent(true);
+  } else if (type_ == WATCH_FOR_PROCESS_READY) {
+    OnEvent(false);
   }
 }
 
 void RenderProcessHostWatcher::RenderProcessHostDestroyed(
     RenderProcessHost* host) {
-  if (type_ == WATCH_FOR_HOST_DESTRUCTION) {
-    OnEvent();
-  }
+  OnEvent(type_ == WATCH_FOR_HOST_DESTRUCTION ||
+          type_ == WATCH_FOR_PROCESS_EXIT);
 }
 
 RenderProcessHostKillWaiter::RenderProcessHostKillWaiter(

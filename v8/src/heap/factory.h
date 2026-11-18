@@ -144,6 +144,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<Hole> NewHole();
 
+  Handle<HashSeedWrapper> NewHashSeedWrapper();
+
   JSDispatchHandle NewJSDispatchHandle(uint16_t parameter_count,
                                        DirectHandle<Code> code,
                                        JSDispatchTable::Space* space);
@@ -940,7 +942,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<SharedFunctionInfo> code);
   Handle<SyntheticModule> NewSyntheticModule(
       DirectHandle<String> module_name, DirectHandle<FixedArray> export_names,
-      v8::Module::SyntheticModuleEvaluationSteps evaluation_steps);
+      v8::Module::SyntheticModuleEvaluationSteps evaluation_steps,
+      DirectHandle<Object> host_defined_options);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
       std::shared_ptr<BackingStore> backing_store,
@@ -1040,8 +1043,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                             DirectHandle<Object> options = {});
 
   DirectHandle<Object> NewInvalidStringLengthError();
-
-  inline DirectHandle<Object> NewURIError();
 
   Handle<JSObject> NewError(DirectHandle<JSFunction> constructor,
                             MessageTemplate template_index,

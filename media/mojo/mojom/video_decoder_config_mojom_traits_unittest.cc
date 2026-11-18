@@ -158,6 +158,26 @@ TEST(VideoDecoderConfigStructTraitsTest,
   EXPECT_FALSE(output.IsValidConfig());
 }
 
+TEST(VideoDecoderConfigStructTraitsTest,
+     ConvertVideoDecoderConfig_ProjectionAndStereoMode) {
+  VideoDecoderConfig input(VideoCodec::kVP8, VP8PROFILE_ANY,
+                           VideoDecoderConfig::AlphaMode::kIsOpaque,
+                           VideoColorSpace(), kNoTransformation, kCodedSize,
+                           kVisibleRect, kNaturalSize, EmptyExtraData(),
+                           EncryptionScheme::kUnencrypted);
+  input.set_spatial_format(VideoSpatialFormat{
+      VideoProjectionType::kEquirect360,
+      VideoStereoMode::kSideBySideLeftFirst,
+  });
+
+  std::vector<uint8_t> data =
+      media::mojom::VideoDecoderConfig::Serialize(&input);
+  VideoDecoderConfig output;
+  EXPECT_TRUE(
+      media::mojom::VideoDecoderConfig::Deserialize(std::move(data), &output));
+  EXPECT_TRUE(output.Matches(input));
+}
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 TEST(VideoDecoderConfigStructTraitsTest, ConvertVideoDecoderConfig_MimeType) {
   VideoDecoderConfig input(VideoCodec::kVP8, VP8PROFILE_ANY,

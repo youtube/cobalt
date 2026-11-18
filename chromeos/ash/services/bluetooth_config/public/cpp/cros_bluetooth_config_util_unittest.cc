@@ -10,7 +10,7 @@ namespace ash::bluetooth_config {
 
 namespace {
 
-const std::u16string kTestPublicName = u"Public Name";
+constexpr char16_t kTestPublicName[] = u"Public Name";
 
 }  // namespace
 

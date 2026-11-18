@@ -97,7 +97,7 @@ class AutofillCrowdsourcingManager {
   // more than one element, then `upload_contents[0]` is expected to correspond
   // to the browser form and `upload_contents[i]` with `i>0` are expected to
   // correspond to the renderer forms that constitute the browser form.
-  // See `autofill::FormForest` for more information on browser vs renderer
+  // See `internal::FormForest` for more information on browser vs renderer
   // forms.
   virtual bool StartUploadRequest(
       std::vector<AutofillUploadContents> upload_contents,

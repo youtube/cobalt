@@ -821,17 +821,16 @@ void MetricsService::InitPerUserMetrics() {
   client_->InitPerUserMetrics();
 }
 
-std::optional<bool> MetricsService::GetCurrentUserMetricsConsent() const {
-  return client_->GetCurrentUserMetricsConsent();
+std::optional<bool> MetricsService::GetCurrentUserMetricsChoice() const {
+  return client_->GetCurrentUserMetricsChoice();
 }
 
 std::optional<std::string> MetricsService::GetCurrentUserId() const {
   return client_->GetCurrentUserId();
 }
 
-void MetricsService::UpdateCurrentUserMetricsConsent(
-    bool user_metrics_consent) {
-  client_->UpdateCurrentUserMetricsConsent(user_metrics_consent);
+void MetricsService::UpdateCurrentUserMetricsChoice(bool user_choice) {
+  client_->UpdateCurrentUserMetricsChoice(user_choice);
 }
 
 void MetricsService::ResetClientId() {

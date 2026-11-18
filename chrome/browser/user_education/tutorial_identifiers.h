@@ -30,4 +30,9 @@ inline constexpr char kSplitViewTutorialMetricPrefix[] = "SplitView";
 inline constexpr char kVerticalTabsTutorialId[] = "Vertical Tabs Tutorial";
 inline constexpr char kVerticalTabsTutorialMetricPrefix[] = "VerticalTabs";
 
+inline constexpr char kContextualTasksTutorialId[] =
+    "Contextual Tasks Tutorial";
+inline constexpr char kContextualTasksTutorialMetricPrefix[] =
+    "ContextualTasks";
+
 #endif  // CHROME_BROWSER_USER_EDUCATION_TUTORIAL_IDENTIFIERS_H_

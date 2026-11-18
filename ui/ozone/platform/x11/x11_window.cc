@@ -264,6 +264,10 @@ X11Window::~X11Window() {
   Close();
 }
 
+base::WeakPtr<X11Window> X11Window::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 void X11Window::Initialize(PlatformWindowInitProperties properties) {
   CreateXWindow(properties);
 
@@ -640,6 +644,10 @@ void X11Window::SetTitle(const std::u16string& title) {
   connection_->SetStringProperty(xwindow_, x11::GetAtom("_NET_WM_NAME"),
                                  x11::GetAtom("UTF8_STRING"), utf8str);
   connection_->SetStringProperty(xwindow_, x11::Atom::WM_NAME,
+                                 x11::GetAtom("UTF8_STRING"), utf8str);
+  connection_->SetStringProperty(xwindow_, x11::Atom::WM_ICON_NAME,
+                                 x11::Atom::STRING, utf8str);
+  connection_->SetStringProperty(xwindow_, x11::GetAtom("_NET_WM_ICON_NAME"),
                                  x11::GetAtom("UTF8_STRING"), utf8str);
 }
 
@@ -1416,7 +1424,11 @@ uint32_t X11Window::DispatchEvent(const PlatformEvent& event) {
   auto& current_xevent = *connection_->dispatching_event();
 
   if (event->IsMouseEvent()) {
+    auto weak_this = weak_ptr_factory_.GetWeakPtr();
     X11WindowManager::GetInstance()->MouseOnWindow(this);
+    if (!weak_this) {
+      return POST_DISPATCH_STOP_PROPAGATION;
+    }
   }
 #if BUILDFLAG(USE_ATK)
   if (HandleAsAtkEvent(current_xevent)) {
@@ -1458,6 +1470,8 @@ void X11Window::DispatchUiEvent(ui::Event* event, const x11::Event& xev) {
   auto* located_events_grabber = window_manager->located_events_grabber();
   if (event->IsLocatedEvent() && located_events_grabber &&
       located_events_grabber != this) {
+    base::WeakPtr<X11Window> weak_grabber =
+        located_events_grabber->GetWeakPtr();
     if (event->IsMouseEvent() ||
         (event->IsTouchEvent() &&
          event->type() == ui::EventType::kTouchPressed)) {
@@ -1465,17 +1479,23 @@ void X11Window::DispatchUiEvent(ui::Event* event, const x11::Event& xev) {
       // event's location and dispatch to the other.
       const gfx::Point target_origin =
           located_events_grabber->GetBoundsInPixels().origin();
-      if (!weak_this) {
+      if (!weak_this || !weak_grabber ||
+          window_manager->located_events_grabber() != weak_grabber.get()) {
         return;
       }
       const gfx::Point current_origin = GetBoundsInPixels().origin();
-      if (!weak_this) {
+      if (!weak_this || !weak_grabber ||
+          window_manager->located_events_grabber() != weak_grabber.get()) {
         return;
       }
       ConvertEventLocationToTargetWindowLocation(target_origin, current_origin,
                                                  event->AsLocatedEvent());
     }
-    return located_events_grabber->DispatchUiEvent(event, xev);
+    if (weak_grabber &&
+        window_manager->located_events_grabber() == weak_grabber.get()) {
+      weak_grabber->DispatchUiEvent(event, xev);
+    }
+    return;
   }
 
   // If after CoalescePendingMotionEvents the type of xev is resolved to
@@ -1875,16 +1895,11 @@ void X11Window::CreateXWindow(const PlatformWindowInitProperties& properties) {
                              : connection_->default_screen().white_pixel;
 
   switch (properties.type) {
-    case PlatformWindowType::kMenu:
-      req.override_redirect = x11::Bool32(true);
-      break;
-    case PlatformWindowType::kTooltip:
-      req.override_redirect = x11::Bool32(true);
-      break;
-    case PlatformWindowType::kPopup:
-      req.override_redirect = x11::Bool32(true);
-      break;
+    case PlatformWindowType::kBubble:
     case PlatformWindowType::kDrag:
+    case PlatformWindowType::kMenu:
+    case PlatformWindowType::kPopup:
+    case PlatformWindowType::kTooltip:
       req.override_redirect = x11::Bool32(true);
       break;
     default:

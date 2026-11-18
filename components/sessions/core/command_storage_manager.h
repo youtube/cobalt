@@ -136,10 +136,11 @@ class SESSIONS_EXPORT CommandStorageManager {
  private:
   friend class CommandStorageManagerTestHelper;
 
-  CommandStorageBackend* backend() { return backend_.get(); }
-
   // Called by the backend if writing to the file failed.
   void OnErrorWritingToFile();
+
+  // Returns true if cleartext files should be written.
+  bool ShouldWriteCleartextFiles() const;
 
   // Returns true if encrypted files should be written.
   bool ShouldWriteEncryptedFiles() const;
@@ -152,8 +153,19 @@ class SESSIONS_EXPORT CommandStorageManager {
   const base::FilePath file_path_;
   const SessionType session_type_;
 
-  // The backend object which reads and saves commands.
+  // TaskRunner all backend tasks are run on. This is a SequencedTaskRunner as
+  // all tasks *must* be processed in the order they are scheduled.
+  scoped_refptr<base::SequencedTaskRunner> backend_task_runner_;
+
+  // A backend which reads and saves commands in cleartext.
+  // TODO(crbug.com/479420496): Remove this backend once transition to
+  // `encrypted_backend_` is complete.
   scoped_refptr<CommandStorageBackend> backend_;
+
+  // A backend that stores commands in encrypted form.
+  // This backend will eventually replace the cleartext |backend_|; the launch
+  // is being tracked in crbug.com/479420496.
+  scoped_refptr<CommandStorageBackend> encrypted_backend_;
 
   // Commands we need to send over to the backend.
   std::vector<std::unique_ptr<SessionCommand>> pending_commands_;
@@ -166,10 +178,6 @@ class SESSIONS_EXPORT CommandStorageManager {
   int commands_since_reset_ = 0;
 
   raw_ptr<CommandStorageManagerDelegate> delegate_;
-
-  // TaskRunner all backend tasks are run on. This is a SequencedTaskRunner as
-  // all tasks *must* be processed in the order they are scheduled.
-  scoped_refptr<base::SequencedTaskRunner> backend_task_runner_;
 
 #if DCHECK_IS_ON()
   // Used to store debug log entries for this command manager.

@@ -300,6 +300,7 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   // Querying ------------------------------------------------------------------
 
   QueryURLResult QueryURL(const GURL& url);
+  std::optional<std::vector<URLID>> QueryUrlIds(const std::vector<GURL>& urls);
   QueryURLAndVisitsResult QueryURLAndVisits(
       const GURL& url,
       VisitQuery404sPolicy policy_for_404s);
@@ -562,10 +563,10 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
   void ReplaceClusters(const std::vector<ClusterId>& ids_to_delete,
                        const std::vector<Cluster>& clusters_to_add);
 
-  ClusterId ReserveNextClusterIdWithVisit(const ClusterVisit& cluster_visit);
+  ClusterId ReserveNextClusterIdWithVisit(ClusterVisit cluster_visit);
 
   void AddVisitsToCluster(ClusterId cluster_id,
-                          const std::vector<ClusterVisit>& visits);
+                          std::vector<ClusterVisit> visits);
 
   // Adds `cluster_visit` to the local cluster with `originator_cache_guid` and
   // `originator_cluster_id`. If an existing cluster does not exist with those
@@ -578,7 +579,7 @@ class HistoryBackend : public base::RefCountedThreadSafe<HistoryBackend>,
 
   void HideVisits(const std::vector<VisitID>& visit_ids);
 
-  void UpdateClusterVisit(const history::ClusterVisit& cluster_visit);
+  void UpdateClusterVisit(history::ClusterVisit cluster_visit);
 
   std::vector<Cluster> GetMostRecentClusters(
       base::Time inclusive_min_time,

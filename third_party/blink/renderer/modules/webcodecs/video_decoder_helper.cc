@@ -166,7 +166,7 @@ VideoDecoderHelper::Status VideoDecoderHelper::ConvertNalUnitStreamToByteStream(
     base::SpanWriter writer(output);
     converted = h265_converter_->ConvertNalUnitStreamToByteStream(
         input, is_first_chunk ? h265_hvcc_.get() : nullptr, writer);
-    *output_size = writer.num_written();
+    *output_size = base::checked_cast<uint32_t>(writer.num_written());
   }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_HEVC)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)

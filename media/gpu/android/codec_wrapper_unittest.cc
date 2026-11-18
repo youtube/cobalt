@@ -29,6 +29,7 @@ using testing::Invoke;
 using testing::NiceMock;
 using testing::Return;
 using testing::SetArgPointee;
+using testing::SetArgReferee;
 
 namespace media {
 
@@ -218,20 +219,26 @@ TEST_F(CodecWrapperTest, CodecOutputBuffersHaveTheCorrectSize) {
   EXPECT_CALL(*codec_, DequeueOutputBuffer(_, _, _, _, _, _, _))
       .WillOnce(Return(MediaCodecResult::Codes::kOutputFormatChanged))
       .WillOnce(Return(OkStatus()));
-  EXPECT_CALL(*codec_, GetOutputSize(_))
-      .WillOnce(DoAll(SetArgPointee<0>(gfx::Size(42, 42)), Return(OkStatus())));
+  EXPECT_CALL(*codec_, GetOutputSizeAndCropRect(_, _))
+      .WillOnce(DoAll(SetArgReferee<0>(gfx::Size(48, 48)),
+                      SetArgReferee<1>(gfx::Rect(42, 42)), Return(OkStatus())));
   auto codec_buffer = DequeueCodecOutputBuffer();
-  ASSERT_EQ(codec_buffer->size(), gfx::Size(42, 42));
+  ASSERT_EQ(codec_buffer->visible_size(), gfx::Size(42, 42));
+  ASSERT_EQ(codec_buffer->media_format_visible_rect(), gfx::Rect(42, 42));
+  ASSERT_EQ(codec_buffer->media_format_output_size(), gfx::Size(48, 48));
 }
 
 TEST_F(CodecWrapperTest, CodecOutputBuffersGuessCodedSize) {
   EXPECT_CALL(*codec_, DequeueOutputBuffer(_, _, _, _, _, _, _))
       .WillOnce(Return(MediaCodecResult::Codes::kOutputFormatChanged))
       .WillOnce(Return(OkStatus()));
-  EXPECT_CALL(*codec_, GetOutputSize(_))
-      .WillOnce(DoAll(SetArgPointee<0>(gfx::Size(42, 42)), Return(OkStatus())));
+  EXPECT_CALL(*codec_, GetOutputSizeAndCropRect(_, _))
+      .WillOnce(DoAll(SetArgReferee<0>(gfx::Size(48, 48)),
+                      SetArgReferee<1>(gfx::Rect(42, 42)), Return(OkStatus())));
   auto codec_buffer = DequeueCodecOutputBuffer();
-  ASSERT_EQ(codec_buffer->size(), gfx::Size(42, 42));
+  ASSERT_EQ(codec_buffer->visible_size(), gfx::Size(42, 42));
+  ASSERT_EQ(codec_buffer->media_format_visible_rect(), gfx::Rect(42, 42));
+  ASSERT_EQ(codec_buffer->media_format_output_size(), gfx::Size(48, 48));
   EXPECT_TRUE(codec_buffer->CanGuessCodedSize());
   EXPECT_EQ(codec_buffer->GuessCodedSize(), gfx::Size(48, 48));
 }
@@ -245,10 +252,13 @@ TEST_F(CodecWrapperTest, CodecOutputBuffersGuessCodedSizeNoAlignment) {
   EXPECT_CALL(*codec_, DequeueOutputBuffer(_, _, _, _, _, _, _))
       .WillOnce(Return(MediaCodecResult::Codes::kOutputFormatChanged))
       .WillOnce(Return(OkStatus()));
-  EXPECT_CALL(*codec_, GetOutputSize(_))
-      .WillOnce(DoAll(SetArgPointee<0>(gfx::Size(42, 42)), Return(OkStatus())));
+  EXPECT_CALL(*codec_, GetOutputSizeAndCropRect(_, _))
+      .WillOnce(DoAll(SetArgReferee<0>(gfx::Size(48, 48)),
+                      SetArgReferee<1>(gfx::Rect(42, 42)), Return(OkStatus())));
   auto codec_buffer = DequeueCodecOutputBuffer();
-  ASSERT_EQ(codec_buffer->size(), gfx::Size(42, 42));
+  ASSERT_EQ(codec_buffer->visible_size(), gfx::Size(42, 42));
+  ASSERT_EQ(codec_buffer->media_format_visible_rect(), gfx::Rect(42, 42));
+  ASSERT_EQ(codec_buffer->media_format_output_size(), gfx::Size(48, 48));
   EXPECT_FALSE(codec_buffer->CanGuessCodedSize());
 }
 
@@ -261,10 +271,13 @@ TEST_F(CodecWrapperTest, CodecOutputBuffersGuessCodedSizeWeirdAlignment) {
   EXPECT_CALL(*codec_, DequeueOutputBuffer(_, _, _, _, _, _, _))
       .WillOnce(Return(MediaCodecResult::Codes::kOutputFormatChanged))
       .WillOnce(Return(OkStatus()));
-  EXPECT_CALL(*codec_, GetOutputSize(_))
-      .WillOnce(DoAll(SetArgPointee<0>(gfx::Size(42, 42)), Return(OkStatus())));
+  EXPECT_CALL(*codec_, GetOutputSizeAndCropRect(_, _))
+      .WillOnce(DoAll(SetArgReferee<0>(gfx::Size(48, 48)),
+                      SetArgReferee<1>(gfx::Rect(42, 42)), Return(OkStatus())));
   auto codec_buffer = DequeueCodecOutputBuffer();
-  ASSERT_EQ(codec_buffer->size(), gfx::Size(42, 42));
+  ASSERT_EQ(codec_buffer->visible_size(), gfx::Size(42, 42));
+  ASSERT_EQ(codec_buffer->media_format_visible_rect(), gfx::Rect(42, 42));
+  ASSERT_EQ(codec_buffer->media_format_output_size(), gfx::Size(48, 48));
   EXPECT_TRUE(codec_buffer->CanGuessCodedSize());
   EXPECT_EQ(codec_buffer->GuessCodedSize(), gfx::Size(128, 42));
 }
@@ -414,15 +427,23 @@ TEST_F(CodecWrapperTest, CodecOutputsIgnoreZeroSize) {
       .WillOnce(Return(OkStatus()));
 
   constexpr gfx::Size kNewSize(1280, 720);
-  EXPECT_CALL(*codec_, GetOutputSize(_))
-      .WillOnce(DoAll(SetArgPointee<0>(gfx::Size()), Return(OkStatus())))
-      .WillOnce(DoAll(SetArgPointee<0>(kNewSize), Return(OkStatus())));
+  EXPECT_CALL(*codec_, GetOutputSizeAndCropRect(_, _))
+      .WillOnce(DoAll(SetArgReferee<0>(gfx::Size()),
+                      SetArgReferee<1>(gfx::Rect()), Return(OkStatus())))
+      .WillOnce(DoAll(SetArgReferee<0>(kNewSize),
+                      SetArgReferee<1>(gfx::Rect(kNewSize)),
+                      Return(OkStatus())));
 
   auto codec_buffer = DequeueCodecOutputBuffer();
-  ASSERT_EQ(codec_buffer->size(), kInitialCodedSize);
+  ASSERT_EQ(codec_buffer->visible_size(), kInitialCodedSize);
+  ASSERT_EQ(codec_buffer->media_format_visible_rect(),
+            gfx::Rect(kInitialCodedSize));
+  ASSERT_EQ(codec_buffer->media_format_output_size(), kInitialCodedSize);
 
   codec_buffer = DequeueCodecOutputBuffer();
-  ASSERT_EQ(codec_buffer->size(), kNewSize);
+  ASSERT_EQ(codec_buffer->visible_size(), kNewSize);
+  ASSERT_EQ(codec_buffer->media_format_visible_rect(), gfx::Rect(kNewSize));
+  ASSERT_EQ(codec_buffer->media_format_output_size(), kNewSize);
 }
 
 }  // namespace media

@@ -214,6 +214,7 @@ source_set("content_settings_util_impl") {
     deps += [
       "//chrome/browser/ui/location_bar",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/browser/ui/views/picture_in_picture",
     ]
   }
 }
@@ -313,6 +314,7 @@ source_set("unit_tests") {
     "//chrome/browser/prefs",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui",
+    "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui/tabs:tab_enums",
     "//chrome/browser/ui/tabs:utils",
     "//chrome/common",

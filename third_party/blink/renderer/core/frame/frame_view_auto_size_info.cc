@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -73,14 +74,17 @@ bool FrameViewAutoSizeInfo::AutoSizeIfNeeded() {
   if (!layout_view)
     return false;
 
-  // TODO(bokan): This code doesn't handle subpixel sizes correctly. Because
-  // of that, it's forced to maintain all the special ScrollbarMode code
-  // below. https://crbug.com/812311.
-  int width = layout_view->ComputeMinimumWidth().ToInt();
-
   LayoutBox* document_layout_box = document_element->GetLayoutBox();
   if (!document_layout_box)
     return false;
+
+  // TODO(bokan): This code doesn't handle subpixel sizes correctly. Because
+  // of that, it's forced to maintain all the special ScrollbarMode code
+  // below. https://crbug.com/812311.
+  int width =
+      RuntimeEnabledFeatures::AutoSizeUsesScrollWidthForOverflowEnabled()
+          ? document_layout_box->ScrollWidth().ToInt()
+          : layout_view->ComputeMinimumWidth().ToInt();
 
   int height = document_layout_box->ScrollHeight().ToInt();
   gfx::Size new_size(width, height);
@@ -95,9 +99,11 @@ bool FrameViewAutoSizeInfo::AutoSizeIfNeeded() {
     // Don't bother checking for a vertical scrollbar because the width is at
     // already greater the maximum.
   } else if (new_size.height() > max_auto_size_.height() &&
-             // If we have a real vertical scrollbar, it's already included in
-             // PreferredLogicalWidths(), so don't add a hypothetical one.
-             !layout_viewport->HasVerticalScrollbar()) {
+             (RuntimeEnabledFeatures::
+                  AutoSizeUsesScrollWidthForOverflowEnabled() ||
+              // If we have a real vertical scrollbar, it's already included in
+              // PreferredLogicalWidths(), so don't add a hypothetical one.
+              !layout_viewport->HasVerticalScrollbar())) {
     new_size.Enlarge(
         layout_viewport->HypotheticalScrollbarThickness(kVerticalScrollbar), 0);
     // Don't bother checking for a horizontal scrollbar because the height is

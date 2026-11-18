@@ -14,6 +14,7 @@ import androidx.lifecycle.Lifecycle;
 import androidx.preference.Preference;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
@@ -25,6 +26,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment.AutofillOptionsReferrer;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.password_manager.ManagePasswordsReferrer;
@@ -64,6 +66,8 @@ public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
     public static final String PREF_AUTOFILL_TRAVEL = "autofill_and_passwords_travel";
     public static final String PREF_AUTOFILL_SHOPPING = "autofill_and_passwords_shopping";
     public static final String PREF_AUTOFILL_SETTINGS = "autofill_and_passwords_settings";
+    public static final String PREF_AUTOFILL_PERSONAL_CONTEXT =
+            "autofill_and_passwords_personal_context";
 
     public static final String EXTRA_REFERRER = "autofill_and_passwords_referrer";
 
@@ -155,6 +159,18 @@ public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
         SettingsUtils.addPreferencesFromResource(this, R.xml.home_of_transactions_preferences);
 
         setupSignInPromo();
+
+        Preference personalContextPref = findPreference(PREF_AUTOFILL_PERSONAL_CONTEXT);
+        personalContextPref.setVisible(
+                AutofillPersonalContextFragment.shouldShowPersonalContext(getProfile()));
+        personalContextPref.setOnPreferenceClickListener(
+                preference -> {
+                    RecordUserAction.record(
+                            AutofillPersonalContextFragment
+                                    .ACTION_ENTRY_FROM_AUTOFILL_AND_PASSWORDS);
+                    SettingsNavigationHelper.showAutofillPersonalContextSettings(getActivity());
+                    return true;
+                });
 
         PasswordsPreference passwordsPreference = findPreference(PREF_PASSWORDS);
         passwordsPreference.setProfile(getProfile());
@@ -364,6 +380,7 @@ public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
                         indexData.removeEntry(getUniqueId(PREF_AUTOFILL_IDENTITY_DOCS));
                         indexData.removeEntry(getUniqueId(PREF_AUTOFILL_TRAVEL));
                         indexData.removeEntry(getUniqueId(PREF_AUTOFILL_SHOPPING));
+                        indexData.removeEntry(getUniqueId(PREF_AUTOFILL_PERSONAL_CONTEXT));
                     } else {
                         if (!shouldShowAutofillAiSettings()) {
                             indexData.removeEntry(getUniqueId(PREF_AUTOFILL_IDENTITY_DOCS));
@@ -371,6 +388,9 @@ public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
                         }
                         if (!shouldShowShopping()) {
                             indexData.removeEntry(getUniqueId(PREF_AUTOFILL_SHOPPING));
+                        }
+                        if (!AutofillPersonalContextFragment.shouldShowPersonalContext(profile)) {
+                            indexData.removeEntry(getUniqueId(PREF_AUTOFILL_PERSONAL_CONTEXT));
                         }
                     }
                 }

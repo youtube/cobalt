@@ -569,7 +569,7 @@ void AutoPictureInPictureTabHelper::MaybeEnterAutoPictureInPicture() {
     return;
   }
   auto_picture_in_picture_activation_time_ =
-      base::TimeTicks::Now() + blink::kActivationLifespan;
+      clock_->NowTicks() + blink::kActivationLifespan;
   auto_pip_trigger_reason_ = GetAutoPipReason();
   content::MediaSession::Get(web_contents())->EnterAutoPictureInPicture();
 }
@@ -945,7 +945,7 @@ bool AutoPictureInPictureTabHelper::AreAutoPictureInPicturePreconditionsMet()
     const {
   // Note that `auto_picture_in_picture_activation_time_` is not set if all of
   // the other preconditions are not set.
-  return base::TimeTicks::Now() < auto_picture_in_picture_activation_time_;
+  return clock_->NowTicks() < auto_picture_in_picture_activation_time_;
 }
 
 #if !BUILDFLAG(IS_ANDROID)

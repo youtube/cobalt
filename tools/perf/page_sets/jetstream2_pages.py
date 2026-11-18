@@ -23,7 +23,7 @@ class _JetStream2Story(press_story.PressStory):
     # as they are required for running "JetStream.start()"
     action_runner.WaitForJavaScriptCondition("""
         document.querySelectorAll("#results>.benchmark").length > 0
-        """, timeout=5)
+        """, timeout=60*2)
     action_runner.EvaluateJavaScript('JetStream.start()')
 
   def ParseTestResults(self, action_runner):

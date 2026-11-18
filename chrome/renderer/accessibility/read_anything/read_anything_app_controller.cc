@@ -2727,6 +2727,15 @@ void ReadAnythingAppController::OnIsSpeechActiveChanged(bool is_speech_active) {
   if (read_aloud_model_.speech_playing() == is_speech_active) {
     return;
   }
+  if (is_speech_active && IsImmersiveEnabled()) {
+    read_aloud_model_.LogPlaybackContext(
+        model_.active_presentation_state() ==
+                read_anything::mojom::ReadAnythingPresentationState::
+                    kInImmersiveOverlay
+            ? ReadAloudAppModel::ReadAnythingPlaybackContext::kImmersive
+            : ReadAloudAppModel::ReadAnythingPlaybackContext::kSidePanel);
+  }
+
   read_aloud_model_.SetSpeechPlaying(is_speech_active);
 
   // If speech was just stopped, we can now process any updates that were

@@ -21,9 +21,9 @@
 #include "src/handles/shared-object-conveyor-handles.h"
 #include "src/heap/factory.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -31,7 +31,6 @@
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -2512,10 +2511,27 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   DirectHandle<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(buffer_object);
   if (!buffer->is_shared()) return {};
 
-  // Link the two.
-  WasmMemoryObject::SetNewBuffer(isolate_, result, buffer);
+  // If the memory was grown in the meantime, the JSArrayBuffer we just read
+  // might be stale. In that case, we don't link it to the WasmMemoryObject, so
+  // the first access to the `buffer` property will create a fresh
+  // JSArrayBuffer with the correct length.
+  // We use GetByteLength() here because for resizable shared buffers,
+  // byte_length() will trigger a DCHECK.
+  std::shared_ptr<BackingStore> backing_store = buffer->GetBackingStore();
+  // Update the managed backing store first.
   result->managed_backing_store()->SetManagedObject(
-      buffer->GetBackingStore(), isolate_, buffer->GetByteLength());
+      backing_store, isolate_, backing_store->byte_length());
+  // Register the memory object in the isolate and the isolate in the global
+  // registry for the backing store. This must happen before we check if the
+  // buffer is stale. If it grows between the registration and the check, we
+  // will see it's stale. If it grows after the check, we will receive a
+  // broadcast and refresh the buffer on the next access.
+  backing_store->AttachSharedWasmMemoryObject(isolate_, result);
+
+  if (buffer->GetByteLength() >= backing_store->byte_length()) {
+    // Link the two.
+    WasmMemoryObject::SetNewBuffer(isolate_, result, buffer);
+  }
 
   return result;
 }

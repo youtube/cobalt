@@ -108,8 +108,8 @@ found in the LICENSE file.
             android:inflatedId="@+id/incognito_indicator"
             android:layout="@layout/incognito_indicator"
             android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
+            android:layout_height="?attr/toolbarButtonHeight"
+            android:visibility="gone"/>
 
         <ViewStub
             android:id="@+id/extensions_toolbar_container_stub"
@@ -117,6 +117,25 @@ found in the LICENSE file.
             android:layout_width="wrap_content"
             android:layout_height="?attr/toolbarButtonHeight"
             android:layout_marginVertical="?attr/toolbarButtonMarginVertical"/>
+
+        <View
+            android:id="@+id/glic_divider"
+            android:layout_width="1dp"
+            android:layout_height="@dimen/min_touch_target_size"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/divider_line_bg"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
+
+        <ViewStub
+            android:id="@+id/glic_action_chip_stub"
+            android:inflatedId="@+id/glic_action_chip"
+            android:layout="@layout/optional_toolbar_button"
+            style="@style/ToolbarHoverableButton.AdaptiveDensity"
+            android:layout_width="@dimen/min_touch_target_size"
+            android:layout_height="?attr/toolbarButtonHeight"
+            android:layout_gravity="center_vertical"
+            android:visibility="gone" />
 
         <org.chromium.chrome.browser.toolbar.top.ToggleTabStackButton
             android:id="@+id/tab_switcher_button"

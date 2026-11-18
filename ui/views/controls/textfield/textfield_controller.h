@@ -110,12 +110,6 @@ class VIEWS_EXPORT TextfieldController {
       int* formats,
       std::set<ui::ClipboardFormatType>* format_types) {}
 
-  // Called when a drop of dragged data happens on the textfield. This method is
-  // called before regular handling of the drop. If this returns a drag
-  // operation other than `ui::mojom::DragOperation::kNone`, regular handling is
-  // skipped.
-  virtual ui::mojom::DragOperation OnDrop(const ui::DropTargetEvent& event);
-
   // Called to get async drop callback to be run later.
   virtual views::View::DropCallback CreateDropCallback(
       const ui::DropTargetEvent& event);

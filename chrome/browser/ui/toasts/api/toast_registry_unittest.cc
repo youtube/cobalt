@@ -106,6 +106,19 @@ TEST_F(ToastRegistryTest, ToastWithMenu) {
   EXPECT_TRUE(spec->has_menu());
 }
 
+TEST_F(ToastRegistryTest, ToastWithNavigationPersistence) {
+  const int string_id = 0;
+  std::unique_ptr<ToastSpecification> spec =
+      ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                      ? vector_icons::kMailFilledIcon
+                                      : vector_icons::kEmailOldIcon,
+                                  string_id)
+          .SetPersistOnNavigation()
+          .Build();
+
+  EXPECT_TRUE(spec->persist_on_navigation());
+}
+
 TEST_F(ToastRegistryTest, RegisterSpecification) {
   std::unique_ptr<ToastSpecification> unique_spec =
       ToastSpecification::Builder(features::IsRoundedIconsEnabled()

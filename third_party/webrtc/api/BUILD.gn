@@ -266,9 +266,9 @@ rtc_library("sframe_types") {
   sources = [ "sframe/sframe_types.h" ]
 }
 
-rtc_library("sframe_encrypter_interface") {
+rtc_library("sframe_encryptor_interface") {
   visibility = [ "*" ]
-  sources = [ "sframe/sframe_encrypter_interface.h" ]
+  sources = [ "sframe/sframe_encryptor_interface.h" ]
   deps = [
     ":ref_count",
     ":rtc_error",
@@ -276,9 +276,9 @@ rtc_library("sframe_encrypter_interface") {
   ]
 }
 
-rtc_library("sframe_decrypter_interface") {
+rtc_library("sframe_decryptor_interface") {
   visibility = [ "*" ]
-  sources = [ "sframe/sframe_decrypter_interface.h" ]
+  sources = [ "sframe/sframe_decryptor_interface.h" ]
   deps = [
     ":ref_count",
     ":rtc_error",
@@ -302,7 +302,7 @@ rtc_library("rtp_sender_interface") {
     ":rtc_error",
     ":rtp_parameters",
     ":scoped_refptr",
-    ":sframe_encrypter_interface",
+    ":sframe_encryptor_interface",
     "../rtc_base:checks",
     "../rtc_base/system:rtc_export",
     "crypto:frame_encryptor_interface",
@@ -372,6 +372,7 @@ rtc_library("jsep") {
     "../rtc_base:socket_address",
     "../rtc_base:ssl",
     "../rtc_base:stringutils",
+    "../rtc_base/containers:flat_set",
     "../rtc_base/system:no_unique_address",
     "../rtc_base/system:rtc_export",
     "../system_wrappers:metrics",
@@ -510,7 +511,7 @@ rtc_library("rtp_receiver_interface") {
     ":rtc_error",
     ":rtp_parameters",
     ":scoped_refptr",
-    ":sframe_decrypter_interface",
+    ":sframe_decryptor_interface",
     ":sframe_types",
     "../rtc_base:checks",
     "../rtc_base/system:rtc_export",
@@ -1808,6 +1809,7 @@ if (rtc_include_tests) {
       "../test:test_support",
       "audio_codecs/opus:unittests",
       "environment:environment_unittests",
+      "environment:force_test_environment",
       "task_queue:task_queue_default_factory_unittests",
       "test/pclf:media_configuration",
       "test/video:video_frame_writer",
@@ -1919,6 +1921,7 @@ rtc_library("field_trials") {
     ":field_trials_view",
     "../rtc_base:checks",
     "../rtc_base/containers:flat_map",
+    "environment:force_test_environment",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings:string_view",

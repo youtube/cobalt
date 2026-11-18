@@ -723,8 +723,8 @@ std::vector<mojom::BrokerAssetInfoPtr> ManifestAssetManager::GetBrokerAssets()
   return assets;
 }
 
-std::vector<mojom::BrokerModelInfoPtr> ManifestAssetManager::GetBrokerModels()
-    const {
+std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>>
+ManifestAssetManager::GetBrokerModels() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return factory_->GetBrokerModels();
 }

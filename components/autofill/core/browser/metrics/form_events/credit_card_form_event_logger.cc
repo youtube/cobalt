@@ -538,7 +538,7 @@ void CreditCardFormEventLogger::OnDidFillFormFillingSuggestion(
         if (credit_card.is_bnpl_card()) {
           if (!has_logged_form_filled_with_bnpl_vcn_) {
             LogFormFilledWithBnplVcn(
-                autofill::ConvertToBnplIssuerIdEnum(credit_card.issuer_id()));
+                ConvertToBnplIssuerIdEnum(credit_card.issuer_id()));
             has_logged_form_filled_with_bnpl_vcn_ = true;
           }
         } else {
@@ -618,12 +618,20 @@ void CreditCardFormEventLogger::LogCardUnmaskAuthenticationPromptCompleted(
   current_authentication_flow_ = flow;
 }
 
-void CreditCardFormEventLogger::OnUserDecisionToUseBnpl() {
+void CreditCardFormEventLogger::OnUserDecisionToUseBnpl(
+    base::span<const Suggestion> suggestions_shown) {
   if (!has_logged_user_decision_to_use_bnpl_) {
     if (suggestion_contains_pay_later_tab_entry_) {
       LogPayLaterTabSelected(driver().GetPageUkmSourceId());
     } else {
-      LogBnplSuggestionAccepted(driver().GetPageUkmSourceId());
+      LogBnplSuggestionAccepted(
+          driver().GetPageUkmSourceId(),
+          std::ranges::count_if(
+              suggestions_shown, [](const Suggestion& suggestion) {
+                return suggestion.type == SuggestionType::kCreditCardEntry ||
+                       suggestion.type ==
+                           SuggestionType::kVirtualCreditCardEntry;
+              }));
     }
     has_logged_user_decision_to_use_bnpl_ = true;
   }
@@ -760,8 +768,8 @@ void CreditCardFormEventLogger::LogFormSubmitted(const FormStructure& form) {
     // influencing other VCN metrics, as these represent distinct user flows.
     if (filled_credit_card_->is_bnpl_card()) {
       if (!has_logged_form_submitted_with_bnpl_vcn_) {
-        LogFormSubmittedWithBnplVcn(autofill::ConvertToBnplIssuerIdEnum(
-            filled_credit_card_->issuer_id()));
+        LogFormSubmittedWithBnplVcn(
+            ConvertToBnplIssuerIdEnum(filled_credit_card_->issuer_id()));
         has_logged_form_submitted_with_bnpl_vcn_ = true;
       }
     } else {

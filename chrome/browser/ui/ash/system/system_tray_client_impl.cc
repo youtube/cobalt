@@ -10,6 +10,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/constants/chrome_pref_names.h"
 #include "ash/constants/url_constants.h"
 #include "ash/constants/web_app_id_constants.h"
 #include "ash/constants/webui_url_constants.h"
@@ -61,7 +62,6 @@
 #include "chrome/browser/ui/webui/ash/multidevice_setup/multidevice_setup_dialog.h"
 #include "chrome/browser/ui/webui/ash/set_time/set_time_dialog.h"
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/ash/components/network/network_handler.h"
@@ -927,7 +927,7 @@ bool SystemTrayClientImpl::IsUserFeedbackEnabled() {
   PrefService* signin_prefs =
       ProfileManager::GetActiveUserProfile()->GetPrefs();
   DCHECK(signin_prefs);
-  return signin_prefs->GetBoolean(prefs::kUserFeedbackAllowed);
+  return signin_prefs->GetBoolean(ash::chrome_prefs::kUserFeedbackAllowed);
 }
 
 void SystemTrayClientImpl::HandleUpdateAvailable() {

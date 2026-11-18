@@ -94,3 +94,37 @@ source_set("test_support") {
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [
+    "controlled_frame_menu_icon_loader_unittest.cc",
+    "controlled_frame_permissions_unittest.cc",
+  ]
+
+  deps = [
+    ":controlled_frame",
+    ":test_support",
+    "//base",
+    "//base/test:test_support",
+    "//cc:test_support",
+    "//chrome/browser/extensions",
+    "//chrome/browser/web_applications",
+    "//chrome/browser/web_applications:web_app_test",
+    "//chrome/browser/web_applications:web_applications_test_support",
+    "//chrome/common:chrome_features",
+    "//chrome/test:test_support",
+    "//components/content_settings/core/common",
+    "//content/public/browser",
+    "//content/public/common",
+    "//content/test:test_support",
+    "//extensions/browser",
+    "//services/data_decoder/public/cpp:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/blink/public/common",
+    "//ui/gfx",
+    "//ui/menus",
+  ]
+}

@@ -129,6 +129,16 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
+    name = "angle_deqp_egl_d3d11_tests",
+    mixins = [
+        "deqp_merge_script",
+        "use_angle_d3d11",
+        "use_isolated_scripts_api",
+    ],
+    binary = "angle_deqp_egl_tests",
+)
+
+targets.tests.gtest_test(
     name = "angle_deqp_egl_gl_tests",
     mixins = [
         "deqp_merge_script",
@@ -139,6 +149,16 @@ targets.tests.gtest_test(
     args = [
         # Flaky when run with multiple processes.
         "--max-processes=1",
+    ],
+    binary = "angle_deqp_egl_tests",
+)
+
+targets.tests.gtest_test(
+    name = "angle_deqp_egl_metal_tests",
+    mixins = [
+        "deqp_merge_script",
+        "use_angle_metal",
+        "use_isolated_scripts_api",
     ],
     binary = "angle_deqp_egl_tests",
 )
@@ -164,11 +184,31 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
+    name = "angle_deqp_gles2_d3d11_tests",
+    mixins = [
+        "deqp_merge_script",
+        "use_angle_d3d11",
+        "use_isolated_scripts_api",
+    ],
+    binary = "angle_deqp_gles2_tests",
+)
+
+targets.tests.gtest_test(
     name = "angle_deqp_gles2_gl_tests",
     mixins = [
         "deqp_merge_script",
         "no_xvfb",
         "use_angle_gl",
+        "use_isolated_scripts_api",
+    ],
+    binary = "angle_deqp_gles2_tests",
+)
+
+targets.tests.gtest_test(
+    name = "angle_deqp_gles2_metal_tests",
+    mixins = [
+        "deqp_merge_script",
+        "use_angle_metal",
         "use_isolated_scripts_api",
     ],
     binary = "angle_deqp_gles2_tests",
@@ -290,11 +330,41 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
+    name = "angle_deqp_gles3_d3d11_tests",
+    mixins = [
+        "deqp_merge_script",
+        "use_angle_d3d11",
+        "use_isolated_scripts_api",
+        targets.mixin(
+            swarming = targets.swarming(
+                shards = 2,
+            ),
+        ),
+    ],
+    binary = "angle_deqp_gles3_tests",
+)
+
+targets.tests.gtest_test(
     name = "angle_deqp_gles3_gl_tests",
     mixins = [
         "deqp_merge_script",
         "no_xvfb",
         "use_angle_gl",
+        "use_isolated_scripts_api",
+        targets.mixin(
+            swarming = targets.swarming(
+                shards = 2,
+            ),
+        ),
+    ],
+    binary = "angle_deqp_gles3_tests",
+)
+
+targets.tests.gtest_test(
+    name = "angle_deqp_gles3_metal_tests",
+    mixins = [
+        "deqp_merge_script",
+        "use_angle_metal",
         "use_isolated_scripts_api",
         targets.mixin(
             swarming = targets.swarming(

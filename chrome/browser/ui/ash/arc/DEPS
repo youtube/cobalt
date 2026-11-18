@@ -8,7 +8,6 @@ include_rules = [
   "+chrome/browser/ash/apps",
   "+chrome/browser/ash/arc/arc_util.h",
   "+chrome/browser/ash/arc/fileapi",
-  "+chrome/browser/ash/arc/intent_helper",
   "+chrome/browser/ash/fileapi",
   "+chrome/browser/ash/file_manager",
   "+chrome/browser/ash/profiles",

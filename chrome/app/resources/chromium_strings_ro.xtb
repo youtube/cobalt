@@ -116,19 +116,11 @@
 <translation id="2236949375853147973">Activitatea mea</translation>
 <translation id="2238130810669087193">Pentru a accesa adresele și alte date pe toate dispozitivele, conectează-te la Chromium. Adresa se va salva în Contul Google după ce te conectezi.</translation>
 <translation id="2241627712206172106">Dacă permiteți accesul la un computer, familia și prietenii pot să navigheze separat și să configureze Chromium cum doresc.</translation>
+<translation id="22571759390241347">Abilități în Chromium</translation>
 <translation id="2283803047247799269">Caută această filă cu Căutarea de imagini</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium recomandă să întrerupi fila care încetinește browserul}few{Chromium recomandă să întrerupi filele care încetinesc browserul}other{Chromium recomandă să întrerupi filele care încetinesc browserul}}</translation>
 <translation id="2307973900865360088">Păstrează în bara de andocare</translation>
 <translation id="2313870531055795960">Verifică adresele URL folosind o listă de site-uri nesigure, stocată în Chromium. Dacă un site încearcă să îți fure parola sau descarci un fișier dăunător, Chromium poate să trimită adresele URL, inclusiv fragmente din conținutul paginilor, către funcția Navigare sigură.</translation>
-<translation id="2332076562712130931">Această acțiune:
-        <ph name="LINE_BREAKS" />
-         • va reinițializa unele setări Chromium și comenzi rapide pentru Chromium;
-          <ph name="LINE_BREAK" />
-          • va dezactiva extensiile;
-          <ph name="LINE_BREAK" />
-          • va șterge cookie-urile și alte date temporare privind site-urile.
-          <ph name="LINE_BREAKS" />
-          Marcajele, istoricul și parolele salvate nu vor fi afectate.</translation>
 <translation id="2343156876103232566">Pentru a trimite un număr de aici pe telefonul Android, conectează-te la Chromium pe ambele dispozitive.</translation>
 <translation id="2356070529366658676">Întreabă-mă</translation>
 <translation id="2359808026110333948">Continuă</translation>
@@ -190,6 +182,7 @@
 <translation id="3003694935412297923">Toate activitățile</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium trebuie să-ți verifice identitatea pentru ca unele date să poată fi salvate în Contul Google și folosite pe toate dispozitivele. Dacă te deconectezi acum, aceste date (un articol) vor fi șterse.}few{Chromium trebuie să-ți verifice identitatea pentru ca unele date să poată fi salvate în Contul Google și folosite pe toate dispozitivele. Dacă te deconectezi acum, aceste date ({count} articole) vor fi șterse.}other{Chromium trebuie să-ți verifice identitatea pentru ca unele date să poată fi salvate în Contul Google și folosite pe toate dispozitivele. Dacă te deconectezi acum, aceste date ({count} de articole) vor fi șterse.}}</translation>
 <translation id="3013473503895162900">Deschide <ph name="URL" /> într-o filă nouă în Chromium.</translation>
+<translation id="302551344979399011">Inovațiile AI, cum ar fi abilitățile, sunt salvate în Contul Google și gestionate separat de sincronizarea Chromium</translation>
 <translation id="3032787606318309379">Se adaugă la Chromium...</translation>
 <translation id="3038232873781883849">Se așteaptă instalarea…</translation>
 <translation id="3045032126857188731">Limba traducerii: <ph name="LANGUAGE" /></translation>
@@ -381,6 +374,7 @@
 <translation id="5289287148052354622">Descarcă browserul Chromium.</translation>
 <translation id="5294316920224716406">Atunci când navighezi în modul incognito, Chromium te va avertiza înainte de a încărca un site folosind o conexiune nesecurizată</translation>
 <translation id="5313228254328109263">Chromium Updater Internal Service</translation>
+<translation id="5324450571874973775">Folosește-le împreună cu alte funcții Gemini în Chromium</translation>
 <translation id="5346389065299425353">Aprofundează căutarea adăugând mai multe file, fișiere și instrumente</translation>
 <translation id="5348677704241861105">Obține o prezentare generală rapidă a acestui document și pune întrebări cu Gemini în Chromium</translation>
 <translation id="5352264705793813212">Chromium a găsit câteva recomandări privind siguranța pe care să le examinezi</translation>
@@ -672,6 +666,7 @@ Chromium nu poate recupera setările.</translation>
 <translation id="8318772038038596122">Organizația ta închide Chromium dacă nu este folosit timp de <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">Salvează ca imagine</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> a folosit Chromium anterior</translation>
+<translation id="8351551329754447960">Activează funcția Abilități în Chromium</translation>
 <translation id="8359544530202147897">Actualizează Chromium pentru a folosi în continuare datele Chromium din Contul Google <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Pentru a primi actualizările Chromium viitoare, vei avea nevoie de Windows 10 sau o versiune ulterioară. Acest computer folosește Windows 8.</translation>
 <translation id="8362914115861174987">Tradu în</translation>

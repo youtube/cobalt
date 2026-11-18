@@ -15,7 +15,6 @@
 #include <utility>
 
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/transport/data_channel_transport_interface.h"
@@ -29,6 +28,7 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -73,9 +73,9 @@ static_assert(!std::is_abstract_v<MockDataChannelSink>);
 class Peer {
  public:
   Peer()
-      : fake_dtls_transport_(kTransportName, kComponent),
-        simulated_clock_(1000),
-        env_(CreateEnvironment(&simulated_clock_)) {
+      : simulated_clock_(1000),
+        env_(CreateTestEnvironment({.time = &simulated_clock_})),
+        fake_dtls_transport_(env_, kTransportName, kComponent) {
     auto socket_ptr = std::make_unique<dcsctp::MockDcSctpSocket>();
     socket_ = socket_ptr.get();
 
@@ -92,9 +92,9 @@ class Peer {
     sctp_transport_->SetOnConnectedCallback([this]() { sink_.OnConnected(); });
   }
 
-  FakeDtlsTransport fake_dtls_transport_;
   SimulatedClock simulated_clock_;
   Environment env_;
+  FakeDtlsTransport fake_dtls_transport_;
   dcsctp::MockDcSctpSocket* socket_;
   std::unique_ptr<DcSctpTransport> sctp_transport_;
   NiceMock<MockDataChannelSink> sink_;

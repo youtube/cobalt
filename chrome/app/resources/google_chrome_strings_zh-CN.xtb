@@ -397,6 +397,7 @@
 <translation id="5234764350956374838">关闭</translation>
 <translation id="5239627039202700673">随时使用 Chrome 打开您在消息、文档和其他应用内点击的链接</translation>
 <translation id="5251420635869119124">访客使用Chrome不会留下任何痕迹。</translation>
+<translation id="5271833978500241046">在 Chrome 中与其他 Gemini 功能搭配使用</translation>
 <translation id="5286907366254680517">检测到</translation>
 <translation id="5320351714793324716">如果您允许使用 Cookie，Chrome 便可能会使用 Cookie 进行预加载</translation>
 <translation id="5321325624576443340">Google 智能镜头不可用。请稍后再试。</translation>
@@ -433,15 +434,6 @@
 <translation id="569897634095159764">无法连接到互联网。代理服务器要求进行身份验证。</translation>
 <translation id="5709557627224531708">将 Chrome 设为您的默认浏览器</translation>
 <translation id="5719246646468301581">Google Chrome 和 ChromeOS 附加服务条款</translation>
-<translation id="5719324992913248873">此操作将会：
-        <ph name="LINE_BREAKS" />
-          • 重置某些 Chrome 设置和快捷键
-          <ph name="LINE_BREAK" />
-          • 停用扩展程序
-          <ph name="LINE_BREAK" />
-          • 删除 Cookie 和其他临时网站数据
-          <ph name="LINE_BREAKS" />
-          书签、历史记录和已保存的密码不受影响。</translation>
 <translation id="5736850870166430177">如果某个网站企图窃取您的密码，或者您下载了有害的文件，Chrome 可能还会将相应网址连同少量网页内容发送给“安全浏览”功能</translation>
 <translation id="5756509061973259733">此设备上已有一份使用该账号创建的 Chrome 个人资料</translation>
 <translation id="5759947850379142561">选择任何文字或图片即可使用 Google 智能镜头进行搜索，按 Esc 键可退出 Google 智能镜头</translation>
@@ -639,6 +631,7 @@
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">为保护您的数据，对于您近期未访问的网站，请允许 Chrome 移除网站权限。</translation>
 <translation id="7629695634924605473">Chrome 会让您知道您的密码是否曾被泄露</translation>
+<translation id="7629898584100520089">技能等 AI 创新功能会保存到您的 Google 账号，并与 Chrome 同步功能分开管理</translation>
 <translation id="7641148173327520642">您的系统管理员已将 Google Chrome 配置为使用<ph name="ALTERNATIVE_BROWSER_NAME" />访问 <ph name="TARGET_URL_HOSTNAME" />。</translation>
 <translation id="7649070708921625228">帮助</translation>
 <translation id="7651907282515937834">Chrome 企业版徽标</translation>

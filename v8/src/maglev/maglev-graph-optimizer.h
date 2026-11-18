@@ -73,17 +73,14 @@ class MaglevGraphOptimizer {
 
   void AttachExceptionHandlerInfo(NodeBase* node);
 
-  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason);
-  ReduceResult EmitThrow(Throw::Function function, ValueNode* input);
-
   ProcessResult DeoptAndTruncate(DeoptimizeReason reason) {
-    ReduceResult result = EmitUnconditionalDeopt(reason);
+    ReduceResult result = reducer_.EmitUnconditionalDeopt(reason);
     CHECK(result.IsDoneWithAbort());
     return ProcessResult::kTruncateBlock;
   }
   ProcessResult ThrowAndTruncate(Throw::Function function,
                                  ValueNode* input = nullptr) {
-    ReduceResult result = EmitThrow(function, input);
+    ReduceResult result = reducer_.EmitThrow(function, input);
     CHECK(result.IsDoneWithAbort());
     return ProcessResult::kTruncateBlock;
   }

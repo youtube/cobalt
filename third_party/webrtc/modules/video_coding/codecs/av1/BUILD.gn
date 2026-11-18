@@ -42,6 +42,7 @@ rtc_library("dav1d_decoder") {
     "../../../../api:scoped_refptr",
     "../../../../api/environment",
     "../../../../api/video:encoded_image",
+    "../../../../api/video:video_codec_constants",
     "../../../../api/video:video_frame",
     "../../../../api/video:video_rtp_headers",
     "../../../../api/video_codecs:video_codecs_api",

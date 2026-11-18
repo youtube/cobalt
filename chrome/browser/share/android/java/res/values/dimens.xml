@@ -18,4 +18,9 @@ found in the LICENSE file.
     <!-- IPH for Link Toggle -->
     <dimen name="toggle_iph_y_inset">8dp</dimen>
 
+    <!-- Send Tab To Self Enhanced Bottom Sheet -->
+    <dimen name="stts_enhanced_list_item_icon_size">24dp</dimen>
+    <dimen name="stts_drag_handlebar_margin">6dp</dimen>
+    <dimen name="stts_sheet_padding">22dp</dimen>
+    <dimen name="stts_sheet_margin">16dp</dimen>
 </resources>

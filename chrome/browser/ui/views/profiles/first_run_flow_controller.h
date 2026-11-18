@@ -6,8 +6,10 @@
 #define CHROME_BROWSER_UI_VIEWS_PROFILES_FIRST_RUN_FLOW_CONTROLLER_H_
 
 #include <memory>
+#include <string>
 
-#include "base/cancelable_callback.h"
+#include "base/auto_reset.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -16,7 +18,9 @@
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller_impl.h"
 #include "chrome/browser/ui/views/profiles/profile_management_types.h"
+#include "chrome/browser/ui/views/profiles/profile_picker_toolbar.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
+#include "services/audio/public/cpp/sounds/sounds_manager.h"
 
 struct CoreAccountInfo;
 enum class IntroChoice;
@@ -31,6 +35,7 @@ std::unique_ptr<ProfileManagementStepController> CreateIntroStep(
 
 std::unique_ptr<ProfileManagementStepController> CreateDefaultBrowserStep(
     ProfilePickerWebContentsHost* host,
+    Profile* profile,
     base::OnceClosure step_completed_callback);
 
 std::unique_ptr<ProfileManagementStepController> CreateFeatureShowcaseStep(
@@ -38,8 +43,17 @@ std::unique_ptr<ProfileManagementStepController> CreateFeatureShowcaseStep(
     Profile* profile,
     base::OnceClosure step_completed_callback);
 
+std::unique_ptr<ProfileManagementStepController> CreateFinishOrContinueStep(
+    ProfilePickerWebContentsHost* host,
+    base::OnceCallback<bool()> eligibility_callback,
+    base::OnceClosure step_completed_callback);
+
 class FirstRunFlowController : public ProfileManagementFlowControllerImpl {
  public:
+  static constexpr audio::SoundsManager::SoundKey kAmbientSoundKey = 0;
+  static constexpr audio::SoundsManager::SoundKey kLogoSoundKey = 1;
+  static constexpr audio::SoundsManager::SoundKey kWelcomeBackSoundKey = 2;
+
   // Profile management flow controller that will run the FRE for `profile` in
   // `host`.
   FirstRunFlowController(
@@ -57,8 +71,17 @@ class FirstRunFlowController : public ProfileManagementFlowControllerImpl {
       ProfilePicker::ProfilePickingArgs args,
       base::OnceCallback<void(bool)> pick_profile_complete_callback) override;
   void ShowSigninError(Profile* profile, const SigninUIError& error) override;
-  void ToggleMediaEffects(bool active) override;
-  bool AreEffectsEnabled() const;
+  ProfilePickerToolbar::Builder CreateToolbarBuilder() override;
+
+  using SoundsManagerFactory =
+      base::RepeatingCallback<std::unique_ptr<audio::SoundsManager>(
+          audio::SoundsManager::StreamFactoryBinder)>;
+
+  // Sets the factory used to create the `SoundsManager` in tests.
+  // The returned `base::AutoReset` automatically restores the previous factory
+  // when it goes out of scope.
+  [[nodiscard]] static base::AutoReset<SoundsManagerFactory>
+  SetSoundsManagerFactoryForTesting(SoundsManagerFactory factory);
 
  protected:
   // ProfileManagementFlowControllerImpl
@@ -74,10 +97,16 @@ class FirstRunFlowController : public ProfileManagementFlowControllerImpl {
  private:
   void HandleIntroSigninChoice(IntroChoice choice);
 
+  void PlaySignInCelebrationSound();
+
   // Run the `finish_flow_callback_` if it's not empty.
   void RunFinishFlowCallback();
 
   std::string GetHatsSurveyTrigger() const;
+
+  void ToggleMediaEffects(bool active);
+
+  bool AreEffectsEnabled() const;
 
   void MaybeTriggerHatsSurvey();
 
@@ -86,6 +115,8 @@ class FirstRunFlowController : public ProfileManagementFlowControllerImpl {
 
   // The callback that will finish the flow and open the browser.
   base::OnceClosure finish_flow_callback_;
+
+  std::unique_ptr<audio::SoundsManager> sounds_manager_;
 
   base::WeakPtrFactory<FirstRunFlowController> weak_ptr_factory_{this};
 };

@@ -18,6 +18,8 @@
 #import "components/prefs/pref_service.h"
 #import "components/profile_metrics/browser_profile_type.h"
 #import "components/search_engines/util.h"
+#import "components/send_tab_to_self/features.h"
+#import "components/send_tab_to_self/send_tab_to_self_sync_service.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/aim/model/ios_chrome_aim_eligibility_service_factory.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
@@ -82,9 +84,9 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
@@ -94,9 +96,11 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/pasteboard_util.h"
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/sharing/ui_bundled/sharing_coordinator.h"
 #import "ios/chrome/browser/sharing/ui_bundled/sharing_params.h"
+#import "ios/chrome/browser/sync/model/send_tab_to_self_sync_service_factory.h"
 #import "ios/chrome/browser/url_loading/model/image_search_param_generator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
@@ -106,6 +110,8 @@
 #import "ios/public/provider/chrome/browser/voice_search/voice_search_api.h"
 #import "ios/web/public/navigation/navigation_manager.h"
 #import "ios/web/public/navigation/referrer.h"
+#import "ios/web/public/thread/web_task_traits.h"
+#import "ios/web/public/thread/web_thread.h"
 #import "ios/web/public/web_state.h"
 #import "services/network/public/cpp/resource_request.h"
 #import "ui/base/device_form_factor.h"
@@ -245,7 +251,7 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
   self.viewController.pageActionMenuHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), PageActionMenuCommands);
   self.viewController.geminiHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), BWGCommands);
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), GeminiCommands);
   _tracker = feature_engagement::TrackerFactory::GetForProfile(self.profile);
   self.viewController.tracker = _tracker;
   self.viewController.voiceSearchEnabled =
@@ -733,6 +739,38 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
 - (void)locationBarSearchCopiedTextTapped {
   default_browser::NotifyOmniboxTextCopyPasteAndNavigate(
       feature_engagement::TrackerFactory::GetForProfile(self.profile));
+}
+
+- (BOOL)locationBarCanSendTabToSelf {
+  if (!base::FeatureList::IsEnabled(
+          send_tab_to_self::kSendTabToSelfExtraEntryPoints)) {
+    return NO;
+  }
+  if (!self.webState) {
+    return NO;
+  }
+  send_tab_to_self::SendTabToSelfSyncService* send_tab_to_self_service =
+      SendTabToSelfSyncServiceFactory::GetForProfile(self.profile);
+  return send_tab_to_self_service &&
+         send_tab_to_self_service
+             ->GetEntryPointDisplayReason(self.webState->GetVisibleURL())
+             .has_value();
+}
+
+- (void)locationBarSendTabToSelfTapped {
+  if (!self.webState || ![self locationBarCanSendTabToSelf]) {
+    return;
+  }
+  GURL url = self.webState->GetVisibleURL();
+  NSString* title = base::SysUTF16ToNSString(self.webState->GetTitle());
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+
+  ExecuteWhenTransitionsComplete(
+      ^{
+        [browserCoordinatorHandler showSendTabToSelfUI:url title:title];
+      },
+      self.viewController);
 }
 
 - (void)searchCopiedImage {

@@ -315,6 +315,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case DOUBLE_STRING_CACHE_TYPE:
       Cast<DoubleStringCache>(this)->DoubleStringCachePrint(os);
       break;
+    case HASH_SEED_WRAPPER_TYPE:
+      Cast<HashSeedWrapper>(this)->HashSeedWrapperPrint(os);
+      break;
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
       Cast<NameToIndexHashTable>(this)->NameToIndexHashTablePrint(os);
       break;
@@ -1518,15 +1521,6 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {
     os << "\n - trusted_data: " << Brief(trusted_data(isolate));
   }
   os << "\n - address_type: " << static_cast<int>(address_type());
-  JSObjectPrintBody(os, this);
-}
-
-void WasmMemoryMapDescriptor::WasmMemoryMapDescriptorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "WasmMemoryMapDescriptor");
-  os << "\n - memory: " << Brief(memory());
-  os << "\n - file_descriptor: " << file_descriptor();
-  os << "\n - offset: " << offset();
-  os << "\n - size: " << size();
   JSObjectPrintBody(os, this);
 }
 
@@ -3708,13 +3702,11 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {
   os << "\n - break_points: " << Brief(break_points());
   os << "\n - flags: " << flags(kRelaxedLoad);
   os << "\n - coverage_info: " << Brief(coverage_info());
-  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   if (has_original_bytecode_array()) {
-    os << "\n - original_bytecode_array: "
-       << Brief(original_bytecode_array(isolate));
+    os << "\n - original_bytecode_array: " << Brief(original_bytecode_array());
   }
   if (has_debug_bytecode_array()) {
-    os << "\n - debug_bytecode_array: " << Brief(debug_bytecode_array(isolate));
+    os << "\n - debug_bytecode_array: " << Brief(debug_bytecode_array());
   }
   os << "\n";
 }
@@ -4266,6 +4258,24 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {
   PrintHeader(os, "HeapNumber");
   os << "\n - value: ";
   HeapNumberShortPrint(os);
+  os << "\n";
+}
+
+void HashSeedWrapper::HashSeedWrapperPrint(std::ostream& os) {
+  PrintHeader(os, "HashSeedWrapper");
+  const HashSeed::Data& d = data();
+  os << "\n - seed: " << d.seed;
+  os << "\n - secret0: " << d.secrets[0];
+  os << "\n - secret1: " << d.secrets[1];
+  os << "\n - secret2: " << d.secrets[2];
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+  os << "\n - m1: " << d.m1;
+  os << "\n - m1_inv: " << d.m1_inv;
+  os << "\n - m2: " << d.m2;
+  os << "\n - m2_inv: " << d.m2_inv;
+  os << "\n - m3: " << d.m3;
+  os << "\n - m3_inv: " << d.m3_inv;
+#endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
   os << "\n";
 }
 

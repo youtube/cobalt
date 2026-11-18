@@ -15,7 +15,6 @@
 #include "base/scoped_observation.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/app_update.h"
-#include "components/services/app_service/public/cpp/features.h"
 #include "components/services/app_service/public/cpp/types_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"

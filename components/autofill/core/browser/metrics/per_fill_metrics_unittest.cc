@@ -44,8 +44,8 @@ class PerFillMetricsTest : public AutofillMetricsBaseTest,
     test_api(autofill_manager())
         .form_filler()
         .FillOrPreviewForm(
-            mojom::ActionPersistence::kFill, form, filling_payload,
-            form_structure, autofill_field, AutofillTriggerSource::kPopup,
+            mojom::ActionPersistence::kFill, filling_payload, form_structure,
+            autofill_field, AutofillTriggerSource::kPopup,
             /*blocked_fields=*/{}, FillId::Create(),
             /*forced_fill_values=*/{}, FormFiller::RefillOptions::NotRefill());
   }
@@ -89,16 +89,16 @@ TEST_F(PerFillMetricsTest, FillForm) {
                                                 {.role = CREDIT_CARD_NUMBER}}});
   SeeForm({form});
 
-  // Only the first three fields are actually filled.
+  // Only the first four fields are actually filled.
   EXPECT_CALL(autofill_driver(), ApplyFormAction)
-      .WillOnce(Return(base::ToVector(base::span(form.fields()).first(3u),
+      .WillOnce(Return(base::ToVector(base::span(form.fields()).first(4u),
                                       &FormFieldData::global_id)));
   FillForm(form, &autofill_profile);
 
-  histogram_tester.ExpectUniqueSample("Autofill.NumberOfFieldsPerAutofill", 3,
+  histogram_tester.ExpectUniqueSample("Autofill.NumberOfFieldsPerAutofill", 4,
                                       1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.NumberOfFieldsPerAutofill.AutofillProfile", 3, 1);
+      "Autofill.NumberOfFieldsPerAutofill.AutofillProfile", 4, 1);
 }
 
 // Test that for a form that changed its structure after being seen, second
@@ -192,7 +192,11 @@ TEST_F(PerFillMetricsTest, ModifiedFieldsCount) {
   form = FillFormAndGetFilledVersion(form, &credit_card);
 
   base::HistogramTester histogram_tester;
-  test_api(form).fields().emplace_back();
+  {
+    FormFieldData field;
+    field.set_origin(form.main_frame_origin());
+    test_api(form).Append(std::move(field));
+  }
 
   // Mock the router not blocking any field for filling.
   EXPECT_CALL(autofill_driver(), ApplyFormAction)

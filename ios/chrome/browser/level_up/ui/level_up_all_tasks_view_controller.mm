@@ -6,7 +6,7 @@
 
 #import "ios/chrome/browser/level_up/coordinator/level_up_category.h"
 #import "ios/chrome/browser/level_up/coordinator/level_up_task.h"
-#import "ios/chrome/browser/level_up/ui/level_up_task_collection_view.h"
+#import "ios/chrome/browser/level_up/ui/level_up_task_collection_view_cell.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -21,16 +21,25 @@ NSString* const kCategoriesSectionIdentifier = @"CategoriesSection";
 
 }  // namespace
 
+@interface LevelUpAllTasksViewController () <
+    LevelUpTaskCollectionViewCellDelegate>
+@end
+
 @implementation LevelUpAllTasksViewController {
+  // The collection view.
+  UICollectionView* _collectionView;
   // The list of categories.
   NSMutableArray<LevelUpCategory*>* _categories;
   // The diffable data source.
   UICollectionViewDiffableDataSource<NSString*, NSString*>* _diffableDataSource;
+  // Set of category titles whose completed tasks section is expanded.
+  NSMutableSet<NSString*>* _expandedCategories;
 }
 - (instancetype)init {
   self = [super init];
   if (self) {
     _categories = [[NSMutableArray alloc] init];
+    _expandedCategories = [[NSMutableSet alloc] init];
   }
   return self;
 }
@@ -54,20 +63,19 @@ NSString* const kCategoriesSectionIdentifier = @"CategoriesSection";
           }
                     configuration:config];
 
-  UICollectionView* allTasksCollectionView =
-      [[UICollectionView alloc] initWithFrame:CGRectZero
-                         collectionViewLayout:layout];
-  allTasksCollectionView.translatesAutoresizingMaskIntoConstraints = NO;
-  allTasksCollectionView.backgroundColor = [UIColor clearColor];
-  allTasksCollectionView.allowsSelection = NO;
+  _collectionView = [[UICollectionView alloc] initWithFrame:CGRectZero
+                                       collectionViewLayout:layout];
+  _collectionView.translatesAutoresizingMaskIntoConstraints = NO;
+  _collectionView.backgroundColor = [UIColor clearColor];
+  _collectionView.allowsSelection = NO;
 
-  [self.view addSubview:allTasksCollectionView];
-  AddSameConstraints(allTasksCollectionView, self.view);
+  [self.view addSubview:_collectionView];
+  AddSameConstraints(_collectionView, self.view);
 
   UICollectionViewCellRegistration* categoryCardRegistration =
       [UICollectionViewCellRegistration
-          registrationWithCellClass:[LevelUpTaskCollectionView class]
-               configurationHandler:^(LevelUpTaskCollectionView* cell,
+          registrationWithCellClass:[LevelUpTaskCollectionViewCell class]
+               configurationHandler:^(LevelUpTaskCollectionViewCell* cell,
                                       NSIndexPath* indexPath,
                                       NSString* itemIdentifier) {
                  __strong __typeof(weakSelf) strongSelf = weakSelf;
@@ -79,7 +87,7 @@ NSString* const kCategoriesSectionIdentifier = @"CategoriesSection";
                }];
 
   _diffableDataSource = [[UICollectionViewDiffableDataSource alloc]
-      initWithCollectionView:allTasksCollectionView
+      initWithCollectionView:_collectionView
                 cellProvider:^UICollectionViewCell*(
                     UICollectionView* collectionView, NSIndexPath* indexPath,
                     NSString* itemIdentifier) {
@@ -103,16 +111,56 @@ NSString* const kCategoriesSectionIdentifier = @"CategoriesSection";
 #pragma mark - Private
 
 // Configures a checklist card cell for a given category item identifier.
-- (void)configureCategoryCardCell:(LevelUpTaskCollectionView*)cell
+- (void)configureCategoryCardCell:(LevelUpTaskCollectionViewCell*)cell
                    itemIdentifier:(NSString*)itemIdentifier {
   for (LevelUpCategory* category in _categories) {
     if ([category.title isEqualToString:itemIdentifier]) {
       cell.showsSeeAllButton = NO;
       cell.headerTitle = category.title;
-      [cell setLevel:0 tasksForLevel:category.tasks];
+      cell.delegate = self;
+
+      BOOL isExpanded = [_expandedCategories containsObject:category.title];
+      [cell setTasks:category.activeTasks
+             completedTasks:category.completedTasks
+          completedExpanded:isExpanded];
       break;
     }
   }
+}
+
+- (LevelUpCategory*)categoryWithTitle:(NSString*)title {
+  for (LevelUpCategory* category in _categories) {
+    if ([category.title isEqualToString:title]) {
+      return category;
+    }
+  }
+  return nil;
+}
+
+#pragma mark - LevelUpTaskCollectionViewCellDelegate
+
+- (void)didTapSeeAllTasks:(UICollectionViewCell*)cell {
+  // Do nothing.
+}
+
+- (void)taskCollectionViewDidTapCompletedHeader:(UICollectionViewCell*)cell {
+  LevelUpTaskCollectionViewCell* taskCell =
+      (LevelUpTaskCollectionViewCell*)cell;
+  NSString* title = taskCell.headerTitle;
+
+  BOOL isExpanded = ![_expandedCategories containsObject:title];
+  if (isExpanded) {
+    [_expandedCategories addObject:title];
+  } else {
+    [_expandedCategories removeObject:title];
+  }
+
+  LevelUpCategory* category = [self categoryWithTitle:title];
+  [taskCell setTasks:category.activeTasks
+         completedTasks:category.completedTasks
+      completedExpanded:isExpanded];
+
+  [_collectionView performBatchUpdates:nil completion:nil];
 }
 
 // Rebuilds and applies the collection view diffable snapshot.

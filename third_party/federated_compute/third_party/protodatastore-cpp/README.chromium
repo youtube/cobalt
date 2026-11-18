@@ -1,0 +1,15 @@
+Name: protodatastore-cpp
+URL: https://github.com/google/protodatastore-cpp
+Version: N/A
+Revision: 0cd8b124bc65bcac105bce4a706923218ae5d625
+Update Mechanism: Manual
+License: Apache-2.0
+License File: src/LICENSE
+Shipped: yes
+Security Critical: yes
+
+Description:
+A simple file-backed proto with an in-memory cache.
+
+Local Modifications:
+None.

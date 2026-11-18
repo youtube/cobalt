@@ -11,6 +11,7 @@
 package org.webrtc;
 
 import androidx.annotation.Nullable;
+import org.jni_zero.NativeMethods;
 
 /** Java wrapper for a C++ MediaStreamTrackInterface. */
 public class MediaStreamTrack {
@@ -60,7 +61,7 @@ public class MediaStreamTrack {
     if (nativeTrack == 0) {
       return null;
     }
-    String trackKind = nativeGetKind(nativeTrack);
+    String trackKind = MediaStreamTrackJni.get().getKind(nativeTrack);
     if (trackKind.equals(AUDIO_TRACK_KIND)) {
       return new AudioTrack(nativeTrack);
     } else if (trackKind.equals(VIDEO_TRACK_KIND)) {
@@ -81,27 +82,27 @@ public class MediaStreamTrack {
 
   public String id() {
     checkMediaStreamTrackExists();
-    return nativeGetId(nativeTrack);
+    return MediaStreamTrackJni.get().getId(nativeTrack);
   }
 
   public String kind() {
     checkMediaStreamTrackExists();
-    return nativeGetKind(nativeTrack);
+    return MediaStreamTrackJni.get().getKind(nativeTrack);
   }
 
   public boolean enabled() {
     checkMediaStreamTrackExists();
-    return nativeGetEnabled(nativeTrack);
+    return MediaStreamTrackJni.get().getEnabled(nativeTrack);
   }
 
   public boolean setEnabled(boolean enable) {
     checkMediaStreamTrackExists();
-    return nativeSetEnabled(nativeTrack, enable);
+    return MediaStreamTrackJni.get().setEnabled(nativeTrack, enable);
   }
 
   public State state() {
     checkMediaStreamTrackExists();
-    return nativeGetState(nativeTrack);
+    return MediaStreamTrackJni.get().getState(nativeTrack);
   }
 
   public void dispose() {
@@ -121,9 +122,16 @@ public class MediaStreamTrack {
     }
   }
 
-  private static native String nativeGetId(long track);
-  private static native String nativeGetKind(long track);
-  private static native boolean nativeGetEnabled(long track);
-  private static native boolean nativeSetEnabled(long track, boolean enabled);
-  private static native State nativeGetState(long track);
+  @NativeMethods
+  interface Natives {
+    String getId(long track);
+
+    String getKind(long track);
+
+    boolean getEnabled(long track);
+
+    boolean setEnabled(long track, boolean enabled);
+
+    State getState(long track);
+  }
 }

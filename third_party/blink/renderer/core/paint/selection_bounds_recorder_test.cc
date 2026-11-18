@@ -265,7 +265,7 @@ TEST_F(SelectionBoundsRecorderTest, InvalidationForEmptyBounds) {
 
   // Move the selection around the start and end of the second div.
   local_frame->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(GetElementById("target")->firstChild(), 0))
           .Extend(Position(GetElementById("target")->firstChild(), 3))
           .Build(),

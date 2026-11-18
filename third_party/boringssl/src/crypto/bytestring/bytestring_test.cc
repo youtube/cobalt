@@ -222,6 +222,7 @@ TEST(CBSTest, GetASN1) {
   CBS_init(&data, kData1, sizeof(kData1));
   EXPECT_FALSE(CBS_peek_asn1_tag(&data, CBS_ASN1_BOOLEAN));
   EXPECT_TRUE(CBS_peek_asn1_tag(&data, CBS_ASN1_SEQUENCE));
+  EXPECT_EQ(CBS_peek_any_asn1_tag(&data), CBS_ASN1_SEQUENCE);
 
   ASSERT_TRUE(CBS_get_asn1(&data, &contents, CBS_ASN1_SEQUENCE));
   EXPECT_EQ(Bytes("\x01\x02"), Bytes(CBS_data(&contents), CBS_len(&contents)));
@@ -249,6 +250,10 @@ TEST(CBSTest, GetASN1) {
   CBS_init(&data, nullptr, 0);
   // peek at empty data.
   EXPECT_FALSE(CBS_peek_asn1_tag(&data, CBS_ASN1_SEQUENCE));
+  EXPECT_EQ(CBS_peek_any_asn1_tag(&data), 0u);
+  // Zero is not a valid tag. Make sure the function does not get confused by
+  // |CBS_peek_any_asn1_tag|'s return value.
+  EXPECT_FALSE(CBS_peek_asn1_tag(&data, 0));
 
   CBS_init(&data, nullptr, 0);
   // optional elements at empty data.

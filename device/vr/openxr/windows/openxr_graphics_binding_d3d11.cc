@@ -227,6 +227,11 @@ void OpenXrGraphicsBindingD3D11::CreateSharedImages(
         gpu::SHARED_IMAGE_USAGE_GLES2_READ |
         gpu::SHARED_IMAGE_USAGE_GLES2_WRITE;
 
+    if (layer.read_only_data().needs_raster_access) {
+      shared_image_usage |= gpu::SHARED_IMAGE_USAGE_RASTER_READ |
+                            gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
+    }
+
     if (IsWebGPUSession()) {
       shared_image_usage |= gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
                             gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE;

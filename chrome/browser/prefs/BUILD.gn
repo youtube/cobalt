@@ -109,7 +109,9 @@ source_set("impl") {
     "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync",
     "//chrome/browser/task_manager",
+    "//chrome/browser/tips/core",
     "//chrome/browser/tracing",
+    "//chrome/browser/ui:browser_ui_prefs",
     "//chrome/browser/ui/hats",
     "//chrome/browser/ui/prefs",
     "//chrome/browser/ui/profiles",
@@ -362,9 +364,6 @@ source_set("impl") {
       "//chrome/browser/readaloud/android:native",
       "//chrome/browser/search_engines",
     ]
-    if (enable_webui_ntp) {
-      deps += [ "//chrome/browser/new_tab_page" ]
-    }
   } else {
     deps += [
       "//chrome/browser:intranet_redirect_detector",
@@ -436,15 +435,29 @@ source_set("impl") {
     ]
   }
 
+  if (enable_webui_ntp) {
+    deps += [
+      "//chrome/browser/new_tab_page",
+      "//chrome/browser/ui/webui/new_tab_page",
+      "//chrome/browser/ui/webui/new_tab_page:impl",
+    ]
+  }
+
   if (!is_android) {
     deps += [
       "//chrome/browser/hid",
       "//chrome/browser/ui/read_anything:prefs",
+      "//chrome/browser/ui/webui/cr_components/theme_color_picker:impl",
+      "//chrome/browser/ui/webui/tab_search",
     ]
   }
 
   if (!is_android && !is_chromeos) {
     deps += [ "//chrome/browser/ui/startup/default_browser_prompt" ]
+  }
+
+  if (chrome_root_store_cert_management_ui) {
+    deps += [ "//chrome/browser/ui/webui/certificate_manager" ]
   }
 
   if (is_chrome_for_testing) {

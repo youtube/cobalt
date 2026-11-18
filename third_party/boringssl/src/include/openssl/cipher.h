@@ -15,7 +15,7 @@
 #ifndef OPENSSL_HEADER_CIPHER_H
 #define OPENSSL_HEADER_CIPHER_H
 
-#include <openssl/base.h>   // IWYU pragma: export
+#include <openssl/base.h>  // IWYU pragma: export
 
 #if defined(__cplusplus)
 extern "C" {
@@ -459,7 +459,7 @@ OPENSSL_EXPORT int EVP_BytesToKey(const EVP_CIPHER *type, const EVP_MD *md,
 
 // EVP_CIPH_FLAG_NON_FIPS_ALLOW is meaningless. In OpenSSL it permits non-FIPS
 // algorithms in FIPS mode. But BoringSSL FIPS mode doesn't prohibit algorithms
-// (it's up the the caller to use the FIPS module in a fashion compliant with
+// (it's up to the caller to use the FIPS module in a fashion compliant with
 // their needs). Thus this exists only to allow code to compile.
 #define EVP_CIPH_FLAG_NON_FIPS_ALLOW 0
 
@@ -718,7 +718,7 @@ struct evp_cipher_ctx_st {
   const EVP_CIPHER *cipher;
 
   // app_data is a pointer to opaque, user data.
-  void *app_data;      // application stuff
+  void *app_data;  // application stuff
 
   // cipher_data points to the `cipher` specific state.
   void *cipher_data;

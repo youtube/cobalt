@@ -4971,5 +4971,60 @@ TEST_F(LayerContextImplTest, InvalidViewportConfiguration) {
   }
 }
 
+TEST_F(LayerContextImplTest, ReproCrashDanglingTransformIndex) {
+  // 1. Create an update with several transform nodes.
+  auto update1 = CreateDefaultUpdate();
+
+  // Add some transform nodes beyond the default ones.
+  // Default ones are: 0 (root), 1 (secondary), 2 (overscroll), 3 (page scale).
+  // So t4 will be id 4.
+  int t4 = AddTransformNode(update1.get(), 3);
+  int t5 = AddTransformNode(update1.get(), t4);
+  AddTransformNode(update1.get(), t5);
+
+  // Add an effect node that induces a render surface and points to t6.
+  // Default effect nodes are: 0 (root), 1 (secondary).
+  AddEffectNode(update1.get(), 1);
+  auto& effect_node = update1->effect_nodes.back();
+  effect_node->transform_id = 6;
+  effect_node->render_surface_reason = cc::RenderSurfaceReason::kOpacity;
+  effect_node->element_id = cc::ElementId(100);
+
+  auto result1 = layer_context_impl_->DoUpdateDisplayTree(std::move(update1));
+  ASSERT_TRUE(result1.has_value()) << result1.error();
+
+  // 2. Create an update that shrinks transform tree but keeps the effect node.
+  auto update2 = CreateDefaultUpdate();
+  // Shrink transform tree to 2 nodes (root + secondary).
+  update2->num_transform_nodes = 2;
+  // Clear transform_nodes array so we don't accidentally add more.
+  update2->transform_nodes.clear();
+
+  // Reset viewport property IDs so they don't point out of bounds.
+  update2->overscroll_elasticity_transform = cc::kInvalidPropertyNodeId;
+  update2->page_scale_transform = cc::kInvalidPropertyNodeId;
+  update2->inner_scroll = cc::kInvalidPropertyNodeId;
+  update2->outer_clip = cc::kInvalidPropertyNodeId;
+  update2->outer_scroll = cc::kInvalidPropertyNodeId;
+
+  // Keep num_effect_nodes as it was (which includes e2).
+  // update2->num_effect_nodes is set in AddDefaultPropertyUpdates from
+  // next_effect_id_.
+
+  // We don't update effect node e2. It remains in the tree with transform_id =
+  // t6.
+
+  // UpdateDisplayTree will:
+  // - Resize transform tree to 2.
+  // - Keep effect node e2 in the tree with transform_id = 6.
+  // - MoveChangeTrackingToLayers will call AncestorPropertyChanged on effect
+  // node e2's surface.
+  // - Crash in transform_tree.Node(6).
+
+  auto result2 = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  // The update should be rejected because of dangling property tree indices.
+  EXPECT_FALSE(result2.has_value());
+}
+
 }  // namespace
 }  // namespace viz

@@ -353,8 +353,10 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
         result = true;
         break;
       } else if (input > start) {
+        if (!inputs_set.insert(input).second) continue;
         // Check whether the input is already a force-packing node.
         PackNode* pnode = GetPackNode(input);
+
         if ((pnode && pnode->IsForcePackNode()) ||
             GetIntersectPackNodes(input)) {
           result = true;
@@ -373,7 +375,6 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
         // We should ensure that there is no back edge.
         DCHECK_LT(input, to_visit_node);
         to_visit.push_back(input);
-        inputs_set.insert(input);
       }
     }
 
@@ -858,9 +859,14 @@ bool SLPTree::TryMatchExtendIntToF32x4(const NodeGroup& node_group,
     return false;
   }
 
-  uint32_t min_lane_index =
+  // Use uint8_t to match start_lane type and avoid type mismatch.
+  uint8_t min_lane_index =
       std::min(info0.value().start_lane, info1.value().start_lane);
-  if (std::abs(info0.value().start_lane - info1.value().start_lane) != 4) {
+  uint8_t max_lane_index =
+      std::max(info0.value().start_lane, info1.value().start_lane);
+
+  // Check lane difference without std::abs on unsigned types.
+  if (max_lane_index - min_lane_index != 4) {
     return false;
   }
   if (info0.value().lane_size == 1) {

@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/profiles/profile_management_step_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_management_types.h"
+#include "chrome/browser/ui/views/profiles/profile_picker_toolbar.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 
@@ -49,6 +50,8 @@ std::string_view GetStepHistogramSuffix(
       return ".FinishFlow";
     case ProfileManagementFlowController::Step::kFeatureShowcase:
       return ".FeatureShowcase";
+    case ProfileManagementFlowController::Step::kFinishOrContinue:
+      return ".FinishOrContinue";
   }
 }
 // LINT.ThenChange(//tools/metrics/histograms/metadata/profile/histograms.xml:StepName)
@@ -114,7 +117,12 @@ void ProfileManagementFlowController::OnReloadRequested() {
   initialized_steps_.at(flow_tracker_.tracked_step())->OnReloadRequested();
 }
 
-void ProfileManagementFlowController::ToggleMediaEffects(bool active) {}
+ProfilePickerToolbar::Builder
+ProfileManagementFlowController::CreateToolbarBuilder() {
+  return ProfilePickerToolbar::Builder(base::BindRepeating(
+      &ProfileManagementFlowController::OnNavigateBackRequested,
+      weak_factory_.GetWeakPtr()));
+}
 
 std::u16string
 ProfileManagementFlowController::GetFallbackAccessibleWindowTitle() const {

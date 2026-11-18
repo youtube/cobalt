@@ -542,7 +542,6 @@
         ],
         'test_suites': {
           'gtest_tests': 'clang_tot_gtests',
-          'isolated_scripts': 'chrome_sizes_suite',
         },
         'additional_compile_targets': [
           'all',
@@ -557,7 +556,6 @@
         ],
         'test_suites': {
           'gtest_tests': 'clang_tot_gtests',
-          'isolated_scripts': 'chrome_sizes_suite',
         },
         'additional_compile_targets': [
           'all',
@@ -571,7 +569,7 @@
         ],
         'test_suites': {
           'gtest_tests': 'clang_tot_gtests',
-          'isolated_scripts': 'win_specific_isolated_scripts_and_sizes',
+          'isolated_scripts': 'win_specific_isolated_scripts',
         },
         'additional_compile_targets': [
           'chrome_official_builder',
@@ -590,7 +588,7 @@
         ],
         'test_suites': {
           'gtest_tests': 'clang_tot_gtests',
-          'isolated_scripts': 'win_specific_isolated_scripts_and_sizes',
+          'isolated_scripts': 'win_specific_isolated_scripts',
         },
         'additional_compile_targets': [
           'chrome_official_builder',

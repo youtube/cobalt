@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">سبھی کو کھولیں</translation>
 <translation id="1408696301184924537">‏اگلی بار اس IBAN کو آٹو فل کرنے کے لیے، اسے اپنے Google اکاؤنٹ میں محفوظ کریں</translation>
 <translation id="1408787208417187241">اوپر تین سٹیپل</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />، <ph name="SUGGESTION_DESCRIPTION" />۔ <ph name="SUGGESTION_TYPE" />۔ <ph name="GROUP_HEADER" /> گروپ میں <ph name="NUM_MATCHES_IN_GROUP" /> میں سے <ph name="MATCH_POSITION" />۔</translation>
 <translation id="1410365862999780287">‏دوسرے لوگ جو یہ آلہ استعمال کرتے ہیں وہ آپ کی سرگرمی نہیں دیکھ پائیں گے، لہذا آپ مزید نجی طور پر براؤز کر سکتے ہیں۔ اس سے آپ کی ملاحظہ کی جانے والی ویب سائٹس کے ذریعے ڈیٹا جمع کرنے کا طریقہ اور Google سمیت ان کی استعمال کی جانے والی سروسز تبدیل نہیں ہوگی۔ تاہم، ڈاؤن لوڈز، بک مارکس اور پڑھنے کی فہرست کے آئٹمز محفوظ ہو جائیں گے۔</translation>
 <translation id="1410941016594047814">لفافہ دعوت نامہ</translation>
 <translation id="1413235258620101697">‏اس کارڈ کا CVC تیزی سے چیک آؤٹ کے لیے Google والٹ میں مرموز اور محفوظ کیا جائے گا</translation>
@@ -300,6 +301,7 @@
 <translation id="1445896388055045436">چیک آؤٹ پر دستیاب کارڈ کے فوائد اور انعامات دکھائیں۔ جاری کنندہ کی شرائط لاگو ہوتی ہیں۔</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">کلیدیں "<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" "<ph name="DATA_CONTROLS_SECOND_KEY_SET" />" کلیدوں کی طرح ایک ہی ڈکشنری میں سیٹ نہیں کی جا سکتیں</translation>
+<translation id="1449251255954293933">‏Google والٹ میں ریڈریس نمبر محفوظ کریں</translation>
 <translation id="1455413310270022028">صافی</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{‫0 جائزے ملاحظہ کریں}=1{‫1 جائزہ ملاحظہ کریں}other{سبھی # جائزے ملاحظہ کریں}}</translation>
 <translation id="1458059624921545588">لوگ اور معاشرہ</translation>
@@ -660,6 +662,7 @@
 <translation id="2045871135676061132">ذاتی لفافہ</translation>
 <translation id="2046951263634619614">کتاب کے ریٹیلرز</translation>
 <translation id="2048261947532620704">صفحہ کا ترجمہ کیا جا رہا ہے</translation>
+<translation id="2055016614992422886">گفتگو</translation>
 <translation id="2059166748188874810">میونسپلٹی</translation>
 <translation id="2059202684901022309">‏‎22 x 34 انچ</translation>
 <translation id="2064568741209980952">کریڈٹ اور قرض دینا</translation>
@@ -1155,6 +1158,7 @@
 <translation id="2782088940970074970">کار رینٹلز</translation>
 <translation id="278436560439594386">گھریلو آلات</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">پاس ورڈز · پاس کیز</translation>
 <translation id="2784949926578158345">کنکشن ری سیٹ ہو گیا تھا۔</translation>
 <translation id="2786008859124691917">بائیسکلز اور لوازمات</translation>
 <translation id="2792012897584536778">اس آلہ کے منتظمین نے سیکیورٹی سرٹیفکیٹس سیٹ کیے ہیں جو انہیں آپ کی ملاحظہ کردہ ویب سائٹس کا مواد دیکھنے کی اجازت دے سکتے ہیں۔</translation>
@@ -2306,6 +2310,7 @@
 <translation id="46128681529823442">ساکر کے ساز و سامان</translation>
 <translation id="4612904677925722054">اس سائٹ پر بالغانہ مواد ہو سکتا ہے۔ والدین یا سرپرست کو یہ کہنا ہوگا کہ آپ کیلئے یہ ویب سائٹ دیکھنا ٹھیک ہے۔</translation>
 <translation id="4619564267100705184">توثیق کریں کہ یہ آپ ہیں</translation>
+<translation id="4619669610757527494">‏Google والٹ میں ڈرائیونگ لائسنس محفوظ کریں</translation>
 <translation id="4622292761762557753">بہر حال منتقل کریں</translation>
 <translation id="4622647778991854660">اطلاع کے مرکز میں اطلاعات کو فعال کریں۔ <ph name="LINK" /> کھولیں۔</translation>
 <translation id="4623894491222334521">شناختی دستاویزات</translation>
@@ -2835,6 +2840,7 @@
 <translation id="543656192084990644">موشن سینسرز کی اجازت نہیں ہے</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />، <ph name="PREVIOUS_VALUE" /> تھی</translation>
 <translation id="5443468954631487277">اُلٹ ترتیب میں، صفحات کا رُخ اوپر کی جانب</translation>
+<translation id="5447103258548475868">‏Google والٹ میں پاسپورٹ محفوظ کریں</translation>
 <translation id="5447235695608032700"><ph name="SITE" /> کو ان معلومات کو استعمال کرنے کی اجازت دیں جو انہوں نے آپ کے بارے میں محفوظ کی ہیں</translation>
 <translation id="5447973833955560753">بازیابی پاس ورڈ</translation>
 <translation id="5451331376824595378">‏جب سیکیورٹی ایونٹس پر Chrome پرچم لگاتا ہے تو ان ایونٹس سے متعلقہ ڈیٹا آپ کے منتظم کو بھیجا جاتا ہے۔ اس میں Chrome میں آپ کے ذریعے ملاحظہ کیے جانے والے صفحات کے URLs، ان صفحات کے URLs جن سے آپ نے ڈیٹا کاپی کیا ہے، فائل کے نام یا میٹا ڈیٹا، IP پتے، براؤز یا ٹیب کی ناکامیاں اور وہ صارف نام جس کا استعمال آپ ویب پر مبنی ایپلیکیشنز اپنے آلے اور Chrome میں سائن ان کرنے کے لیے کرتے ہیں، شامل ہو سکتے ہیں۔</translation>
@@ -3017,6 +3023,7 @@
 <translation id="5718601519531438273">پاسپورٹس اور ڈرائیونگ لائسنسز جیسی معلومات شامل ہیں</translation>
 <translation id="5720705177508910913">حالیہ صارف</translation>
 <translation id="5720895412771013401">ڈیسک ٹاپ کمپیوٹرز</translation>
+<translation id="5721147290164931316">اپنے فون سے سائن ان کرنے کے لیے اسکین کریں</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}، {website_2}}=3{{website_1}، {website_2} اور 1 مزید}other{{website_1}، {website_2} اور {more_count} مزید}}</translation>
 <translation id="572328651809341494">حالیہ ٹیبز</translation>
 <translation id="5723873695528696965">‏اپنے MIDI آلات کو کنٹرول اور دوبارہ پروگرام کریں</translation>
@@ -3559,6 +3566,7 @@
 <translation id="6550245281449521513">ماؤس لاک کی اجازت نہیں ہے</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />، نیا</translation>
 <translation id="6552566579578780089">ادائیگیاں</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />۔ <ph name="SUGGESTION_TYPE" />۔ <ph name="GROUP_HEADER" /> گروپ میں <ph name="NUM_MATCHES_IN_GROUP" /> میں سے <ph name="MATCH_POSITION" />۔</translation>
 <translation id="6554732001434021288">سائٹ آخری بار <ph name="NUM_DAYS" /> دن پہلے ملاحظہ کی گئی</translation>
 <translation id="6556866813142980365">واپس لائیں</translation>
 <translation id="6557715786897013164">‏‎14 x 17 انچ</translation>
@@ -4235,6 +4243,7 @@
 <translation id="7599089013883397081">ڈاؤن لوڈ کا وقت ختم ہو گیا</translation>
 <translation id="7602868996817972616">‏اس صفحہ کے بارے میں Google سے پوچھیں</translation>
 <translation id="7606123685356405076">‏‫Gemini 3 ماڈلز</translation>
+<translation id="760632772920590778">‏Google والٹ میں گاڑی کی معلومات محفوظ کریں</translation>
 <translation id="7610193165460212391">قدر رینج سے باہر کی ہے <ph name="VALUE" />۔</translation>
 <translation id="761261689936461781">موٹا</translation>
 <translation id="7613889955535752492">‏اختتامی تاریخ: ‎<ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" />‎</translation>
@@ -4263,7 +4272,9 @@
 <translation id="7646681339175747202">‏آپ نے ابھی جو پاس ورڈ استعمال کیا وہ ڈیٹا کی خلاف ورزی میں پایا گیا۔ Google پاس ورڈ مینیجر آپ کے پاس ورڈ کو ابھی تبدیل کرنے کی تجویز کرتا ہے۔</translation>
 <translation id="7647206758853451655">پرنٹ کا معیار</translation>
 <translation id="7648133459447652947">اپنا کرسر دکھانے کے لیے، ایپس کو سوئچ کریں، صفحہ کو دوبارہ لوڈ کریں یا واپس جائیں</translation>
+<translation id="764847582138410250">اپنے فون سے سائن ان کرنے کے لیے اسکین کریں</translation>
 <translation id="7648527891719919697">‏یہ سائٹ مسدود رہے گی کیونکہ آپ نے <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android کی ترتیبات<ph name="END_ANDROID_SETTINGS_LINK" /> میں اعلی تحفظ کو آن کیا ہے۔ <ph name="BEGIN_LEARN_MORE_LINK" />اس وارننگ کے بارے میں مزید جانیں<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">‏Google والٹ میں معلوم مسافر نمبر محفوظ کریں</translation>
 <translation id="7648992873808071793">فائلیں اس آلہ پر اسٹور کریں</translation>
 <translation id="7649070708921625228">مدد</translation>
 <translation id="7650141368285545431">کسی اور آلے سے پاس کی استعمال کریں</translation>
@@ -4356,6 +4367,7 @@
 <translation id="7773005668374414287">اسی ترتیب میں، صفحات کا رُخ اوپر کی جانب</translation>
 <translation id="7779418012194492374"><ph name="DEVICE_NAME" /> کیلئے رسائی کو منسوخ کریں</translation>
 <translation id="7781829728241885113">گزشتہ کل</translation>
+<translation id="7782228658217918863">‏Google والٹ میں شناختی کارڈ محفوظ کریں</translation>
 <translation id="7782465647372057580">اکاؤنٹ کی معلومات مرموز کردہ ہے اور نجی رکھی جاتی ہے</translation>
 <translation id="7785471469930192436">قابل اطلاق ہونے پر اپنی تلاش کی سرگزشت کو حذف کرنے کے لیے اپنے سرچ انجن کی ہدایات دیکھیں</translation>
 <translation id="7785790577395078482">یہ ٹیبلیٹ</translation>

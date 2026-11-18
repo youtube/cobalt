@@ -9,15 +9,13 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/cell-tq-inl.inc"
 
 Tagged<MaybeObject> Cell::maybe_value() const { return maybe_value_.load(); }
 

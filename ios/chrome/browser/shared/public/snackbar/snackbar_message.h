@@ -43,6 +43,8 @@
 @property(nonatomic, assign) NSTimeInterval duration;
 
 // The completion handler to be called when the message is dismissed.
+// The BOOL parameter represents whether the dismissal was triggered by a user
+// action.
 @property(nonatomic, copy) void (^completionHandler)(BOOL);
 
 // Designated initializer.

@@ -268,6 +268,19 @@ TEST_F(WebAppShortcutLinuxTest, GetExtensionShortcutFilename) {
             GetAppDesktopShortcutFilename(GetProfilePath(), "extensionid"));
 }
 
+TEST_F(WebAppShortcutLinuxTest, ShortcutIdentityDoesNotChangeWhenTitleChanges) {
+  std::unique_ptr<ShortcutInfo> shortcut_info = GetShortcutInfo();
+  std::unique_ptr<ShortcutInfo> renamed_shortcut_info = GetShortcutInfo();
+  renamed_shortcut_info->title = u"renamed app";
+
+  EXPECT_EQ(GenerateApplicationNameFromInfo(*shortcut_info),
+            GenerateApplicationNameFromInfo(*renamed_shortcut_info));
+  EXPECT_EQ(GetAppDesktopShortcutFilename(shortcut_info->profile_path,
+                                          shortcut_info->app_id),
+            GetAppDesktopShortcutFilename(renamed_shortcut_info->profile_path,
+                                          renamed_shortcut_info->app_id));
+}
+
 TEST_F(WebAppShortcutLinuxTest, DeleteDesktopShortcuts) {
   base::FilePath autostart_shortcut_path =
       CreateShortcutInPath(GetAutostartPath());

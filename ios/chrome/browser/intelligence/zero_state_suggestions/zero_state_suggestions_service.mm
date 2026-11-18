@@ -39,7 +39,7 @@ ZeroStateSuggestionsService::~ZeroStateSuggestionsService() = default;
 
 void ZeroStateSuggestionsService::FetchZeroStateSuggestions(
     base::OnceCallback<void(NSArray<NSString*>*)> callback) {
-  if (!can_apply_ || !web_state_) {
+  if (!web_state_) {
     std::move(callback).Run(nil);
     return;
   }
@@ -74,15 +74,6 @@ void ZeroStateSuggestionsService::FetchZeroStateSuggestions(
 void ZeroStateSuggestionsService::ClearCachedSuggestions() {
   suggestions_.reset();
   suggestions_url_ = GURL();
-  can_apply_ = false;
-}
-
-void ZeroStateSuggestionsService::SetCanApply(bool can_apply) {
-  can_apply_ = can_apply;
-}
-
-bool ZeroStateSuggestionsService::CanApply() const {
-  return can_apply_;
 }
 
 void ZeroStateSuggestionsService::ParseSuggestionsResponse(

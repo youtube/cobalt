@@ -45,7 +45,7 @@ class LayoutTextTest : public RenderingTest {
   LayoutText* GetBasicText() { return GetLayoutTextById("target"); }
 
   void SetSelectionAndUpdateLayoutSelection(const std::string& selection_text) {
-    const SelectionInDOMTree selection =
+    const SelectionInDomTree selection =
         SelectionSample::SetSelectionText(GetDocument().body(), selection_text);
     UpdateAllLifecyclePhasesForTest();
     Selection().SetSelection(selection, SetSelectionOptions());

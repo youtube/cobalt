@@ -118,19 +118,11 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="2236949375853147973">My aktiwiteit</translation>
 <translation id="2238130810669087193">Meld aan by Chromium om jou adresse en meer op al jou toestelle te kry. Hierdie adres sal in jou Google-rekening gestoor word nadat jy aangemeld het.</translation>
 <translation id="2241627712206172106">As jy 'n rekenaar deel, kan vriende en familie apart blaai en Chromium opstel net soos hulle dit wil hê.</translation>
+<translation id="22571759390241347">Vaardighede in Chromium</translation>
 <translation id="2283803047247799269">Deursoek hierdie oortjie met Prentsoektog</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium beveel aan dat jy die oortjie wat jou blaaier stadig maak, onderbreek}other{Chromium beveel aan dat jy die oortjies wat jou blaaier stadig maak, onderbreek}}</translation>
 <translation id="2307973900865360088">Hou gedok</translation>
 <translation id="2313870531055795960">Vergelyk URL'e met 'n lys onveilige werwe wat in Chromium geberg is. As 'n werf probeer om jou wagwoord te steel, of wanneer jy 'n skadelike lêer aflaai, sal Chromium dalk ook URL'e, insluitend stukkies bladsyinhoud, na Veiligblaai toe stuur.</translation>
-<translation id="2332076562712130931">Hierdie handeling sal:
-        <ph name="LINE_BREAKS" />
-          • Sommige Chromium-instellings en Chromium-kortpaaie terugstel
-          <ph name="LINE_BREAK" />
-          • Uitbreidings deaktiveer
-          <ph name="LINE_BREAK" />
-          • Webkoekies en ander tydelike werfdata uitvee
-          <ph name="LINE_BREAKS" />
-          Boekmerke, geskiedenis en gestoorde wagwoorde sal nie geraak word nie.</translation>
 <translation id="2343156876103232566">Meld op albei toestelle by Chromium aan om 'n nommer van hier af na jou Android-foon te stuur.</translation>
 <translation id="2356070529366658676">Vra</translation>
 <translation id="2359808026110333948">Gaan voort</translation>
@@ -192,6 +184,7 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="3003694935412297923">Alle take</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium moet verifieer dat dit jy is voordat sommige data in jou Google-rekening gestoor kan word en op al jou toestelle gebruik kan word. As jy nou afmeld, sal hierdie data (1 item) uitgevee word.}other{Chromium moet verifieer dat dit jy is voordat sommige data in jou Google-rekening gestoor kan word en op al jou toestelle gebruik kan word. As jy nou afmeld, sal hierdie data ({count} items) uitgevee word.}}</translation>
 <translation id="3013473503895162900">Maak <ph name="URL" /> in 'n nuwe oortjie in Chromium oop.</translation>
+<translation id="302551344979399011">KI-innovasies soos vaardighede word in jou Google-rekening gestoor en apart van Chromium-sinkronisering bestuur</translation>
 <translation id="3032787606318309379">Voeg tans by Chromium …</translation>
 <translation id="3038232873781883849">Wag tans om te installeer...</translation>
 <translation id="3045032126857188731">Vertaalde taal: <ph name="LANGUAGE" /></translation>
@@ -383,6 +376,7 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="5289287148052354622">Kry die Chromium-app</translation>
 <translation id="5294316920224716406">Chromium sal jou waarsku voordat ’n werf met ’n onveilige verbinding gelaai word wanneer jy in Incognitomodus blaai</translation>
 <translation id="5313228254328109263">Chromium-opdateerderdiens (intern)</translation>
+<translation id="5324450571874973775">Gebruik hulle saam met ander Gemini-kenmerke in Chromium</translation>
 <translation id="5346389065299425353">Voeg verskeie oortjies, lêers en nutsgoed by om dieper te soek</translation>
 <translation id="5348677704241861105">Kry ’n vinnige oorsig van hierdie dokument en vra vrae met Gemini in Chromium</translation>
 <translation id="5352264705793813212">Chromium het ’n paar veiligheidsaanbevelings vir jou hersiening gekry</translation>
@@ -674,6 +668,7 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="8318772038038596122">Jou organisasie maak Chromium toe wanneer dit <ph name="TIMEOUT_DURATION" /> lank nie gebruik is nie.</translation>
 <translation id="8321888067342493336">Stoor as prent</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> het voorheen Chromium gebruik</translation>
+<translation id="8351551329754447960">Aktiveer Vaardighede in Chromium</translation>
 <translation id="8359544530202147897">Dateer Chromium op om aan te hou om die Chromium-data in jou Google-rekening, <ph name="ACCOUNT_EMAIL" />, te gebruik</translation>
 <translation id="8360718212975266891">Jy het Windows 10 of nuwer nodig om in die toekoms Chromium-opdaterings te kry. Hierdie rekenaar gebruik Windows 8.</translation>
 <translation id="8362914115861174987">Vertaal in</translation>

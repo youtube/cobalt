@@ -273,7 +273,7 @@ Called by update_document_policy_enum.py.-->
   <int value="10" label="TokenSentToRenderer"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/autofill/content/browser/email_verifier_delegate.h:EvpAutofillFlowResult) -->
+<!-- LINT.ThenChange(//components/autofill/content/browser/integrators/email_verifier/email_verifier_delegate.h:EvpAutofillFlowResult) -->
 
 <!-- LINT.IfChange(EvpPermissionUiStatus) -->
 
@@ -5846,7 +5846,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5157" label="ARIAActionsAttribute"/>
   <int value="5158" label="OBSOLETE_ResolveToConfigValueCoercedToTrue"/>
   <int value="5159"
-      label="ServiceWorkerStaticRouter_RaceNetworkAndFetchHandlerImprovement"/>
+      label="OBSOLETE_ServiceWorkerStaticRouter_RaceNetworkAndFetchHandlerImprovement"/>
   <int value="5160" label="HasCapUnits"/>
   <int value="5161" label="HasRcapUnits"/>
   <int value="5162" label="HasIcUnits"/>
@@ -6072,7 +6072,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5359" label="WebAppManifestDisplayBrowser"/>
   <int value="5360" label="WebAppManifestDisplayFullscreen"/>
   <int value="5361" label="WebAppManifestDisplayStandalone"/>
-  <int value="5362" label="BlockingAttributeFullFrameRateToken"/>
+  <int value="5362" label="OBSOLETE_BlockingAttributeFullFrameRateToken"/>
   <int value="5363" label="CrossOriginOwnerInterestGroupSubframeCheckFailed"/>
   <int value="5364" label="PreferredAudioOutputDevices"/>
   <int value="5365" label="SharedStorageAPI_SelectURL_Method_CalledWithOneURL"/>
@@ -6661,6 +6661,18 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5918"
       label="WebTransportDatagramDuplexStreamOutgoingHighWaterMark"/>
   <int value="5919" label="HistoryGoBackWouldSkipSameOriginAd"/>
+  <int value="5920" label="CreateTextModuleScript"/>
+  <int value="5921" label="DigitalCredentialsProtocolOpenId4VciV1"/>
+  <int value="5922" label="ElementAttachShadowNonHTMLNamespace"/>
+  <int value="5923" label="V8Element_AriaActionsElements_AttributeGetter"/>
+  <int value="5924" label="V8Element_AriaActionsElements_AttributeSetter"/>
+  <int value="5925"
+      label="V8ElementInternals_AriaActionsElements_AttributeGetter"/>
+  <int value="5926"
+      label="V8ElementInternals_AriaActionsElements_AttributeSetter"/>
+  <int value="5927" label="SVGPathElementGetPathData"/>
+  <int value="5928" label="SVGPathElementGetPathDataNormalized"/>
+  <int value="5929" label="DownloadFromAdScript"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -7524,7 +7536,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="3" label="Fetch skipped because script is too small"/>
 </enum>
 
-<!-- LINT.ThenChange(//third_party/blink/renderer/platform/loader/fetch/code_cache_host.cc:InlineScriptCacheFetchResult) -->
+<!-- LINT.ThenChange(//third_party/blink/renderer/platform/loader/fetch/code_cache_host.h:InlineScriptCacheFetchResult) -->
 
 <enum name="InnerHTMLFastPathParserParseResult">
   <int value="0" label="Content was successfully parsed"/>
@@ -8604,6 +8616,17 @@ Called by update_use_counter_css.py.-->
 
 <!-- LINT.ThenChange(//third_party/blink/renderer/core/loader/preload_helper.h:OriginStatusOnSubresource) -->
 
+<!-- LINT.IfChange(PACUpdateType)-->
+
+<enum name="PACUpdateType">
+  <int value="0" label="None"/>
+  <int value="1" label="RasterInducingScroll"/>
+  <int value="2" label="Repaint"/>
+  <int value="3" label="Full"/>
+</enum>
+
+<!-- LINT.ThenChange(//third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h:UpdateType) -->
+
 <!-- LINT.IfChange(PermissionElementInvalidStyleReason) -->
 
 <enum name="PermissionElementInvalidStyleReason">
@@ -9148,6 +9171,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="437" label="GapDecorations"/>
   <int value="438" label="FlexWrapBalance"/>
   <int value="439" label="TextFit"/>
+  <int value="440" label="TextModules"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

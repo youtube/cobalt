@@ -103,6 +103,22 @@ def __step_config(ctx, step_config):
                 "timeout": timeout,
             },
             {
+                "name": "clang-cl/cxx_module",
+                "handler": "clang_compile",
+                "action": "(.*_)?cxx_module",
+                "command_prefix": "..\\third_party\\llvm-build\\Release+Asserts\\bin\\clang-cl.exe",
+                "inputs": rewrapper_config_inputs + [
+                    "third_party/llvm-build/Release+Asserts/bin/clang-cl.exe",
+                ],
+                "platform_ref": "clang-cl",
+                "remote": remote,
+                "input_root_absolute_path": input_root_absolute_path,
+                "remote_wrapper": remote_wrapper,
+                "timeout": timeout,
+                # TODO(https://crbug.com/477762548): Remove this when LLVM_WINDOWS_PREFER_FORWARD_SLASH is set for LLVM.
+                "strict_remote": True,
+            },
+            {
                 "name": "clang-cl/cc",
                 "handler": "clang_compile",
                 "action": "(.*_)?cc",
@@ -129,6 +145,22 @@ def __step_config(ctx, step_config):
                 "input_root_absolute_path": input_root_absolute_path,
                 "remote_wrapper": remote_wrapper,
                 "timeout": timeout,
+            },
+            {
+                "name": "clang-coverage/cxx_module",
+                "action": "(.*_)?cxx_module",
+                "command_prefix": "python3.exe ../../build/toolchain/clang_code_coverage_wrapper.py",
+                "inputs": rewrapper_config_inputs + [
+                    "third_party/llvm-build/Release+Asserts/bin/clang++",
+                ],
+                "handler": "clang_compile_coverage",
+                "platform_ref": "clang-cl",
+                "remote": remote,
+                "input_root_absolute_path": input_root_absolute_path,
+                "remote_wrapper": remote_wrapper,
+                "timeout": timeout,
+                # TODO(https://crbug.com/477762548): Remove this when LLVM_WINDOWS_PREFER_FORWARD_SLASH is set for LLVM.
+                "strict_remote": True,
             },
             {
                 "name": "clang-coverage/cc",

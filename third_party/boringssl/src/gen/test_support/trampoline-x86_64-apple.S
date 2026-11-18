@@ -127,11 +127,13 @@ L$args_done:
 	nop
 .globl	_abi_test_unwind_start
 .private_extern _abi_test_unwind_start
+.alt_entry _abi_test_unwind_start
 _abi_test_unwind_start:
 
 	call	*%rax
 .globl	_abi_test_unwind_return
 .private_extern _abi_test_unwind_return
+.alt_entry _abi_test_unwind_return
 _abi_test_unwind_return:
 
 
@@ -142,6 +144,7 @@ _abi_test_unwind_return:
 	popfq
 .globl	_abi_test_unwind_stop
 .private_extern _abi_test_unwind_stop
+.alt_entry _abi_test_unwind_stop
 _abi_test_unwind_stop:
 
 	jmp	L$call_done
@@ -182,6 +185,7 @@ L$call_done:
 .private_extern _abi_test_clobber_rax
 
 .p2align	4
+.alt_entry _abi_test_clobber_rax
 _abi_test_clobber_rax:
 _CET_ENDBR
 	xorq	%rax,%rax
@@ -191,6 +195,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_rbx
 
 .p2align	4
+.alt_entry _abi_test_clobber_rbx
 _abi_test_clobber_rbx:
 _CET_ENDBR
 	xorq	%rbx,%rbx
@@ -200,6 +205,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_rcx
 
 .p2align	4
+.alt_entry _abi_test_clobber_rcx
 _abi_test_clobber_rcx:
 _CET_ENDBR
 	xorq	%rcx,%rcx
@@ -209,6 +215,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_rdx
 
 .p2align	4
+.alt_entry _abi_test_clobber_rdx
 _abi_test_clobber_rdx:
 _CET_ENDBR
 	xorq	%rdx,%rdx
@@ -218,6 +225,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_rdi
 
 .p2align	4
+.alt_entry _abi_test_clobber_rdi
 _abi_test_clobber_rdi:
 _CET_ENDBR
 	xorq	%rdi,%rdi
@@ -227,6 +235,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_rsi
 
 .p2align	4
+.alt_entry _abi_test_clobber_rsi
 _abi_test_clobber_rsi:
 _CET_ENDBR
 	xorq	%rsi,%rsi
@@ -236,6 +245,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_rbp
 
 .p2align	4
+.alt_entry _abi_test_clobber_rbp
 _abi_test_clobber_rbp:
 _CET_ENDBR
 	xorq	%rbp,%rbp
@@ -245,6 +255,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_r8
 
 .p2align	4
+.alt_entry _abi_test_clobber_r8
 _abi_test_clobber_r8:
 _CET_ENDBR
 	xorq	%r8,%r8
@@ -254,6 +265,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_r9
 
 .p2align	4
+.alt_entry _abi_test_clobber_r9
 _abi_test_clobber_r9:
 _CET_ENDBR
 	xorq	%r9,%r9
@@ -263,6 +275,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_r10
 
 .p2align	4
+.alt_entry _abi_test_clobber_r10
 _abi_test_clobber_r10:
 _CET_ENDBR
 	xorq	%r10,%r10
@@ -272,6 +285,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_r11
 
 .p2align	4
+.alt_entry _abi_test_clobber_r11
 _abi_test_clobber_r11:
 _CET_ENDBR
 	xorq	%r11,%r11
@@ -281,6 +295,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_r12
 
 .p2align	4
+.alt_entry _abi_test_clobber_r12
 _abi_test_clobber_r12:
 _CET_ENDBR
 	xorq	%r12,%r12
@@ -290,6 +305,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_r13
 
 .p2align	4
+.alt_entry _abi_test_clobber_r13
 _abi_test_clobber_r13:
 _CET_ENDBR
 	xorq	%r13,%r13
@@ -299,6 +315,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_r14
 
 .p2align	4
+.alt_entry _abi_test_clobber_r14
 _abi_test_clobber_r14:
 _CET_ENDBR
 	xorq	%r14,%r14
@@ -308,6 +325,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_r15
 
 .p2align	4
+.alt_entry _abi_test_clobber_r15
 _abi_test_clobber_r15:
 _CET_ENDBR
 	xorq	%r15,%r15
@@ -317,6 +335,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm0
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm0
 _abi_test_clobber_xmm0:
 _CET_ENDBR
 	pxor	%xmm0,%xmm0
@@ -326,6 +345,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm1
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm1
 _abi_test_clobber_xmm1:
 _CET_ENDBR
 	pxor	%xmm1,%xmm1
@@ -335,6 +355,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm2
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm2
 _abi_test_clobber_xmm2:
 _CET_ENDBR
 	pxor	%xmm2,%xmm2
@@ -344,6 +365,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm3
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm3
 _abi_test_clobber_xmm3:
 _CET_ENDBR
 	pxor	%xmm3,%xmm3
@@ -353,6 +375,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm4
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm4
 _abi_test_clobber_xmm4:
 _CET_ENDBR
 	pxor	%xmm4,%xmm4
@@ -362,6 +385,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm5
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm5
 _abi_test_clobber_xmm5:
 _CET_ENDBR
 	pxor	%xmm5,%xmm5
@@ -371,6 +395,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm6
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm6
 _abi_test_clobber_xmm6:
 _CET_ENDBR
 	pxor	%xmm6,%xmm6
@@ -380,6 +405,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm7
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm7
 _abi_test_clobber_xmm7:
 _CET_ENDBR
 	pxor	%xmm7,%xmm7
@@ -389,6 +415,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm8
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm8
 _abi_test_clobber_xmm8:
 _CET_ENDBR
 	pxor	%xmm8,%xmm8
@@ -398,6 +425,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm9
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm9
 _abi_test_clobber_xmm9:
 _CET_ENDBR
 	pxor	%xmm9,%xmm9
@@ -407,6 +435,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm10
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm10
 _abi_test_clobber_xmm10:
 _CET_ENDBR
 	pxor	%xmm10,%xmm10
@@ -416,6 +445,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm11
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm11
 _abi_test_clobber_xmm11:
 _CET_ENDBR
 	pxor	%xmm11,%xmm11
@@ -425,6 +455,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm12
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm12
 _abi_test_clobber_xmm12:
 _CET_ENDBR
 	pxor	%xmm12,%xmm12
@@ -434,6 +465,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm13
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm13
 _abi_test_clobber_xmm13:
 _CET_ENDBR
 	pxor	%xmm13,%xmm13
@@ -443,6 +475,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm14
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm14
 _abi_test_clobber_xmm14:
 _CET_ENDBR
 	pxor	%xmm14,%xmm14
@@ -452,6 +485,7 @@ _CET_ENDBR
 .private_extern _abi_test_clobber_xmm15
 
 .p2align	4
+.alt_entry _abi_test_clobber_xmm15
 _abi_test_clobber_xmm15:
 _CET_ENDBR
 	pxor	%xmm15,%xmm15
@@ -464,6 +498,7 @@ _CET_ENDBR
 .private_extern _abi_test_bad_unwind_wrong_register
 
 .p2align	4
+.alt_entry _abi_test_bad_unwind_wrong_register
 _abi_test_bad_unwind_wrong_register:
 
 
@@ -490,6 +525,7 @@ _CET_ENDBR
 .private_extern _abi_test_bad_unwind_temporary
 
 .p2align	4
+.alt_entry _abi_test_bad_unwind_temporary
 _abi_test_bad_unwind_temporary:
 
 
@@ -521,6 +557,7 @@ _CET_ENDBR
 .globl	_abi_test_get_and_clear_direction_flag
 .private_extern _abi_test_get_and_clear_direction_flag
 
+.alt_entry _abi_test_get_and_clear_direction_flag
 _abi_test_get_and_clear_direction_flag:
 _CET_ENDBR
 	pushfq
@@ -536,6 +573,7 @@ _CET_ENDBR
 .globl	_abi_test_set_direction_flag
 .private_extern _abi_test_set_direction_flag
 
+.alt_entry _abi_test_set_direction_flag
 _abi_test_set_direction_flag:
 _CET_ENDBR
 	std

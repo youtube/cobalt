@@ -29,8 +29,6 @@ class ListFormatter;
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-list-format-tq.inc"
-
 V8_OBJECT class JSListFormat : public JSObject {
  public:
   // Creates relative time format object with properties derived from input
@@ -94,7 +92,8 @@ V8_OBJECT class JSListFormat : public JSObject {
   inline Type type() const;
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_LIST_FORMAT_FLAGS()
+  using StyleBits = base::BitField<JSListFormat::Style, 0, 2, uint32_t>;
+  using TypeBits = StyleBits::Next<JSListFormat::Type, 2>;
 
   static_assert(StyleBits::is_valid(Style::LONG));
   static_assert(StyleBits::is_valid(Style::SHORT));

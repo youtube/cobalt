@@ -148,8 +148,7 @@ bool MojoGpuVideoAcceleratorFactories::CheckContextLost() {
   if (context_provider_lost_on_media_thread_) {
     return true;
   }
-  if (context_provider_->ContextGL()->GetGraphicsResetStatusKHR() !=
-      GL_NO_ERROR) {
+  if (context_provider_->IsLost()) {
     OnContextLost();
     return true;
   }

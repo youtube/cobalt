@@ -27,7 +27,6 @@
 #include "chrome/browser/ash/settings/cros_settings_holder.h"
 #include "chrome/browser/ash/settings/device_settings_test_helper.h"
 #include "chrome/browser/extensions/external_provider_impl.h"
-#include "chrome/browser/ui/webui/certificates_handler.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"

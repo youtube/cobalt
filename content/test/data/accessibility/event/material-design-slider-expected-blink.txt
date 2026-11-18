@@ -5,7 +5,7 @@ rootWebArea htmlTag='#document' name='Material Web Slider Events'
 ++++++genericContainer htmlTag='div' name='Ready'
 ++++++++genericContainer htmlTag='md-slider'
 ++++++++++genericContainer className='container   ' htmlTag='div'
-++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='0' valueForRange=0.00 minValueForRange=0.00 maxValueForRange=100.00
+++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='0' ariaValueText='0' valueForRange=0.00 minValueForRange=0.00 maxValueForRange=100.00
 ++++++++++++genericContainer className='track' htmlTag='div'
 ++++++++++++genericContainer className='handleContainerPadded' htmlTag='div'
 ++++++++++++++genericContainer className='handleContainerBlock' htmlTag='div'
@@ -22,7 +22,7 @@ rootWebArea htmlTag='#document' name='Material Web Slider Events'
 ++++++genericContainer htmlTag='div' name='Ready'
 ++++++++genericContainer htmlTag='md-slider'
 ++++++++++genericContainer className='container   ' htmlTag='div'
-++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='25' valueForRange=25.00 minValueForRange=0.00 maxValueForRange=100.00 <<<<<< CHANGED
+++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='25' ariaValueText='25' valueForRange=25.00 minValueForRange=0.00 maxValueForRange=100.00 <<<<<< CHANGED
 ++++++++++++genericContainer className='track' htmlTag='div'
 ++++++++++++genericContainer className='handleContainerPadded' htmlTag='div'
 ++++++++++++++genericContainer className='handleContainerBlock' htmlTag='div'
@@ -40,7 +40,7 @@ rootWebArea htmlTag='#document' name='Material Web Slider Events'
 ++++++genericContainer htmlTag='div' name='Ready'
 ++++++++genericContainer htmlTag='md-slider'
 ++++++++++genericContainer className='container   ' htmlTag='div'
-++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='25' valueForRange=25.00 minValueForRange=0.00 maxValueForRange=100.00
+++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='25' ariaValueText='25' valueForRange=25.00 minValueForRange=0.00 maxValueForRange=100.00
 ++++++++++++genericContainer className='track' htmlTag='div'
 ++++++++++++genericContainer className='handleContainerPadded' htmlTag='div'
 ++++++++++++++genericContainer className='handleContainerBlock' htmlTag='div'
@@ -57,7 +57,7 @@ rootWebArea htmlTag='#document' name='Material Web Slider Events'
 ++++++genericContainer htmlTag='div' name='Ready'
 ++++++++genericContainer htmlTag='md-slider'
 ++++++++++genericContainer className='container   ' htmlTag='div'
-++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='75' valueForRange=75.00 minValueForRange=0.00 maxValueForRange=100.00 <<<<<< CHANGED
+++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='75' ariaValueText='75' valueForRange=75.00 minValueForRange=0.00 maxValueForRange=100.00 <<<<<< CHANGED
 ++++++++++++genericContainer className='track' htmlTag='div'
 ++++++++++++genericContainer className='handleContainerPadded' htmlTag='div'
 ++++++++++++++genericContainer className='handleContainerBlock' htmlTag='div'
@@ -75,7 +75,7 @@ rootWebArea htmlTag='#document' name='Material Web Slider Events'
 ++++++genericContainer htmlTag='div' name='Ready'
 ++++++++genericContainer htmlTag='md-slider'
 ++++++++++genericContainer className='container   ' htmlTag='div'
-++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='75' valueForRange=75.00 minValueForRange=0.00 maxValueForRange=100.00
+++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='75' ariaValueText='75' valueForRange=75.00 minValueForRange=0.00 maxValueForRange=100.00
 ++++++++++++genericContainer className='track' htmlTag='div'
 ++++++++++++genericContainer className='handleContainerPadded' htmlTag='div'
 ++++++++++++++genericContainer className='handleContainerBlock' htmlTag='div'
@@ -92,7 +92,7 @@ rootWebArea htmlTag='#document' name='Material Web Slider Events'
 ++++++genericContainer htmlTag='div' name='Ready'
 ++++++++genericContainer htmlTag='md-slider'
 ++++++++++genericContainer className='container   ' htmlTag='div'
-++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='50' valueForRange=50.00 minValueForRange=0.00 maxValueForRange=100.00 <<<<<< CHANGED
+++++++++++++slider horizontal className=' end ' htmlTag='input' name='Test Slider' value='50' ariaValueText='50' valueForRange=50.00 minValueForRange=0.00 maxValueForRange=100.00 <<<<<< CHANGED
 ++++++++++++genericContainer className='track' htmlTag='div'
 ++++++++++++genericContainer className='handleContainerPadded' htmlTag='div'
 ++++++++++++++genericContainer className='handleContainerBlock' htmlTag='div'

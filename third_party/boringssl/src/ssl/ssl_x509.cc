@@ -27,6 +27,7 @@
 
 #include "../crypto/bytestring/internal.h"
 #include "../crypto/internal.h"
+#include "../crypto/pem/internal.h"
 #include "internal.h"
 
 

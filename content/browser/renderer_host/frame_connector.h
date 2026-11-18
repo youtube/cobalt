@@ -146,8 +146,6 @@ class FrameConnector : public input::ChildFrameInputHelper::Delegate {
   // Returns the state of the frame's intersection with the top-level viewport.
   virtual const blink::mojom::ViewportIntersectionState&
   GetIntersectionState() = 0;
-  // Return the latest capture sequence number for this subframe.
-  virtual uint32_t GetCaptureSequenceNumber() = 0;
   // Return the rect in DIP that the RenderWidgetHostViewChildFrame's content
   // will render into.
   virtual const gfx::Rect& GetRectInParentViewInDip() = 0;

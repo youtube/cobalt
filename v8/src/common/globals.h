@@ -604,15 +604,25 @@ constexpr int kJSDispatchTableEntrySizeLog2 = 4;
 // The size of the virtual memory reservation for the JSDispatchTable.
 // As with the other tables, a maximum table size in combination with shifted
 // indices allows omitting bounds checks.
+#if defined(V8_TARGET_OS_IOS)
+// iOS has limited virtual address space (64GB); reduce table size to fit more
+// isolates.
+constexpr size_t kJSDispatchTableReservationSize = 128 * MB;
+#else
 constexpr size_t kJSDispatchTableReservationSize =
     (V8_LOWER_LIMITS_MODE_BOOL ? 16 : 256) * MB;
+#endif  // defined(V8_TARGET_OS_IOS)
 // The maximum number of entries in a JSDispatchTable.
 constexpr size_t kMaxJSDispatchEntries =
     kJSDispatchTableReservationSize / kJSDispatchTableEntrySize;
 
 #ifdef V8_TARGET_ARCH_64_BIT
 
+#if defined(V8_TARGET_OS_IOS)
+constexpr uint32_t kJSDispatchHandleShift = 9;
+#else
 constexpr uint32_t kJSDispatchHandleShift = V8_LOWER_LIMITS_MODE_BOOL ? 12 : 8;
+#endif  // defined(V8_TARGET_OS_IOS)
 static_assert((1 << (32 - kJSDispatchHandleShift)) == kMaxJSDispatchEntries,
               "kJSDispatchTableReservationSize and kJSDispatchEntryHandleShift "
               "don't match");
@@ -2466,9 +2476,23 @@ inline uint32_t ObjectHash(Address address) {
 // generate quite a lot of unused code though if we always handle numbers
 // and oddballs everywhere, although in 99% of the use sites they are only
 // used with numbers.
-class BinaryOperationFeedback {
+#define BINARY_OPERATION_FEEDBACK_TYPES(V) \
+  V(None)                                  \
+  V(SignedSmall)                           \
+  V(SignedSmallInputs)                     \
+  V(AdditiveSafeInteger)                   \
+  V(Number)                                \
+  V(NumberOrOddball)                       \
+  V(BigInt64)                              \
+  V(BigInt)                                \
+  V(String)                                \
+  V(StringWrapper)                         \
+  V(StringOrStringWrapper)                 \
+  V(Any)
+
+class BinaryOperationFeedback : public AllStatic {
  public:
-  enum {
+  enum Type {
     kNone = 0x0,
     kSignedSmall = 0x1,
     kSignedSmallInputs = 0x3,
@@ -2482,6 +2506,86 @@ class BinaryOperationFeedback {
     kStringOrStringWrapper = 0x180,
     kAny = 0x1FF
   };
+
+  // clang-format off
+  enum class TypeIndex : uint8_t {
+#define DEF_TYPE_INDEX(name) k##name,
+    BINARY_OPERATION_FEEDBACK_TYPES(DEF_TYPE_INDEX)
+#undef DEF_TYPE_INDEX
+    kFirstTypeIndex = kNone,
+    kLastTypeIndex = kAny
+  };
+  // clang-format on
+
+  static V8_EXPORT_PRIVATE Address GetTransitionMapAddress();
+  static V8_EXPORT_PRIVATE Address GetFeedbackEncodeTableAddress();
+
+  static constexpr uint32_t kNumTypeIndices =
+      static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1;
+  // round up to 2^x for better memory access
+  static constexpr uint32_t kTransitionMapStride =
+      base::bits::RoundUpToPowerOfTwo32(kNumTypeIndices);
+
+  static constexpr Type DecodeTypeIndex(TypeIndex index) {
+    switch (index) {
+#define CASE_TYPE(name)    \
+  case TypeIndex::k##name: \
+    return Type::k##name;
+      BINARY_OPERATION_FEEDBACK_TYPES(CASE_TYPE)
+#undef CASE_TYPE
+    }
+    return Type::kAny;
+  }
+
+ private:
+  static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
+#define CALCULATE_TYPE_INDEX(name)                               \
+  if ((static_cast<uint32_t>(Type::k##name) & feedback_value) == \
+      feedback_value) {                                          \
+    return TypeIndex::k##name;                                   \
+  }
+    BINARY_OPERATION_FEEDBACK_TYPES(CALCULATE_TYPE_INDEX)
+#undef CALCULATE_TYPE_INDEX
+    return TypeIndex::kAny;
+  }
+
+  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
+    Type type_a = DecodeTypeIndex(a);
+    Type type_b = DecodeTypeIndex(b);
+    uint32_t combined_feedback_value =
+        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
+    return CalculateTypeIndex(combined_feedback_value);
+  }
+
+  struct TransitionMap {
+    uint8_t map[kNumTypeIndices][kTransitionMapStride]{};
+  };
+
+  struct FeedbackEncodeTable {
+    uint8_t lut[static_cast<uint32_t>(Type::kAny) + 1]{};
+  };
+
+  static constexpr TransitionMap BuildTransitionMap() {
+    TransitionMap trans_map{};
+    for (uint32_t i = 0; i < kNumTypeIndices; i++) {
+      for (uint32_t j = 0; j < kNumTypeIndices; j++) {
+        trans_map.map[i][j] = static_cast<uint8_t>(CombineTypeIndex(
+            static_cast<TypeIndex>(i), static_cast<TypeIndex>(j)));
+      }
+    }
+    return trans_map;
+  }
+
+  static constexpr FeedbackEncodeTable BuildFeedbackEncodeTable() {
+    FeedbackEncodeTable lut{};
+    for (uint32_t i = 0; i < static_cast<uint32_t>(Type::kAny) + 1; i++) {
+      lut.lut[i] = static_cast<uint8_t>(CalculateTypeIndex(i));
+    }
+    return lut;
+  }
+
+  static const TransitionMap kTransitionMap;
+  static const FeedbackEncodeTable kFeedbackEncodeTable;
 };
 
 // Type feedback is encoded in such a way that, we can combine the feedback
@@ -2549,21 +2653,18 @@ class CompareOperationFeedback : public AllStatic {
     kAny = kAnyMask,
   };
 
+  // clang-format off
   enum class TypeIndex : uint8_t {
 #define DEF_TYPE_INDEX(name) k##name,
     COMPARE_OPERATION_FEEDBACK_TYPES(DEF_TYPE_INDEX)
 #undef DEF_TYPE_INDEX
-        kFirstTypeIndex = kNone,
+    kFirstTypeIndex = kNone,
     kLastTypeIndex = kAny
   };
+  // clang-format on
 
   static V8_EXPORT_PRIVATE Address GetTransitionMapAddress();
   static V8_EXPORT_PRIVATE Address GetFeedbackEncodeTableAddress();
-
-  // round up to 2^x for better memory access
-  static constexpr uint32_t kTransitionMapSize =
-      base::bits::RoundUpToPowerOfTwo32(
-          static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1);
 
   static constexpr Type DecodeTypeIndex(TypeIndex index) {
     switch (index) {
@@ -2575,6 +2676,12 @@ class CompareOperationFeedback : public AllStatic {
     }
     return Type::kAny;
   }
+
+  static constexpr uint32_t kNumTypeIndices =
+      static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1;
+  // round up to 2^x for better memory access
+  static constexpr uint32_t kTransitionMapStride =
+      base::bits::RoundUpToPowerOfTwo32(kNumTypeIndices);
 
  private:
   static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
@@ -2597,7 +2704,7 @@ class CompareOperationFeedback : public AllStatic {
   }
 
   struct TransitionMap {
-    uint8_t map[kTransitionMapSize][kTransitionMapSize]{};
+    uint8_t map[kNumTypeIndices][kTransitionMapStride]{};
   };
 
   struct FeedbackEncodeTable {
@@ -2606,10 +2713,8 @@ class CompareOperationFeedback : public AllStatic {
 
   static constexpr TransitionMap BuildTransitionMap() {
     TransitionMap trans_map{};
-    uint32_t type_index_count =
-        static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1;
-    for (uint32_t i = 0; i < type_index_count; i++) {
-      for (uint32_t j = 0; j < type_index_count; j++) {
+    for (uint32_t i = 0; i < kNumTypeIndices; i++) {
+      for (uint32_t j = 0; j < kNumTypeIndices; j++) {
         trans_map.map[i][j] = static_cast<uint8_t>(CombineTypeIndex(
             static_cast<TypeIndex>(i), static_cast<TypeIndex>(j)));
       }
@@ -3129,7 +3234,7 @@ class WasmCodePointer {
       kSystemPointerSize + (V8_ENABLE_SANDBOX_BOOL ? kUInt64Size : 0);
 #ifdef V8_TARGET_ARCH_64_BIT
   static constexpr uint32_t kIndexSpaceSize =
-      kCodePointerTableReservationSize / kWasmCodePointerTableEntrySize;
+      kWasmCodePointerTableReservationSize / kWasmCodePointerTableEntrySize;
 #else   // V8_TARGET_ARCH_64_BIT
   static constexpr uint32_t kIndexSpaceSize =
       (kMaxUInt32 / kWasmCodePointerTableEntrySize) + 1;

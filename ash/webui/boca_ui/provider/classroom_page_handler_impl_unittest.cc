@@ -620,7 +620,9 @@ TEST_F(ClassroomPageHandlerImplTest, ListAllAssignments) {
 
   EXPECT_CALL(request_handler(),
               HandleRequest(
-                  Field(&HttpRequest::relative_url, HasSubstr("/courseWork?"))))
+                  Field(&HttpRequest::relative_url,
+                        AllOf(HasSubstr("/courseWork?"), HasSubstr("workType"),
+                              HasSubstr("materials")))))
       .WillOnce(Return(ByMove(TestRequestHandler::CreateSuccessfulResponse(
           kOriginalCourseWorkResponse))));
 
@@ -757,7 +759,9 @@ TEST_F(ClassroomPageHandlerImplTest, ListAssignmentsOnHttpError) {
   base::HistogramTester histogram_tester;
   EXPECT_CALL(request_handler(),
               HandleRequest(
-                  Field(&HttpRequest::relative_url, HasSubstr("/courseWork?"))))
+                  Field(&HttpRequest::relative_url,
+                        AllOf(HasSubstr("/courseWork?"), HasSubstr("workType"),
+                              HasSubstr("materials")))))
       .WillOnce(Return(ByMove(TestRequestHandler::CreateFailedResponse())));
   EXPECT_CALL(request_handler(),
               HandleRequest(Field(&HttpRequest::relative_url,
@@ -822,9 +826,10 @@ TEST_F(ClassroomPageHandlerImplTest, ListAssignmentsMultiplePages) {
 
   // Mock a 3-page response from the /courseWork endpoint.
   EXPECT_CALL(request_handler(),
-              HandleRequest(Field(&HttpRequest::relative_url,
-                                  AllOf(HasSubstr("/courseWork?"),
-                                        Not(HasSubstr("pageToken"))))))
+              HandleRequest(Field(
+                  &HttpRequest::relative_url,
+                  AllOf(HasSubstr("/courseWork?"), HasSubstr("workType"),
+                        HasSubstr("materials"), Not(HasSubstr("pageToken"))))))
       .WillOnce(Return(ByMove(TestRequestHandler::CreateSuccessfulResponse(R"(
             {
               "courseWork": [
@@ -838,10 +843,12 @@ TEST_F(ClassroomPageHandlerImplTest, ListAssignmentsMultiplePages) {
               "nextPageToken": "page-2-token"
             })"))));
 
-  EXPECT_CALL(request_handler(),
-              HandleRequest(Field(&HttpRequest::relative_url,
-                                  AllOf(HasSubstr("/courseWork?"),
-                                        HasSubstr("pageToken=page-2-token")))))
+  EXPECT_CALL(
+      request_handler(),
+      HandleRequest(Field(
+          &HttpRequest::relative_url,
+          AllOf(HasSubstr("/courseWork?"), HasSubstr("workType"),
+                HasSubstr("materials"), HasSubstr("pageToken=page-2-token")))))
       .WillOnce(Return(ByMove(TestRequestHandler::CreateSuccessfulResponse(R"(
             {
               "courseWork": [
@@ -855,10 +862,12 @@ TEST_F(ClassroomPageHandlerImplTest, ListAssignmentsMultiplePages) {
               "nextPageToken": "page-3-token"
             })"))));
 
-  EXPECT_CALL(request_handler(),
-              HandleRequest(Field(&HttpRequest::relative_url,
-                                  AllOf(HasSubstr("/courseWork?"),
-                                        HasSubstr("pageToken=page-3-token")))))
+  EXPECT_CALL(
+      request_handler(),
+      HandleRequest(Field(
+          &HttpRequest::relative_url,
+          AllOf(HasSubstr("/courseWork?"), HasSubstr("workType"),
+                HasSubstr("materials"), HasSubstr("pageToken=page-3-token")))))
       .WillOnce(Return(ByMove(TestRequestHandler::CreateSuccessfulResponse(R"(
             {
               "courseWork": [

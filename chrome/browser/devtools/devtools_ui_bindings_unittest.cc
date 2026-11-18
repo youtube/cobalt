@@ -160,6 +160,24 @@ TEST_F(DevToolsUIBindingsLoadNetworkResourceTest,
 }
 
 TEST_F(DevToolsUIBindingsLoadNetworkResourceTest,
+       ClearExtensionsAPIOnNavigatingAway) {
+  bindings()->RegisterExtensionsAPIForTesting("http://example.test", "script");
+  EXPECT_EQ(bindings()->GetExtensionsAPIForTesting().size(), 1u);
+
+  // Navigate to a valid DevTools URL first.
+  GURL devtools_url("devtools://devtools/bundled/devtools_app.html");
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             devtools_url);
+  EXPECT_EQ(bindings()->GetExtensionsAPIForTesting().size(), 1u);
+
+  // Navigate away to a non-DevTools URL.
+  GURL print_url("https://example.test");
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             print_url);
+  EXPECT_TRUE(bindings()->GetExtensionsAPIForTesting().empty());
+}
+
+TEST_F(DevToolsUIBindingsLoadNetworkResourceTest,
        BlocksFileSchemeFromUntrustedFrontends) {
   std::vector<GURL> untrusted_urls = {
       GURL("devtools://devtools/remote/serve_rev/@12345/inspector.html"),

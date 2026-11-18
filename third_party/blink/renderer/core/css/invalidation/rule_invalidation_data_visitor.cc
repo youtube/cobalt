@@ -57,6 +57,7 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoState:
     case CSSSelector::kPseudoLink:
     case CSSSelector::kPseudoVisited:
+    case CSSSelector::kPseudoTriggerLink:
     case CSSSelector::kPseudoAny:
     case CSSSelector::kPseudoWebkitAnyLink:
     case CSSSelector::kPseudoAnyLink:

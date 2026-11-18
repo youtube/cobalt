@@ -20,8 +20,6 @@ class AbstractCode;
 class ClosureFeedbackCellArray;
 class Tuple2;
 
-#include "torque-generated/src/objects/js-function-tq.inc"
-
 // An abstract superclass for classes representing JavaScript function values.
 // It doesn't carry any functionality but allows function classes to be
 // identified in the type system.
@@ -595,6 +593,9 @@ inline constexpr int JSFunctionWithPrototype::kHeaderSize =
     sizeof(JSFunctionWithPrototype);
 inline constexpr int JSFunctionWithPrototype::kMinSize =
     sizeof(JSFunctionWithPrototype);
+
+V8_OBJECT class JSClassConstructor : public JSFunctionWithPrototype {
+} V8_OBJECT_END;
 
 }  // namespace v8::internal
 

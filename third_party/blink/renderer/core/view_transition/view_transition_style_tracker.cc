@@ -1136,7 +1136,7 @@ void ViewTransitionStyleTracker::SetCaptureRectsFromCompositor(
 }
 
 void ViewTransitionStyleTracker::CaptureResolved() {
-  DCHECK_EQ(state_, State::kCapturing);
+  CHECK_EQ(state_, State::kOldSnapshotFrozen);
 
   state_ = State::kCaptured;
   // TODO(crbug.com/1347473): We should also suppress hit testing at this point,
@@ -1328,7 +1328,8 @@ void ViewTransitionStyleTracker::Abort() {
 }
 
 void ViewTransitionStyleTracker::PauseRendering() {
-  DCHECK_EQ(state_, State::kCapturing);
+  CHECK_EQ(state_, State::kCapturing);
+  state_ = State::kOldSnapshotFrozen;
 
   if (scope_snapshot_layer_) {
     auto bounds = scope_snapshot_layer_->bounds();
@@ -1864,8 +1865,6 @@ gfx::Transform ViewTransitionStyleTracker::ComputeTransformForParticipant(
   }
 
   if (!scope_box->IsLayoutView()) {
-    DCHECK(RuntimeEnabledFeatures::ScopedViewTransitionsEnabled());
-
     // Adjust for the scope element's borders and scrollbars.
     transform.Translate(-scope_box->ClientLeft(), -scope_box->ClientTop());
   }
@@ -1988,6 +1987,7 @@ bool ViewTransitionStyleTracker::HasInternalPseudoElements() const {
   switch (state_) {
     case State::kIdle:
     case State::kCapturing:
+    case State::kOldSnapshotFrozen:
     case State::kCaptured:
       return true;
     case State::kStarted:
@@ -2475,7 +2475,7 @@ gfx::RectF ViewTransitionStyleTracker::ElementData::GetReferenceRect(
 
 bool ViewTransitionStyleTracker::ElementData::
     ShouldPropagateVisualOverflowRectAsMaxExtentsRect() const {
-  return target_element && !target_element->IsDocumentElement();
+  return !target_element || !target_element->IsDocumentElement();
 }
 
 void ViewTransitionStyleTracker::ElementData::CacheStateForOldSnapshot() {
@@ -2539,6 +2539,8 @@ const char* ViewTransitionStyleTracker::StateToString(State state) {
       return "Idle";
     case State::kCapturing:
       return "Capturing";
+    case State::kOldSnapshotFrozen:
+      return "OldSnapshotFrozen";
     case State::kCaptured:
       return "Captured";
     case State::kStarted:
@@ -2646,9 +2648,6 @@ gfx::Transform ViewTransitionStyleTracker::ContainerProperties::
 }
 
 bool ViewTransitionStyleTracker::NeedsSnapshotForCapture() const {
-  if (!RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()) {
-    return !document_->GetFrame()->IsLocalRoot();
-  }
   auto* element = OriginatingElement();
   if (!element) {
     return false;

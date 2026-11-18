@@ -65,7 +65,7 @@ class AutofillComposeDelegate {
   virtual bool ShouldTriggerComposePopup(
       const FormData& form,
       const FormFieldData& trigger_field,
-      autofill::AutofillSuggestionTriggerSource trigger_source) const = 0;
+      AutofillSuggestionTriggerSource trigger_source) const = 0;
 
   // Whether the Autofill nudge should be anchored on the caret or on the
   // triggering field.

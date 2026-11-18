@@ -32,8 +32,8 @@ namespace {
 #if !BUILDFLAG(IS_CHROMEOS)
 // Generates a ContextMenuParams for the Autofill context menu options.
 content::ContextMenuParams CreateContextMenuParams(
-    std::optional<autofill::FormRendererId> form_renderer_id = std::nullopt,
-    autofill::FieldRendererId field_render_id = autofill::FieldRendererId(0)) {
+    std::optional<FormRendererId> form_renderer_id = std::nullopt,
+    FieldRendererId field_render_id = FieldRendererId(0)) {
   content::ContextMenuParams rv;
   rv.is_editable = true;
   rv.page_url = GURL("http://test.page/");

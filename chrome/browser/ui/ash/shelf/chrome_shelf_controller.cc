@@ -77,7 +77,6 @@
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
 #include "chrome/grit/theme_resources.h"

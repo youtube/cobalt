@@ -1699,6 +1699,16 @@ int MockUDPClientSocket::Read(IOBuffer* buf,
   return CompleteRead();
 }
 
+base::expected<DatagramsMetadata, Error> MockUDPClientSocket::ReadMultiple(
+    IOBuffer* buf,
+    size_t buf_len,
+    size_t maximum_packet_size,
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+        callback) {
+  NOTIMPLEMENTED();
+  return base::unexpected(ERR_NOT_IMPLEMENTED);
+}
+
 int MockUDPClientSocket::Write(
     IOBuffer* buf,
     int buf_len,

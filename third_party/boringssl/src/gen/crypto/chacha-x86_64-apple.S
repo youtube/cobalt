@@ -7,7 +7,9 @@
 .text	
 
 .section	__DATA,__const
+
 .p2align	6
+chacha_constants:
 L$zero:
 .long	0,0,0,0
 L$one:
@@ -319,6 +321,7 @@ L$no_data:
 .private_extern _ChaCha20_ctr32_ssse3
 
 .p2align	5
+.alt_entry _ChaCha20_ctr32_ssse3
 _ChaCha20_ctr32_ssse3:
 
 _CET_ENDBR
@@ -454,6 +457,7 @@ L$ssse3_epilogue:
 .private_extern _ChaCha20_ctr32_ssse3_4x
 
 .p2align	5
+.alt_entry _ChaCha20_ctr32_ssse3_4x
 _ChaCha20_ctr32_ssse3_4x:
 
 _CET_ENDBR
@@ -996,6 +1000,7 @@ L$4x_epilogue:
 .private_extern _ChaCha20_ctr32_avx2
 
 .p2align	5
+.alt_entry _ChaCha20_ctr32_avx2
 _ChaCha20_ctr32_avx2:
 
 _CET_ENDBR

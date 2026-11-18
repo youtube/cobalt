@@ -32,8 +32,7 @@
 BSSL_NAMESPACE_BEGIN
 namespace {
 
-#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__) && \
-    defined(OPENSSL_X86_64) && defined(SUPPORTS_ABI_TEST)
+#if defined(FIAT_P256_ADX_ASM) && defined(SUPPORTS_ABI_TEST)
 
 TEST(P256Test, CoordMulAdxABI) {
   static const uint64_t in1[4] = {0}, in2[4] = {0};

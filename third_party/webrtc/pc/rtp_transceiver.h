@@ -359,7 +359,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
   std::optional<RtpTransceiverDirection> fired_direction() const override;
   // Records the user's intent to use Sframe and fires negotiation needed.
   // Triggered by the sender/receiver when
-  // CreateSframeEncrypterOrError/CreateSframeDecrypterOrError is called.
+  // CreateSframeEncryptorOrError/CreateSframeDecryptorOrError is called.
   // Returns an error if Sframe has already been locked to false by a
   // completed negotiation.
   RTCError TryToEnableSframe();

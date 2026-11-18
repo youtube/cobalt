@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<grit latest_public_release="0" current_release="1">
+  <outputs>
+    <output filename="grit/usb_ids_resources.h" type="rc_header">
+      <emit emit_type='prepend'></emit>
+    </output>
+    <output filename="usb_ids_resources.pak" type="data_package" />
+  </outputs>
+  <translations />
+  <release seq="1">
+    <includes>
+      <include name="IDR_USB_IDS_DATA"
+               file="${root_gen_dir}/services/device/public/cpp/usb/usb_ids.dat"
+               use_base_dir="false"
+               type="BINDATA"
+               compress="brotli" />
+    </includes>
+  </release>
+</grit>

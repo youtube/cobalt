@@ -101,8 +101,13 @@ rtc_library("default_video_jitter_timing") {
     "default_video_jitter_timing.h",
   ]
   deps = [
+    ":inter_frame_delay_variation_calculator",
+    ":jitter_estimator",
     ":timestamp_extrapolator",
     "../../../api:field_trials_view",
+    "../../../api/environment",
+    "../../../api/units:data_size",
+    "../../../api/units:time_delta",
     "../../../api/units:timestamp",
     "../../../system_wrappers",
   ]
@@ -118,6 +123,7 @@ rtc_library("timing_module") {
     ":default_video_jitter_timing",
     "../../../api:field_trials_view",
     "../../../api:sequence_checker",
+    "../../../api/units:data_size",
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
     "../../../api/video:video_frame",
@@ -153,6 +159,7 @@ rtc_library("timing_unittests") {
     ":timestamp_extrapolator",
     ":timing_module",
     "../../../api:field_trials",
+    "../../../api/environment",
     "../../../api/units:data_size",
     "../../../api/units:frequency",
     "../../../api/units:time_delta",
@@ -160,6 +167,7 @@ rtc_library("timing_unittests") {
     "../../../rtc_base:histogram_percentile_counter",
     "../../../system_wrappers",
     "../../../system_wrappers:metrics",
+    "../../../test:create_test_environment",
     "../../../test:create_test_field_trials",
     "../../../test:test_support",
   ]

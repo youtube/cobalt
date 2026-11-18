@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">Bạn có thể quay lại đây để mở lại các thẻ mà bạn đã đóng gần đây</translation>
 <translation id="1016495303386450659">Đã cập nhật mục</translation>
+<translation id="1018804590490383958">Quét và tự động điền</translation>
 <translation id="1019990162050689579">Hoạt động trên Các ứng dụng Gemini</translation>
 <translation id="102916930470544692">Khoá truy cập</translation>
 <translation id="1030376737535466765">Mở Trình quản lý mật khẩu</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Tải một hình ảnh lên để biến tấu bằng Nano Banana</translation>
 <translation id="1377508275003315939">Mật khẩu</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position}/{count} địa chỉ}other{{position}/{count} địa chỉ}}</translation>
+<translation id="13813615483058219">Đã xảy ra lỗi. Hãy kiểm tra kết nối Internet, tăng âm lượng hoặc thử lại.</translation>
 <translation id="1383876407941801731">Tìm kiếm</translation>
 <translation id="138618066238211776">Tiếp tục đăng nhập bằng tên <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Các lựa chọn lưu thẻ</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">Cập nhật trình duyệt của bạn</translation>
 <translation id="4021931095789478915">Thêm ${url} vào danh sách đọc</translation>
 <translation id="4028871427853484857">Lưu vào tài khoản…</translation>
+<translation id="4036529942385659684">Hiện Trang bắt đầu sau một khoảng thời gian không hoạt động</translation>
 <translation id="4038354071007134711">Không ứng dụng nào trên thiết bị này có thể mở tệp.</translation>
 <translation id="4042870976416480368">Tìm trong trang</translation>
 <translation id="4045441967987592849">Mở lại</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">Quản lý nhóm</translation>
 <translation id="4172051516777682613">Luôn hiển thị</translation>
 <translation id="417273154673973994">{count,plural, =1{Đã đóng và lưu 1 nhóm thẻ}other{Đã đóng và lưu {count} nhóm thẻ}}</translation>
-<translation id="417612446554534067">Gửi đến các thiết bị của bạn</translation>
 <translation id="4180726336228139707">Chỉ trên thiết bị này</translation>
 <translation id="4181841719683918333">Ngôn ngữ</translation>
 <translation id="4183350924949589798">Bạn muốn tăng cường bảo mật?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">Hệ thống đã đóng các thẻ và đăng xuất bạn</translation>
 <translation id="4911042367886397055">Chào mừng bạn quay trở lại, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Bạn có thể chia sẻ bản sao mật khẩu của mình một cách an toàn với thành viên trong nhóm gia đình. <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Ống kính</translation>
 <translation id="4917025507570489430">Bạn có thể sử dụng dữ liệu duyệt web hiện có khi đăng nhập bằng <ph name="USER_EMAIL" />. Tổ chức của bạn có thể xem được dữ liệu này.</translation>
 <translation id="4918086044614829423">Chấp nhận</translation>
 <translation id="4930714375720679147">Bật</translation>
@@ -1549,6 +1552,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Chọn vị trí thanh địa chỉ</translation>
 <translation id="6307241780749477694">Xác minh danh tính của bạn để dùng tất cả mật khẩu trên thiết bị này</translation>
+<translation id="6307792728709337290">Lưu thẻ vào Tài khoản Google của bạn để tự động điền thông tin thẻ cho giao dịch mua này và các giao dịch mua trong tương lai trên Chrome.</translation>
 <translation id="6316141353357700666">Chọn mật khẩu bạn muốn sử dụng từ danh sách hiện ra.</translation>
 <translation id="6321526113093607004">Thêm vào Dấu trang</translation>
 <translation id="6327249202318869726">Gemini đã bị tắt cho tài khoản của bạn. Hãy liên hệ với quản trị viên của bạn để biết thêm thông tin.</translation>
@@ -2143,6 +2147,7 @@
 <translation id="8263809106706527890">Các chế độ cài đặt mặc định của trình duyệt có thể đã thay đổi. Bạn có thể kiểm tra điều này trong phần cài đặt.</translation>
 <translation id="8264966119170358612">Một số mật khẩu bạn lưu đã bị lộ trong một sự cố rò rỉ dữ liệu xảy ra ngoài Google. <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Bạn đã bị đăng xuất khỏi tài khoản <ph name="USER_NAME" /> trong quá trình đặt lại iPad. Để đăng nhập lại, hãy nhấn vào "Tiếp tục" ở dưới.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Thông tin của bạn sẽ được điền vào <ph name="URL" /></translation>
 <translation id="8275068909952022340">Khác…</translation>
 <translation id="8281781826761538115">Mặc định - <ph name="DEFAULT_LOCALE" /></translation>

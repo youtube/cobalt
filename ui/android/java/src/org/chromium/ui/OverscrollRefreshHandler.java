@@ -51,10 +51,10 @@ public interface OverscrollRefreshHandler {
     /**
      * Signals the release of the pull.
      *
-     * @param allowRefresh Whether the release signal should be allowed to trigger a refresh.
+     * @param status The activation status of the release gesture.
      */
     @CalledByNative
-    void release(boolean allowRefresh);
+    void release(@OverscrollActivationStatus int status);
 
     /** Reset the active pull state. */
     @CalledByNative

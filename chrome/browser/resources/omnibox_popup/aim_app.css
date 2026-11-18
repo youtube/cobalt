@@ -35,7 +35,6 @@
   --color-composebox-cancel-button-light: var(--color-omnibox-text-dimmed);
   --color-composebox-context-entrypoint-background: var(--color-omnibox-action-icon-hover);
   --color-composebox-context-entrypoint-hover-background: var(--color-omnibox-action-icon-hover);
-  --color-composebox-lens-button-hover-background: var(--color-omnibox-action-icon-hover);
   --color-composebox-tool-chip-background: var(--color-omnibox-action-icon-hover);
   --color-composebox-voice-button-hover-background: var(--color-omnibox-action-icon-hover);
   --color-composebox-context-entrypoint-text: var(--color-omnibox-context-entrypoint-text);

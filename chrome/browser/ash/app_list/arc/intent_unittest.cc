@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "base/time/time.h"
+#include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
 #include "chrome/browser/ui/ash/shelf/arc_app_shelf_id.h"
 #include "chromeos/ash/experiences/arc/app/arc_app_constants.h"

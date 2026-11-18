@@ -80,6 +80,48 @@ public class NfcBlocklistTest {
         assertFalse(areHistoricalBytesBlocked(new byte[] {0x01, 0x02, 0x03}));
     }
 
+    /**
+     * Verifies that the blocklist successfully blocks YubiKey 5 devices even when their ISO 7816-4
+     * card-capability flags change (drift) due to firmware updates. Instead of an exact match, we
+     * check for a suffix match of the proprietary 'YubiKey' identifier string (preceded by the 0x57
+     * TLV tag/length), ignoring the volatile capability flags.
+     *
+     * <p>Hardcoded entry: 80 73 c0 21 c0 57 'YubiKey'
+     *
+     * <p>Variant tested: 80 73 c0 21 c1 57 'YubiKey' (capability byte 4: c0->c1)
+     */
+    @Test
+    @Feature({"NfcBlocklistTest"})
+    public void testYubiKey5CapabilityByteDriftBypassesBlocklist() {
+        NfcBlocklist.overrideNfcBlocklistForTests(/* serverProvidedValues= */ null);
+
+        // Control: the exact 2020 fingerprint is blocked.
+        assertTrue(areHistoricalBytesBlocked(YUBIKEY_5_SERIES_HISTORICAL_BYTES));
+
+        // Same device family, one capability-flag bit flipped (c0 -> c1).
+        byte[] driftedYubiKey5 =
+                new byte[] {
+                    (byte) 0x80,
+                    0x73,
+                    (byte) 0xc0,
+                    0x21,
+                    (byte) 0xc1,
+                    0x57,
+                    0x59,
+                    0x75,
+                    0x62,
+                    0x69,
+                    0x4b,
+                    0x65,
+                    0x79 // "YubiKey"
+                };
+        // Robust blocklist matches the 'YubiKey' issuer-data suffix (including 0x57)
+        // to ignore capability-flag drift.
+        assertTrue(
+                "YubiKey 5 with drifted capability byte should still be blocked",
+                areHistoricalBytesBlocked(driftedYubiKey5));
+    }
+
     @Test
     @Feature({"NfcBlocklistTest"})
     public void testHistoricalBytesWithInvalidProvidedServerValues() {
@@ -100,5 +142,21 @@ public class NfcBlocklistTest {
         // Random historical bytes are not blocked.
         assertFalse(areHistoricalBytesBlocked(new byte[] {}));
         assertFalse(areHistoricalBytesBlocked(new byte[] {0x01, 0x02, 0x03}));
+    }
+
+    /**
+     * Verifies that null historical bytes are not blocked.
+     *
+     * <p>null is returned by IsoDep.getHistoricalBytes() for NFC-B tags, which are instead
+     * identified by their hi-layer response in NfcBlocklist.isTagBlocked().
+     */
+    @Test
+    @Feature({"NfcBlocklistTest"})
+    public void testNullHistoricalBytesAreNotBlocked() {
+        // Even with a server-pushed entry, null (the value every NFC-B ISO-DEP
+        // tag yields from getHistoricalBytes()) is never blocked.
+        NfcBlocklist.overrideNfcBlocklistForTests("8073c021c057597562694b6579");
+        assertFalse(areHistoricalBytesBlocked(null));
+        assertTrue(areHistoricalBytesBlocked(YUBIKEY_5_SERIES_HISTORICAL_BYTES));
     }
 }

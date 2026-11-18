@@ -100,8 +100,8 @@ class MockAutofillDriver : public mojom::AutofillDriver {
   MOCK_METHOD(void, DidAutofillForm, (const FormData& form), (override));
   MOCK_METHOD(void, DidEndTextFieldEditing, (), (override));
   MOCK_METHOD(void,
-              OnEmailVerificationTokenShared,
-              (FieldRendererId field_id),
+              FormWithEmailVerificationTokenSubmitted,
+              (const FormData& form, FieldRendererId field_id),
               (override));
 
  private:

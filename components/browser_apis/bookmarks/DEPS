@@ -1,0 +1,11 @@
+include_rules = [
+  "+components/bookmarks",
+  "+mojo/public",
+  "+url",
+]
+
+specific_include_rules = {
+  ".*_unittest\\.cc": [
+    "+components/bookmarks/test",
+  ],
+}

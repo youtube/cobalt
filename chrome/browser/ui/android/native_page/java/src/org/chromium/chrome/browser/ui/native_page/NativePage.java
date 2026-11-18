@@ -180,6 +180,7 @@ public interface NativePage {
         NativePageType.MANAGEMENT,
         NativePageType.PDF,
         NativePageType.BRICKS,
+        NativePageType.SETTINGS,
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface NativePageType {
@@ -194,6 +195,7 @@ public interface NativePage {
         int MANAGEMENT = 8;
         int PDF = 9;
         int BRICKS = 10;
+        int SETTINGS = 11;
     }
 
     /**
@@ -283,13 +285,13 @@ public interface NativePage {
         } else if (UrlConstants.EXPLORE_HOST.equals(host)) {
             return NativePageType.EXPLORE;
         } else if (UrlConstants.MANAGEMENT_HOST.equals(host)) {
-            if (ChromeFeatureList.sChromeNativeUrlOverriding.isEnabled()) {
-                return NativePageType.NONE;
-            }
             return NativePageType.MANAGEMENT;
         } else if (UrlConstants.BRICKS_HOST.equals(host)
                 && ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_BRICKS_NATIVE_PAGE)) {
             return NativePageType.BRICKS;
+        } else if (UrlConstants.SETTINGS_HOST.equals(host)
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.SETTINGS_IN_TAB)) {
+            return NativePageType.SETTINGS;
         } else {
             return NativePageType.NONE;
         }

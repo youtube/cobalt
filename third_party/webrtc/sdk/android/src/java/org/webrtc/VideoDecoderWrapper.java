@@ -10,7 +10,7 @@
 
 package org.webrtc;
 
-import org.webrtc.VideoDecoder;
+import org.jni_zero.NativeMethods;
 
 /**
  * This class contains the Java glue code for JNI generation of VideoDecoder.
@@ -18,10 +18,13 @@ import org.webrtc.VideoDecoder;
 class VideoDecoderWrapper {
   @CalledByNative
   static VideoDecoder.Callback createDecoderCallback(final long nativeDecoder) {
-    return (VideoFrame frame, Integer decodeTimeMs,
-               Integer qp) -> nativeOnDecodedFrame(nativeDecoder, frame, decodeTimeMs, qp);
+    return (VideoFrame frame, Integer decodeTimeMs, Integer qp) ->
+        VideoDecoderWrapperJni.get().onDecodedFrame(nativeDecoder, frame, decodeTimeMs, qp);
   }
 
-  private static native void nativeOnDecodedFrame(
-      long nativeVideoDecoderWrapper, VideoFrame frame, Integer decodeTimeMs, Integer qp);
+  @NativeMethods
+  interface Natives {
+    void onDecodedFrame(
+        long nativeVideoDecoderWrapper, VideoFrame frame, Integer decodeTimeMs, Integer qp);
+  }
 }

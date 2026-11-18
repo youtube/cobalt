@@ -9,7 +9,7 @@ release, do the following:
 
 2. Update `MODULE.bazel` with the new version and upload to Gerrit.
 
-3. Once that CL lands, make a annotated git tag at the revision. This can be
+3. Once that CL lands, make an annotated git tag at the revision. This can be
    [done from Gerrit](https://boringssl-review.googlesource.com/admin/repos/boringssl,tags).
    The "Annotation" field must be non-empty. (Just using the name of the tag
    again is fine.)

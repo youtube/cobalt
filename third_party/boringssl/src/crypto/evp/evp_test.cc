@@ -849,7 +849,7 @@ bool TestKem(FileTest *t, EVP_PKEY *pkey, bool copy_ctx, bool encapsulate,
       return;
     }
     EXPECT_EQ(result, 1);
-    // The correct output size was writen out.
+    // The correct output size was written out.
     EXPECT_EQ(secret_size, expected_secret_len);
     decapsulated_secret.resize(secret_size);
     EXPECT_EQ(secret, decapsulated_secret);

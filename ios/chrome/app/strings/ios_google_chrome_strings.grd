@@ -946,6 +946,12 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
       <message name="IDS_IOS_PASSWORD_CHECK_ERROR" desc="Description of the password check cell, explaining that Password Check failed. [iOS only]" meaning="Password Check failed due to some error.">
         Chrome can't check your passwords
       </message>
+      <message name="IDS_IOS_PASSWORD_MANAGER_PASSPHRASE_ERROR_INFOBAR_SUBTITLE" desc="Infobar subtitle for fixing sync passphrase error before saving a password on the account.">
+        Enter passphrase to save this password and get Chrome data on all your devices
+      </message>
+      <message name="IDS_IOS_PASSWORD_MANAGER_SIGN_IN_ERROR_INFOBAR_SUBTITLE" desc="Infobar subtitle for fixing sign-in error before saving a password on the account.">
+        Verify it's you to save this password and get Chrome data on all your devices
+      </message>
       <message name="IDS_IOS_PASSWORD_SETTINGS_PASSWORDS_IN_OTHER_APPS_DESCRIPTION" desc="Help text explaining the benefits of having Chrome set as a credential provider for other apps. [iOS Only]">
         Sign in quickly to apps and sites by autofilling your passwords &amp; passkeys from Chrome
       </message>

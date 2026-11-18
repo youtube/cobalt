@@ -1103,7 +1103,7 @@ PKCS12 *PKCS12_create(const char *password, const char *name,
   // recursive data format. Section 5.1 of RFC 7292 describes the encoding
   // algorithm, but there is no clear overview. A quick summary:
   //
-  // PKCS#7 defines a ContentInfo structure, which is a overgeneralized typed
+  // PKCS#7 defines a ContentInfo structure, which is an overgeneralized typed
   // combinator structure for applying cryptography. We care about two types. A
   // data ContentInfo contains an OCTET STRING and is a leaf node of the
   // combinator tree. An encrypted-data ContentInfo contains encryption

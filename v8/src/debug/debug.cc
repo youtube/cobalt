@@ -18,9 +18,7 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/v8threads.h"
@@ -31,6 +29,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -191,7 +190,7 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
   if (debug_info->CanBreakAtEntry()) {
     return BreakLocation(Debug::kBreakAtEntryPosition, DEBUG_BREAK_AT_ENTRY);
   }
-  auto summary = FrameSummary::GetTop(frame).AsJavaScript();
+  auto summary = FrameSummary::GetInnermost(frame).AsJavaScript();
   int offset = summary.code_offset();
   DirectHandle<AbstractCode> abstract_code = summary.abstract_code();
   BreakIterator it(debug_info);
@@ -200,7 +199,7 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
 }
 
 bool BreakLocation::IsPausedInJsFunctionEntry(JavaScriptFrame* frame) {
-  auto summary = FrameSummary::GetTop(frame);
+  auto summary = FrameSummary::GetInnermost(frame);
   return summary.code_offset() == kFunctionEntryBytecodeOffset;
 }
 
@@ -238,7 +237,7 @@ void BreakLocation::AllAtCurrentStatement(
     Handle<DebugInfo> debug_info, JavaScriptFrame* frame,
     std::vector<BreakLocation>* result_out) {
   DCHECK(!debug_info->CanBreakAtEntry());
-  auto summary = FrameSummary::GetTop(frame).AsJavaScript();
+  auto summary = FrameSummary::GetInnermost(frame).AsJavaScript();
   int offset = summary.code_offset();
   DirectHandle<AbstractCode> abstract_code = summary.abstract_code();
   if (IsCode(*abstract_code)) offset = offset - 1;
@@ -563,7 +562,7 @@ void DebugInfoCollection::Insert(Tagged<SharedFunctionInfo> sfi,
 bool DebugInfoCollection::Contains(Tagged<SharedFunctionInfo> sfi) const {
   auto it = map_.find(sfi->unique_id());
   if (it == map_.end()) return false;
-  DCHECK_EQ(Cast<DebugInfo>(Tagged<Object>(*it->second))->shared(), sfi);
+  DCHECK_EQ(TrustedCast<DebugInfo>(Tagged<Object>(*it->second))->shared(), sfi);
   return true;
 }
 
@@ -571,7 +570,7 @@ std::optional<Tagged<DebugInfo>> DebugInfoCollection::Find(
     Tagged<SharedFunctionInfo> sfi) const {
   auto it = map_.find(sfi->unique_id());
   if (it == map_.end()) return {};
-  Tagged<DebugInfo> di = Cast<DebugInfo>(Tagged<Object>(*it->second));
+  Tagged<DebugInfo> di = TrustedCast<DebugInfo>(Tagged<Object>(*it->second));
   DCHECK_EQ(di->shared(), sfi);
   return di;
 }
@@ -589,7 +588,7 @@ void DebugInfoCollection::DeleteSlow(Tagged<SharedFunctionInfo> sfi) {
 
 Tagged<DebugInfo> DebugInfoCollection::EntryAsDebugInfo(size_t index) const {
   DCHECK_LT(index, list_.size());
-  return Cast<DebugInfo>(Tagged<Object>(*list_[index]));
+  return TrustedCast<DebugInfo>(Tagged<Object>(*list_[index]));
 }
 
 void DebugInfoCollection::DeleteIndex(size_t index) {
@@ -769,7 +768,7 @@ void Debug::Break(JavaScriptFrame* frame,
         }
         return;
       }
-      FrameSummary summary = FrameSummary::GetTop(frame);
+      FrameSummary summary = FrameSummary::GetInnermost(frame);
       const bool frame_or_statement_changed =
           current_frame_count != last_frame_count ||
           thread_local_.last_statement_position_ !=
@@ -1457,7 +1456,7 @@ void Debug::PrepareStep(StepAction step_action) {
     DCHECK(IsJSFunction(js_frame->function()));
 
     // Get the debug info (create it if it does not exist).
-    auto summary = FrameSummary::GetTop(frame).AsJavaScript();
+    auto summary = FrameSummary::GetInnermost(frame).AsJavaScript();
     DirectHandle<JSFunction> function(summary.function());
     shared = Handle<SharedFunctionInfo>(function->shared(), isolate_);
     if (!EnsureBreakInfo(shared)) return;
@@ -2583,7 +2582,7 @@ void Debug::OnException(DirectHandle<Object> exception,
     for (; !it.done(); it.Advance()) {
       if (it.frame()->is_javascript()) {
         JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
-        FrameSummary summary = FrameSummary::GetTop(frame);
+        FrameSummary summary = FrameSummary::GetInnermost(frame);
         DirectHandle<SharedFunctionInfo> shared{
             summary.AsJavaScript().function()->shared(), isolate_};
         if (shared->IsSubjectToDebugging()) {
@@ -2605,7 +2604,7 @@ void Debug::OnException(DirectHandle<Object> exception,
       } else if (it.frame()->is_wasm()) {
         const WasmFrame* frame = WasmFrame::cast(it.frame());
         int top_wasm_position =
-            FrameSummary::GetTop(frame).AsWasm().SourcePosition();
+            FrameSummary::GetInnermost(frame).AsWasm().SourcePosition();
         if (IsMutedAtWasmLocation(frame->script(), top_wasm_position)) return;
         // Wasm is always subject to debugging
         break;

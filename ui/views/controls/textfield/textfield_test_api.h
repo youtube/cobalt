@@ -21,6 +21,8 @@ class TextfieldTestApi {
 
   void UpdateContextMenu();
 
+  void SetInitiatingDrag(bool initiating_drag);
+
   gfx::RenderText* GetRenderText() const;
 
   void CreateTouchSelectionControllerAndNotifyIt();

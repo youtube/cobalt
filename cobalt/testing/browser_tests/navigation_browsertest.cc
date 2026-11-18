@@ -3605,7 +3605,7 @@ class GetEffectiveUrlClient : public ContentBrowserTestContentBrowserClient {
   }
 
   bool IsSuitableHost(RenderProcessHost* process_host,
-                      const GURL& site_url) override {
+                      const SecurityPrincipal& security_principal) override {
     if (!disallowed_process_id_) {
       return true;
     }

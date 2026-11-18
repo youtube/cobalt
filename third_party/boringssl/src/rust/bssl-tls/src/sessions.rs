@@ -197,8 +197,6 @@ impl TlsSession {
         Ok(res)
     }
 
-    // TODO(@xfding): Implement SSL_SESSION_get0_peer_rpk when needed.
-
     /// Get the signed certificate timestamp list, if any.
     pub fn get0_signed_cert_timestamp_list(&self) -> Option<&[u8]> {
         call_slice_getter!(
@@ -306,6 +304,17 @@ impl TlsSession {
             // Safety: self.ptr() is valid.
             bssl_sys::SSL_SESSION_is_resumable_across_names(self.ptr()) == 1
         }
+    }
+
+    /// Get the Raw Public Key offered by the peer in the `ClientHello`.
+    pub fn get_peer_raw_public_key(&self) -> Option<Vec<u8>> {
+        let pkey = unsafe {
+            // Safety:
+            // - `self.ptr()` is a valid `SSL` handle.
+            // - `pkey` does not escape the current function frame.
+            NonNull::new(bssl_sys::SSL_SESSION_get0_peer_rpk(self.ptr()))?
+        };
+        Some(crate::credentials::marshal_evp_into_spki(pkey))
     }
 
     /// Check if the session is early data capable.

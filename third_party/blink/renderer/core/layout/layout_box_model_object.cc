@@ -83,9 +83,8 @@ bool NeedsAnchorPositionScrollData(Element& element,
   if (!style.HasOutOfFlowPosition()) {
     return false;
   }
-  const StylePositionAnchor& position_anchor = style.PositionAnchor();
   using Type = StylePositionAnchor::Type;
-  switch (position_anchor.GetType()) {
+  switch (style.GetDefaultAnchorData().GetType()) {
     case Type::kNone:
       return false;
     case Type::kAuto:
@@ -95,6 +94,8 @@ bool NeedsAnchorPositionScrollData(Element& element,
     case Type::kName:
       // There's an explicitly set default anchor.
       return true;
+    case Type::kNormal:
+      NOTREACHED();
   }
 }
 

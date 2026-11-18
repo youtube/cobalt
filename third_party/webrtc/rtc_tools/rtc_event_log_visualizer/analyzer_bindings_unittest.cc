@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/environment/force_test_environment.h"
 #include "rtc_base/system/file_wrapper.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -53,6 +54,11 @@ class RtcEventLogAnalyzerBindingsTest : public ::testing::Test {
 
  protected:
   std::vector<char> event_log_contents_;
+  // The C-style binding under test (`analyze_rtc_event_log`) internally
+  // creates a production Environment using `CreateEnvironment()`. When run
+  // in tests (where force-test-environment is enabled), this would crash
+  // unless we bypass the test environment check.
+  AutoBypassTestEnvironmentCheck bypass_;
 };
 
 TEST_F(RtcEventLogAnalyzerBindingsTest, OutgoingBitrateChart) {

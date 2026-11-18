@@ -93,6 +93,8 @@ const net::BackoffEntry::Policy kBackoffPolicy = {
     false,
 };
 
+constexpr int kDelayBeforeNextListAccountsRequestAfterFailureSeconds = 3;
+
 // State of requests to Gaia logout endpoint. Used as entry for histogram
 // |Signin.GaiaCookieManager.Logout|.
 enum LogoutRequestState {
@@ -540,6 +542,10 @@ void GaiaCookieManagerService::TriggerListAccounts() {
   }
 }
 
+void GaiaCookieManagerService::TriggerListAccountsIfStale() {
+  ListAccounts();
+}
+
 void GaiaCookieManagerService::ForceOnCookieChangeProcessing() {
   GURL google_url = GaiaUrls::GetInstance()->secure_google_url();
   std::unique_ptr<net::CanonicalCookie> cookie =
@@ -753,6 +759,30 @@ void GaiaCookieManagerService::OnListAccountsFailure(
     gaia_accounts_updated_in_cookie_callback_.Run(
         CreateAccountsInCookieJarInfo(), error);
   }
+
+  bool posted_trigger_list_accounts_stale_task = false;
+  if (base::FeatureList::IsEnabled(
+          switches::kAvoidAutoTriggerListAccountsOnStale)) {
+    // When kAvoidAutoTriggerListAccountsOnStale is enabled, client requests
+    // to list accounts no longer trigger an automatic list accounts call when
+    // the list accounts state is stale.Therefore, the GaiaCookieManagerService
+    // needs to poll for the list accounts when previous ferches fail.
+    //
+    // Note: It is ok to poll for list accounts after a fixed delay as the next
+    // list accounts requests will be subject to the backoff retries.
+    //
+    // TODO(crbug.com/524519852): Find a better way to retry list accounts that
+    // avoids using both a backoff retry logic and a post delayed task.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&GaiaCookieManagerService::TriggerListAccountsIfStale,
+                       weak_ptr_factory_.GetWeakPtr()),
+        base::Seconds(kDelayBeforeNextListAccountsRequestAfterFailureSeconds));
+    posted_trigger_list_accounts_stale_task = true;
+  }
+  base::UmaHistogramBoolean(
+      "Signin.ListAccountsFailure.TriggerListAccountsIfStalePosted",
+      posted_trigger_list_accounts_stale_task);
 
   HandleNextRequest();
 }

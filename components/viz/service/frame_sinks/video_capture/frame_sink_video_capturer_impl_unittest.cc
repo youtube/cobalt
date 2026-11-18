@@ -930,6 +930,10 @@ class FrameSinkVideoCapturerTest
     return capturer_->refresh_frame_retry_timer_->IsRunning();
   }
 
+  CapturableFrameSink* resolved_target() const {
+    return capturer_->resolved_target_;
+  }
+
   void AdvanceClockForRefreshTimer() {
     task_runner_->FastForwardBy(capturer_->GetDelayBeforeNextRefreshAttempt());
     PropagateMojoTasks();
@@ -1025,6 +1029,80 @@ TEST_P(FrameSinkVideoCapturerTest, PostponesCaptureWithoutATarget) {
 
   StopCapture();
   EXPECT_FALSE(IsRefreshRetryTimerRunning());
+}
+
+TEST_P(FrameSinkVideoCapturerTest, RefreshRetriesWhenTargetCannotBeResolved) {
+  CapturableFrameSink* mock_target = nullptr;
+  EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
+      .WillRepeatedly(
+          [&mock_target](const VideoCaptureTarget&) { return mock_target; });
+
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
+  EXPECT_EQ(nullptr, resolved_target());
+
+  MockConsumer consumer;
+  EXPECT_CALL(consumer, OnFrameCapturedMock()).Times(0);
+  EXPECT_CALL(consumer, OnStopped()).Times(1);
+
+  StartCapture(&consumer);
+
+  // Since target failed to resolve, retry timer should be running.
+  EXPECT_TRUE(IsRefreshRetryTimerRunning());
+  EXPECT_EQ(nullptr, resolved_target());
+
+  // Now make target resolvable.
+  mock_target = &frame_sink_;
+
+  // Advance clock to trigger retry.
+  AdvanceClockForRefreshTimer();
+
+  // Now it should have resolved and captured.
+  EXPECT_EQ(&frame_sink_, resolved_target());
+  EXPECT_EQ(1, frame_sink_.num_copy_results());
+  EXPECT_FALSE(IsRefreshRetryTimerRunning());
+
+  StopCapture();
+}
+
+TEST_P(FrameSinkVideoCapturerTest, RefreshRetriesWhenRegionPropertiesEmpty) {
+  EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
+      .WillRepeatedly(Return(&frame_sink_));
+
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
+
+  MockConsumer consumer;
+  StartCapture(&consumer);
+
+  // Initial refresh.
+  ASSERT_EQ(1, frame_sink_.num_copy_results());
+  frame_sink_.SendCopyOutputResult(0);
+  ASSERT_EQ(1, consumer.num_frames_received());
+  consumer.SendDoneNotification(0);
+
+  // Set source size to empty, making region properties empty.
+  frame_sink_.set_size_set({gfx::Size(0, 0), size_set_.capture_size});
+
+  // Request refresh.
+  capturer_->RequestRefreshFrame();
+
+  // Expect timer is running because region properties are empty.
+  EXPECT_TRUE(IsRefreshRetryTimerRunning());
+
+  // Restore source size.
+  frame_sink_.set_size_set(size_set_);
+
+  // Advance clock.
+  AdvanceClockForRefreshTimer();
+
+  // Expect capture happened (resurrected, so copy results still 1, but consumer
+  // received 2 frames).
+  EXPECT_EQ(1, frame_sink_.num_copy_results());
+  EXPECT_EQ(2, consumer.num_frames_received());
+  EXPECT_FALSE(IsRefreshRetryTimerRunning());
+
+  StopCapture();
 }
 
 // An end-to-end pipeline test where compositor updates trigger the capturer to

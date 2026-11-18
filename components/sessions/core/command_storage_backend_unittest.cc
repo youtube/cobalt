@@ -235,7 +235,6 @@ class CommandStorageBackendTest : public testing::Test {
     }
 
     bool UseForEncryption() final { return true; }
-    bool IsCompatibleWithOsCryptSync() final { return false; }
 
     const std::string tag_;
     const std::vector<uint8_t> key_;

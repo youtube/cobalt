@@ -56,6 +56,8 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStreamSource {
   ADVANCED_MEMORY_SAFETY_CHECKS();
 
  public:
+  using Error = AudioInputStream::AudioInputCallback::Error;
+
   // Interface for listening to audio property changes. It's safe to call delete
   // on the `CatapAudioInputStreamSource` in the callbacks.
   class AudioPropertyChangeCallback {
@@ -166,7 +168,7 @@ class MEDIA_EXPORT API_AVAILABLE(macos(14.2)) CatapAudioInputStreamSource {
 
   void OnCatapSample(const AudioBuffer* input_buffer,
                      const AudioTimeStamp* input_time);
-  void OnError();
+  void OnError(Error error_code);
 
  private:
   void Close();
@@ -325,6 +327,8 @@ class API_AVAILABLE(macos(14.2)) CatapAudioInputStream
     : public AgcAudioStream<AudioInputStream>,
       public CatapAudioInputStreamSource::AudioPropertyChangeCallback {
  public:
+  using Error = AudioInputStream::AudioInputCallback::Error;
+
   using NotifyOnCloseCallback = base::OnceCallback<void(AudioInputStream*)>;
   using GetDefaultDeviceIdsCallback =
       base::RepeatingCallback<std::optional<AudioDeviceIdentity>()>;
@@ -356,7 +360,7 @@ class API_AVAILABLE(macos(14.2)) CatapAudioInputStream
 
  private:
   // Logs an error message and call OnError() on the `AudioInputCallback`.
-  void OnError();
+  void OnError(Error error_code);
 
   // Restarts the `CatapAudioInputStreamSource`, and make sure the new Source
   // is put in the correct state.

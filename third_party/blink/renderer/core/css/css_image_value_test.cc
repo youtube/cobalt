@@ -6,6 +6,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/web/web_script_source.h"
+#include "third_party/blink/renderer/core/css/css_computed_style_declaration.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/loader/resource/image_resource_content.h"
@@ -199,6 +200,40 @@ TEST_F(CSSImageValueTest, MakeComputedDoesNotLaunderDanglingMarkup) {
   if (image) {
     EXPECT_TRUE(image->ErrorOccurred());
   }
+}
+
+// Verifies that serializing a `filter: url(...)` computed value does not
+// strip the potentially_dangling_markup flag from the URL. The serializer
+// path (ComputedStyleUtils::ValueForFilter) builds a fresh CSSUrlData from
+// CSSUrlData::ValueForSerialization(), which must return the raw relative
+// URL when the flag is set so that re-parsing the serialized form does not
+// launder it.
+TEST_F(CSSImageValueTest, FilterUrlDoesNotLaunderDanglingMarkup) {
+  SimRequest main_resource("https://example.com/index.html", "text/html");
+
+  LoadURL("https://example.com/index.html");
+
+  main_resource.Complete(R"HTML(
+    <!doctype html>
+    <style>
+      #victim { filter: url('/exfil?\a <secret#x'); }
+    </style>
+    <div id="victim"></div>
+  )HTML");
+
+  test::RunPendingTasks();
+  GetDocument().UpdateStyleAndLayoutTree();
+  Compositor().BeginFrame();
+
+  auto* victim = GetDocument().getElementById(AtomicString("victim"));
+  ASSERT_TRUE(victim);
+  auto* computed = MakeGarbageCollected<CSSComputedStyleDeclaration>(victim);
+  String serialized = computed->GetPropertyValue(CSSPropertyID::kFilter);
+  // The serialized value must use the raw relative URL form rather than the
+  // canonicalized absolute URL with whitespace stripped. The latter would
+  // launder the dangling markup flag when re-parsed.
+  EXPECT_EQ(serialized.find("example.com"), kNotFound) << serialized;
+  EXPECT_NE(serialized.find("/exfil"), kNotFound) << serialized;
 }
 
 }  // namespace blink

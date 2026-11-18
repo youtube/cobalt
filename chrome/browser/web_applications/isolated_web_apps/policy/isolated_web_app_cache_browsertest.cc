@@ -75,7 +75,7 @@ namespace em = enterprise_management;
 
 using base::test::TestFuture;
 using web_package::SignedWebBundleId;
-using DiscoveryTask = IsolatedWebAppUpdateDiscoveryTask;
+using DiscoveryTask = IsolatedWebAppUpdateCheckAndPrepareTask;
 using ApplyTask = IsolatedWebAppUpdateApplyTask;
 using UpdateDiscoveryTaskFuture = TestFuture<DiscoveryTask::CompletionStatus>;
 using UpdateApplyTaskFuture =
@@ -484,14 +484,15 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
     UpdateDiscoveryTaskResultWaiter discovery_update_waiter(
         provider(), GetAppId(bundle_id), discovery_update_future.GetCallback());
 
-    DiscoverUpdatesNow();
+    DiscoverAndPrepareUpdatesNow();
     return discovery_update_future.Get();
   }
 
-  void DiscoverUpdatesNow() {
-    EXPECT_THAT(
-        provider().isolated_web_app_update_manager().DiscoverUpdatesNow(),
-        Eq(1ul));
+  void DiscoverAndPrepareUpdatesNow() {
+    EXPECT_THAT(provider()
+                    .isolated_web_app_update_manager()
+                    .DiscoverAndPrepareUpdatesNow(),
+                Eq(1u));
   }
 
   void DestroyCacheDir() { cache_root_dir_override_.reset(); }
@@ -928,7 +929,7 @@ IN_PROC_BROWSER_TEST_F(IwaCacheMgsTest, UpdateAppWhenAppNotOpened) {
   UpdateApplyTaskFuture apply_update_future;
   UpdateApplyTaskResultWaiter apply_update_waiter(
       provider(), GetAppId(kWebBundleId1), apply_update_future.GetCallback());
-  DiscoverUpdatesNow();
+  DiscoverAndPrepareUpdatesNow();
 
   EXPECT_THAT(apply_update_future.Get(), HasValue());
   AssertAppInstalledAtVersion(kWebBundleId1, GetUpdateVersion(),
@@ -954,7 +955,7 @@ IN_PROC_BROWSER_TEST_F(IwaCacheMgsTest, UpdateApplyTaskWhenAppClosed) {
   UpdateApplyTaskFuture apply_update_future;
   UpdateApplyTaskResultWaiter apply_update_waiter(
       provider(), GetAppId(kWebBundleId1), apply_update_future.GetCallback());
-  DiscoverUpdatesNow();
+  DiscoverAndPrepareUpdatesNow();
 
   EXPECT_THAT(apply_update_future.Get(), HasValue());
   AssertAppInstalledAtVersion(kWebBundleId1, GetUpdateVersion(),

@@ -8,17 +8,13 @@ import {SortOrder, ViewType} from 'chrome://bookmarks-side-panel.top-chrome/book
 import type {BookmarksTreeNode} from 'chrome://bookmarks-side-panel.top-chrome/bookmarks.mojom-webui.js';
 import {BookmarksApiProxyImpl} from 'chrome://bookmarks-side-panel.top-chrome/bookmarks_api_proxy.js';
 import {NESTED_BOOKMARKS_BASE_MARGIN, NESTED_BOOKMARKS_MARGIN_PER_DEPTH} from 'chrome://bookmarks-side-panel.top-chrome/power_bookmark_row.js';
-import type {DisplayItem} from 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_list.js';
-import {PageCallbackRouter} from 'chrome://resources/cr_components/commerce/price_tracking.mojom-webui.js';
-import {PriceTrackingBrowserProxyImpl} from 'chrome://resources/cr_components/commerce/price_tracking_browser_proxy.js';
+import {browserProxyFactory as priceTrackingBrowserProxyFactory, PriceTrackingHandlerRemote} from 'chrome://resources/cr_components/commerce/price_tracking.mojom-webui.js';
 import {PageImageServiceBrowserProxy} from 'chrome://resources/cr_components/page_image_service/browser_proxy.js';
 import {PageImageServiceHandlerRemote} from 'chrome://resources/cr_components/page_image_service/page_image_service.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertArrayEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
@@ -229,7 +225,7 @@ suite('TreeView', () => {
   const FOLDERS = createTestBookmarks();
   let powerBookmarksApp: PowerBookmarksAppElement;
   let bookmarksApi: TestBookmarksApiProxy;
-  const priceTrackingProxy = TestMock.fromClass(PriceTrackingBrowserProxyImpl);
+  const priceTrackingHandler = TestMock.fromClass(PriceTrackingHandlerRemote);
   let imageServiceHandler: TestMock<PageImageServiceHandlerRemote>&
       PageImageServiceHandlerRemote;
   let metrics: MetricsTracker;
@@ -251,19 +247,19 @@ suite('TreeView', () => {
     bookmarksApi.setAllBookmarks(structuredClone(FOLDERS));
     BookmarksApiProxyImpl.setInstance(bookmarksApi);
 
-    priceTrackingProxy.reset();
-    const callbackRouter = new PageCallbackRouter();
-    priceTrackingProxy.setResultFor('getCallbackRouter', callbackRouter);
-    priceTrackingProxy.setResultFor(
+    priceTrackingHandler.reset();
+    priceTrackingHandler.setResultFor(
         'getAllPriceTrackedBookmarkProductInfo',
         Promise.resolve({productInfos: []}));
-    priceTrackingProxy.setResultFor(
+    priceTrackingHandler.setResultFor(
         'getAllShoppingBookmarkProductInfo',
         Promise.resolve({productInfos: []}));
-    priceTrackingProxy.setResultFor(
+    priceTrackingHandler.setResultFor(
         'getShoppingCollectionBookmarkFolderId',
         Promise.resolve({collectionId: BigInt(-1)}));
-    PriceTrackingBrowserProxyImpl.setInstance(priceTrackingProxy);
+    const {instance} =
+        priceTrackingBrowserProxyFactory.createForTest(priceTrackingHandler);
+    priceTrackingBrowserProxyFactory.setInstance(instance);
 
     imageServiceHandler = TestMock.fromClass(PageImageServiceHandlerRemote);
     PageImageServiceBrowserProxy.setInstance(
@@ -357,7 +353,7 @@ suite('TreeView', () => {
         TestPowerBookmarksListElement;
     bookmarksList.activeSortIndex = 4;
     bookmarksList.sortOrder = SortOrder.kReverseAlphabetical;
-    flush();
+
     await microtasksFinished();
 
     assertArrayEquals(
@@ -431,12 +427,11 @@ suite('TreeView', () => {
         'bookmark-count-recorded', powerBookmarksApp.$.bookmarksList);
     expandButton.click();
     await collapseMetricsLogged;
-    flush();
+
     await microtasksFinished();
 
     // Verify nested bookmarks are no longer in display list
-    const items =
-        (powerBookmarksApp.$.bookmarksList.$.list.items as DisplayItem[]);
+    const items = powerBookmarksApp.$.bookmarksList.$.list.items;
     assertFalse(items.some(item => item.bookmark.id === '6'));
 
     // And verify visual hidden state in DOM
@@ -471,7 +466,6 @@ suite('TreeView', () => {
     folderRow.dispatchEvent(ARROW_RIGHT_EVENT);
     await toggleEvent;
     await keyboardRebuilt;
-    await flushTasks();
     await microtasksFinished();
     assertTrue(
         folderRow.toggleExpand, 'Folder should be expanded after ArrowRight');
@@ -484,12 +478,10 @@ suite('TreeView', () => {
     folderRow.dispatchEvent(ARROW_LEFT_EVENT);
     await toggleEvent;
     await keyboardRebuilt;
-    await flushTasks();
     await microtasksFinished();
     assertFalse(
         folderRow.toggleExpand, 'Folder should be collapsed after ArrowLeft');
-    const items =
-        (powerBookmarksApp.$.bookmarksList.$.list.items as DisplayItem[]);
+    const items = powerBookmarksApp.$.bookmarksList.$.list.items;
     assertFalse(
         items.some(item => item.bookmark.id === '6'),
         'Child bookmark should not be in display list');
@@ -530,13 +522,11 @@ suite('TreeView', () => {
 
         // Right arrow on expanded folder should move focus.
         folderRow.dispatchEvent(ARROW_RIGHT_EVENT);
-        await flushTasks();
         await microtasksFinished();
-        await flushTasks();
 
         assertEquals(
             childRow,
-            powerBookmarksApp.$.bookmarksList.shadowRoot!.activeElement,
+            powerBookmarksApp.$.bookmarksList.shadowRoot.activeElement,
             'Focus should move to the first child');
       });
 
@@ -549,7 +539,7 @@ suite('TreeView', () => {
 
     // This should not throw errors or change state.
     bookmarkRow.dispatchEvent(ARROW_RIGHT_EVENT);
-    await flushTasks();
+    await microtasksFinished();
 
     // No toggleExpand property to check, just make sure nothing broke.
     assertTrue(!!getPowerBookmarksRowItemElement(powerBookmarksApp, '3'));
@@ -582,20 +572,18 @@ suite('TreeView', () => {
 
     // Right arrow on expanded folder should move focus.
     folderRow.dispatchEvent(ARROW_RIGHT_EVENT);
-    await flushTasks();
     await microtasksFinished();
 
     assertEquals(
-        childRow, powerBookmarksApp.$.bookmarksList.shadowRoot!.activeElement,
+        childRow, powerBookmarksApp.$.bookmarksList.shadowRoot.activeElement,
         'Focus should move to the first child');
 
     childRow.dispatchEvent(ARROW_LEFT_EVENT);
-    await flushTasks();
     await microtasksFinished();
 
     assertEquals(
         folderRow.id,
-        powerBookmarksApp.$.bookmarksList.shadowRoot!.activeElement!.id,
+        powerBookmarksApp.$.bookmarksList.shadowRoot.activeElement!.id,
         'Focus should move to the parent row');
   });
 
@@ -657,7 +645,7 @@ suite('TreeView', () => {
 
     // Validate index order before move in flat display list
     const list = powerBookmarksApp.$.bookmarksList.$.list;
-    let items = list.items as DisplayItem[];
+    let items = list.items;
     const indexOf5 = items.findIndex(item => item.bookmark.id === '5');
     let indexOf6 = items.findIndex(item => item.bookmark.id === '6');
     let indexOf22 = items.findIndex(item => item.bookmark.id === '22');
@@ -667,7 +655,6 @@ suite('TreeView', () => {
     bookmarksApi.callbackRouterRemote.onBookmarkNodeMoved(
         /*oldParentId=*/ '5', /*oldIndex=*/ 2, /*newParentId=*/ '6',
         /*newIndex=*/ 0);
-    await flushTasks();
     await microtasksFinished();
 
     const movedRow22 = getPowerBookmarksRowElement(powerBookmarksApp, '22')!;
@@ -677,7 +664,7 @@ suite('TreeView', () => {
         'Bookmark 22 should be in folder 6 after move');
 
     // Validate index order after move in flat display list
-    items = list.items as DisplayItem[];
+    items = list.items;
     indexOf6 = items.findIndex(item => item.bookmark.id === '6');
     indexOf22 = items.findIndex(item => item.bookmark.id === '22');
     assertTrue(

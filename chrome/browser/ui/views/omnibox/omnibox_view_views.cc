@@ -47,7 +47,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
-#include "chrome/browser/ui/omnibox/ai_mode_button_config.h"
+#include "chrome/browser/ui/omnibox/ai_mode_button_service_factory.h"
 #include "chrome/browser/ui/omnibox/clipboard_utils.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
@@ -72,6 +72,8 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_features.h"
+#include "components/omnibox/browser/ai_mode_button_config.h"
+#include "components/omnibox/browser/ai_mode_button_service.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/omnibox_client.h"
@@ -202,9 +204,11 @@ void LogOmniboxFocusToCutOrCopyAllTextTime(
   }
 }
 
-std::u16string AimPlaceholderText() {
-  const auto& config = ai_mode_button_config::GetCurrentAiModeButtonConfig();
-  return u"\u21E5 " + config.placeholder_text;
+std::u16string AimPlaceholderText(
+    const ai_mode_button_config::AiModeButtonConfig& config) {
+  // Appends a unicode character to represent the tab key.
+  const std::u16string kTabChar = u"\u21E5";
+  return kTabChar + u" " + config.placeholder_text;
 }
 
 }  // namespace
@@ -405,12 +409,13 @@ void OmniboxViewViews::InstallPlaceholderText() {
     // placeholder text to suggest tabbing into AI Mode. Note, even if the AI
     // placeholder text is installed, it will only be visible if
     // `ShouldShowPlaceholderText()` is also true.
-    SetPlaceholderText(AimPlaceholderText());
+    auto* config = GetAiModeConfig();
+    CHECK(config);
+    SetPlaceholderText(AimPlaceholderText(*config));
     // Override the AIM accessibility placeholder text, so that the tab icon is
     // not announced.
-    const auto& config = ai_mode_button_config::GetCurrentAiModeButtonConfig();
     GetViewAccessibility().SetPlaceholder(
-        base::UTF16ToUTF8(config.placeholder_text));
+        base::UTF16ToUTF8(config->placeholder_text));
   } else if (ShouldInstallContextualTasksPlaceholderText()) {
     // For Contextual Tasks page, use the page title as placeholder text.
     SetPlaceholderText(location_bar_view_->GetWebContents()->GetTitle());
@@ -534,7 +539,7 @@ void OmniboxViewViews::SetFocus(bool is_user_initiated) {
   // keep it revealed. |location_bar_view_| can be nullptr in unit tests.
   //
   // Besides tests, location bar is also used in non-browser UI in production
-  // enviroment. There are only two known case so far, one is
+  // environment. There are only two known case so far, one is
   // simple_web_view_dialog for ChromeOS to draw captive portal during OOBE
   // signin. The other one is presentation_receiver_window_view which applies to
   // both ChromeOS and other desktop platforms. Null check to avoid crash before
@@ -705,7 +710,9 @@ void OmniboxViewViews::OnPaint(gfx::Canvas* canvas) {
 
   // Record an impression of the AIM hint text if it is being shown.
   const bool should_show_placeholder = ShouldShowPlaceholderText();
-  const bool is_aim_placeholder = GetPlaceholderText() == AimPlaceholderText();
+  auto* config = GetAiModeConfig();
+  const bool is_aim_placeholder =
+      config && GetPlaceholderText() == AimPlaceholderText(*config);
   if (should_show_placeholder && is_aim_placeholder && !aim_hint_shown_) {
     aim_hint_shown_ = true;
     RecordAimHintImpression();
@@ -1421,8 +1428,33 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
   }
 
   is_mouse_pressed_ = true;
+
+  // Replicating native double-click word-selection in the Full WebUI Omnibox
+  // popup relies on forwarding raw mouse presses from the WebUI popup window to
+  // this native C++ textfield (`BrowserWidget`).
+  //
+  // However, in Full WebUI mode, the frameless WebUI popup window is the active
+  // OS window, so this underlying C++ textfield does not have native keyboard
+  // focus (`HasFocus()` is false). Furthermore, on the New Tab Page (NTP)
+  // before typing a query, `OmniboxController::IsPopupOpen()` logically returns
+  // false (because Autocomplete matches are completely empty or zero-suggest).
+  //
+  // To prevent `OnMousePressed()` from mistakenly assuming this forwarded click
+  // is an initial focus-gaining action and setting
+  // `select_all_on_mouse_release_` (which would forcefully wipe out any partial
+  // or double-click highlight on mouse release), we also verify the physical UI
+  // state (`GetOmniboxPopupView()->IsOpen()`). If the real physical WebUI popup
+  // view is open, we completely lock out the "select all on mouse release"
+  // trigger and allow partial selections and caret placements to stick
+  // perfectly.
+  const bool is_popup_open =
+      controller()->IsPopupOpen() ||
+      (location_bar_view_ && location_bar_view_->GetOmniboxPopupView() &&
+       location_bar_view_->GetOmniboxPopupView()->IsOpen());
+
   select_all_on_mouse_release_ =
       (event.IsOnlyLeftMouseButton() || event.IsOnlyRightMouseButton()) &&
+      !is_popup_open &&
       (!HasFocus() ||
        (controller()->edit_model()->focus_state() == OMNIBOX_FOCUS_INVISIBLE));
   if (select_all_on_mouse_release_) {
@@ -1457,6 +1489,8 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
     next_double_click_selection_len_ = 0;
   }
 
+  bool is_double_click = false;
+
   if (!select_all_on_mouse_release_) {
     if (UnapplySteadyStateElisions(UnelisionGesture::kOther)) {
       // This ensures that when the user makes a double-click partial select, we
@@ -1464,6 +1498,7 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
       // selection, which is on mousedown.
       TextChanged();
       filter_drag_events_for_unelision_ = true;
+      is_double_click = true;
     } else if (event.GetClickCount() == 1 && event.IsLeftMouseButton()) {
       // Select the current word and record it for later. This is done to handle
       // an edge case where the wrong word is selected on a double click when
@@ -1494,8 +1529,20 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
         SetSelectedRange(gfx::Range(next_double_click_selection_offset_,
                                     next_double_click_selection_offset_ +
                                         next_double_click_selection_len_));
+        is_double_click = true;
       }
     }
+  }
+
+  // When mouse clicks are being forwarded from the WebUI popup to this native
+  // textfield, push the newly calculated selection range (e.g. word highlights)
+  // back to the WebUI searchbox so it maintains perfect visual sync. Whenever
+  // selection is set on the omnibox_view_views, it should be pushed to the
+  // popup.
+  if (location_bar_view_ && location_bar_view_->GetOmniboxPopupView() &&
+      base::FeatureList::IsEnabled(
+          omnibox::kWebUIOmniboxFullPopupDoubleClick)) {
+    location_bar_view_->GetOmniboxPopupView()->PushTextToWebUI(is_double_click);
   }
 
   return handled;
@@ -1508,6 +1555,8 @@ bool OmniboxViewViews::OnMouseDragged(const ui::MouseEvent& event) {
     return true;
   }
 
+  // TODO(crbug.com/514810983): Figure out dragging behavior for full webui
+  // popup.
   if (HasTextBeingDragged()) {
     if (auto* popup_closer = controller()->client()->GetOmniboxPopupCloser()) {
       popup_closer->CloseWithReason(omnibox::PopupCloseReason::kTextDrag);
@@ -1736,12 +1785,17 @@ void OmniboxViewViews::OnBlur() {
   //
   // This should never exit keyword mode.
   if (GetWidget() && GetWidget()->IsActive() &&
-      !controller()->edit_model()->is_keyword_selected() &&
-      ((!controller()->edit_model()->user_input_in_progress() &&
-        GetText() != controller()->edit_model()->GetPermanentDisplayText()) ||
-       (controller()->edit_model()->user_input_in_progress() &&
-        GetText() == controller()->edit_model()->GetPermanentDisplayText()))) {
-    RevertAll();
+      !controller()->edit_model()->is_keyword_selected()) {
+    // Bypass native RevertAll when Full WebUI V2 is enabled to prevent wiping
+    // out active WebUI drafting states.
+    if (!base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2) &&
+        ((!controller()->edit_model()->user_input_in_progress() &&
+          GetText() != controller()->edit_model()->GetPermanentDisplayText()) ||
+         (controller()->edit_model()->user_input_in_progress() &&
+          GetText() ==
+              controller()->edit_model()->GetPermanentDisplayText()))) {
+      RevertAll();
+    }
   }
 
   controller()->edit_model()->OnWillKillFocus();
@@ -2360,14 +2414,13 @@ void OmniboxViewViews::AppendDropFormats(
   *formats = *formats | ui::OSExchangeData::URL;
 }
 
-DragOperation OmniboxViewViews::OnDrop(const ui::DropTargetEvent& event) {
-  ui::mojom::DragOperation output_drag_op = ui::mojom::DragOperation::kNone;
-  PerformDrop(event, output_drag_op, /*drag_image_layer_owner=*/nullptr);
-  return output_drag_op;
-}
-
 views::View::DropCallback OmniboxViewViews::CreateDropCallback(
     const ui::DropTargetEvent& event) {
+  // Drags initiated within the omnibox should fallback to the default textfield
+  // drop handling: `Textfield::DropDraggedText()`.
+  if (HasTextBeingDragged()) {
+    return base::NullCallback();
+  }
   return base::BindOnce(&OmniboxViewViews::PerformDrop,
                         weak_factory_.GetWeakPtr());
 }
@@ -2402,7 +2455,7 @@ void OmniboxViewViews::UpdateContextMenu(ui::SimpleMenuModel* menu_contents) {
                                             IDS_CONTEXT_MENU_SHOW_FULL_URLS);
   }
 
-  // Location bar is also used in non-browser UI in production enviroment.
+  // Location bar is also used in non-browser UI in production environment.
   // The only known case so far is simple_web_view_dialog for ChromeOS to draw
   // captive portal during OOBE signin. Null check to avoid crash before these
   // UIs are migrated away. See crbug.com/379534750 for a production crash
@@ -2421,9 +2474,11 @@ void OmniboxViewViews::UpdateContextMenu(ui::SimpleMenuModel* menu_contents) {
 
   if (omnibox::ShouldShowAimContextMenuOption(
           location_bar_view_->GetProfile())) {
-    const auto& config = ai_mode_button_config::GetCurrentAiModeButtonConfig();
-    menu_contents->AddCheckItem(IDC_SHOW_AI_MODE_OMNIBOX_BUTTON,
-                                config.context_menu_label);
+    auto* config = GetAiModeConfig();
+    if (config) {
+      menu_contents->AddCheckItem(IDC_SHOW_AI_MODE_OMNIBOX_BUTTON,
+                                  config->context_menu_label);
+    }
   }
 
   if (omnibox_feature_configs::Toolbelt::Get().enabled) {
@@ -2573,10 +2628,10 @@ void OmniboxViewViews::PerformDrop(
     const ui::DropTargetEvent& event,
     ui::mojom::DragOperation& output_drag_op,
     std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner) {
-  if (HasTextBeingDragged()) {
-    output_drag_op = DragOperation::kNone;
-    return;
-  }
+  // Drags initiated within the omnibox should be handled by the default
+  // textfield implementation. `CreateDropCallback()` should not create a
+  // `PerformDrop()` callback.
+  CHECK(!HasTextBeingDragged());
 
   const ui::OSExchangeData& data = event.data();
   std::u16string text;
@@ -2689,7 +2744,17 @@ bool OmniboxViewViews::ShouldInstallAimPlaceholderText() const {
       OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(aim_eligibility_service);
 
   return is_aim_entrypoint_enabled &&
-         controller()->edit_model()->is_caret_visible();
+         controller()->edit_model()->is_caret_visible() && GetAiModeConfig();
+}
+
+const ai_mode_button_config::AiModeButtonConfig*
+OmniboxViewViews::GetAiModeConfig() const {
+  if (!location_bar_view_) {
+    return nullptr;
+  }
+  auto* service = AiModeButtonServiceFactory::GetForProfile(
+      location_bar_view_->GetProfile());
+  return service ? service->GetCurrentConfig() : nullptr;
 }
 
 bool OmniboxViewViews::ShouldInstallContextualTasksPlaceholderText() const {

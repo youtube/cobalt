@@ -31,6 +31,7 @@
 #include "net/base/features.h"
 #include "net/base/reconnect_notifier.h"
 #include "net/socket/next_proto.h"
+#include "services/network/public/cpp/constants.h"
 
 namespace {
 
@@ -279,13 +280,13 @@ void SearchEnginePreconnector::PreconnectDSE() {
         net::NetworkAnonymizationKey::CreateSameSite(std::move(schemeful_site));
 
     // Preconnection initiated by search engine is out of scope of connection
-    // allowlist, so there is no `network_restrictions_id`.
+    // allowlist, so there is no-op `network_restrictions_id`.
     // See https://wicg.github.io/connection-allowlists/#threat-model.
     GetPreconnectManager().StartPreconnectUrl(
         preconnect_url, /*allow_credentials=*/true, network_anonymziation_key,
         predictors::kSearchEnginePreconnectTrafficAnnotation,
         /*storage_partition_config=*/nullptr,
-        /*network_restrictions_id=*/std::nullopt, std::move(keepalive_config),
+        network::GetNoOpNetworkRestrictionsId(), std::move(keepalive_config),
         std::move(observer));
   }
 

@@ -1247,6 +1247,7 @@ L$epilogue:
 .private_extern _sha1_block_data_order_hw
 
 .p2align	5
+.alt_entry _sha1_block_data_order_hw
 _sha1_block_data_order_hw:
 
 _CET_ENDBR
@@ -1419,6 +1420,7 @@ L$oop_shaext:
 .private_extern _sha1_block_data_order_ssse3
 
 .p2align	4
+.alt_entry _sha1_block_data_order_ssse3
 _sha1_block_data_order_ssse3:
 
 _CET_ENDBR
@@ -2609,6 +2611,7 @@ L$epilogue_ssse3:
 .private_extern _sha1_block_data_order_avx
 
 .p2align	4
+.alt_entry _sha1_block_data_order_avx
 _sha1_block_data_order_avx:
 
 _CET_ENDBR
@@ -3739,6 +3742,7 @@ L$epilogue_avx:
 .private_extern _sha1_block_data_order_avx2
 
 .p2align	4
+.alt_entry _sha1_block_data_order_avx2
 _sha1_block_data_order_avx2:
 
 _CET_ENDBR

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/glic/host/glic_page_handler.h"
 
+#include <utility>
+
 #include "base/callback_list.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
@@ -132,6 +134,7 @@
 #include "pdf/buildflags.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/device_form_factor.h"
 #include "ui/base/window_open_disposition.h"
@@ -144,6 +147,10 @@
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #else
 #include "components/guest_view/browser/slim_web_view/slim_web_view_guest.h"  // nogncheck
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/flags/android/chrome_feature_list.h"
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -179,21 +186,7 @@ namespace glic {
 
 namespace {
 
-#if BUILDFLAG(IS_MAC)
-constexpr mojom::Platform kPlatform = mojom::Platform::kMacOS;
-#elif BUILDFLAG(IS_WIN)
-constexpr mojom::Platform kPlatform = mojom::Platform::kWindows;
-#elif BUILDFLAG(IS_LINUX)
-constexpr mojom::Platform kPlatform = mojom::Platform::kLinux;
-#elif BUILDFLAG(IS_CHROMEOS)
-constexpr mojom::Platform kPlatform = mojom::Platform::kChromeOS;
-#elif BUILDFLAG(IS_ANDROID)
-constexpr mojom::Platform kPlatform = mojom::Platform::kAndroid;
-#else
-constexpr mojom::Platform kPlatform = mojom::Platform::kUnknown;
-#endif
-
-mojom::GetContextResultPtr LogErrorAndUnwrapResult(
+mojom::GetContextResultPtr LogErrorAndUnwrapContextResult(
     base::OnceCallback<void(GlicGetContextFromTabError)> error_logger,
     GlicGetContextResult result) {
   if (!result.has_value()) {
@@ -201,6 +194,31 @@ mojom::GetContextResultPtr LogErrorAndUnwrapResult(
     return mojom::GetContextResult::NewErrorReason(result.error().message);
   }
   return std::move(result.value());
+}
+
+mojom::GetImageBytesResultPtr LogErrorAndUnwrapImageBytesResult(
+    base::OnceCallback<void(GlicGetContextFromTabError)> error_logger,
+    GlicGetImageBytesResult result) {
+  if (!result.has_value()) {
+    std::move(error_logger).Run(result.error().error_code);
+    return mojom::GetImageBytesResult::NewErrorReason(result.error().message);
+  }
+
+  auto converted_result = mojom::ImageBytesResult::New();
+  converted_result->bytes = std::move(result.value()->image_bytes);
+
+  converted_result->image_info = mojom::ImageInfo::New();
+  const blink::mojom::AIPageContentImageInfoPtr& image_info =
+      result.value()->image_info;
+  if (image_info) {
+    converted_result->image_info->caption = image_info->image_caption;
+    if (image_info->source_origin) {
+      converted_result->image_info->source_origin = image_info->source_origin;
+    }
+    converted_result->image_info->url = image_info->url;
+    converted_result->image_info->mime_type = image_info->mime_type;
+  }
+  return mojom::GetImageBytesResult::NewImageBytes(std::move(converted_result));
 }
 
 GlicUnpinTrigger FromMojomUnpinTrigger(mojom::UnpinTrigger trigger) {
@@ -213,17 +231,6 @@ GlicUnpinTrigger FromMojomUnpinTrigger(mojom::UnpinTrigger trigger) {
       return GlicUnpinTrigger::kChip;
     case mojom::UnpinTrigger::kActuation:
       return GlicUnpinTrigger::kActuation;
-  }
-}
-
-GlicZoomAction ToGlicZoomAction(mojom::ZoomAction action) {
-  switch (action) {
-    case mojom::ZoomAction::kZoomIn:
-      return GlicZoomAction::kZoomIn;
-    case mojom::ZoomAction::kZoomOut:
-      return GlicZoomAction::kZoomOut;
-    case mojom::ZoomAction::kReset:
-      return GlicZoomAction::kReset;
   }
 }
 
@@ -449,7 +456,9 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   }
 
   Host& host() { return page_handler_->host(); }
-  GlicSharingManager& sharing_manager() { return host().sharing_manager(); }
+  GlicSharingManagerInternal& GetSharingManagerInternal() {
+    return host().GetSharingManagerInternal();
+  }
 
   // glic::mojom::WebClientHandler implementation.
   void SwitchConversation(glic::mojom::ConversationInfoPtr info,
@@ -549,21 +558,22 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     }
 
     focus_changed_subscription_ =
-        sharing_manager().AddFocusedTabChangedCallback(
+        GetSharingManagerInternal().AddFocusedTabChangedCallback(
             base::BindRepeating(&GlicWebClientHandler::OnFocusedTabChanged,
                                 base::Unretained(this)));
 
     pinned_tabs_changed_subscription_ =
-        sharing_manager().AddPinnedTabsChangedCallback(base::BindRepeating(
-            &GlicWebClientHandler::OnPinningChanged, base::Unretained(this)));
+        GetSharingManagerInternal().AddPinnedTabsChangedCallback(
+            base::BindRepeating(&GlicWebClientHandler::OnPinningChanged,
+                                base::Unretained(this)));
 
     pinned_tab_data_changed_subscription_ =
-        sharing_manager().AddPinnedTabDataChangedCallback(
+        GetSharingManagerInternal().AddPinnedTabDataChangedCallback(
             base::BindRepeating(&GlicWebClientHandler::OnPinnedTabDataChanged,
                                 base::Unretained(this)));
 
     focus_data_changed_subscription_ =
-        sharing_manager().AddFocusedTabDataChangedCallback(
+        GetSharingManagerInternal().AddFocusedTabDataChangedCallback(
             base::BindRepeating(&GlicWebClientHandler::OnFocusedTabDataChanged,
                                 base::Unretained(this)));
 
@@ -591,7 +601,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 
     auto state = glic::mojom::WebClientInitialState::New();
     state->chrome_version = version_info::GetVersion();
-    state->platform = kPlatform;
+    state->platform = GetGlicPlatform();
     state->form_factor = GetGlicFormFactor(ui::GetDeviceFormFactor());
     state->microphone_permission_enabled =
         pref_service_->GetBoolean(prefs::kGlicMicrophoneEnabled);
@@ -605,11 +615,11 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     state->panel_state = host().GetPanelState(this).Clone();
 
     state->focused_tab_data =
-        CreateFocusedTabData(sharing_manager().GetFocusedTabData());
+        CreateFocusedTabData(GetSharingManagerInternal().GetFocusedTabData());
     state->can_attach = ComputeCanAttach();
     state->panel_is_active = active_state_calculator_.IsActive();
 
-    OnPinningChanged(sharing_manager().GetPinnedTabs());
+    OnPinningChanged(GetSharingManagerInternal().GetPinnedTabs());
 
     state->browser_is_open = browser_is_open_calculator_.IsOpen();
     state->instance_is_active = host().instance_delegate().IsActive();
@@ -683,8 +693,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     }
     state->enable_get_page_metadata =
         base::FeatureList::IsEnabled(blink::features::kFrameMetadataObserver);
-    state->enable_api_activation_gating =
-        base::FeatureList::IsEnabled(features::kGlicApiActivationGating);
+
     if (base::FeatureList::IsEnabled(
             glic::mojom::features::kGlicAppendModelQualityClientId)) {
       state->host_capabilities.push_back(
@@ -755,7 +764,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                  const std::optional<int32_t> window_id,
                  CreateTabCallback callback) override {
     if (base::FeatureList::IsEnabled(media::kMediaLinkHelpers)) {
-      if (auto* tab = sharing_manager().GetFocusedTabData().focus()) {
+      if (auto* tab = GetSharingManagerInternal().GetFocusedTabData().focus()) {
         const bool replaced =
             GlicMediaLinkHelper(tab->GetContents()).MaybeReplaceNavigation(url);
         base::UmaHistogramBoolean("Glic.MaybeReplaceNavigation.Result",
@@ -836,7 +845,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   void GetContextFromFocusedTab(
       glic::mojom::GetTabContextOptionsPtr options,
       GetContextFromFocusedTabCallback callback) override {
-    FocusedTabData ftd = sharing_manager().GetFocusedTabData();
+    FocusedTabData ftd = GetSharingManagerInternal().GetFocusedTabData();
     if (ftd.unfocused_tab()) {
       CHECK(!ftd.focus());
       // Fail early if the active tab is un-focusable.
@@ -854,10 +863,10 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
           .DidRequestContextFromTab(*tab);
     }
     auto tab_handle = tab ? tab->GetHandle() : tabs::TabHandle::Null();
-    sharing_manager().GetContextFromTab(
+    GetSharingManagerInternal().GetContextFromTab(
         tab_handle, *options,
         base::BindOnce(
-            &LogErrorAndUnwrapResult,
+            &LogErrorAndUnwrapContextResult,
             base::BindOnce(&GlicMetrics::LogGetContextFromFocusedTabError,
                            base::Unretained(glic_service_->metrics())))
             .Then(std::move(callback)));
@@ -867,11 +876,24 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                          glic::mojom::GetTabContextOptionsPtr options,
                          GetContextFromTabCallback callback) override {
     // Extra activation gating is done in this function.
-    sharing_manager().GetContextFromTab(
+    GetSharingManagerInternal().GetContextFromTab(
         tabs::TabHandle(tab_id), *options,
         base::BindOnce(
-            &LogErrorAndUnwrapResult,
+            &LogErrorAndUnwrapContextResult,
             base::BindOnce(&GlicMetrics::LogGetContextFromTabError,
+                           base::Unretained(glic_service_->metrics())))
+            .Then(std::move(callback)));
+  }
+
+  void GetImageBytesFromTab(int32_t tab_id,
+                            const std::string& document_id,
+                            int32_t dom_node_id,
+                            GetImageBytesFromTabCallback callback) override {
+    GetSharingManagerInternal().GetImageBytes(
+        tabs::TabHandle(tab_id), document_id, dom_node_id,
+        base::BindOnce(
+            &LogErrorAndUnwrapImageBytesResult,
+            base::BindOnce(&GlicMetrics::LogGetImageBytesFromTabError,
                            base::Unretained(glic_service_->metrics())))
             .Then(std::move(callback)));
   }
@@ -879,7 +901,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   void SetMaximumNumberOfPinnedTabs(
       uint32_t num_tabs,
       SetMaximumNumberOfPinnedTabsCallback callback) override {
-    uint32_t effective_max = sharing_manager().SetMaxPinnedTabs(num_tabs);
+    uint32_t effective_max =
+        GetSharingManagerInternal().SetMaxPinnedTabs(num_tabs);
     std::move(callback).Run(effective_max);
   }
 
@@ -907,7 +930,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
           break;
       }
     }
-    std::move(callback).Run(sharing_manager().PinTabs(tab_handles, trigger));
+    std::move(callback).Run(
+        GetSharingManagerInternal().PinTabs(tab_handles, trigger));
   }
 
   void UnpinTabs(const std::vector<int32_t>& tab_ids,
@@ -921,7 +945,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (options) {
       trigger = FromMojomUnpinTrigger(options->unpin_trigger);
     }
-    std::move(callback).Run(sharing_manager().UnpinTabs(tab_handles, trigger));
+    std::move(callback).Run(
+        GetSharingManagerInternal().UnpinTabs(tab_handles, trigger));
   }
 
   void UnpinAllTabs(mojom::UnpinTabsOptionsPtr options) override {
@@ -929,7 +954,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (options) {
       trigger = FromMojomUnpinTrigger(options->unpin_trigger);
     }
-    sharing_manager().UnpinAllTabs(trigger);
+    GetSharingManagerInternal().UnpinAllTabs(trigger);
   }
 
   void CreateActorHandler(
@@ -1049,13 +1074,14 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (tab_id.has_value()) {
       tab = tabs::TabHandle(*tab_id).Get();
     } else {
-      const FocusedTabData& focus = sharing_manager().GetFocusedTabData();
+      const FocusedTabData& focus =
+          GetSharingManagerInternal().GetFocusedTabData();
       // Prioritize the focused tab, but fall back to the unfocused tab if one
       // is available. This is useful in cases where the active tab is not
       // "focusable" by Glic (e.g. chrome:// pages).
       tab = focus.is_focus() ? focus.focus() : focus.unfocused_tab();
     }
-    SelectionOverlayController::CaptureRegion(tab, sharing_manager(),
+    SelectionOverlayController::CaptureRegion(tab, GetSharingManagerInternal(),
                                               std::move(observer),
                                               std::move(tab_context_options));
 #else
@@ -1124,6 +1150,15 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   void SetLocationPermissionState(
       bool enabled,
       SetLocationPermissionStateCallback callback) override {
+#if BUILDFLAG(IS_ANDROID)
+    // Glic WebUI should not set location on Android if this flag is disabled.
+    // See b/523326989 for context.
+    if (!base::FeatureList::IsEnabled(
+            chrome::android::kGlicExperimentalLocation)) {
+      std::move(callback).Run();
+      return;
+    }
+#endif
     pref_service_->SetBoolean(prefs::kGlicGeolocationEnabled, enabled);
     if (enabled) {
       base::RecordAction(
@@ -1182,6 +1217,15 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 
   void ShouldAllowGeolocationPermissionRequest(
       ShouldAllowGeolocationPermissionRequestCallback callback) override {
+#if BUILDFLAG(IS_ANDROID)
+    // This should not be called when the flag is disabled, but added fallback
+    // to be safe.
+    if (!base::FeatureList::IsEnabled(
+            chrome::android::kGlicExperimentalLocation)) {
+      std::move(callback).Run(false);
+      return;
+    }
+#endif
     std::move(callback).Run(
         pref_service_->GetBoolean(prefs::kGlicGeolocationEnabled) &&
         host().IsWidgetShowing(this));
@@ -1370,7 +1414,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         mode);
 
     // TODO(crbug.com/462769104): move this to a non-metrics API.
-    sharing_manager().OnConversationTurnSubmitted();
+    GetSharingManagerInternal().OnConversationTurnSubmitted();
     host().instance_delegate().OnUserInputSubmitted(mode);
   }
 
@@ -1391,7 +1435,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   void OnResponseStarted() override {
     host().instance_metrics_backwards_compatibility().OnResponseStarted();
     host().instance_metrics().RecordAttachedContextTabCount(
-        sharing_manager().GetNumPinnedTabs());
+        GetSharingManagerInternal().GetNumPinnedTabs());
   }
 
   // TODO(crbug.com/450026474): Remove call to GlicMetrics once
@@ -1690,12 +1734,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         std::move(handler), std::move(success_status_callback));
   }
 
-  void NotifyIsInvoking(bool is_invoking) override {
-    if (web_client_) {
-      web_client_->NotifyIsInvoking(is_invoking);
-    }
-  }
-
   // SkillsService::Observer implementation.
   void OnSkillUpdated(std::string_view skill_id,
                       skills::SkillsService::UpdateSource update_source,
@@ -1879,10 +1917,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     web_client_->NotifyInstanceActivationChanged(is_active);
   }
 
-  bool ShouldDoApiActivationGating() const {
-    return base::FeatureList::IsEnabled(features::kGlicApiActivationGating) &&
-           !active_state_calculator_.IsActive();
-  }
 
   void MaybeNotifyFocusedTabChanged(
       glic::mojom::FocusedTabDataPtr focused_tab_data) {
@@ -2086,8 +2120,26 @@ void GlicPageHandler::NotifyWindowIntentToShow() {
 }
 
 void GlicPageHandler::Zoom(mojom::ZoomAction zoom_action) {
-  base::UmaHistogramEnumeration("Glic.ZoomAction",
-                                ToGlicZoomAction(zoom_action));
+  auto* pref_service =
+      Profile::FromBrowserContext(browser_context_)->GetPrefs();
+  int current_zoom = pref_service->GetInteger(prefs::kGlicZoomLevel);
+
+  GlicZoomAction action_metric;
+  switch (zoom_action) {
+    case mojom::ZoomAction::kZoomIn:
+      action_metric = current_zoom >= 200 ? GlicZoomAction::kZoomInAtMax
+                                          : GlicZoomAction::kZoomIn;
+      break;
+    case mojom::ZoomAction::kZoomOut:
+      action_metric = current_zoom <= 100 ? GlicZoomAction::kZoomOutAtMin
+                                          : GlicZoomAction::kZoomOut;
+      break;
+    case mojom::ZoomAction::kReset:
+      action_metric = GlicZoomAction::kReset;
+      break;
+  }
+
+  base::UmaHistogramEnumeration("Glic.ZoomAction", action_metric);
   page_->Zoom(zoom_action);
 }
 

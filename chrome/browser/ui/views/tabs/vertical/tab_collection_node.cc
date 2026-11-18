@@ -111,10 +111,12 @@ std::unique_ptr<views::View> TabCollectionNode::CreateViewForNode(
   return std::make_unique<CollectionTestViewImpl>(node_for_view);
 }
 
-TabCollectionNode::TabCollectionNode(tabs::ConstChildPtr node_data)
+TabCollectionNode::TabCollectionNode(tabs::ConstChildPtr node_data,
+                                     TabStripOrientation orientation)
     : type_(GetTypeFromNode(node_data)),
       handle_(GetHandleFromNode(node_data)),
-      node_data_(node_data) {}
+      node_data_(node_data),
+      orientation_(orientation) {}
 
 TabCollectionNode::~TabCollectionNode() {
   on_will_destroy_callback_list_.Notify();
@@ -237,7 +239,8 @@ void TabCollectionNode::AddNewChild(base::PassKey<TabCollectionNode> pass_key,
                                     tabs::ConstChildPtr node_data,
                                     size_t model_index,
                                     bool perform_initialization) {
-  auto child_node = std::make_unique<TabCollectionNode>(node_data);
+  auto child_node =
+      std::make_unique<TabCollectionNode>(node_data, orientation_);
   auto* child_node_ptr = child_node.get();
   AddChildNode(std::move(child_node), model_index);
 

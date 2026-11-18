@@ -1277,8 +1277,8 @@ Unknown properties are collapsed to zero. -->
 
 <enum name="CanvasAccessibilityHeuristicResult">
   <int value="0" label="Unknown"/>
-  <int value="1" label="IsNotVisible"/>
-  <int value="2" label="IsIgnoredOrAriaHidden"/>
+  <int value="1" label="IsNotVisible (deprecated)"/>
+  <int value="2" label="IsIgnored"/>
   <int value="3" label="TooSmall"/>
   <int value="4" label="HasLayoutSubtree"/>
   <int value="5" label="HasFallbackContent"/>
@@ -2310,6 +2310,16 @@ Unknown properties are collapsed to zero. -->
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/read_anything/read_anything_enums.h:ReadAnythingOmniboxChipDecision) -->
+
+<!-- LINT.IfChange(ReadAnythingPlaybackContext) -->
+
+<enum name="ReadAnythingPlaybackContext">
+  <summary>The UI context where Read Aloud speech was started.</summary>
+  <int value="0" label="Side Panel"/>
+  <int value="1" label="Immersive Overlay"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/renderer/accessibility/read_anything/read_aloud_app_model.h:ReadAnythingPlaybackContext) -->
 
 <!-- LINT.IfChange(ReadAnythingReadAloudSettingsChange) -->
 

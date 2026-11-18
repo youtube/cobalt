@@ -102,6 +102,8 @@
 #include "third_party/blink/renderer/core/page/spatial_navigation_controller.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
+#include "third_party/blink/renderer/core/route_matching/navigation_state.h"
+#include "third_party/blink/renderer/core/route_matching/route_map.h"
 #include "third_party/blink/renderer/core/scroll/scrollable_area.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -828,6 +830,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoTextField:
     case CSSSelector::kPseudoToolFormActive:
     case CSSSelector::kPseudoToolSubmitActive:
+    case CSSSelector::kPseudoTriggerLink:
     case CSSSelector::kPseudoUnboundedElementInactive:
     case CSSSelector::kPseudoViewTransition:
     case CSSSelector::kPseudoViewTransitionGroup:
@@ -2912,6 +2915,19 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
     case CSSSelector::kPseudoActiveNavigation:
       DCHECK(RuntimeEnabledFeatures::RouteMatchingEnabled());
       return CheckPseudoActiveNavigation(context, result);
+    case CSSSelector::kPseudoTriggerLink:
+      DCHECK(RuntimeEnabledFeatures::RouteMatchingEnabled());
+      if (element.IsLink()) {
+        if (const auto* state = NavigationState::Get(&element.GetDocument())) {
+          return &element == state->GetSourceElement();
+        }
+
+        // TODO(crbug.com/436805487) Find a better solution. For now we need a
+        // RouteMap instance in order to trigger style recalc of source elements
+        // for :trigger-link, when navigation starts and ends.
+        RouteMap::Ensure(element.GetDocument());
+      }
+      return false;
     case CSSSelector::kPseudoLang: {
       auto* vtt_element = DynamicTo<VTTElement>(element);
       AtomicString value = vtt_element ? vtt_element->Language()

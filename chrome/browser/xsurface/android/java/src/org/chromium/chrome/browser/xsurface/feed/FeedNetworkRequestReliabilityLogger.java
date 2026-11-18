@@ -29,19 +29,8 @@ public interface FeedNetworkRequestReliabilityLogger {
      */
     default void logActionsUploadRequestStart() {}
 
-    /**
-     * Log before filling out and serializing a web feed request for all followed web feeds. Starts
-     * the network request flow.
-     */
-    default void logWebFeedRequestStart() {}
-
-    /**
-     * Log before filling out and serializing a web feed request for a single web feed, used by the
-     * cormorant surface. Starts the network request flow.
-     */
-    default void logSingleWebFeedRequestStart() {}
-
     /** Log after the request has been sent. */
+    @Deprecated
     default void logRequestSent() {}
 
     /**
@@ -71,27 +60,15 @@ public interface FeedNetworkRequestReliabilityLogger {
     /**
      * Log before filling out and serializing a feed actions upload request. Starts the network
      * request flow.
+     *
      * @param timestamp Event time.
      */
     @Deprecated
     default void logActionsUploadRequestStart(long timestamp) {}
 
     /**
-     * Log before filling out and serializing a web feed request for all followed web feeds. Starts
-     * the network request flow.
-     */
-    @Deprecated
-    default void logWebFeedRequestStart(long timestamp) {}
-
-    /**
-     * Log before filling out and serializing a web feed request for a single web feed, used by the
-     * cormorant surface. Starts the network request flow.
-     */
-    @Deprecated
-    default void logSingleWebFeedRequestStart(long timestamp) {}
-
-    /**
      * Log after the request has been sent.
+     *
      * @param timestamp Event time.
      */
     @Deprecated

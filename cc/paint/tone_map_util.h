@@ -28,11 +28,13 @@ class CC_PAINT_EXPORT ToneMapUtil {
   // disable tone mapping (see comments in the source).
   static bool UseGlobalToneMapFilter(
       const SkImage* image,
+      const gfx::HDRMetadata& metadata,
       const SkColorSpace* dst_color_space = nullptr);
 
   // Return true if images that have the specified color space should be drawn
   // using a tone mapping shader.
-  static bool UseGlobalToneMapFilter(const SkColorSpace* cs);
+  static bool UseGlobalToneMapFilter(const SkColorSpace* cs,
+                                     const gfx::HDRMetadata& metadata);
 
   // Add a color filter to `paint` that will perform tone mapping.
   static void AddGlobalToneMapFilterToPaint(SkPaint& paint,

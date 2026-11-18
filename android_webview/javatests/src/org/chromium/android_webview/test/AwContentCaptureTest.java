@@ -1242,6 +1242,7 @@ public class AwContentCaptureTest extends AwParameterizedTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
+    @CommandLineFlags.Add({"enable-features=WebViewDownloadFavicons"})
     public void testFavicon() throws Throwable {
         final String response =
                 "<html><head><link rel=icon href=mac.icns sizes=\"128x128 512x512 8192x8192"

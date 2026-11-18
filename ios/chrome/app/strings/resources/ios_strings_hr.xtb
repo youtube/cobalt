@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">GGGG</translation>
 <translation id="1013952917065545813">Ovdje se možete vratiti da biste ponovo otvorili kartice koje ste nedavno zatvorili</translation>
 <translation id="1016495303386450659">Stavka je ažurirana</translation>
+<translation id="1018804590490383958">Skenirajte i automatski popunite</translation>
 <translation id="1019990162050689579">Aktivnost u Gemini aplikacijama</translation>
 <translation id="102916930470544692">Pristupni ključ</translation>
 <translation id="1030376737535466765">Otvorite Upravitelj zaporki.</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Ažurirajte preglednik</translation>
 <translation id="4021931095789478915">Dodaj ${url} na popis za čitanje</translation>
 <translation id="4028871427853484857">Spremi na račun…</translation>
+<translation id="4036529942385659684">Prikaži početnu stranicu nakon razdoblja neaktivnosti</translation>
 <translation id="4038354071007134711">Na ovom uređaju nema aplikacije za tu datoteku.</translation>
 <translation id="4042870976416480368">Traži na stranici</translation>
 <translation id="4045441967987592849">Ponovno otvori</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Upravljajte grupom</translation>
 <translation id="4172051516777682613">Uvijek prikaži</translation>
 <translation id="417273154673973994">{count,plural, =1{Jedna grupa kartica zatvorena je i spremljena}one{{count} grupa kartica zatvorena je i spremljena}few{{count} grupe kartica zatvorene su i spremljene}other{{count} grupa kartica zatvoreno je i spremljeno}}</translation>
-<translation id="417612446554534067">Pošaljite na svoje uređaje</translation>
 <translation id="4180726336228139707">Samo na ovom uređaju</translation>
 <translation id="4181841719683918333">Jezici</translation>
 <translation id="4183350924949589798">Dodatna zaštita?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Kartice su zatvorene; odjavljeni ste</translation>
 <translation id="4911042367886397055"><ph name="USER_NAME" />, dobro došli natrag!</translation>
 <translation id="4913626501929406101">Kopiju svoje zaporke možete na siguran način dijeliti s nekim u obiteljskoj grupi. <ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Leća</translation>
 <translation id="4917025507570489430">Možete upotrebljavati postojeće podatke o pregledavanju kad ste prijavljeni kao <ph name="USER_EMAIL" />. Vaša organizacija možda može vidjeti te podatke.</translation>
 <translation id="4918086044614829423">Prihvati</translation>
 <translation id="4930714375720679147">Uključi</translation>
@@ -1549,6 +1551,7 @@ Handoff mora biti omogućen i u odjeljku Općenito u Postavkama, a vaši uređaj
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Odaberite položaj adresne trake</translation>
 <translation id="6307241780749477694">Potvrdite svoj identitet da biste mogli pristupiti svim svojim zaporkama na ovom uređaju</translation>
+<translation id="6307792728709337290">Spremite karticu na svoj Google račun da bi se podaci automatski popunili za ovu i buduće kupnje u Chromeu.</translation>
 <translation id="6316141353357700666">Na popisu koji se prikaže odaberite zaporku koju želite upotrijebiti.</translation>
 <translation id="6321526113093607004">Dodaj u Oznake</translation>
 <translation id="6327249202318869726">Gemini je isključen za vaš račun. Zatražite više informacija od administratora.</translation>
@@ -2143,6 +2146,7 @@ Da biste nastavili s računala, prebacite se na <ph name="OTHER_EMAIL" />. Dohva
 <translation id="8263809106706527890">Možda je došlo do promjene u postavkama zadanog preglednika. To možete provjeriti u postavkama.</translation>
 <translation id="8264966119170358612">Neke od vaših spremljenih zaporki otkrivene su u neovlaštenom pristupu podacima izvan Googlea. <ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Odjavljeni ste s računa <ph name="USER_NAME" /> pri vraćanju iPada na zadano. Da biste se ponovno prijavili, dodirnite Nastavi u nastavku.</translation>
+<translation id="8270320981823560179">Disk</translation>
 <translation id="8273982424131314219">Unijet ćete podatke u <ph name="URL" /></translation>
 <translation id="8275068909952022340">Više…</translation>
 <translation id="8281781826761538115">Zadano – <ph name="DEFAULT_LOCALE" /></translation>

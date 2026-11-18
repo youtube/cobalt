@@ -73,6 +73,10 @@
 [submodule "testing/libfuzzer/fuzzers/wasm_corpus"]
 	path = testing/libfuzzer/fuzzers/wasm_corpus
 	url = https://chromium.googlesource.com/v8/fuzzer_wasm_corpus
+[submodule "third_party/androidx/third_party/ink/src"]
+	path = third_party/androidx/third_party/ink/src
+	url = https://chromium.googlesource.com/external/github.com/google/ink
+	gclient-condition = checkout_android and non_git_source
 [submodule "third_party/androidx_javascriptengine/src"]
 	path = third_party/androidx_javascriptengine/src
 	url = https://chromium.googlesource.com/aosp/platform/frameworks/support/javascriptengine/javascriptengine/src

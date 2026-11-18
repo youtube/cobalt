@@ -1982,7 +1982,10 @@ IFACEMETHODIMP AXPlatformNodeWin::get_accValue(VARIANT var_id, BSTR* value) {
   COM_OBJECT_VALIDATE_VAR_ID_1_ARG_AND_GET_TARGET(var_id, value, target);
 
   // Special case for indeterminate progressbar.
+  // TODO(crbug.com/512865828): Transition to only checking kAriaValueText once
+  // fully supported.
   if (GetRole() == ax::mojom::Role::kProgressIndicator &&
+      !HasStringAttribute(ax::mojom::StringAttribute::kAriaValueText) &&
       !HasStringAttribute(ax::mojom::StringAttribute::kValue) &&
       !HasFloatAttribute(ax::mojom::FloatAttribute::kValueForRange)) {
     // The MIXED state is also exposed for an indeterminate value.
@@ -5787,10 +5790,16 @@ HRESULT AXPlatformNodeWin::GetPropertyValueImpl(PROPERTYID property_id,
       break;
 
     case UIA_ValueValuePropertyId: {
-      if (HasStringAttribute(ax::mojom::StringAttribute::kValue)) {
+      // TODO(crbug.com/512865828): Investigate if this callsite can safely
+      // transition to only checking kAriaValueText in the future.
+      ax::mojom::StringAttribute value_attr =
+          HasStringAttribute(ax::mojom::StringAttribute::kAriaValueText)
+              ? ax::mojom::StringAttribute::kAriaValueText
+              : ax::mojom::StringAttribute::kValue;
+
+      if (HasStringAttribute(value_attr)) {
         result->vt = VT_BSTR;
-        GetStringAttributeAsBstr(ax::mojom::StringAttribute::kValue,
-                                 &result->bstrVal);
+        GetStringAttributeAsBstr(value_attr, &result->bstrVal);
       }
       break;
     }
@@ -7670,7 +7679,7 @@ std::wstring AXPlatformNodeWin::ComputeUIAProperties() {
     FloatAttributeToUIAAriaProperty(
         properties, ax::mojom::FloatAttribute::kMinValueForRange, "valuemin");
     StringAttributeToUIAAriaProperty(
-        properties, ax::mojom::StringAttribute::kValue, "valuetext");
+        properties, ax::mojom::StringAttribute::kAriaValueText, "valuetext");
 
     std::wstring value_now = base::UTF16ToWide(GetValueForControl());
     SanitizeStringAttributeForUIAAriaProperty(value_now, &value_now);
@@ -8267,7 +8276,11 @@ int AXPlatformNodeWin::MSAAState() const {
   }
 
   // Special case for indeterminate progressbar.
+  // TODO(crbug.com/512865828): Transition to only checking kAriaValueText once
+  // fully supported.
   if (role == ax::mojom::Role::kProgressIndicator &&
+      !delegate->HasStringAttribute(
+          ax::mojom::StringAttribute::kAriaValueText) &&
       !delegate->HasStringAttribute(ax::mojom::StringAttribute::kValue) &&
       !delegate->HasFloatAttribute(ax::mojom::FloatAttribute::kValueForRange)) {
     msaa_state |= STATE_SYSTEM_MIXED;

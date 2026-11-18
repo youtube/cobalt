@@ -69,44 +69,40 @@ EntityInstanceBuilder& EntityInstanceBuilder::AddAttribute(
 }
 
 EntityInstanceBuilder& EntityInstanceBuilder::AddPrimaryAttribute() {
-  autofill::AttributeTypeName primary_attribute_name =
-      autofill::AttributeTypeName::kPassportName;
+  AttributeTypeName primary_attribute_name = AttributeTypeName::kPassportName;
   switch (type_.name()) {
-    case autofill::EntityTypeName::kPassport:
-      primary_attribute_name = autofill::AttributeTypeName::kPassportName;
+    case EntityTypeName::kPassport:
+      primary_attribute_name = AttributeTypeName::kPassportName;
       break;
-    case autofill::EntityTypeName::kDriversLicense:
-      primary_attribute_name = autofill::AttributeTypeName::kDriversLicenseName;
+    case EntityTypeName::kDriversLicense:
+      primary_attribute_name = AttributeTypeName::kDriversLicenseName;
       break;
-    case autofill::EntityTypeName::kNationalIdCard:
-      primary_attribute_name = autofill::AttributeTypeName::kNationalIdCardName;
+    case EntityTypeName::kNationalIdCard:
+      primary_attribute_name = AttributeTypeName::kNationalIdCardName;
       break;
-    case autofill::EntityTypeName::kVehicle:
-      primary_attribute_name = autofill::AttributeTypeName::kVehicleMake;
+    case EntityTypeName::kVehicle:
+      primary_attribute_name = AttributeTypeName::kVehicleMake;
       break;
-    case autofill::EntityTypeName::kFlightReservation:
+    case EntityTypeName::kFlightReservation:
       primary_attribute_name =
-          autofill::AttributeTypeName::kFlightReservationFlightNumber;
+          AttributeTypeName::kFlightReservationFlightNumber;
       break;
-    case autofill::EntityTypeName::kKnownTravelerNumber:
-      primary_attribute_name =
-          autofill::AttributeTypeName::kKnownTravelerNumberName;
+    case EntityTypeName::kKnownTravelerNumber:
+      primary_attribute_name = AttributeTypeName::kKnownTravelerNumberName;
       break;
-    case autofill::EntityTypeName::kRedressNumber:
-      primary_attribute_name = autofill::AttributeTypeName::kRedressNumberName;
+    case EntityTypeName::kRedressNumber:
+      primary_attribute_name = AttributeTypeName::kRedressNumberName;
       break;
-    case autofill::EntityTypeName::kOrder:
-      primary_attribute_name = autofill::AttributeTypeName::kOrderId;
+    case EntityTypeName::kOrder:
+      primary_attribute_name = AttributeTypeName::kOrderId;
       break;
-    case autofill::EntityTypeName::kShipment:
-      primary_attribute_name =
-          autofill::AttributeTypeName::kShipmentTrackingNumber;
+    case EntityTypeName::kShipment:
+      primary_attribute_name = AttributeTypeName::kShipmentTrackingNumber;
       break;
     default:
       NOTREACHED();
   }
-  return AddAttribute(autofill::AttributeInstance(
-      autofill::AttributeType(primary_attribute_name)));
+  return AddAttribute(AttributeInstance(AttributeType(primary_attribute_name)));
 }
 
 EntityInstance EntityInstanceBuilder::Build() {

@@ -9,7 +9,6 @@
 #include "chrome/browser/android/android_theme_resources.h"
 #include "chrome/browser/android/resource_mapper.h"
 #include "chrome/browser/lookalikes/safety_tip_ui_helper.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/messages/android/mock_message_dispatcher_bridge.h"
 #include "components/strings/grit/components_strings.h"

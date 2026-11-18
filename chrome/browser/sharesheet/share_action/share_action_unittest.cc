@@ -11,7 +11,6 @@
 #include "chrome/browser/sharesheet/share_action/share_action_cache.h"
 #include "chrome/browser/sharesheet/sharesheet_test_util.h"
 #include "chrome/browser/sharesheet/sharesheet_types.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"

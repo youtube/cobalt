@@ -139,6 +139,7 @@ L$enc_entry:
 
 
 .p2align	4
+.alt_entry _vpaes_encrypt_core_2x
 _vpaes_encrypt_core_2x:
 
 	movq	%rdx,%r9
@@ -290,6 +291,7 @@ L$enc2x_entry:
 
 
 .p2align	4
+.alt_entry _vpaes_decrypt_core
 _vpaes_decrypt_core:
 
 	movq	%rdx,%r9
@@ -398,6 +400,7 @@ L$dec_entry:
 
 
 .p2align	4
+.alt_entry _vpaes_schedule_core
 _vpaes_schedule_core:
 
 
@@ -585,6 +588,7 @@ L$schedule_mangle_last_dec:
 
 
 .p2align	4
+.alt_entry _vpaes_schedule_192_smear
 _vpaes_schedule_192_smear:
 
 	pshufd	$0x80,%xmm6,%xmm1
@@ -618,6 +622,7 @@ _vpaes_schedule_192_smear:
 
 
 .p2align	4
+.alt_entry _vpaes_schedule_round
 _vpaes_schedule_round:
 
 
@@ -633,6 +638,7 @@ _vpaes_schedule_round:
 
 
 
+.alt_entry _vpaes_schedule_low_round
 _vpaes_schedule_low_round:
 
 	movdqa	%xmm7,%xmm1
@@ -687,6 +693,7 @@ _vpaes_schedule_low_round:
 
 
 .p2align	4
+.alt_entry _vpaes_schedule_transform
 _vpaes_schedule_transform:
 
 	movdqa	%xmm9,%xmm1
@@ -727,6 +734,7 @@ _vpaes_schedule_transform:
 
 
 .p2align	4
+.alt_entry _vpaes_schedule_mangle
 _vpaes_schedule_mangle:
 
 	movdqa	%xmm0,%xmm4
@@ -803,6 +811,7 @@ L$schedule_mangle_both:
 .private_extern _vpaes_set_encrypt_key
 
 .p2align	4
+.alt_entry _vpaes_set_encrypt_key
 _vpaes_set_encrypt_key:
 
 _CET_ENDBR
@@ -828,6 +837,7 @@ _CET_ENDBR
 .private_extern _vpaes_set_decrypt_key
 
 .p2align	4
+.alt_entry _vpaes_set_decrypt_key
 _vpaes_set_decrypt_key:
 
 _CET_ENDBR
@@ -853,6 +863,7 @@ _CET_ENDBR
 .private_extern _vpaes_encrypt
 
 .p2align	4
+.alt_entry _vpaes_encrypt
 _vpaes_encrypt:
 
 _CET_ENDBR
@@ -872,6 +883,7 @@ _CET_ENDBR
 .private_extern _vpaes_decrypt
 
 .p2align	4
+.alt_entry _vpaes_decrypt
 _vpaes_decrypt:
 
 _CET_ENDBR
@@ -886,6 +898,7 @@ _CET_ENDBR
 .private_extern _vpaes_cbc_encrypt
 
 .p2align	4
+.alt_entry _vpaes_cbc_encrypt
 _vpaes_cbc_encrypt:
 
 _CET_ENDBR
@@ -930,6 +943,7 @@ L$cbc_abort:
 .private_extern _vpaes_ctr32_encrypt_blocks
 
 .p2align	4
+.alt_entry _vpaes_ctr32_encrypt_blocks
 _vpaes_ctr32_encrypt_blocks:
 
 _CET_ENDBR
@@ -998,6 +1012,7 @@ L$ctr32_abort:
 
 
 .p2align	4
+.alt_entry _vpaes_preheat
 _vpaes_preheat:
 
 	leaq	L$k_s0F(%rip),%r10

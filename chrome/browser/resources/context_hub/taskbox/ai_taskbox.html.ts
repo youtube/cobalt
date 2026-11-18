@@ -19,20 +19,13 @@ export function getHtml(this: AiTaskboxElement) {
                 <h2>Suggested to-dos</h2>
             </div>
 
-            <!-- TODO(crbug.com/519576944): These should be dynamically generated when backend generation logic is added. -->
             <div class="todo-list">
-                <todo-item
-                    heading="Register product recall"
-                    description="Register espresso machine for safety recall service.">
-                </todo-item>
-                <todo-item
-                    heading="Complete security training"
-                    description="Finish mandatory annual security awareness module.">
-                </todo-item>
-                <todo-item
-                    heading="Flight check-in"
-                    description="Check in for upcoming flight to SFO.">
-                </todo-item>
+                ${this.todos?.map(todo => html`
+                  <todo-item
+                      .heading="${todo.title}"
+                      .description="${todo.description}">
+                  </todo-item>
+                `)}
             </div>
         </section>
     </main>

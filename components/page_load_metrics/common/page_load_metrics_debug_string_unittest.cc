@@ -14,7 +14,7 @@ TEST(PageLoadMetricsDebugStringTest, SoftNavigationMetrics) {
   soft_navigation_metrics.soft_navigation_offset = 1;
   soft_navigation_metrics.start_time = base::Milliseconds(123);
   soft_navigation_metrics.soft_navigation_slicing_time =
-      base::TimeTicks::UnixEpoch() + base::Milliseconds(42);
+      base::TimeTicks() + base::Milliseconds(42);
   soft_navigation_metrics.navigation_type =
       blink::mojom::NavigationTypeForNavigationApi::kReplace;
 

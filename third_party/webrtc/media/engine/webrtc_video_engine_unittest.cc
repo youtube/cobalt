@@ -32,7 +32,6 @@
 #include "api/call/transport.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
@@ -384,9 +383,8 @@ class WebRtcVideoEngineTest : public ::testing::Test {
   explicit WebRtcVideoEngineTest(const std::string& field_trials)
       : field_trials_(CreateTestFieldTrials(field_trials)),
         time_controller_(Timestamp::Millis(4711)),
-        env_(CreateEnvironment(field_trials_.CreateCopy(),
-                               time_controller_.CreateTaskQueueFactory(),
-                               time_controller_.GetClock())),
+        env_(CreateTestEnvironment({.field_trials = field_trials_.CreateCopy(),
+                                    .time = &time_controller_})),
         call_(Call::Create(CallConfig::CreateSingleThreaded(env_))),
         encoder_factory_(new FakeWebRtcVideoEncoderFactory),
         decoder_factory_(new FakeWebRtcVideoDecoderFactory),
@@ -402,9 +400,8 @@ class WebRtcVideoEngineTest : public ::testing::Test {
     if (!key.empty()) {
       field_trials_.Set(key, value);
     }
-    env_ = CreateEnvironment(field_trials_.CreateCopy(),
-                             time_controller_.CreateTaskQueueFactory(),
-                             time_controller_.GetClock());
+    env_ = CreateTestEnvironment({.field_trials = field_trials_.CreateCopy(),
+                                  .time = &time_controller_});
     encoder_factory_ = new FakeWebRtcVideoEncoderFactory();
     decoder_factory_ = new FakeWebRtcVideoDecoderFactory();
     engine_ = std::make_unique<WebRtcVideoEngine>(
@@ -1047,13 +1044,15 @@ WebRtcVideoEngineTest::SetRecvParamsWithAllSupportedCodecs() {
 
 void WebRtcVideoEngineTest::ExpectRtpCapabilitySupport(const char* uri,
                                                        bool supported) const {
-  const std::vector<RtpExtension> header_extensions =
-      GetDefaultEnabledRtpHeaderExtensions(*engine_,
-                                           /* field_trials= */ nullptr);
+  const std::vector<RtpHeaderExtensionCapability> header_extensions =
+      GetDefaultEnabledRtpHeaderCapabilities(*engine_,
+                                             /* field_trials= */ nullptr);
   if (supported) {
-    EXPECT_THAT(header_extensions, Contains(Field(&RtpExtension::uri, uri)));
+    EXPECT_THAT(header_extensions,
+                Contains(Field(&RtpHeaderExtensionCapability::uri, uri)));
   } else {
-    EXPECT_THAT(header_extensions, Each(Field(&RtpExtension::uri, StrNe(uri))));
+    EXPECT_THAT(header_extensions,
+                Each(Field(&RtpHeaderExtensionCapability::uri, StrNe(uri))));
   }
 }
 
@@ -8125,7 +8124,7 @@ class WebRtcVideoChannelScaleResolutionDownByTest
 TEST_P(WebRtcVideoChannelScaleResolutionDownByTest, ScaleResolutionDownBy) {
   ScaleResolutionDownByTestParameters test_params = std::get<0>(GetParam());
   std::string codec_name = std::get<1>(GetParam());
-  field_trials_.Merge(FieldTrials(test_params.field_trials));
+  field_trials_.Merge(CreateTestFieldTrials(test_params.field_trials));
   ResetTest();
   // Set up WebRtcVideoChannel for 3-layer simulcast.
   encoder_factory_->AddSupportedVideoCodecType(codec_name);

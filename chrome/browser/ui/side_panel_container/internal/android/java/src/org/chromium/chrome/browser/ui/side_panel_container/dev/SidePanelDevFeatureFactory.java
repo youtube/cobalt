@@ -7,9 +7,9 @@ package org.chromium.chrome.browser.ui.side_panel_container.dev;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator;
 import org.chromium.ui.base.WindowAndroid;
 
@@ -27,18 +27,15 @@ public final class SidePanelDevFeatureFactory {
             SidePanelContainerCoordinator sidePanelContainerCoordinator,
             WindowAndroid windowAndroid,
             Supplier<Tab> tabSupplier) {
-        if (!ChromeFeatureList.sEnableAndroidSidePanelDevFeature.isEnabled()) {
-            return null;
+        if (AndroidSidePanelEnabledFn.isPureJavaDevFeatureEnabled()) {
+            return new SidePanelDevFeatureImpl(
+                    profileSupplier, sidePanelContainerCoordinator, windowAndroid);
         }
 
-        String scope =
-                ChromeFeatureList.getFieldTrialParamByFeature(
-                        ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL_DEV_FEATURE, "scope");
-        if ("tab".equals(scope)) {
+        if (AndroidSidePanelEnabledFn.isTabScopedDevFeatureEnabled()) {
             return new SidePanelTabScopedDevFeatureImpl(tabSupplier);
         }
 
-        return new SidePanelDevFeatureImpl(
-                profileSupplier, sidePanelContainerCoordinator, windowAndroid);
+        return null;
     }
 }

@@ -48,11 +48,14 @@ TestDevToolsAgentClient::TestDevToolsAgentClient(
       use_binary_protocol_(use_binary_protocol),
       agent_(std::move(agent)),
       receiver_(this) {
+  blink::mojom::DevToolsSessionStatePtr session_state =
+      blink::mojom::DevToolsSessionState::New();
+  session_state->browser_originating_session_state =
+      blink::mojom::BrowserOriginatingSessionState::New();
   agent_->AttachDevToolsSession(receiver_.BindNewEndpointAndPassRemote(),
                                 session_.BindNewEndpointAndPassReceiver(),
                                 io_session_.BindNewPipeAndPassReceiver(),
-                                nullptr, /*script_to_evaluate_on_load*/ "",
-                                use_binary_protocol_,
+                                std::move(session_state), use_binary_protocol_,
                                 /*client_is_trusted=*/true, session_id_,
                                 /*session_waits_for_debugger=*/false);
 }

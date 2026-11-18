@@ -38,7 +38,7 @@
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
-#include "api/sframe/sframe_encrypter_interface.h"
+#include "api/sframe/sframe_encryptor_interface.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/video_codecs/video_encoder_factory.h"
@@ -1065,9 +1065,9 @@ void RtpSenderBase::SetFrameTransformer(
   }
 }
 
-RTCErrorOr<scoped_refptr<SframeEncrypterInterface>>
-RtpSenderBase::CreateSframeEncrypterOrError(
-    const SframeEncrypterInit& options) {
+RTCErrorOr<scoped_refptr<SframeEncryptorInterface>>
+RtpSenderBase::CreateSframeEncryptorOrError(
+    const SframeEncryptorInit& options) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
 
   if (!enable_sframe_at_owner_) {
@@ -1425,6 +1425,7 @@ void VideoRtpSender::SetSend() {
   if (source) {
     options.is_screencast = source->is_screencast();
     options.video_noise_reduction = source->needs_denoising();
+    options.allow_zero_hertz_video = source->allow_zero_hertz_video();
   }
   options.content_hint = cached_track_content_hint_;
   switch (cached_track_content_hint_) {

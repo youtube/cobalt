@@ -181,6 +181,7 @@ source_set("impl") {
       "//chrome/browser/ui/waap:waap_utils",
       "//chrome/browser/ui/waap:window_metrics_manager",
       "//chrome/browser/ui/webui/metrics_reporter",
+      "//chrome/browser/ui/webui/omnibox_popup",
       "//chrome/browser/ui/webui/top_chrome",
       "//components/webapps/isolated_web_apps:scheme",
     ]

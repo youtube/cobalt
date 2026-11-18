@@ -398,6 +398,7 @@ if (!build_with_chromium) {
       deps = [
         ":chart_proto",
         ":event_log_visualizer_bindings",
+        "../api/environment:force_test_environment",
         "//rtc_base:protobuf_utils",
         "//rtc_base/system:file_wrapper",
         "//test:fileutils",
@@ -584,9 +585,6 @@ if (rtc_include_tests) {
       }
 
       data = tools_unittests_resources
-      if (is_android) {
-        shard_timeout = 900
-      }
       if (is_ios) {
         deps += [ ":tools_unittests_bundle_data" ]
       }

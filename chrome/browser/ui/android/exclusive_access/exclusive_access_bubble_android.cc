@@ -96,12 +96,14 @@ ExclusiveAccessBubbleAndroid::ExclusiveAccessBubbleAndroid(
 }
 
 ExclusiveAccessBubbleAndroid::~ExclusiveAccessBubbleAndroid() {
-  Hide();
+  HideImmediately();
 }
 
 void ExclusiveAccessBubbleAndroid::Hide() {
-  was_shown_ = false;
-  bridge_->Hide();
+  // On Android, the exclusive access notice is managed by a Java-side timer
+  // that only starts once the snackbar is visible. We ignore the native
+  // timer dismissal here to prevent the notice from being hidden while
+  // it is covered by other UI elements.
 }
 
 void ExclusiveAccessBubbleAndroid::Show() {
@@ -110,7 +112,8 @@ void ExclusiveAccessBubbleAndroid::Show() {
 }
 
 void ExclusiveAccessBubbleAndroid::HideImmediately() {
-  Hide();
+  was_shown_ = false;
+  bridge_->Hide();
 }
 
 void ExclusiveAccessBubbleAndroid::Update(

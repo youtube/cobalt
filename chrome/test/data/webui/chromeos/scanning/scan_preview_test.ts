@@ -15,7 +15,7 @@ import {setAccessibilityFeaturesForTesting} from 'chrome://scanning/mojo_interfa
 import type {ScanPreviewElement} from 'chrome://scanning/scan_preview.js';
 import {AppState} from 'chrome://scanning/scanning_app_types.js';
 import {ScanningBrowserProxyImpl} from 'chrome://scanning/scanning_browser_proxy.js';
-import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import {isVisible} from 'chrome://webui-test/chromeos/test_util.js';
 import {flushTasks, waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';

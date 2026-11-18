@@ -63,6 +63,7 @@ source_set("impl") {
   deps = [
     ":profiles",
     "//chrome/browser/feedback",
+    "//chrome/browser/ui:incognito_allowed_url",
     "//chrome/browser/ui:simple_message_box_headers",
   ]
   public_deps = []
@@ -189,7 +190,7 @@ source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = []
-  deps = []
+  deps = [ "//chrome/browser/ui:simple_message_box_internal" ]
 
   if (!is_android) {
     sources += [ "profile_error_browsertest.cc" ]

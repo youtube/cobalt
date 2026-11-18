@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 #include <openssl/bio.h>
 #include <openssl/conf.h>
@@ -153,7 +153,7 @@ key5 = value5
           },
       },
 
-      // Trailing backslashes are line continations.
+      // Trailing backslashes are line continuations.
       {
           "key=\\\nvalue\nkey2=foo\\\nbar=baz",
           {
@@ -473,7 +473,7 @@ TEST(ConfTest, ParseList) {
        /*remove_whitespace=*/1,
        {"ab cd", "", "ef gh"}},
   };
-  for (const auto& t : kTests) {
+  for (const auto &t : kTests) {
     SCOPED_TRACE(t.list);
     SCOPED_TRACE(t.sep);
     SCOPED_TRACE(t.remove_whitespace);

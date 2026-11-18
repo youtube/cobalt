@@ -16,12 +16,12 @@
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSize.h"
 #include "include/core/SkSpan.h"
-#include "include/private/base/SkAlign.h"
-#include "include/private/base/SkMath.h"
-#include "include/private/base/SkTArray.h"
-#include "src/base/SkHalf.h"
-#include "src/base/SkMathPriv.h"
+#include "include/private/SkAlign.h"
+#include "include/private/SkMath.h"
+#include "include/private/SkTArray.h"
 #include "src/core/SkColorData.h"
+#include "src/core/SkHalf.h"
+#include "src/core/SkMathPriv.h"
 #include "src/core/SkMatrixPriv.h"
 #include "src/core/SkSLTypeShared.h"
 #include "src/gpu/graphite/ResourceTypes.h"
@@ -469,6 +469,8 @@ private:
     void checkExpected(const void* dst, SkSLType, int count);
     void checkBeginStruct(int baseAlignment);
     void checkEndStruct();
+
+    friend class PipelineDataGatherer; // peak into fStorage for checkEquivalent() avoiding finish()
 #endif // SK_DEBUG
 };
 

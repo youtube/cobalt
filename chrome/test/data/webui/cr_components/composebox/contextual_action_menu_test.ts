@@ -8,6 +8,7 @@ import 'chrome://resources/cr_components/composebox/composebox_favicon_group.js'
 
 import type {ComposeboxFaviconGroupElement} from 'chrome://resources/cr_components/composebox/composebox_favicon_group.js';
 import type {ContextualActionMenuElement} from 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
+import {DEFAULT_FLYOUT_WIDTH_PX, MIN_MENU_HEIGHT_PX, SHARE_TABS_FLYOUT_GAP_PX, SHARE_TABS_FLYOUT_MAX_HEIGHT_PX, VIEWPORT_BUFFER_PX} from 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
 import {AnchorAlignment} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
@@ -19,6 +20,17 @@ import {$$, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.j
 
 import {MockInputState} from './composebox_test_utils.js';
 
+function triggerKeyDown(
+    element: HTMLElement, key: string, shiftKey: boolean = false) {
+  element.dispatchEvent(new KeyboardEvent('keydown', {
+    key,
+    code: key,
+    shiftKey,
+    bubbles: true,
+    composed: true,
+    cancelable: true,
+  }));
+}
 suite('ContextualActionMenu', () => {
   let actionMenu: ContextualActionMenuElement;
 
@@ -78,6 +90,7 @@ suite('ContextualActionMenu', () => {
           chipLabel: '',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
         {
           tool: ToolMode.kImageGen,
@@ -86,6 +99,7 @@ suite('ContextualActionMenu', () => {
           chipLabel: '',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
       ],
       toolsSectionConfig: {header: ''},
@@ -96,12 +110,14 @@ suite('ContextualActionMenu', () => {
           menuLabel: 'Gemini Regular',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
         {
           model: ModelMode.kGeminiPro,
           menuLabel: 'Gemini Pro',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
       ],
       modelSectionConfig: {header: ''},
@@ -139,6 +155,7 @@ suite('ContextualActionMenu', () => {
           chipLabel: '',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
         {
           tool: ToolMode.kImageGen,
@@ -147,6 +164,7 @@ suite('ContextualActionMenu', () => {
           chipLabel: '',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
       ],
       toolsSectionConfig: {header: ''},
@@ -157,12 +175,14 @@ suite('ContextualActionMenu', () => {
           menuLabel: 'Gemini Regular',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
         {
           model: ModelMode.kGeminiPro,
           menuLabel: 'Gemini Pro',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
       ],
       modelSectionConfig: {header: ''},
@@ -188,6 +208,7 @@ suite('ContextualActionMenu', () => {
           chipLabel: '',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
         {
           tool: ToolMode.kImageGen,
@@ -196,6 +217,7 @@ suite('ContextualActionMenu', () => {
           chipLabel: '',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
       ],
       toolsSectionConfig: {header: ''},
@@ -207,12 +229,14 @@ suite('ContextualActionMenu', () => {
           menuLabel: 'Gemini Regular',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
         {
           model: ModelMode.kGeminiPro,
           menuLabel: 'Gemini Pro',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
       ],
       modelSectionConfig: {header: ''},
@@ -249,12 +273,14 @@ suite('ContextualActionMenu', () => {
           menuLabel: 'Gemini Regular',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
         {
           model: ModelMode.kGeminiPro,
           menuLabel: 'Gemini Pro',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
       ],
       modelSectionConfig: {header: ''},
@@ -288,6 +314,7 @@ suite('ContextualActionMenu', () => {
           chipLabel: '',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
         {
           tool: ToolMode.kImageGen,
@@ -296,6 +323,7 @@ suite('ContextualActionMenu', () => {
           chipLabel: '',
           hintText: '',
           aimUrlParams: [],
+          menuTooltip: '',
         },
       ],
       toolsSectionConfig: {header: ''},
@@ -397,6 +425,7 @@ suite('ContextualActionMenu', () => {
         menuLabel: 'Gemini Regular',
         hintText: '',
         aimUrlParams: [],
+        menuTooltip: '',
       }],
       modelSectionConfig: {header: 'Models'},
     });
@@ -418,6 +447,7 @@ suite('ContextualActionMenu', () => {
         chipLabel: '',
         hintText: '',
         aimUrlParams: [],
+        menuTooltip: '',
       }],
       toolsSectionConfig: {header: ''},
       allowedModels: [],
@@ -474,6 +504,7 @@ suite('ContextualActionMenu', () => {
         chipLabel: '',
         hintText: '',
         aimUrlParams: [],
+        menuTooltip: '',
       }],
       toolsSectionConfig: {header: ''},
       modelSectionConfig: {header: ''},
@@ -493,6 +524,7 @@ suite('ContextualActionMenu', () => {
         menuLabel: 'Gemini Auto',
         hintText: '',
         aimUrlParams: [],
+        menuTooltip: '',
       }],
       modelSectionConfig: {header: ''},
       toolsSectionConfig: {header: ''},
@@ -583,6 +615,7 @@ suite('ContextualActionMenu', () => {
         chipLabel: '',
         hintText: '',
         aimUrlParams: [],
+        menuTooltip: '',
       }],
       toolsSectionConfig: {header: toolsHeader},
       allowedModels: [ModelMode.kGeminiRegular],
@@ -591,6 +624,7 @@ suite('ContextualActionMenu', () => {
         menuLabel: geminiLabel,
         hintText: '',
         aimUrlParams: [],
+        menuTooltip: '',
       }],
       modelSectionConfig: {header: ''},
       allowedInputTypes: [InputType.kLensImage],
@@ -757,9 +791,8 @@ suite('ContextualActionMenu', () => {
     assertTrue(!!flyout);
     assertFalse(flyout.hidden);
 
-    // 11 suggestions: 11 * 32px + 16px (padding) = 368px, which exceeds 344px
-    // max height.
-    actionMenu.tabSuggestions = Array(11).fill({
+    // 50 suggestions to ensure content height exceeds window height.
+    actionMenu.tabSuggestions = Array(50).fill({
       tabId: 1,
       title: 'Tab',
       url: {url: 'about:blank'},
@@ -770,8 +803,15 @@ suite('ContextualActionMenu', () => {
     });
     await microtasksFinished();
 
-    // Ensure flyout has max height even with many tab suggestions.
-    assertEquals(344, flyout.offsetHeight);
+    // Ensure flyout max height scales to align with normal menu and fits in
+    // viewport.
+    const expectedMaxHeight = Math.max(
+        MIN_MENU_HEIGHT_PX,
+        Math.min(
+            SHARE_TABS_FLYOUT_MAX_HEIGHT_PX,
+            window.innerHeight - trigger.getBoundingClientRect().top -
+                VIEWPORT_BUFFER_PX));
+    assertEquals(expectedMaxHeight, flyout.offsetHeight);
   });
 
   test(
@@ -805,12 +845,12 @@ suite('ContextualActionMenu', () => {
     assertEquals(expectedMaxHeight, dialog.offsetHeight);
 
     const style = window.getComputedStyle(dialog);
-    assertEquals('visible', style.overflowY);
+    assertEquals('auto', style.overflowY);
     assertTrue(dialog.scrollHeight > dialog.offsetHeight);
   });
 
-  // TODO(crbug.com/512920161): Reenable this test on Linux and Mac and Windows
-  // <if expr="not is_linux and not is_macosx and not is_win">
+  // TODO(crbug.com/512920161): Deflake and reenable this test.
+  // <if expr="not is_linux and not is_macosx and not is_win and not is_chromeos">
   test('Share tabs flyout keyboard navigation', async () => {
     loadTimeData.overrideValues({
       contextManagementInComposeboxEnabled: true,
@@ -878,6 +918,75 @@ suite('ContextualActionMenu', () => {
     // Assert that the focus is correctly returned to the parent trigger button.
     assertEquals(trigger, actionMenu.shadowRoot.activeElement);
   });
+
+  test(
+      'Share tabs flyout keyboard navigation focuses first non-disabled item',
+      async () => {
+        loadTimeData.overrideValues({
+          contextManagementInComposeboxEnabled: true,
+        });
+
+        actionMenu.remove();
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+        const tab1: TabInfo = {
+          tabId: 1,
+          title: 'Tab 1',
+          url: {url: 'about:blank'},
+          lastActiveTime: {internalValue: 0n},
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        } as any;
+        const tab2: TabInfo = {
+          tabId: 2,
+          title: 'Tab 2',
+          url: {url: 'about:blank'},
+          lastActiveTime: {internalValue: 0n},
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        } as any;
+
+        actionMenu.tabSuggestions = [tab1, tab2];
+        actionMenu.aimThreadRestoredTabs = [tab1];
+        actionMenu.inputState = new MockInputState({
+                                  allowedInputTypes: [InputType.kBrowserTab],
+                                }) as any;
+        document.body.appendChild(actionMenu);
+        await microtasksFinished();
+
+        // Open the main contextual action menu.
+        actionMenu.showAt(actionMenu);
+        await microtasksFinished();
+
+        // Get the trigger button and the flyout container.
+        const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+        const flyout = $$(actionMenu, '.share-tabs-flyout') as HTMLElement;
+        assertTrue(!!trigger);
+        assertTrue(!!flyout);
+
+        // Simulate an ArrowRight keydown event on the trigger to expand the
+        // flyout.
+        trigger.dispatchEvent(
+            new KeyboardEvent('keydown', {key: 'ArrowRight', bubbles: true}));
+        await actionMenu.updateComplete;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await microtasksFinished();
+
+        // Assert that the flyout is now visible.
+        assertFalse(flyout.hidden);
+
+        // Assert that the keyboard focus has successfully moved to the second
+        // button inside the flyout, because the first is disabled.
+        const buttons =
+            flyout.querySelectorAll<HTMLButtonElement>('button.dropdown-item');
+        assertEquals(2, buttons.length);
+        assertTrue(buttons[0]!.disabled);
+        assertFalse(buttons[1]!.disabled);
+
+        assertEquals(buttons[1]!, actionMenu.shadowRoot.activeElement);
+      });
   // </if>
 
   test('Tabs counter visibility', async () => {
@@ -959,6 +1068,188 @@ suite('ContextualActionMenu', () => {
         // dropdown arrow.
         assertTrue(!!shareTabsTrigger.querySelector('.share-tabs-arrow'));
       });
+
+
+  test('Share tabs flyout cycling keyboard navigation', async () => {
+    loadTimeData.overrideValues({
+      contextManagementInComposeboxEnabled: true,
+    });
+
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    const tab1: TabInfo = {
+      tabId: 1,
+      title: 'Tab 1',
+      url: {url: 'about:blank'},
+      lastActiveTime: {internalValue: 0n},
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    } as any;
+    const tab2: TabInfo = {
+      tabId: 2,
+      title: 'Tab 2',
+      url: {url: 'about:blank'},
+      lastActiveTime: {internalValue: 0n},
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    } as any;
+
+    actionMenu.tabSuggestions = [tab1, tab2];
+    actionMenu.inputState = new MockInputState({
+                              allowedInputTypes: [InputType.kBrowserTab],
+                            }) as any;
+    document.body.appendChild(actionMenu);
+    await microtasksFinished();
+
+    // Open the main contextual action menu.
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    // Get the trigger button and the flyout container.
+    const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+    const flyout = $$(actionMenu, '.share-tabs-flyout') as HTMLElement;
+    assertTrue(!!trigger);
+    assertTrue(!!flyout);
+
+    // Expand the flyout.
+    triggerKeyDown(trigger, 'ArrowRight');
+    await actionMenu.updateComplete;
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await microtasksFinished();
+
+    // Get the focusable items inside the flyout.
+    const items = Array.from(
+        flyout.querySelectorAll<HTMLElement>('button.dropdown-item'));
+    assertEquals(2, items.length);
+
+    const firstItem = items[0]!;
+    const secondItem = items[1]!;
+
+    // Focus the first item.
+    firstItem.focus();
+    assertEquals(firstItem, actionMenu.shadowRoot.activeElement);
+
+    // Press ArrowDown to navigate to the second item.
+    triggerKeyDown(firstItem, 'ArrowDown');
+    await actionMenu.updateComplete;
+    assertEquals(secondItem, actionMenu.shadowRoot.activeElement);
+
+    // Press ArrowDown to navigate back to the first item (cycles through).
+    triggerKeyDown(secondItem, 'ArrowDown');
+    await actionMenu.updateComplete;
+    assertEquals(firstItem, actionMenu.shadowRoot.activeElement);
+
+    // Press ArrowUp to navigate back to the last item (cycles through).
+    triggerKeyDown(firstItem, 'ArrowUp');
+    await actionMenu.updateComplete;
+    assertEquals(secondItem, actionMenu.shadowRoot.activeElement);
+  });
+
+  test('Share tabs flyout cycling skips disabled tabs', async () => {
+    loadTimeData.overrideValues({
+      contextManagementInComposeboxEnabled: true,
+    });
+
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    const tab1: TabInfo = {
+      tabId: 1,
+      title: 'Tab 1',
+      url: {url: 'about:blank'},
+      lastActiveTime: {internalValue: 0n},
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    } as any;
+    const tab2: TabInfo = {
+      tabId: 2,
+      title: 'Tab 2',
+      url: {url: 'about:blank'},
+      lastActiveTime: {internalValue: 0n},
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    } as any;
+    const tab3: TabInfo = {
+      tabId: 3,
+      title: 'Tab 3',
+      url: {url: 'about:blank'},
+      lastActiveTime: {internalValue: 0n},
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    } as any;
+    const tab4: TabInfo = {
+      tabId: 4,
+      title: 'Tab 4',
+      url: {url: 'about:blank'},
+      lastActiveTime: {internalValue: 0n},
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    } as any;
+
+    actionMenu.tabSuggestions = [tab1, tab2, tab3, tab4];
+    // Disabled tabs:
+    actionMenu.aimThreadRestoredTabs = [tab1, tab3];
+    actionMenu.inputState = new MockInputState({
+                              allowedInputTypes: [InputType.kBrowserTab],
+                            }) as any;
+    document.body.appendChild(actionMenu);
+    await microtasksFinished();
+
+    // Open the main contextual action menu.
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    // Get the trigger button and the flyout container.
+    const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+    const flyout = $$(actionMenu, '.share-tabs-flyout') as HTMLElement;
+    assertTrue(!!trigger);
+    assertTrue(!!flyout);
+
+    // Expand the flyout.
+    triggerKeyDown(trigger, 'ArrowRight');
+    await actionMenu.updateComplete;
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await microtasksFinished();
+
+    // Get all items inside the flyout.
+    const buttons = Array.from(
+        flyout.querySelectorAll<HTMLButtonElement>('button.dropdown-item'));
+    assertEquals(4, buttons.length);
+    assertTrue(buttons[0]!.disabled);   // tab1
+    assertFalse(buttons[1]!.disabled);  // tab2
+    assertTrue(buttons[2]!.disabled);   // tab3
+    assertFalse(buttons[3]!.disabled);  // tab4
+
+    const secondItem = buttons[1]!;
+    const fourthItem = buttons[3]!;
+
+    // Focus the first enabled item (tab2).
+    secondItem.focus();
+    assertEquals(secondItem, actionMenu.shadowRoot.activeElement);
+
+    // Press ArrowDown to navigate to the next enabled item (tab4), skipping
+    // tab3.
+    triggerKeyDown(secondItem, 'ArrowDown');
+    await actionMenu.updateComplete;
+    assertEquals(fourthItem, actionMenu.shadowRoot.activeElement);
+
+    // Press ArrowDown to navigate/cycle back to the first enabled item (tab2),
+    // skipping tab1.
+    triggerKeyDown(fourthItem, 'ArrowDown');
+    await actionMenu.updateComplete;
+    assertEquals(secondItem, actionMenu.shadowRoot.activeElement);
+
+    // Press ArrowUp to navigate/cycle back to the last enabled item (tab4),
+    // skipping tab1.
+    triggerKeyDown(secondItem, 'ArrowUp');
+    await actionMenu.updateComplete;
+    assertEquals(fourthItem, actionMenu.shadowRoot.activeElement);
+  });
 
   test('focuses Share Tabs when opening the + menu via keydown', async () => {
     loadTimeData.overrideValues({
@@ -1109,7 +1400,7 @@ suite('ContextualActionMenu', () => {
     await microtasksFinished();
 
     assertEquals('right', flyout.getAttribute('data-position'));
-    assertEquals('', flyout.style.left);
+    assertEquals('250px', flyout.style.left);
 
     // When blocked on the right, enough space to the left positions the flyout to the left.
     trigger.getBoundingClientRect = () => ({
@@ -1127,7 +1418,7 @@ suite('ContextualActionMenu', () => {
     await microtasksFinished();
 
     assertEquals('left', flyout.getAttribute('data-position'));
-    assertEquals('', flyout.style.left);
+    assertEquals('80px', flyout.style.left);
 
     // When blocked on both sides in a narrow panel, the flyout positions at the bottom with a bounded indent.
     trigger.getBoundingClientRect = () => ({
@@ -1145,8 +1436,7 @@ suite('ContextualActionMenu', () => {
     await microtasksFinished();
 
     assertEquals('bottom', flyout.getAttribute('data-position'));
-    // The expected maxLeft.
-    assertEquals('32px', flyout.style.left);
+    assertEquals('16px', flyout.style.left);
   });
 
   test('Favicon group rendered in action menu', async () => {
@@ -1267,6 +1557,7 @@ suite('ContextualActionMenu', () => {
         chipLabel: '',
         hintText: '',
         aimUrlParams: [],
+        menuTooltip: '',
       }],
       toolsSectionConfig: {header: ''},
       allowedModels: [ModelMode.kGeminiRegular],
@@ -1275,6 +1566,7 @@ suite('ContextualActionMenu', () => {
         menuLabel: 'Gemini Regular',
         hintText: '',
         aimUrlParams: [],
+        menuTooltip: '',
       }],
       modelSectionConfig: {header: ''},
     });
@@ -1908,5 +2200,322 @@ suite('ContextualActionMenu', () => {
       assertEquals(2, showAtCalls.length);
       assertEquals(AnchorAlignment.BEFORE_START, showAtCalls[1].anchorAlignmentY);
     });
+
+    test(
+        'Anchors to the right if space above and below are both < 362px',
+        async () => {
+          Object.defineProperty(window, 'innerHeight', {
+            value: 500,
+            configurable: true,
+          });
+          Object.defineProperty(window, 'innerWidth', {
+            value: 1000,
+            configurable: true,
+          });
+
+          anchor.getBoundingClientRect = () => {
+            return {
+              bottom: 300,
+              top: 250,
+              left: 100,
+              right: 200,
+              width: 100,
+              height: 50,
+              x: 100,
+              y: 250,
+            } as DOMRect;
+          };
+
+          actionMenu.showAt(anchor);
+          await microtasksFinished();
+
+          assertEquals(2, showAtCalls.length);
+          assertEquals(
+              AnchorAlignment.AFTER_END, showAtCalls[1].anchorAlignmentX);
+          assertEquals(
+              AnchorAlignment.AFTER_START, showAtCalls[1].anchorAlignmentY);
+        });
+
+    test(
+        'Anchors to the right of the icon even when favicon coins are present',
+        async () => {
+          Object.defineProperty(window, 'innerHeight', {
+            value: 500,
+            configurable: true,
+          });
+          Object.defineProperty(window, 'innerWidth', {
+            value: 1000,
+            configurable: true,
+          });
+
+          const mockIcon = document.createElement('div');
+          mockIcon.id = 'entrypointIcon';
+          mockIcon.getBoundingClientRect = () => {
+            return {
+              bottom: 290,
+              top: 260,
+              left: 100,
+              right: 130,
+              width: 30,
+              height: 30,
+              x: 100,
+              y: 260,
+            } as DOMRect;
+          };
+          anchor.appendChild(mockIcon);
+
+          anchor.getBoundingClientRect = () => {
+            return {
+              bottom: 300,
+              top: 250,
+              left: 100,
+              right: 250,
+              width: 150,
+              height: 50,
+              x: 100,
+              y: 250,
+            } as DOMRect;
+          };
+
+          actionMenu.showAt(anchor);
+          await microtasksFinished();
+
+          assertEquals(2, showAtCalls.length);
+          assertEquals(
+              AnchorAlignment.AFTER_END, showAtCalls[1].anchorAlignmentX);
+          assertEquals(
+              AnchorAlignment.AFTER_START, showAtCalls[1].anchorAlignmentY);
+          assertEquals(100, showAtCalls[1].left);
+          assertEquals(30, showAtCalls[1].width);
+
+          mockIcon.remove();
+        });
+
+    test(
+        'Does not anchor to the right if obstructed by voice/lens buttons',
+        async () => {
+          const mockSearchbox = document.createElement('ntp-searchbox') as any;
+          const shadowRoot = mockSearchbox.attachShadow({mode: 'open'});
+
+          const mockVoiceButton = document.createElement('button');
+          mockVoiceButton.id = 'voiceSearchButton';
+          mockVoiceButton.getBoundingClientRect = () => {
+            return {
+              left: 350,
+              width: 40,
+              height: 40,
+              top: 255,
+              bottom: 295,
+            } as DOMRect;
+          };
+          shadowRoot.appendChild(mockVoiceButton);
+
+          shadowRoot.appendChild(anchor);
+          document.body.appendChild(mockSearchbox);
+
+          Object.defineProperty(window, 'innerHeight', {
+            value: 500,
+            configurable: true,
+          });
+          Object.defineProperty(window, 'innerWidth', {
+            value: 1000,
+            configurable: true,
+          });
+
+          anchor.getBoundingClientRect = () => {
+            return {
+              bottom: 300,
+              top: 250,
+              left: 100,
+              right: 200,
+              width: 100,
+              height: 50,
+              x: 100,
+              y: 250,
+            } as DOMRect;
+          };
+
+          actionMenu.showAt(anchor);
+          await microtasksFinished();
+
+          mockSearchbox.remove();
+
+          assertEquals(2, showAtCalls.length);
+          assertEquals(
+              AnchorAlignment.AFTER_START, showAtCalls[1].anchorAlignmentX);
+          assertEquals(
+              AnchorAlignment.AFTER_END, showAtCalls[1].anchorAlignmentY);
+        });
+  });
+
+  suite('ShareTabsFlyoutViewportPositioning', () => {
+    let trigger: HTMLElement;
+    let flyout: HTMLElement;
+
+    const TRIGGER_WIDTH = 240;
+    const TRIGGER_HEIGHT = 32;
+
+    function createMockTriggerRect(left: number, top: number): DOMRect {
+      return {
+        left: left,
+        right: left + TRIGGER_WIDTH,
+        top: top,
+        bottom: top + TRIGGER_HEIGHT,
+        width: TRIGGER_WIDTH,
+        height: TRIGGER_HEIGHT,
+        x: left,
+        y: top,
+      } as DOMRect;
+    }
+
+    setup(async () => {
+      loadTimeData.overrideValues({
+        contextManagementInComposeboxEnabled: true,
+      });
+      actionMenu.remove();
+      actionMenu =
+          document.createElement('cr-composebox-contextual-action-menu');
+      // Provide enough suggestions so the unconstrained content height is tall.
+      actionMenu.tabSuggestions = Array(50).fill({
+        tabId: 1,
+        title: 'Tab',
+        url: {url: 'about:blank'},
+        lastActiveTime: {internalValue: 0n},
+        showInCurrentTabChip: false,
+        showInPreviousTabChip: false,
+        lastActive: {internalValue: 0n},
+      });
+      actionMenu.inputState = new MockInputState({
+        allowedInputTypes: [InputType.kBrowserTab],
+      });
+      document.body.appendChild(actionMenu);
+      await microtasksFinished();
+
+      actionMenu.showAt(actionMenu);
+      await microtasksFinished();
+
+      trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+      flyout = $$(actionMenu, '.share-tabs-flyout') as HTMLElement;
+      assertTrue(!!trigger);
+      assertTrue(!!flyout);
+    });
+
+    test(
+        'Positions flyout on the right when viewport width allows',
+        async () => {
+          const triggerLeft = 100;
+          const triggerTop = 200;
+          const viewportWidth = 1000;
+          const viewportHeight = 800;
+
+          Object.defineProperty(
+              window, 'innerWidth', {value: viewportWidth, configurable: true});
+          Object.defineProperty(
+              window, 'innerHeight',
+              {value: viewportHeight, configurable: true});
+          Object.defineProperty(
+              flyout, 'offsetWidth',
+              {value: DEFAULT_FLYOUT_WIDTH_PX, configurable: true});
+
+          trigger.getBoundingClientRect = () =>
+              createMockTriggerRect(triggerLeft, triggerTop);
+
+          trigger.dispatchEvent(new PointerEvent('pointerenter'));
+          await microtasksFinished();
+
+          const expectedLeft =
+              `${triggerLeft + TRIGGER_WIDTH + SHARE_TABS_FLYOUT_GAP_PX}px`;
+          const expectedTop = `${triggerTop}px`;
+          const expectedMaxHeight = `${
+              Math.max(
+                  MIN_MENU_HEIGHT_PX,
+                  Math.min(
+                      SHARE_TABS_FLYOUT_MAX_HEIGHT_PX,
+                      viewportHeight - triggerTop - VIEWPORT_BUFFER_PX))}px`;
+
+          assertEquals(expectedLeft, flyout.style.left);
+          assertEquals(expectedTop, flyout.style.top);
+          assertEquals(expectedMaxHeight, flyout.style.maxHeight);
+        });
+
+    test(
+        'Positions flyout to left when viewport is restricted on right',
+        async () => {
+          const triggerLeft = 350;
+          const triggerTop = 150;
+          const viewportWidth = 600;
+          const viewportHeight = 700;
+
+          Object.defineProperty(
+              window, 'innerWidth', {value: viewportWidth, configurable: true});
+          Object.defineProperty(
+              window, 'innerHeight',
+              {value: viewportHeight, configurable: true});
+          Object.defineProperty(
+              flyout, 'offsetWidth',
+              {value: DEFAULT_FLYOUT_WIDTH_PX, configurable: true});
+
+          trigger.getBoundingClientRect = () =>
+              createMockTriggerRect(triggerLeft, triggerTop);
+
+          trigger.dispatchEvent(new PointerEvent('pointerenter'));
+          await microtasksFinished();
+
+          const expectedLeft = `${
+              triggerLeft - DEFAULT_FLYOUT_WIDTH_PX -
+              SHARE_TABS_FLYOUT_GAP_PX}px`;
+          const expectedTop = `${triggerTop}px`;
+          const expectedMaxHeight = `${
+              Math.max(
+                  MIN_MENU_HEIGHT_PX,
+                  Math.min(
+                      SHARE_TABS_FLYOUT_MAX_HEIGHT_PX,
+                      viewportHeight - triggerTop - VIEWPORT_BUFFER_PX))}px`;
+
+          assertEquals(expectedLeft, flyout.style.left);
+          assertEquals(expectedTop, flyout.style.top);
+          assertEquals(expectedMaxHeight, flyout.style.maxHeight);
+        });
+
+    test(
+        'Positions flyout to bottom when there is not enough viewport width',
+        async () => {
+          const triggerLeft = 100;
+          const triggerTop = 100;
+          const viewportWidth = 500;
+          const viewportHeight = 600;
+
+          Object.defineProperty(
+              window, 'innerWidth', {value: viewportWidth, configurable: true});
+          Object.defineProperty(
+              window, 'innerHeight',
+              {value: viewportHeight, configurable: true});
+          Object.defineProperty(
+              flyout, 'offsetWidth',
+              {value: DEFAULT_FLYOUT_WIDTH_PX, configurable: true});
+
+          trigger.getBoundingClientRect = () =>
+              createMockTriggerRect(triggerLeft, triggerTop);
+
+          trigger.dispatchEvent(new PointerEvent('pointerenter'));
+          await microtasksFinished();
+
+          const expectedLeft = `${triggerLeft}px`;
+          const expectedTop =
+              `${triggerTop + TRIGGER_HEIGHT + SHARE_TABS_FLYOUT_GAP_PX}px`;
+          const expectedMaxHeight = `${
+              Math.max(
+                  MIN_MENU_HEIGHT_PX,
+                  Math.min(
+                      SHARE_TABS_FLYOUT_MAX_HEIGHT_PX,
+                      viewportHeight -
+                          (triggerTop + TRIGGER_HEIGHT +
+                           SHARE_TABS_FLYOUT_GAP_PX) -
+                          VIEWPORT_BUFFER_PX))}px`;
+
+          assertEquals(expectedLeft, flyout.style.left);
+          assertEquals(expectedTop, flyout.style.top);
+          assertEquals(expectedMaxHeight, flyout.style.maxHeight);
+        });
   });
 });

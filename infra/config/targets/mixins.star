@@ -944,13 +944,6 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "gpu_force_angle_d3d9",
-    args = [
-        "--extra-browser-args=--use-angle=d3d9",
-    ],
-)
-
-targets.mixin(
     name = "gpu_force_angle_gles",
     args = [
         "--extra-browser-args=--use-angle=gles",
@@ -1146,6 +1139,18 @@ targets.mixin(
             swarming.cache(
                 name = "runtime_ios_26_5",
                 path = "Runtime-ios-26.5",
+            ),
+        ],
+    ),
+)
+
+targets.mixin(
+    name = "ios_runtime_cache_27_0",
+    swarming = targets.swarming(
+        named_caches = [
+            swarming.cache(
+                name = "runtime_ios_27_0",
+                path = "Runtime-ios-27.0",
             ),
         ],
     ),
@@ -1390,7 +1395,9 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "cpu": "arm64",  # fallback on bare metal if no VMs are available
-            "os": "Mac-15",
+            # TODO(crbug.com/521856600): Remove OR when Mac-26 once upgrade
+            # process is complete and CQ migrates to mac26-arm64-rel-tests.
+            "os": "Mac-15|Mac-26",
         },
         optional_dimensions = {
             30: {
@@ -1505,7 +1512,9 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "cpu": "arm64",
-            "os": "Mac-15",
+            # TODO(crbug.com/521856600): Remove OR when Mac-26 once upgrade
+            # process is complete and CQ migrates to mac26-arm64-rel-tests.
+            "os": "Mac-15|Mac-26",
         },
     ),
 )
@@ -1839,11 +1848,6 @@ targets.mixin(
         "--record-video",
         "failed_only",
     ],
-)
-
-targets.mixin(
-    name = "retry_only_failed_tests",
-    retry_only_failed_tests = True,
 )
 
 targets.mixin(
@@ -2291,15 +2295,15 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "xcode_26_beta",
+    name = "xcode_27_beta",
     args = [
         "--xcode-build-version",
-        "17f42",
+        "27a5194q",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17f42",
+                name = "xcode_ios_27a5194q",
                 path = "Xcode.app",
             ),
         ],

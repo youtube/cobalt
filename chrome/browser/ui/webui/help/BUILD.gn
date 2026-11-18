@@ -1,0 +1,103 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//chrome/common/features.gni")
+
+source_set("help") {
+  public = [ "version_updater.h" ]
+  public_deps = [ "//base" ]
+  deps = [ "//chrome/browser/upgrade_detector" ]
+
+  if (is_chromeos) {
+    sources = [
+      "help_utils_chromeos.cc",
+      "version_updater_chromeos.cc",
+    ]
+    public += [
+      "help_utils_chromeos.h",
+      "version_updater_chromeos.h",
+    ]
+    public_deps += [ "//chromeos/ash/components/dbus/update_engine" ]
+    deps += [
+      "//ash/constants",
+      "//chrome/app:generated_resources_grit",
+      "//chrome/browser:browser_process",
+      "//chrome/browser/ash/ownership",
+      "//chrome/browser/enterprise",
+      "//chromeos/ash/components/network",
+      "//chromeos/ash/components/settings",
+      "//chromeos/dbus/power",
+      "//chromeos/strings:strings_grit",
+      "//components/policy/core/common",
+      "//content/public/browser",
+      "//ui/base",
+    ]
+  }
+
+  if (is_mac) {
+    sources = [ "version_updater_mac.mm" ]
+    deps += [
+      "//base:i18n",
+      "//chrome/app:branded_strings",
+      "//chrome/app:generated_resources_grit",
+      "//chrome/browser/updater",
+      "//chrome/updater:browser_sources",
+      "//ui/base",
+    ]
+    frameworks = [ "Foundation.framework" ]
+  }
+
+  if (is_win) {
+    if (is_chrome_branded) {
+      sources = [ "version_updater_win.cc" ]
+      deps += [
+        "//chrome/app:generated_resources_grit",
+        "//chrome/browser:browser_process",
+        "//chrome/browser/first_run",
+        "//chrome/browser/google",
+        "//content/public/browser",
+        "//ui/aura",
+        "//ui/base",
+        "//ui/gfx",
+      ]
+    } else {
+      sources = [ "version_updater_basic.cc" ]
+    }
+  }
+
+  if (is_linux) {
+    sources = [ "version_updater_basic.cc" ]
+  }
+}
+
+if (!is_android) {
+  source_set("test_support") {
+    testonly = true
+    sources = [
+      "test_version_updater.cc",
+      "test_version_updater.h",
+    ]
+    deps = [ ":help" ]
+  }
+
+  if (is_chromeos) {
+    source_set("unit_tests") {
+      testonly = true
+      sources = [ "version_updater_chromeos_unittest.cc" ]
+      deps = [
+        ":help",
+        "//base/test:test_support",
+        "//chrome/browser/ash/login/users:test_support",
+        "//chrome/browser/ash/settings:test_support",
+        "//chromeos/ash/components/dbus/shill",
+        "//chromeos/ash/components/dbus/update_engine",
+        "//chromeos/ash/components/network:test_support",
+        "//components/user_manager:test_support",
+        "//content/test:test_support",
+        "//testing/gmock",
+        "//testing/gtest",
+      ]
+    }
+  }
+}

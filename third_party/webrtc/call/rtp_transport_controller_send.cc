@@ -678,6 +678,11 @@ RtpTransportControllerSend::ReceivedTransportCcFeedbackCount() const {
   return transport_cc_feedback_count_;
 }
 
+DataSize RtpTransportControllerSend::GetTransportOverhead() const {
+  RTC_DCHECK_RUN_ON(worker_thread_);
+  return DataSize::Bytes(transport_overhead_bytes_per_packet_);
+}
+
 void RtpTransportControllerSend::OnTransportFeedback(
     Timestamp receive_time,
     const rtcp::TransportFeedback& feedback) {

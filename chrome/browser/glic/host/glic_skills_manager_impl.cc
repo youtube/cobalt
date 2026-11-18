@@ -31,7 +31,7 @@ GlicSkillsManagerImpl::GlicSkillsManagerImpl(GlicInstance* instance,
                                              Profile* profile)
     : instance_(*instance), profile_(*profile) {
   focused_tab_changed_subscription_ =
-      instance->host().sharing_manager().AddFocusedTabChangedCallback(
+      instance->host().GetSharingManagerInternal().AddFocusedTabChangedCallback(
           base::BindRepeating(&GlicSkillsManagerImpl::OnFocusedTabChanged,
                               weak_ptr_factory_.GetWeakPtr()));
   host_observation_.Observe(&instance->host());
@@ -45,7 +45,7 @@ void GlicSkillsManagerImpl::UpdateSkillPreviews(
     return;
   }
   auto* focused_tab =
-      instance_->host().sharing_manager().GetFocusedTabData().focus();
+      instance_->host().GetSharingManagerInternal().GetFocusedTabData().focus();
   if (!focused_tab) {
     instance_->host().NotifyContextualSkillsChanged({});
     contextual_skill_previews_.clear();
@@ -75,7 +75,7 @@ void GlicSkillsManagerImpl::UpdateSkillPreviews(
 
 tabs::TabInterface* GlicSkillsManagerImpl::EnsureTabForSkills() {
   const FocusedTabData& ftd =
-      instance_->host().sharing_manager().GetFocusedTabData();
+      instance_->host().GetSharingManagerInternal().GetFocusedTabData();
   tabs::TabInterface* tab = ftd.focus() ? ftd.focus() : ftd.unfocused_tab();
 
   if (tab) {

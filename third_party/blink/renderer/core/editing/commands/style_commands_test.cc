@@ -30,7 +30,7 @@ TEST_F(StyleCommandsTest, ComputeAndSetTypingStyleWithNullPosition) {
                            SetSelectionOptions());
 
   EXPECT_TRUE(StyleCommands::ExecuteToggleBold(GetFrame(), nullptr,
-                                               EditorCommandSource::kDOM, ""));
+                                               EditorCommandSource::kDom, ""));
 
   EXPECT_EQ("|<b></b> ", GetSelectionTextFromBody());
 }
@@ -45,7 +45,7 @@ TEST_F(StyleCommandsTest, StrikethroughToggleAfterDeletingContent) {
   ASSERT_TRUE(div);
 
   // Select the 'E' text.
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(div->firstChild(), 0))
                                .Extend(Position(div->firstChild(), 1))
                                .Build(),
@@ -53,7 +53,7 @@ TEST_F(StyleCommandsTest, StrikethroughToggleAfterDeletingContent) {
 
   // Apply strikethrough.
   EXPECT_TRUE(StyleCommands::ExecuteStrikethrough(
-      GetFrame(), nullptr, EditorCommandSource::kDOM, ""));
+      GetFrame(), nullptr, EditorCommandSource::kDom, ""));
 
   String html = div->GetInnerHTMLString();
   EXPECT_EQ("<strike>E</strike>", html);
@@ -68,7 +68,7 @@ TEST_F(StyleCommandsTest, StrikethroughToggleAfterDeletingContent) {
 
   // Select all content in the div.
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().SelectAllChildren(*div).Build(),
+      SelectionInDomTree::Builder().SelectAllChildren(*div).Build(),
       SetSelectionOptions());
 
   // Delete the content.
@@ -80,7 +80,7 @@ TEST_F(StyleCommandsTest, StrikethroughToggleAfterDeletingContent) {
 
   // Toggle strikethrough off in the empty element.
   EXPECT_TRUE(StyleCommands::ExecuteStrikethrough(
-      GetFrame(), nullptr, EditorCommandSource::kDOM, ""));
+      GetFrame(), nullptr, EditorCommandSource::kDom, ""));
 
   // Type new content.
   TypingCommand::InsertText(
@@ -102,12 +102,12 @@ TEST_F(StyleCommandsTest, StrikethroughToggleInEmptyContentEditable) {
 
   // Select the 'E' text.
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().SelectAllChildren(*div).Build(),
+      SelectionInDomTree::Builder().SelectAllChildren(*div).Build(),
       SetSelectionOptions());
 
   // Apply strikethrough.
   EXPECT_TRUE(StyleCommands::ExecuteStrikethrough(
-      GetFrame(), nullptr, EditorCommandSource::kDOM, ""));
+      GetFrame(), nullptr, EditorCommandSource::kDom, ""));
 
   String html = div->GetInnerHTMLString();
   EXPECT_EQ("<strike>E</strike>", html);
@@ -120,7 +120,7 @@ TEST_F(StyleCommandsTest, StrikethroughToggleInEmptyContentEditable) {
 
   // Toggle strikethrough off in the empty element.
   EXPECT_TRUE(StyleCommands::ExecuteStrikethrough(
-      GetFrame(), nullptr, EditorCommandSource::kDOM, ""));
+      GetFrame(), nullptr, EditorCommandSource::kDom, ""));
 
   // Insert new text.
   TypingCommand::InsertText(

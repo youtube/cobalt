@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orderingFromXml="false">
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:id="@+id/autofill_personal_context_switch"
+        android:key="autofill_personal_context_switch"
+        android:order="0"
+        android:title="@string/personal_context_autofill_settings_switch_title_android"
+        android:summary="@string/personal_context_autofill_settings_switch_summary_android" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:id="@+id/autofill_personal_context_manage_connected_apps"
+        android:key="autofill_personal_context_manage_connected_apps"
+        android:order="1"
+        android:title="@string/personal_context_autofill_settings_manage_connected_apps_title_android"
+        android:summary="@string/personal_context_autofill_settings_manage_connected_apps_summary_android"
+        android:widgetLayout="@layout/preference_widget_open_in_new" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:id="@+id/autofill_personal_context_manage_suggestions"
+        android:key="autofill_personal_context_manage_suggestions"
+        android:order="2"
+        android:title="@string/personal_context_autofill_settings_manage_suggestions_title_android"
+        android:summary="@string/personal_context_autofill_settings_manage_suggestions_summary_android"
+        android:widgetLayout="@layout/preference_widget_open_in_new" />
+
+</PreferenceScreen>

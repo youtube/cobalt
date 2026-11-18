@@ -237,8 +237,6 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
                                      base::TimeDelta timeout,
                                      cc::PaintHoldingReason reason) = 0;
   virtual void StopDeferringCommits(LocalFrame& main_frame) = 0;
-  virtual void SetShouldThrottleFrameRate(bool flag,
-                                          LocalFrame& main_frame) = 0;
   virtual void RequestMainFrameOnCompositorAnimation(
       LocalFrame&,
       cc::PropertyChangeForcesCommitCriteria criteria,

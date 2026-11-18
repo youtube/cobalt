@@ -135,7 +135,12 @@ ClipboardPromise::ClipboardPromise(ExecutionContext* context,
                                    ExceptionState& exception_state)
     : ExecutionContextLifecycleObserver(context),
       script_promise_resolver_(resolver),
-      permission_service_(context) {}
+      permission_service_(context) {
+  if (context && ClipboardCommands::IsExecutingPaste(*context)) {
+    sequence_number_at_paste_start_ =
+        ClipboardCommands::GetSequenceNumberForExecutingPaste(*context);
+  }
+}
 
 ClipboardPromise::~ClipboardPromise() = default;
 
@@ -711,6 +716,20 @@ void ClipboardPromise::ValidatePreconditions(
        ClipboardCommands::IsExecutingCutOrCopy(*context)) ||
       (permission == mojom::blink::PermissionName::CLIPBOARD_READ &&
        ClipboardCommands::IsExecutingPaste(*context))) {
+    // Validate the contents of the user's clipboard have not changed since the
+    // start of the paste event and fail if it has. This prevents an attacker
+    // from initiating a synchronous javascript command (e.g. alert) during the
+    // paste event and the user unknowingly copies something new before the
+    // paste event resolves.
+    if (permission == mojom::blink::PermissionName::CLIPBOARD_READ &&
+        sequence_number_at_paste_start_.has_value() &&
+        GetSystemClipboard()->SequenceNumber() !=
+            *sequence_number_at_paste_start_) {
+      script_promise_resolver_->RejectWithDOMException(
+          DOMExceptionCode::kDataError,
+          "Clipboard contents changed since paste event started.");
+      return;
+    }
     GetClipboardTaskRunner()->PostTask(
         FROM_HERE,
         blink::BindOnce(std::move(callback),

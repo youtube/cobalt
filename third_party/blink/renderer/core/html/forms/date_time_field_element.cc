@@ -143,7 +143,7 @@ void DateTimeFieldElement::SetFocused(bool value,
     if (value) {
       field_owner_->DidFocusOnField(focus_type);
       GetDocument().GetFrame()->Selection().SetSelection(
-          SelectionInDOMTree::Builder()
+          SelectionInDomTree::Builder()
               .Collapse(Position::FirstPositionInNode(*this))
               .Build(),
           SetSelectionOptions::Builder()

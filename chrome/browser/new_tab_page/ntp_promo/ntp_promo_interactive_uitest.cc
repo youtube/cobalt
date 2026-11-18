@@ -32,7 +32,6 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "chrome/test/interaction/tracked_element_webcontents.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"

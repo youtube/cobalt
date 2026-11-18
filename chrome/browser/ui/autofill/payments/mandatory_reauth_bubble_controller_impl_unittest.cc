@@ -11,6 +11,7 @@
 #include "base/test/with_feature_override.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/bubble_manager.h"
+#include "chrome/browser/ui/autofill/mock_bubble_manager.h"
 #include "chrome/browser/ui/autofill/test/test_autofill_bubble_handler.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -23,37 +24,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill {
-namespace {
-
-class MockBubbleManager : public BubbleManager {
- public:
-  MockBubbleManager() {
-    ON_CALL(*this, RequestShowController)
-        .WillByDefault([](BubbleControllerBase& controller, bool force_show) {
-          controller.ShowBubble();
-        });
-  }
-  ~MockBubbleManager() override = default;
-
-  MOCK_METHOD(void,
-              RequestShowController,
-              (BubbleControllerBase&, bool),
-              (override));
-  MOCK_METHOD(void,
-              OnBubbleHiddenByController,
-              (BubbleControllerBase&, bool),
-              (override));
-  MOCK_METHOD(bool,
-              HasPendingBubbleOfSameType,
-              (const BubbleType),
-              (const, override));
-  MOCK_METHOD(bool,
-              HasConflictingPendingBubble,
-              (const BubbleType),
-              (const, override));
-};
-
-}  // namespace
 
 class TestMandatoryReauthBubbleControllerImpl
     : public MandatoryReauthBubbleControllerImpl {
@@ -88,8 +58,13 @@ class MandatoryReauthBubbleControllerImplTest
     ChromeRenderViewHostTestHarness::SetUp();
     fake_tab_interface_ = std::make_unique<tabs::MockTabInterface>();
     tab_features_ = std::make_unique<tabs::TabFeatures>();
-    tab_features_->SetBubbleManagerForTesting(
-        std::make_unique<testing::NiceMock<MockBubbleManager>>());
+    auto mock_bubble_manager =
+        std::make_unique<testing::NiceMock<autofill::MockBubbleManager>>();
+    ON_CALL(*mock_bubble_manager, RequestShowController(testing::_, testing::_))
+        .WillByDefault([](BubbleControllerBase& controller, bool force_show) {
+          controller.ShowBubble();
+        });
+    tab_features_->SetBubbleManagerForTesting(std::move(mock_bubble_manager));
 
     ON_CALL(*fake_tab_interface_, GetContents())
         .WillByDefault(testing::Return(web_contents()));

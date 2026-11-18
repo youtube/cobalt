@@ -116,6 +116,9 @@ class HistoryEmbeddingsSearch {
   // completely new search session; if it is non-null and the session_id is set,
   // the new session_id is set based on the previous to indicate a continuing
   // search session.
+  // When `url_id_filter` is non-empty, the search is restricted to UrlData
+  // rows whose `url_id` is in the set; storage backends use it to short-circuit
+  // a full-corpus scan when the caller already knows the candidate URLIDs.
   // Returns a stub result that can be used to detect if a later published
   // SearchResult instance is related to this search.
   virtual SearchResult Search(SearchResult* previous_search_result,
@@ -123,6 +126,7 @@ class HistoryEmbeddingsSearch {
                               std::optional<base::Time> time_range_start,
                               size_t count,
                               bool skip_answering,
+                              std::vector<history::URLID> url_id_filter,
                               SearchResultCallback callback) = 0;
 };
 

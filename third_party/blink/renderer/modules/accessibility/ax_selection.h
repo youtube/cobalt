@@ -53,7 +53,7 @@ class MODULES_EXPORT AXSelection final {
       const AXObjectCacheImpl& ax_object_cache);
 
   static AXSelection FromSelection(
-      const SelectionInDOMTree&,
+      const SelectionInDomTree&,
       const AXObjectCacheImpl& ax_object_cache,
       const AXSelectionBehavior = AXSelectionBehavior::kExtendToValidRange);
 
@@ -70,7 +70,7 @@ class MODULES_EXPORT AXSelection final {
 
   operator bool() const { return IsValid(); }
 
-  const SelectionInDOMTree AsSelection(
+  const SelectionInDomTree AsSelection(
       const AXSelectionBehavior =
           AXSelectionBehavior::kExtendToValidRange) const;
 
@@ -137,7 +137,7 @@ class MODULES_EXPORT AXSelection::Builder final {
   Builder& SetAnchor(const Position&);
   Builder& SetFocus(const AXPosition&);
   Builder& SetFocus(const Position&);
-  Builder& SetSelection(const SelectionInDOMTree&);
+  Builder& SetSelection(const SelectionInDomTree&);
   const AXSelection Build();
 
  private:

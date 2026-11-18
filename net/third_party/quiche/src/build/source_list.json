@@ -1761,7 +1761,9 @@
     "quiche/quic/qbone/qbone_packet_writer.h",
     "quiche/quic/qbone/qbone_server_session.h",
     "quiche/quic/qbone/qbone_session_base.h",
-    "quiche/quic/qbone/qbone_stream.h"
+    "quiche/quic/qbone/qbone_stream.h",
+    "quiche/quic/qbone/test_tools/basic_quic_server.h",
+    "quiche/quic/qbone/test_tools/qbone_basic_quic_server_handler.h"
   ],
   "qbone_srcs": [
     "quiche/quic/qbone/bonnet/icmp_reachable.cc",
@@ -1798,7 +1800,9 @@
     "quiche/quic/qbone/qbone_session_base.cc",
     "quiche/quic/qbone/qbone_session_test.cc",
     "quiche/quic/qbone/qbone_stream.cc",
-    "quiche/quic/qbone/qbone_stream_test.cc"
+    "quiche/quic/qbone/qbone_stream_test.cc",
+    "quiche/quic/qbone/test_tools/basic_quic_server.cc",
+    "quiche/quic/qbone/test_tools/qbone_basic_quic_server_handler.cc"
   ],
   "blind_sign_auth_hdrs": [
     "quiche/blind_sign_auth/blind_sign_auth.h",
@@ -1830,7 +1834,6 @@
     "quiche/blind_sign_auth/cached_blind_sign_auth_test.cc"
   ],
   "protobuf_blind_sign_auth": [
-    "quiche/blind_sign_auth/proto/any.proto",
     "quiche/blind_sign_auth/proto/attest_and_sign.proto",
     "quiche/blind_sign_auth/proto/attestation.proto",
     "quiche/blind_sign_auth/proto/auth_and_sign.proto",

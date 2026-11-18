@@ -156,19 +156,18 @@ TEST_F(EditAddressProfileViewTest, SaveInvokesTheCallbackWithEditedFullname) {
   const std::string locale = g_browser_process->GetApplicationLocale();
   // Confirm that the new name is indeed different from the original one from
   // the controller.
-  ASSERT_NE(kNewFirstName, address_profile_to_edit().GetInfo(
-                               autofill::FieldType::NAME_FULL, locale));
+  ASSERT_NE(kNewFirstName,
+            address_profile_to_edit().GetInfo(FieldType::NAME_FULL, locale));
   AddressEditorView* editor_view = dialog()->GetAddressEditorViewForTesting();
   DCHECK(editor_view);
 
-  editor_view->SetTextInputFieldValueForTesting(autofill::FieldType::NAME_FULL,
+  editor_view->SetTextInputFieldValueForTesting(FieldType::NAME_FULL,
                                                 kNewFirstName);
 
-  EXPECT_CALL(
-      *mock_controller(),
-      OnDialogClosed(AutofillClient::AddressPromptUserDecision::kEditAccepted,
-                     AutofillProfileHasInfo(autofill::FieldType::NAME_FULL,
-                                            kNewFirstName)));
+  EXPECT_CALL(*mock_controller(),
+              OnDialogClosed(
+                  AutofillClient::AddressPromptUserDecision::kEditAccepted,
+                  AutofillProfileHasInfo(FieldType::NAME_FULL, kNewFirstName)));
   dialog()->Accept();
 }
 
@@ -179,9 +178,8 @@ TEST_F(EditAddressProfileViewTest,
   const std::string locale = g_browser_process->GetApplicationLocale();
   // Confirm that the new phone number is indeed different from the original one
   // from the controller.
-  ASSERT_NE(kNewPhoneNumber,
-            address_profile_to_edit().GetInfo(
-                autofill::FieldType::PHONE_HOME_WHOLE_NUMBER, locale));
+  ASSERT_NE(kNewPhoneNumber, address_profile_to_edit().GetInfo(
+                                 FieldType::PHONE_HOME_WHOLE_NUMBER, locale));
 
   // Set the phone number in the editor to the new invalid value. Make sure that
   // this value is respected and sent to the backend.
@@ -189,14 +187,13 @@ TEST_F(EditAddressProfileViewTest,
   DCHECK(editor_view);
 
   editor_view->SetTextInputFieldValueForTesting(
-      autofill::FieldType::PHONE_HOME_WHOLE_NUMBER, kNewPhoneNumber);
+      FieldType::PHONE_HOME_WHOLE_NUMBER, kNewPhoneNumber);
 
   EXPECT_CALL(
       *mock_controller(),
-      OnDialogClosed(
-          AutofillClient::AddressPromptUserDecision::kEditAccepted,
-          AutofillProfileHasInfo(autofill::FieldType::PHONE_HOME_WHOLE_NUMBER,
-                                 kNewPhoneNumber)));
+      OnDialogClosed(AutofillClient::AddressPromptUserDecision::kEditAccepted,
+                     AutofillProfileHasInfo(FieldType::PHONE_HOME_WHOLE_NUMBER,
+                                            kNewPhoneNumber)));
   dialog()->Accept();
 }
 
@@ -207,18 +204,17 @@ TEST_F(EditAddressProfileViewTest, SaveInvokesTheCallbackWithEditedEmail) {
   // Confirm that the new email is indeed different from the original one
   // from the controller.
   ASSERT_NE(kNewEmail, address_profile_to_edit().GetInfo(
-                           autofill::FieldType::EMAIL_ADDRESS, locale));
+                           FieldType::EMAIL_ADDRESS, locale));
   AddressEditorView* editor_view = dialog()->GetAddressEditorViewForTesting();
   DCHECK(editor_view);
 
-  editor_view->SetTextInputFieldValueForTesting(
-      autofill::FieldType::EMAIL_ADDRESS, kNewEmail);
+  editor_view->SetTextInputFieldValueForTesting(FieldType::EMAIL_ADDRESS,
+                                                kNewEmail);
 
-  EXPECT_CALL(
-      *mock_controller(),
-      OnDialogClosed(AutofillClient::AddressPromptUserDecision::kEditAccepted,
-                     AutofillProfileHasInfo(autofill::FieldType::EMAIL_ADDRESS,
-                                            kNewEmail)));
+  EXPECT_CALL(*mock_controller(),
+              OnDialogClosed(
+                  AutofillClient::AddressPromptUserDecision::kEditAccepted,
+                  AutofillProfileHasInfo(FieldType::EMAIL_ADDRESS, kNewEmail)));
   dialog()->Accept();
 }
 

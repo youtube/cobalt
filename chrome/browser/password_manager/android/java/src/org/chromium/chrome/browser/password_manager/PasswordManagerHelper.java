@@ -139,7 +139,7 @@ public class PasswordManagerHelper {
     }
 
     /**
-     * Starts the flow allowing the user to download unmigrated password manger passwords as a CSV.
+     * Starts the flow allowing the user to download unmigrated password manager passwords as a CSV.
      *
      * @param context instance of a FragmentActivity which will host the entire UI flow
      * @param settingsCustomTabLauncher used to open a help articcle in a CCT

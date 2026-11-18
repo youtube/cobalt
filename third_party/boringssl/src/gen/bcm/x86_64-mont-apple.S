@@ -252,6 +252,7 @@ L$mul_epilogue:
 .private_extern _bn_mul4x_mont
 
 .p2align	4
+.alt_entry _bn_mul4x_mont
 _bn_mul4x_mont:
 
 _CET_ENDBR
@@ -688,6 +689,7 @@ L$mul4x_epilogue:
 .private_extern _bn_sqr8x_mont
 
 .p2align	5
+.alt_entry _bn_sqr8x_mont
 _bn_sqr8x_mont:
 
 _CET_ENDBR
@@ -876,6 +878,7 @@ L$sqr8x_epilogue:
 .private_extern _bn_mulx4x_mont
 
 .p2align	5
+.alt_entry _bn_mulx4x_mont
 _bn_mulx4x_mont:
 
 _CET_ENDBR

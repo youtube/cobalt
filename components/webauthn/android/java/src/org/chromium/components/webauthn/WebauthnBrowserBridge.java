@@ -168,7 +168,7 @@ public class WebauthnBrowserBridge {
      */
     public void cleanupRequest(@Nullable RenderFrameHost frameHost) {
         log(TAG, "cleanupRequest");
-        // This should never be called without a bridge already having been created.
+
         assert mNativeWebauthnBrowserBridge != 0;
 
         WebauthnBrowserBridgeJni.get().cleanupRequest(mNativeWebauthnBrowserBridge, frameHost);
@@ -182,11 +182,15 @@ public class WebauthnBrowserBridge {
      */
     public void cleanupCredManRequest(@Nullable RenderFrameHost frameHost) {
         log(TAG, "cleanupCredManRequest");
-        // This should never be called without a bridge already having been created.
+
         assert mNativeWebauthnBrowserBridge != 0;
 
         WebauthnBrowserBridgeJni.get()
                 .cleanupCredManRequest(mNativeWebauthnBrowserBridge, frameHost);
+    }
+
+    public boolean isInitialized() {
+        return mNativeWebauthnBrowserBridge != 0;
     }
 
     public void destroy() {
@@ -224,6 +228,17 @@ public class WebauthnBrowserBridge {
         passwordCredential.federation.scheme = "";
         passwordCredential.federation.host = "";
         return passwordCredential;
+    }
+
+    /**
+     * Returns true if the credential request should be disallowed by the embedder. This is used to
+     * block requests when an actor is active on the tab.
+     */
+    public static boolean shouldDisallowCredentialRequest(RenderFrameHost frameHost) {
+        if (WebauthnBrowserBridgeJni.get() == null) {
+            return false;
+        }
+        return WebauthnBrowserBridgeJni.get().shouldDisallowCredentialRequest(frameHost);
     }
 
     @CalledByNative
@@ -277,7 +292,7 @@ public class WebauthnBrowserBridge {
     }
 
     @NativeMethods
-    interface Natives {
+    public interface Natives {
         // Native methods are implemented in webauthn_browser_bridge.cc.
         long createNativeWebauthnBrowserBridge(WebauthnBrowserBridge self);
 
@@ -313,5 +328,7 @@ public class WebauthnBrowserBridge {
                 long nativeWebauthnBrowserBridge, @Nullable RenderFrameHost frameHost);
 
         void destroy(long nativeWebauthnBrowserBridge);
+
+        boolean shouldDisallowCredentialRequest(@Nullable RenderFrameHost frameHost);
     }
 }

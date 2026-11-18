@@ -11,7 +11,7 @@
 #include "src/codegen/external-reference.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks.h"
-#include "src/objects/dictionary.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
@@ -21,8 +21,6 @@
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/templates-tq-inl.inc"
 
 Tagged<UnionOf<Undefined, ObjectTemplateInfo>>
 FunctionTemplateRareData::prototype_template() const {

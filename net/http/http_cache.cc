@@ -175,6 +175,10 @@ void HttpCache::BackendFactory::HasExistingFileToLoad(
   std::move(callback).Run(false);
 }
 
+void HttpCache::BackendFactory::SetMaxBytes(int max_bytes) {
+  CHECK_GE(max_bytes, 0);
+}
+
 std::optional<CacheType> HttpCache::DefaultBackend::GetCacheType() const {
   return type_;
 }
@@ -232,6 +236,11 @@ void HttpCache::DefaultBackend::HasExistingFileToLoad(
           },
           std::move(file_ops), path_),
       std::move(callback));
+}
+
+void HttpCache::DefaultBackend::SetMaxBytes(int max_bytes) {
+  CHECK_GE(max_bytes, 0);
+  max_bytes_ = max_bytes;
 }
 
 //-----------------------------------------------------------------------------
@@ -335,10 +344,9 @@ void HttpCache::ActiveEntry::RestartHeadersPhaseTransactions() {
     RestartHeadersTransaction();
   }
 
-  auto it = done_headers_queue_.begin();
-  while (it != done_headers_queue_.end()) {
-    Transaction* done_headers_transaction = *it;
-    it = done_headers_queue_.erase(it);
+  while (!done_headers_queue_.empty()) {
+    Transaction* done_headers_transaction = done_headers_queue_.front();
+    done_headers_queue_.erase(done_headers_queue_.begin());
     done_headers_transaction->cache_io_callback().Run(ERR_CACHE_RACE);
   }
 }
@@ -1385,6 +1393,7 @@ void HttpCache::WritersDoneWritingToEntry(scoped_refptr<ActiveEntry> entry,
     // the truncated status of the entry.
     entry->RestartHeadersPhaseTransactions();
     entry->ReleaseWriters();
+    ProcessQueuedTransactions(std::move(entry));
     return;
   }
 
@@ -1512,7 +1521,8 @@ void HttpCache::ProcessDoneHeadersQueue(scoped_refptr<ActiveEntry> entry) {
   ParallelWritingPattern parallel_writing_pattern =
       CanTransactionJoinExistingWriters(transaction);
   if (entry->IsWritingInProgress()) {
-    if (parallel_writing_pattern != PARALLEL_WRITING_JOIN) {
+    if (parallel_writing_pattern != PARALLEL_WRITING_JOIN ||
+        !entry->writers()->CanJoin()) {
       // TODO(shivanisha): Returning from here instead of checking the next
       // transaction in the queue because the FIFO order is maintained
       // throughout, until it becomes a reader or writer. May be at this point
@@ -1974,6 +1984,48 @@ bool HttpCache::IsInvalidated(disk_cache::Entry* entry) {
   }
 
   return false;
+}
+
+void HttpCache::SetMaxBytes(base::ByteSize max_bytes,
+                            bool force_initialization) {
+  // The factory uses 0 as a special default value, so we need to avoid that.
+  // It also only takes an int, as that's what CreateCacheBackend takes.
+  // For consistency, we'll apply the same range restriction regardless of
+  // whether the backend still needs to be created.
+  max_bytes = std::clamp(max_bytes, base::ByteSize(1),
+                         base::ByteSize(std::numeric_limits<int>::max()));
+
+  if (backend_factory_.get()) {
+    backend_factory_->SetMaxBytes(base::checked_cast<int>(max_bytes.InBytes()));
+  }
+  bool backend_started_or_starting = disk_cache_ || building_backend_;
+  base::UmaHistogramBoolean("HttpCache.SetMaxBytes.BackendStartedOrStarting",
+                            backend_started_or_starting);
+  if (!(backend_started_or_starting || force_initialization)) {
+    return;
+  }
+  GetBackendCallback get_backend_callback = base::BindOnce(
+      [](base::ByteSize max_bytes, GetBackendResult result) {
+        if (result.first == net::OK) {
+          result.second->SetMaxBytes(max_bytes);
+        } else {
+          LOG(WARNING) << "Failed to get HttpCache backend for max size update";
+        }
+      },
+      max_bytes);
+  GetBackendResult result = GetBackend(std::move(get_backend_callback));
+  if (result.first == net::ERR_IO_PENDING) {
+    // This code assumes that there won't be a second call to SetMaxBytes that
+    // arrives after the backend becomes synchronously available, but before the
+    // callback in the first call is run. If that did happen, the values may be
+    // applied in the wrong order.
+    return;
+  }
+  if (result.first == net::OK) {
+    result.second->SetMaxBytes(max_bytes);
+  } else {
+    LOG(WARNING) << "Failed to get HttpCache backend for max size update";
+  }
 }
 
 }  // namespace net

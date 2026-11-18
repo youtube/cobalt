@@ -52,6 +52,8 @@ components_sharing_message::SharingMessage CreateTriggeringMessage(
   auto* triggering = message.mutable_glic_experimental_triggering();
   triggering->mutable_task_metadata()->set_sender_sequence_number(
       sequence_number);
+  // Set the current version by default to test the version check success path.
+  triggering->set_glic_experimental_triggering_version(1);
   return message;
 }
 
@@ -75,7 +77,13 @@ class GlicExperimentalTriggeringMessageHandlerBrowserTest
       : GlicApiBrowserTest(
             "./glic_experimental_triggering_message_handler_browsertest.js") {
     feature_list_.InitWithFeaturesAndParameters(
-        {{features::kGlicExperimentalTriggering, {}}}, {});
+        {{features::kGlicExperimentalTriggering, {}},
+         {features::kGlicExperimentalTriggeringOptInTabFocus,
+          {{"glic-experimental-triggering-tab-focus-hosts",
+            "127.0.0.1,localhost"},
+           {"glic-experimental-triggering-tab-focus-path-substring",
+            "/test_data"}}}},
+        {});
   }
   ~GlicExperimentalTriggeringMessageHandlerBrowserTest() override = default;
 
@@ -212,7 +220,7 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
   EXPECT_EQ(received_message.glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
-            0);
+            1);
   EXPECT_EQ(received_message.glic_experimental_triggering()
                 .task_metadata()
                 .last_seen_sequence_number(),
@@ -255,7 +263,7 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
   EXPECT_EQ(message1.glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
-            0);
+            1);
   EXPECT_EQ(message1.glic_experimental_triggering()
                 .task_metadata()
                 .last_seen_sequence_number(),
@@ -265,7 +273,7 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
   EXPECT_EQ(message2.glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
-            1);
+            2);
   EXPECT_EQ(message2.glic_experimental_triggering()
                 .task_metadata()
                 .last_seen_sequence_number(),
@@ -307,7 +315,7 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
   EXPECT_EQ(received_message.glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
-            0);
+            1);
   EXPECT_EQ(received_message.glic_experimental_triggering()
                 .task_metadata()
                 .last_seen_sequence_number(),
@@ -352,7 +360,7 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
   EXPECT_EQ(received_message.glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
-            0);
+            1);
   EXPECT_EQ(received_message.glic_experimental_triggering()
                 .task_metadata()
                 .last_seen_sequence_number(),
@@ -596,7 +604,18 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
           });
 
   auto start_response = SendMessageAndWait(std::move(start_message));
-  EXPECT_EQ(start_response, nullptr);
+  ASSERT_TRUE(start_response);
+  EXPECT_TRUE(start_response->has_glic_experimental_triggering());
+  EXPECT_EQ(start_response->glic_experimental_triggering()
+                .response()
+                .task_update()
+                .state(),
+            components_sharing_message::GlicExperimentalTriggering::
+                ExperimentalTriggeringResponse::TaskUpdate::STARTING);
+  EXPECT_FALSE(start_response->glic_experimental_triggering()
+                   .response()
+                   .task_update()
+                   .has_data_type());
 
   // Verify that the instance is bound to the newly created tab.
   auto* new_tab = GetTabListInterface()->GetTab(initial_tab_count);
@@ -622,10 +641,14 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
       response->glic_experimental_triggering().response().task_update().state(),
       components_sharing_message::GlicExperimentalTriggering::
           ExperimentalTriggeringResponse::TaskUpdate::STOPPED);
+  EXPECT_FALSE(response->glic_experimental_triggering()
+                   .response()
+                   .task_update()
+                   .has_data_type());
   EXPECT_EQ(response->glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
-            0);
+            1);
   EXPECT_EQ(response->glic_experimental_triggering()
                 .task_metadata()
                 .last_seen_sequence_number(),
@@ -801,7 +824,18 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
           });
 
   auto start_response = SendMessageAndWait(std::move(start_message));
-  EXPECT_EQ(start_response, nullptr);
+  ASSERT_TRUE(start_response);
+  EXPECT_TRUE(start_response->has_glic_experimental_triggering());
+  EXPECT_EQ(start_response->glic_experimental_triggering()
+                .response()
+                .task_update()
+                .state(),
+            components_sharing_message::GlicExperimentalTriggering::
+                ExperimentalTriggeringResponse::TaskUpdate::STARTING);
+  EXPECT_FALSE(start_response->glic_experimental_triggering()
+                   .response()
+                   .task_update()
+                   .has_data_type());
 
   // Active triggering handler should exist.
   EXPECT_EQ(handler_->GetUpdatesHandlerMapSizeForTesting(), 1u);
@@ -826,10 +860,14 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
       response->glic_experimental_triggering().response().task_update().state(),
       components_sharing_message::GlicExperimentalTriggering::
           ExperimentalTriggeringResponse::TaskUpdate::STOPPED);
+  EXPECT_FALSE(response->glic_experimental_triggering()
+                   .response()
+                   .task_update()
+                   .has_data_type());
   EXPECT_EQ(response->glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
-            0);
+            1);
   EXPECT_EQ(response->glic_experimental_triggering()
                 .task_metadata()
                 .last_seen_sequence_number(),
@@ -956,7 +994,16 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringOpenWindowTest,
 
   EXPECT_TRUE(done_future.Wait());
   auto response = done_future.Take();
-  EXPECT_EQ(response, nullptr);
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->has_glic_experimental_triggering());
+  EXPECT_EQ(
+      response->glic_experimental_triggering().response().task_update().state(),
+      components_sharing_message::GlicExperimentalTriggering::
+          ExperimentalTriggeringResponse::TaskUpdate::STARTING);
+  EXPECT_FALSE(response->glic_experimental_triggering()
+                   .response()
+                   .task_update()
+                   .has_data_type());
 
   // Verify that a new window was created.
   EXPECT_EQ(GetAllBrowserWindowInterfaces().size(), initial_browser_count + 1);
@@ -997,9 +1044,11 @@ BuildNoRequestPayloadExperimentalTriggeringMessage() {
 }
 
 components_sharing_message::SharingMessage
-BuildNoBrowserWindowExperimentalTriggeringMessage() {
+BuildNoVersionNoBrowserWindowMessage() {
   components_sharing_message::SharingMessage message =
       CreateTriggeringMessage();
+  message.mutable_glic_experimental_triggering()
+      ->clear_glic_experimental_triggering_version();
   message.mutable_glic_experimental_triggering()
       ->mutable_request()
       ->mutable_trigger_actuation_request();
@@ -1014,6 +1063,24 @@ BuildStopActuationNoMatchingUpdatesHandler() {
       ->mutable_stop_actuation_request()
       ->set_stop_reason("STOPPED_BY_USER");
 
+  return message;
+}
+
+components_sharing_message::SharingMessage BuildNewerVersionMessage() {
+  components_sharing_message::SharingMessage message =
+      CreateTriggeringMessage();
+  auto* triggering = message.mutable_glic_experimental_triggering();
+  triggering->set_glic_experimental_triggering_version(2);
+  triggering->mutable_request()->mutable_trigger_actuation_request();
+  return message;
+}
+
+components_sharing_message::SharingMessage BuildSameVersionMessage() {
+  components_sharing_message::SharingMessage message =
+      CreateTriggeringMessage();
+  message.mutable_glic_experimental_triggering()
+      ->mutable_request()
+      ->mutable_trigger_actuation_request();
   return message;
 }
 
@@ -1084,17 +1151,25 @@ INSTANTIATE_TEST_SUITE_P(
                                "Received GlicExperimentalTriggering "
                                "message with no request payload."}},
         TestScenarioParam{
-            "NoBrowserWindow",
-            BuildNoBrowserWindowExperimentalTriggeringMessage(),
+            "NoBrowserWindow", BuildNoVersionNoBrowserWindowMessage(),
             ExpectedTaskUpdate{TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
-                               "No browser window found for current profile"},
+                               "No browser window found for current profile."},
             /*browser_window=*/false},
         TestScenarioParam{
             "UnrecognizedStopActuation",
             BuildStopActuationNoMatchingUpdatesHandler(),
             ExpectedTaskUpdate{
                 TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
-                "Failed to stop task due to missing glic instance."}}),
+                "Failed to stop task due to missing glic instance."}},
+        TestScenarioParam{
+            "NewerVersion", BuildNewerVersionMessage(),
+            ExpectedTaskUpdate{TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
+                               "Rejected: version mismatch or unavailable."}},
+        TestScenarioParam{
+            "SameVersionNoBrowserWindow", BuildSameVersionMessage(),
+            ExpectedTaskUpdate{TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
+                               "No browser window found for current profile."},
+            /*browser_window=*/false}),
     [](const testing::TestParamInfo<TestScenarioParam>& info) {
       return info.param.test_name;
     });

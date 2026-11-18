@@ -246,7 +246,7 @@ public class TabsTest {
                 .check(matches(isDisplayed()))
                 .perform(click());
         LayoutTestUtils.waitForLayout(
-                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.TAB_SWITCHER);
+                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.HUB);
 
         int newTabButtonId = R.id.toolbar_action_button;
         onViewWaiting(withId(newTabButtonId)).check(matches(isDisplayed())).perform(click());
@@ -461,7 +461,7 @@ public class TabsTest {
     /** Enters the tab switcher without animation. */
     private void showOverviewWithNoAnimation() {
         LayoutTestUtils.startShowingAndWaitForLayout(
-                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.TAB_SWITCHER, false);
+                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.HUB, false);
     }
 
     /** Exits the tab switcher without animation. */

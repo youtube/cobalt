@@ -58,6 +58,8 @@ chromium-metrics-reviews@google.com.
 
 <variants name="StartupType">
   <variant name="NewTabPage" summary="Chrome starts into the New Tab Page."/>
+  <variant name="NewTabPageWebUi"
+      summary="Chrome starts into the WebUI New Tab Page."/>
 </variants>
 
 <histogram name="Startup.AfterStartupTaskCount" units="units"
@@ -517,6 +519,7 @@ chromium-metrics-reviews@google.com.
   </summary>
   <token key="FirstDrawSurface">
     <variant name="NewTabPage"/>
+    <variant name="NewTabPageWebUi"/>
     <variant name="SearchActivity"/>
   </token>
 </histogram>
@@ -578,6 +581,18 @@ chromium-metrics-reviews@google.com.
   <summary>
     Measures the amount of time startup has likely been delayed due to GURL
     waiting on the native library to be initialized.
+  </summary>
+</histogram>
+
+<histogram name="Startup.Android.InitializeFeatureListTime" units="ms"
+    expires_after="2026-12-01">
+  <owner>martinkong@google.com</owner>
+  <owner>agrieve@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    The time spent in InitializeFeatureList.initializeFeatureList() during
+    process startup. This measures how long the C++ FeatureList creation takes
+    during early startup.
   </summary>
 </histogram>
 
@@ -1135,7 +1150,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.GPU.LoadTime.ApplicationStartToGpuInitialized"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-13">
   <owner>spvm@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1159,7 +1174,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.GPU.LoadTime.ChromeMainToGpuInitialized" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-13">
   <owner>spvm@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>

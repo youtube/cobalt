@@ -124,7 +124,11 @@ void ContextualSearchOpenLensAction::RecordActionShown(size_t position,
 }
 
 void ContextualSearchOpenLensAction::Execute(ExecutionContext& context) const {
-  context.client_->OpenLensOverlay(/*show=*/true);
+  if (context.client_->ShouldOpenCoBrowsePanel()) {
+    context.client_->OpenCoBrowsePanel();
+  } else {
+    context.client_->OpenLensOverlay(/*show=*/true);
+  }
 }
 
 #if defined(SUPPORT_PEDALS_VECTOR_ICONS)

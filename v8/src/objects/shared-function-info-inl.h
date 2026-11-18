@@ -17,14 +17,17 @@
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/abstract-code-inl.h"
+#include "src/objects/abstract-code.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/hole.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/string.h"
@@ -38,8 +41,6 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
-
-#include "torque-generated/src/objects/shared-function-info-tq-inl.inc"
 
 // static
 int PreparseData::SizeFor(int data_length, int children_length) {
@@ -667,7 +668,7 @@ Tagged<ScopeInfo> SharedFunctionInfo::EarlyScopeInfo(AcquireLoadTag tag) {
   if (IsScopeInfo(maybe_scope_info)) {
     return Cast<ScopeInfo>(maybe_scope_info);
   }
-  return EarlyGetReadOnlyRoots().empty_scope_info();
+  return ReadOnlyHeap::EarlyGetReadOnlyRoots(this).empty_scope_info();
 }
 
 void SharedFunctionInfo::SetScopeInfo(Tagged<ScopeInfo> scope_info,

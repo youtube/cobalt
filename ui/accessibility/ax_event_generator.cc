@@ -580,6 +580,7 @@ void AXEventGenerator::OnStringAttributeChanged(AXTree* tree,
       AddEvent(node, Event::PLACEHOLDER_CHANGED);
       break;
     case ax::mojom::StringAttribute::kValue:
+    case ax::mojom::StringAttribute::kAriaValueText:
       if (node->data().IsRangeValueSupported()) {
         if (tree->event_data()) {
           for (const auto& intent : tree->event_data()->event_intents) {

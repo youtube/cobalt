@@ -835,7 +835,7 @@ scrollbars/scrollbar-scrollbarparts-repaint-crash.html
 scrollbars/scrollbar-visibility-hidden.html
 security/lazy-event-listener.html
 security/set-form-autocomplete-attribute.html
-shadow-dom/crashes/slots-nested-in-document-tree-crash.html
+external/wpt/shadow-dom/crashtests/slots-nested-in-document-tree-crash.html
 shadow-dom/css-cascade-outer-scope2.html
 storage/domstorage/localstorage/delete-removal.html
 storage/domstorage/localstorage/simple-usage.html

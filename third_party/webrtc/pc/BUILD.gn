@@ -52,6 +52,7 @@ rtc_source_set("proxy") {
     "../rtc_base:rtc_event",
     "../rtc_base:stringutils",
     "../rtc_base:threading",
+    "//third_party/abseil-cpp/absl/cleanup",
   ]
 }
 
@@ -573,7 +574,7 @@ rtc_source_set("rtp_receiver_proxy") {
     "../api:rtp_parameters",
     "../api:rtp_receiver_interface",
     "../api:scoped_refptr",
-    "../api:sframe_decrypter_interface",
+    "../api:sframe_decryptor_interface",
     "../api:sframe_types",
     "../api/crypto:frame_decryptor_interface",
     "../api/transport/rtp:rtp_source",
@@ -593,7 +594,7 @@ rtc_source_set("rtp_sender_proxy") {
     "../api:rtp_parameters",
     "../api:rtp_sender_interface",
     "../api:scoped_refptr",
-    "../api:sframe_encrypter_interface",
+    "../api:sframe_encryptor_interface",
     "../api/crypto:frame_encryptor_interface",
     "../api/video_codecs:video_codecs_api",
   ]
@@ -1414,6 +1415,7 @@ rtc_library("simulcast_sdp_serializer") {
   visibility = [
     ":*",
     "../api:jsep",
+    "../test/fuzzers:*",
   ]
 
   sources = [
@@ -1558,6 +1560,7 @@ rtc_library("webrtc_session_description_factory") {
     "../api:sequence_checker",
     "../api/environment",
     "../api/task_queue",
+    "../api/task_queue:pending_task_safety_flag",
     "../p2p:transport_description_factory",
     "../rtc_base:checks",
     "../rtc_base:logging",
@@ -1565,7 +1568,6 @@ rtc_library("webrtc_session_description_factory") {
     "../rtc_base:ssl",
     "../rtc_base:ssl_adapter",
     "../rtc_base:threading",
-    "../rtc_base:weak_ptr",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings",
@@ -1863,7 +1865,7 @@ rtc_library("rtp_receiver") {
     "../api:rtp_receiver_interface",
     "../api:scoped_refptr",
     "../api:sequence_checker",
-    "../api:sframe_decrypter_interface",
+    "../api:sframe_decryptor_interface",
     "../api:sframe_types",
     "../api/crypto:frame_decryptor_interface",
     "../media:media_channel",
@@ -2069,7 +2071,7 @@ rtc_library("rtp_sender") {
     "../api:rtp_sender_interface",
     "../api:scoped_refptr",
     "../api:sequence_checker",
-    "../api:sframe_encrypter_interface",
+    "../api:sframe_encryptor_interface",
     "../api/crypto:frame_encryptor_interface",
     "../api/environment",
     "../api/task_queue",
@@ -2318,7 +2320,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api/audio_codecs:audio_codecs_api",
       "../api/crypto:options",
       "../api/environment",
-      "../api/environment:environment_factory",
       "../api/task_queue",
       "../api/task_queue:pending_task_safety_flag",
       "../api/transport:datagram_transport_interface",
@@ -2405,7 +2406,6 @@ if (rtc_include_tests && !build_with_chromium) {
     }
 
     if (is_android) {
-      use_default_launcher = false
       deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
     }
   }
@@ -2681,9 +2681,11 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:rtp_parameters",
       "../api:scoped_refptr",
       "../api:set_local_description_observer_interface",
+      "../api/environment",
       "../media:rtc_media_tests_utils",
       "../rtc_base:checks",
       "../rtc_base:threading",
+      "../test:create_test_environment",
       "../test:run_loop",
       "../test:test_support",
     ]
@@ -2714,6 +2716,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:rtp_sender_interface",
       "../api:rtp_transceiver_interface",
       "../api:scoped_refptr",
+      "../api/environment",
       "../api/video_codecs:video_decoder_factory_template",
       "../api/video_codecs:video_decoder_factory_template_dav1d_adapter",
       "../api/video_codecs:video_decoder_factory_template_libvpx_vp8_adapter",
@@ -2735,6 +2738,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:rtc_base_tests_utils",
       "../rtc_base:socket_address",
       "../rtc_base:threading",
+      "../test:create_test_environment",
       "../test:run_loop",
       "../test:test_support",
       "../test:wait_until",
@@ -2759,7 +2763,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:scoped_refptr",
       "../api/audio_codecs:builtin_audio_decoder_factory",
       "../api/audio_codecs:builtin_audio_encoder_factory",
-      "../api/environment:environment_factory",
       "../api/units:time_delta",
       "../api/video_codecs:video_decoder_factory_template",
       "../api/video_codecs:video_decoder_factory_template_dav1d_adapter",
@@ -2804,10 +2807,12 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:rtp_parameters",
       "../api:scoped_refptr",
       "../api:sctp_transport_interface",
+      "../api/environment",
       "../rtc_base:checks",
       "../rtc_base:logging",
       "../rtc_base:rtc_base_tests_utils",
       "../rtc_base:threading",
+      "../test:create_test_environment",
       "../test:run_loop",
       "../test:test_support",
       "../test/pc/sctp:fake_sctp_transport",
@@ -2954,6 +2959,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:rtc_error",
       "../api:rtc_error_matchers",
       "../api:scoped_refptr",
+      "../api/environment",
       "../api/units:time_delta",
       "../rtc_base:checks",
       "../rtc_base:ip_address",
@@ -2962,6 +2968,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:socket_address",
       "../rtc_base:threading",
       "../system_wrappers:metrics",
+      "../test:create_test_environment",
       "../test:run_loop",
       "../test:test_support",
       "../test:wait_until",
@@ -2996,7 +3003,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:uma_metrics",
       "../api/audio_codecs:builtin_audio_decoder_factory",
       "../api/audio_codecs:builtin_audio_encoder_factory",
-      "../api/environment:environment_factory",
+      "../api/environment",
       "../api/units:time_delta",
       "../api/video_codecs:video_decoder_factory_template",
       "../api/video_codecs:video_decoder_factory_template_dav1d_adapter",
@@ -3047,8 +3054,10 @@ if (rtc_include_tests && !build_with_chromium) {
       ":session_description",
       ":stream_collection",
       ":video_track",
+      "../api:create_modular_peer_connection_factory",
       "../api:create_peerconnection_factory",
       "../api:data_channel_interface",
+      "../api:enable_media",
       "../api:enable_media_with_defaults",
       "../api:jsep",
       "../api:libjingle_logging_api",
@@ -3067,7 +3076,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api/audio_codecs:builtin_audio_decoder_factory",
       "../api/audio_codecs:builtin_audio_encoder_factory",
       "../api/crypto:options",
-      "../api/environment:environment_factory",
+      "../api/environment",
       "../api/rtc_event_log",
       "../api/rtc_event_log:rtc_event_log_factory",
       "../api/transport:bitrate_settings",
@@ -3165,7 +3174,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:rtp_transceiver_direction",
       "../api:rtp_transceiver_interface",
       "../api:scoped_refptr",
-      "../api/environment:environment_factory",
+      "../api/environment",
       "../api/rtc_event_log:rtc_event_log_factory",
       "../media:codec",
       "../media:media_channel",
@@ -3210,7 +3219,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:rtp_transceiver_interface",
       "../api:scoped_refptr",
       "../api:set_remote_description_observer_interface",
-      "../api:sframe_encrypter_interface",
+      "../api:sframe_encryptor_interface",
       "../api:sframe_types",
       "../api/audio_codecs:builtin_audio_decoder_factory",
       "../api/audio_codecs:builtin_audio_encoder_factory",
@@ -3467,13 +3476,12 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:rtp_parameters",
       "../api:rtp_receiver_interface",
       "../api:scoped_refptr",
-      "../api:sframe_encrypter_interface",
+      "../api:sframe_encryptor_interface",
       "../api:sframe_types",
       "../api/crypto:frame_decryptor_interface",
       "../api/crypto:frame_encryptor_interface",
       "../api/crypto:options",
       "../api/environment",
-      "../api/environment:environment_factory",
       "../api/task_queue",
       "../api/video:builtin_video_bitrate_allocator_factory",
       "../api/video:video_bitrate_allocator_factory",
@@ -3556,7 +3564,10 @@ if (rtc_include_tests && !build_with_chromium) {
     sources = [ "scoped_operations_batcher_unittest.cc" ]
     deps = [
       ":scoped_operations_batcher",
+      "../api:function_view",
+      "../api:location",
       "../api:rtc_error",
+      "../rtc_base:null_socket_server",
       "../rtc_base:threading",
       "../test:test_support",
       "//third_party/abseil-cpp/absl/functional:any_invocable",
@@ -3724,6 +3735,7 @@ if (rtc_include_tests && !build_with_chromium) {
       ":session_description",
       ":simulcast_description",
       ":simulcast_sdp_serializer",
+      "../api:rtc_error",
       "../media:codec",
       "../media:rid_description",
       "../test:test_support",
@@ -4169,9 +4181,6 @@ if (rtc_include_tests && !build_with_chromium) {
       ":rtc_stats_integrationtest",
       ":peer_connection_field_trial_tests",
     ]
-    if (is_android) {
-      shard_timeout = 900
-    }
   }
 
   rtc_cc_test("data_channel_controller_unittest") {
@@ -4391,11 +4400,14 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:call_api",
       "../api:candidate",
       "../api:create_frame_generator",
+      "../api:create_modular_peer_connection_factory",
       "../api:create_peerconnection_factory",
       "../api:data_channel_event_observer_interface",
       "../api:data_channel_interface",
       "../api:dtls_transport_interface",
       "../api:dtmf_sender_interface",
+      "../api:enable_media",
+      "../api:enable_media_with_defaults",
       "../api:field_trials_view",
       "../api:frame_transformer_interface",
       "../api:ice_transport_interface",
@@ -4428,6 +4440,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api/crypto:options",
       "../api/environment",
       "../api/environment:environment_factory",
+      "../api/rtc_event_log:rtc_event_log_factory",
       "../api/task_queue",
       "../api/task_queue:default_task_queue_factory",
       "../api/task_queue:pending_task_safety_flag",
@@ -4489,6 +4502,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base/system:plan_b_only",
       "../rtc_base/task_utils:repeating_task",
       "../system_wrappers",
+      "../test:create_test_environment",
       "../test:frame_generator_capturer",
       "../test:run_loop",
       "../test:test_support",
@@ -4546,6 +4560,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:logging",
       "../rtc_base/containers:flat_map",
       "../system_wrappers",
+      "../test:create_test_field_trials",
       "../test:run_loop",
       "../test:test_support",
       "../test/pc/e2e/analyzer/video:default_video_quality_analyzer",

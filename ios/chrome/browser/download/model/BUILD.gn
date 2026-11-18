@@ -38,6 +38,8 @@ source_set("model") {
     "download_record_observer.h",
     "download_record_observer_bridge.h",
     "download_record_observer_bridge.mm",
+    "download_record_query.cc",
+    "download_record_query.h",
     "download_record_service.h",
     "download_record_service_factory.h",
     "download_record_service_factory.mm",

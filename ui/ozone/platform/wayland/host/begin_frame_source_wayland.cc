@@ -47,12 +47,16 @@ void BeginFrameSourceWayland::SetNeedsBeginFrame(bool needs) {
   } else {
     ready_to_issue_begin_frame_ = false;
     frame_callback_timeout_timer_.Stop();
+    deferred_issue_begin_frame_timer_.Stop();
   }
 }
 
 void BeginFrameSourceWayland::SetPreferredInterval(base::TimeDelta interval) {
   if (!interval.is_zero()) {
-    vsync_interval_ = interval;
+    DVLOG(1) << "SetPreferredInterval: preferred interval updated to "
+             << interval.InMillisecondsF() << "ms";
+    // TODO(crbug.com/513613495): Unused until it is set correctly.
+    preferred_interval_ = interval;
   }
 }
 
@@ -71,6 +75,9 @@ void BeginFrameSourceWayland::OnFrameCallback(base::TimeTicks callback_time) {
 
 void BeginFrameSourceWayland::OnPresentationFeedback(
     const gfx::PresentationFeedback& feedback) {
+  TRACE_EVENT2("wayland", "BeginFrameSourceWayland::OnPresentationFeedback",
+               "interval_us", feedback.interval.InMicroseconds(), "failed",
+               feedback.failed());
   if (!feedback.failed()) {
     last_presentation_time_ = feedback.timestamp;
     if (!feedback.interval.is_zero()) {
@@ -83,6 +90,9 @@ void BeginFrameSourceWayland::OnPresentationFeedback(
       // Reset to the initial safe default of 60 fps in case the
       // compositor started returning 0 after previously reporting a positive
       // value, e.g. the window moved to a different display or VRR was enabled.
+      DVLOG(1) << "OnPresentationFeedback: feedback.interval=0, resetting to "
+                  "default "
+               << kDefaultInterval.InMillisecondsF() << "ms";
       vsync_interval_ = kDefaultInterval;
     }
   }
@@ -96,10 +106,33 @@ void BeginFrameSourceWayland::MaybeIssueBeginFrame() {
   }
 
   base::TimeTicks now = base::TimeTicks::Now();
+
+  if (!last_frame_deadline_time_.is_null()) {
+    // Wayland sometimes fires multiple frame callbacks within one refresh
+    // cycle. Issuing faster than the display is wasteful and can cause
+    // stalls since viz won't ack additional frames with the same frame_time,
+    // which would happen below when we snap to vsync. So we defer until just
+    // after the last frame's deadline to make sure the next frame will be
+    // snapped to the next vsync.
+    base::TimeDelta time_to_next_frame =
+        last_frame_deadline_time_ - now + base::Microseconds(1);
+    if (time_to_next_frame.is_positive()) {
+      DVLOG(1) << "MaybeIssueBeginFrame: tried to issue too early, waiting "
+               << time_to_next_frame.InMillisecondsF() << "ms";
+      if (!deferred_issue_begin_frame_timer_.IsRunning()) {
+        deferred_issue_begin_frame_timer_.Start(
+            FROM_HERE, time_to_next_frame,
+            base::BindOnce(&BeginFrameSourceWayland::MaybeIssueBeginFrame,
+                           weak_factory_.GetWeakPtr()));
+      }
+      return;
+    }
+  }
+
   base::TimeTicks deadline = now + vsync_interval_;
   // The naive deadline of one vsync/refresh from now is too far in the
   // future because "now" is some meaningful amount of time after the previous
-  // frame was shown due to IPC delays, etc. If we have the last frame's
+  // frame was shown due to IPC delays, etc. If we have the last known
   // presentation time, we can calculate a deadline aligned to the
   // display's actual vsync/refresh cycle.
   if (!last_presentation_time_.is_null()) {
@@ -121,6 +154,9 @@ void BeginFrameSourceWayland::MaybeIssueBeginFrame() {
   ready_to_issue_begin_frame_ = false;
   frame_in_flight_ = true;
 
+  // TODO(crbug.com/513613495): Once preferred_interval_ is set correctly, use
+  // a subsampling factor to scale the deadline and interval.
+  last_frame_deadline_time_ = deadline;
   delegate_->OnBeginFrame(
       frame_time, deadline, vsync_interval_,
       base::BindOnce(&BeginFrameSourceWayland::OnBeginFrameAck,
@@ -136,8 +172,9 @@ void BeginFrameSourceWayland::OnBeginFrameAck(bool has_damage) {
   }
 
   if (ready_to_issue_begin_frame_) {
-    DVLOG(1) << "OnBeginFrameAck: frame callback arrived early, immediately "
-                "issuing frame";
+    DVLOG(1)
+        << "OnBeginFrameAck: next frame callback arrived early, attempting to "
+           "issue immediately";
     MaybeIssueBeginFrame();
   } else if (!has_damage) {
     // No damage means no buffer commit, so no frame callback will arrive.
@@ -152,8 +189,6 @@ void BeginFrameSourceWayland::OnBeginFrameAck(bool has_damage) {
 }
 
 void BeginFrameSourceWayland::StartFrameCallbackTimer() {
-  DVLOG(2) << "StartFrameCallbackTimer: timeout="
-           << (vsync_interval_ * 2).InMillisecondsF() << "ms";
   frame_callback_timeout_timer_.Start(
       FROM_HERE, vsync_interval_ * 2,
       base::BindOnce(&BeginFrameSourceWayland::OnFrameCallbackTimeout,

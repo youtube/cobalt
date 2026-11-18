@@ -102,12 +102,6 @@ std::vector<TimeDelta> RtcpRttCalculator::OnIncomingExtendedReports(
     }
     if (auto it = outgoing_xrs_.find({sender_ssrc, last_rr});
         it != outgoing_xrs_.end()) {
-      if (block.delay_since_last_rr == 0) {
-        // "If a Receiver Reference Time Report Block has yet to be received"
-        // "from SSRC_n, the DLRR field is set to zero (or the DLRR is "
-        // "omitted entirely).
-        continue;
-      }
       TimeDelta delay_since_last_rr =
           CompactNtpIntervalToTimeDelta(block.delay_since_last_rr);
       // "It calculates the total round-trip time A-LRR using the"
@@ -145,11 +139,6 @@ std::vector<TimeDelta> RtcpRttCalculator::ProcessReportBlocks(
     }
     if (auto it = outgoing_srs_.find({sender_ssrc, last_sr});
         it != outgoing_srs_.end()) {
-      if (block.delay_since_last_sr() == 0) {
-        // "If no SR packet has been received yet from SSRC_n, the DLSR field "
-        // "is set to zero."
-        continue;
-      }
       TimeDelta delay_since_last_sr =
           CompactNtpIntervalToTimeDelta(block.delay_since_last_sr());
       // "It calculates the total round-trip time A-LSR using the"

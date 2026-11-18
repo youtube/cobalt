@@ -205,6 +205,7 @@ L$oop_row_3:
 .globl	_gcm_ghash_ssse3
 .private_extern _gcm_ghash_ssse3
 .p2align	4
+.alt_entry _gcm_ghash_ssse3
 _gcm_ghash_ssse3:
 
 
@@ -411,7 +412,9 @@ L$oop_row_6:
 
 
 .section	__DATA,__const
+
 .p2align	4
+ghash_ssse3_constants:
 
 
 L$reverse_bytes:

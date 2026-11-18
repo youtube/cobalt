@@ -772,8 +772,7 @@ TEST_F(VideoSendStreamImplTest, SetsScreensharePacingFactorWithFeedback) {
   config_.rtp.extensions.emplace_back(RtpExtension::kTransportSequenceNumberUri,
                                       kId);
   EXPECT_CALL(transport_controller_,
-              SetPacingFactor(kAlrProbingExperimentPaceMultiplier))
-      .Times(1);
+              SetPacingFactor(kAlrProbingExperimentPaceMultiplier));
   auto vss_impl = CreateVideoSendStreamImpl(
       TestVideoEncoderConfig(VideoEncoderConfig::ContentType::kScreen),
       &field_trials);
@@ -788,7 +787,68 @@ TEST_F(VideoSendStreamImplTest, DoesNotSetPacingFactorWithoutFeedback) {
   auto vss_impl = CreateVideoSendStreamImpl(
       TestVideoEncoderConfig(VideoEncoderConfig::ContentType::kScreen),
       &field_trials);
-  EXPECT_CALL(transport_controller_, SetPacingFactor(_)).Times(0);
+  EXPECT_CALL(transport_controller_, SetPacingFactor).Times(0);
+  vss_impl->Start();
+  vss_impl->Stop();
+}
+
+TEST_F(VideoSendStreamImplTest,
+       EnablesAlrProbingAndSetsPacingFactorWithTwccWithoutCcfb) {
+  auto field_trials =
+      SetFieldTrial("WebRTC-RFC8888CongestionControlFeedback", "Disabled");
+  // We expect EnablePeriodicAlrProbing(true) to be called.
+  EXPECT_CALL(transport_controller_, EnablePeriodicAlrProbing(true));
+
+  // We expect SetQueueTimeLimit to be called.
+  EXPECT_CALL(transport_controller_, SetQueueTimeLimit);
+
+  // We expect SetPacingFactor to be called with the default ALR experiment
+  // pacing factor (1.0).
+  EXPECT_CALL(transport_controller_, SetPacingFactor(1.0f));
+
+  config_.rtp.extensions.emplace_back(RtpExtension::kTransportSequenceNumberUri,
+                                      RtpHeaderExtensionId(1));
+
+  auto vss_impl = CreateVideoSendStreamImpl(
+      TestVideoEncoderConfig(VideoEncoderConfig::ContentType::kScreen),
+      &field_trials);
+  vss_impl->Start();
+  vss_impl->Stop();
+}
+
+TEST_F(VideoSendStreamImplTest, DoesNotConfigurePacingOrAlrWithoutFeedback) {
+  auto field_trials =
+      SetFieldTrial("WebRTC-RFC8888CongestionControlFeedback", "Disabled");
+  // We expect NONE of the pacing/ALR methods to be called on transport
+  // controller.
+  EXPECT_CALL(transport_controller_, EnablePeriodicAlrProbing).Times(0);
+  EXPECT_CALL(transport_controller_, SetQueueTimeLimit).Times(0);
+  EXPECT_CALL(transport_controller_, SetPacingFactor).Times(0);
+
+  auto vss_impl = CreateVideoSendStreamImpl(
+      TestVideoEncoderConfig(VideoEncoderConfig::ContentType::kScreen),
+      &field_trials);
+  vss_impl->Start();
+  vss_impl->Stop();
+}
+
+TEST_F(VideoSendStreamImplTest,
+       EnablesAlrProbingAndSetsQueueTimeLimitWithRfc8888) {
+  auto field_trials = SetFieldTrial("WebRTC-RFC8888CongestionControlFeedback",
+                                    "Enabled,offer:true");
+
+  // We expect EnablePeriodicAlrProbing(true) to be called.
+  EXPECT_CALL(transport_controller_, EnablePeriodicAlrProbing(true));
+
+  // We expect SetQueueTimeLimit to be called.
+  EXPECT_CALL(transport_controller_, SetQueueTimeLimit);
+
+  // We expect SetPacingFactor NOT to be called.
+  EXPECT_CALL(transport_controller_, SetPacingFactor).Times(0);
+
+  auto vss_impl = CreateVideoSendStreamImpl(
+      TestVideoEncoderConfig(VideoEncoderConfig::ContentType::kScreen),
+      &field_trials);
   vss_impl->Start();
   vss_impl->Stop();
 }
@@ -797,7 +857,7 @@ TEST_F(VideoSendStreamImplTest, ForwardsVideoBitrateAllocationWhenEnabled) {
   auto vss_impl = CreateVideoSendStreamImpl(
       TestVideoEncoderConfig(VideoEncoderConfig::ContentType::kScreen));
 
-  EXPECT_CALL(transport_controller_, SetPacingFactor(_)).Times(0);
+  EXPECT_CALL(transport_controller_, SetPacingFactor).Times(0);
   VideoStreamEncoderInterface::EncoderSink* const sink =
       static_cast<VideoStreamEncoderInterface::EncoderSink*>(vss_impl.get());
   vss_impl->Start();

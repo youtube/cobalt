@@ -29,13 +29,17 @@ namespace content {
 class BrowserContext;
 }  // namespace content
 
-namespace signin {
-class IdentityManager;
-}  // namespace signin
-
 namespace network {
 class SharedURLLoaderFactory;
 }  // namespace network
+
+namespace policy {
+class BrowserPolicyConnectorAsh;
+}  // namespace policy
+
+namespace signin {
+class IdentityManager;
+}  // namespace signin
 
 namespace arc {
 
@@ -225,6 +229,10 @@ class ArcAuthService : public KeyedService,
   void OnMainAccountResolutionStatus(mojom::MainAccountResolutionStatus status);
 
   const raw_ref<PrefService> local_state_;
+  const scoped_refptr<network::SharedURLLoaderFactory>
+      system_url_loader_factory_;
+  const raw_ptr<policy::BrowserPolicyConnectorAsh>
+      browser_policy_connector_ash_;
 
   std::unique_ptr<Delegate> delegate_;
 

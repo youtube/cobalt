@@ -501,7 +501,7 @@ public class ProfileDataCache implements IdentityManager.Observer {
 
         /** Implements {@link AccountsChangeObserver}. */
         @Override
-        public void onCoreAccountInfosChanged() {
+        public void onAccountsChanged() {
             assert !SigninFeatureMap.isEnabled(
                     SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS);
             updateCache(mAccountManagerFacade.getAccounts().getResult());

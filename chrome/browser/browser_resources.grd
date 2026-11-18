@@ -85,9 +85,15 @@
         <!-- Web App Internals resources -->
         <structure type="lottie" name="IDR_WEB_APP_INSTALL_ILLUSTRATION" file="resources/webapps/install_illustration.json" compress="brotli" />
         <structure type="lottie" name="IDR_WEB_APP_INTERNALS_CROS_LAUNCHER" file="resources/webapps/cros_launcher.json" compress="brotli" />
-        </if>
-        </structures>
+      </if>
+    </structures>
     <includes>
+      <if expr="is_win or is_macosx or is_linux">
+        <!-- First Run audio resources -->
+        <include name="IDR_INTRO_SOUND_AMBIENT_FLAC" file="resources\intro\sounds\ambient.flac" type="BINDATA" />
+        <include name="IDR_INTRO_SOUND_LOGO_FLAC" file="resources\intro\sounds\logo.flac" type="BINDATA" />
+        <include name="IDR_INTRO_SOUND_WELCOME_BACK_FLAC" file="resources\intro\sounds\welcome_back.flac" type="BINDATA" />
+      </if>
       <if expr="enable_src_internal">
         <include name="IDR_APC_PROMPTS_JSON" file="../../internal/password_manager/apc_prompts.json" type="BINDATA" />
       </if>

@@ -14,11 +14,25 @@ java_cpp_enum("template_url_category_enum") {
   sources = [ "template_url_service_android.h" ]
 }
 
-android_library("java") {
+android_resources("java_resources") {
+  sources = [
+    "java/res/drawable/ic_logo_googleg_20dp.xml",
+    "java/res/values/drawables.xml",
+  ]
   deps = [
+    "//components/browser_ui/styles/android:java_resources",
+    "//ui/android:ui_java_resources",
+  ]
+}
+
+android_library("java") {
+  resources_package = "org.chromium.components.search_engines"
+  deps = [
+    ":java_resources",
     "//base:base_java",
     "//base:service_loader_java",
     "//build/android:build_java",
+    "//components/favicon/android:java",
     "//content/public/android:content_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/jni_zero:jni_zero_java",
@@ -33,6 +47,8 @@ android_library("java") {
   sources = [
     "java/src/org/chromium/components/search_engines/FakeSearchEngineCountryDelegate.java",
     "java/src/org/chromium/components/search_engines/NoOpSearchEngineCountryDelegate.java",
+    "java/src/org/chromium/components/search_engines/PrepopulatedAndRecentlyVisitedTemplateURLs.java",
+    "java/src/org/chromium/components/search_engines/SearchEngineAssets.java",
     "java/src/org/chromium/components/search_engines/SearchEngineChoiceService.java",
     "java/src/org/chromium/components/search_engines/SearchEngineCountryDelegate.java",
     "java/src/org/chromium/components/search_engines/SearchEnginesFeatureUtils.java",
@@ -43,6 +59,7 @@ android_library("java") {
 
 generate_jni("jni_headers") {
   sources = [
+    "java/src/org/chromium/components/search_engines/PrepopulatedAndRecentlyVisitedTemplateURLs.java",
     "java/src/org/chromium/components/search_engines/TemplateUrl.java",
     "java/src/org/chromium/components/search_engines/TemplateUrlService.java",
   ]
@@ -69,25 +86,32 @@ android_library("junit") {
   # Skip platform checks since Robolectric depends on requires_android targets.
   bypass_platform_checks = true
   testonly = true
+  resources_package = "org.chromium.components.search_engines"
   sources = [
+    "java/src/org/chromium/components/search_engines/PrepopulatedAndRecentlyVisitedTemplateURLsUnitTest.java",
+    "java/src/org/chromium/components/search_engines/SearchEngineAssetsUnitTest.java",
     "java/src/org/chromium/components/search_engines/SearchEngineChoiceServiceUnitTest.java",
     "java/src/org/chromium/components/search_engines/SearchEnginesFeatureUtilsUnitTest.java",
   ]
   deps = [
     ":delegate_java",
     ":java",
+    ":java_resources",
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_java_test_support_uncommon",
     "//base:base_junit_test_support",
     "//base:promise_java",
     "//base:supplier_java",
+    "//components/favicon/android:java",
     "//components/search_engines/android:test_utils_java",
+    "//content/public/android:content_java",
     "//third_party/android_deps:robolectric_all_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_core_java",
     "//third_party/junit",
     "//third_party/mockito:mockito_java",
+    "//url:url_java",
   ]
 }

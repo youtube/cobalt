@@ -13,17 +13,11 @@
 #include "base/scoped_observation.h"
 #include "base/types/optional_ref.h"
 #include "chrome/browser/keyboard_accessory/android/address_accessory_controller.h"
-#include "chrome/browser/keyboard_accessory/android/affiliated_plus_profiles_provider.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "content/public/browser/web_contents_user_data.h"
 
 class ManualFillingController;
-
-namespace plus_addresses {
-class AllPlusAddressesBottomSheetController;
-class PlusAddressService;
-}  // namespace plus_addresses
 
 namespace autofill {
 
@@ -34,7 +28,6 @@ namespace autofill {
 class AddressAccessoryControllerImpl
     : public AddressAccessoryController,
       public AddressDataManager::Observer,
-      public AffiliatedPlusProfilesProvider::Observer,
       public content::WebContentsUserData<AddressAccessoryControllerImpl> {
  public:
   AddressAccessoryControllerImpl(const AddressAccessoryControllerImpl&) =
@@ -54,16 +47,12 @@ class AddressAccessoryControllerImpl
   void OnToggleChanged(AccessoryAction toggled_action, bool enabled) override;
 
   // AddressAccessoryController:
-  void RegisterPlusProfilesProvider(
-      base::WeakPtr<AffiliatedPlusProfilesProvider> provider) override;
+
   void RefreshSuggestions() override;
   base::WeakPtr<AddressAccessoryController> AsWeakPtr() override;
 
   // AddressDataManagerObserver:
   void OnAddressDataChanged() override;
-
-  // AffiliatedPlusProfilesProvider::Observer:
-  void OnAffiliatedPlusProfilesFetched() override;
 
   // Like |CreateForWebContents|, it creates the controller and attaches it to
   // the given |web_contents|. Additionally, it allows inject a manual filling
@@ -72,12 +61,6 @@ class AddressAccessoryControllerImpl
       content::WebContents* web_contents,
       base::WeakPtr<ManualFillingController> mf_controller);
 
-#if defined(UNIT_TEST)
-  plus_addresses::AllPlusAddressesBottomSheetController*
-  GetAllPlusAddressesControllerForTesting() {
-    return all_plus_addresses_bottom_sheet_controller_.get();
-  }
-#endif
  private:
   friend class content::WebContentsUserData<AddressAccessoryControllerImpl>;
 
@@ -93,16 +76,7 @@ class AddressAccessoryControllerImpl
   // enabled features and available user data.
   std::vector<FooterCommand> CreateManageAddressesFooter() const;
 
-  // Fills `plus_address` into the web form field identified by
-  // `focused_field_id`. Called when manually triggered plus address creation
-  // bottom sheet is accepted by the user.
-  void OnPlusAddressCreated(FieldGlobalId focused_field_id,
-                            const std::string& plus_address);
 
-  // Triggers the filling `plus_address` into the field with `focused_field_id`.
-  void OnPlusAddressSelected(
-      FieldGlobalId focused_field_id,
-      base::optional_ref<const std::string> plus_address);
 
   // Given that `RenderFrameHost` and `ContentAutofillDriver` exist, enters the
   // `value` into the field identified by the `focused_field_id`.
@@ -119,18 +93,11 @@ class AddressAccessoryControllerImpl
   // The password accessory controller object to forward client requests to.
   base::WeakPtr<ManualFillingController> mf_controller_;
 
-  // The plus profiles provider that is used to generate the plus profiles
-  // section for the frontend.
-  base::WeakPtr<AffiliatedPlusProfilesProvider> plus_profiles_provider_;
-
   // Responsible for observing the `AddressDataManager` of the current profile.
   base::ScopedObservation<AddressDataManager, AddressDataManager::Observer>
       adm_observation_{this};
 
-  const raw_ptr<plus_addresses::PlusAddressService> plus_address_service_;
 
-  std::unique_ptr<plus_addresses::AllPlusAddressesBottomSheetController>
-      all_plus_addresses_bottom_sheet_controller_;
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 

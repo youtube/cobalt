@@ -37,6 +37,15 @@ bool TestPipScreenCaptureCoordinator::IsExcludedFromScreenCapture() const {
   return is_excluded_;
 }
 
+base::UnguessableToken
+TestPipScreenCaptureCoordinator::RegisterMediaPickerAsCapture(
+    const GlobalRenderFrameHostId& render_frame_host_id) {
+  return base::UnguessableToken::Create();
+}
+
+void TestPipScreenCaptureCoordinator::UnregisterMediaPickerAsCapture(
+    const base::UnguessableToken& session_id) {}
+
 void TestPipScreenCaptureCoordinator::SetExcluded(bool is_excluded) {
   is_excluded_ = is_excluded;
   for (auto& observer : observers_) {

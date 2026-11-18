@@ -287,7 +287,9 @@ ecp_nistz256_sqr_mont:
 	ret
 
 .section	.rodata
+
 .align	5
+p256_constants:
 Lord:
 .quad	0xf3b9cac2fc632551,0xbce6faada7179e84,0xffffffffffffffff,0xffffffff00000000
 LordK:

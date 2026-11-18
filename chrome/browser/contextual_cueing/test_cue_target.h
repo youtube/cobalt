@@ -12,6 +12,9 @@ namespace contextual_cueing {
 class TestCueTarget : public CueTarget {
  public:
   bool eligible = true;
+  std::optional<CueIntrusiveness> eligible_intrusiveness;
+  std::optional<optimization_guide::proto::ContextualCue> generate_result;
+  bool page_eligible = true;
   CueActionData click_data = std::monostate();
   CueActionData edit_prompt_data = std::monostate();
 
@@ -21,7 +24,14 @@ class TestCueTarget : public CueTarget {
   bool HasClickData() const;
 
   // CueTarget:
+  CueTargetType GetType() const override;
   bool IsEligible() const override;
+  void CheckEligibility(base::WeakPtr<content::WebContents> web_contents,
+                        CueIntrusiveness intrusiveness,
+                        EligibilityCallback callback) override;
+  bool IsPageEligible(
+      const page_content_annotations::PageContentAnnotationsResult& result,
+      content::WebContents* active_web_contents) const override;
   void OnClick(CueActionData data) override;
   void OnEditPrompt(CueActionData data) override;
   ui::ImageModel GetAnchoredMessageIcon() const override;

@@ -75,7 +75,7 @@ void ElementAnimations::Trace(Visitor* visitor) const {
   visitor->Trace(animations_);
   visitor->Trace(worklet_animations_);
   visitor->Trace(clip_path_paint_worklet_candidate_);
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
 }
 
 bool ElementAnimations::UpdateBoxSizeAndCheckTransformAxisAlignment(

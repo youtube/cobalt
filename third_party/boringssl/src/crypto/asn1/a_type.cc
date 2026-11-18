@@ -21,10 +21,48 @@
 #include <openssl/mem.h>
 #include <openssl/obj.h>
 
+#include "../bytestring/internal.h"
+#include "../internal.h"
 #include "internal.h"
 
 
 using namespace bssl;
+
+ASN1_TYPE *ASN1_TYPE_new() {
+  ASN1_TYPE *ret = New<ASN1_TYPE>();
+  if (ret == nullptr) {
+    return nullptr;
+  }
+  OPENSSL_memset(ret, 0, sizeof(ASN1_TYPE));
+  ret->type = -1;
+  return ret;
+}
+
+static void asn1_type_cleanup(ASN1_TYPE *a) {
+  switch (a->type) {
+    case V_ASN1_NULL:
+      a->value.ptr = nullptr;
+      break;
+    case V_ASN1_BOOLEAN:
+      a->value.boolean = ASN1_BOOLEAN_NONE;
+      break;
+    case V_ASN1_OBJECT:
+      ASN1_OBJECT_free(a->value.object);
+      a->value.object = nullptr;
+      break;
+    default:
+      ASN1_STRING_free(a->value.asn1_string);
+      a->value.asn1_string = nullptr;
+      break;
+  }
+}
+
+void ASN1_TYPE_free(ASN1_TYPE *a) {
+  if (a != nullptr) {
+    asn1_type_cleanup(a);
+    Delete(a);
+  }
+}
 
 int ASN1_TYPE_get(const ASN1_TYPE *a) {
   switch (a->type) {
@@ -66,25 +104,6 @@ void bssl::asn1_type_set0_string(ASN1_TYPE *a, ASN1_STRING *str) {
   assert(type != V_ASN1_NULL && type != V_ASN1_OBJECT &&
          type != V_ASN1_BOOLEAN);
   ASN1_TYPE_set(a, type, str);
-}
-
-void bssl::asn1_type_cleanup(ASN1_TYPE *a) {
-  switch (a->type) {
-    case V_ASN1_NULL:
-      a->value.ptr = nullptr;
-      break;
-    case V_ASN1_BOOLEAN:
-      a->value.boolean = ASN1_BOOLEAN_NONE;
-      break;
-    case V_ASN1_OBJECT:
-      ASN1_OBJECT_free(a->value.object);
-      a->value.object = nullptr;
-      break;
-    default:
-      ASN1_STRING_free(a->value.asn1_string);
-      a->value.asn1_string = nullptr;
-      break;
-  }
 }
 
 void ASN1_TYPE_set(ASN1_TYPE *a, int type, void *value) {
@@ -313,7 +332,9 @@ int bssl::asn1_parse_any_as_string(CBS *cbs, ASN1_STRING *out) {
     case CBS_ASN1_GENERALIZEDTIME:
       return asn1_parse_generalized_time(&elem, out, tag);
     case CBS_ASN1_OCTETSTRING:
+      return asn1_parse_octet_string(&elem, out, tag);
     case CBS_ASN1_T61STRING:
+      return asn1_parse_t61_string(&elem, out, tag);
     case CBS_ASN1_IA5STRING:
     case CBS_ASN1_NUMERICSTRING:
     case CBS_ASN1_PRINTABLESTRING:
@@ -321,16 +342,11 @@ int bssl::asn1_parse_any_as_string(CBS *cbs, ASN1_STRING *out) {
     case CBS_ASN1_GRAPHICSTRING:
     case CBS_ASN1_VISIBLESTRING:
     case CBS_ASN1_GENERALSTRING:
-      // T61String is parsed as Latin-1, so all byte strings are valid. The
-      // others we currently do not enforce.
-      //
-      // TODO(crbug.com/42290290): Enforce the encoding of the other string
-      // types.
-      if (!asn1_parse_octet_string(&elem, out, tag)) {
-        return 0;
-      }
-      out->type = static_cast<int>(tag);
-      return 1;
+      // |CBS_ASN1_*| and |V_ASN1_*| constants match for universal types.
+      static_assert(CBS_ASN1_IA5STRING == V_ASN1_IA5STRING);
+      // TODO(crbug.com/42290290): Enforce the encoding of these string types.
+      return asn1_parse_string_unchecked(&elem, out, static_cast<int>(tag),
+                                         tag);
     default:
       // All unrecognized types, or types that cannot be represented as
       // `ASN1_STRING`, are represented as the whole element.
@@ -432,4 +448,20 @@ static int asn1_marshal_string_with_type(CBB *out, const ASN1_STRING *in,
 
 int bssl::asn1_marshal_any_string(CBB *out, const ASN1_STRING *in) {
   return asn1_marshal_string_with_type(out, in, in->type);
+}
+
+ASN1_TYPE *d2i_ASN1_TYPE(ASN1_TYPE **out, const uint8_t **inp, long len) {
+  return D2IFromCBS(out, inp, len, [](CBS *cbs) -> UniquePtr<ASN1_TYPE> {
+    UniquePtr<ASN1_TYPE> ret(ASN1_TYPE_new());
+    if (ret == nullptr || !asn1_parse_any(cbs, ret.get())) {
+      return nullptr;
+    }
+    return ret;
+  });
+}
+
+int i2d_ASN1_TYPE(const ASN1_TYPE *in, uint8_t **outp) {
+  return I2DFromCBB(/*initial_capacity=*/16, outp, [&](CBB *cbb) -> bool {
+    return asn1_marshal_any(cbb, in);
+  });
 }

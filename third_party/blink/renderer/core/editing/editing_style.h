@@ -146,6 +146,7 @@ class CORE_EXPORT EditingStyle final : public GarbageCollected<EditingStyle> {
                                             PropertiesToInclude);
   void MergeStyleFromRules(Element*);
   void MergeStyleFromRulesForSerialization(Element*);
+  void RemoveStyleFromContext(Element*, Element* context);
   void RemoveStyleFromRulesAndContext(Element*, Element* context);
   void RemovePropertiesInElementDefaultStyle(Element*);
   void ForceInline();

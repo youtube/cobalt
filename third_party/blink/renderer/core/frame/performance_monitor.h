@@ -35,7 +35,6 @@ class Document;
 class ExecutionContext;
 class Frame;
 class LocalFrame;
-class WindowPerformance;
 class SourceLocation;
 
 // Performance monitor for Web Performance APIs and logging.

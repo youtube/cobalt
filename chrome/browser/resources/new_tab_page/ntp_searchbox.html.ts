@@ -23,6 +23,9 @@ export function getHtml(this: NtpSearchboxElement) {
       <search-animated-glow
         animation-state="${this.animationState}"
         .isListening="${this.isListening}"
+        .darkThemeColorsEnabled="${false}"
+        .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}"
+        .entrypointName="${'Realbox'}"
         part="animated-glow">
       </search-animated-glow>
     ` : ''}
@@ -62,8 +65,10 @@ export function getHtml(this: NtpSearchboxElement) {
         </button>
       </div>
     ` : ''}
-    ${this.composeButtonEnabled ? html`
+    ${this.showComposeButton_ ? html`
       <cr-searchbox-compose-button id="composeButton" slot="compose-button"
+          ?dynamic="${this.ntpRealboxDynamicAiModeButtonEnabled_}"
+          ?has-user-input="${this.hasUserInput_}"
           @compose-click="${this.onComposeClick_}">
       </cr-searchbox-compose-button>
     ` : ''}

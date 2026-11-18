@@ -61,10 +61,14 @@ struct StructTraits<content::mojom::MemoryConsumerTraitsDataView,
   static uint8_t is_stateful(const base::MemoryConsumerTraits& input) {
     return std::to_underlying(input.is_stateful);
   }
+  static uint8_t consumer_type(const base::MemoryConsumerTraits& input) {
+    return std::to_underlying(input.consumer_type);
+  }
 
   static bool Read(content::mojom::MemoryConsumerTraitsDataView input,
                    base::MemoryConsumerTraits* output) {
-    return ConvertToEnum(input.estimated_memory_usage(),
+    return ConvertToEnum(input.consumer_type(), &output->consumer_type) &&
+           ConvertToEnum(input.estimated_memory_usage(),
                          &output->estimated_memory_usage) &&
            ConvertToEnum(input.release_memory_cost(),
                          &output->release_memory_cost) &&

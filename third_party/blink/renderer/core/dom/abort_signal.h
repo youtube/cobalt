@@ -24,7 +24,6 @@ namespace blink {
 
 class AbortController;
 class AbortSignalCompositionManager;
-class AbortSignalRegistry;
 class ExecutionContext;
 class ScriptState;
 

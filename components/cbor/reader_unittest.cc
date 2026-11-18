@@ -1190,20 +1190,6 @@ TEST(CBORReaderTest, TestOutOfOrderKeyError) {
       EXPECT_FALSE(cbor.has_value());
       EXPECT_EQ(error_code, Reader::DecoderError::OUT_OF_ORDER_KEY);
     }
-
-    // When `allow_and_canonicalize_out_of_order_keys` flag is set, expect
-    // `CBOR_NO_ERROR`.
-    {
-      Reader::DecoderError error_code;
-      Reader::Config config;
-      config.error_code_out = &error_code;
-      config.allow_and_canonicalize_out_of_order_keys = true;
-
-      std::optional<Value> cbor =
-          Reader::Read(unsorted_map, config);
-      EXPECT_TRUE(cbor);
-      EXPECT_EQ(error_code, Reader::DecoderError::CBOR_NO_ERROR);
-    }
   }
 }
 
@@ -1248,20 +1234,6 @@ TEST(CBORReaderTest, TestOutOfOrderKeyErrorWithDuplicateKeys) {
       EXPECT_FALSE(cbor.has_value());
       EXPECT_EQ(error_code, Reader::DecoderError::OUT_OF_ORDER_KEY);
     }
-
-    // When `allow_and_canonicalize_out_of_order_keys` flag is set, expect
-    // `DUPLICATE_KEY`.
-    {
-      Reader::DecoderError error_code;
-      Reader::Config config;
-      config.error_code_out = &error_code;
-      config.allow_and_canonicalize_out_of_order_keys = true;
-
-      std::optional<Value> cbor =
-          Reader::Read(unsorted_map, config);
-      EXPECT_FALSE(cbor);
-      EXPECT_EQ(error_code, Reader::DecoderError::DUPLICATE_KEY);
-    }
   }
 }
 
@@ -1292,17 +1264,6 @@ TEST(CBORReaderTest, TestDuplicateKeyError) {
   {
     Reader::DecoderError error_code;
     std::optional<Value> cbor = Reader::Read(kMapWithDuplicateKey, &error_code);
-    EXPECT_FALSE(cbor.has_value());
-    EXPECT_EQ(error_code, Reader::DecoderError::DUPLICATE_KEY);
-  }
-
-  {
-    Reader::DecoderError error_code;
-    Reader::Config config;
-    config.error_code_out = &error_code;
-    config.allow_and_canonicalize_out_of_order_keys = true;
-
-    std::optional<Value> cbor = Reader::Read(kMapWithDuplicateKey, config);
     EXPECT_FALSE(cbor.has_value());
     EXPECT_EQ(error_code, Reader::DecoderError::DUPLICATE_KEY);
   }

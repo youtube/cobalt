@@ -122,10 +122,18 @@ void SrtpTransport::OnRtcpPacketReceived(const ReceivedIpPacket& packet) {
   }
   CopyOnWriteBuffer payload(packet.payload());
   if (!UnprotectRtcp(payload)) {
-    int type = -1;
-    GetRtcpType(payload.data(), payload.size(), &type);
-    RTC_LOG(LS_ERROR) << "Failed to unprotect RTCP packet: size="
-                      << payload.size() << ", type=" << type;
+    // Limit the error logging to avoid excessive logs when there are lots of
+    // bad packets.
+    const int kFailureLogThrottleCount = 100;
+    if (rtcp_decryption_failure_count_ % kFailureLogThrottleCount == 0) {
+      int type = -1;
+      GetRtcpType(payload.data(), payload.size(), &type);
+      RTC_LOG(LS_ERROR) << "Failed to unprotect RTCP packet: size="
+                        << payload.size() << ", type=" << type
+                        << ", previous failure count: "
+                        << rtcp_decryption_failure_count_;
+    }
+    ++rtcp_decryption_failure_count_;
     return;
   }
   SendRtcpPacketReceived(std::move(payload), packet.arrival_time(),

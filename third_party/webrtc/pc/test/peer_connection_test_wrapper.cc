@@ -22,8 +22,9 @@
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_options.h"
-#include "api/create_peerconnection_factory.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/data_channel_interface.h"
+#include "api/enable_media_with_defaults.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
@@ -33,6 +34,7 @@
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
@@ -180,7 +182,7 @@ bool PeerConnectionTestWrapper::CreatePc(
     std::unique_ptr<VideoDecoderFactory> video_decoder_factory,
     std::unique_ptr<FieldTrialsView> field_trials) {
   EnvironmentFactory env_factory(env_);
-  env_factory.Set(field_trials.get());
+  env_factory.Set(std::move(field_trials));
   Environment env = env_factory.Create();
   auto port_allocator =
       std::make_unique<FakePortAllocator>(env, socket_server_, network_thread_);
@@ -192,13 +194,22 @@ bool PeerConnectionTestWrapper::CreatePc(
     return false;
   }
 
-  peer_connection_factory_ = CreatePeerConnectionFactory(
-      network_thread_, worker_thread_, Thread::Current(),
-      scoped_refptr<AudioDeviceModule>(fake_audio_capture_module_),
-      audio_encoder_factory, audio_decoder_factory,
-      std::move(video_encoder_factory), std::move(video_decoder_factory),
-      nullptr /* audio_mixer */, nullptr /* audio_processing */, nullptr,
-      std::move(field_trials));
+  PeerConnectionFactoryDependencies dependencies;
+  dependencies.network_thread = network_thread_;
+  dependencies.worker_thread = worker_thread_;
+  dependencies.signaling_thread = Thread::Current();
+  dependencies.socket_factory = socket_server_;
+  dependencies.adm =
+      scoped_refptr<AudioDeviceModule>(fake_audio_capture_module_);
+  dependencies.audio_encoder_factory = audio_encoder_factory;
+  dependencies.audio_decoder_factory = audio_decoder_factory;
+  dependencies.video_encoder_factory = std::move(video_encoder_factory);
+  dependencies.video_decoder_factory = std::move(video_decoder_factory);
+  dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>();
+  dependencies.env = env;
+  EnableMediaWithDefaults(dependencies);
+  peer_connection_factory_ =
+      CreateModularPeerConnectionFactory(std::move(dependencies));
   if (!peer_connection_factory_) {
     return false;
   }

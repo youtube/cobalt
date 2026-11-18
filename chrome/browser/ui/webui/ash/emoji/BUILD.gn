@@ -44,7 +44,6 @@ static_library("emoji") {
     "//chrome/browser/ui/webui:webui_load_timer",
     "//chrome/browser/ui/webui/sanitized_image:sanitized_image_source",
     "//chrome/browser/ui/webui/top_chrome",
-    "//chrome/common",
     "//chromeos/ash/components/emoji",
     "//chromeos/ash/components/emoji:mojo_bindings",
     "//components/manta",

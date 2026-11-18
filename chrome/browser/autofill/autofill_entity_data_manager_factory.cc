@@ -74,7 +74,7 @@ AutofillEntityDataManagerFactory::BuildServiceInstanceForBrowserContext(
     return nullptr;
   }
   Profile* profile = Profile::FromBrowserContext(context);
-  scoped_refptr<autofill::AutofillWebDataService> local_storage =
+  scoped_refptr<AutofillWebDataService> local_storage =
       WebDataServiceFactory::GetAutofillWebDataForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS);
   if (!local_storage) {

@@ -1,0 +1,63 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module bookmarks_api.mojom;
+
+import "mojo/public/mojom/base/empty.mojom";
+import "mojo/public/mojom/base/error.mojom";
+import "mojo/public/mojom/base/uuid.mojom";
+import "url/mojom/url.mojom";
+
+// Represents a node in the bookmarks hierarchy.
+union BookmarkNode {
+  Url url;
+  Folder folder;
+};
+
+// Represents a url node.
+struct Url {
+  // Not set if creating a new resource.
+  mojo_base.mojom.Uuid? id;
+  string title;
+  url.mojom.Url url;
+};
+
+// Represents a folder node.
+struct Folder {
+  // Not set if creating a new resource.
+  mojo_base.mojom.Uuid? id;
+  string title;
+  array<BookmarkNode> children;
+};
+
+[GenerateDirectReturnStub]
+interface BookmarksService {
+  // Gets the root bookmark node (which contains all folders/bookmarks).
+  GetBookmarks() => result<BookmarkNode, mojo_base.mojom.Error>;
+
+  // Get a specific bookmark node by ID.
+  GetBookmark(mojo_base.mojom.Uuid id)
+      => result<BookmarkNode, mojo_base.mojom.Error>;
+
+  // Creates a new bookmark node.
+  // If index is not provided, the node is appended to the end of the folder.
+  // The parent_id must refer to a folder node.
+  CreateBookmarkNode(
+      // The folder to contain the bookmark node.
+      mojo_base.mojom.Uuid parent_id,
+      // The index the node should be placed in the parent node.
+      int32? index,
+      // The node object to create.
+      BookmarkNode node) => result<BookmarkNode, mojo_base.mojom.Error>;
+
+  // Updates an existing bookmark node.
+  // The node to update is identified by the ID in `node`.
+  // All mutable fields provided in `node` will be applied.
+  UpdateBookmarkNode(BookmarkNode node)
+      => result<BookmarkNode, mojo_base.mojom.Error>;
+
+  // Deletes a bookmark node.
+  DeleteBookmarkNode(mojo_base.mojom.Uuid id)
+      => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
+};

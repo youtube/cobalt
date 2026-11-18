@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
@@ -38,6 +37,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "test/call_test.h"
+#include "test/create_test_environment.h"
 #include "test/fake_encoder.h"
 #include "test/gtest.h"
 #include "test/rtcp_packet_parser.h"
@@ -208,7 +208,7 @@ TEST_F(BandwidthEndToEndTest, RembWithSendSideBwe) {
     explicit BweObserver(TaskQueueBase* task_queue)
         : EndToEndTest(test::VideoTestConstants::kDefaultTimeout),
           sender_call_(nullptr),
-          env_(CreateEnvironment()),
+          env_(CreateTestEnvironment()),
           sender_ssrc_(0),
           remb_bitrate_bps_(1000000),
           state_(kWaitForFirstRampUp),

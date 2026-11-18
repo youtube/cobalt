@@ -1,16 +1,16 @@
-/* Copyright 2026 The BoringSSL Authors
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
+// Copyright 2026 The BoringSSL Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef OPENSSL_HEADER_EC_P256_INTERNAL_H
 #define OPENSSL_HEADER_EC_P256_INTERNAL_H
@@ -49,9 +49,16 @@ static inline void p256_coord_sub(br_word_t out, br_word_t x, br_word_t y) {
 #endif
 
 extern "C" {
-#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__) && defined(OPENSSL_X86_64)
-// These functions are only available with gas and SysV ABI, so limit to
-// __GNUC__.
+#if !defined(OPENSSL_NO_ASM) && (defined(__ELF__) || defined(__APPLE__)) && \
+    defined(OPENSSL_X86_64) && !defined(OPENSSL_NANOLIBC)
+// These functions are only available with gas and SysV ABI, used by Apple and
+// ELF-based platforms. Unlike most of our SysV assembly, they currently rely on
+// the SysV redzone. This trips one target which looks like it targets SysV but
+// has no redzone. This happens to define `OPENSSL_NANOLIBC`, so gate on that.
+//
+// TODO(crbug.com/522255483): Come up with a clearer story for the redzone
+// situation.
+#define FIAT_P256_ADX_ASM
 void fiat_p256_adx_mul(uint64_t x0[4], const uint64_t x1[4],
                        const uint64_t x2[4]);
 void fiat_p256_adx_sqr(uint64_t x0[4], const uint64_t x1[4]);
@@ -65,7 +72,7 @@ void ecp_nistz256_sqr_mont(uint64_t pr[4], const uint64_t py[4], uint64_t y0,
 
 static inline void p256_coord_mul(fiat_p256_felem out, const fiat_p256_felem x,
                                   const fiat_p256_felem y) {
-#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__) && defined(OPENSSL_X86_64)
+#if defined(FIAT_P256_ADX_ASM)
   if (bssl::CRYPTO_is_BMI1_capable() && bssl::CRYPTO_is_BMI2_capable() &&
       bssl::CRYPTO_is_ADX_capable()) {
     return fiat_p256_adx_mul(out, x, y);
@@ -80,7 +87,7 @@ static inline void p256_coord_mul(fiat_p256_felem out, const fiat_p256_felem x,
 
 static inline void p256_coord_sqr(fiat_p256_felem out,
                                   const fiat_p256_felem x) {
-#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__) && defined(OPENSSL_X86_64)
+#if defined(FIAT_P256_ADX_ASM)
   if (bssl::CRYPTO_is_BMI1_capable() && bssl::CRYPTO_is_BMI2_capable() &&
       bssl::CRYPTO_is_ADX_capable()) {
     return fiat_p256_adx_sqr(out, x);

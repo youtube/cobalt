@@ -5,7 +5,7 @@
 import("../../build_webui_tests.gni")
 
 build_webui_tests("build") {
-  cc_test_files = [ "account_manager_browsertest.js" ]
+  cc_test_files = [ "account_manager_browsertest.cc" ]
   files = [
     "account_migration_welcome_test.js",
     "test_account_manager_browser_proxy.js",

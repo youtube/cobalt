@@ -21,7 +21,7 @@ rootWebArea
 ++++++++++++++++++genericContainer
 ++++++++++++++++popUpButton description='more options' name='show more media controls' descriptionFrom=title restriction=disabled haspopup=menu
 ++++++++++++++++++genericContainer
-++++++++++++++slider horizontal description='total time: 0:00' name='video time scrubber' value='elapsed time: 0:00' descriptionFrom=ariaDescription restriction=disabled valueForRange=0.00 minValueForRange=0.00 maxValueForRange=100.00
+++++++++++++++slider horizontal description='total time: 0:00' name='video time scrubber' value='0' ariaValueText='elapsed time: 0:00' descriptionFrom=ariaDescription restriction=disabled valueForRange=0.00 minValueForRange=0.00 maxValueForRange=100.00
 ++++++++++menu ignored invisible
 ++++++++++menu ignored invisible
 ++++++++++menu ignored invisible

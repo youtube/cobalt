@@ -1615,7 +1615,8 @@ void PrefetchService::SendPrefetchRequest(
       prefetch_container.service_worker_state(), browser_context_,
       base::BindOnce(&PrefetchContainer::OnServiceWorkerStateDetermined,
                      weak_prefetch_container),
-      prefetch_container.request().preload_pipeline_info().GetFlow());
+      prefetch_container.request().preload_pipeline_info().GetFlow(),
+      prefetch_container.IsConstructedFromPrePrefetch());
   prefetch_container.SetStreamingURLLoader(std::move(streaming_loader));
 
   DVLOG(1) << prefetch_container << ": PrefetchStreamingURLLoader is created.";
@@ -2045,13 +2046,17 @@ void PrefetchService::EvictPrefetchesForBrowsingDataRemoval(
                                           prefetch_status_on_destruction);
 }
 
-void PrefetchService::CancelUnrelatedPrefetchForNavigation() {
+void PrefetchService::CancelUnrelatedPrefetchForNavigation(
+    const std::optional<blink::DocumentToken>&
+        navigation_initiator_document_token) {
   CHECK(
       base::FeatureList::IsEnabled(features::kPrefetchCancelUnrelatedPrefetch));
 
-  std::vector<base::WeakPtr<PrefetchContainer>> prefetches_to_reset;
-  for (const auto& it : owned_prefetches()) {
-    auto& prefetch_container = it.second;
+  const auto policy =
+      features::kPrefetchCancelUnrelatedPrefetchCancelPolicy.Get();
+
+  auto is_cancel_target =
+      [&](const PrefetchContainer& prefetch_container) -> bool {
     // Cancel prefetches not yet servable, which may compete with the navigation
     // for network bandwidth.
     //
@@ -2061,11 +2066,29 @@ void PrefetchService::CancelUnrelatedPrefetchForNavigation() {
     // already passed; prefetch matching blocks until the using prefetch becomes
     // `PrefetchMatchResolverAction::ActionKind::kMaybeServable`.
     const bool is_maybe_servable =
-        prefetch_container->GetLoadState() ==
+        prefetch_container.GetLoadState() ==
             PrefetchContainer::LoadState::kDeterminedHead ||
-        prefetch_container->GetLoadState() ==
+        prefetch_container.GetLoadState() ==
             PrefetchContainer::LoadState::kCompleted;
-    if (!is_maybe_servable) {
+
+    switch (policy) {
+      case features::PrefetchCancelUnrelatedPrefetchCancelPolicy::kNotServable:
+        return !is_maybe_servable;
+      case features::PrefetchCancelUnrelatedPrefetchCancelPolicy::
+          kNotServableSameInitiatorDocument:
+        const bool is_initiated_by_same_document =
+            navigation_initiator_document_token.has_value() &&
+            navigation_initiator_document_token ==
+                prefetch_container.key().GetDocumentToken();
+
+        return !is_maybe_servable && is_initiated_by_same_document;
+    }
+  };
+
+  std::vector<base::WeakPtr<PrefetchContainer>> prefetches_to_reset;
+  for (const auto& it : owned_prefetches()) {
+    auto& prefetch_container = it.second;
+    if (is_cancel_target(*prefetch_container)) {
       prefetches_to_reset.push_back(prefetch_container->GetWeakPtr());
     }
   }

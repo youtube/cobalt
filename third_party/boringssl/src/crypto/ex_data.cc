@@ -76,7 +76,7 @@ int CRYPTO_get_ex_new_index_ex(ExDataClass *ex_data_class, long argl,
 int CRYPTO_set_ex_data(CRYPTO_EX_DATA *ad, int index, void *val) {
   if (index < 0) {
     // A caller that can accidentally pass in an invalid index into this
-    // function will hit an memory error if `index` happened to be valid, and
+    // function will hit a memory error if `index` happened to be valid, and
     // expected `val` to be of a different type.
     abort();
   }

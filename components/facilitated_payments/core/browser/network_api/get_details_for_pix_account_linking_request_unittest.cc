@@ -15,7 +15,7 @@ using GetDetailsForPixAccountLinkingRequestTest = testing::Test;
 
 TEST_F(GetDetailsForPixAccountLinkingRequestTest, VerifyRequestContent) {
   auto request = std::make_unique<GetDetailsForPixAccountLinkingRequest>(
-      123, /*response_callback=*/base::DoNothing(),
+      123, std::vector<uint8_t>{}, /*response_callback=*/base::DoNothing(),
       /*app_locale=*/"US", /*full_sync_enabled=*/true);
 
   EXPECT_EQ(request->GetRequestUrlPath(),
@@ -31,9 +31,29 @@ TEST_F(GetDetailsForPixAccountLinkingRequestTest, VerifyRequestContent) {
 }
 
 TEST_F(GetDetailsForPixAccountLinkingRequestTest,
+       VerifyRequestContent_WithClientToken) {
+  auto request = std::make_unique<GetDetailsForPixAccountLinkingRequest>(
+      123, std::vector<uint8_t>{'a', 'b', 'c'},
+      /*response_callback=*/base::DoNothing(),
+      /*app_locale=*/"US", /*full_sync_enabled=*/true);
+
+  EXPECT_EQ(request->GetRequestUrlPath(),
+            "payments/apis/chromepaymentsservice/"
+            "getdetailsforcreatepaymentinstrument");
+  EXPECT_EQ(request->GetRequestContentType(), "application/json");
+  EXPECT_EQ(request->GetRequestContent(),
+            "{\"chrome_user_context\":{\"full_sync_enabled\":true},\"client_"
+            "token\":\"YWJj\","
+            "\"context\":{\"billable_service\":70073,\"customer_context\":{"
+            "\"external_"
+            "customer_id\":\"123\"},\"language_code\":\"US\"},\"pix_account_"
+            "linking_info\":{}}");
+}
+
+TEST_F(GetDetailsForPixAccountLinkingRequestTest,
        ParseResponse_Success_AccountLinkingEligibilitySetToTrue) {
   auto request = std::make_unique<GetDetailsForPixAccountLinkingRequest>(
-      123, /*response_callback=*/base::DoNothing(),
+      123, std::vector<uint8_t>{}, /*response_callback=*/base::DoNothing(),
       /*app_locale=*/"US", /*full_sync_enabled=*/true);
   std::optional<base::Value> response =
       base::JSONReader::Read("{\"pix_account_linking_details\":{}}",
@@ -49,7 +69,7 @@ TEST_F(
     GetDetailsForPixAccountLinkingRequestTest,
     ParseResponse_SuccessWithoutPixAccountLinkingDetails_AccountLinkingEligibilitySetToTrue) {
   auto request = std::make_unique<GetDetailsForPixAccountLinkingRequest>(
-      123, /*response_callback=*/base::DoNothing(),
+      123, std::vector<uint8_t>{}, /*response_callback=*/base::DoNothing(),
       /*app_locale=*/"US", /*full_sync_enabled=*/true);
   std::optional<base::Value> response =
       base::JSONReader::Read("{}", base::JSON_PARSE_CHROMIUM_EXTENSIONS);
@@ -62,7 +82,7 @@ TEST_F(
 
 TEST_F(GetDetailsForPixAccountLinkingRequestTest, ParseResponse_Error) {
   auto request = std::make_unique<GetDetailsForPixAccountLinkingRequest>(
-      123, /*response_callback=*/base::DoNothing(),
+      123, std::vector<uint8_t>{}, /*response_callback=*/base::DoNothing(),
       /*app_locale=*/"US", /*full_sync_enabled=*/true);
   std::optional<base::Value> response = base::JSONReader::Read(
       "{\"error\":\"error\"}", base::JSON_PARSE_CHROMIUM_EXTENSIONS);

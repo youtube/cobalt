@@ -12,7 +12,6 @@
 #include "chrome/browser/ash/settings/device_settings_test_helper.h"
 #include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
 #include "chrome/browser/prefs/browser_prefs.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/system_proxy/system_proxy_client.h"
@@ -330,7 +329,7 @@ TEST_F(SystemProxyManagerTest, ArcWorkerAddressPrefSynced) {
   task_environment_.RunUntilIdle();
   EXPECT_EQ(kLocalProxyAddress,
             profile_->GetPrefs()->GetString(
-                ::prefs::kSystemProxyUserTrafficHostAndPort));
+                ash::prefs::kSystemProxyUserTrafficHostAndPort));
 
   // The preference shouldn't be updated if the signal is send for system
   // traffic.
@@ -340,13 +339,13 @@ TEST_F(SystemProxyManagerTest, ArcWorkerAddressPrefSynced) {
   task_environment_.RunUntilIdle();
   EXPECT_EQ(kLocalProxyAddress,
             profile_->GetPrefs()->GetString(
-                ::prefs::kSystemProxyUserTrafficHostAndPort));
+                ash::prefs::kSystemProxyUserTrafficHostAndPort));
 
   SetPolicy(false /* system_proxy_enabled */, "" /* system_services_username */,
             "" /* system_services_password */);
 
   EXPECT_TRUE(profile_->GetPrefs()
-                  ->GetString(::prefs::kSystemProxyUserTrafficHostAndPort)
+                  ->GetString(ash::prefs::kSystemProxyUserTrafficHostAndPort)
                   .empty());
 }
 
@@ -523,7 +522,7 @@ TEST_F(FeatureEnabledSystemProxyTest, Arc) {
   task_environment_.RunUntilIdle();
 
   EXPECT_TRUE(profile_->GetPrefs()
-                  ->GetString(::prefs::kSystemProxyUserTrafficHostAndPort)
+                  ->GetString(ash::prefs::kSystemProxyUserTrafficHostAndPort)
                   .empty());
 }
 
@@ -542,7 +541,7 @@ TEST_F(FeatureEnabledSystemProxyTest, ArcPolicyEnabled) {
 
   EXPECT_EQ(kLocalProxyAddress,
             profile_->GetPrefs()->GetString(
-                ::prefs::kSystemProxyUserTrafficHostAndPort));
+                ash::prefs::kSystemProxyUserTrafficHostAndPort));
 }
 
 }  // namespace ash

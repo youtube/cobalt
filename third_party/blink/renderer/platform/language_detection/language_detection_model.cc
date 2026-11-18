@@ -10,11 +10,14 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/no_destructor.h"
 #include "base/types/expected.h"
 #include "components/language_detection/content/common/language_detection.mojom-blink.h"
 #include "components/language_detection/content/renderer/language_detection_model_manager.h"
+#include "components/language_detection/core/chinese_script_classifier.h"
 #include "components/language_detection/core/language_detection_model.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -66,7 +69,20 @@ void LanguageDetectionModel::DetectLanguageImpl(
 
   Vector<LanguagePrediction> predictions;
   predictions.reserve(static_cast<wtf_size_t>(score_by_language.size()));
-  for (const auto& it : score_by_language) {
+
+  const bool detect_zh_variants =
+      base::FeatureList::IsEnabled(features::kDetectZhVariants);
+
+  for (auto& it : score_by_language) {
+    if (it.language == "zh" && detect_zh_variants) {
+      static base::NoDestructor<language_detection::ChineseScriptClassifier>
+          zh_classifier;
+      if (zh_classifier->IsInitialized()) {
+        std::string zh_refined = zh_classifier->Classify(text_16.View16());
+        DCHECK(!zh_refined.empty());
+        it.language = zh_refined;
+      }
+    }
     predictions.emplace_back(it.language, it.score);
   }
   std::move(on_complete).Run(predictions);

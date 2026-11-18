@@ -8,7 +8,9 @@
 
 #include "src/base/vlq.h"
 #include "src/deoptimizer/translated-state.h"
+#include "src/execution/frame-constants.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 
 #ifdef V8_USE_ZLIB
 #include "third_party/zlib/google/compression_utils_portable.h"

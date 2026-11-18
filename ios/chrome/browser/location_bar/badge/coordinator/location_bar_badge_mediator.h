@@ -10,15 +10,15 @@
 #import "ios/chrome/browser/location_bar/badge/ui/location_bar_badge_mutator.h"
 #import "ios/chrome/browser/shared/public/commands/location_bar_badge_commands.h"
 
-@protocol BWGCommands;
 @protocol ContextualPanelEntrypointIPHCommands;
 @protocol ContextualSheetCommands;
+class GeminiBrowserAgent;
+@protocol GeminiCommands;
+class GeminiService;
 @protocol LocationBarBadgeConsumer;
 @protocol LocationBarBadgeMediatorDelegate;
 class PrefService;
 class WebStateList;
-class GeminiService;
-class GeminiBrowserAgent;
 
 namespace feature_engagement {
 class Tracker;
@@ -43,7 +43,7 @@ class Tracker;
 // The delegate for this mediator.
 @property(nonatomic, weak) id<LocationBarBadgeMediatorDelegate> delegate;
 // The command handler for Gemini commands.
-@property(nonatomic, weak) id<BWGCommands> BWGCommandHandler;
+@property(nonatomic, weak) id<GeminiCommands> geminiHandler;
 // The command handler for entrypoint in-product help commands.
 @property(nonatomic, weak) id<ContextualPanelEntrypointIPHCommands>
     entrypointHelpHandler;

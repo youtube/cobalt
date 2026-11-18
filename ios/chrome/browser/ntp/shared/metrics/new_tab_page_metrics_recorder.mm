@@ -33,6 +33,8 @@
     UMA_HISTOGRAM_ENUMERATION(kNTPImpressionHistogram, impressionType,
                               IOSNTPImpressionType::kMaxValue);
   }
+  UMA_HISTOGRAM_ENUMERATION(kHomeImpressionHistogram, impressionType,
+                            IOSNTPImpressionType::kMaxValue);
 }
 
 - (void)recordCustomizationState:

@@ -22,7 +22,6 @@
 #include "absl/algorithm/container.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_error.h"
-#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
@@ -89,18 +88,6 @@ GetDefaultEnabledRtpHeaderCapabilities(
     if (entry.direction != RtpTransceiverDirection::kStopped) {
       extensions.push_back(entry);
     }
-  }
-  return extensions;
-}
-
-std::vector<RtpExtension> GetDefaultEnabledRtpHeaderExtensions(
-    const RtpHeaderExtensionQueryInterface& query_interface,
-    const FieldTrialsView* field_trials) {
-  std::vector<RtpExtension> extensions;
-  for (const RtpHeaderExtensionCapability& entry :
-       GetDefaultEnabledRtpHeaderCapabilities(query_interface, field_trials)) {
-    extensions.emplace_back(
-        entry.uri, entry.preferred_id.value_or(RtpHeaderExtensionId::NotSet()));
   }
   return extensions;
 }

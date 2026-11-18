@@ -1021,7 +1021,6 @@ if (rtc_include_tests) {
         "../api/audio_codecs:builtin_audio_encoder_factory",
         "../api/crypto:options",
         "../api/environment",
-        "../api/environment:environment_factory",
         "../api/task_queue",
         "../api/test/video:function_video_factory",
         "../api/transport:bitrate_settings",
@@ -1141,10 +1140,6 @@ if (rtc_include_tests) {
       }
 
       data = rtc_media_unittests_resources
-
-      if (is_android) {
-        shard_timeout = 900
-      }
 
       if (is_ios) {
         deps += [ ":rtc_media_unittests_bundle_data" ]

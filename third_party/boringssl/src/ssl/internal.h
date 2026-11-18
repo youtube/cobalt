@@ -4281,7 +4281,7 @@ struct ssl_st {
   // renegotiate_mode controls how peer renegotiation attempts are handled.
   ssl_renegotiate_mode_t renegotiate_mode = ssl_renegotiate_never;
 
-  // server is true iff the this SSL* is the server half. Note: before the SSL*
+  // server is true iff this SSL* is the server half. Note: before the SSL*
   // is initialized by either SSL_set_accept_state or SSL_set_connect_state,
   // the side is not determined. In this state, server is always false.
   bool server : 1;

@@ -5,7 +5,9 @@
 
 #if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__APPLE__)
 .section	__DATA,__const
+
 .p2align	4
+aes_gcm_avx2_constants:
 
 
 L$bswap_mask:
@@ -153,6 +155,7 @@ _CET_ENDBR
 .private_extern _gcm_gmult_vpclmulqdq_avx2
 
 .p2align	5
+.alt_entry _gcm_gmult_vpclmulqdq_avx2
 _gcm_gmult_vpclmulqdq_avx2:
 
 
@@ -193,6 +196,7 @@ _CET_ENDBR
 .private_extern _gcm_ghash_vpclmulqdq_avx2
 
 .p2align	5
+.alt_entry _gcm_ghash_vpclmulqdq_avx2
 _gcm_ghash_vpclmulqdq_avx2:
 
 
@@ -363,6 +367,7 @@ L$ghash_done:
 .private_extern _aes_gcm_enc_update_vaes_avx2
 
 .p2align	5
+.alt_entry _aes_gcm_enc_update_vaes_avx2
 _aes_gcm_enc_update_vaes_avx2:
 
 
@@ -901,6 +906,7 @@ L$done__func1:
 .private_extern _aes_gcm_dec_update_vaes_avx2
 
 .p2align	5
+.alt_entry _aes_gcm_dec_update_vaes_avx2
 _aes_gcm_dec_update_vaes_avx2:
 
 

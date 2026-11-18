@@ -21,9 +21,9 @@
 
 #include "base/memory/ref_counted.h"
 #include "include/core/SkString.h"
-#include "include/private/base/SkMutex.h"
-#include "include/private/base/SkTArray.h"
-#include "include/private/base/SkTDArray.h"
+#include "include/private/SkMutex.h"
+#include "include/private/SkTArray.h"
+#include "include/private/SkTDArray.h"
 
 // This mimics FT_Fixed which is a 16.16 fixed point format.
 typedef int32_t Fixed16;

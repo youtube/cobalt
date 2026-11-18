@@ -98,6 +98,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
+#include "src/init/isolate-group.h"
 #include "src/logging/code-events.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -849,6 +850,7 @@ bool PipelineImpl::Run(Args&&... args) {
 #endif
   Phase phase;
   static_assert(Phase::kKind == PhaseKind::kTurbofan);
+  SYNCHRONIZATION_POINT_FOR_TESTING(Phase::synchronization_point_name());
   phase.Run(this->data_, scope.zone(), std::forward<Args>(args)...);
   return !info()->was_cancelled();
 }
@@ -3100,6 +3102,10 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
     }
   }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
+  if (v8_flags.wasm_random_rescheduling) {
+    CHECK(turboshaft_pipeline.Run<turboshaft::RandomReschedulingPhase>());
+  }
 
   const bool uses_wasm_gc_features =
       detected->has_gc() || detected->has_typed_funcref() ||

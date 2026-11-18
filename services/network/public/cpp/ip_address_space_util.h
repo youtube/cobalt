@@ -147,7 +147,7 @@ struct COMPONENT_EXPORT(NETWORK_CPP) CalculateClientAddressSpaceParams {
 // concepts too (documents and worker global scopes), it should probably only be
 // used at the content/ layer or above.
 //
-// See: https://wicg.github.io/cors-rfc1918/#address-space
+// See: https://wicg.github.io/local-network-access/#ip-address-space-section
 mojom::IPAddressSpace COMPONENT_EXPORT(NETWORK_CPP) CalculateClientAddressSpace(
     const GURL& url,
     std::optional<CalculateClientAddressSpaceParams> params);
@@ -159,17 +159,11 @@ mojom::IPAddressSpace COMPONENT_EXPORT(NETWORK_CPP) CalculateClientAddressSpace(
 // determine the address space of the *target* of a fetch, for comparison with
 // that of the client of the fetch.
 //
-// See: https://wicg.github.io/cors-rfc1918/#integration-fetch
+// See: https://wicg.github.io/local-network-access/#integration-with-fetch
 mojom::IPAddressSpace COMPONENT_EXPORT(NETWORK_CPP)
     CalculateResourceAddressSpace(const GURL& url,
                                   const net::IPEndPoint& endpoint);
 
-// Return the IP address of the host if the host is a private IP address
-// literal, otherwise returns std::nullopt.
-//
-// This does not apply any IP address space overrides.
-std::optional<net::IPAddress> COMPONENT_EXPORT(NETWORK_CPP)
-    ParsePrivateIpFromUrl(const GURL& url);
 
 // Return the IP address space of the host if we can determine it from the URL,
 // otherwise returns std::nullopt.

@@ -31,7 +31,9 @@ enum PopupsAction {
 
 void RecordPopupsAction(PopupsAction action);
 
-// Calls UpdateContentSettingsIcons on the |LocationBar| for |web_contents|.
+// Refreshes the content-setting icons for |web_contents| on its host surface:
+// the |LocationBar| for a Browser tab, or the (Browser-backed or standalone)
+// Document PiP frame view.
 void UpdateLocationBarUiForWebContents(content::WebContents* web_contents);
 
 }  // namespace content_settings

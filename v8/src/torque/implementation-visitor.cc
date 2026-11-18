@@ -408,21 +408,14 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   // generated -inl.inc files to all contain function definitions for the same
   // Torque macro.
   std::optional<cpp::IncludeGuardScope> include_guard;
-  if (output_type_ == OutputType::kCC) {
-    include_guard.emplace(
-        &csa_cc, std::string("V8_INTERNAL_DEFINED_") + macro->CCName());
-  } else if (output_type_ == OutputType::kCCDebug) {
+  if (output_type_ == OutputType::kCCDebug) {
     include_guard.emplace(
         &csa_cc, std::string("V8_INTERNAL_DEFINED_") + macro->CCDebugName());
   }
 
   f.PrintBeginDefinition(csa_ccfile());
 
-  if (output_type_ == OutputType::kCC) {
-    // For now, generated C++ is only for field offset computations. If we ever
-    // generate C++ code that can allocate, then it should be handlified.
-    csa_ccfile() << "  DisallowGarbageCollection no_gc;\n";
-  } else if (output_type_ == OutputType::kCSA) {
+  if (output_type_ == OutputType::kCSA) {
     csa_ccfile() << "  compiler::CodeAssembler ca_(state_);\n";
     csa_ccfile()
         << "  compiler::CodeAssembler::SourcePositionScope pos_scope(&ca_);\n";
@@ -510,10 +503,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   }
 
   std::optional<Stack<std::string>> values;
-  if (output_type_ == OutputType::kCC) {
-    CCGenerator cc_generator{assembler().Result(), csa_ccfile()};
-    values = cc_generator.EmitGraph(lowered_parameters);
-  } else if (output_type_ == OutputType::kCCDebug) {
+  if (output_type_ == OutputType::kCCDebug) {
     CCGenerator cc_generator{assembler().Result(), csa_ccfile(), true};
     values = cc_generator.EmitGraph(lowered_parameters);
   } else {
@@ -529,8 +519,6 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
       csa_ccfile() << "{d::MemoryAccessResult::kOk, ";
       CCGenerator::EmitCCValue(return_value, *values, csa_ccfile());
       csa_ccfile() << "}";
-    } else if (output_type_ == OutputType::kCC) {
-      CCGenerator::EmitCCValue(return_value, *values, csa_ccfile());
     } else {
       CSAGenerator::EmitCSAValue(return_value, *values, csa_ccfile());
     }
@@ -1851,13 +1839,7 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
     // TODO(torque-builder): Pass file directly.
     WriteFile(base_filename + "-tq-csa.cc", std::move(csa_cc));
     WriteFile(base_filename + "-tq-csa.h", streams.csa_headerfile.str());
-    WriteFile(base_filename + "-tq.inc",
-              streams.class_definition_headerfile.str());
-    WriteFile(
-        base_filename + "-tq-inl.inc",
-        streams.class_definition_inline_headerfile_macro_declarations.str() +
-            streams.class_definition_inline_headerfile_macro_definitions.str() +
-            streams.class_definition_inline_headerfile.str());
+
     WriteFile(base_filename + "-tq.cc", streams.class_definition_ccfile.str());
   }
 
@@ -1868,11 +1850,9 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
 cpp::Function ImplementationVisitor::GenerateMacroFunctionDeclaration(
     Macro* macro) {
   return GenerateFunction(nullptr,
-                          output_type_ == OutputType::kCC
-                              ? macro->CCName()
-                              : output_type_ == OutputType::kCCDebug
-                                    ? macro->CCDebugName()
-                                    : macro->ExternalName(),
+                          output_type_ == OutputType::kCCDebug
+                              ? macro->CCDebugName()
+                              : macro->ExternalName(),
                           macro->signature(), macro->parameter_names());
 }
 
@@ -1881,7 +1861,7 @@ cpp::Function ImplementationVisitor::GenerateFunction(
     const NameVector& parameter_names, bool pass_code_assembler_state,
     std::vector<std::string>* generated_parameter_names) {
   cpp::Function f(owner, name);
-  f.SetInline(output_type_ == OutputType::kCC);
+  f.SetInline(false);
 
   // Set return type.
   // TODO(torque-builder): Consider an overload of SetReturnType that handles
@@ -1891,8 +1871,7 @@ cpp::Function ImplementationVisitor::GenerateFunction(
   } else if (output_type_ == OutputType::kCCDebug) {
     f.SetReturnType(std::string("Value<") +
                     signature.return_type->GetDebugType() + ">");
-  } else if (output_type_ == OutputType::kCC) {
-    f.SetReturnType(signature.return_type->GetRuntimeType());
+
   } else {
     DCHECK_EQ(output_type_, OutputType::kCSA);
     f.SetReturnType(signature.return_type->IsConstexpr()
@@ -1915,9 +1894,7 @@ cpp::Function ImplementationVisitor::GenerateFunction(
   for (std::size_t i = 0; i < signature.types().size(); ++i) {
     const Type* parameter_type = signature.types()[i];
     std::string type;
-    if (output_type_ == OutputType::kCC) {
-      type = parameter_type->GetRuntimeType();
-    } else if (output_type_ == OutputType::kCCDebug) {
+    if (output_type_ == OutputType::kCCDebug) {
       type = parameter_type->GetDebugType();
     } else {
       DCHECK_EQ(output_type_, OutputType::kCSA);
@@ -1934,8 +1911,7 @@ cpp::Function ImplementationVisitor::GenerateFunction(
   }
 
   for (const LabelDeclaration& label_info : signature.labels) {
-    if (output_type_ == OutputType::kCC ||
-        output_type_ == OutputType::kCCDebug) {
+    if (output_type_ == OutputType::kCCDebug) {
       ReportError("Macros that generate runtime code can't have label exits");
     }
     f.AddParameter("compiler::CodeAssemblerLabel*",
@@ -2921,13 +2897,11 @@ VisitResult ImplementationVisitor::GenerateCall(
     // If we're currently generating a C++ macro and it's calling another macro,
     // then we need to make sure that we also generate C++ code for the called
     // macro within the same -inl.inc file.
-    if ((output_type_ == OutputType::kCC ||
-         output_type_ == OutputType::kCCDebug) &&
-        !inline_macro) {
+    if (output_type_ == OutputType::kCCDebug && !inline_macro) {
       if (auto* torque_macro = TorqueMacro::DynamicCast(macro)) {
         auto* streams = CurrentFileStreams::Get();
         SourceId file = streams ? streams->file : SourceId::Invalid();
-        GlobalContext::EnsureInCCOutputList(torque_macro, file);
+        GlobalContext::EnsureInCCDebugOutputList(torque_macro, file);
       }
     }
 
@@ -2948,12 +2922,7 @@ VisitResult ImplementationVisitor::GenerateCall(
           }
           break;
         }
-        case OutputType::kCC: {
-          auto* extern_macro = ExternMacro::DynamicCast(macro);
-          CHECK_NOT_NULL(extern_macro);
-          result << extern_macro->CCName() << "(";
-          break;
-        }
+
         case OutputType::kCCDebug: {
           auto* extern_macro = ExternMacro::DynamicCast(macro);
           CHECK_NOT_NULL(extern_macro);
@@ -3554,18 +3523,6 @@ void ImplementationVisitor::VisitAllDeclarables() {
     }
   }
 
-  // Do the same for macros which generate C++ code.
-  output_type_ = OutputType::kCC;
-  const std::vector<std::pair<TorqueMacro*, SourceId>>& cc_macros =
-      GlobalContext::AllMacrosForCCOutput();
-  for (size_t i = 0; i < cc_macros.size(); ++i) {
-    try {
-      Visit(static_cast<Declarable*>(cc_macros[i].first), cc_macros[i].second);
-    } catch (TorqueAbortCompilation&) {
-      // Recover from compile errors here. The error is recorded already.
-    }
-  }
-
   // Do the same for macros which generate C++ debug code.
   // The set of macros is the same as C++ macros.
   output_type_ = OutputType::kCCDebug;
@@ -3954,49 +3911,47 @@ class FieldOffsetsGenerator {
 
 void ImplementationVisitor::GenerateBitFields(
     const std::string& output_directory) {
-  std::stringstream header;
-  std::string file_name = "bit-fields.h";
+  // Cross-check the hand-written C++ `base::BitField<...>` typedefs named by
+  // each `bitfield struct`'s `@cppScope('Class[::Inner]')` annotation against
+  // the offsets and widths Torque computes from the .tq decl. All checks live
+  // in a single TorqueGeneratedBitFieldAsserts class in bit-field-asserts.cc;
+  // classes whose typedefs are private grant it access with a friend
+  // declaration. Bitfield structs without @cppScope have no C++ counterpart.
+  const char* file_name = "bit-field-asserts.cc";
+  std::stringstream cc_contents;
   {
-    IncludeGuardScope include_guard(header, file_name);
-    header << "#include \"src/base/bit-field.h\"\n\n";
-    NamespaceScope namespaces(header, {"v8", "internal"});
-
+    std::set<std::string> headers;
     for (const auto& type : TypeOracle::GetBitFieldStructTypes()) {
-      bool all_single_bits = true;  // Track whether every field is one bit.
-      header << "// " << type->GetPosition() << "\n";
-      header << "#define DEFINE_TORQUE_GENERATED_"
-             << CapifyStringWithUnderscores(type->name()) << "() \\\n";
-      std::string type_name = type->GetConstexprGeneratedTypeName();
+      if (!type->cpp_scope().has_value()) continue;
+      headers.insert(SourceFileMap::PathFromV8RootWithoutExtension(
+                         type->GetPosition().source) +
+                     ".h");
+    }
+    for (const std::string& header : headers) {
+      cc_contents << "#include \"" << header << "\"\n";
+    }
+    cc_contents << "\n";
+
+    NamespaceScope cc_namespaces(cc_contents, {"v8", "internal"});
+    cc_contents << "class TorqueGeneratedBitFieldAsserts {\n";
+    for (const auto& type : TypeOracle::GetBitFieldStructTypes()) {
+      if (!type->cpp_scope().has_value()) continue;
+      const std::string& scope = *type->cpp_scope();
+      cc_contents << "  // " << type->name() << " (" << type->GetPosition()
+                  << ")\n";
       for (const auto& field : type->fields()) {
         const char* suffix = field.num_bits == 1 ? "Bit" : "Bits";
-        all_single_bits = all_single_bits && field.num_bits == 1;
-        std::string field_type_name =
-            field.name_and_type.type->GetConstexprGeneratedTypeName();
-        header << "  using " << CamelifyString(field.name_and_type.name)
-               << suffix << " = base::BitField<" << field_type_name << ", "
-               << field.offset << ", " << field.num_bits << ", " << type_name
-               << ">; \\\n";
+        std::string symbol =
+            scope + "::" + CamelifyString(field.name_and_type.name) + suffix;
+        cc_contents << "  static_assert(" << symbol
+                    << "::kShift == " << field.offset << ");\n"
+                    << "  static_assert(" << symbol
+                    << "::kSize == " << field.num_bits << ");\n";
       }
-
-      // If every field is one bit, we can also generate a convenient enum.
-      if (all_single_bits) {
-        header << "  enum Flag: " << type_name << " { \\\n";
-        header << "    kNone = 0, \\\n";
-        for (const auto& field : type->fields()) {
-          header << "    k" << CamelifyString(field.name_and_type.name) << " = "
-                 << type_name << "{1} << " << field.offset << ", \\\n";
-        }
-        header << "  }; \\\n";
-        header << "  using Flags = base::Flags<Flag>; \\\n";
-        header << "  static constexpr int kFlagCount = "
-               << type->fields().size() << "; \\\n";
-      }
-
-      header << "\n";
     }
+    cc_contents << "};\n";
   }
-  const std::string output_header_path = output_directory + "/" + file_name;
-  WriteFile(output_header_path, header.str());
+  WriteFile(output_directory + "/" + file_name, cc_contents.str());
 }
 
 namespace {
@@ -4164,19 +4119,6 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
 
 SourcePosition CppClassGenerator::Position() { return type_->GetPosition(); }
 
-void GenerateStructLayoutDescription(std::ostream& header,
-                                     const StructType* type) {
-  header << "struct TorqueGenerated" << CamelifyString(type->name())
-         << "Offsets {\n";
-  for (const Field& field : type->fields()) {
-    header << "  static constexpr int k"
-           << CamelifyString(field.name_and_type.name)
-           << "Offset = " << *field.offset << ";\n";
-  }
-  header << "  static constexpr int kSize = " << type->PackedSize() << ";\n";
-  header << "};\n\n";
-}
-
 }  // namespace
 
 void ImplementationVisitor::GenerateClassDefinitions(
@@ -4189,8 +4131,6 @@ void ImplementationVisitor::GenerateClassDefinitions(
                                     forward_declarations_filename);
     NamespaceScope forward_declarations_namespaces(forward_declarations,
                                                    {"v8", "internal"});
-
-    std::set<const StructType*, TypeLess> structs_used_in_classes;
 
     // Emit forward declarations.
     for (const ClassType* type : TypeOracle::GetClasses()) {
@@ -4207,22 +4147,6 @@ void ImplementationVisitor::GenerateClassDefinitions(
       if (type->ShouldGenerateCppObjectLayoutDefinitionAsserts()) {
         CppClassGenerator g(type, implementation);
         g.GenerateCppObjectLayoutDefinitionAsserts();
-      }
-      for (const Field& f : type->fields()) {
-        const Type* field_type = f.name_and_type.type;
-        if (auto field_as_struct = field_type->StructSupertype()) {
-          structs_used_in_classes.insert(*field_as_struct);
-        }
-      }
-    }
-
-    for (const StructType* type : structs_used_in_classes) {
-      CurrentSourcePosition::Scope position_activator(type->GetPosition());
-      std::ostream& header =
-          GlobalContext::GeneratedPerFile(type->GetPosition().source)
-              .class_definition_headerfile;
-      if (type != TypeOracle::GetFloat64OrUndefinedOrHoleType()) {
-        GenerateStructLayoutDescription(header, type);
       }
     }
   }

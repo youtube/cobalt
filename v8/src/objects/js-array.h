@@ -7,6 +7,7 @@
 
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -14,8 +15,6 @@
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/js-array-tq.inc"
 
 // The JSArray describes JavaScript Arrays
 //  Such an array can be in one of two modes:
@@ -146,7 +145,7 @@ V8_OBJECT class JSArray : public JSObject {
 
   // This constant is somewhat arbitrary. Any large enough value would work.
   static constexpr uint32_t kMaxFastArrayLength =
-      V8_LOWER_LIMITS_MODE_BOOL ? (8 * 1024 * 1024) : (32 * 1024 * 1024);
+      V8_LOWER_LIMITS_MODE_BOOL ? (1 * 1024 * 1024) : (32 * 1024 * 1024);
   static_assert(kMaxFastArrayLength <= kMaxArrayLength);
   static_assert(kMaxFastArrayLength <= kMaxFixedArrayCapacity);
 
@@ -219,6 +218,9 @@ V8_OBJECT class TemplateLiteralObject : public JSArray {
 
 inline constexpr int TemplateLiteralObject::kHeaderSize =
     sizeof(TemplateLiteralObject);
+
+V8_OBJECT class JSArrayConstructor : public JSFunctionWithPrototype {
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

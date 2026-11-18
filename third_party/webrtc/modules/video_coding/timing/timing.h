@@ -18,6 +18,7 @@
 
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
+#include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/video_frame.h"
@@ -85,6 +86,15 @@ class VCMTiming {
   // Sets the minimum and maximum playout delay from capture to render.
   void set_playout_delay(const VideoPlayoutDelay& playout_delay);
 
+  // Methods used by video jitter timing.
+  virtual void OnCompleteTemporalUnit(uint32_t rtp_timestamp,
+                                      Timestamp receive_time);
+  void OnDecodableTemporalUnit(uint32_t rtp_timestamp,
+                               DataSize superframe_size,
+                               Timestamp max_receive_time,
+                               bool was_retransmitted);
+  void UpdateRtt(TimeDelta rtt);
+
   // Increases or decreases the current delay to get closer to the target delay.
   // Given the actual decode time in ms and the render time in ms for a frame,
   // this function calculates how late the frame is and increases the delay
@@ -94,11 +104,6 @@ class VCMTiming {
   // Stops the decoder timer, should be called when the decoder returns a frame
   // or when the decoded frame callback is called.
   void StopDecodeTimer(TimeDelta decode_time, Timestamp now);
-
-  // Used to report that a frame is passed to decoding. Updates the timestamp
-  // filter which is used to map between timestamps and receiver system time.
-  virtual void OnCompleteTemporalUnit(uint32_t rtp_timestamp,
-                                      Timestamp receive_time);
 
   // Returns the receiver system time when the frame with `rtp_timestamp`
   // should be rendered, assuming that the system time currently is `now`.

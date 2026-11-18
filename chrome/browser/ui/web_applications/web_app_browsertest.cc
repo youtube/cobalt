@@ -55,7 +55,6 @@
 #include "chrome/browser/ui/page_info/page_info_dialog.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
@@ -1084,7 +1083,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, PWASizeIsCorrectlyRestored) {
   CloseAndWait(app_browser);
 
   Browser* const new_browser = LaunchWebAppBrowser(app_id);
-  EXPECT_EQ(new_browser->window()->GetBounds(), bounds);
+  EXPECT_EQ(new_browser->GetWindow()->GetBounds(), bounds);
 }
 
 // Tests that using window.open to create a popup window out of scope results in
@@ -1689,9 +1688,9 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest_DetailedInstallDialog,
 IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, SecondWindowSizeMatches) {
   const webapps::AppId app_id = InstallPWA(GURL(kExampleURL));
   Browser* first_browser = LaunchWebAppBrowserAndWait(app_id);
-  const gfx::Size first_size = first_browser->window()->GetBounds().size();
+  const gfx::Size first_size = first_browser->GetWindow()->GetBounds().size();
   Browser* second_browser = LaunchWebAppBrowserAndWait(app_id);
-  const gfx::Size second_size = second_browser->window()->GetBounds().size();
+  const gfx::Size second_size = second_browser->GetWindow()->GetBounds().size();
   constexpr int kTolerance = 50;  // Empirically derived, should be reduced.
   EXPECT_LT(std::abs(first_size.width() - second_size.width()), kTolerance);
   EXPECT_LT(std::abs(first_size.height() - second_size.height()), kTolerance);
@@ -1702,8 +1701,8 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, SecondWindowOffset) {
   const webapps::AppId app_id = InstallPWA(GURL(kExampleURL));
   Browser* first_browser = LaunchWebAppBrowserAndWait(app_id);
   Browser* second_browser = LaunchWebAppBrowserAndWait(app_id);
-  EXPECT_NE(first_browser->window()->GetBounds().OffsetFromOrigin(),
-            second_browser->window()->GetBounds().OffsetFromOrigin());
+  EXPECT_NE(first_browser->GetWindow()->GetBounds().OffsetFromOrigin(),
+            second_browser->GetWindow()->GetBounds().OffsetFromOrigin());
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, SetBounds) {
@@ -2437,7 +2436,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, PopupLocationBar) {
       /*user_gesture=*/true);
   Browser* popup_browser =
       web_app::CreateWebAppWindowMaybeWithHomeTab(app_id, params);
-  popup_browser->window()->Show();
+  popup_browser->GetWindow()->Show();
   ui_test_utils::WaitUntilBrowserBecomeActive(popup_browser);
 
   EXPECT_TRUE(popup_browser->CanSupportWindowFeature(
@@ -2469,12 +2468,13 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, WebAppInternalsPage) {
                                        "/banners/no_manifest_test_page.html"));
 
   // Install as DIY App.
-  SetAutoAcceptDiyAppsInstallDialogForTesting(/*auto_accept=*/true);
+  base::AutoReset<InstallDialogTestResponse> auto_accept =
+      SetPwaInstallationAutoRespondForTesting(
+          InstallDialogTestResponse::kAcceptAndLaunch);
   WebAppTestInstallObserver observer(profile());
   observer.BeginListening();
   CHECK(chrome::ExecuteCommand(browser(), IDC_INSTALL_PWA));
   observer.Wait();
-  SetAutoAcceptDiyAppsInstallDialogForTesting(/*auto_accept=*/false);
 
   // Loads with two apps.
   NavigateViaLinkClickToURLAndWait(browser(),
@@ -2490,12 +2490,13 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, BrowserDisplayNotInstallable) {
   EXPECT_EQ(GetAppMenuCommandState(IDC_INSTALL_PWA, browser()), kEnabled);
 
   // Install as DIY App.
-  SetAutoAcceptDiyAppsInstallDialogForTesting(/*auto_accept=*/true);
+  base::AutoReset<InstallDialogTestResponse> auto_accept =
+      SetPwaInstallationAutoRespondForTesting(
+          InstallDialogTestResponse::kAcceptAndLaunch);
   WebAppTestInstallObserver observer(profile());
   observer.BeginListening();
   CHECK(chrome::ExecuteCommand(browser(), IDC_INSTALL_PWA));
   observer.Wait();
-  SetAutoAcceptDiyAppsInstallDialogForTesting(/*auto_accept=*/false);
 
   // Navigate to this site again and install should not show up since universal
   // install is enabled.
@@ -2529,6 +2530,8 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ManifestShareTarget) {
       "/banners/"
       "manifest_test_page.html?manifest=manifest_with_share_targets.json");
   NavigateViaLinkClickToURLAndWait(browser(), test_url);
+  test::WaitForLoadCompleteAndMaybeManifestSeen(
+      *browser()->tab_strip_model()->GetActiveWebContents());
 
   const webapps::AppId app_id = test::InstallPwaForCurrentUrl(browser());
 
@@ -2822,8 +2825,12 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest_FileHandler, FileAssociation) {
   // Wait for OS hooks and installation to complete.
   webapps::AppId app_id;
   {
-    web_app::test::ScopedAutoAcceptCreateShortcutDialog auto_accept;
-    web_app::test::ScopedAutoCheckChromeOsOpenInWindow auto_check;
+    base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+        web_app::SetPwaInstallationAutoRespondForTesting(
+            web_app::InstallDialogTestResponse::kAcceptAndLaunch);
+    base::AutoReset<web_app::CreateShortcutDialogCheckState> auto_check =
+        web_app::SetCreateShortcutDialogCheckStateForTesting(
+            web_app::CreateShortcutDialogCheckState::kChecked);
     base::RunLoop run_loop_install;
     WebAppInstallManagerObserverAdapter observer(profile());
     observer.SetWebAppInstalledWithOsHooksDelegate(
@@ -2903,8 +2910,12 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest_FileHandler,
   // Wait for OS hooks and installation to complete.
   webapps::AppId app_id;
   {
-    web_app::test::ScopedAutoAcceptCreateShortcutDialog auto_accept;
-    web_app::test::ScopedAutoCheckChromeOsOpenInWindow auto_check;
+    base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+        web_app::SetPwaInstallationAutoRespondForTesting(
+            web_app::InstallDialogTestResponse::kAcceptAndLaunch);
+    base::AutoReset<web_app::CreateShortcutDialogCheckState> auto_check =
+        web_app::SetCreateShortcutDialogCheckStateForTesting(
+            web_app::CreateShortcutDialogCheckState::kChecked);
     base::RunLoop run_loop_install;
     WebAppInstallManagerObserverAdapter observer(profile());
     observer.SetWebAppInstalledWithOsHooksDelegate(

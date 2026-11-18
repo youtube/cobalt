@@ -199,6 +199,14 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
                                               atIndex:index];
 }
 
+- (void)openSettingsForSuggestion:(FormSuggestion*)suggestion {
+  [self.formSuggestionViewDelegate openSettingsForSuggestion:suggestion];
+}
+
+- (void)openEditForSuggestion:(FormSuggestion*)suggestion {
+  [self.formSuggestionViewDelegate openEditForSuggestion:suggestion];
+}
+
 #pragma mark - Helper methods
 
 // Creates and adds subviews.

@@ -88,6 +88,12 @@
   max-width: var(--text-max-width_);
 }
 
+::slotted([slot='disclosure']) {
+  font-weight: 400;
+  margin: 0;
+  max-width: var(--text-max-width_);
+}
+
 #button-container {
   display: flex;
 <if expr="not is_win">

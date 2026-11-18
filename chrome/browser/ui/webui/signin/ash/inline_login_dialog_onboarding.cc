@@ -64,7 +64,7 @@ void InlineLoginDialogOnboarding::Delegate::OnWidgetClosing(
 InlineLoginDialogOnboarding* InlineLoginDialogOnboarding::Show(
     const gfx::Size& size,
     gfx::NativeWindow window,
-    base::OnceCallback<void(void)> dialog_closed_callback) {
+    base::OnceClosure dialog_closed_callback) {
   DCHECK(ProfileManager::GetActiveUserProfile()->IsChild());
 
   account_manager::RecordAccountAdditionSource(
@@ -87,7 +87,7 @@ ui::mojom::ModalType InlineLoginDialogOnboarding::GetDialogModalType() const {
 
 InlineLoginDialogOnboarding::InlineLoginDialogOnboarding(
     const gfx::Size& size,
-    base::OnceCallback<void(void)> dialog_closed_callback)
+    base::OnceClosure dialog_closed_callback)
     : size_(size), dialog_closed_callback_(std::move(dialog_closed_callback)) {
   set_dialog_modal_type(ui::mojom::ModalType::kChild);
 }

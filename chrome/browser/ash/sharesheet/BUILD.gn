@@ -18,7 +18,6 @@ static_library("sharesheet") {
     "//ash",
     "//base",
     "//chrome/app:generated_resources_grit",
-    "//chrome/app/vector_icons",
     "//chrome/browser/apps/app_service",
     "//chrome/browser/ash/file_manager",
     "//chrome/browser/ash/fusebox",

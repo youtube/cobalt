@@ -25,7 +25,6 @@
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
-#include "components/autofill/core/browser/metrics/form_events/credit_card_form_event_logger.h"
 #include "components/autofill/core/browser/payments/credit_card_cvc_authenticator.h"
 #include "components/autofill/core/browser/payments/credit_card_otp_authenticator.h"
 #include "components/autofill/core/browser/payments/credit_card_risk_based_authenticator.h"
@@ -33,6 +32,7 @@
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/payments_request_details.h"
 #include "components/autofill/core/browser/payments/payments_window_manager.h"
+#include "components/autofill/core/browser/payments/unmask_auth_flow_type.h"
 #include "components/autofill/core/browser/payments/wait_for_signal_or_timeout.h"
 
 #if !BUILDFLAG(IS_IOS)
@@ -44,30 +44,9 @@ namespace autofill {
 class AutofillClient;
 enum class WebauthnDialogCallbackType;
 
-// Flow type denotes which card unmask authentication method was used.
-// TODO(crbug.com/40216473): Deprecate kCvcThenFido, kCvcFallbackFromFido, and
-// kOtpFallbackFromFido.
-enum class UnmaskAuthFlowType {
-  kNone = 0,
-  // Only CVC prompt was shown.
-  kCvc = 1,
-  // Only WebAuthn prompt was shown.
-  kFido = 2,
-  // CVC authentication was required in addition to WebAuthn.
-  kCvcThenFido = 3,
-  // FIDO authentication failed and fell back to CVC authentication.
-  kCvcFallbackFromFido = 4,
-  // OTP authentication was offered.
-  kOtp = 5,
-  // FIDO authentication failed and fell back to OTP authentication.
-  kOtpFallbackFromFido = 6,
-  // VCN 3DS was the only challenge option returned.
-  kThreeDomainSecure = 7,
-  // VCN 3DS was one of the challenge options returned in the challenge
-  // selection dialog, and user selected the 3DS challenge option.
-  kThreeDomainSecureConsentAlreadyGiven = 8,
-  kMaxValue = kThreeDomainSecureConsentAlreadyGiven,
-};
+namespace autofill_metrics {
+class CreditCardFormEventLogger;
+}
 
 // TODO(crbug.com/40927041): Remove CVC from CachedServerCardInfo.
 struct CachedServerCardInfo {

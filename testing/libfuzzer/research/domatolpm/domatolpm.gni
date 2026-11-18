@@ -2,7 +2,23 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//third_party/jinja2/jinja2.gni")
 import("//third_party/protobuf/proto_library.gni")
+
+domato_rules = [
+  "//third_party/domato/src/rules/attributevalues.txt",
+  "//third_party/domato/src/rules/common.txt",
+  "//third_party/domato/src/rules/css.txt",
+  "//third_party/domato/src/rules/cssproperties.txt",
+  "//third_party/domato/src/rules/html.txt",
+  "//third_party/domato/src/rules/js.txt",
+  "//third_party/domato/src/rules/jshelpers.txt",
+  "//third_party/domato/src/rules/mathml.txt",
+  "//third_party/domato/src/rules/mathmlattrvalues.txt",
+  "//third_party/domato/src/rules/svg.txt",
+  "//third_party/domato/src/rules/svgattrvalues.txt",
+  "//third_party/domato/src/rules/tagattributes.txt",
+]
 
 template("domatolpm") {
   _name = target_name
@@ -72,10 +88,19 @@ template("domatolpm") {
       args += [ "-s" ]
     }
     inputs = [
+      invoker.grammar_file,
       "//testing/libfuzzer/research/domatolpm/templates/domatolpm.cc.tmpl",
       "//testing/libfuzzer/research/domatolpm/templates/domatolpm.h.tmpl",
       "//testing/libfuzzer/research/domatolpm/templates/domatolpm.proto.tmpl",
+      "//build/action_helpers.py",
+      "//build/gn_helpers.py",
+      "//third_party/domato/src/grammar.py",
     ]
+    inputs += domato_rules
+    inputs += jinja2_sources
+    if (defined(invoker.inputs)) {
+      inputs += invoker.inputs
+    }
     outputs = [ "${_gen_file_format}.proto" ]
     outputs += _generated_protos
     outputs += _generated_cpps
@@ -120,6 +145,9 @@ template("domatolpm_fuzzer") {
       if (defined(invoker.stabilize_grammar)) {
         stabilize_grammar = invoker.stabilize_grammar
       }
+      if (defined(invoker.inputs)) {
+        inputs = invoker.inputs
+      }
     }
   }
 
@@ -150,10 +178,16 @@ template("domatolpm_fuzzer") {
       ]
     }
     inputs = [
+      invoker.template_file,
       "//testing/libfuzzer/research/domatolpm/templates/domatolpm_fuzzer.h.tmpl",
       "//testing/libfuzzer/research/domatolpm/templates/domatolpm_fuzzer.cc.tmpl",
       "//testing/libfuzzer/research/domatolpm/templates/domatolpm_fuzzer.proto.tmpl",
+      "//build/action_helpers.py",
+      "//build/gn_helpers.py",
+      "//third_party/domato/src/grammar.py",
     ]
+    inputs += domato_rules
+    inputs += jinja2_sources
     outputs = [
       "${_gen_file_format}.proto",
       "${_gen_file_format}.h",

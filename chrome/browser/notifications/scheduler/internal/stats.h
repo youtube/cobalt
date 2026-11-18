@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_NOTIFICATIONS_SCHEDULER_INTERNAL_STATS_H_
 
 #include "chrome/browser/notifications/scheduler/public/notification_scheduler_types.h"
+#include "chrome/browser/tips/core/tips_types.h"
 
 namespace notifications {
 struct NotificationData;
@@ -67,11 +68,11 @@ void LogNotificationLifeCycleEvent(NotificationLifeCycleEvent event,
 // Logs shown tips notifications actions.
 void LogTipsNotificationFeatureTypeAction(
     UserActionType action,
-    TipsNotificationsFeatureType feature_type);
+    tips::TipsNotificationsFeatureType feature_type);
 
 // Logs shown tips notifications by feature.
 void LogTipsNotificationFeatureTypeShown(
-    TipsNotificationsFeatureType feature_type);
+    tips::TipsNotificationsFeatureType feature_type);
 }  // namespace stats
 }  // namespace notifications
 

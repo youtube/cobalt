@@ -77,6 +77,7 @@
 #include "net/http/http_connection_info.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/content_security_policy/csp_context.h"
 #include "services/network/public/mojom/blocked_by_response_reason.mojom-shared.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
@@ -947,6 +948,8 @@ class CONTENT_EXPORT NavigationRequest
   // - must not be called before the navigation is ready to commit
   const blink::DocumentToken& GetDocumentToken() const;
 
+  const std::optional<blink::DocumentToken>& GetInitiatorDocumentToken() const;
+
   // Returns the policies of the new document being navigated to.
   //
   // Must only be called after ReadyToCommitNavigation().
@@ -1539,6 +1542,8 @@ class CONTENT_EXPORT NavigationRequest
 
   bool is_ad_tagged() const { return is_ad_tagged_; }
 
+  const GURL& original_url() const { return original_url_; }
+
   // Called when the browser process is about to process beforeunload handlers
   // for this navigation, including sending an IPC to the renderer process to
   // run beforeunload handlers when necessary.
@@ -1774,7 +1779,7 @@ class CONTENT_EXPORT NavigationRequest
       NavigationThrottleEvent event,
       NavigationThrottle::ThrottleCheckResult result);
 
-  const std::optional<base::UnguessableToken>& network_restrictions_id() const {
+  const base::UnguessableToken& network_restrictions_id() const {
     return network_restrictions_id_;
   }
 
@@ -1849,10 +1854,6 @@ class CONTENT_EXPORT NavigationRequest
 
   void set_before_unload_execution_mode(BeforeUnloadExecutionMode mode) {
     before_unload_execution_mode_ = mode;
-  }
-
-  void set_activation_beacon_url(const GURL& url) {
-    activation_beacon_url_ = url;
   }
 
  private:
@@ -2220,6 +2221,10 @@ class CONTENT_EXPORT NavigationRequest
   // that we can run pagehide and visibilitychange handlers of the old page
   // when we commit the new page.
   void AddOldPageInfoToCommitParamsIfNeeded();
+
+  // Returns the RenderFrameHost that should be attributed for download related
+  // logging (e.g., UseCounters, console messages).
+  RenderFrameHost* GetRenderFrameHostForDownloadLogging();
 
   // Record download related UseCounters when navigation is a download before
   // filtered by download_policy.
@@ -3616,6 +3621,12 @@ class CONTENT_EXPORT NavigationRequest
   // The initial request method of the request, before any redirects.
   std::string request_method_;
 
+  // The original request URL for this navigation, before any redirects and
+  // after any mapping steps and HTTPS upgrades. Used for internal browser
+  // checks to avoid using sanitized versions sent to the renderer in
+  // `commit_params`.
+  GURL original_url_;
+
   // Set to true if `this` started as a same-document navigation but couldn't
   // commit, and was restarted as a cross-document navigation. See
   // `blink::mojom::CommitResult::RestartCrossDocument`.
@@ -3650,7 +3661,8 @@ class CONTENT_EXPORT NavigationRequest
   // with this navigation. This is also passed to the network service and
   // stored in the DocumentAssociatedData at commit. Only used for
   // cross-document navigations.
-  std::optional<base::UnguessableToken> network_restrictions_id_;
+  base::UnguessableToken network_restrictions_id_ =
+      network::GetNoOpNetworkRestrictionsId();
 
   // Tracks frames in the navigating subtree that are running `beforeunload`
   // handlers asynchronously.

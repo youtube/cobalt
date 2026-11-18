@@ -166,8 +166,12 @@ export function ariaLabel(itemData: ItemData): string {
   }
 
   if (itemData instanceof SplitViewData) {
-    return `${itemData.title} ${itemData.tabCount} tabs ${
-        itemData.lastActiveElapsedText} ${itemData.a11yTypeText}`;
+    const hostnames = itemData.tabUrls.slice(0, 2).map(
+        url => getDisplayHostnameForUrl(new URL(normalizeURL(url))));
+    const lastActive = itemData.lastActiveElapsedText;
+    const lastActivePart = lastActive ? `, ${lastActive}` : '';
+    return `Split view, ${hostnames[0]}, ${hostnames[1]}${lastActivePart}. ${
+        itemData.a11yTypeText}`;
   }
 
   if (itemData instanceof TabData) {
@@ -211,9 +215,10 @@ export function getTitle(data: TabData|TabGroupData|SplitViewData): string|
 
   if (data instanceof SplitViewData) {
     if (data.tabs) {
-      // Returns the joined titles of both sub-tabs to allow search matching
-      // against either tab's title.
-      return `${data.tabs[0].title} ${data.tabs[1].title}`;
+      // Returns "Split View" followed by the joined titles of both sub-tabs to
+      // allow search matching against either "Split View" or either tab's
+      // title.
+      return `${data.title} ${data.tabs[0].title} ${data.tabs[1].title}`;
     }
     return data.title;
   }

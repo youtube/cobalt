@@ -403,7 +403,6 @@ rtc_library("input_volume_controller_unittests") {
     "..:audio_buffer",
     "..:audio_frame_view",
     "../../../api/audio:audio_processing",
-    "../../../api/environment:environment_factory",
     "../../../rtc_base:checks",
     "../../../rtc_base:safe_minmax",
     "../../../system_wrappers:metrics",

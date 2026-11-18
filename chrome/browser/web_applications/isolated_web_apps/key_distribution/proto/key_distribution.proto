@@ -67,7 +67,7 @@ message IwaAccessControl {
       CONTROLLED_FRAME = 1;
       DIRECT_SOCKETS = 2;
       DIRECT_SOCKETS_MULTICAST = 3;
-      DIRECT_SOCKETS_PRIVATE = 4;
+      reserved 4;
       SMART_CARD = 5;
       SUB_APPS = 6;
       UNRESTRICTED_WEBUSB = 7;

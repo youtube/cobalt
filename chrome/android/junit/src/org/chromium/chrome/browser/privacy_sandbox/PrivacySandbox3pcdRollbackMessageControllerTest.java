@@ -115,7 +115,8 @@ public class PrivacySandbox3pcdRollbackMessageControllerTest {
                 /* isPdf= */ false,
                 /* mimeType= */ "",
                 Page.createForTesting(),
-                /* isSameOrigin= */ true);
+                /* isSameOrigin= */ true,
+                /* ignoredDuplicateNavigationCount= */ 0);
         ActivityTabTabObserver observer = assertNonNull(mController.getActivityTabTabObserver());
         observer.onDidFinishNavigationInPrimaryMainFrame(mTab, navigation);
     }

@@ -253,6 +253,15 @@ class MockUDPSocket : public net::DatagramClientSocket {
     ADD_FAILURE() << "Called SetMulticastInterface()";
     return net::ERR_UNEXPECTED;
   }
+  base::expected<net::DatagramsMetadata, net::Error> ReadMultiple(
+      net::IOBuffer* buf,
+      size_t buf_len,
+      size_t max_message_size,
+      base::OnceCallback<void(base::expected<net::DatagramsMetadata,
+                                             net::Error>)> callback) override {
+    ADD_FAILURE() << "Called ReadMultiple()";
+    return base::unexpected(net::ERR_UNEXPECTED);
+  }
 
   // When ConnectAsync() is called, it should return ERR_IO_PENDING and store
   // the callback in `*connect_callback_`. This callback can be run later by

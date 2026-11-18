@@ -88,9 +88,10 @@ void AccountManagerMojoService::SetAccountManagerUI(
   account_manager_ui_ = std::move(account_manager_ui);
 }
 
-void AccountManagerMojoService::OnAccountUpsertionFinishedForTesting(
-    const account_manager::AccountUpsertionResult& result) {
-  OnAccountUpsertionFinished(result);
+base::OnceCallback<void(const account_manager::AccountUpsertionResult&)>
+AccountManagerMojoService::CreateInlineLoginAccountUpsertionFinishedCallback() {
+  return base::BindOnce(&AccountManagerMojoService::OnAccountUpsertionFinished,
+                        weak_ptr_factory_.GetWeakPtr());
 }
 
 void AccountManagerMojoService::AddObserver(AddObserverCallback callback) {
@@ -183,10 +184,6 @@ void AccountManagerMojoService::ShowReauthAccountDialog(
   account_manager_ui_->ShowReauthAccountDialog(
       email, base::BindOnce(&AccountManagerMojoService::OnSigninDialogClosed,
                             weak_ptr_factory_.GetWeakPtr()));
-}
-
-void AccountManagerMojoService::ShowManageAccountsSettings() {
-  account_manager_ui_->ShowManageAccountsSettings();
 }
 
 void AccountManagerMojoService::CreateAccessTokenFetcher(

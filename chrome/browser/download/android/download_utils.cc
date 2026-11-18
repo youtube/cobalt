@@ -13,7 +13,6 @@
 #include "chrome/browser/download/offline_item_utils.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/download/public/common/download_utils.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/download_item_utils.h"

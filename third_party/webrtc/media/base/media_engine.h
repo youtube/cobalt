@@ -309,10 +309,6 @@ RtpParameters CreateRtpParametersWithEncodings(StreamParams sp);
 // GetCapabilities(). The returned vector only shows what will definitely be
 // offered by default, i.e. the list of extensions returned from
 // GetRtpHeaderExtensions() that are not kStopped.
-std::vector<RtpExtension> GetDefaultEnabledRtpHeaderExtensions(
-    const RtpHeaderExtensionQueryInterface& query_interface,
-    const FieldTrialsView* field_trials);
-
 std::vector<RtpHeaderExtensionCapability>
 GetDefaultEnabledRtpHeaderCapabilities(
     const RtpHeaderExtensionQueryInterface& query_interface,

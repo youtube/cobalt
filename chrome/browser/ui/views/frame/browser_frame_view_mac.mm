@@ -528,16 +528,15 @@ int BrowserFrameViewMac::TopUIFullscreenYOffset() const {
   }
 
   CGFloat menu_bar_height =
-      [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
+      NSApplication.sharedApplication.mainMenu.menuBarHeight;
   // If there's a camera notch, the window is already below where the menu bar
   // will be, so we shouldn't account for it.
-  if (@available(macos 12.0.1, *)) {
-    id screen = [GetWidget()->GetNativeWindow().GetNativeNSWindow() screen];
-    NSEdgeInsets insets = [screen safeAreaInsets];
-    if (insets.top != 0) {
-      menu_bar_height = 0;
-    }
+  NSScreen* screen = GetWidget()->GetNativeWindow().GetNativeNSWindow().screen;
+  NSEdgeInsets insets = screen.safeAreaInsets;
+  if (insets.top != 0) {
+    menu_bar_height = 0;
   }
+
   CGFloat title_bar_height =
       NSHeight([NSWindow frameRectForContentRect:NSZeroRect
                                        styleMask:NSWindowStyleMaskTitled]);

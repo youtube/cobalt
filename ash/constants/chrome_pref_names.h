@@ -22,17 +22,23 @@ namespace ash::chrome_prefs {
 // Sorted in the lexicographical order.
 inline constexpr char kAudioCaptureAllowed[] = "hardware.audio_capture_enabled";
 inline constexpr char kDevToolsAvailability[] = "devtools.availability";
+inline constexpr char kDisableAuthNegotiateCnameLookup[] =
+    "auth.disable_negotiate_cname_lookup";
 inline constexpr char kDisableScreenshots[] = "disable_screenshots";
 inline constexpr char kDnsOverHttpsMode[] = "dns_over_https.mode";
 inline constexpr char kDnsOverHttpsTemplates[] = "dns_over_https.templates";
 inline constexpr char kDownloadDefaultDirectory[] =
     "download.default_directory";
+inline constexpr char kForceEphemeralProfiles[] = "profile.ephemeral_mode";
+inline constexpr char kPdfAnnotationsEnabled[] = "pdf.enable_annotations";
 inline constexpr char kPrinterTypeDenyList[] =
     "printing.printer_type_deny_list";
 inline constexpr char kRestoreOnStartup[] = "session.restore_on_startup";
+inline constexpr char kRlzPingDelaySeconds[] = "rlz_ping_delay";
 inline constexpr char kSaveFileDefaultDirectory[] =
     "savefile.default_directory";
 inline constexpr char kSelectFileLastDirectory[] = "selectfile.last_directory";
+inline constexpr char kSitePerProcess[] = "site_isolation.site_per_process";
 inline constexpr char kUserFeedbackAllowed[] = "feedback_allowed";
 inline constexpr char kVideoCaptureAllowed[] = "hardware.video_capture_enabled";
 inline constexpr char kVideoCaptureAllowedUrls[] =

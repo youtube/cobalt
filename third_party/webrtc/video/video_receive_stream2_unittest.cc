@@ -22,7 +22,6 @@
 
 #include "absl/memory/memory.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/metronome/test/fake_metronome.h"
 #include "api/rtp_packet_info.h"
 #include "api/rtp_packet_infos.h"
@@ -55,7 +54,7 @@
 #include "modules/video_coding/nack_requester.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/clock.h"
-#include "test/create_test_field_trials.h"
+#include "test/create_test_environment.h"
 #include "test/fake_decoder.h"
 #include "test/fake_encoded_frame.h"
 #include "test/gmock.h"
@@ -197,8 +196,7 @@ class VideoReceiveStream2Test : public ::testing::TestWithParam<bool> {
 
   VideoReceiveStream2Test()
       : time_controller_(kStartTime),
-        env_(CreateEnvironment(time_controller_.CreateTaskQueueFactory(),
-                               time_controller_.GetClock())),
+        env_(CreateTestEnvironment({.time = &time_controller_})),
         config_(&mock_transport_, &mock_decoder_factory_),
         call_stats_(&env_.clock(), time_controller_.GetMainThread()),
         fake_renderer_(&time_controller_),
@@ -617,10 +615,10 @@ TEST_P(VideoReceiveStream2Test, CalculateCorruptionScoreSync) {
 }
 
 TEST_P(VideoReceiveStream2Test, CalculateCorruptionScoreAsync) {
-  env_ = CreateEnvironment(
-      CreateTestFieldTrialsPtr("WebRTC-CorruptionDetectionFrameSelector/"
-                               "asynchronous_evaluation:true/"),
-      time_controller_.CreateTaskQueueFactory(), time_controller_.GetClock());
+  env_ = CreateTestEnvironment({.field_trials =
+                                    "WebRTC-CorruptionDetectionFrameSelector/"
+                                    "asynchronous_evaluation:true/",
+                                .time = &time_controller_});
   RecreateReceiveStream();
 
   video_receive_stream_->Start();
@@ -654,10 +652,10 @@ TEST_P(VideoReceiveStream2Test, CalculateCorruptionScoreAsync) {
 
 TEST_P(VideoReceiveStream2Test,
        CalculateCorruptionScoreDropsFramesWhenQueueFull) {
-  env_ = CreateEnvironment(
-      CreateTestFieldTrialsPtr("WebRTC-CorruptionDetectionFrameSelector/"
-                               "asynchronous_evaluation:true/"),
-      time_controller_.CreateTaskQueueFactory(), time_controller_.GetClock());
+  env_ = CreateTestEnvironment({.field_trials =
+                                    "WebRTC-CorruptionDetectionFrameSelector/"
+                                    "asynchronous_evaluation:true/",
+                                .time = &time_controller_});
   RecreateReceiveStream();
 
   video_receive_stream_->Start();

@@ -283,3 +283,29 @@ if (is_android) {
     sources = [ "task_manager_observer.h" ]
   }
 }
+
+source_set("test_support") {
+  testonly = true
+
+  if (enable_extensions) {
+    sources = [
+      "task_manager_browsertest_util.cc",
+      "task_manager_browsertest_util.h",
+      "task_manager_tester.cc",
+      "task_manager_tester.h",
+    ]
+    deps = [
+      ":task_manager",
+      "//base/test:test_config",
+      "//chrome/browser:browser_process",
+      "//chrome/browser/ui/dialogs:browser_dialogs",
+      "//chrome/common:constants",
+      "//extensions/strings",
+      "//testing/gtest",
+    ]
+
+    # TODO(crbug.com/429171097): Remove this dependency when
+    # `task_manager_tester.h` gets modularized.
+    public_deps = [ "//chrome/browser/ui/task_manager" ]
+  }
+}

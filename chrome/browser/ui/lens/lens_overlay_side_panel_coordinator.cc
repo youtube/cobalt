@@ -855,7 +855,8 @@ void LensOverlaySidePanelCoordinator::DidOpenRequestedURL(
   // We use the `renderer_initiated` value from the source navigation and plumb
   // the `initiator_origin`, `initiator_frame_token`, and `initiator_process_id`
   // to preserve security properties (like sandbox flags).
-  content::OpenURLParams params(url, referrer, disposition, transition,
+  content::OpenURLParams params(lens::MaybeStripParamsForShopping(url),
+                                referrer, disposition, transition,
                                 renderer_initiated);
   params.initiator_origin = source_render_frame_host->GetLastCommittedOrigin();
   params.initiator_frame_token = source_render_frame_host->GetFrameToken();
@@ -945,6 +946,7 @@ void LensOverlaySidePanelCoordinator::DidStartNavigation(
     // navigation.
     content::OpenURLParams params =
         content::OpenURLParams::FromNavigationHandle(navigation_handle);
+    params.url = lens::MaybeStripParamsForShopping(params.url);
     params.frame_tree_node_id = content::FrameTreeNodeId();
     params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
     lens_search_controller_->GetTabInterface()

@@ -29,6 +29,7 @@ source_set("component_updater") {
     "pki_metadata_component_installer_policy.h",
     "platform_runtime_component_installer.h",
     "privacy_sandbox_attestations_component_installer.h",
+    "private_verification_tokens_installer.h",
     "recovery_improved_component_installer.h",
     "registration.h",
     "ssl_error_assistant_component_installer.h",
@@ -90,10 +91,6 @@ source_set("component_updater") {
     public += [ "updater_state.h" ]
   }
 
-  if (is_win && enable_media_foundation_widevine_cdm) {
-    public += [ "media_foundation_widevine_cdm_component_installer.h" ]
-  }
-
   if (enable_library_cdms && enable_widevine && enable_widevine_cdm_component) {
     public += [ "widevine_cdm_component_installer.h" ]
   }
@@ -125,6 +122,7 @@ source_set("impl") {
     "pki_metadata_component_installer_policy.cc",
     "platform_runtime_component_installer.cc",
     "privacy_sandbox_attestations_component_installer.cc",
+    "private_verification_tokens_installer.cc",
     "recovery_improved_component_installer.cc",
     "registration.cc",
     "ssl_error_assistant_component_installer.cc",
@@ -147,6 +145,7 @@ source_set("impl") {
     "//chrome/browser/permissions",
     "//chrome/browser/update_client",
     "//chrome/common",
+    "//chrome/common/platform_runtime",
     "//components/certificate_transparency",
     "//components/certificate_transparency:proto_gen",
     "//components/commerce/core:commerce_heuristics_data",
@@ -155,6 +154,7 @@ source_set("impl") {
     "//components/permissions",
     "//components/privacy_sandbox:features",
     "//components/privacy_sandbox/privacy_sandbox_attestations",
+    "//components/private_verification_tokens/common:private_verification_tokens_issuer_config",
     "//components/safe_browsing/core/common:features",
     "//components/search",
     "//components/security_interstitials/content:security_interstitial_page",
@@ -248,10 +248,6 @@ source_set("impl") {
       "//chrome/elevation_service:public_headers",
       "//chrome/installer/util:with_no_strings",
     ]
-  }
-
-  if (is_win && enable_media_foundation_widevine_cdm) {
-    sources += [ "media_foundation_widevine_cdm_component_installer.cc" ]
   }
 
   if (is_mac) {

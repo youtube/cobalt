@@ -557,6 +557,7 @@ TEST_P(PdfInkModuleTest, HandleGetAllTextAnnotationsMessage) {
                      /*typeface=*/TextTypeface::kMonospace,
                      /*alignment=*/TextAlignment::kCenter,
                      /*orientation=*/1,
+                     /*viewport_orientation=*/PageOrientation::kOriginal,
                      /*is_bold=*/false,
                      /*is_italic=*/true,
                      /*text=*/"Hello World from Test!")));
@@ -597,7 +598,8 @@ TEST_P(PdfInkModuleTest, HandleGetAllTextAnnotationsMessage) {
                     "bold": false,
                     "italic": true
                   }
-                }
+                },
+                "viewportOrientation": 0
               }
             ]
         })");
@@ -1006,6 +1008,42 @@ class PdfInkModuleTextTest : public testing::Test {
   PdfInkModule& ink_module() { return *ink_module_; }
   const PdfInkModule& ink_module() const { return *ink_module_; }
 
+  void LoadSampleTextAnnotation() {
+    static constexpr int kPageIndex = 3;
+    static constexpr InkLoadedTextId kLoadedTextId{0};
+    static constexpr char kOriginalText[] = "hi";
+
+    std::vector<gfx::RectF> layouts(4, gfx::RectF(0, 0, 100, 100));
+    client().set_page_layouts(layouts);
+
+    std::vector<InkTextBox> test_boxes;
+    InkTextBox test_box(
+        /*id=*/42, InkTextBoxAttributes(
+                       /*rect=*/gfx::RectF(10.0f, 20.0f, 100.0f, 15.0f),
+                       /*color=*/SkColorSetRGB(255, 111, 99),
+                       /*css_font_size=*/12.0f,
+                       /*typeface=*/TextTypeface::kSerif,
+                       /*alignment=*/TextAlignment::kCenter,
+                       /*orientation=*/1,
+                       /*viewport_orientation=*/PageOrientation::kOriginal,
+                       /*is_bold=*/true,
+                       /*is_italic=*/true, kOriginalText));
+    test_box.ink_loaded_text_id = kLoadedTextId;
+    test_boxes.push_back(std::move(test_box));
+
+    DocumentInkTextBoxesMap map;
+    map[kPageIndex] = std::move(test_boxes);
+
+    EXPECT_CALL(client(), LoadTextAnnotationsFromPdf())
+        .WillOnce(Return(std::move(map)));
+
+    base::DictValue message = base::DictValue()
+                                  .Set("type", "getAllTextAnnotations")
+                                  .Set("messageId", "bar");
+    EXPECT_TRUE(ink_module().OnMessage(message));
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
   static base::DictValue SampleTextAttributesDict() {
     base::DictValue text_attributes;
     text_attributes.Set(
@@ -1038,9 +1076,24 @@ class PdfInkModuleTextTest : public testing::Test {
         /*typeface=*/TextTypeface::kSerif,
         /*alignment=*/TextAlignment::kCenter,
         /*orientation=*/1,
+        /*viewport_orientation=*/PageOrientation::kOriginal,
         /*is_bold=*/true,
         /*is_italic=*/true,
         /*text=*/"hi");
+  }
+
+  static Matcher<const InkTextBoxAttributes&>
+  SampleInkTextBoxAttributesMatcherWith(const std::string& text,
+                                        PageOrientation viewport_orientation) {
+    return InkTextBoxAttributesEq(
+        /*rect=*/gfx::RectF(10.0f, 20.0f, 100.0f, 15.0f),
+        /*color=*/SkColorSetRGB(255, 111, 99),
+        /*css_font_size=*/12.0f,
+        /*typeface=*/TextTypeface::kSerif,
+        /*alignment=*/TextAlignment::kCenter,
+        /*orientation=*/1, viewport_orientation,
+        /*is_bold=*/true,
+        /*is_italic=*/true, text);
   }
 
   static base::BlobStorage SampleInkTextInfoBlob(FontId typeface_id) {
@@ -1104,7 +1157,8 @@ class PdfInkModuleTextTest : public testing::Test {
         .Set("text", "hi")
         .Set("textAttributes", SampleTextAttributesDict())
         .Set("textBoxRect", SampleTextBoxRectDict())
-        .Set("textOrientation", 1);
+        .Set("textOrientation", 1)
+        .Set("viewportOrientation", 0);
   }
 
   static base::DictValue CreateEditTextAnnotationMessage(int frontend_id) {
@@ -1297,6 +1351,7 @@ TEST_F(PdfInkModuleTextTest, HandleFinishTextAnnotationMessageEdit) {
                      /*typeface=*/TextTypeface::kSerif,
                      /*alignment=*/TextAlignment::kCenter,
                      /*orientation=*/1,
+                     /*viewport_orientation=*/PageOrientation::kOriginal,
                      /*is_bold=*/true,
                      /*is_italic=*/true,
                      /*text=*/"ah")));
@@ -1617,38 +1672,7 @@ TEST_F(PdfInkModuleTextTest,
   static constexpr char kOriginalText[] = "hi";
   static constexpr char kModifiedText[] = "modified";
 
-  {
-    // Load text annotations.
-    std::vector<gfx::RectF> layouts(4, gfx::RectF(0, 0, 100, 100));
-    client().set_page_layouts(layouts);
-
-    std::vector<InkTextBox> test_boxes;
-    InkTextBox test_box(
-        /*id=*/42, InkTextBoxAttributes(
-                       /*rect=*/gfx::RectF(10.0f, 20.0f, 100.0f, 15.0f),
-                       /*color=*/SkColorSetRGB(255, 111, 99),
-                       /*css_font_size=*/12.0f,
-                       /*typeface=*/TextTypeface::kSerif,
-                       /*alignment=*/TextAlignment::kCenter,
-                       /*orientation=*/1,
-                       /*is_bold=*/true,
-                       /*is_italic=*/true,
-                       /*text=*/kOriginalText));
-    test_box.ink_loaded_text_id = kLoadedTextId;
-    test_boxes.push_back(std::move(test_box));
-
-    DocumentInkTextBoxesMap map;
-    map[kPageIndex] = std::move(test_boxes);
-
-    EXPECT_CALL(client(), LoadTextAnnotationsFromPdf())
-        .WillOnce(Return(std::move(map)));
-
-    base::DictValue message = base::DictValue()
-                                  .Set("type", "getAllTextAnnotations")
-                                  .Set("messageId", "bar");
-    EXPECT_TRUE(ink_module().OnMessage(message));
-    testing::Mock::VerifyAndClearExpectations(this);
-  }
+  LoadSampleTextAnnotation();
 
   {
     // Modify the loaded text annotation (User action).
@@ -1705,6 +1729,257 @@ TEST_F(PdfInkModuleTextTest,
     EXPECT_CALL(client(), DrawText(kPageIndex, kNewTextId, _, kPdfZoom, _));
     EXPECT_CALL(client(), AddFont(_, _)).Times(0);
     EXPECT_CALL(client(), DiscardText(_)).Times(0);
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    PerformRedo();
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+}
+
+TEST_F(PdfInkModuleTextTest,
+       HandleFinishTextAnnotationMessageLoadedModifyUndoRedoRotatedViewport) {
+  static constexpr int kFrontendId = 0;
+  static constexpr int kPageIndex = 3;
+  static constexpr FontId kFontId(123);
+  static constexpr double kPdfZoom = 2.0;
+  static constexpr auto kTypefaceBlob =
+      std::to_array<const uint8_t>({1, 2, 3, 4});
+  static constexpr InkTextId kTextId0(0);
+  static constexpr InkLoadedTextId kLoadedTextId(0);
+  static constexpr char kOriginalText[] = "hi";
+  static constexpr char kModifiedText[] = "modified";
+
+  // Set viewport to 90 degrees CW.
+  client().set_orientation(PageOrientation::kClockwise90);
+
+  LoadSampleTextAnnotation();
+
+  {
+    // Modify the loaded text annotation (User action).
+    base::DictValue data = SampleFinishTextAnnotationData(kFrontendId, kFontId,
+                                                          kPageIndex, kPdfZoom);
+    data.Set("text", kModifiedText);
+    data.Set("viewportOrientation", 1);
+
+    base::ListValue typefaces;
+    typefaces.Append(SampleSerializedTypeface(kFontId, kTypefaceBlob));
+    data.Set("newTypefaces", std::move(typefaces));
+
+    InSequence seq;
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
+                                                        /*active=*/false));
+    EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
+                 SampleInkTextBoxAttributesMatcherWith(
+                     kModifiedText, PageOrientation::kClockwise90)));
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
+  // Rotate viewport to 180 degrees CW.
+  client().set_orientation(PageOrientation::kClockwise180);
+
+  {
+    // Undo.
+    base::DictValue data = SampleFinishTextAnnotationDataWithSource(
+        kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"undo");
+    data.Remove("mojoTextInfo");
+    data.Set("text", kOriginalText);
+
+    InSequence seq;
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/false));
+    EXPECT_CALL(client(), DiscardText(kTextId0));
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
+                                                        /*active=*/true));
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    PerformUndo();
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
+  {
+    // Redo under the 180 degrees viewport rotation. It should retrieve the
+    // cached commit-time viewport rotation.
+    base::DictValue data = SampleFinishTextAnnotationDataWithSource(
+        kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"redo");
+    data.Set("text", kModifiedText);
+    data.Set("viewportOrientation", 1);
+
+    InSequence seq;
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kLoadedTextId),
+                                                        /*active=*/false));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
+                 SampleInkTextBoxAttributesMatcherWith(
+                     kModifiedText, PageOrientation::kClockwise90)));
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    PerformRedo();
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+}
+
+TEST_F(PdfInkModuleTextTest,
+       HandleFinishTextAnnotationMessageUndoRedoRotatedViewport) {
+  static constexpr int kFrontendId = 5;
+  static constexpr int kPageIndex = 3;
+  static constexpr FontId kFontId(123);
+  static constexpr double kPdfZoom = 2.0;
+  static constexpr auto kTypefaceBlob =
+      std::to_array<const uint8_t>({1, 2, 3, 4});
+  static constexpr InkTextId kTextId0(0);
+
+  // Set viewport to 90 degrees CW.
+  client().set_orientation(PageOrientation::kClockwise90);
+
+  {
+    // Draw text annotation `kTextId0` under 90 degrees viewport rotation.
+    base::DictValue data = SampleFinishTextAnnotationData(kFrontendId, kFontId,
+                                                          kPageIndex, kPdfZoom);
+    data.Set("viewportOrientation", 1);
+
+    base::ListValue typefaces;
+    typefaces.Append(SampleSerializedTypeface(kFontId, kTypefaceBlob));
+    data.Set("newTypefaces", std::move(typefaces));
+
+    InSequence seq;
+    EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
+                 SampleInkTextBoxAttributesMatcherWith(
+                     "hi", PageOrientation::kClockwise90)));
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
+  // Rotate viewport to 180 degrees CW.
+  client().set_orientation(PageOrientation::kClockwise180);
+
+  {
+    // Undo.
+    base::DictValue data = SampleFinishTextAnnotationDataWithSource(
+        kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"undo");
+    data.Set("text", "");
+
+    InSequence seq;
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/false));
+    EXPECT_CALL(client(), DiscardText(kTextId0));
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    PerformUndo();
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
+  {
+    // Redo under the 180 degrees viewport rotation. It should retrieve the
+    // cached commit-time viewport rotation.
+    base::DictValue data = SampleFinishTextAnnotationDataWithSource(
+        kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"redo");
+    data.Set("viewportOrientation", 1);
+
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
+                 SampleInkTextBoxAttributesMatcherWith(
+                     "hi", PageOrientation::kClockwise90)));
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    PerformRedo();
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+}
+
+TEST_F(PdfInkModuleTextTest,
+       HandleFinishTextAnnotationMessageRotateViewportDuringEditUndoRedo) {
+  static constexpr int kFrontendId = 5;
+  static constexpr int kPageIndex = 3;
+  static constexpr FontId kFontId(123);
+  static constexpr double kPdfZoom = 2.0;
+  static constexpr auto kTypefaceBlob =
+      std::to_array<const uint8_t>({1, 2, 3, 4});
+  static constexpr InkTextId kTextId0(0);
+
+  // Start editing at original view.
+  client().set_orientation(PageOrientation::kOriginal);
+
+  // Rotate viewport to 270 CW (90 CCW) before commit.
+  client().set_orientation(PageOrientation::kClockwise270);
+
+  {
+    // Commit text annotation at 270 CW.
+    base::DictValue data = SampleFinishTextAnnotationData(kFrontendId, kFontId,
+                                                          kPageIndex, kPdfZoom);
+    data.Set("viewportOrientation", 3);
+
+    base::ListValue typefaces;
+    typefaces.Append(SampleSerializedTypeface(kFontId, kTypefaceBlob));
+    data.Set("newTypefaces", std::move(typefaces));
+
+    InSequence seq;
+    EXPECT_CALL(client(), AddFont(kFontId, ElementsAreArray(kTypefaceBlob)));
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
+                 SampleInkTextBoxAttributesMatcherWith(
+                     "hi", PageOrientation::kClockwise270)));
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
+  // Rotate viewport back to 0.
+  client().set_orientation(PageOrientation::kOriginal);
+
+  {
+    // Undo.
+    base::DictValue data = SampleFinishTextAnnotationDataWithSource(
+        kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"undo");
+    data.Set("text", "");
+
+    InSequence seq;
+    EXPECT_CALL(client(), UpdateTextActiveAndInvalidate(TextId(kTextId0),
+                                                        /*active=*/false));
+    EXPECT_CALL(client(), DiscardText(kTextId0));
+
+    EXPECT_TRUE(ink_module().OnMessage(
+        CreateFinishTextAnnotationMessage(std::move(data))));
+    PerformUndo();
+    testing::Mock::VerifyAndClearExpectations(this);
+  }
+
+  {
+    // Redo.
+    base::DictValue data = SampleFinishTextAnnotationDataWithSource(
+        kFrontendId, kFontId, kPageIndex, kPdfZoom, /*source=*/"redo");
+    data.Set("viewportOrientation", 3);
+
+    EXPECT_CALL(
+        client(),
+        DrawText(kPageIndex, kTextId0,
+                 ElementsAre(SampleInkTextInfoMatcher(kFontId)), kPdfZoom,
+                 SampleInkTextBoxAttributesMatcherWith(
+                     "hi", PageOrientation::kClockwise270)));
 
     EXPECT_TRUE(ink_module().OnMessage(
         CreateFinishTextAnnotationMessage(std::move(data))));

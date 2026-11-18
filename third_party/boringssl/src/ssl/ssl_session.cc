@@ -715,7 +715,8 @@ static void SSL_SESSION_list_add(SSLContext *ctx, SSL_SESSION *session) {
   }
 }
 
-static bool add_session_locked(SSLContext *ctx, UniquePtr<SSL_SESSION> session) {
+static bool add_session_locked(SSLContext *ctx,
+                               UniquePtr<SSL_SESSION> session) {
   SSL_SESSION *new_session = session.get();
   SSL_SESSION *old_session;
   if (!lh_SSL_SESSION_insert(ctx->sessions, &old_session, new_session)) {
@@ -892,7 +893,7 @@ const STACK_OF(CRYPTO_BUFFER) *SSL_SESSION_get0_peer_certificates(
   return session->certs.get();
 }
 
-const EVP_PKEY *SSL_SESSION_get0_peer_rpk(const SSL_SESSION *session) {
+EVP_PKEY *SSL_SESSION_get0_peer_rpk(const SSL_SESSION *session) {
   return session->peer_raw_public_key.get();
 }
 

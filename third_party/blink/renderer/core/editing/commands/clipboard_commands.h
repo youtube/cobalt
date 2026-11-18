@@ -32,6 +32,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_COMMANDS_CLIPBOARD_COMMANDS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_COMMANDS_CLIPBOARD_COMMANDS_H_
 
+#include "base/gtest_prod_util.h"
+#include "third_party/abseil-cpp/absl/numeric/int128.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -53,6 +55,10 @@ enum class PasteMode;
 // This class provides static functions about commands related to clipboard.
 class CORE_EXPORT ClipboardCommands {
   STATIC_ONLY(ClipboardCommands);
+  FRIEND_TEST_ALL_PREFIXES(ClipboardTest, PasteEventUninterruptedReadText);
+  FRIEND_TEST_ALL_PREFIXES(ClipboardTest,
+                           PasteEventInterruptedReadTextRejected);
+  FRIEND_TEST_ALL_PREFIXES(ClipboardTest, PasteEventInterruptedReadRejected);
 
  public:
   static bool EnabledCopy(LocalFrame&, Event*, EditorCommandSource);
@@ -95,6 +101,9 @@ class CORE_EXPORT ClipboardCommands {
   static bool IsExecutingCutOrCopy(ExecutionContext&);
   // As above, but for the "paste" event.
   static bool IsExecutingPaste(ExecutionContext&);
+  // Returns the clipboard sequence number at the start of executing paste.
+  static std::optional<absl::uint128> GetSequenceNumberForExecutingPaste(
+      ExecutionContext&);
 
  private:
   static bool CanSmartReplaceInClipboard(LocalFrame&);

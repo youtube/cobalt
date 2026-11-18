@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/compiler/compiler.gni")
 import("//starboard/build/config/sanitizers.gni")
 
 config("compiler_flags") {
@@ -20,7 +21,12 @@ config("compiler_flags") {
   cflags_cc = []
   defines = []
   asmflags = []
-  ldflags = [ "-Wl,--error-limit=0" ]
+  ldflags = []
+
+  # --error-limit is an lld-only option.
+  if (use_lld) {
+    ldflags += [ "-Wl,--error-limit=0" ]
+  }
 
   if (is_debug) {
     cflags += [ "-O0" ]

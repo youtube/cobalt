@@ -594,7 +594,7 @@ void ClientTagBasedDataTypeProcessor::Put(
     // been sent to the server yet, and the bridge is trying to re-create this
     // entity with a new storage key. In such case, we should reuse the existing
     // entity.
-    entity = entity_tracker_->GetEntityForTagHash(data->client_tag_hash);
+    entity = entity_tracker_->GetEntityForClientTagHash(data->client_tag_hash);
     if (entity != nullptr) {
       CHECK(storage_key != entity->storage_key());
       if (!entity->metadata().is_deleted()) {
@@ -619,7 +619,7 @@ void ClientTagBasedDataTypeProcessor::Put(
         data->modification_time = data->creation_time;
       }
 
-      entity = entity_tracker_->AddUnsyncedLocal(storage_key, std::move(data),
+      entity = entity_tracker_->AddLocalCreation(storage_key, std::move(data),
                                                  std::move(trimmed_specifics),
                                                  std::move(unique_position));
     }
@@ -681,7 +681,7 @@ void ClientTagBasedDataTypeProcessor::UpdateStorageKey(
   CHECK(entity_tracker_);
 
   const ProcessorEntity* entity =
-      entity_tracker_->GetEntityForTagHash(client_tag_hash);
+      entity_tracker_->GetEntityForClientTagHash(client_tag_hash);
   CHECK(entity);
 
   CHECK(entity->storage_key().empty());
@@ -853,7 +853,7 @@ void ClientTagBasedDataTypeProcessor::OnCommitCompleted(
 
   for (const CommitResponseData& data : committed_response_list) {
     ProcessorEntity* entity =
-        entity_tracker_->GetEntityForTagHash(data.client_tag_hash);
+        entity_tracker_->GetEntityForClientTagHash(data.client_tag_hash);
     if (entity == nullptr) {
       // This can happen (rarely) if the entity got untracked while a Commit was
       // ongoing, or if the server sent a bogus response (unlikely).
@@ -966,6 +966,12 @@ void ClientTagBasedDataTypeProcessor::OnUpdateReceived(
     ReportIfError(OnFullUpdateReceived(data_type_state, std::move(updates),
                                        std::move(gc_directive)),
                   ErrorSite::kApplyFullUpdates);
+  } else if (gc_directive && gc_directive->clear_metadata()) {
+    OverrideAllServerMetadataToForceApplyUpdates(updates);
+    ReportIfError(
+        ApplyFullUpdateAsIncrementalUpdate(data_type_state, std::move(updates),
+                                           std::move(gc_directive.value())),
+        ErrorSite::kApplyIncrementalUpdatesWithClearAllDirective);
   } else if (!HasClearAllDirective(gc_directive)) {
     // Incremental update or empty update with sync metadata only (e.g. progress
     // marker).
@@ -1118,7 +1124,7 @@ ProcessorEntity* ClientTagBasedDataTypeProcessor::TrackEntityUponFullUpdate(
   // TODO(crbug.com/41406929): The CreateEntity() call below assumes that no
   // entity with this client_tag_hash exists already, but in some cases it
   // does.
-  if (entity_tracker_->GetEntityForTagHash(client_tag_hash)) {
+  if (entity_tracker_->GetEntityForClientTagHash(client_tag_hash)) {
     DLOG(ERROR) << "Received duplicate client_tag_hash " << client_tag_hash
                 << " for " << DataTypeToDebugString(type_);
   }
@@ -1597,7 +1603,7 @@ sync_pb::UniquePosition ClientTagBasedDataTypeProcessor::UniquePositionAfter(
   }
 
   const ProcessorEntity* target_entity =
-      entity_tracker_->GetEntityForTagHash(target_client_tag_hash);
+      entity_tracker_->GetEntityForClientTagHash(target_client_tag_hash);
   if (ShouldReuseTrackedUniquePositionFor(target_entity, position_before,
                                           UniquePosition())) {
     CHECK(target_entity);
@@ -1622,7 +1628,7 @@ sync_pb::UniquePosition ClientTagBasedDataTypeProcessor::UniquePositionBefore(
   }
 
   const ProcessorEntity* target_entity =
-      entity_tracker_->GetEntityForTagHash(target_client_tag_hash);
+      entity_tracker_->GetEntityForClientTagHash(target_client_tag_hash);
   if (ShouldReuseTrackedUniquePositionFor(target_entity, UniquePosition(),
                                           position_after)) {
     CHECK(target_entity);
@@ -1663,7 +1669,7 @@ sync_pb::UniquePosition ClientTagBasedDataTypeProcessor::UniquePositionBetween(
   }
 
   const ProcessorEntity* target_entity =
-      entity_tracker_->GetEntityForTagHash(target_client_tag_hash);
+      entity_tracker_->GetEntityForClientTagHash(target_client_tag_hash);
   if (ShouldReuseTrackedUniquePositionFor(target_entity, position_before,
                                           position_after)) {
     CHECK(target_entity);
@@ -1683,7 +1689,7 @@ ClientTagBasedDataTypeProcessor::UniquePositionForInitialEntity(
   CHECK(entity_tracker_);
 
   const ProcessorEntity* target_entity =
-      entity_tracker_->GetEntityForTagHash(target_client_tag_hash);
+      entity_tracker_->GetEntityForClientTagHash(target_client_tag_hash);
   if (ShouldReuseTrackedUniquePositionFor(target_entity, UniquePosition(),
                                           UniquePosition())) {
     CHECK(target_entity);
@@ -1769,7 +1775,7 @@ ClientTagBasedDataTypeProcessor::ApplyFullUpdateAsIncrementalUpdate(
     sync_pb::GarbageCollectionDirective gc_directive) {
   // The initial sync must be handled by a normal full update path.
   CHECK(IsTrackingMetadata());
-  CHECK(HasClearAllDirective(gc_directive));
+  CHECK(HasClearAllDirective(gc_directive) || gc_directive.clear_metadata());
 
   const absl::flat_hash_set<ClientTagHash> updated_client_tag_hashes =
       GetClientTagHashes(updates);
@@ -1825,6 +1831,28 @@ ClientTagBasedDataTypeProcessor::ApplyFullUpdateAsIncrementalUpdate(
 
   return OnIncrementalUpdateReceived(type_state, std::move(updates),
                                      std::move(gc_directive));
+}
+
+void ClientTagBasedDataTypeProcessor::
+    OverrideAllServerMetadataToForceApplyUpdates(
+        const syncer::UpdateResponseDataList& updates) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(entity_tracker_);
+
+  for (const auto& update : updates) {
+    ProcessorEntity* entity = entity_tracker_->GetEntityForClientTagHash(
+        update.entity.client_tag_hash);
+    if (entity) {
+      // For both synced and unsynced entities, the server version is overridden
+      // to `response_version - 1`.
+      // For synced entities, this ensures the update is applied.
+      // For unsynced entities, this forces a conflict resolution, which will
+      // resolve in favor of the local change (preserving it) while correctly
+      // updating and persisting the server ID.
+      entity->OverrideServerMetadata(update.entity.id,
+                                     update.response_version - 1);
+    }
+  }
 }
 
 }  // namespace syncer

@@ -28,6 +28,7 @@
 #include "api/transport/bitrate_settings.h"
 #include "api/transport/network_control.h"
 #include "api/transport/network_types.h"
+#include "api/units/data_size.h"
 #include "api/units/timestamp.h"
 #include "call/rtp_config.h"
 #include "common_video/frame_counts.h"
@@ -171,6 +172,7 @@ class RtpTransportControllerSendInterface {
   GetCongestionControlFeedbackStatsPerSsrc() const = 0;
   // Count of transport-cc feedback reports received
   virtual std::optional<int> ReceivedTransportCcFeedbackCount() const = 0;
+  virtual DataSize GetTransportOverhead() const = 0;
 };
 
 }  // namespace webrtc

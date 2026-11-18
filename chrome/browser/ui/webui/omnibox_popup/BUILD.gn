@@ -1,0 +1,79 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+if (!is_android) {
+  source_set("omnibox_popup") {
+    sources = [
+      "omnibox_popup_aim_handler.cc",
+      "omnibox_popup_handler.cc",
+      "omnibox_popup_ui.cc",
+      "omnibox_popup_web_contents_helper.cc",
+    ]
+    public = [
+      "omnibox_popup_aim_handler.h",
+      "omnibox_popup_handler.h",
+      "omnibox_popup_ui.h",
+      "omnibox_popup_web_contents_helper.h",
+    ]
+    public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+    deps = [
+      "//base",
+      "//chrome/browser/autocomplete:aim_eligibility_service",
+      "//chrome/browser/contextual_search",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/resources/omnibox_popup:resources",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/contextual_search",
+      "//chrome/browser/ui/location_bar",
+      "//chrome/browser/ui/omnibox",
+      "//chrome/browser/ui/webui:favicon_source",
+      "//chrome/browser/ui/webui:plural_string_handler",
+      "//chrome/browser/ui/webui:webui_util",
+      "//chrome/browser/ui/webui/metrics_reporter",
+      "//chrome/browser/ui/webui/omnibox_popup/mojom",
+      "//chrome/browser/ui/webui/sanitized_image:sanitized_image_source",
+      "//chrome/browser/ui/webui/searchbox",
+      "//chrome/browser/ui/webui/top_chrome",
+      "//chrome/common",
+      "//components/contextual_search:public",
+      "//components/lens",
+      "//components/omnibox/browser",
+      "//components/omnibox/browser:mojo_bindings",
+      "//components/omnibox/common:features",
+      "//content/public/browser",
+      "//ui/base",
+      "//ui/gfx/geometry",
+      "//ui/native_theme",
+      "//ui/webui/resources/cr_components/composebox:mojo_bindings",
+    ]
+    allow_circular_includes_from = [
+      # searchbox files include omnibox_popup headers and vice versa.
+      "//chrome/browser/ui/webui/searchbox",
+    ]
+  }
+
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "omnibox_popup_aim_handler_unittest.cc",
+      "omnibox_popup_handler_unittest.cc",
+      "omnibox_popup_ui_unittest.cc",
+    ]
+    deps = [
+      ":omnibox_popup",
+      "//base/test:test_support",
+      "//chrome/browser/contextual_search",
+      "//chrome/browser/search_engines",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/webui/searchbox:searchbox_test_utils",
+      "//chrome/browser/ui/webui/top_chrome:test_support",
+      "//chrome/test:test_support",
+      "//components/omnibox/browser:mojo_bindings",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//ui/webui/resources/cr_components/composebox:mojo_bindings",
+    ]
+  }
+}

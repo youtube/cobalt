@@ -9,6 +9,7 @@ to a number of tarballs."""
 import argparse
 import fnmatch
 import itertools
+import json
 import lzma
 import multiprocessing.dummy
 import os
@@ -32,6 +33,8 @@ LLVM_BUILD_DIR = os.path.join(THIRD_PARTY_DIR, 'llvm-build')
 LLVM_RELEASE_DIR = os.path.join(LLVM_BUILD_DIR, 'Release+Asserts')
 
 DEFAULT_GCS_BUCKET = 'chromium-browser-clang-staging'
+
+recorded_artifacts = []
 
 
 def Tee(output, logfile):
@@ -109,6 +112,11 @@ def MaybeUpload(do_upload,
                 filename,
                 gcs_platform,
                 extra_gsutil_args=[]):
+  recorded_artifacts.append({
+      'local_file': filename,
+      'gcs_bucket': gcs_bucket,
+      'gcs_path': '%s/%s' % (gcs_platform, filename),
+  })
   gsutil_args = ['cp'] + extra_gsutil_args + [
       '-n', filename,
       'gs://%s/%s/' % (gcs_bucket, gcs_platform)
@@ -190,6 +198,10 @@ def main():
       help='Google Cloud Storage bucket where the target archive is uploaded')
   parser.add_argument('--revision',
                       help='LLVM revision to use. Default: based on update.py')
+  parser.add_argument('--output-artifacts-json',
+                      help='Write JSON list of artifacts to this file.')
+  parser.add_argument('--gcs-dir-name',
+                      help='Override the GCS platform directory name.')
   args = parser.parse_args()
 
   if args.revision:
@@ -209,7 +221,9 @@ def main():
   pdir = 'clang-' + expected_stamp
   print(pdir)
 
-  if sys.platform == 'darwin':
+  if args.gcs_dir_name:
+    gcs_platform = args.gcs_dir_name
+  elif sys.platform == 'darwin':
     # When we need to run this script on an arm machine, we need to add a
     # --build-mac-intel switch to pick which clang to build, pick the
     # 'Mac_arm64' here when there's no flag and 'Mac' when --build-mac-intel is
@@ -781,6 +795,10 @@ def main():
     print('symbol upload took', end - start, 'seconds')
 
   # FIXME: Warn if the file already exists on the server.
+
+  if args.output_artifacts_json:
+    with open(args.output_artifacts_json, 'w') as f:
+      json.dump(recorded_artifacts, f, indent=2)
 
 
 if __name__ == '__main__':

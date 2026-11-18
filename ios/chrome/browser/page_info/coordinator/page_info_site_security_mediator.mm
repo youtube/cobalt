@@ -12,7 +12,6 @@
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/page_info/constants/page_info_constants.h"
 #import "ios/chrome/browser/page_info/ui/page_info_site_security_description.h"
-#import "ios/chrome/browser/reading_list/model/offline_page_tab_helper.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -73,20 +72,8 @@ NSString* BuildMessage(NSArray<NSString*>* messageComponents) {
       webState->GetNavigationManager()->GetVisibleItem();
   const GURL& URL = navItem->GetVirtualURL();
   web::SSLStatus& status = navItem->GetSSL();
-  bool offlinePage =
-      OfflinePageTabHelper::FromWebState(webState)->presenting_offline_page();
-
   PageInfoSiteSecurityDescription* dataHolder =
       [[PageInfoSiteSecurityDescription alloc] init];
-
-  if (offlinePage) {
-    dataHolder.siteURL =
-        l10n_util::GetNSString(IDS_IOS_PAGE_INFO_OFFLINE_PAGE_LABEL);
-
-    dataHolder.message = l10n_util::GetNSString(IDS_IOS_PAGE_INFO_OFFLINE_PAGE);
-    dataHolder.isEmpty = YES;
-    return dataHolder;
-  }
 
   if (URL.SchemeIs(kChromeUIScheme)) {
     dataHolder.siteURL =

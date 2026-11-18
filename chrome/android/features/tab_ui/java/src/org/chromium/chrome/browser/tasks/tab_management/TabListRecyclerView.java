@@ -5,8 +5,6 @@
 package org.chromium.chrome.browser.tasks.tab_management;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
-import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_TYPE;
-import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.TAB;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -133,7 +131,7 @@ public class TabListRecyclerView extends RecyclerView
         }
     }
 
-    void setupCustomItemAnimator() {
+    public void setupCustomItemAnimator() {
         if (mTabListItemAnimator == null) {
             mTabListItemAnimator = new TabListItemAnimator(mIsAnimatorRunningSupplier);
             setItemAnimator(mTabListItemAnimator);
@@ -354,7 +352,9 @@ public class TabListRecyclerView extends RecyclerView
         if (holder == null || tabIndex == TabModel.INVALID_TAB_INDEX) return Tab.INVALID_TAB_ID;
         PropertyModel model = holder.model;
         assumeNonNull(model);
-        return model.get(CARD_TYPE) == TAB ? model.get(TabProperties.TAB_ID) : Tab.INVALID_TAB_ID;
+        return TabListModel.isTabOrTabGroup(model)
+                ? model.get(TabProperties.TAB_ID)
+                : Tab.INVALID_TAB_ID;
     }
 
     @Override

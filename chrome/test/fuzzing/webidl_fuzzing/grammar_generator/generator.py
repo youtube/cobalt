@@ -469,7 +469,7 @@ def remove_cyclic_dependencies(builder: DomatoGrammarBuilder):
     if cpy == handled:
       break
 
-  # Those predefined types are refering to the `Internal` WebIDL that's only
+  # Those predefined types are referring to the `Internal` WebIDL that's only
   # exposed in tests. It pollutes our grammar, and we don't want to fuzz that.
   to_remove = {
     'InternalDictionary',

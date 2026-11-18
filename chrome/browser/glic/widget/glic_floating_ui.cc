@@ -204,7 +204,7 @@ void GlicFloatingUi::ShowTitleBarContextMenuAt(gfx::Point event_loc) {
 #if !BUILDFLAG(IS_ANDROID)
 bool GlicFloatingUi::HasSelectionOverlay() {
   tabs::TabInterface* focused_tab =
-      delegate_->host().sharing_manager().GetFocusedTabData().focus();
+      delegate_->host().GetSharingManagerInternal().GetFocusedTabData().focus();
   if (!focused_tab || focused_tab->IsActivated()) {
     return false;
   }
@@ -217,7 +217,7 @@ bool GlicFloatingUi::HasSelectionOverlay() {
 
 void GlicFloatingUi::CloseSelectionOverlay() {
   tabs::TabInterface* focused_tab =
-      delegate_->host().sharing_manager().GetFocusedTabData().focus();
+      delegate_->host().GetSharingManagerInternal().GetFocusedTabData().focus();
   if (!focused_tab || focused_tab->IsActivated()) {
     return;
   }

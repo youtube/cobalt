@@ -110,7 +110,8 @@ void DeviceDisablingManager::CacheLocationTrackingEnabledAndNotify(
 
 void DeviceDisablingManager::CheckWhetherDeviceDisabledDuringOOBE(
     DeviceDisabledCheckCallback callback) {
-  if (policy::GetDeviceStateMode() != policy::RESTORE_MODE_DISABLED ||
+  if (policy::GetDeviceStateMode(local_state_.get()) !=
+          policy::RESTORE_MODE_DISABLED ||
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableDeviceDisabling)) {
     // Indicate that the device is not disabled if it is not marked as such in

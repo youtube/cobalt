@@ -64,7 +64,7 @@ class FakeNetworkContext : public network::TestNetworkContext {
       const GURL& url,
       network::mojom::CredentialsMode credentials_mode,
       const net::NetworkAnonymizationKey& network_anonymization_key,
-      const std::optional<base::UnguessableToken>& network_restrictions_id,
+      const base::UnguessableToken& network_restrictions_id,
       const net::MutableNetworkTrafficAnnotationTag& traffic_annotation,
       const std::optional<net::ConnectionKeepAliveConfig>& keepalive_config,
       mojo::PendingRemote<network::mojom::ConnectionChangeObserverClient>

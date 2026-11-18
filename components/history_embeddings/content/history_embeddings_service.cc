@@ -220,6 +220,7 @@ SearchResult HistoryEmbeddingsService::Search(
     std::optional<base::Time> time_range_start,
     size_t count,
     bool skip_answering,
+    std::vector<history::URLID> url_id_filter,
     SearchResultCallback callback) {
   SearchResult result;
 
@@ -271,6 +272,7 @@ SearchResult HistoryEmbeddingsService::Search(
       GetFeatureParameters().word_match_max_term_count;
   result.search_params.word_match_required_term_ratio =
       GetFeatureParameters().word_match_required_term_ratio;
+  result.search_params.url_id_filter = std::move(url_id_filter);
 
   if (QueryIsFiltered(query, result.search_params)) {
     result.count = 0;

@@ -161,7 +161,8 @@ class PrintServersManagerImpl : public PrintServersManager {
   // The IDs of the currently selected print servers.
   std::vector<std::string> selected_print_server_ids_;
 
-  ServerPrintersFetchingMode fetching_mode_;
+  ServerPrintersFetchingMode fetching_mode_ =
+      ServerPrintersFetchingMode::kStandard;
 
   std::optional<std::map<std::string, PrintServer>> print_servers_;
 

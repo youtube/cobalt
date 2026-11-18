@@ -59,6 +59,23 @@ namespace autofill {
 
 namespace {
 
+bool ShouldIgnoreMouseObservedOutsideItemBoundsCheck(
+    const AutofillPopupController& controller,
+    const Suggestion& suggestion) {
+  // Keep the controller-owned policy for popup-level exemptions, such as
+  // explicitly opened manual fallback popups and autocomplete rows regenerated
+  // after deletion.
+  if (controller.ShouldIgnoreMouseObservedOutsideItemBoundsCheck()) {
+    return true;
+  }
+
+  // Datalist entries are page-provided choices for the current field. The
+  // initial-hover suppression protects against accidental acceptance of
+  // non-page-provided suggestions and should not make datalist clicks depend on
+  // pointer movement.
+  return suggestion.type == SuggestionType::kDatalistEntry;
+}
+
 // Utility event handler for mouse enter/exit and tap events.
 class EnterExitHandler : public ui::EventHandler {
  public:
@@ -178,8 +195,10 @@ PopupRowView::PopupRowView(
       controller_(controller),
       line_number_(line_number),
       should_ignore_mouse_observed_outside_item_bounds_check_(
-          controller &&
-          controller->ShouldIgnoreMouseObservedOutsideItemBoundsCheck()),
+          controller && line_number < controller->GetLineCount() &&
+          ShouldIgnoreMouseObservedOutsideItemBoundsCheck(
+              *controller,
+              controller->GetSuggestionAt(line_number))),
       suggestion_is_acceptable_(
           controller && line_number < controller->GetLineCount() &&
           controller->GetSuggestionAt(line_number).IsAcceptable()) {

@@ -15,6 +15,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/names-provider.h"
@@ -303,7 +304,8 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
 
   static uint32_t Count(Isolate* isolate,
                         DirectHandle<WasmInstanceObject> instance) {
-    return static_cast<uint32_t>(instance->module()->functions.size());
+    return static_cast<uint32_t>(
+        instance->trusted_data(isolate)->module()->functions.size());
   }
 
   static DirectHandle<Object> Get(Isolate* isolate,
@@ -334,22 +336,25 @@ struct GlobalsProxy : NamedDebugProxy<GlobalsProxy, kGlobalsProxy> {
 
   static uint32_t Count(Isolate* isolate,
                         DirectHandle<WasmInstanceObject> instance) {
-    return static_cast<uint32_t>(instance->module()->globals.size());
+    return static_cast<uint32_t>(
+        instance->trusted_data(isolate)->module()->globals.size());
   }
 
   static DirectHandle<Object> Get(Isolate* isolate,
                                   DirectHandle<WasmInstanceObject> instance,
                                   uint32_t index) {
+    auto trusted_instance_data = instance->trusted_data(isolate);
     return WasmValueObject::New(
-        isolate, instance->trusted_data(isolate)->GetGlobalValue(
-                     isolate, instance->module()->globals[index]));
+        isolate, trusted_instance_data->GetGlobalValue(
+                     isolate, trusted_instance_data->module()->globals[index]));
   }
 
   static DirectHandle<String> GetName(Isolate* isolate,
                                       DirectHandle<WasmInstanceObject> instance,
                                       uint32_t index) {
-    wasm::NamesProvider* names =
-        instance->module_object()->native_module()->GetNamesProvider();
+    Managed<wasm::NativeModule>::Ptr native_module =
+        instance->module_object()->native_module();
+    wasm::NamesProvider* names = native_module->GetNamesProvider();
     StringBuilder sb;
     names->PrintGlobalName(sb, index);
     return ToInternalString(sb, isolate);
@@ -375,8 +380,9 @@ struct MemoriesProxy : NamedDebugProxy<MemoriesProxy, kMemoriesProxy> {
   static DirectHandle<String> GetName(Isolate* isolate,
                                       DirectHandle<WasmInstanceObject> instance,
                                       uint32_t index) {
-    wasm::NamesProvider* names =
-        instance->module_object()->native_module()->GetNamesProvider();
+    Managed<wasm::NativeModule>::Ptr native_module =
+        instance->module_object()->native_module();
+    wasm::NamesProvider* names = native_module->GetNamesProvider();
     StringBuilder sb;
     names->PrintMemoryName(sb, index);
     return ToInternalString(sb, isolate);
@@ -402,8 +408,9 @@ struct TablesProxy : NamedDebugProxy<TablesProxy, kTablesProxy> {
   static DirectHandle<String> GetName(Isolate* isolate,
                                       DirectHandle<WasmInstanceObject> instance,
                                       uint32_t index) {
-    wasm::NamesProvider* names =
-        instance->module_object()->native_module()->GetNamesProvider();
+    Managed<wasm::NativeModule>::Ptr native_module =
+        instance->module_object()->native_module();
+    wasm::NamesProvider* names = native_module->GetNamesProvider();
     StringBuilder sb;
     names->PrintTableName(sb, index);
     return ToInternalString(sb, isolate);

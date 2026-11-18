@@ -32,6 +32,10 @@ if (is_ios) {
   import("//build/config/apple/mobile_config.gni")  # For `target_platform`.
 }
 
+if (!build_with_v8_embedder && !(defined(build_with_node) && build_with_node)) {
+  import("//third_party/partition_alloc/partition_alloc.gni")
+}
+
 # For faster Windows builds. See https://crbug.com/v8/8475.
 emit_builtins_as_inline_asm = is_win && is_clang
 
@@ -1169,6 +1173,7 @@ external_cppgc_defines = [
   "CPPGC_CAGED_HEAP",
   "CPPGC_ENABLE_API_CHECKS",
   "CPPGC_ENABLE_LARGER_CAGE",
+  "CPPGC_ENABLE_OBJECT_SECTION_GCINFO",
   "CPPGC_ENABLE_SLOW_API_CHECKS",
   "CPPGC_POINTER_COMPRESSION",
   "CPPGC_SLIM_WRITE_BARRIER",
@@ -1207,6 +1212,9 @@ if (cppgc_enable_pointer_compression) {
 }
 if (cppgc_enable_larger_cage) {
   enabled_external_cppgc_defines += [ "CPPGC_ENABLE_LARGER_CAGE" ]
+}
+if (cppgc_enable_object_section_gcinfo) {
+  enabled_external_cppgc_defines += [ "CPPGC_ENABLE_OBJECT_SECTION_GCINFO" ]
 }
 if (cppgc_enable_slim_write_barrier) {
   enabled_external_cppgc_defines += [ "CPPGC_SLIM_WRITE_BARRIER" ]
@@ -1581,6 +1589,12 @@ config("features") {
   if (v8_function_arguments_caller_are_own_props) {
     defines += [ "V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS" ]
   }
+  if (!build_with_v8_embedder &&
+      !(defined(build_with_node) && build_with_node)) {
+    if (enable_user_space_zero_segment) {
+      defines += [ "PA_ENABLE_USER_SPACE_ZERO_SEGMENT" ]
+    }
+  }
 }
 
 config("toolchain") {
@@ -1648,9 +1662,9 @@ config("toolchain") {
     } else {
       defines += [ "__mips_soft_float=1" ]
     }
-    if (mips_arch_variant == "r6") {
-      defines += [ "_MIPS_ARCH_MIPS64R6" ]
-    } else if (mips_arch_variant == "r2") {
+    assert(mips_arch_variant != "r6",
+           "Fatal: mips_arch_variant='r6' has been explicitly disabled.")
+    if (mips_arch_variant == "r2") {
       defines += [ "_MIPS_ARCH_MIPS64R2" ]
     }
   }
@@ -1997,12 +2011,19 @@ if (v8_postmortem_support) {
       "src/objects/descriptor-array-inl.h",
       "src/objects/feedback-cell.h",
       "src/objects/feedback-cell-inl.h",
+      "src/objects/fixed-array-base.h",
+      "src/objects/fixed-array-base-inl.h",
       "src/objects/fixed-array.h",
       "src/objects/fixed-array-inl.h",
+      "src/objects/fixed-primitive-array.h",
+      "src/objects/fixed-primitive-array-inl.h",
+      "src/objects/hash-seed-wrapper.h",
+      "src/objects/hash-seed-wrapper-inl.h",
       "src/objects/heap-number.h",
       "src/objects/heap-number-inl.h",
       "src/objects/heap-object.h",
       "src/objects/heap-object-inl.h",
+      "src/objects/heap-object-set-map-inl.h",
       "src/objects/instance-type.h",
       "src/objects/instance-type-checker.h",
       "src/objects/instance-type-inl.h",
@@ -2039,6 +2060,8 @@ if (v8_postmortem_support) {
       "src/objects/objects-inl.h",
       "src/objects/oddball.h",
       "src/objects/oddball-inl.h",
+      "src/objects/pod-array.h",
+      "src/objects/pod-array-inl.h",
       "src/objects/primitive-heap-object.h",
       "src/objects/primitive-heap-object-inl.h",
       "src/objects/scope-info.h",
@@ -2238,7 +2261,9 @@ torque_files = [
   "src/objects/embedder-data-array.tq",
   "src/objects/feedback-cell.tq",
   "src/objects/feedback-vector.tq",
+  "src/objects/fixed-array-base.tq",
   "src/objects/fixed-array.tq",
+  "src/objects/fixed-primitive-array.tq",
   "src/objects/foreign.tq",
   "src/objects/free-space.tq",
   "src/objects/heap-number.tq",
@@ -2440,7 +2465,7 @@ template("run_torque") {
     destination_folder = "$target_gen_dir/torque-generated$suffix"
 
     outputs = [
-      "$destination_folder/bit-fields.h",
+      "$destination_folder/bit-field-asserts.cc",
       "$destination_folder/builtin-definitions.h",
       "$destination_folder/class-debug-readers.cc",
       "$destination_folder/class-debug-readers.h",
@@ -2460,9 +2485,7 @@ template("run_torque") {
       outputs += [
         "$destination_folder/$filetq-csa.cc",
         "$destination_folder/$filetq-csa.h",
-        "$destination_folder/$filetq-inl.inc",
         "$destination_folder/$filetq.cc",
-        "$destination_folder/$filetq.inc",
       ]
     }
 
@@ -2598,6 +2621,7 @@ v8_cluster_source_set("torque_generated_initializers") {
   ]
 
   sources = torque_csa_cc_files + [
+              "$target_gen_dir/torque-generated/bit-field-asserts.cc",
               "$target_gen_dir/torque-generated/csa-types.h",
               "$target_gen_dir/torque-generated/enum-verifiers.cc",
               "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
@@ -2631,14 +2655,9 @@ v8_cluster_source_set("torque_generated_initializers") {
 
 # Build lists of torque-generated definition files for clustering
 torque_def_cc_files = []
-torque_def_inc_files = []
 foreach(file, torque_files) {
   filetq = string_replace(file, ".tq", "-tq")
   torque_def_cc_files += [ "$target_gen_dir/torque-generated/$filetq.cc" ]
-  torque_def_inc_files += [
-    "$target_gen_dir/torque-generated/$filetq-inl.inc",
-    "$target_gen_dir/torque-generated/$filetq.inc",
-  ]
 }
 
 v8_cluster_source_set("torque_generated_definitions") {
@@ -2667,9 +2686,6 @@ v8_cluster_source_set("torque_generated_definitions") {
 
   sources = torque_def_cc_files +
             [ "$target_gen_dir/torque-generated/class-forward-declarations.h" ]
-
-  # Add .inc files (always included, not compiled directly)
-  sources += torque_def_inc_files
 
   configs = [ ":internal_config" ]
 }
@@ -4328,19 +4344,26 @@ v8_header_set("v8_internal_headers") {
     "src/objects/field-index-inl.h",
     "src/objects/field-index.h",
     "src/objects/field-type.h",
+    "src/objects/fixed-array-base-inl.h",
+    "src/objects/fixed-array-base.h",
     "src/objects/fixed-array-inl.h",
     "src/objects/fixed-array.h",
+    "src/objects/fixed-primitive-array-inl.h",
+    "src/objects/fixed-primitive-array.h",
     "src/objects/foreign-inl.h",
     "src/objects/foreign.h",
     "src/objects/free-space-inl.h",
     "src/objects/free-space.h",
     "src/objects/function-kind.h",
     "src/objects/function-syntax-kind.h",
+    "src/objects/hash-seed-wrapper-inl.h",
+    "src/objects/hash-seed-wrapper.h",
     "src/objects/hash-table-inl.h",
     "src/objects/hash-table.h",
     "src/objects/heap-number-inl.h",
     "src/objects/heap-number.h",
     "src/objects/heap-object-inl.h",
+    "src/objects/heap-object-set-map-inl.h",
     "src/objects/heap-object.h",
     "src/objects/hole.h",
     "src/objects/instance-type-checker.h",
@@ -4436,6 +4459,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/option-utils.h",
     "src/objects/ordered-hash-table-inl.h",
     "src/objects/ordered-hash-table.h",
+    "src/objects/pod-array-inl.h",
+    "src/objects/pod-array.h",
     "src/objects/primitive-heap-object-inl.h",
     "src/objects/primitive-heap-object.h",
     "src/objects/promise-inl.h",
@@ -4781,6 +4806,7 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-ir.h",
       "src/maglev/maglev-kna-processor.h",
       "src/maglev/maglev-known-node-aspects.h",
+      "src/maglev/maglev-loop-peeler.h",
       "src/maglev/maglev-map-inference.h",
       "src/maglev/maglev-node-type.h",
       "src/maglev/maglev-phi-representation-selector.h",
@@ -4920,6 +4946,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-init-expr.h",
       "src/wasm/wasm-js.h",
       "src/wasm/wasm-linkage.h",
+      "src/wasm/wasm-memory-map-descriptor.h",
       "src/wasm/wasm-module-builder.h",
       "src/wasm/wasm-module-sourcemap.h",
       "src/wasm/wasm-module.h",
@@ -5588,6 +5615,7 @@ if (!v8_enable_maglev) {
     "src/maglev/maglev-interpreter-frame-state.cc",
     "src/maglev/maglev-ir.cc",
     "src/maglev/maglev-known-node-aspects.cc",
+    "src/maglev/maglev-loop-peeler.cc",
     "src/maglev/maglev-node-type.cc",
     "src/maglev/maglev-phi-representation-selector.cc",
     "src/maglev/maglev-range-verification.cc",
@@ -5681,6 +5709,7 @@ if (v8_enable_webassembly) {
     "src/compiler/turboshaft/wasm-gc-optimize-phase.cc",
     "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.cc",
     "src/compiler/turboshaft/wasm-in-js-inlining-phase.cc",
+    "src/compiler/turboshaft/wasm-load-elimination-reducer.cc",
     "src/compiler/turboshaft/wasm-lowering-phase.cc",
     "src/compiler/turboshaft/wasm-optimize-phase.cc",
     "src/compiler/turboshaft/wasm-shuffle-reducer.cc",
@@ -6392,6 +6421,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-interpreter-frame-state.cc",
       "src/maglev/maglev-ir.cc",
       "src/maglev/maglev-known-node-aspects.cc",
+      "src/maglev/maglev-loop-peeler.cc",
       "src/maglev/maglev-node-type.cc",
       "src/maglev/maglev-phi-representation-selector.cc",
       "src/maglev/maglev-pipeline-statistics.cc",
@@ -6493,6 +6523,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-features.cc",
       "src/wasm/wasm-import-wrapper-cache.cc",
       "src/wasm/wasm-js.cc",
+      "src/wasm/wasm-memory-map-descriptor.cc",
       "src/wasm/wasm-module-builder.cc",
       "src/wasm/wasm-module-sourcemap.cc",
       "src/wasm/wasm-module.cc",

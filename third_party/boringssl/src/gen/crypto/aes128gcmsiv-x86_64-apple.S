@@ -9,33 +9,47 @@
 .p2align	4
 one:
 .quad	1,0
+.alt_entry two
 two:
 .quad	2,0
+.alt_entry three
 three:
 .quad	3,0
+.alt_entry four
 four:
 .quad	4,0
+.alt_entry five
 five:
 .quad	5,0
+.alt_entry six
 six:
 .quad	6,0
+.alt_entry seven
 seven:
 .quad	7,0
+.alt_entry eight
 eight:
 .quad	8,0
 
+.alt_entry OR_MASK
 OR_MASK:
 .long	0x00000000,0x00000000,0x00000000,0x80000000
+.alt_entry poly
 poly:
 .quad	0x1, 0xc200000000000000
+.alt_entry mask
 mask:
 .long	0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d
+.alt_entry con1
 con1:
 .long	1,1,1,1
+.alt_entry con2
 con2:
 .long	0x1b,0x1b,0x1b,0x1b
+.alt_entry con3
 con3:
 .byte	-1,-1,-1,-1,-1,-1,-1,-1,4,5,6,7,4,5,6,7
+.alt_entry and_mask
 and_mask:
 .long	0,0xffffffff, 0xffffffff, 0xffffffff
 .text	
@@ -69,6 +83,7 @@ GFMUL:
 .private_extern _aesgcmsiv_htable_init
 
 .p2align	4
+.alt_entry _aesgcmsiv_htable_init
 _aesgcmsiv_htable_init:
 
 _CET_ENDBR
@@ -96,6 +111,7 @@ _CET_ENDBR
 .private_extern _aesgcmsiv_htable6_init
 
 .p2align	4
+.alt_entry _aesgcmsiv_htable6_init
 _aesgcmsiv_htable6_init:
 
 _CET_ENDBR
@@ -119,6 +135,7 @@ _CET_ENDBR
 .private_extern _aesgcmsiv_htable_polyval
 
 .p2align	4
+.alt_entry _aesgcmsiv_htable_polyval
 _aesgcmsiv_htable_polyval:
 
 _CET_ENDBR
@@ -337,6 +354,7 @@ L$htable_polyval_out:
 .private_extern _aesgcmsiv_polyval_horner
 
 .p2align	4
+.alt_entry _aesgcmsiv_polyval_horner
 _aesgcmsiv_polyval_horner:
 
 _CET_ENDBR
@@ -371,6 +389,7 @@ L$polyval_horner_loop:
 .private_extern _aes128gcmsiv_aes_ks
 
 .p2align	4
+.alt_entry _aes128gcmsiv_aes_ks
 _aes128gcmsiv_aes_ks:
 
 _CET_ENDBR
@@ -428,6 +447,7 @@ L$ks128_loop:
 .private_extern _aes256gcmsiv_aes_ks
 
 .p2align	4
+.alt_entry _aes256gcmsiv_aes_ks
 _aes256gcmsiv_aes_ks:
 
 _CET_ENDBR
@@ -476,6 +496,7 @@ L$ks256_loop:
 .private_extern _aes128gcmsiv_aes_ks_enc_x1
 
 .p2align	4
+.alt_entry _aes128gcmsiv_aes_ks_enc_x1
 _aes128gcmsiv_aes_ks_enc_x1:
 
 _CET_ENDBR
@@ -619,6 +640,7 @@ _CET_ENDBR
 .private_extern _aes128gcmsiv_kdf
 
 .p2align	4
+.alt_entry _aes128gcmsiv_kdf
 _aes128gcmsiv_kdf:
 
 _CET_ENDBR
@@ -713,6 +735,7 @@ _CET_ENDBR
 .private_extern _aes128gcmsiv_enc_msg_x4
 
 .p2align	4
+.alt_entry _aes128gcmsiv_enc_msg_x4
 _aes128gcmsiv_enc_msg_x4:
 
 _CET_ENDBR
@@ -889,6 +912,7 @@ L$128_enc_msg_x4_out:
 .private_extern _aes128gcmsiv_enc_msg_x8
 
 .p2align	4
+.alt_entry _aes128gcmsiv_enc_msg_x8
 _aes128gcmsiv_enc_msg_x8:
 
 _CET_ENDBR
@@ -1145,6 +1169,7 @@ L$128_enc_msg_x8_out:
 .private_extern _aes128gcmsiv_dec
 
 .p2align	4
+.alt_entry _aes128gcmsiv_dec
 _aes128gcmsiv_dec:
 
 _CET_ENDBR
@@ -1639,6 +1664,7 @@ L$128_dec_out:
 .private_extern _aes128gcmsiv_ecb_enc_block
 
 .p2align	4
+.alt_entry _aes128gcmsiv_ecb_enc_block
 _aes128gcmsiv_ecb_enc_block:
 
 _CET_ENDBR
@@ -1665,6 +1691,7 @@ _CET_ENDBR
 .private_extern _aes256gcmsiv_aes_ks_enc_x1
 
 .p2align	4
+.alt_entry _aes256gcmsiv_aes_ks_enc_x1
 _aes256gcmsiv_aes_ks_enc_x1:
 
 _CET_ENDBR
@@ -1849,6 +1876,7 @@ _CET_ENDBR
 .private_extern _aes256gcmsiv_ecb_enc_block
 
 .p2align	4
+.alt_entry _aes256gcmsiv_ecb_enc_block
 _aes256gcmsiv_ecb_enc_block:
 
 _CET_ENDBR
@@ -1876,6 +1904,7 @@ _CET_ENDBR
 .private_extern _aes256gcmsiv_enc_msg_x4
 
 .p2align	4
+.alt_entry _aes256gcmsiv_enc_msg_x4
 _aes256gcmsiv_enc_msg_x4:
 
 _CET_ENDBR
@@ -2078,6 +2107,7 @@ L$256_enc_msg_x4_out:
 .private_extern _aes256gcmsiv_enc_msg_x8
 
 .p2align	4
+.alt_entry _aes256gcmsiv_enc_msg_x8
 _aes256gcmsiv_enc_msg_x8:
 
 _CET_ENDBR
@@ -2368,6 +2398,7 @@ L$256_enc_msg_x8_out:
 .private_extern _aes256gcmsiv_dec
 
 .p2align	4
+.alt_entry _aes256gcmsiv_dec
 _aes256gcmsiv_dec:
 
 _CET_ENDBR
@@ -2930,6 +2961,7 @@ L$256_dec_out:
 .private_extern _aes256gcmsiv_kdf
 
 .p2align	4
+.alt_entry _aes256gcmsiv_kdf
 _aes256gcmsiv_kdf:
 
 _CET_ENDBR

@@ -11,6 +11,7 @@
 #include "ash/public/cpp/app_list/vector_icons/vector_icons.h"
 #include "ash/public/cpp/style/dark_light_mode_controller.h"
 #include "ash/strings/grit/ash_strings.h"
+#include "base/check_deref.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/ash/app_list/app_list_controller_delegate.h"
@@ -20,7 +21,6 @@
 #include "chrome/browser/ash/app_list/search/omnibox/omnibox_util.h"
 #include "chrome/browser/bitmap_fetcher/bitmap_fetcher.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chromeos/ash/components/string_matching/fuzzy_tokenized_string_match.h"
 #include "components/omnibox/browser/favicon_cache.h"
 #include "components/omnibox/browser/vector_icons.h"
@@ -74,11 +74,13 @@ const gfx::VectorIcon& TypeToVectorIcon(OmniboxResultType type) {
 
 OmniboxResult::OmniboxResult(Profile* profile,
                              AppListControllerDelegate* list_controller,
+                             TemplateURLService* template_url_service,
                              std::unique_ptr<OmniboxResultData> search_result,
                              const std::u16string& query,
                              FaviconCache* favicon_cache)
     : profile_(profile),
       list_controller_(list_controller),
+      template_url_service_(CHECK_DEREF(template_url_service)),
       search_result_(std::move(search_result)),
       query_(query),
       contents_(search_result_->contents.value_or(u"")),
@@ -244,7 +246,7 @@ void OmniboxResult::UpdateTitleAndDetails() {
           l10n_util::GetStringFUTF16(
               IDS_APP_LIST_QUERY_SEARCH_DESCRIPTION, description_,
               GetDefaultSearchEngineName(
-                  TemplateURLServiceFactory::GetForProfile(profile_)));
+                  &template_url_service_.get()));
       SetDetails(description_with_search_context);
       SetDetailsTags(
           TagsForText(description_, search_result_->description_type));
@@ -256,14 +258,14 @@ void OmniboxResult::UpdateTitleAndDetails() {
       SetAccessibleName(l10n_util::GetStringFUTF16(
           IDS_APP_LIST_QUERY_SEARCH_ACCESSIBILITY_NAME, accessible_name,
           GetDefaultSearchEngineName(
-              TemplateURLServiceFactory::GetForProfile(profile_))));
+              &template_url_service_.get())));
     } else if (search_result_->is_omnibox_search) {
       // For non-rich-entity results, put the search engine into the details
       // field. Tags are not used since this does not change with the query.
       SetDetails(l10n_util::GetStringFUTF16(
           IDS_AUTOCOMPLETE_SEARCH_DESCRIPTION,
           GetDefaultSearchEngineName(
-              TemplateURLServiceFactory::GetForProfile(profile_))));
+              &template_url_service_.get())));
     }
   } else {
     // For url result with non-empty description, swap title and details. Thus,

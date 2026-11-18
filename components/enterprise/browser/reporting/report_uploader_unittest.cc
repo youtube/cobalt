@@ -7,6 +7,7 @@
 #include <array>
 #include <utility>
 
+#include "base/strings/strcat.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -84,7 +85,7 @@ class ReportUploaderTest : public ::testing::Test {
       auto request = std::make_unique<ReportRequest>(GetReportType());
       em::BrowserReport* browser_report;
       switch (GetReportType()) {
-        case ReportType::kFull:
+        case ReportType::kBrowser:
         case ReportType::kBrowserVersion:
           browser_report =
               request->GetDeviceReportRequest().mutable_browser_report();
@@ -106,7 +107,7 @@ class ReportUploaderTest : public ::testing::Test {
                        base::Unretained(this), expected_status));
   }
 
-  virtual ReportType GetReportType() { return ReportType::kFull; }
+  virtual ReportType GetReportType() { return ReportType::kBrowser; }
 
   void OnReportUploaded(ReportUploader::ReportStatus expected_status,
                         ReportUploader::ReportStatus actuall_status) {
@@ -386,7 +387,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(ReportUploaderTestWithReportType, Success) {
   switch (GetReportType()) {
-    case ReportType::kFull:
+    case ReportType::kBrowser:
     case ReportType::kBrowserVersion:
       EXPECT_CALL(client_, UploadReport)
           .WillOnce(ScheduleResponse(
@@ -405,12 +406,18 @@ TEST_P(ReportUploaderTestWithReportType, Success) {
   EXPECT_TRUE(has_responded_);
   histogram_tester_.ExpectUniqueSample(
       kResponseMetricsName, ReportResponseMetricsStatus::kSuccess, 1);
+
+  histogram_tester_.ExpectUniqueSample(
+      base::StrCat({"Enterprise.CloudReportingRequestSize.",
+                    GetReportTypeMetricSuffix(GetReportType())}),
+      /*report size floor to KB*/ 0, 1);
+
   ::testing::Mock::VerifyAndClearExpectations(&client_);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ReportUploaderTestWithReportType,
-                         ::testing::Values(ReportType::kFull,
+                         ::testing::Values(ReportType::kBrowser,
                                            ReportType::kBrowserVersion,
                                            ReportType::kProfileReport));
 

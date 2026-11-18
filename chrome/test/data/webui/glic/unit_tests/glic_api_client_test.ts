@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {ObservableSetByTabIdDelegate, PostMessageRemote, RequestMessage, WebClientHost} from 'chrome://glic/glic.js';
-import {IdGenerator, ObservableSetByTabId, PostMessageRouterImpl} from 'chrome://glic/glic.js';
+import type {InterfaceDef, ObservableSetByTabIdDelegate, ObservableValue, PendingRemote, PostMessageRemote, PostMessageRouter, RequestMessage, WebClientHost} from 'chrome://glic/glic.js';
+import {createBidirectionalPostMessageTransport, defInterface, ObservableSetByTabId, WebClientHostDef} from 'chrome://glic/glic.js';
 import {assertEquals, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 class StubSender {
@@ -17,30 +17,50 @@ class StubSender {
 interface TestEnvironment {
   sender: PostMessageRemote<WebClientHost>;
   delegate: TestDelegate;
-  idGenerator: IdGenerator;
   obs: ObservableSetByTabId<string>;
 }
 
 interface CurrentSubscription {
-  observationId: number;
   tabId: string;
 }
 
-class TestDelegate implements ObservableSetByTabIdDelegate {
-  readonly unsubscribeDelay = 1;
+const DummyInterfaceDef = defInterface({
+  name: 'DummyInterface',
+  methods: [],
+});
+
+class TestDelegate implements
+    ObservableSetByTabIdDelegate<string, InterfaceDef> {
+  readonly interfaceDef = DummyInterfaceDef;
+  readonly unsubscribeDelay = 10;
   observations: CurrentSubscription[] = [];
+
+  constructor(private router: PostMessageRouter) {}
+
   subscribe(
-      _sender: PostMessageRemote<any>, observationId: number,
-      tabId: string): void {
-    this.observations.push({observationId, tabId});
+      _sender: PostMessageRemote<WebClientHost>, tabId: string,
+      remote: PendingRemote<InterfaceDef>): void {
+    // Wrap tabId in a new object literal to create a unique reference.
+    const sub = {tabId};
+    this.observations.push(sub);
+    this.router.addCloseHandler(remote, () => {
+      this.observations = this.observations.filter(s => s !== sub);
+    });
   }
 
-  unsubscribe(
-      _sender: PostMessageRemote<any>, observationId: number,
-      tabId: string): void {
-    this.observations = this.observations.filter((sub) => {
-      return sub.observationId !== observationId || sub.tabId !== tabId;
-    });
+  createHandler(obs: ObservableValue<string>): Record<never, never> {
+    return new TestHandler(obs) as any;
+  }
+}
+
+class TestHandler {
+  constructor(private obs: ObservableValue<string>) {}
+  onUpdate(value?: string) {
+    if (value === undefined) {
+      this.obs.complete();
+    } else {
+      this.obs.assignAndSignal(value);
+    }
   }
 }
 
@@ -51,19 +71,30 @@ function sleep(timeout: number): Promise<void> {
 suite('ObservableSetByTabId', () => {
   function createEnvironment(): TestEnvironment {
     const stubSender = new StubSender();
-    const router = new PostMessageRouterImpl(
-        'origin', 'senderId', stubSender, 'logPrefix', false);
-    const sender = router.newPipeWithRemote<WebClientHost>().remote;
-    const delegate = new TestDelegate();
-    const idGenerator = new IdGenerator();
-    const obs = new ObservableSetByTabId<string>(delegate, sender, idGenerator);
-    return {sender, delegate, idGenerator, obs};
+    const transport =
+        createBidirectionalPostMessageTransport<WebClientHost, InterfaceDef>(
+            'origin',
+            stubSender,
+            /*lifecycleObserver=*/ {},
+            /*rootMessageHandler=*/ {} as any,
+            'logPrefix',
+            /*isHost=*/ false,
+            /*errorCodec=*/ {} as any,
+            /*interfaceDef=*/ DummyInterfaceDef,
+            /*_remoteInterfaceDef=*/ WebClientHostDef,
+        );
+    const router = transport.router;
+    const sender =
+        router.newPipeWithRemote<WebClientHost>(WebClientHostDef).remote;
+    const delegate = new TestDelegate(router);
+    const obs = new ObservableSetByTabId<string>(delegate, sender, router);
+    return {sender, delegate, obs};
   }
 
   test('send with no observers', () => {
     const env = createEnvironment();
     // Does nothing.
-    env.obs.assignAndSignal(4, 'HI');
+    env.obs.getObservableByTabId('4').assignAndSignal('HI');
   });
 
   test('subscribe to tab id', () => {
@@ -76,7 +107,7 @@ suite('ObservableSetByTabId', () => {
     });
     assertEquals(env.delegate.observations.length, 1);
     assertEquals(env.delegate.observations[0]!.tabId, '123');
-    env.obs.assignAndSignal(env.delegate.observations[0]!.observationId, 'HI');
+    obs.assignAndSignal('HI');
     assertEquals(obs.getCurrentValue(), 'HI', 'getCurrentValue() is incorrect');
   });
 
@@ -96,7 +127,7 @@ suite('ObservableSetByTabId', () => {
         env.delegate.observations.length, 1, 'Subscription was not created');
     assertEquals(env.delegate.observations[0]!.tabId, '123');
 
-    env.obs.completeObservable(env.delegate.observations[0]!.observationId);
+    obs.complete();
     assertTrue(completed, 'complete() was not called');
     // wait for prune
     await sleep(env.delegate.unsubscribeDelay + 1);
@@ -124,6 +155,7 @@ suite('ObservableSetByTabId', () => {
     assertEquals(
         env.delegate.observations.length, 1,
         'just one observation after second subscribe');
+
     sub2.unsubscribe();
 
     await sleep(env.delegate.unsubscribeDelay + 1);
@@ -148,9 +180,9 @@ suite('ObservableSetByTabId', () => {
         env.delegate.observations.length, 0,
         'first observation should be removed');
 
-    // Subscribe after the original subscription is pruned. This should reuse
-    // the first observation.
-    const sub2 = obs.subscribe(() => {});
+    // Subscribe after the original subscription is pruned. This should create
+    // a new observation.
+    const sub2 = env.obs.getObservableByTabId('123').subscribe(() => {});
     assertEquals(
         env.delegate.observations.length, 1,
         'second observation was not created');
@@ -204,10 +236,9 @@ suite('ObservableSetByTabId', () => {
         const obs1 = env.obs.getObservableByTabId('foo');
         // Subscribe to force observation generation
         const sub1 = obs1.subscribe(() => {});
-        const observationId = env.delegate.observations[0]!.observationId;
 
-        // Calling completeObservable queues a prune operation.
-        env.obs.completeObservable(observationId);
+        // Calling complete queues a prune operation.
+        obs1.complete();
 
         await sleep(env.delegate.unsubscribeDelay + 1);
         await sleep(0);
@@ -244,4 +275,56 @@ suite('ObservableSetByTabId', () => {
         'tabB observation should remain');
     subB.unsubscribe();
   });
+
+  test('closing the receiver completes the observable', async () => {
+    const env = createEnvironment();
+    const obs = env.obs.getObservableByTabId('123');
+
+    let completed = false;
+    obs.subscribe({
+      complete() {
+        completed = true;
+      },
+      next() {},
+    });
+
+    // Access the private receiver and close it to simulate a pipe closure from
+    // the host
+    const receiver = (obs as any).receiver;
+    assertTrue(!!receiver, 'Receiver should be established after subscription');
+    receiver.close();
+
+    assertTrue(
+        completed,
+        'Observable should have completed when the receiver was closed');
+
+    // Wait for prune
+    await sleep(env.delegate.unsubscribeDelay + 1);
+    await sleep(0);
+    assertEquals(
+        env.delegate.observations.length, 0,
+        'Subscription should be cleaned up');
+  });
+
+  test(
+      're-subscribing during complete() callback yields a fresh observable',
+      () => {
+        const env = createEnvironment();
+        const obs1 = env.obs.getObservableByTabId('123');
+
+        let reSubscribedObs: any = null;
+        obs1.subscribe({
+          complete() {
+            // Re-subscribe immediately during the complete notification!
+            reSubscribedObs = env.obs.getObservableByTabId('123');
+          },
+          next() {},
+        });
+
+        obs1.complete();
+
+        assertNotEquals(
+            obs1, reSubscribedObs,
+            'Should have received a fresh observable instance');
+      });
 });

@@ -11,58 +11,6 @@
 # For more info see Chromium's test_suite_exceptions.pyl in testing/buildbot.
 
 {
-  'angle_deqp_egl_vulkan_tests': {
-    'remove_from': [
-      # Occasionally hangs the machine http://anglebug.com/368553850
-      'angle-linux-x64-nvidia-gtx1660-rel',
-    ],
-  },
-  'angle_deqp_gles2_d3d11_tests': {
-    'modifications': {
-      # anglebug.com/352528974 suspecting OOM caused by multiprocess
-      'angle-win-x64-intel-uhd770-rel': {
-        'args': [
-          '--max-processes=2',
-        ],
-      },
-    },
-  },
-  'angle_end2end_tests': {
-    'modifications': {
-      # anglebug.com/40644897 suspecting device lost caused by multiprocess
-      'angle-win-x64-intel-uhd630-rel': {
-        'args': [
-          '--max-processes=1',
-        ],
-        'swarming': {
-          'shards': 10,
-        },
-      },
-      # anglebug.com/352528974 suspecting OOM caused by multiprocess
-      'angle-win-x64-intel-uhd770-rel': {
-        'args': [
-          '--max-processes=2',
-        ],
-        'swarming': {
-          'shards': 5,
-        },
-      },
-    },
-    'replacements': {
-      # anglebug.com/408276172 suspecting WebGPU backend flakiness caused by multiprocess
-      'angle-linux-x64-intel-uhd630-rel': {
-        'args': {
-          '--max-processes': '1',
-        },
-      },
-      # crbug.com/506180945 low capacity in this pool
-      'angle-win-x64-intel-uhd630-rel': {
-        'args': {
-          '--gtest_filter': '-*Vulkan_SwiftShader*:*D3D9*:*WebGPU*',
-        },
-      },
-    },
-  },
   'angle_perftests': {
     'modifications': {
       'angle-android-arm64-google-pixel4-perf': {
@@ -77,31 +25,6 @@
           # Custom temp throttling for perf tests on pixel6 b/345514719
           '--custom-throttling-temp=38',
         ],
-      },
-    },
-  },
-  'angle_restricted_trace_gold_tests': {
-    'modifications': {
-      'angle-linux-x64-sws-rel': {
-        # anglebug.com/505781390 long time to download traces
-        'swarming': {
-          'hard_timeout': 1800,
-          'io_timeout': 1800,
-        },
-      },
-      'angle-win-x64-intel-uhd630-rel': {
-        # anglebug.com/42263955 flaky 4x8 pixel artifacts on Win Intel
-        'args': [
-          '--flaky-retries=1',
-        ],
-        'swarming': {
-          'shards': 5,
-        },
-      },
-      'angle-win-x64-intel-uhd770-rel': {
-        'swarming': {
-          'shards': 4,
-        },
       },
     },
   },
@@ -121,26 +44,6 @@
         'args': [
           # Custom temp throttling for perf tests on pixel6 b/345514719
           '--custom-throttling-temp=38',
-        ],
-      },
-      'angle-win-x64-intel-uhd630-rel': {
-        'swarming': {
-          'shards': 3,
-        },
-      },
-      'angle-win-x64-intel-uhd770-rel': {
-        'swarming': {
-          'shards': 4,
-        },
-      },
-    },
-  },
-  'angle_white_box_tests': {
-    'modifications': {
-      # anglebug.com/40644897 suspecting device lost caused by multiprocess
-      'angle-win-x64-intel-uhd630-rel': {
-        'args': [
-          '--max-processes=1',
         ],
       },
     },

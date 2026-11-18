@@ -15,10 +15,12 @@
 
 namespace media::hls {
 
-Playlist::Playlist(GURL uri,
+Playlist::Playlist(url::Origin origin,
+                   GURL uri,
                    types::DecimalInteger version,
                    bool independent_segments)
-    : uri_(std::move(uri)),
+    : security_origin_(std::move(origin)),
+      uri_(std::move(uri)),
       version_(version),
       independent_segments_(independent_segments) {}
 

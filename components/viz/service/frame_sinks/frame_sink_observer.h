@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_VIZ_SERVICE_FRAME_SINKS_FRAME_SINK_OBSERVER_H_
 #define COMPONENTS_VIZ_SERVICE_FRAME_SINKS_FRAME_SINK_OBSERVER_H_
 
+#include "base/observer_list_types.h"
 #include "components/viz/common/quads/compositor_frame_metadata.h"
 
 namespace viz {
@@ -12,9 +13,9 @@ namespace viz {
 class FrameSinkId;
 struct BeginFrameArgs;
 
-class FrameSinkObserver {
+class FrameSinkObserver : public base::CheckedObserver {
  public:
-  virtual ~FrameSinkObserver() = default;
+  ~FrameSinkObserver() override = default;
 
   // Called when CompositorFrameSink is about to be destroyed
   virtual void OnDestroyedCompositorFrameSink(

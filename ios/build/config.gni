@@ -34,6 +34,7 @@ if (!use_blink) {
   ios_extension_assert_no_deps += [
     "//net",
     "//net/android/*",
+    "//net/base/module/*",
     "//net/cert/*",
     "//net/data/*",
     "//net/dns/*",

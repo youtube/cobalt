@@ -40,10 +40,12 @@ FacilitatedPaymentsNetworkInterface::InitiatePayment(
 FacilitatedPaymentsNetworkInterface::RequestId
 FacilitatedPaymentsNetworkInterface::GetDetailsForCreatePaymentInstrument(
     int64_t billing_customer_number,
+    const std::vector<uint8_t>& client_token,
     GetDetailsForCreatePaymentInstrumentResponseCallback response_callback,
     const std::string& app_locale) {
   return IssueRequest(std::make_unique<GetDetailsForPixAccountLinkingRequest>(
-      billing_customer_number, std::move(response_callback), app_locale,
+      billing_customer_number, client_token, std::move(response_callback),
+      app_locale,
       account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics()));
 }
 

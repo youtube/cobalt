@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">O Google Chrome está a utilizar a câmara.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> é perigoso, por isso o Chrome bloqueou-o.</translation>
 <translation id="1597911401261118146">Para verificar se as suas palavras-passe estão protegidas contra violação de dados e outros problemas de segurança, <ph name="BEGIN_LINK" />inicie sessão no Chrome<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Esta ação vai:
+          <ph name="LINE_BREAKS" />
+            • Repor a página inicial, a página Novo separador, o motor de pesquisa e os separadores fixos
+            <ph name="LINE_BREAK" />
+            • Desativar extensões
+            <ph name="LINE_BREAK" />
+            • Eliminar cookies e outros dados temporários de sites
+            <ph name="LINE_BREAK" />
+            • Repor os atalhos do Chrome
+            <ph name="LINE_BREAKS" />
+            Os marcadores, o histórico e as palavras-passe guardadas não serão afetados.</translation>
 <translation id="1619887657840448962">Para tornar o Chrome mais seguro, desativámos a seguinte extensão, que não está listada na <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />, e é possível que tenha sido adicionada sem o seu conhecimento.</translation>
 <translation id="1628000112320670027">Obter ajuda relacionada com o Chrome</translation>
 <translation id="1640672724030957280">A transferir...</translation>
@@ -398,6 +409,7 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="5234764350956374838">Ignorar</translation>
 <translation id="5239627039202700673">Use o Chrome sempre que clicar em links de mensagens, documentos e outras apps</translation>
 <translation id="5251420635869119124">Os convidados podem utilizar o Chrome sem perder qualquer funcionalidade.</translation>
+<translation id="5271833978500241046">Use-as juntamente com outras funcionalidades do Gemini no Chrome</translation>
 <translation id="5286907366254680517">Detetado</translation>
 <translation id="5320351714793324716">Se permitir cookies, o Chrome pode usá-los durante o pré-carregamento</translation>
 <translation id="5321325624576443340">O Google Lens não está disponível. Tente mais tarde.</translation>
@@ -434,15 +446,6 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="569897634095159764">Não é possível ligar à Internet. O servidor proxy necessita de autenticação.</translation>
 <translation id="5709557627224531708">Definir o Chrome como o navegador predefinido</translation>
 <translation id="5719246646468301581">Termos de Utilização Adicionais do Google Chrome e do ChromeOS</translation>
-<translation id="5719324992913248873">Esta ação irá:
-        <ph name="LINE_BREAKS" />
-          • Repor algumas definições e os atalhos do Chrome
-          <ph name="LINE_BREAK" />
-          • Desativar extensões
-          <ph name="LINE_BREAK" />
-          • Eliminar cookies e outros dados temporários de sites
-          <ph name="LINE_BREAKS" />
-          Os marcadores, o histórico e as palavras-passe guardadas não são afetados.</translation>
 <translation id="5736850870166430177">Se um site tentar roubar a sua palavra-passe, ou quando transferir um ficheiro prejudicial, o Chrome também pode enviar URLs, incluindo bits de conteúdo das páginas, para a Navegação segura</translation>
 <translation id="5756509061973259733">Já existe um perfil do Chrome com esta conta neste dispositivo.</translation>
 <translation id="5759947850379142561">Selecione qualquer texto ou imagem para pesquisar com o Google Lens ou prima a tecla Escape para sair do Google Lens</translation>
@@ -640,6 +643,7 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Para proteger os seus dados, permita que o Chrome remova as autorizações de sites que não visitou recentemente.</translation>
 <translation id="7629695634924605473">O Chrome indica-lhe se as suas palavras-passe forem comprometidas.</translation>
+<translation id="7629898584100520089">As inovações de IA, como as competências, são guardadas na sua Conta Google e geridas separadamente da Sincronização do Chrome</translation>
 <translation id="7641148173327520642">O administrador do sistema configurou o Google Chrome para abrir o <ph name="ALTERNATIVE_BROWSER_NAME" /> e aceder a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Ajuda</translation>
 <translation id="7651907282515937834">Logótipo do Chrome Enterprise</translation>
@@ -780,6 +784,15 @@ Não é possível guardar novos marcadores na sua conta até eliminar alguns. Se
 <translation id="8922998289262614701">Remover os dados desta app do Chrome</translation>
 <translation id="8925636929359899517">Usamos as informações para melhorar este serviço. Consulte a <ph name="BEGIN_LINK1" />Política de Privacidade<ph name="END_LINK1" /> e os <ph name="BEGIN_LINK2" />Termos de Utilização<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Ativar/desativar o Gemini no Chrome</translation>
+<translation id="8944232836376404813">Esta ação vai:
+          <ph name="LINE_BREAKS" />
+            • Repor a página inicial, a página Novo separador, o motor de pesquisa e os separadores fixos
+            <ph name="LINE_BREAK" />
+            • Desativar extensões
+            <ph name="LINE_BREAK" />
+            • Eliminar cookies e outros dados temporários de sites
+            <ph name="LINE_BREAKS" />
+            Os marcadores, o histórico e as palavras-passe guardadas não serão afetados.</translation>
 <translation id="8948460679427074738">Esta extensão não publicou Práticas de Privacidade, por exemplo, a forma como recolhe e usa os dados. O Chrome recomenda que a remova.</translation>
 <translation id="8958307504142971576">Agora, tem mais funcionalidades disponíveis no Chrome</translation>
 <translation id="8991530961471831170">Abrir Gemini no Chrome</translation>

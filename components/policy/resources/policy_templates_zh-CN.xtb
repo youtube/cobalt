@@ -475,7 +475,6 @@
       如果此政策已启用，改进后的国际键盘快捷键会处于启用状态。
       如果未设置，此政策在受管设备上会处于启用状态，在消费者拥有的设备上也会处于启用状态。
       请注意，此政策只是一项临时性政策，旨在让受管用户仍能使用已弃用的旧版快捷键。待自定义键盘快捷键可用后，此政策将被弃用。</translation>
-<translation id="1359459742455216057"><ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 应用的唯一标识符。</translation>
 <translation id="1361661842732478894">在工具栏上显示首页按钮</translation>
 <translation id="1363275621236827384">允许在 Quirks Server 中查询硬件配置文件</translation>
 <translation id="1363839375295535439">如果已启用或未设置此政策，那么只要系统配置支持，系统就会为打印服务启用 LPAC 沙盒。
@@ -7185,9 +7184,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5649788773465136073">禁止网站使用受保护内容标识符，这可能会导致受保护内容的播放质量下降。</translation>
 <translation id="5650256117857913687">禁止远程访问用户在本地客户端浏览器中打开主机端网址</translation>
 <translation id="5650716720715977549">对向更私密的网络端点发送的请求施加限制</translation>
-<translation id="5651538748810288218">如果此政策设为 1，系统会允许网站访问和使用传感器（例如移动传感器和光传感器）。如果此政策设为 2，系统会禁止访问传感器。
-
-      如果此政策未设置，则意味着 <ph name="ALLOW_SENSORS_POLICY_NAME" /> 政策适用，但用户可以更改此设置。</translation>
 <translation id="5652250453612826983">控制仅应用于未成年人账号的家长监管政策。
       这些政策不是在管理控制台中设置的，而是通过 Kids API 服务器直接配置的。</translation>
 <translation id="5654682237531873653">如果此政策已启用，系统会开启拼写检查，但用户无法关闭该功能。由于在 <ph name="MS_WIN_NAME" />、<ph name="PRODUCT_OS_NAME" />和 <ph name="LINUX_OS_NAME" /> 中，拼写检查功能的状态（开启/关闭）可因具体语言而异，因此若有语言开启了该功能，用户仍能通过关闭针对每种所涉语言的拼写检查来停用该功能。为避免这种情况，请使用 <ph name="SPELLCHECK_LANGUAGE_POLICY_NAME" /> 为特定语言强制启用拼写检查。
@@ -8870,7 +8866,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 
 对于 <ph name="PRODUCT_NAME" />，此政策仅在已使用 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> 注册相应设备后有效。
 对于 <ph name="PRODUCT_OS_NAME" />，此政策一直有效。</translation>
-<translation id="6714333117401088746">要启用的 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 实例对应的 <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> 项目的 ID。</translation>
 <translation id="6720330829631914048">自当天开始后已流逝的小时数（24 小时制）。</translation>
 <translation id="6720862827454058309">覆盖 IP 地址空间映射</translation>
 <translation id="6721252203593581486">自 M97 起，第三方情境（例如跨网站 iframe）下的 WebSQL 默认处于关闭状态，并将在 M101 中被完全移除。

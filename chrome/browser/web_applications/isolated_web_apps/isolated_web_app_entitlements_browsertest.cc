@@ -27,9 +27,9 @@ using IwaRuntimeAllowlistData =
 using IwaEntitlementProto = IwaAccessControl::UserInstallAllowlistItemData;
 
 constexpr std::string_view kEntitledFeatures[] = {
-    "direct-sockets",   "direct-sockets-private", "direct-sockets-multicast",
-    "sub-apps",         "usb-unrestricted",       "web-printing",
-    "controlled-frame",
+    "direct-sockets", "direct-sockets-multicast",
+    "sub-apps",       "usb-unrestricted",
+    "web-printing",   "controlled-frame",
 #if defined(ENABLE_SMART_CARD)
     "smart-card",
 #endif
@@ -37,7 +37,6 @@ constexpr std::string_view kEntitledFeatures[] = {
 
 constexpr PermissionsPolicyFeature kEntitledPermissions[] = {
     PermissionsPolicyFeature::kDirectSockets,
-    PermissionsPolicyFeature::kDirectSocketsPrivate,
     PermissionsPolicyFeature::kMulticastInDirectSockets,
     PermissionsPolicyFeature::kSubApps,
     PermissionsPolicyFeature::kUsbUnrestricted,
@@ -50,7 +49,6 @@ constexpr PermissionsPolicyFeature kEntitledPermissions[] = {
 
 constexpr IwaEntitlement kEntitlements[] = {
     IwaEntitlementProto::DIRECT_SOCKETS,
-    IwaEntitlementProto::DIRECT_SOCKETS_PRIVATE,
     IwaEntitlementProto::DIRECT_SOCKETS_MULTICAST,
     IwaEntitlementProto::SUB_APPS,
     IwaEntitlementProto::UNRESTRICTED_WEBUSB,

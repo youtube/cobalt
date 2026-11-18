@@ -115,7 +115,7 @@ bool AccountChecker::IsSubjectToParentalControls() {
       identity_manager_
           ->FindExtendedAccountInfo(identity_manager_->GetPrimaryAccountInfo(
               signin::ConsentLevel::kSignin))
-          .capabilities;
+          .GetAccountCapabilities();
 
   return capabilities.is_subject_to_parental_controls() ==
          signin::Tribool::kTrue;
@@ -130,7 +130,7 @@ bool AccountChecker::CanUseModelExecutionFeatures() {
       identity_manager_
           ->FindExtendedAccountInfo(identity_manager_->GetPrimaryAccountInfo(
               signin::ConsentLevel::kSignin))
-          .capabilities;
+          .GetAccountCapabilities();
 
   return capabilities.can_use_model_execution_features() ==
          signin::Tribool::kTrue;

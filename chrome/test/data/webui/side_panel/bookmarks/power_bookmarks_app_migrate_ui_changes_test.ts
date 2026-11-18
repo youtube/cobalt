@@ -8,15 +8,13 @@ import 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_app.js';
 import {ActionSource, SortOrder, ViewType} from 'chrome://bookmarks-side-panel.top-chrome/bookmarks.mojom-webui.js';
 import {BookmarksApiProxyImpl} from 'chrome://bookmarks-side-panel.top-chrome/bookmarks_api_proxy.js';
 import type {PowerBookmarksAppElement} from 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_app.js';
-import {PageCallbackRouter} from 'chrome://resources/cr_components/commerce/price_tracking.mojom-webui.js';
-import {PriceTrackingBrowserProxyImpl} from 'chrome://resources/cr_components/commerce/price_tracking_browser_proxy.js';
+import {browserProxyFactory as priceTrackingBrowserProxyFactory, PriceTrackingHandlerRemote} from 'chrome://resources/cr_components/commerce/price_tracking.mojom-webui.js';
 import {PageImageServiceBrowserProxy} from 'chrome://resources/cr_components/page_image_service/browser_proxy.js';
 import {PageImageServiceHandlerRemote} from 'chrome://resources/cr_components/page_image_service/page_image_service.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {flushTasks, waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
-import {eventToPromise} from 'chrome://webui-test/test_util.js';
+import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {createTestBookmarks, getBookmarkWithId, initializeAppUi} from './power_bookmarks_app_test_util.js';
 import {TestBookmarksApiProxy} from './test_bookmarks_api_proxy.js';
@@ -24,7 +22,7 @@ import {TestBookmarksApiProxy} from './test_bookmarks_api_proxy.js';
 suite('MigrateUiChangesUseBrowserEditDialog', () => {
   let powerBookmarksApp: PowerBookmarksAppElement;
   let bookmarksApi: TestBookmarksApiProxy;
-  const priceTrackingProxy = TestMock.fromClass(PriceTrackingBrowserProxyImpl);
+  const priceTrackingHandler = TestMock.fromClass(PriceTrackingHandlerRemote);
   let imageServiceHandler: TestMock<PageImageServiceHandlerRemote>&
       PageImageServiceHandlerRemote;
 
@@ -35,19 +33,19 @@ suite('MigrateUiChangesUseBrowserEditDialog', () => {
     bookmarksApi.setAllBookmarks(structuredClone(createTestBookmarks()));
     BookmarksApiProxyImpl.setInstance(bookmarksApi);
 
-    priceTrackingProxy.reset();
-    const callbackRouter = new PageCallbackRouter();
-    priceTrackingProxy.setResultFor('getCallbackRouter', callbackRouter);
-    priceTrackingProxy.setResultFor(
+    priceTrackingHandler.reset();
+    priceTrackingHandler.setResultFor(
         'getAllPriceTrackedBookmarkProductInfo',
         Promise.resolve({productInfos: []}));
-    priceTrackingProxy.setResultFor(
+    priceTrackingHandler.setResultFor(
         'getAllShoppingBookmarkProductInfo',
         Promise.resolve({productInfos: []}));
-    priceTrackingProxy.setResultFor(
+    priceTrackingHandler.setResultFor(
         'getShoppingCollectionBookmarkFolderId',
         Promise.resolve({collectionId: BigInt(-1)}));
-    PriceTrackingBrowserProxyImpl.setInstance(priceTrackingProxy);
+    const {instance} =
+        priceTrackingBrowserProxyFactory.createForTest(priceTrackingHandler);
+    priceTrackingBrowserProxyFactory.setInstance(instance);
 
     imageServiceHandler = TestMock.fromClass(PageImageServiceHandlerRemote);
     PageImageServiceBrowserProxy.setInstance(
@@ -82,7 +80,7 @@ suite('MigrateUiChangesUseBrowserEditDialog', () => {
         new MouseEvent('click'),
         [getBookmarkWithId(powerBookmarksApp, bookmarkId)!], false, false,
         false, 1);
-    await waitAfterNextRender(contextMenu);
+    await microtasksFinished();
 
     // Get the edit option in the menu.
     const menuItems = contextMenu.shadowRoot.querySelectorAll('.dropdown-item');
@@ -95,7 +93,7 @@ suite('MigrateUiChangesUseBrowserEditDialog', () => {
     // Click on edit and wait for the call to propagate.
     editItem.click();
     await editClicked;
-    await flushTasks();
+    await microtasksFinished();
 
     // The native edit dialog is opened.
     assertEquals(1, bookmarksApi.getCallCount('contextMenuEdit'));
@@ -117,7 +115,7 @@ suite('MigrateUiChangesUseBrowserEditDialog', () => {
     // Open the context menu.
     contextMenu.showAtPosition(
         new MouseEvent('click'), bookmarks, false, false, false, 1);
-    await waitAfterNextRender(contextMenu);
+    await microtasksFinished();
 
     // Get the move option in the menu.
     const menuItems = contextMenu.shadowRoot.querySelectorAll('.dropdown-item');
@@ -131,7 +129,7 @@ suite('MigrateUiChangesUseBrowserEditDialog', () => {
     // Click on move and wait for the call to propagate.
     moveItem.click();
     await editClicked;
-    await flushTasks();
+    await microtasksFinished();
 
     // The native move dialog is opened.
     assertEquals(1, bookmarksApi.getCallCount('contextMenuMove'));

@@ -1457,6 +1457,7 @@ policies:
   1456: RestrictBackgroundFetchFromServiceWorkerEnabled
   1457: GeminiEnterpriseSettings
   1458: RestrictYouTubeCookiesDeletion
+  1459: AutofillSettings
 
 atomic_groups:
   1: Homepage

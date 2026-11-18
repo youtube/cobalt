@@ -14,7 +14,10 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/pref_names.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_urls.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 

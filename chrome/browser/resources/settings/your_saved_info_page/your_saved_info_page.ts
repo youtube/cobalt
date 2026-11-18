@@ -7,12 +7,12 @@
  * 'settings-your-saved-info-page' is the entry point for users to see
  * and manage their saved info.
  */
+import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import './account_card.js';
 import './category_reference_card.js';
 import './collapsible_autofill_settings_card.js';
 import '/shared/settings/prefs/prefs.js';
 import '../settings_page/settings_section.js';
-import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
@@ -108,12 +108,20 @@ export class SettingsYourSavedInfoPageElement extends
           return loadTimeData.getBoolean('enableYourSavedInfoShoppingPage');
         },
       },
+
+      showSuggestionsFromGeminiSettings_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('showSuggestionsFromGeminiSettings');
+        },
+      },
     };
   }
 
   declare prefs: Record<string, unknown>;
   declare private hierarchy_: DataTypeHierarchy;
   declare private enableYourSavedInfoShoppingPage_: boolean;
+  declare private showSuggestionsFromGeminiSettings_: boolean;
 
   private dataChipIdToChip_: Map<YourSavedInfoDataChip, DataChip> = new Map();
   private dataChipIdToCategory_: Map<YourSavedInfoDataChip, DataCategory> =
@@ -436,6 +444,10 @@ export class SettingsYourSavedInfoPageElement extends
     if (routes.YOUR_SAVED_INFO_SHOPPING) {
       map.set(routes.YOUR_SAVED_INFO_SHOPPING.path, '#shoppingManagerButton');
     }
+    if (routes.SUGGESTIONS_FROM_GEMINI) {
+      map.set(
+          routes.SUGGESTIONS_FROM_GEMINI.path, '#suggestionsFromGeminiLinkRow');
+    }
     return map;
   }
 
@@ -462,6 +474,9 @@ export class SettingsYourSavedInfoPageElement extends
         break;
       case 'shopping':
         triggerId = 'shoppingManagerButton';
+        break;
+      case 'suggestionsFromGemini':
+        triggerId = 'suggestionsFromGeminiLinkRow';
         break;
       default:
         assertNotReached(`Unrecognized child view ID: ${childViewId}`);
@@ -535,6 +550,11 @@ export class SettingsYourSavedInfoPageElement extends
       default:
         assertNotReachedCase(categoryId);
     }
+  }
+
+  private onSuggestionsFromGeminiClick_() {
+    // TODO(crbug.com/512204278): Add metrics.
+    Router.getInstance().navigateTo(routes.SUGGESTIONS_FROM_GEMINI);
   }
 
   /**

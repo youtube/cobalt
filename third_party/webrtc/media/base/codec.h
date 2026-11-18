@@ -272,6 +272,12 @@ std::vector<const Codec*> FindAllMatchingCodecs(
     const std::vector<Codec>& supported_codecs,
     const Codec& codec);
 
+// Returns a copy of `format` modified to be H.264 Constrained Baseline Profile
+// (CBP) if `format` is H.264, has a valid profile-level-id, and is not already
+// CBP. Otherwise, returns std::nullopt.
+RTC_EXPORT std::optional<SdpVideoFormat> CreateH264ConstrainedBaselineProfile(
+    const SdpVideoFormat& format);
+
 RTC_EXPORT void AddH264ConstrainedBaselineProfileToSupportedFormats(
     std::vector<SdpVideoFormat>* supported_formats);
 

@@ -20,10 +20,6 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 
-namespace ash {
-class SigninHelper;
-}
-
 namespace account_manager {
 enum class AccountAdditionSource : int;
 }
@@ -35,7 +31,7 @@ namespace crosapi {
 // Account Manager.
 //
 // TODO(b/365741912, b/365902693): This service is a temporary stepping stone
-// for direct Ash callers that still need the current Account Manager dialog/UI
+// for direct Ash callers that still need the current Account Manager dialog
 // path. After all callers are off AccountManagerFacade, create an Ash-owned
 // dialog coordinator and switch those direct callers from this service to that
 // coordinator. Furthermore, once the remaining crosapi/facade users are gone,
@@ -56,8 +52,10 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerMojoService
   void SetAccountManagerUI(
       std::unique_ptr<account_manager::AccountManagerUI> account_manager_ui);
 
-  void OnAccountUpsertionFinishedForTesting(
-      const account_manager::AccountUpsertionResult& result);
+  // TODO(b/365741912, b/365902693): Remove this temporary completion callback
+  // once inline login is routed through the Ash-owned dialog coordinator.
+  base::OnceCallback<void(const account_manager::AccountUpsertionResult&)>
+  CreateInlineLoginAccountUpsertionFinishedCallback();
 
   // Helpers for direct Ash callers. These record launch-source UMA before
   // opening the dialog and result-status UMA before forwarding the completion
@@ -80,7 +78,6 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerMojoService
   void ShowReauthAccountDialog(
       const std::string& email,
       ShowReauthAccountDialogCallback callback) override;
-  void ShowManageAccountsSettings() override;
   void CreateAccessTokenFetcher(
       mojom::AccountKeyPtr mojo_account_key,
       const std::string& oauth_consumer_name,
@@ -94,12 +91,8 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerMojoService
 
  private:
   friend class AccountManagerMojoServiceTest;
-  friend class TestAccountManagerObserver;
-  friend class AccountManagerFacadeAshTest;
-  friend class ash::SigninHelper;
 
-  // This method is called by `ash::SigninHelper` which passes `AccountKey`
-  // of account that was added.
+  // Handles the result reported after the inline login flow finishes.
   void OnAccountUpsertionFinished(
       const account_manager::AccountUpsertionResult& result);
   // A callback for `AccountManagerUI::ShowAccountAdditionDialog`.

@@ -14,16 +14,14 @@ ChromeVoxLocaleOutputHelperTest = class extends ChromeVoxE2ETest {
     super.testGenCppIncludes();
     GEN(`
   #include "base/command_line.h"
-  #include "ui/accessibility/accessibility_switches.h"
   #include "ui/base/ui_base_switches.h"
       `);
   }
 
+
   /** @override */
   testGenPreamble() {
     GEN(`
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      ::switches::kEnableExperimentalAccessibilityLanguageDetection);
     base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(::switches::kLang, "en-US");
       `);
     super.testGenPreamble();
@@ -83,53 +81,7 @@ ChromeVoxLocaleOutputHelperTest = class extends ChromeVoxE2ETest {
     `;
   }
 
-  get englishAndFrenchUnlabeledDoc() {
-    return `
-      <p>
-        This entire object should be read in English, even the following French passage:
-        salut mon ami! Ca va? Bien, et toi? It's hard to differentiate between latin-based languages.
-      </p>
-    `;
-  }
 
-  get englishAndKoreanUnlabeledDoc() {
-    return `
-      <meta charset="utf-8">
-      <p>This text is written in English. 차에 한하여 중임할 수. This text is also written in English.</p>
-    `;
-  }
-
-  get japaneseAndChineseUnlabeledDoc() {
-    return `
-      <meta charset="utf-8">
-      <p id="text">
-        天気はいいですね. 右万諭全中結社原済権人点掲年難出面者会追
-      </p>
-    `;
-  }
-
-  get japaneseAndEnglishUnlabeledDoc() {
-    return `
-      <meta charset="utf-8">
-      <p>Hello, my name is 太田あきひろ. It's a pleasure to meet you. どうぞよろしくお願いします.</p>
-    `;
-  }
-
-  get japaneseAndKoreanUnlabeledDoc() {
-    return `
-      <meta charset="utf-8">
-      <p lang="ko">
-        私は. 법률이 정하는 바에 의하여 대법관이 아닌 법관을 둘 수 있다
-      </p>
-    `;
-  }
-
-  get japaneseCharacterUnlabeledDoc() {
-    return `
-      <meta charset="utf-8">
-      <p>ど</p>
-    `;
-  }
 
   get multipleLanguagesLabeledDoc() {
     return `
@@ -252,90 +204,6 @@ AX_TEST_F(
       await mockFeedback.replay();
     });
 
-AX_TEST_F(
-    'ChromeVoxLocaleOutputHelperTest', 'JapaneseAndEnglishUnlabeledDocTest',
-    async function() {
-      const mockFeedback = this.createMockFeedback();
-      const root =
-          await this.runWithLoadedTree(this.japaneseAndEnglishUnlabeledDoc);
-      SettingsManager.set('languageSwitching', true);
-      this.setAvailableVoices();
-      mockFeedback
-          .call(doCmd('jumpToTop'))
-          // Expect the node's contents to be read in one language
-          // (English).
-          // Language detection does not run on small runs of text, like
-          // the one in this test, we are falling back on the UI language
-          // of the browser, which is en-US. Please see testGenPreamble
-          // for more details.
-          .expectSpeechWithLocale(
-              'en-us',
-              'Hello, my name is 太田あきひろ. It\'s a pleasure to meet' +
-                  ' you. どうぞよろしくお願いします.');
-      await mockFeedback.replay();
-    });
-
-AX_TEST_F(
-    'ChromeVoxLocaleOutputHelperTest', 'EnglishAndKoreanUnlabeledDocTest',
-    async function() {
-      const mockFeedback = this.createMockFeedback();
-      const root =
-          await this.runWithLoadedTree(this.englishAndKoreanUnlabeledDoc);
-      SettingsManager.set('languageSwitching', true);
-      this.setAvailableVoices();
-      mockFeedback.call(doCmd('jumpToTop'))
-          .expectSpeechWithLocale(
-              'en-us',
-              'This text is written in English. 차에 한하여 중임할 수.' +
-                  ' This text is also written in English.');
-      await mockFeedback.replay();
-    });
-
-AX_TEST_F(
-    'ChromeVoxLocaleOutputHelperTest', 'EnglishAndFrenchUnlabeledDocTest',
-    async function() {
-      const mockFeedback = this.createMockFeedback();
-      const root =
-          await this.runWithLoadedTree(this.englishAndFrenchUnlabeledDoc);
-      SettingsManager.set('languageSwitching', true);
-      this.setAvailableVoices();
-      mockFeedback.call(doCmd('jumpToTop'))
-          .expectSpeechWithLocale(
-              'en',
-              'This entire object should be read in English, even' +
-                  ' the following French passage: ' +
-                  'salut mon ami! Ca va? Bien, et toi? It\'s hard to' +
-                  ' differentiate between latin-based languages.');
-      await mockFeedback.replay();
-    });
-
-AX_TEST_F(
-    'ChromeVoxLocaleOutputHelperTest', 'JapaneseCharacterUnlabeledDocTest',
-    async function() {
-      const mockFeedback = this.createMockFeedback();
-      const root =
-          await this.runWithLoadedTree(this.japaneseCharacterUnlabeledDoc);
-      SettingsManager.set('languageSwitching', true);
-      this.setAvailableVoices();
-      mockFeedback.call(doCmd('jumpToTop'))
-          .expectSpeechWithLocale('en-us', 'ど');
-      await mockFeedback.replay();
-    });
-
-AX_TEST_F(
-    'ChromeVoxLocaleOutputHelperTest', 'JapaneseAndChineseUnlabeledDocTest',
-    async function() {
-      const mockFeedback = this.createMockFeedback();
-      const root =
-          await this.runWithLoadedTree(this.japaneseAndChineseUnlabeledDoc);
-      SettingsManager.set('languageSwitching', true);
-      this.setAvailableVoices();
-      mockFeedback.call(doCmd('jumpToTop'))
-          .expectSpeechWithLocale(
-              'en-us',
-              '天気はいいですね. 右万諭全中結社原済権人点掲年難出面者会追');
-      await mockFeedback.replay();
-    });
 
 AX_TEST_F(
     'ChromeVoxLocaleOutputHelperTest', 'JapaneseAndChineseLabeledDocTest',
@@ -358,22 +226,7 @@ AX_TEST_F(
       await mockFeedback.replay();
     });
 
-AX_TEST_F(
-    'ChromeVoxLocaleOutputHelperTest', 'JapaneseAndKoreanUnlabeledDocTest',
-    async function() {
-      const mockFeedback = this.createMockFeedback();
-      const root =
-          await this.runWithLoadedTree(this.japaneseAndKoreanUnlabeledDoc);
-      SettingsManager.set('languageSwitching', true);
-      this.setAvailableVoices();
-      // Language detection runs and assigns language of 'ko' to the node.
-      mockFeedback.call(doCmd('jumpToTop'))
-          .expectSpeechWithLocale(
-              'ko',
-              '한국어: 私は. 법률이 정하는 바에 의하여 대법관이 아닌 법관을 둘 수' +
-                  ' 있다');
-      await mockFeedback.replay();
-    });
+
 
 AX_TEST_F(
     'ChromeVoxLocaleOutputHelperTest', 'AsturianAndJapaneseDocTest',

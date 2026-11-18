@@ -13,8 +13,10 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/bigint.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/field-type.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/lookup-cache-inl.h"
 #include "src/objects/maybe-object-inl.h"
@@ -29,8 +31,6 @@
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/descriptor-array-tq-inl.inc"
 
 Tagged<FixedArray> EnumCache::keys() const { return keys_.load(); }
 void EnumCache::set_keys(Tagged<FixedArray> value, WriteBarrierMode mode) {

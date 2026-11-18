@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/core/view_transition/dom_view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
+#include "third_party/blink/renderer/core/view_transition/view_transition_test_utils.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
@@ -29,6 +30,8 @@
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
+#include "third_party/blink/renderer/platform/wtf/hash_set.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -439,10 +442,8 @@ class AXViewTransitionTest : public testing::Test {
 
   void UpdateAllLifecyclePhasesAndFinishDirectives() {
     UpdateAllLifecyclePhasesForTest();
-    for (auto& callback :
-         LayerTreeHost()->TakeViewTransitionCallbacksForTesting()) {
-      std::move(callback).Run({});
-    }
+    ViewTransitionTestUtils::ProcessPendingDirectives(GetDocument(),
+                                                      LayerTreeHost());
   }
 
   cc::LayerTreeHost* LayerTreeHost() {
@@ -657,5 +658,130 @@ TEST_F(AccessibilityTest, RestoreAriaOwnsAfterAriaHiddenRemoved) {
   EXPECT_EQ(list, item1->ParentObject());
   EXPECT_EQ(list, item2->ParentObject());
 }
+
+#if AX_FAIL_FAST_BUILD()
+// Regression test for crbug.com/511730260: the cache's included node count and
+// the serializer's client tree count may diverge when an included node is left
+// unreachable from the root during loading; this must not crash the browser.
+//
+// The last update of a serialization pass carries AXTreeChecks::node_count.
+// The browser applies those updates, and AXTree::CheckTreeConsistency() checks
+// that node_count matches the size of the resulting tree (id_map_.size()) and
+// crashes (NOTREACHED) if it does not. That size also equals the serializer's
+// client tree count (ClientTreeNodeCount()), which is the number of nodes in
+// its current client tree.
+//
+// The cache also keeps a separate included node count (GetIncludedNodeCount())
+// that can diverge from the client tree count (crbug.com/456786676). Sending
+// that value as node_count could cause a crash because of "tree inconsistency".
+//
+// This test creates that divergence: |owner| aria-owns |target|, then leaves
+// |target| included but unreachable from the root during loading, so the
+// serializer never reaches it. The test then verifies node_count tracks the
+// client tree count, not the cache's included count.
+TEST_F(AccessibilityTest,
+       TreeChecksNodeCountMatchesSerializerClientTreeWhenIncludedCountDrifts) {
+  // |owner| aria-owns |target|, so |target| is an aria-owned child of |owner|
+  // in the accessibility tree without being its DOM child.
+  StringBuilder body;
+  body.Append(R"HTML(
+      <div id="owner" aria-owns="target"></div>
+      <div id="target" role="button" aria-label="Target"></div>
+  )HTML");
+  // Having more than 100 included nodes skips the expensive DCHECK that the
+  // renderer-side CheckTreeConsistency() runs only for small trees, comparing
+  // the cache's included count against a recursive count from the root.
+  for (int i = 0; i < 150; ++i) {
+    body.Append("<p>x</p>");
+  }
+  SetBodyInnerHTML(body.ToString());
+
+  auto& cache = GetAXObjectCache();
+  AXObject* owner = GetAXObjectByElementId("owner");
+  AXObject* target = GetAXObjectByElementId("target");
+  ASSERT_TRUE(owner);
+  ASSERT_TRUE(target);
+  ASSERT_EQ(owner, target->ParentObject());
+  ASSERT_TRUE(owner->CachedChildrenIncludingIgnored().Contains(target));
+  ASSERT_GT(cache.GetIncludedNodeCount(), 100u);
+
+  // Reset the serializer so the next pass re-serializes the whole tree.
+  cache.ResetSerializer();
+  ASSERT_FALSE(cache.HasObjectsPendingSerialization());
+
+  const AXID target_id = target->AXObjectID();
+
+  // Make |target| unreachable from the root. ClearChildren() drops it from
+  // |owner|'s child list, and SetParent() then restores its parent pointer but
+  // not its place in the child list. Therefore |target| stays included and
+  // parented yet no ancestor lists it, so the serializer will never reach it.
+  owner->ClearChildren();
+  ASSERT_TRUE(target->IsMissingParent());
+  target->SetParent(owner);
+  ASSERT_EQ(owner, target->ParentObjectIfPresent());
+  ASSERT_FALSE(target->IsMissingParent());
+  ASSERT_TRUE(target->IsIncludedInTree());
+  ASSERT_FALSE(owner->CachedChildrenIncludingIgnored().Contains(target));
+
+  // Set the state of the document to "loading" so the consistency checks in
+  // CheckTreeIsFinalized() (every included node must be listed by its parent)
+  // are skipped, leaving |target| in place instead of crashing the renderer.
+  // SerializeAXUpdatesIfNeeded() does not serialize anything here but
+  // resets the cache lifecycle state so the next pass can advance it again.
+  GetDocument().SetReadyState(Document::kLoading);
+  ASSERT_TRUE(cache.CommitAXUpdates(GetDocument(), /*force=*/true));
+  cache.SerializeAXUpdatesIfNeeded(GetDocument());
+  ASSERT_FALSE(cache.IsDirty());
+  ASSERT_FALSE(cache.HasObjectsPendingSerialization());
+
+  // Confirm that |target| is still included and parented to |owner|, while
+  // absent from its child list. It is the one unreachable included node, so the
+  // included count exceeds the client tree count by one.
+  owner = GetAXObjectByElementId("owner");
+  target = GetAXObjectByElementId("target");
+  ASSERT_TRUE(owner);
+  ASSERT_TRUE(target);
+  ASSERT_EQ(target_id, target->AXObjectID());
+  ASSERT_TRUE(target->IsIncludedInTree());
+  ASSERT_FALSE(target->IsMissingParent());
+  ASSERT_EQ(owner, target->ParentObjectIfPresent());
+  ASSERT_FALSE(owner->CachedChildrenIncludingIgnored().Contains(target));
+
+  // Serialize, calling GetUpdatesAndEventsForSerialization directly to capture
+  // the list of updates.
+  cache.AddDirtyObjectToSerializationQueue(cache.Root());
+  std::vector<ui::AXTreeUpdate> updates;
+  std::vector<ui::AXEvent> events;
+  bool had_end_of_test_event = false;
+  bool had_load_complete_messages = false;
+  {
+    ScopedFreezeAXCache freeze(cache);
+    ASSERT_TRUE(cache.HasObjectsPendingSerialization());
+    cache.GetUpdatesAndEventsForSerialization(
+        updates, events, had_end_of_test_event, had_load_complete_messages);
+  }
+
+  // |target| is counted as included but never serialized, so node_count is
+  // exactly one below the cache's included count.
+  ASSERT_FALSE(updates.empty());
+  ASSERT_TRUE(updates.back().tree_checks.has_value());
+  ASSERT_EQ(updates.back().tree_checks->node_count + 1,
+            cache.GetIncludedNodeCount());
+
+  // This serialization pass serialized the entire reachable tree, so its
+  // distinct node ids are exactly what the browser maps into id_map_. Verify
+  // that node_count equals the number of serialized nodes, and that |target|
+  // is not among them.
+  HashSet<AXID> serialized_node_ids;
+  for (const auto& update : updates) {
+    for (const auto& node : update.nodes) {
+      serialized_node_ids.insert(node.id);
+    }
+  }
+  EXPECT_EQ(updates.back().tree_checks->node_count,
+            static_cast<size_t>(serialized_node_ids.size()));
+  EXPECT_FALSE(serialized_node_ids.Contains(target_id));
+}
+#endif  // AX_FAIL_FAST_BUILD()
 
 }  // namespace blink

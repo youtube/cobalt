@@ -726,6 +726,7 @@ class GLES2DecoderImpl : public GLES2Decoder,
   friend class ScopedFramebufferCopyBinder;
   friend class BackFramebuffer;
   friend class BackTexture;
+  friend class ScopedDepthStencilReattacher;
 
   enum FramebufferOperation {
     kFramebufferDiscard,
@@ -1331,7 +1332,7 @@ class GLES2DecoderImpl : public GLES2Decoder,
 
   // Clears any uncleared attachments attached to the given frame buffer.
   // Returns false if there was a generated GL error.
-  void ClearUnclearedAttachments(GLenum target, Framebuffer* framebuffer);
+  bool ClearUnclearedAttachments(GLenum target, Framebuffer* framebuffer);
 
   // overridden from GLES2Decoder
   bool ClearLevel(Texture* texture,
@@ -2548,6 +2549,157 @@ ScopedGLErrorSuppressor::ScopedGLErrorSuppressor(
 
 ScopedGLErrorSuppressor::~ScopedGLErrorSuppressor() {
   ERRORSTATE_CLEAR_REAL_GL_ERRORS(error_state_, function_name_);
+}
+
+class ScopedDepthStencilReattacher {
+ public:
+  ScopedDepthStencilReattacher(GLES2DecoderImpl* decoder,
+                               TextureRef* texture_ref);
+  ScopedDepthStencilReattacher(GLES2DecoderImpl* decoder,
+                               Renderbuffer* renderbuffer);
+  ~ScopedDepthStencilReattacher();
+
+ private:
+  struct SavedAttachmentInfo {
+    scoped_refptr<Framebuffer> framebuffer;
+    GLenum attachment_point;
+    GLenum texture_target = 0;
+    GLint texture_level = 0;
+    GLsizei texture_samples = 0;
+    GLint texture_layer = 0;
+    bool is_texture = false;
+    bool is_renderbuffer = false;
+  };
+
+  void Initialize();
+
+  raw_ptr<GLES2DecoderImpl> decoder_;
+  raw_ptr<TextureRef> texture_ref_ = nullptr;
+  raw_ptr<Renderbuffer> renderbuffer_ = nullptr;
+  std::vector<SavedAttachmentInfo> saved_attachments_;
+  scoped_refptr<Framebuffer> old_read_fbo_;
+  scoped_refptr<Framebuffer> old_draw_fbo_;
+};
+
+ScopedDepthStencilReattacher::ScopedDepthStencilReattacher(
+    GLES2DecoderImpl* decoder,
+    TextureRef* texture_ref)
+    : decoder_(decoder), texture_ref_(texture_ref) {
+  Initialize();
+}
+
+ScopedDepthStencilReattacher::ScopedDepthStencilReattacher(
+    GLES2DecoderImpl* decoder,
+    Renderbuffer* renderbuffer)
+    : decoder_(decoder), renderbuffer_(renderbuffer) {
+  Initialize();
+}
+
+void ScopedDepthStencilReattacher::Initialize() {
+  if (!decoder_->workarounds().reattach_fbo_depth_stencil_on_reallocation) {
+    return;
+  }
+
+  std::vector<std::pair<scoped_refptr<Framebuffer>, GLenum>> detached_fbos;
+  if (texture_ref_) {
+    detached_fbos =
+        decoder_->framebuffer_manager()->GetBindingFramebuffersForTexture(
+            texture_ref_);
+  } else if (renderbuffer_) {
+    detached_fbos =
+        decoder_->framebuffer_manager()->GetBindingFramebuffersForRenderbuffer(
+            renderbuffer_);
+  }
+
+  if (detached_fbos.empty()) {
+    return;
+  }
+
+  // Save old bindings to restore them later.
+  old_read_fbo_ = decoder_->framebuffer_state_.bound_read_framebuffer;
+  old_draw_fbo_ = decoder_->framebuffer_state_.bound_draw_framebuffer;
+
+  // Save attachment details and detach.
+  for (const auto& pair : detached_fbos) {
+    Framebuffer* fbo = pair.first.get();
+    GLenum attachment_point = pair.second;
+    const Framebuffer::Attachment* attachment =
+        fbo->GetAttachment(attachment_point);
+    if (!attachment) {
+      continue;
+    }
+
+    SavedAttachmentInfo info;
+    info.framebuffer = pair.first;
+    info.attachment_point = attachment_point;
+
+    if (attachment->IsTextureAttachment()) {
+      info.is_texture = true;
+      info.texture_target = attachment->target();
+      info.texture_level = attachment->level();
+      info.texture_samples = attachment->samples();
+      info.texture_layer = attachment->layer();
+    } else if (attachment->IsRenderbufferAttachment()) {
+      info.is_renderbuffer = true;
+    }
+
+    saved_attachments_.push_back(info);
+
+    // Detach in driver.
+    decoder_->api()->glBindFramebufferEXTFn(GL_FRAMEBUFFER, fbo->service_id());
+    if (info.is_texture) {
+      decoder_->api()->glFramebufferTexture2DEXTFn(
+          GL_FRAMEBUFFER, attachment_point, info.texture_target, 0, 0);
+    } else if (info.is_renderbuffer) {
+      decoder_->api()->glFramebufferRenderbufferEXTFn(
+          GL_FRAMEBUFFER, attachment_point, GL_RENDERBUFFER, 0);
+    }
+  }
+}
+
+ScopedDepthStencilReattacher::~ScopedDepthStencilReattacher() {
+  if (saved_attachments_.empty()) {
+    return;
+  }
+
+  // Reattach.
+  for (const auto& info : saved_attachments_) {
+    Framebuffer* fbo = info.framebuffer.get();
+    decoder_->api()->glBindFramebufferEXTFn(GL_FRAMEBUFFER, fbo->service_id());
+    if (info.is_texture) {
+      if (info.texture_layer == 0) {
+        if (info.texture_samples == 0) {
+          decoder_->api()->glFramebufferTexture2DEXTFn(
+              GL_FRAMEBUFFER, info.attachment_point, info.texture_target,
+              texture_ref_->service_id(), info.texture_level);
+        } else {
+          decoder_->api()->glFramebufferTexture2DMultisampleEXTFn(
+              GL_FRAMEBUFFER, info.attachment_point, info.texture_target,
+              texture_ref_->service_id(), info.texture_level,
+              info.texture_samples);
+        }
+      } else {
+        decoder_->api()->glFramebufferTextureLayerFn(
+            GL_FRAMEBUFFER, info.attachment_point, texture_ref_->service_id(),
+            info.texture_level, info.texture_layer);
+      }
+    } else if (info.is_renderbuffer) {
+      decoder_->api()->glFramebufferRenderbufferEXTFn(
+          GL_FRAMEBUFFER, info.attachment_point, GL_RENDERBUFFER,
+          renderbuffer_->service_id());
+    }
+  }
+
+  // Restore bindings.
+  if (old_read_fbo_ == old_draw_fbo_) {
+    GLuint service_id = old_read_fbo_ ? old_read_fbo_->service_id() : 0;
+    decoder_->api()->glBindFramebufferEXTFn(GL_FRAMEBUFFER, service_id);
+  } else {
+    GLuint read_id = old_read_fbo_ ? old_read_fbo_->service_id() : 0;
+    GLuint draw_id = old_draw_fbo_ ? old_draw_fbo_->service_id() : 0;
+    decoder_->api()->glBindFramebufferEXTFn(GL_READ_FRAMEBUFFER, read_id);
+    decoder_->api()->glBindFramebufferEXTFn(GL_DRAW_FRAMEBUFFER, draw_id);
+  }
 }
 
 static void RestoreCurrentTextureBindings(ContextState* state,
@@ -4044,7 +4196,9 @@ bool GLES2DecoderImpl::CheckFramebufferValid(
   if (renderbuffer_manager()->HaveUnclearedRenderbuffers() ||
       texture_manager()->HaveUnclearedMips()) {
     if (!framebuffer->IsCleared()) {
-      ClearUnclearedAttachments(target, framebuffer);
+      if (!ClearUnclearedAttachments(target, framebuffer)) {
+        return false;
+      }
     }
   }
   return true;
@@ -7060,8 +7214,8 @@ void GLES2DecoderImpl::DoSampleCoverage(GLclampf value, GLboolean invert) {
 }
 
 // Assumes framebuffer is complete.
-void GLES2DecoderImpl::ClearUnclearedAttachments(
-    GLenum target, Framebuffer* framebuffer) {
+bool GLES2DecoderImpl::ClearUnclearedAttachments(GLenum target,
+                                                 Framebuffer* framebuffer) {
   bool rasterizer_discard_enabled = state_.enable_flags.rasterizer_discard;
   if (rasterizer_discard_enabled) {
     state_.SetDeviceCapabilityState(GL_RASTERIZER_DISCARD, false);
@@ -7070,8 +7224,12 @@ void GLES2DecoderImpl::ClearUnclearedAttachments(
   // Clear textures that we can't use glClear first. These textures will be
   // marked as cleared after the call and no longer be part of the following
   // code.
-  framebuffer->ClearUnclearedIntOr3DTexturesOrPartiallyClearedTextures(
-      this, texture_manager());
+  if (!framebuffer->ClearUnclearedIntOr3DTexturesOrPartiallyClearedTextures(
+          this, texture_manager())) {
+    MarkContextLost(error::kUnknown);
+    group_->LoseContexts(error::kUnknown);
+    return false;
+  }
 
   bool cleared_int_renderbuffers = false;
   Framebuffer* draw_framebuffer = GetBoundDrawFramebuffer();
@@ -7163,6 +7321,7 @@ void GLES2DecoderImpl::ClearUnclearedAttachments(
   if (rasterizer_discard_enabled) {
     state_.SetDeviceCapabilityState(GL_RASTERIZER_DISCARD, true);
   }
+  return true;
 }
 
 void GLES2DecoderImpl::RestoreClearState() {
@@ -7966,6 +8125,8 @@ void GLES2DecoderImpl::RenderbufferStorageMultisampleWithWorkaround(
     GLsizei width,
     GLsizei height,
     ForcedMultisampleMode mode) {
+  ScopedDepthStencilReattacher reattacher(this,
+                                          state_.bound_renderbuffer.get());
   RegenerateRenderbufferIfNeeded(state_.bound_renderbuffer.get());
   EnsureRenderbufferBound();
   RenderbufferStorageMultisampleHelper(target, samples, internal_format, width,
@@ -12930,6 +13091,9 @@ error::Error GLES2DecoderImpl::HandleTexImage2D(uint32_t immediate_data_size,
   // Set as failed for now, but if it successed, this will be set to not failed.
   texture_state_.tex_image_failed = true;
   GLenum target = static_cast<GLenum>(c.target);
+  TextureRef* texture_ref =
+      texture_manager()->GetTextureInfoForTarget(&state_, target);
+  ScopedDepthStencilReattacher reattacher(this, texture_ref);
   GLint level = static_cast<GLint>(c.level);
   GLenum internal_format = static_cast<GLenum>(c.internalformat);
   GLsizei width = static_cast<GLsizei>(c.width);
@@ -13023,6 +13187,9 @@ error::Error GLES2DecoderImpl::HandleTexImage3D(uint32_t immediate_data_size,
   // Set as failed for now, but if it successed, this will be set to not failed.
   texture_state_.tex_image_failed = true;
   GLenum target = static_cast<GLenum>(c.target);
+  TextureRef* texture_ref =
+      texture_manager()->GetTextureInfoForTarget(&state_, target);
+  ScopedDepthStencilReattacher reattacher(this, texture_ref);
   GLint level = static_cast<GLint>(c.level);
   GLenum internal_format = static_cast<GLenum>(c.internalformat);
   GLsizei width = static_cast<GLsizei>(c.width);
@@ -13336,6 +13503,7 @@ void GLES2DecoderImpl::DoCopyTexImage2D(
         GL_INVALID_OPERATION, func_name, "unknown texture for target");
     return;
   }
+  ScopedDepthStencilReattacher reattacher(this, texture_ref);
   Texture* texture = texture_ref->texture();
   if (texture->IsImmutable()) {
     LOCAL_SET_GL_ERROR(
@@ -14944,8 +15112,9 @@ error::Error GLES2DecoderImpl::HandleDescheduleUntilFinishedCHROMIUM(
     return error::kNoError;
   }
 
-  TRACE_EVENT_BEGIN("cc", "GLES2DecoderImpl::DescheduleUntilFinished",
-                    perfetto::Track::FromPointer(this));
+  TRACE_EVENT_BEGIN(
+      "cc", "GLES2DecoderImpl::DescheduleUntilFinished",
+      perfetto::NamedTrack::FromPointer("gpu::gles2::GLES2DecoderImpl", this));
   client()->OnDescheduleUntilFinished();
   return error::kDeferLaterCommands;
 }
@@ -15030,8 +15199,8 @@ void GLES2DecoderImpl::ProcessDescheduleUntilFinished() {
   if (!deschedule_until_finished_fences_[0]->HasCompleted())
     return;
 
-  TRACE_EVENT_END("cc", /*"GLES2DecoderImpl::DescheduleUntilFinished"*/
-                  perfetto::Track::FromPointer(this));
+  TRACE_EVENT_END("cc", perfetto::NamedTrack::FromPointer(
+                            "gpu::gles2::GLES2DecoderImpl", this));
   deschedule_until_finished_fences_.erase(
       deschedule_until_finished_fences_.begin());
   client()->OnRescheduleAfterFinished();
@@ -15930,6 +16099,7 @@ void GLES2DecoderImpl::TexStorageImpl(GLenum target,
                        "unknown texture for target");
     return;
   }
+  ScopedDepthStencilReattacher reattacher(this, texture_ref);
   Texture* texture = texture_ref->texture();
   // The glTexStorage entry points require width, height, and depth to be
   // at least 1, but the other texture entry points (those which use

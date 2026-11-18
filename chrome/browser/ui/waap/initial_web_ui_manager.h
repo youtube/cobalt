@@ -55,6 +55,10 @@ class InitialWebUIManager {
   // have already been taken.
   std::unique_ptr<content::WebContents> TakeToolbarContents();
 
+  content::WebContents* GetToolbarContentsForTesting() {
+    return toolbar_web_contents_.get();
+  }
+
  private:
   // These callbacks are triggered when the initial WebUI is ready.
   base::OnceClosureList web_ui_ready_callbacks_;

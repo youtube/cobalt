@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_TAGGED_FIELD_H_
 #define V8_OBJECTS_TAGGED_FIELD_H_
 
+#include "include/v8config.h"
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
 #include "src/base/template-meta-programming/functional.h"
@@ -34,7 +35,7 @@ using ProtectedTaggedMember = TaggedMember<T, TrustedSpaceCompressionScheme>;
 using TaggedMemberBase = TaggedImpl<HeapObjectReferenceType::WEAK, Tagged_t>;
 
 template <typename T, typename CompressionScheme>
-class TaggedMember : public TaggedMemberBase {
+class V8_GSL_POINTER TaggedMember : public TaggedMemberBase {
  public:
   constexpr TaggedMember() = default;
 
@@ -81,6 +82,19 @@ class UnalignedValueMember {
 
   T value() const { return base::ReadUnalignedValue<T>(storage_); }
   void set_value(T value) { base::WriteUnalignedValue(storage_, value); }
+
+  const T* address() const {
+    // Only safe to call when the storage was aligned after all by careful
+    // heap allocation.
+    DCHECK_EQ(reinterpret_cast<Address>(storage_) % alignof(T), 0);
+    return reinterpret_cast<const T*>(storage_);
+  }
+  T* address() {
+    // Only safe to call when the storage was aligned after all by careful
+    // heap allocation.
+    DCHECK_EQ(reinterpret_cast<Address>(storage_) % alignof(T), 0);
+    return reinterpret_cast<T*>(storage_);
+  }
 
  protected:
   alignas(alignof(Tagged_t)) char storage_[sizeof(T)];

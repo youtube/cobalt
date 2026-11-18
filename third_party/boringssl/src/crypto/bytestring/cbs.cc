@@ -506,10 +506,20 @@ int CBS_get_asn1_element(CBS *cbs, CBS *out, CBS_ASN1_TAG tag_value) {
   return cbs_get_asn1(cbs, out, tag_value, 0 /* include header */);
 }
 
-int CBS_peek_asn1_tag(const CBS *cbs, CBS_ASN1_TAG tag_value) {
+CBS_ASN1_TAG CBS_peek_any_asn1_tag(const CBS *cbs) {
   CBS copy = *cbs;
-  CBS_ASN1_TAG actual_tag;
-  return parse_asn1_tag(&copy, &actual_tag) && tag_value == actual_tag;
+  CBS_ASN1_TAG tag;
+  if (!parse_asn1_tag(&copy, &tag)) {
+    return 0;
+  }
+  return tag;
+}
+
+int CBS_peek_asn1_tag(const CBS *cbs, CBS_ASN1_TAG tag_value) {
+  CBS_ASN1_TAG actual_tag = CBS_peek_any_asn1_tag(cbs);
+  // The caller should never pass zero as |tag_value|, but return zero if they
+  // did.
+  return actual_tag != 0 && actual_tag == tag_value;
 }
 
 int CBS_get_asn1_uint64(CBS *cbs, uint64_t *out) {
@@ -932,7 +942,7 @@ static int CBS_parse_rfc5280_time_internal(const CBS *cbs, int is_gentime,
   // If allow_timezone_offset is non-zero, allow for a four digit timezone
   // offset to be specified even though this is not allowed by RFC 5280. We are
   // permissive of this for UTCTimes due to the unfortunate existence of
-  // artisinally rolled long lived certificates that were baked into places that
+  // artisanally rolled long lived certificates that were baked into places that
   // are now difficult to change. These certificates were generated with the
   // 'openssl' command that permissively allowed the creation of certificates
   // with notBefore and notAfter times specified as strings for direct

@@ -21,7 +21,7 @@ public class NtpSearchBoxFactory {
     public static NtpSearchBox createSearchBox(
             Context context,
             ViewStub viewStub,
-            boolean isTablet,
+            boolean isLff,
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
             boolean isIncognito,
             WindowAndroid windowAndroid,
@@ -36,7 +36,7 @@ public class NtpSearchBoxFactory {
             return new SearchBoxCoordinator(
                     context,
                     viewStub,
-                    isTablet,
+                    isLff,
                     activityLifecycleDispatcher,
                     isIncognito,
                     windowAndroid,

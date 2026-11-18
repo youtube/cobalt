@@ -4,6 +4,7 @@
 
 #include "components/user_education/test/feature_promo_controller_test_base.h"
 
+#include <memory>
 #include <optional>
 
 #include "base/feature_list.h"
@@ -13,6 +14,7 @@
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "components/user_education/common/feature_promo/feature_promo_session_policy.h"
 #include "components/user_education/common/tutorial/tutorial_service.h"
+#include "components/user_education/product_messaging/product_messaging_policy_impl.h"
 #include "components/user_education/test/mock_user_education_context.h"
 #include "components/user_education/test/test_help_bubble.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -75,7 +77,9 @@ void FeaturePromoControllerTestBase::SetUp() {
   using Info = FeaturePromoSessionPolicy::PromoPriorityInfo;
 
   session_policy_.Init(nullptr, &storage_service_);
-  messaging_controller_.Init(session_provider_, storage_service_);
+  messaging_controller_.Init(
+      session_provider_, storage_service_,
+      user_education::ProductMessagingPolicyImpl::CreateDefault());
   promo_controller_ = CreateController();
   help_bubble_factory_registry_.MaybeRegister<TestHelpBubbleFactory>();
   anchor_element_.Show();

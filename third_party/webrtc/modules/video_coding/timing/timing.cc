@@ -17,6 +17,7 @@
 
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
+#include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/video_frame.h"
@@ -122,6 +123,24 @@ void VCMTiming::SetMinimumDelay(TimeDelta minimum_delay) {
       timings_.current_delay = timings_.minimum_delay;
     }
   }
+}
+
+void VCMTiming::OnDecodableTemporalUnit(uint32_t rtp_timestamp,
+                                        DataSize superframe_size,
+                                        Timestamp max_receive_time,
+                                        bool was_retransmitted) {
+  RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
+  std::optional<TimeDelta> minimum_delay =
+      video_jitter_timing_.OnDecodableTemporalUnit(
+          rtp_timestamp, superframe_size, max_receive_time, was_retransmitted);
+  if (minimum_delay.has_value()) {
+    SetMinimumDelay(*minimum_delay);
+  }
+}
+
+void VCMTiming::UpdateRtt(TimeDelta rtt) {
+  RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
+  video_jitter_timing_.UpdateRtt(rtt);
 }
 
 void VCMTiming::UpdateCurrentDelay(Timestamp render_time,

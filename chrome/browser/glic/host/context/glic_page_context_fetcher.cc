@@ -184,6 +184,15 @@ void HandleFetchPageResult(
     }
   }
 
+  // If the screenshot is going to be annotated, mark the standalone
+  // screenshot_info as such.
+  if (is_screenshot_annotated) {
+    if (!page_context.screenshot_info.has_value()) {
+      page_context.screenshot_info.emplace();
+    }
+    page_context.screenshot_info->set_has_selection_region_in_screenshot(true);
+  }
+
   if (page_context.annotated_page_content_result.has_value()) {
     auto annotated_page_data = mojom::AnnotatedPageData::New();
     if (media_root_node) {
@@ -220,6 +229,11 @@ void HandleFetchPageResult(
         std::move(page_context.annotated_page_content_result->metadata);
 
     tab_context->annotated_page_data = std::move(annotated_page_data);
+  }
+
+  if (page_context.screenshot_info.has_value()) {
+    tab_context->screenshot_info =
+        mojo_base::ProtoWrapper(*page_context.screenshot_info);
   }
   std::move(callback).Run(
       base::ok(mojom::GetContextResult::NewTabContext(std::move(tab_context))));

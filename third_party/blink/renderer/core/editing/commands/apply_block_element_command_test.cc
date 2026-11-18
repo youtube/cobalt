@@ -40,7 +40,7 @@ TEST_F(ApplyBlockElementCommandTest, selectionCrossingOverBody) {
   GetDocument().setDesignMode("on");
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(GetDocument().documentElement(), 1),
                             Position(GetDocument()
                                          .getElementById(AtomicString("va"))
@@ -71,7 +71,7 @@ TEST_F(ApplyBlockElementCommandTest, visibilityChangeDuringCommand) {
   GetDocument().setDesignMode("on");
 
   UpdateAllLifecyclePhasesForTest();
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(QuerySelector("li"), 0))
                                .Build(),
                            SetSelectionOptions());
@@ -95,7 +95,7 @@ TEST_F(ApplyBlockElementCommandTest, IndentHeadingIntoBlockquote) {
       "</div>");
   Element* button = QuerySelector("button");
   Element* object = QuerySelector("object");
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(button, 0))
                                .Extend(Position(object, 0))
                                .Build(),
@@ -182,13 +182,13 @@ TEST_F(ApplyBlockElementCommandTest, FormatBlockWithDirectChildrenOfRoot) {
   UpdateAllLifecyclePhasesForTest();
 
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().SelectAllChildren(*root).Build(),
+      SelectionInDomTree::Builder().SelectAllChildren(*root).Build(),
       SetSelectionOptions());
   auto* command = MakeGarbageCollected<FormatBlockCommand>(GetDocument(),
                                                            html_names::kPreTag);
   // Shouldn't crash here.
   EXPECT_FALSE(command->Apply());
-  const SelectionInDOMTree& selection = Selection().GetSelectionInDOMTree();
+  const SelectionInDomTree& selection = Selection().GetSelectionInDomTree();
   EXPECT_EQ("^a<div>b</div>c|",
             SelectionSample::GetSelectionText(*root, selection));
 }

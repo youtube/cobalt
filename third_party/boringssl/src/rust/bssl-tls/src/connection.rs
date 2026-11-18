@@ -107,31 +107,24 @@ where
         }
     }
 
-    fn get_connection_methods(&mut self) -> &mut methods::RustConnectionMethods<M> {
-        unsafe {
-            // Safety: the validity of the handle `self.0` is witnessed by
-            // `self`.
-            get_connection_methods(self.ptr())
-        }
-    }
-
     /// Disable session creation.
     pub fn disable_session(&mut self) -> &mut Self {
-        let ptr = self.ptr();
-        unsafe {
-            // Safety: the validity of the handle `ptr` is witnessed by `self`.
-            bssl_sys::SSL_set_mode(ptr, ConnectionMode::MODE_NO_SESSION_CREATION.bits());
-        }
+        self.as_in_handshake().disable_session();
         self
     }
 
     /// Set the session for resumption.
     pub fn with_session(&mut self, session: &TlsSession) -> &mut Self {
-        unsafe {
-            // Safety: self.ptr and session.0 are valid.
-            bssl_sys::SSL_set_session(self.ptr.as_ptr(), session.0.as_ptr());
-        }
+        self.as_in_handshake().set_session(session);
         self
+    }
+
+    pub(crate) fn as_in_handshake(&mut self) -> lifecycle::TlsConnectionInHandshake<'_, R, M> {
+        unsafe {
+            // Safety: `TlsConnectionBuilder` and `TlsConnection` have identical memory layout.
+            // Both are wrappers around `NonNull<bssl_sys::SSL>`.
+            lifecycle::TlsConnectionInHandshake(core::mem::transmute(self))
+        }
     }
 }
 

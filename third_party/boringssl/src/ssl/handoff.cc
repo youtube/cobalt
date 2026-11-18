@@ -119,7 +119,7 @@ bool SSL_decline_handoff(SSL *ssl) {
 
 // apply_remote_features reads a list of supported features from `in` and
 // (possibly) reconfigures `ssl` to disallow the negotiation of features whose
-// support has not been indicated.  (This prevents the the handshake from
+// support has not been indicated.  (This prevents the handshake from
 // committing to features that are not supported on the handoff/handback side.)
 static bool apply_remote_features(SSL *ssl, CBS *in) {
   CBS ciphers;

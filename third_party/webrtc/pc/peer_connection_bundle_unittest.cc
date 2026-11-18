@@ -19,6 +19,7 @@
 #include "api/candidate.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -60,6 +61,7 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -188,7 +190,9 @@ class PeerConnectionBundleBaseTest : public ::testing::Test {
   typedef std::unique_ptr<PeerConnectionWrapperForBundleTest> WrapperPtr;
 
   explicit PeerConnectionBundleBaseTest(SdpSemantics sdp_semantics)
-      : main_(&vss_), sdp_semantics_(sdp_semantics) {
+      : env_(CreateTestEnvironment()),
+        main_(&vss_),
+        sdp_semantics_(sdp_semantics) {
 #ifdef WEBRTC_ANDROID
     InitializeAndroidObjects();
 #endif
@@ -220,6 +224,7 @@ class PeerConnectionBundleBaseTest : public ::testing::Test {
         std::make_unique<VideoDecoderFactoryTemplate<
             LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter,
             OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>();
+    pcf_deps.env = env_;
     EnableMediaWithDefaults(pcf_deps);
 
     scoped_refptr<PeerConnectionFactoryInterface> pc_factory =
@@ -263,6 +268,7 @@ class PeerConnectionBundleBaseTest : public ::testing::Test {
     return candidate;
   }
 
+  const Environment env_;
   VirtualSocketServer vss_;
   test::RunLoop main_;
   const SdpSemantics sdp_semantics_;

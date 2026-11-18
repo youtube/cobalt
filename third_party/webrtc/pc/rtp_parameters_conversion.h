@@ -13,7 +13,6 @@
 
 #include <optional>
 #include <span>
-#include <vector>
 
 #include "api/rtp_parameters.h"
 #include "media/base/codec.h"
@@ -38,7 +37,7 @@ std::optional<RtcpFeedback> ToRtcpFeedback(
 RtpCodecCapability ToRtpCodecCapability(const Codec& cricket_codec);
 
 RtpCapabilities ToRtpCapabilities(
-    const std::vector<Codec>& cricket_codecs,
+    std::span<const Codec> cricket_codecs,
     std::span<const RtpHeaderExtensionCapability> extensions);
 
 }  // namespace webrtc

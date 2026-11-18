@@ -33,6 +33,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/ieee754.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
 #include "src/objects/module.h"
@@ -1641,6 +1642,16 @@ ExternalReference::compare_operation_feedback_transition_table() {
 ExternalReference ExternalReference::compare_operation_feedback_encode_table() {
   return ExternalReference(
       CompareOperationFeedback::GetFeedbackEncodeTableAddress());
+}
+
+ExternalReference
+ExternalReference::binary_operation_feedback_transition_table() {
+  return ExternalReference(BinaryOperationFeedback::GetTransitionMapAddress());
+}
+
+ExternalReference ExternalReference::binary_operation_feedback_encode_table() {
+  return ExternalReference(
+      BinaryOperationFeedback::GetFeedbackEncodeTableAddress());
 }
 
 ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {

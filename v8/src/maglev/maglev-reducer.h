@@ -13,6 +13,7 @@
 #include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
 #include "src/base/memcopy.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/feedback-source.h"
@@ -32,6 +33,7 @@ namespace internal {
 namespace maglev {
 
 struct MaglevCallSiteInfo;
+class MaglevGraphBuilder;
 template <typename BaseT>
 class MaglevReducer;
 template <typename BaseT>
@@ -267,9 +269,8 @@ concept ReducerBaseWithEagerDeopt =
     requires(BaseT* b) { b->GetDeoptFrameForEagerDeopt(); };
 
 template <typename BaseT>
-concept ReducerBaseWithUnconditonalDeopt = requires(BaseT* b) {
-  b->EmitUnconditionalDeopt(std::declval<DeoptimizeReason>());
-};
+concept ReducerBaseWithAbruptBlockEnd =
+    requires(BaseT* b, BasicBlock* block) { b->OnAbruptBlockEnd(block); };
 
 template <typename BaseT>
 concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
@@ -310,6 +311,8 @@ concept ReducerBaseWithAllocationTracking = requires(BaseT* b) {
                                           std::declval<int>());
   b->TryBuildLoadTaggedFieldFromAllocation(std::declval<ValueNode*>(),
                                            std::declval<int>());
+  b->TryBuildLoadFixedDoubleArrayElementFromAllocation(
+      std::declval<ValueNode*>(), std::declval<int>());
   b->TryElideWriteBarrierForAllocation(std::declval<ValueNode*>(),
                                        std::declval<ValueNode*>());
 };
@@ -656,6 +659,9 @@ class MaglevReducer {
                                           compiler::HeapObjectRef ref,
                                           DeoptimizeReason reason);
 
+  MaybeReduceResult TryBuildLoadFixedArrayElementConstantIndex(
+      ValueNode* elements, int32_t index, LoadType type);
+
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
   // graph.
@@ -687,6 +693,8 @@ class MaglevReducer {
   ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
 
   ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
+  ReduceResult BuildAbort(AbortReason reason);
+  ReduceResult EmitThrow(Throw::Function function, ValueNode* input = nullptr);
 
   template <class T>
   compiler::OptionalRef<typename compiler::ref_traits<T>::ref_type>
@@ -699,8 +707,6 @@ class MaglevReducer {
     if (!ref.has_value() || !ref->Is<T>()) return {};
     return ref->As<T>();
   }
-  compiler::OptionalHeapObjectRef TryGetHeapObjectConstant(
-      ValueNode* node, ValueNode** constant_node);
 
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
@@ -866,9 +872,12 @@ class MaglevReducer {
                                        ValueNode* kind);
 
   ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
-                                    LoadType type = LoadType::kUnknown,
+                                    NodeType type = NodeType::kUnknown,
                                     bool is_const = false,
                                     PropertyKey key = PropertyKey::None());
+
+  ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements,
+                                                ValueNode* index);
 
   ReduceResult BuildStoreTaggedField(
       ValueNode* object, ValueNode* value, int offset,
@@ -885,6 +894,22 @@ class MaglevReducer {
                                              ValueNode* value, int offset,
                                              IndirectPointerTag tag,
                                              StoreTaggedMode store_mode);
+
+  ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
+                             StoreMap::Kind kind);
+
+  ReduceResult BuildInlinedAllocation(VirtualObject* object,
+                                      AllocationType allocation);
+  ReduceResult BuildAndAllocateJSArrayIterator(ValueNode* array,
+                                               IterationKind iteration_kind);
+  void ClearCurrentAllocationBlock();
+  void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
+  AllocationBlock* current_allocation_block() const {
+    return current_allocation_block_;
+  }
+
+  MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
+                                            int index, VariableMode* mode);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
@@ -1022,6 +1047,11 @@ class MaglevReducer {
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
 #define MAGLEV_REDUCER_BUILTIN(V)              \
+  V(ArrayIsArray)                              \
+  V(ArrayPrototypeAt)                          \
+  V(ArrayPrototypeEntries)                     \
+  V(ArrayPrototypeKeys)                        \
+  V(ArrayPrototypeValues)                      \
   V(DataViewPrototypeGetFloat64)               \
   V(DataViewPrototypeGetInt16)                 \
   V(DataViewPrototypeGetInt32)                 \
@@ -1086,6 +1116,7 @@ class MaglevReducer {
                                           Function&& getValue);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
+  MaybeReduceResult TryReduceStringLength(ValueNode* string);
 
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
                                       InstanceType first, InstanceType last);
@@ -1417,10 +1448,34 @@ class MaglevReducer {
 
   std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
 
+  InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
+      AllocationType allocation_type, VirtualObject* value);
+  ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc,
+                               AllocationType allocation_type);
+  void BuildInitializeStore(vobj::Field desc, InlinedAllocation* alloc,
+                            AllocationType allocation_type, ValueNode* value,
+                            StoreTaggedMode store_mode,
+                            MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
+  void BuildInitializeStore_Tagged(vobj::Field desc, InlinedAllocation* alloc,
+                                   AllocationType allocation_type,
+                                   ValueNode* value, StoreTaggedMode store_mode,
+                                   MaybeAssignedFlag maybe_assigned);
+  void BuildInitializeStore_TrustedPointer(vobj::Field desc,
+                                           InlinedAllocation* alloc,
+                                           AllocationType allocation_type,
+                                           ValueNode* value);
+
   template <typename T>
   friend class MapInference;
 
  private:
+  template <typename NodeT, typename... Args>
+  ReduceResult EmitAbruptBlockEnd(std::initializer_list<ValueNode*> inputs,
+                                  Args&&... args);
+
+  // Use TryGetConstant instead.
+  compiler::OptionalHeapObjectRef TryGetHeapObjectConstant(
+      ValueNode* node, ValueNode** constant_node);
   BaseT* base_;
 
   Graph* graph_;
@@ -1431,6 +1486,8 @@ class MaglevReducer {
   BasicBlock* current_block_ = nullptr;
   BasicBlockPosition current_block_position_ = BasicBlockPosition::End();
   AddNewNodeMode add_new_node_mode_ = AddNewNodeMode::kBuffered;
+
+  AllocationBlock* current_allocation_block_ = nullptr;
 
 #ifdef DEBUG
   // This is used for dcheck purposes, it is the set of all nodes created in

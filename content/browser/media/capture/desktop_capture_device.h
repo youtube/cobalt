@@ -37,6 +37,11 @@ namespace content {
 media::VideoPixelFormat CONTENT_EXPORT
 FourCCToVideoPixelFormat(webrtc::FourCC fourcc);
 
+#if BUILDFLAG(IS_WIN)
+// Returns true if Windows Graphics Capture (WGC) is enabled for screen capture.
+bool CONTENT_EXPORT IsWgcEnabledForScreenCapture();
+#endif
+
 // DesktopCaptureDevice implements VideoCaptureDevice for screens and windows.
 // It's essentially an adapter between webrtc::DesktopCapturer and
 // VideoCaptureDevice, i.e. it employs the third-party WebRTC code to use native

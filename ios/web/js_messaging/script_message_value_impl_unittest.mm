@@ -13,7 +13,7 @@ using ScriptMessageValueTest = PlatformTest;
 // Tests that the default constructor initializes to a NONE type.
 TEST_F(ScriptMessageValueTest, DefaultConstructor) {
   ScriptMessageValue message_value;
-  EXPECT_EQ(base::Value::Type::NONE, message_value.type());
+  ASSERT_EQ(base::Value::Type::NONE, message_value.type());
   EXPECT_EQ(base::Value(), message_value.GetValue());
 }
 
@@ -26,11 +26,11 @@ TEST_F(ScriptMessageValueTest, BoolConstructor) {
   EXPECT_FALSE(message_value_false.GetValue().GetBool());
 }
 
-// Tests initialization with a string (std::u16string_view).
+// Tests initialization with a string.
 TEST_F(ScriptMessageValueTest, StringConstructor) {
-  std::u16string string_val = u"hello";
-  ScriptMessageValue message_value(string_val);
-  EXPECT_EQ(base::Value::Type::STRING, message_value.type());
+  std::string string_val = "hello";
+  ScriptMessageValue message_value(std::move(string_val));
+  ASSERT_EQ(base::Value::Type::STRING, message_value.type());
   EXPECT_EQ("hello", message_value.GetValue().GetString());
 }
 
@@ -38,7 +38,7 @@ TEST_F(ScriptMessageValueTest, StringConstructor) {
 TEST_F(ScriptMessageValueTest, DoubleConstructor) {
   double double_val = 3.14;
   ScriptMessageValue message_value(double_val);
-  EXPECT_EQ(base::Value::Type::DOUBLE, message_value.type());
+  ASSERT_EQ(base::Value::Type::DOUBLE, message_value.type());
   EXPECT_EQ(3.14, message_value.GetValue().GetDouble());
 }
 
@@ -46,14 +46,14 @@ TEST_F(ScriptMessageValueTest, DoubleConstructor) {
 TEST_F(ScriptMessageValueTest, ValueShouldSupportDictConstruction) {
   NSDictionary* ns_dict = @{@"key" : @"value"};
   ScriptMessageValue message_value(ns_dict);
-  EXPECT_EQ(base::Value::Type::DICT, message_value.type());
+  ASSERT_EQ(base::Value::Type::DICT, message_value.type());
 }
 
 // Tests initialization with a NSArray
 TEST_F(ScriptMessageValueTest, ValueShouldSupportArrayConstruction) {
   NSArray* ns_array = @[ @"key", @"value" ];
   ScriptMessageValue message_value(ns_array);
-  EXPECT_EQ(base::Value::Type::LIST, message_value.type());
+  ASSERT_EQ(base::Value::Type::LIST, message_value.type());
 }
 
 // Tests move construction and move assignment.

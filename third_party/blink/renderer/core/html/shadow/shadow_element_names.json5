@@ -86,8 +86,8 @@
       Symbol: "kSelectOptions",
     },
     {
-      name: "select-popover-options",
-      Symbol: "kSelectPopoverOptions",
+      name: "select-input",
+      Symbol: "kSelectInput",
     },
 
     //

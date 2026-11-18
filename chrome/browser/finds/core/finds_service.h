@@ -126,10 +126,6 @@ class FindsService : public KeyedService,
 
   // Potentially requests that pending notifications be rescheduled.
   void MaybeRescheduleNotifications();
-  // Schedules a test notification using mocked data, bypassing model execution.
-  // This is intended for use by the chrome-finds-internals page only. Do not
-  // use in production code.
-  bool ScheduleNotificationForInternalsPage();
 
  private:
   friend class FindsServiceTest;

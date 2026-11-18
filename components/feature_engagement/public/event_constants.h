@@ -424,6 +424,14 @@ extern const char kIOSGeminiLiveNewBadgeTriggered[];
 // Event fired when the Gemini Live 1st-time IPH is triggered.
 extern const char kIOSGeminiLiveIPHTriggered[];
 
+// Event fired when the user taps the "What can Gemini do" suggestion chip.
+extern const char kIOSGeminiWhatCanGeminiDoTapped[];
+
+// Event fired when the "What can Gemini do" suggestion chip is shown to the
+// user. This is different from WhatCanGeminiDoTapped because it can be
+// triggered without the user tapping the chip.
+extern const char kIOSGeminiWhatCanGeminiDoTriggered[];
+
 // Event fired when the user pins a site to the most visited tile.
 extern const char kIOSPinMVTSiteUsed[];
 

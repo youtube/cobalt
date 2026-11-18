@@ -70,7 +70,7 @@ class DiceWebSigninInterceptionBubbleViewTestBase : public testing::Test {
     enterprise_account_ = AccountInfo::Builder(account_info)
                               .SetHostedDomain("example.com")
                               .Build();
-    AccountCapabilitiesTestMutator(&enterprise_account_.capabilities)
+    AccountCapabilitiesTestMutator(&enterprise_account_)
         .set_is_subject_to_enterprise_features(true);
     identity_test_env->UpdateAccountInfoForAccount(enterprise_account_);
     personal_account_ =

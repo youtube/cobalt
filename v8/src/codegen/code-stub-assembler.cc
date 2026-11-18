@@ -2602,16 +2602,18 @@ TNode<Uint32T> CodeStubAssembler::LoadJSReceiverIdentityHash(
 #ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 // Mirror C++ StringHasher::SeedArrayIndexValue.
 TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
-  // Load m1, m2 and m3 from the hash seed byte array. In the compiled code
+  // Load m1, m2 and m3 from the hash seed wrapper. In the compiled code
   // these will always come from the read-only roots.
-  TNode<ByteArray> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
-  intptr_t base_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag;
-  TNode<Uint32T> m1 = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM1Offset));
-  TNode<Uint32T> m2 = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM2Offset));
-  TNode<Uint32T> m3 = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM3Offset));
+  TNode<HashSeedWrapper> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
+  constexpr int kM1Offset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m1);
+  constexpr int kM2Offset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m2);
+  constexpr int kM3Offset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m3);
+  TNode<Uint32T> m1 = LoadObjectField<Uint32T>(hash_seed, kM1Offset);
+  TNode<Uint32T> m2 = LoadObjectField<Uint32T>(hash_seed, kM2Offset);
+  TNode<Uint32T> m3 = LoadObjectField<Uint32T>(hash_seed, kM3Offset);
 
   TNode<Word32T> x = value;
   // 3-round xorshift-multiply.
@@ -2631,16 +2633,18 @@ TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
 
 // Mirror C++ StringHasher::UnseedArrayIndexValue.
 TNode<Uint32T> CodeStubAssembler::UnseedArrayIndexValue(TNode<Uint32T> value) {
-  // Load m1_inv, m2_inv and m3_inv from the hash seed byte array. In the
+  // Load m1_inv, m2_inv and m3_inv from the hash seed wrapper. In the
   // compiled code these will always come from the read-only roots.
-  TNode<ByteArray> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
-  intptr_t base_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag;
-  TNode<Uint32T> m1_inv = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM1InvOffset));
-  TNode<Uint32T> m2_inv = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM2InvOffset));
-  TNode<Uint32T> m3_inv = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM3InvOffset));
+  TNode<HashSeedWrapper> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
+  constexpr int kM1InvOffset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m1_inv);
+  constexpr int kM2InvOffset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m2_inv);
+  constexpr int kM3InvOffset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m3_inv);
+  TNode<Uint32T> m1_inv = LoadObjectField<Uint32T>(hash_seed, kM1InvOffset);
+  TNode<Uint32T> m2_inv = LoadObjectField<Uint32T>(hash_seed, kM2InvOffset);
+  TNode<Uint32T> m3_inv = LoadObjectField<Uint32T>(hash_seed, kM3InvOffset);
 
   TNode<Word32T> x = value;
   // 3-round xorshift-multiply (inverse).
@@ -7153,11 +7157,16 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
 
       if (feedback.var_feedback != nullptr) {
         BIND(&if_exception);
-        DCHECK(feedback.slot != nullptr);
-        DCHECK(feedback.maybe_feedback_vector != nullptr);
-        UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
-                       (*feedback.maybe_feedback_vector)(), *feedback.slot,
-                       feedback.update_mode);
+        if (feedback.feedback_updater != nullptr) {
+          (*feedback.feedback_updater)(
+              SmiConstant(BinaryOperationFeedback::kAny));
+        } else {
+          DCHECK(feedback.slot != nullptr);
+          DCHECK(feedback.maybe_feedback_vector != nullptr);
+          UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                         (*feedback.maybe_feedback_vector)(), *feedback.slot,
+                         feedback.update_mode);
+        }
         CallRuntime(Runtime::kReThrow, context, var_exception.value());
         Unreachable();
       }
@@ -9420,7 +9429,7 @@ ToDirectStringAssembler::ToDirectStringAssembler(
 #else
       var_instance_type_(LoadInstanceType(string), this),
 #endif
-      var_offset_(Int32Constant(0), this),
+      var_offset_(IntPtrConstant(0), this),
       var_is_external_(Int32Constant(0), this),
       flags_(flags) {
 }
@@ -9534,7 +9543,11 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
       const TNode<String> string = var_string_.value();
       const TNode<Int32T> sliced_offset = LoadAndUntagToWord32ObjectField(
           string, offsetof(SlicedString, offset_));
-      var_offset_ = Int32Add(var_offset_.value(), sliced_offset);
+      // Clamp accumulated offsets using 32-bit wrapping arithmetic to prevent
+      // out-of-sandbox reads under memory corruption (see b/519768343).
+      const TNode<Int32T> new_offset =
+          Int32Add(TruncateIntPtrToInt32(var_offset_.value()), sliced_offset);
+      var_offset_ = Signed(ChangeUint32ToWord(Unsigned(new_offset)));
 
       const TNode<String> parent =
           LoadObjectField<String>(string, offsetof(SlicedString, parent_));
@@ -13662,6 +13675,36 @@ void CodeStubAssembler::ReportFeedbackUpdate(
 #endif  // V8_TRACE_FEEDBACK_UPDATES
 }
 
+namespace {
+
+// Trait supplying per-feedback-category external references used by the
+// embedded-feedback helpers.
+template <typename Feedback>
+struct EmbeddedFeedbackTraits;
+
+template <>
+struct EmbeddedFeedbackTraits<CompareOperationFeedback> {
+  static ExternalReference transition_table() {
+    return ExternalReference::compare_operation_feedback_transition_table();
+  }
+  static ExternalReference encode_table() {
+    return ExternalReference::compare_operation_feedback_encode_table();
+  }
+};
+
+template <>
+struct EmbeddedFeedbackTraits<BinaryOperationFeedback> {
+  static ExternalReference transition_table() {
+    return ExternalReference::binary_operation_feedback_transition_table();
+  }
+  static ExternalReference encode_table() {
+    return ExternalReference::binary_operation_feedback_encode_table();
+  }
+};
+
+}  // namespace
+
+template <typename Feedback>
 void CodeStubAssembler::UpdateEmbeddedFeedback(
     TNode<Smi> feedback, TNode<BytecodeArray> bytecode_array,
     TNode<IntPtrT> feedback_offset) {
@@ -13669,9 +13712,9 @@ void CodeStubAssembler::UpdateEmbeddedFeedback(
 
   TNode<Uint8T> previous_feedback =
       Load<Uint8T>(bytecode_array, feedback_offset);
-  TNode<Int32T> feedback_index = EncodeCompareOperationFeedback(feedback);
+  TNode<Int32T> feedback_index = EncodeEmbeddedFeedback<Feedback>(feedback);
   TNode<Uint8T> new_feedback =
-      CombineCompareOperationFeedback(previous_feedback, feedback_index);
+      CombineEmbeddedFeedback<Feedback>(previous_feedback, feedback_index);
 
   GotoIf(Word32Equal(previous_feedback, new_feedback), &end);
   {
@@ -13692,6 +13735,11 @@ void CodeStubAssembler::UpdateEmbeddedFeedback(
   BIND(&end);
 }
 
+template void CodeStubAssembler::UpdateEmbeddedFeedback<
+    CompareOperationFeedback>(TNode<Smi>, TNode<BytecodeArray>, TNode<IntPtrT>);
+template void CodeStubAssembler::UpdateEmbeddedFeedback<
+    BinaryOperationFeedback>(TNode<Smi>, TNode<BytecodeArray>, TNode<IntPtrT>);
+
 void CodeStubAssembler::OverwriteFeedback(TVariable<Smi>* existing_feedback,
                                           int new_feedback) {
   if (existing_feedback == nullptr) return;
@@ -13710,28 +13758,41 @@ void CodeStubAssembler::CombineFeedback(TVariable<Smi>* existing_feedback,
   *existing_feedback = SmiOr(existing_feedback->value(), feedback);
 }
 
-TNode<Int32T> CodeStubAssembler::EncodeCompareOperationFeedback(
+template <typename Feedback>
+TNode<Int32T> CodeStubAssembler::EncodeEmbeddedFeedback(
     TNode<Smi> feedback_value) {
   TVARIABLE(Int32T, result);
-  TNode<RawPtrT> feedback_encode_table =
-      UncheckedCast<RawPtrT>(ExternalConstant(
-          ExternalReference::compare_operation_feedback_encode_table()));
+  TNode<RawPtrT> feedback_encode_table = UncheckedCast<RawPtrT>(
+      ExternalConstant(EmbeddedFeedbackTraits<Feedback>::encode_table()));
   result = Load<Uint8T>(feedback_encode_table,
                         ChangeUint32ToWord(SmiToInt32(feedback_value)));
   return result.value();
 }
 
-TNode<Uint8T> CodeStubAssembler::CombineCompareOperationFeedback(
+template TNode<Int32T> CodeStubAssembler::EncodeEmbeddedFeedback<
+    CompareOperationFeedback>(TNode<Smi>);
+template TNode<Int32T> CodeStubAssembler::EncodeEmbeddedFeedback<
+    BinaryOperationFeedback>(TNode<Smi>);
+
+template <typename Feedback>
+TNode<Uint8T> CodeStubAssembler::CombineEmbeddedFeedback(
     TNode<Int32T> old_feedback_index, TNode<Int32T> current_feedback_index) {
   TVARIABLE(Uint8T, new_feedback);
-  TNode<RawPtrT> feedback_transition_table =
-      UncheckedCast<RawPtrT>(ExternalConstant(
-          ExternalReference::compare_operation_feedback_transition_table()));
-  TNode<UintPtrT> offset = ChangeUint32ToWord(Word32Or(
-      Word32Shl(old_feedback_index, Int32Constant(5)), current_feedback_index));
+  TNode<RawPtrT> feedback_transition_table = UncheckedCast<RawPtrT>(
+      ExternalConstant(EmbeddedFeedbackTraits<Feedback>::transition_table()));
+  constexpr int kShift =
+      base::bits::WhichPowerOfTwo(Feedback::kTransitionMapStride);
+  TNode<UintPtrT> offset = ChangeUint32ToWord(
+      Word32Or(Word32Shl(old_feedback_index, Int32Constant(kShift)),
+               current_feedback_index));
   new_feedback = Load<Uint8T>(feedback_transition_table, offset);
   return new_feedback.value();
 }
+
+template TNode<Uint8T> CodeStubAssembler::CombineEmbeddedFeedback<
+    CompareOperationFeedback>(TNode<Int32T>, TNode<Int32T>);
+template TNode<Uint8T> CodeStubAssembler::CombineEmbeddedFeedback<
+    BinaryOperationFeedback>(TNode<Int32T>, TNode<Int32T>);
 
 void CodeStubAssembler::CheckForAssociatedProtector(TNode<Name> name,
                                                     Label* if_protector) {
@@ -16035,9 +16096,11 @@ void CodeStubAssembler::GenerateStrictEqualAndTryPatchCode(
 
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
   TNode<Int32T> feedback_index =
-      EncodeCompareOperationFeedback(var_type_feedback.value());
+      EncodeEmbeddedFeedback<CompareOperationFeedback>(
+          var_type_feedback.value());
   TNode<Uint8T> new_feedback =
-      CombineCompareOperationFeedback(current_type_feedback, feedback_index);
+      CombineEmbeddedFeedback<CompareOperationFeedback>(current_type_feedback,
+                                                        feedback_index);
 
   // Update embedded feedback in the runtime function to avoid
   // repeatedly entering/exiting hardware sandbox.
@@ -16065,18 +16128,20 @@ void CodeStubAssembler::GenerateEqualAndTryPatchCode(
         lhs, rhs, [&]() { return LoadContextFromBaseline(); },
         &var_type_feedback);
   }
-  feedback_index = EncodeCompareOperationFeedback(var_type_feedback.value());
-  new_feedback = CombineCompareOperationFeedback(current_type_feedback,
-                                                 feedback_index.value());
+  feedback_index = EncodeEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value());
+  new_feedback = CombineEmbeddedFeedback<CompareOperationFeedback>(
+      current_type_feedback, feedback_index.value());
   TailCallRuntime(Runtime::kPatchBaselineCode, NoContextConstant(),
                   SmiFromInt32(new_feedback.value()), result, bytecode_array,
                   ChangeUintPtrToTagged(feedback_offset));
 
   BIND(&if_exception);
   {
-    feedback_index = EncodeCompareOperationFeedback(var_type_feedback.value());
-    new_feedback = CombineCompareOperationFeedback(current_type_feedback,
-                                                   feedback_index.value());
+    feedback_index = EncodeEmbeddedFeedback<CompareOperationFeedback>(
+        var_type_feedback.value());
+    new_feedback = CombineEmbeddedFeedback<CompareOperationFeedback>(
+        current_type_feedback, feedback_index.value());
     TailCallRuntime(Runtime::kPatchBaselineCodeAndThrow, NoContextConstant(),
                     SmiFromInt32(new_feedback.value()), var_exception.value(),
                     bytecode_array, ChangeUintPtrToTagged(feedback_offset));
@@ -16283,20 +16348,20 @@ void CodeStubAssembler::GenerateNumberEqual(TNode<Object> lhs,
           Operation::k##Name, lhs, rhs,                                        \
           [&]() { return LoadContextFromBaseline(); }, &var_type_feedback);    \
     }                                                                          \
-    feedback_index =                                                           \
-        EncodeCompareOperationFeedback(var_type_feedback.value());             \
-    new_feedback = CombineCompareOperationFeedback(current_type_feedback,      \
-                                                   feedback_index.value());    \
+    feedback_index = EncodeEmbeddedFeedback<CompareOperationFeedback>(         \
+        var_type_feedback.value());                                            \
+    new_feedback = CombineEmbeddedFeedback<CompareOperationFeedback>(          \
+        current_type_feedback, feedback_index.value());                        \
     TailCallRuntime(Runtime::kPatchBaselineCode, NoContextConstant(),          \
                     SmiFromInt32(new_feedback.value()), result,                \
                     bytecode_array, ChangeUintPtrToTagged(feedback_offset));   \
                                                                                \
     BIND(&if_exception);                                                       \
     {                                                                          \
-      feedback_index =                                                         \
-          EncodeCompareOperationFeedback(var_type_feedback.value());           \
-      new_feedback = CombineCompareOperationFeedback(current_type_feedback,    \
-                                                     feedback_index.value());  \
+      feedback_index = EncodeEmbeddedFeedback<CompareOperationFeedback>(       \
+          var_type_feedback.value());                                          \
+      new_feedback = CombineEmbeddedFeedback<CompareOperationFeedback>(        \
+          current_type_feedback, feedback_index.value());                      \
       TailCallRuntime(Runtime::kPatchBaselineCodeAndThrow,                     \
                       NoContextConstant(), SmiFromInt32(new_feedback.value()), \
                       var_exception.value(), bytecode_array,                   \

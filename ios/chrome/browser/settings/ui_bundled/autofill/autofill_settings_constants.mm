@@ -39,3 +39,5 @@ NSString* const kAutofillAddressMigrateToAccountButtonId =
     @"kAutofillAddressMigrateToAccountButtonId";
 
 NSString* const kAutofillEditButtonCellId = @"kAutofillEditButtonCellId";
+
+NSString* const kAutofillPayOverTimeCellId = @"kAutofillPayOverTimeCellId";

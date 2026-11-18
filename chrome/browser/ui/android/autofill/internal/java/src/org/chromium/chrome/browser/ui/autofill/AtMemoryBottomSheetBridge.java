@@ -60,7 +60,10 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
 
     @CalledByNative
     public static AutofillSuggestion createAutofillSuggestion(
-            String label, String subLabel, int iconId, int suggestionType) {
+            @JniType("std::u16string") String label,
+            @JniType("std::u16string") String subLabel,
+            int iconId,
+            int suggestionType) {
         return new AutofillSuggestion.Builder()
                 .setLabel(label)
                 .setSubLabel(subLabel)
@@ -83,6 +86,14 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
     }
 
     @Override
+    public void onQuerySubmitted(String query) {
+        if (mNativeAtMemoryBottomSheetBridge != 0) {
+            AtMemoryBottomSheetBridgeJni.get()
+                    .onQuerySubmitted(mNativeAtMemoryBottomSheetBridge, query);
+        }
+    }
+
+    @Override
     public void onSuggestionClicked(AutofillSuggestion suggestion) {
         // TODO(crbug.com/513143737): Implement suggestion clicked handler
     }
@@ -95,5 +106,8 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
     @NativeMethods
     public interface Natives {
         void onDismissed(long nativeAtMemoryBottomSheetBridge);
+
+        void onQuerySubmitted(
+                long nativeAtMemoryBottomSheetBridge, @JniType("std::u16string") String query);
     }
 }

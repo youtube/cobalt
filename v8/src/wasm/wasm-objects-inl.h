@@ -20,16 +20,19 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/casting.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/managed.h"
 #include "src/objects/object-predicates-inl.h"
+#include "src/objects/pod-array-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/trusted-object-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/isolate-inl.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
 #include "third_party/fp16/src/include/fp16.h"
@@ -42,8 +45,6 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
-
-#include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset)                         \
   DEF_GETTER(holder, has_##name, bool) {                                       \
@@ -78,28 +79,6 @@ void WasmModuleObject::set_script(Tagged<Script> value, WriteBarrierMode mode) {
 Managed<wasm::NativeModule>::Ptr WasmModuleObject::native_module() {
   return managed_native_module()->ptr();
 }
-
-// WasmMemoryMapDescriptor
-Tagged<Weak<HeapObject>> WasmMemoryMapDescriptor::memory() const {
-  return memory_.load();
-}
-void WasmMemoryMapDescriptor::set_memory(Tagged<Weak<HeapObject>> value,
-                                         WriteBarrierMode mode) {
-  memory_.store(this, value, mode);
-}
-
-int32_t WasmMemoryMapDescriptor::file_descriptor() const {
-  return file_descriptor_;
-}
-void WasmMemoryMapDescriptor::set_file_descriptor(int32_t value) {
-  file_descriptor_ = value;
-}
-
-uint32_t WasmMemoryMapDescriptor::offset() const { return offset_; }
-void WasmMemoryMapDescriptor::set_offset(uint32_t value) { offset_ = value; }
-
-uint32_t WasmMemoryMapDescriptor::size() const { return size_; }
-void WasmMemoryMapDescriptor::set_size(uint32_t value) { size_ = value; }
 
 // WasmMemoryObject
 Tagged<UnionOf<JSArrayBuffer, Undefined>> WasmMemoryObject::array_buffer()
@@ -514,13 +493,6 @@ Tagged<JSObject> WasmInstanceObject::exports_object() const {
 void WasmInstanceObject::set_exports_object(Tagged<JSObject> value,
                                             WriteBarrierMode mode) {
   exports_object_.store(this, value, mode);
-}
-
-// Note: in case of existing in-sandbox corruption, this could return an
-// incorrect WasmModule! For security-relevant code, prefer reading
-// {native_module()} from a {WasmTrustedInstanceData}.
-const wasm::WasmModule* WasmInstanceObject::module() const {
-  return module_object()->native_module()->module();
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(

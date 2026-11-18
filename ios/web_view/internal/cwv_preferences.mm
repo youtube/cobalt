@@ -115,14 +115,6 @@
   return ios_web_view::IsAutofillVCNUsageEnabled(_prefService);
 }
 
-- (void)setRiskBasedAuthenticationEnabled:(BOOL)enabled {
-  ios_web_view::SetRiskBasedAuthenticationEnabled(_prefService, enabled);
-}
-
-- (BOOL)isRiskBasedAuthenticationEnabled {
-  return ios_web_view::IsRiskBasedAuthenticationEnabled(_prefService);
-}
-
 - (void)setTriggerNonFatalCheck:(BOOL)enabled {
   // TODO(crbug.com/503005390): Remove after release integration testing in
   // stable.

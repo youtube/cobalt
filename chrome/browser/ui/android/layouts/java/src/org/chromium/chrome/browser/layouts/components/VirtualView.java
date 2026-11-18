@@ -56,6 +56,9 @@ public interface VirtualView {
      */
     void handleClick(long time, int motionEventButtonState, int modifiers);
 
+    /** Notifies the view that it has received accessibility focus. */
+    void onAccessibilityFocused();
+
     /**
      * Set keyboard focus state of {@link VirtualView} to {@param isFocused}.
      *

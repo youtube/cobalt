@@ -1763,28 +1763,28 @@ You can also use the keyboard shortcut. First, highlight text, then press <ph na
       <message name="IDS_ASH_VIDEO_CONFERENCE_TOGGLE_BUBBLE_BUTTON_TOOLTIP" desc="The tooltip for the toggle bubble button in the video conference tray.">
         Camera and audio controls
       </message>
-      <message name="VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP" desc="Tooltip shown for the toggle buttons shown in the shelf tray. There is a different toggle button for each (Microphone, Camera, Screen Capture). If the button is toggled on, it may also be in-use.">
+      <message name="IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP" desc="Tooltip shown for the toggle buttons shown in the shelf tray. There is a different toggle button for each (Microphone, Camera, Screen Capture). If the button is toggled on, it may also be in-use.">
         Toggle <ph name="CAPTURE_MEDIUM">$1<ex>Camera</ex></ph>. <ph name="CAPTURE_MEDIUM">$1<ex>Camera</ex></ph> is <ph name="CAPTURE_STATE">$2<ex>on and in use</ex></ph>
       </message>
-      <message name="VIDEO_CONFERENCE_ONE_WAY_TOGGLE_BUTTON_TOOLTIP" desc="Tooltip shown for a toggle button in the shelf tray which is 'one way', which means that activating the button only turns the behavior off and it cannot be turned back on.">
+      <message name="IDS_VIDEO_CONFERENCE_ONE_WAY_TOGGLE_BUTTON_TOOLTIP" desc="Tooltip shown for a toggle button in the shelf tray which is 'one way', which means that activating the button only turns the behavior off and it cannot be turned back on.">
         Stop <ph name="CAPTURE_MEDIUM">$1<ex>Camera</ex></ph>. <ph name="CAPTURE_MEDIUM">$1<ex>Camera</ex></ph> is <ph name="CAPTURE_STATE">$2<ex>on and in use</ex></ph>
       </message>
-      <message name="VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA" desc="The portion of the tooltip for the camera toggle button.">
+      <message name="IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA" desc="The portion of the tooltip for the camera toggle button.">
         Camera
       </message>
-      <message name="VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE" desc="The portion of the tooltip for the microphone toggle button.">
+      <message name="IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE" desc="The portion of the tooltip for the microphone toggle button.">
         Microphone
       </message>
-      <message name="VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_SCREEN_SHARE" desc="The portion of the tooltip for the screen capture toggle button.">
+      <message name="IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_SCREEN_SHARE" desc="The portion of the tooltip for the screen capture toggle button.">
         Screen Share
       </message>
-      <message name="VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON" desc="The state of the toggle button when the toggle is on but not capturing.">
+      <message name="IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON" desc="The state of the toggle button when the toggle is on but not capturing.">
         on
       </message>
-      <message name="VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON_AND_IN_USE" desc="The state of the toggle button when the toggle is on and capturing.">
+      <message name="IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON_AND_IN_USE" desc="The state of the toggle button when the toggle is on and capturing.">
         on and in use
       </message>
-      <message name="VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF" desc="The state of the toggle button when the toggle is muting.">
+      <message name="IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF" desc="The state of the toggle button when the toggle is muting.">
         off
       </message>
        <!--  Video Conference bubble  -->
@@ -7405,7 +7405,7 @@ New install
       <message name="IDS_ASH_ECHE_TOAST_TABLET_MODE_NOT_SUPPORTED" desc="A toast message that we show when user tries to switch to tablet mode.">
         Can't stream apps in tablet mode. Try again in laptop mode.
       </message>
-      <message name="ID_ASH_ECHE_APP_STREAMING_BUBBLE_TITLE" desc="The title appear on the top of app streaming bubble">
+      <message name="IDS_ASH_ECHE_APP_STREAMING_BUBBLE_TITLE" desc="The title appear on the top of app streaming bubble">
         From <ph name="PHONE_NAME">$1<ex>Pixel 7</ex></ph>
       </message>
       <message name="IDS_ASH_ECHE_APP_STREMING_ERROR_DIALOG_TITLE" desc="The title of dialog that appears when there is a connection error trying to stream app">
@@ -9812,6 +9812,74 @@ To shut down the device, press and hold the power button on the device again.
       </message>
       <message name="IDS_PLUGIN_VM_APP_NAME_WINDOWS_SUFFIX" desc="Application name with ' (Windows)' suffix. Do not translate 'Windows'">
         <ph name="APP_NAME">$1<ex>Notepad</ex></ph> (Windows)
+      </message>
+
+      <!-- Print Job Notification -->
+      <message name="IDS_PRINT_JOB_NOTIFICATION_DISPLAY_SOURCE" desc="The context title of printing notification.">
+        Print
+      </message>
+      <message name="IDS_PRINT_JOB_PRINTING_NOTIFICATION_TITLE" desc="Title of the printing-in-progress notification.">
+        Printing...
+      </message>
+      <message name="IDS_PRINT_JOB_DONE_NOTIFICATION_TITLE" desc="Title of the successful printing notification.">
+        Done
+      </message>
+      <message name="IDS_PRINT_JOB_ERROR_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
+        Couldn't print. Check printer and try again.
+      </message>
+      <message name="IDS_PRINT_JOB_EXPIRED_CERT_ERROR_NOTIFICATION_TITLE" desc="Title of the expired certificate error printing notification">
+        Printer SSL certificate is expired. Restart printer and try again.
+      </message>
+      <message name="IDS_PRINT_JOB_AUTHORIZATION_ERROR_NOTIFICATION_TITLE" desc="Title of the authorization error printing notification.">
+        Authorization Failed
+      </message>
+      <message name="IDS_PRINT_JOB_PAPER_JAM_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
+        Paper is jammed
+      </message>
+      <message name="IDS_PRINT_JOB_OUT_OF_INK_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
+        Out of ink
+      </message>
+      <message name="IDS_PRINT_JOB_OUT_OF_PAPER_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
+        Out of paper
+      </message>
+      <message name="IDS_PRINT_JOB_DOOR_OPEN_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
+        Printer door open
+      </message>
+      <message name="IDS_PRINT_JOB_PRINTER_UNREACHABLE_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
+        Can’t connect to printer
+      </message>
+      <message name="IDS_PRINT_JOB_TRAY_MISSING_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
+        A paper tray is missing
+      </message>
+      <message name="IDS_PRINT_JOB_OUTPUT_FULL_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
+        Output tray is full
+      </message>
+      <message name="IDS_PRINT_JOB_STOPPED_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
+        Printer has stopped
+      </message>
+      <message name="IDS_PRINT_JOB_NOTIFICATION_CLIENT_UNAUTHORIZED_MESSAGE" desc="Message of the print job notification when client is unauthorized.">
+        <ph name="PROFILE_USERNAME">$1</ph> is not authorized to print to <ph name="PRINTER_NAME">$2<ex>printer</ex></ph>. Please contact your administrator.
+      </message>
+      <message name="IDS_PRINT_JOB_NOTIFICATION_IDENTIFICATION_REQUIRED_MESSAGE" desc="Message of the print job notification when credentials is not sent to the printer.">
+        Identification required to print to <ph name="PRINTER_NAME">$1<ex>printer</ex></ph>. Please contact your administrator.
+      </message>
+      <message name="IDS_PRINT_JOB_PRINTING_CONTENT_SETTINGS_PAGE" desc="Caption of the button in the printing notification that brings the user to the content settings page for Web Printing.">
+        Permissions
+      </message>
+      <message name="IDS_PRINT_JOB_PRINTING_PRINT_MANAGEMENT_PAGE" desc="Caption of the button in the printing notification that brings the user to the print management page.">
+        Print jobs
+      </message>
+      <message name="IDS_PRINT_JOB_NOTIFICATION_APP_PRINTING_IN_PROGRESS" desc="Message of the print job notification while printing is in progress.">
+        <ph name="APP_NAME">$1<ex>Application</ex></ph> is printing <ph name="PAGE_NUMBER">$2<ex>5</ex></ph> pages to <ph name="PRINTER_NAME">$3<ex>printer</ex></ph>
+      </message>
+      <message name="IDS_PRINT_JOB_NOTIFICATION_APP_PRINTING_IN_PROGRESS_SINGLE_PAGE" desc="Message of the print job notification while printing is in progress when there's only one page to print.">
+        <ph name="APP_NAME">$1<ex>Application</ex></ph> is printing 1 page to <ph name="PRINTER_NAME">$2<ex>printer</ex></ph>
+      </message>
+      <message name="IDS_PRINT_JOB_NOTIFICATION_APP_PRINTING_DONE" desc="Message of the print job notification when printing is finished.">
+        <ph name="APP_NAME">$1<ex>Application</ex></ph> has finished printing to <ph name="PRINTER_NAME">$2<ex>printer</ex></ph>
+      </message>
+      <message name="IDS_PRINT_JOB_NOTIFICATION_APP_PRINTING_INTERRUPTED" desc="Message of the print job notification when printing is interrupted.">
+        <ph name="APP_NAME">$1<ex>Application</ex></ph> is trying to print to <ph name="PRINTER_NAME">$2<ex>printer</ex></ph>
       </message>
 
       <!-- Reset screen strings -->

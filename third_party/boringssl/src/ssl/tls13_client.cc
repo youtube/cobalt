@@ -539,7 +539,7 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_MISSING_EXTENSION);
     return ssl_hs_error;
   }
-  // The above imples only one of three handshake forms will be allowed. The
+  // The above implies only one of three handshake forms will be allowed. The
   // checks for unsolicited extensions ensure the server did not select
   // something we cannot respond to.
   assert(

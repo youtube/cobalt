@@ -6,13 +6,12 @@ import 'chrome://customize-chrome-side-panel.top-chrome/strings.m.js';
 import 'chrome://resources/cr_components/theme_color_picker/theme_color_picker.js';
 
 import type {ManagedDialogElement} from 'chrome://resources/cr_components/managed_dialog/managed_dialog.js';
-import {ThemeColorPickerBrowserProxy} from 'chrome://resources/cr_components/theme_color_picker/browser_proxy.js';
 import type {Color} from 'chrome://resources/cr_components/theme_color_picker/color_utils.js';
 import {DARK_BASELINE_BLUE_COLOR, DARK_BASELINE_GREY_COLOR, LIGHT_BASELINE_BLUE_COLOR, LIGHT_BASELINE_GREY_COLOR} from 'chrome://resources/cr_components/theme_color_picker/color_utils.js';
 import type {ThemeColorElement} from 'chrome://resources/cr_components/theme_color_picker/theme_color.js';
 import type {ThemeColorPickerElement} from 'chrome://resources/cr_components/theme_color_picker/theme_color_picker.js';
 import type {ChromeColor, Theme, ThemeColorPickerClientRemote} from 'chrome://resources/cr_components/theme_color_picker/theme_color_picker.mojom-webui.js';
-import {ThemeColorPickerClientCallbackRouter, ThemeColorPickerHandlerRemote} from 'chrome://resources/cr_components/theme_color_picker/theme_color_picker.mojom-webui.js';
+import {browserProxyFactory, ThemeColorPickerHandlerRemote} from 'chrome://resources/cr_components/theme_color_picker/theme_color_picker.mojom-webui.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import {BrowserColorVariant} from 'chrome://resources/mojo/ui/base/mojom/themes.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -47,10 +46,9 @@ suite('CrComponentsThemeColorPickerTest', () => {
   setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     handler = TestMock.fromClass(ThemeColorPickerHandlerRemote);
-    ThemeColorPickerBrowserProxy.setInstance(
-        handler, new ThemeColorPickerClientCallbackRouter());
-    callbackRouter = ThemeColorPickerBrowserProxy.getInstance()
-                         .callbackRouter.$.bindNewPipeAndPassRemote();
+    const {instance, remote} = browserProxyFactory.createForTest(handler);
+    browserProxyFactory.setInstance(instance);
+    callbackRouter = remote;
     chromeColorsResolver = new PromiseResolver();
   });
 

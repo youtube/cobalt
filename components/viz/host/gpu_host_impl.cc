@@ -530,7 +530,7 @@ void GpuHostImpl::InitPersistentCache() {
       load_persistent_cache(gpu::kGrShaderGpuDiskCacheHandle, params_.product);
     }
 #if BUILDFLAG(SKIA_USE_DAWN)
-    if (features::kSkiaGraphiteDawnUsePersistentCache.Get()) {
+    if (features::SkiaGraphiteUsesPersistentCache()) {
       load_persistent_cache(gpu::kGraphiteDawnGpuDiskCacheHandle,
                             GraphiteDawnCacheVersion());
     }
@@ -682,7 +682,7 @@ void GpuHostImpl::DidInitialize(
       SetChannelDiskCacheHandle(gpu::kGrShaderCacheClientId,
                                 gpu::kGrShaderGpuDiskCacheHandle);
     }
-    if (!features::kSkiaGraphiteDawnUsePersistentCache.Get()) {
+    if (!features::SkiaGraphiteUsesPersistentCache()) {
       SetChannelDiskCacheHandle(gpu::kGraphiteDawnClientId,
                                 gpu::kGraphiteDawnGpuDiskCacheHandle);
     }

@@ -134,7 +134,7 @@ void JNI_YuvHelper_I420Rotate(JNIEnv* jni,
                      static_cast<libyuv::RotationMode>(rotation_mode));
 }
 
-void JNI_YuvHelper_ABGRToI420(JNIEnv* jni,
+void JNI_YuvHelper_AbgrToI420(JNIEnv* jni,
                               const jni_zero::JavaRef<jobject>& j_src,
                               jint src_stride,
                               const jni_zero::JavaRef<jobject>& j_dst_y,

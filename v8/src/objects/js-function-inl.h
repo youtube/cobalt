@@ -19,7 +19,8 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
-#include "src/objects/abstract-code-inl.h"
+#include "src/objects/abstract-code.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/instance-type-inl.h"
@@ -32,8 +33,6 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
-
-#include "torque-generated/src/objects/js-function-tq-inl.inc"
 
 // JSBoundFunction accessors.
 Tagged<JSCallable> JSBoundFunction::bound_target_function() const {

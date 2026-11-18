@@ -26,6 +26,7 @@
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/password_generation_util.h"
+#include "components/password_manager/core/browser/browser_save_password_progress_logger.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_bubble_experiment.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -97,6 +98,15 @@ void UpdateMetadataForUsage(PasswordForm* credential) {
 bool IsLoggingActive(password_manager::PasswordManagerClient* client) {
   autofill::LogManager* log_manager = client->GetCurrentLogManager();
   return log_manager && log_manager->IsLoggingActive();
+}
+
+std::unique_ptr<password_manager::BrowserSavePasswordProgressLogger>
+GetLoggerIfAvailable(password_manager::PasswordManagerClient* client) {
+  if (!IsLoggingActive(client)) {
+    return nullptr;
+  }
+  return std::make_unique<password_manager::BrowserSavePasswordProgressLogger>(
+      client->GetCurrentLogManager());
 }
 
 bool ManualPasswordGenerationEnabled(

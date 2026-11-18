@@ -52,6 +52,44 @@ class ReadinessObserver
 
 }  // namespace internal
 
+// Waiter for tests that need to trigger an instance close after registering for
+// the close notification.
+template <typename InstanceType, typename HostType>
+class InstanceClosedWaiter
+    : public ConnectionHolder<InstanceType, HostType>::Observer {
+ public:
+  explicit InstanceClosedWaiter(
+      ConnectionHolder<InstanceType, HostType>* holder)
+      : holder_(holder) {
+    if (holder_->IsConnected()) {
+      observation_.Observe(holder_);
+    }
+  }
+
+  InstanceClosedWaiter(const InstanceClosedWaiter&) = delete;
+  InstanceClosedWaiter& operator=(const InstanceClosedWaiter&) = delete;
+
+  ~InstanceClosedWaiter() override = default;
+
+  void Wait() {
+    if (!holder_->IsConnected()) {
+      return;
+    }
+    run_loop_.Run();
+  }
+
+ private:
+  void OnConnectionClosed() override { run_loop_.Quit(); }
+
+  const raw_ptr<ConnectionHolder<InstanceType, HostType>>
+      holder_;  // Owned by caller
+  base::RunLoop run_loop_;
+  base::ScopedObservation<
+      ConnectionHolder<InstanceType, HostType>,
+      typename ConnectionHolder<InstanceType, HostType>::Observer>
+      observation_{this};
+};
+
 // Waits for the instance to be ready.
 template <typename InstanceType, typename HostType>
 void WaitForInstanceReady(ConnectionHolder<InstanceType, HostType>* holder) {

@@ -28,6 +28,10 @@ constexpr char kApplicationJson[] = "application/json";
 // Body content types.
 constexpr char kUrlEncodedContentType[] = "application/x-www-form-urlencoded";
 
+// Host prefix prepended to the eTLD+1 to form the FedCM well-known host:
+// "web-identity.well-known.<eTLD+1>".
+constexpr char kWebIdentitySubdomainHostPrefix[] = "web-identity.well-known.";
+
 // 1 MiB is an arbitrary upper bound that should account for any reasonable
 // response size that is a part of this protocol.
 constexpr int maxResponseSizeInKiB = 1024;
@@ -122,7 +126,8 @@ std::optional<GURL> ComputeWebIdentitySubdomainWellKnownUrl(
   }
 
   GURL::Replacements replacements;
-  std::string subdomain_host = base::StrCat({"web-identity.", site_url.host()});
+  std::string subdomain_host =
+      base::StrCat({kWebIdentitySubdomainHostPrefix, site_url.host()});
   replacements.SetHostStr(subdomain_host);
   replacements.SetPathStr(path);
   return site_url.ReplaceComponents(replacements);

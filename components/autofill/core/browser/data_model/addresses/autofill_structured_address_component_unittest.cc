@@ -1972,7 +1972,7 @@ TEST_P(PerCountryAutofillStructuredAddressAddressComponentTest,
        MergeModesDefinedExactlyWhereNeeded) {
   AddressComponentsStore address_component_store =
       i18n_model_definition::CreateAddressComponentModel(
-          autofill::AddressCountryCode(GetCountryCode()));
+          AddressCountryCode(GetCountryCode()));
 
   TypesByProperties types_by_properties =
       GetTypesByProperties(address_component_store);

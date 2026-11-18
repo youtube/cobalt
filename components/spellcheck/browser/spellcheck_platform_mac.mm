@@ -256,6 +256,12 @@ void RemoveWord(PlatformSpellChecker* spell_checker_instance,
   [SharedSpellChecker() unlearnWord:word_to_remove];
 }
 
+bool IsUserAddedWord(PlatformSpellChecker* spell_checker_instance,
+                     const std::u16string& word) {
+  NSString* word_to_check = base::SysUTF16ToNSString(word);
+  return [SharedSpellChecker() hasLearnedWord:word_to_check];
+}
+
 int GetDocumentTag() {
   NSInteger doc_tag = [NSSpellChecker uniqueSpellDocumentTag];
   return static_cast<int>(doc_tag);

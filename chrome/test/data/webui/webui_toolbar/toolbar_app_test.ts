@@ -4,12 +4,9 @@
 
 import 'chrome://webui-toolbar.top-chrome/app.js';
 
-import {HelpBubbleClientCallbackRouter} from 'chrome://resources/cr_components/help_bubble/help_bubble.mojom-webui.js';
+import {browserProxyFactory} from 'chrome://resources/cr_components/help_bubble/help_bubble.mojom-webui.js';
 import type {HelpBubbleHandlerInterface} from 'chrome://resources/cr_components/help_bubble/help_bubble.mojom-webui.js';
-import {HelpBubbleProxyImpl} from 'chrome://resources/cr_components/help_bubble/help_bubble_proxy.js';
-import type {HelpBubbleProxy} from 'chrome://resources/cr_components/help_bubble/help_bubble_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import type {TrackedElementHandlerInterface} from 'chrome://resources/mojo/ui/webui/resources/js/tracked_element/tracked_element.mojom-webui.js';
 import {assertEquals} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -83,42 +80,6 @@ class TestToolbarBrowserProxy extends TestBrowserProxy implements BrowserProxy {
   }
 }
 
-class TestTrackedElementHandler extends TestBrowserProxy implements
-    TrackedElementHandlerInterface {
-  constructor() {
-    super([
-      'setManager',
-      'trackedElementVisibilityChanged',
-      'trackedElementActivated',
-      'trackedElementCustomEvent',
-      'trackedElementCanHighlightChanged',
-    ]);
-  }
-
-  setManager(_manager: any) {
-    this.methodCalled('setManager');
-  }
-
-  trackedElementVisibilityChanged(nativeIdentifier: string, visible: boolean) {
-    this.methodCalled(
-        'trackedElementVisibilityChanged', nativeIdentifier, visible);
-  }
-
-  trackedElementActivated(nativeIdentifier: string) {
-    this.methodCalled('trackedElementActivated', nativeIdentifier);
-  }
-
-  trackedElementCustomEvent(nativeIdentifier: string, eventName: string) {
-    this.methodCalled('trackedElementCustomEvent', nativeIdentifier, eventName);
-  }
-
-  trackedElementCanHighlightChanged(
-      nativeIdentifier: string, canHighlight: boolean) {
-    this.methodCalled(
-        'trackedElementCanHighlightChanged', nativeIdentifier, canHighlight);
-  }
-}
-
 class TestHelpBubbleHandler extends TestBrowserProxy implements
     HelpBubbleHandlerInterface {
   constructor() {
@@ -139,24 +100,6 @@ class TestHelpBubbleHandler extends TestBrowserProxy implements
 
   helpBubbleClosed(nativeIdentifier: string, reason: any) {
     this.methodCalled('helpBubbleClosed', nativeIdentifier, reason);
-  }
-}
-
-class TestHelpBubbleProxy implements HelpBubbleProxy {
-  private testTrackedElementHandler_ = new TestTrackedElementHandler();
-  private testHandler_ = new TestHelpBubbleHandler();
-  private callbackRouter_ = new HelpBubbleClientCallbackRouter();
-
-  getTrackedElementHandler() {
-    return this.testTrackedElementHandler_;
-  }
-
-  getHandler() {
-    return this.testHandler_;
-  }
-
-  getCallbackRouter() {
-    return this.callbackRouter_;
   }
 }
 
@@ -230,7 +173,7 @@ function createMockNavigationState() {
 suite('ToolbarAppTest', () => {
   let app: ToolbarAppElement;
   let browserProxy: TestToolbarBrowserProxy;
-  let helpBubbleProxy: TestHelpBubbleProxy;
+
   let startTrackingCalls: Array<[HTMLElement, string]> = [];
   let stopTrackingCalls: HTMLElement[] = [];
 
@@ -250,8 +193,9 @@ suite('ToolbarAppTest', () => {
     stopTrackingCalls = [];
     TrackedElementManager.setInstance(mockManager as any);
 
-    helpBubbleProxy = new TestHelpBubbleProxy();
-    HelpBubbleProxyImpl.setInstance(helpBubbleProxy);
+    const handler = new TestHelpBubbleHandler();
+    const {instance} = browserProxyFactory.createForTest(handler);
+    browserProxyFactory.setInstance(instance);
 
     browserProxy = new TestToolbarBrowserProxy();
     BrowserProxyImpl.setInstance(browserProxy);

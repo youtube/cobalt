@@ -74,6 +74,14 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "gtest_enable_flaky_retries",
+    args = [
+        # Meant for working around flaky crashes. http://anglebug.com/42265067
+        "--flaky-retries=2",
+    ],
+)
+
+targets.mixin(
     name = "gtest_filter_no_vulkan_swiftshader",
     args = [
         "--gtest_filter=-*Vulkan_SwiftShader*",
@@ -120,9 +128,23 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "use_angle_d3d11",
+    args = [
+        "--use-angle=d3d11",
+    ],
+)
+
+targets.mixin(
     name = "use_angle_gl",
     args = [
         "--use-angle=gl",
+    ],
+)
+
+targets.mixin(
+    name = "use_angle_metal",
+    args = [
+        "--use-angle=metal",
     ],
 )
 

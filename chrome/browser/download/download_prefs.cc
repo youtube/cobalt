@@ -45,12 +45,15 @@
 #include "content/public/browser/save_page_type.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "base/check_deref.h"
 #include "base/json/values_util.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload_util.h"
+#include "chromeos/ash/components/browser_context_helper/annotated_account_id.h"
 #include "chromeos/ash/components/dbus/cros_disks/cros_disks_client.h"
 #endif
 
@@ -135,6 +138,65 @@ DefaultDownloadDirectory& GetDefaultDownloadDirectorySingleton() {
 
 }  // namespace
 
+#if BUILDFLAG(IS_CHROMEOS)
+
+// Handles DriveFS disabling event.
+class DownloadPrefs::DriveHandler
+    : public drive::DriveIntegrationService::Observer {
+ public:
+  DriveHandler(Profile* profile, drive::DriveIntegrationService* service)
+      : profile_(CHECK_DEREF(profile)), service_(service) {
+    CHECK(service);
+    // Initialize to the first state.
+    if (!drive::util::IsDriveEnabledForProfile(profile)) {
+      OnDriveWillBeDisabled();
+    }
+
+    observation_.Observe(service);
+  }
+
+  DriveHandler(const DriveHandler&) = delete;
+  const DriveHandler& operator=(const DriveHandler&) = delete;
+
+  ~DriveHandler() override = default;
+
+  void OnDriveIntegrationServiceDestroyed() override {
+    observation_.Reset();
+    service_ = nullptr;
+  }
+
+  void OnDriveWillBeDisabled() override {
+    auto* account_id = ash::AnnotatedAccountId::Get(&profile_.get());
+    if (!account_id || !account_id->HasAccountIdKey()) {
+      return;
+    }
+
+    auto* prefs = profile_->GetPrefs();
+    const auto download_path =
+        prefs->GetFilePath(prefs::kDownloadDefaultDirectory);
+    if (!service_->GetMountPointPath().IsParent(download_path)) {
+      // The download path is not under Drive.
+      return;
+    }
+
+    // Here, the download default path was somewhere in drivefs. As
+    // it is disabled, update it to avoid writing to disabled drivefs.
+    prefs->SetFilePath(
+        prefs::kDownloadDefaultDirectory,
+        file_manager::util::GetDownloadsFolderForProfile(&profile_.get()));
+  }
+
+ private:
+  const raw_ref<Profile> profile_;
+  raw_ptr<drive::DriveIntegrationService> service_;
+
+  base::ScopedObservation<drive::DriveIntegrationService,
+                          drive::DriveIntegrationService::Observer>
+      observation_{this};
+};
+
+#endif
+
 DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
   PrefService* prefs = profile->GetPrefs();
   pref_change_registrar_.Init(prefs);
@@ -172,6 +234,11 @@ DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
           path_pref,
           base::FilePathToValue(GetDefaultDownloadDirectoryForProfile()));
     }
+  }
+
+  if (auto* drive_service =
+          drive::DriveIntegrationServiceFactory::FindForProfile(profile_)) {
+    drive_handler_ = std::make_unique<DriveHandler>(profile_, drive_service);
   }
 
   // Ensure that the default download directory exists.

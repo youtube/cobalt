@@ -4,14 +4,12 @@
 
 #include "src/codegen/compiler.h"
 
-#include <algorithm>
 #include <memory>
 #include <optional>
 
 #include "include/v8-script.h"
 #include "src/api/api-inl.h"
 #include "src/asmjs/asm-js.h"
-#include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/base/fpu.h"
 #include "src/base/logging.h"
@@ -34,7 +32,6 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
@@ -47,16 +44,14 @@
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/visit-object.h"
-#include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/js-function-inl.h"
-#include "src/objects/js-function.h"
 #include "src/objects/literal-objects-inl.h"
-#include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-body-descriptors-inl.h"
@@ -69,8 +64,6 @@
 #include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/tracing/traced-value.h"
-#include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 #ifdef V8_ENABLE_MAGLEV
@@ -1797,8 +1790,10 @@ namespace {
 // BackgroundMergeTask.
 class MergeAssumptionChecker final : public ObjectVisitor {
  public:
-  explicit MergeAssumptionChecker(LocalIsolate* isolate)
-      : isolate_(isolate), cage_base_(isolate->cage_base()) {}
+  explicit MergeAssumptionChecker(LocalIsolate* isolate, bool is_lazy_compile)
+      : isolate_(isolate),
+        cage_base_(isolate->cage_base()),
+        is_lazy_compile_(is_lazy_compile) {}
 
   void IterateObjects(Tagged<HeapObject> start) {
     QueueVisit(start, kNormalObject);
@@ -1858,6 +1853,15 @@ class MergeAssumptionChecker final : public ObjectVisitor {
                      host.address() +
                          offsetof(Script,
                                   eval_from_shared_or_wrapped_arguments_)));
+          if (current_object_kind_ == kScriptInfosList) {
+            if (is_lazy_compile_) {
+              // Avoid visiting sibling SFIs outside of the one being compiled.
+              // These might have already been compiled (e.g. to Sparkplug) and
+              // thus point to Code objects, which would trigger the
+              // UNREACHABLE crash in VisitInstructionStreamPointer.
+              continue;
+            }
+          }
         } else if (IsScopeInfo(obj)) {
           CHECK((current_object_kind_ == kConstantPool && !is_weak) ||
                 (current_object_kind_ == kNormalObject && !is_weak) ||
@@ -1930,6 +1934,7 @@ class MergeAssumptionChecker final : public ObjectVisitor {
   std::unordered_set<Tagged<HeapObject>, Object::Hasher> visited_;
 
   ObjectKind current_object_kind_ = kNormalObject;
+  bool is_lazy_compile_;
 };
 
 #endif  // ENABLE_SLOW_DCHECKS
@@ -2071,7 +2076,7 @@ void BackgroundCompileTask::Run(
     PrepareException(isolate, &info);
   } else if (v8_flags.enable_slow_asserts) {
 #ifdef ENABLE_SLOW_DCHECKS
-    MergeAssumptionChecker checker(isolate);
+    MergeAssumptionChecker checker(isolate, !toplevel_script_compilation);
     checker.IterateObjects(*maybe_result.ToHandleChecked());
 #endif
   }
@@ -2884,7 +2889,7 @@ void BackgroundDeserializeTask::Run() {
       CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_);
   if (v8_flags.enable_slow_asserts && off_thread_data_.HasResult()) {
 #ifdef ENABLE_SLOW_DCHECKS
-    MergeAssumptionChecker checker(&isolate);
+    MergeAssumptionChecker checker(&isolate, false);
     checker.IterateObjects(*off_thread_data_.GetOnlyScript(isolate.heap()));
 #endif
   }

@@ -248,7 +248,7 @@ void SpellChecker::AdvanceToNextMisspelling(bool start_before_selection) {
         EphemeralRange(spelling_search_start, spelling_search_end),
         misspelling_offset, misspelled_word.length());
     GetFrame().Selection().SetSelectionAndEndTyping(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .SetBaseAndExtent(misspelling_range)
             .Build());
     GetFrame().Selection().RevealSelection();
@@ -475,7 +475,7 @@ void SpellChecker::ReplaceMisspelledRange(const String& text) {
     return;
 
   GetFrame().Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(marker_group->StartPosition())
           .Extend(marker_group->EndPosition())
           .Build());

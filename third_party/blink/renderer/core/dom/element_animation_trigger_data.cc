@@ -17,7 +17,7 @@ NamedAnimationTriggerMap& ElementAnimationTriggerData::NamedTriggers() {
 
 void ElementAnimationTriggerData::Trace(Visitor* visitor) const {
   visitor->Trace(named_triggers_);
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
 }
 
 }  // namespace blink

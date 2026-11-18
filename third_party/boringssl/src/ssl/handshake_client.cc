@@ -733,7 +733,7 @@ static enum ssl_hs_wait_t do_read_server_hello(SSL_HANDSHAKE *hs) {
     // the session was only offered in ECH ClientHelloInner), this was the
     // TLS 1.3 compatibility mode session ID. As we know this is not a session
     // the server knows about, any server resuming it is in error. Reject the
-    // first connection deterministicly, rather than installing an invalid
+    // first connection deterministically, rather than installing an invalid
     // session into the session cache. https://crbug.com/796910
     if (ssl->session == nullptr || ssl->s3->ech_status == ssl_ech_rejected) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_SERVER_ECHOED_INVALID_SESSION_ID);

@@ -16,6 +16,8 @@
 #include "chrome/browser/indigo/indigo_service.h"
 #include "chrome/browser/indigo/indigo_service_factory.h"
 #include "chrome/browser/indigo/onboarding/indigo_onboarding_dialog.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
@@ -34,6 +36,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -64,7 +67,7 @@ const char kHtmlBody[] = R"(
 <html><body>
 <img id="target_image"
      src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-     style="width:100px; height:100px; position:absolute; left:50px; top:50px;">
+     style="width:200px; height:200px; position:absolute; left:50px; top:50px;">
 </body></html>)";
 
 const char kScrollHtmlBody[] = R"(
@@ -81,7 +84,7 @@ const char kTransformHtmlBody[] = R"(
 <html><body>
 <img id="target_image"
      src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-     style="width:100px; height:100px; position:absolute; left:50px; top:100px; transform: rotate(45deg);">
+     style="width:200px; height:200px; position:absolute; left:50px; top:100px; transform: rotate(45deg);">
 </body></html>)";
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kWebContentsId);
@@ -152,8 +155,6 @@ class IndigoBrowserTest : public InteractiveBrowserTest {
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     InteractiveBrowserTest::SetUpCommandLine(command_line);
-    // Force Indigo page action and point to the generated stub script.
-    command_line->AppendSwitch("force-indigo");
     CHECK(temp_dir_.CreateUniqueTempDir());
     base::FilePath script_path =
         temp_dir_.GetPath().AppendASCII("stub_script.js");
@@ -183,7 +184,7 @@ class IndigoBrowserTest : public InteractiveBrowserTest {
         identity_test_env_adaptor_->identity_test_env()
             ->MakePrimaryAccountAvailable("user@example.com",
                                           signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(true);
     signin::UpdateAccountInfoForAccount(
         identity_test_env_adaptor_->identity_test_env()->identity_manager(),
@@ -248,6 +249,28 @@ class IndigoBrowserTest : public InteractiveBrowserTest {
         }));
 
     ASSERT_TRUE(embedded_test_server()->Start());
+
+    // Configure optimization guide for following URLs so indigo page action
+    // will show.
+    auto* optimization_guide_keyed_service =
+        OptimizationGuideKeyedServiceFactory::GetForProfile(
+            browser()->profile());
+    ASSERT_TRUE(optimization_guide_keyed_service);
+    optimization_guide_keyed_service->AddHintForTesting(
+        embedded_test_server()->GetURL("/image.html"),
+        optimization_guide::proto::OptimizationType::INDIGO, std::nullopt);
+    optimization_guide_keyed_service->AddHintForTesting(
+        embedded_test_server()->GetURL("/scroll.html"),
+        optimization_guide::proto::OptimizationType::INDIGO, std::nullopt);
+    optimization_guide_keyed_service->AddHintForTesting(
+        embedded_test_server()->GetURL("/transform.html"),
+        optimization_guide::proto::OptimizationType::INDIGO, std::nullopt);
+    optimization_guide_keyed_service->AddHintForTesting(
+        embedded_test_server()->GetURL("/empty.html"),
+        optimization_guide::proto::OptimizationType::INDIGO, std::nullopt);
+    optimization_guide_keyed_service->AddHintForTesting(
+        embedded_test_server()->GetURL("/title1.html"),
+        optimization_guide::proto::OptimizationType::INDIGO, std::nullopt);
   }
 
   void SetUpBrowserContextKeyedServices(
@@ -270,7 +293,7 @@ class IndigoBrowserTest : public InteractiveBrowserTest {
 IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, ToolbarPositioning) {
   const GURL url = embedded_test_server()->GetURL("/image.html");
   raw_ptr<views::View> toolbar_view = nullptr;
-  gfx::Rect image_bounds{50, 50, 100, 100};
+  gfx::Rect image_bounds{50, 50, 200, 200};
 
   RunTestSequence(
       InstrumentTab(kWebContentsId), NavigateWebContents(kWebContentsId, url),
@@ -352,7 +375,7 @@ class IndigoHighDsfBrowserTest : public IndigoBrowserTest {
 IN_PROC_BROWSER_TEST_F(IndigoHighDsfBrowserTest, ToolbarPositioning) {
   const GURL url = embedded_test_server()->GetURL("/image.html");
   raw_ptr<views::View> toolbar_view = nullptr;
-  gfx::Rect image_bounds{50, 50, 100, 100};
+  gfx::Rect image_bounds{50, 50, 200, 200};
 
   RunTestSequence(
       InstrumentTab(kWebContentsId), NavigateWebContents(kWebContentsId, url),
@@ -572,7 +595,7 @@ IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, ToolbarPositioningScroll) {
 IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, ToolbarPositioningTransform) {
   const GURL url = embedded_test_server()->GetURL("/transform.html");
   raw_ptr<views::View> toolbar_view = nullptr;
-  gfx::Rect image_bounds{29, 79, 141, 141};
+  gfx::Rect image_bounds{9, 59, 283, 283};
 
   RunTestSequence(
       InstrumentTab(kWebContentsId), NavigateWebContents(kWebContentsId, url),
@@ -600,8 +623,7 @@ IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, ToolbarPositioningTransform) {
       StopObservingState(kToolbarBoundsState));
 }
 
-// TODO(b/521479979): Re-enable this test once the bug is fixed.
-IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, DISABLED_HideToolbarOnReload) {
+IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, HideToolbarOnReload) {
   const GURL url = embedded_test_server()->GetURL("/image.html");
 
   RunTestSequence(
@@ -612,6 +634,13 @@ IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, DISABLED_HideToolbarOnReload) {
       PressButton(
           page_actions::AnchoredMessageBubbleView::kAnchoredMessageChipId),
       WaitForShow(IndigoToolbar::kToolbarElementId),
+      // The OOPIF can still be navigating. If so, the reload button is in the
+      // "Stop" state. Wait for the entire WebContents to stop loading before
+      // reloading.
+      Do(base::BindLambdaForTesting([&]() {
+        content::WaitForLoadStop(
+            browser()->tab_strip_model()->GetActiveWebContents());
+      })),
       PressButton(kReloadButtonElementId),
       // Verify the toolbar is hidden.
       WaitForHide(IndigoToolbar::kToolbarElementId));
@@ -655,24 +684,30 @@ IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, InvokeActionClickRecordsMetrics) {
       AddInstrumentedTab(kSecondTabId, url2),
       WaitForShow(kIndigoPageActionIconElementId), Check([&]() {
         return user_action_tester.GetActionCount("Indigo.PageAction.Show") ==
-                   1 &&
+                   2 &&
                user_action_tester.GetActionCount(
-                   "Indigo.PageAction.ShowAnchoredMessage") == 0;
+                   "Indigo.PageAction.ShowAnchoredMessage") == 1;
       }),
       // Ensure Anchored Message is NOT showing
       EnsureNotPresent(
           page_actions::AnchoredMessageBubbleView::kAnchoredMessageChipId),
 
       PressButton(kIndigoPageActionIconElementId),
+      WaitForShow(
+          page_actions::AnchoredMessageBubbleView::kAnchoredMessageChipId),
+      PressButton(
+          page_actions::AnchoredMessageBubbleView::kAnchoredMessageChipId),
       WaitForShow(IndigoToolbar::kToolbarElementId),
 
+      // Once for anchored message on first tab, then second tab click
+      // suggestion chip and anchored message.
       Check([&]() {
         return user_action_tester.GetActionCount("Indigo.PageAction.Click") ==
-               2;
+               3;
       }),
       Check([&]() {
         return user_action_tester.GetActionCount(
-                   "Indigo.PageAction.AnchoredMessage.Click") == 1;
+                   "Indigo.PageAction.AnchoredMessage.Click") == 2;
       }),
       Check([&]() {
         return user_action_tester.GetActionCount(
@@ -703,6 +738,28 @@ IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, ToastRetryClickRecordsMetrics) {
                            user_action_tester.GetActionCount(
                                "Indigo.PageAction.Click") == 0;
                   }));
+}
+
+IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, SuggestionChipClickFlow) {
+  IndigoService* service =
+      IndigoServiceFactory::GetForProfile(browser()->profile());
+  // Set anchored message as already shown so the suggestion chip shows
+  // automatically instead of the anchored message.
+  service->AnchoredMessageShown();
+  const GURL main_tab_url = embedded_test_server()->GetURL("/image.html");
+  RunTestSequence(
+      InstrumentTab(kWebContentsId),
+      NavigateWebContents(kWebContentsId, main_tab_url),
+      WaitForWebContentsReady(kWebContentsId, main_tab_url),
+      WaitForShow(kIndigoPageActionIconElementId),
+      // Verify that anchored message is NOT shown initially.
+      EnsureNotPresent(
+          page_actions::AnchoredMessageBubbleView::kAnchoredMessageBubbleId),
+      // Click the suggestion chip (which is kIndigoPageActionIconElementId).
+      PressButton(kIndigoPageActionIconElementId),
+      // Wait for anchored message bubble to show.
+      WaitForShow(
+          page_actions::AnchoredMessageBubbleView::kAnchoredMessageBubbleId));
 }
 
 }  // namespace

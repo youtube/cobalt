@@ -121,7 +121,7 @@ def _param_type_for_assert_message(param):
   return f'const jni_zero::JavaRef<{jtype}>&'
 
 
-def entry_point_declaration(sb, jni_mode, jni_obj, native, gen_jni_class):
+def entry_point_declaration(sb, jni_mode, jni_obj, native, gen_jni_class=None):
   """The method called by JNI, or by multiplexing methods."""
   if jni_mode.is_muxing and native.is_proxy:
     # In this case, it's not the symbol that JNI resolves, but the one the

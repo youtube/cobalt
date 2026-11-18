@@ -1288,7 +1288,7 @@ String Internals::textAffinity() {
                             ->GetFocusController()
                             .FocusedFrame()
                             ->Selection()
-                            .GetSelectionInDOMTree()
+                            .GetSelectionInDomTree()
                             .Affinity() == TextAffinity::kUpstream) {
     return "Upstream";
   }
@@ -3094,7 +3094,7 @@ void Internals::forceReload(bool bypass_cache) {
 }
 
 StaticSelection* Internals::getDragCaret() {
-  SelectionInDOMTree::Builder builder;
+  SelectionInDomTree::Builder builder;
   if (GetFrame()) {
     const DragCaret& caret = GetFrame()->GetPage()->GetDragCaret();
     const PositionWithAffinity& position = caret.CaretPosition();
@@ -3115,7 +3115,7 @@ StaticSelection* Internals::getSelectionInFlatTree(
     return nullptr;
   }
   return StaticSelection::FromSelectionInFlatTree(ConvertToSelectionInFlatTree(
-      local_frame->Selection().GetSelectionInDOMTree()));
+      local_frame->Selection().GetSelectionInDomTree()));
 }
 
 Node* Internals::visibleSelectionAnchorNode() {

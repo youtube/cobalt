@@ -140,10 +140,18 @@ Subgraph<MaglevGraphOptimizer>::~Subgraph() {
   // Pop self off the active-subgraph stack; parent_ is the enclosing subgraph.
   reducer_->active_subgraph_ = parent_;
 
+  // A null exit block means every path through the subgraph ended abruptly
+  // (deopt/throw), so there is no live exit to continue building from. Such a
+  // subgraph is spliced in with a null exit and consumed as a truncating
+  // splice.
   BasicBlock* exit_block = reducer_->current_block();
-  CHECK_NOT_NULL(exit_block);
   DCHECK_GT(blocks_.size(), 0);
   BasicBlock* entry_block = blocks_[0];
+  // A live exit block may still hold new nodes the reducer buffered (e.g. a
+  // constant-folded Select that emitted its taken arm inline); flush them into
+  // the block before we inspect or splice it. An abrupt (null) exit already
+  // flushed on its way out.
+  if (exit_block != nullptr) reducer_->FlushNodesToBlock();
   bool is_empty = entry_block == exit_block && entry_block->nodes().empty();
 
   // Jumps `from` (which must be live and control-less) into this subgraph's
@@ -197,9 +205,9 @@ void Subgraph<MaglevGraphOptimizer>::MergeIntoLabel(Label* label,
         label->predecessor_count(), predecessor, label->variable_liveness_,
         /*context_scope_info=*/std::nullopt);
   } else {
-    label->variable_merge_state_->Merge(reducer_->graph(),
-                                        reducer_->is_tracing(), *dummy_unit_,
-                                        variable_frame_, predecessor);
+    label->variable_merge_state_->Merge(
+        reducer_->graph(), reducer_->is_tracing(), *dummy_unit_,
+        variable_frame_, predecessor, std::nullopt);
   }
   variable_frame_.clear_known_node_aspects();
 }
@@ -300,6 +308,8 @@ MaglevGraphOptimizer::MaglevGraphOptimizer(
 
 BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
     BasicBlock* block) {
+  // TODO(olivf): Support allocation folding across control flow.
+  reducer_.ClearCurrentAllocationBlock();
   reducer_.set_current_block(block);
   TRACE(TraceColor::kYellow << "Entering block b" << block->id());
   if (block->is_loop()) {
@@ -668,38 +678,6 @@ void MaglevGraphOptimizer::AttachExceptionHandlerInfo(NodeBase* node) {
   }
 }
 
-ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
-    DeoptimizeReason reason) {
-  BasicBlock* block = reducer_.current_block();
-  ControlNode* control = block->reset_control_node();
-  block->set_deferred(true);
-  block->RemovePredecessorFollowing(control);
-  ReduceResult result = reducer_.AddNewControlNode<Deopt>({}, reason);
-  CHECK(!result.IsDoneWithAbort());
-  return ReduceResult::DoneWithAbort();
-}
-
-ReduceResult MaglevGraphOptimizer::EmitThrow(Throw::Function function,
-                                             ValueNode* input) {
-  bool has_input;
-  if (input == nullptr) {
-    has_input = false;
-    // To avoid a nullptr input, we use Smi(0) as dummy input.
-    input = reducer_.GetSmiConstant(0);
-  } else {
-    has_input = true;
-  }
-
-  BasicBlock* block = reducer_.current_block();
-  ControlNode* control = block->reset_control_node();
-  block->set_deferred(true);
-  block->RemovePredecessorFollowing(control);
-  ReduceResult result =
-      reducer_.AddNewControlNode<Throw>({input}, function, has_input);
-  CHECK(!result.IsDoneWithAbort());
-  return ReduceResult::DoneWithAbort();
-}
-
 template <typename NodeT>
 ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
   REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryGetContextCachedValue(
@@ -711,7 +689,7 @@ MaybeReduceResult MaglevGraphOptimizer::EnsureType(ValueNode* node,
                                                    NodeType type,
                                                    DeoptimizeReason reason) {
   if (IsEmptyNodeType(IntersectType(reducer_.GetType(node), type))) {
-    return EmitUnconditionalDeopt(reason);
+    return reducer_.EmitUnconditionalDeopt(reason);
   }
   if (!known_node_aspects().EnsureType(broker(), node, type)) {
     return {};
@@ -1822,7 +1800,11 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldByFieldIndex(
 
 ProcessResult MaglevGraphOptimizer::VisitLoadFixedArrayElement(
     LoadFixedArrayElement* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetInt32Constant(node->IndexInput().node())) {
+    REPLACE_AND_RETURN_IF_DONE(
+        reducer_.TryBuildLoadFixedArrayElementConstantIndex(
+            node->ElementsInput().node(), cst.value(), node->load_type()));
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2497,7 +2479,8 @@ ProcessResult MaglevGraphOptimizer::VisitStringEqual(
 
 ProcessResult MaglevGraphOptimizer::VisitStringLength(
     StringLength* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryReduceStringLength(node->StringInput().node()));
   return ProcessResult::kContinue;
 }
 
@@ -3047,6 +3030,21 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiDecrement(
 ProcessResult MaglevGraphOptimizer::VisitGenericAdd(
     GenericAdd* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitBigIntBinaryOperation(
+    BigIntBinaryOperation* node, const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitBigIntCompare(
+    BigIntCompare* node, const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitBigIntNegate(
+    BigIntNegate* node, const ProcessingState& state) {
   return ProcessResult::kContinue;
 }
 

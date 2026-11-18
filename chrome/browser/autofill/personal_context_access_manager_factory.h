@@ -20,8 +20,7 @@ class PersonalContextAccessManager;
 
 class PersonalContextAccessManagerFactory : public ProfileKeyedServiceFactory {
  public:
-  static autofill::PersonalContextAccessManager* GetForProfile(
-      Profile* profile);
+  static PersonalContextAccessManager* GetForProfile(Profile* profile);
 
   static PersonalContextAccessManagerFactory* GetInstance();
 

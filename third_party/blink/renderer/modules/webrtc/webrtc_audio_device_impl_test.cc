@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
@@ -196,138 +197,160 @@ class TestWebRtcAudioRenderer : public blink::WebRtcAudioRenderer {
 base::PlatformThreadId TestWebRtcAudioRenderer::destructor_thread_id_ =
     base::kInvalidThreadId;
 
-TEST_F(WebRtcAudioDeviceImplTest, ReleaseRendererSoonWithShutDownQueue) {
-  // 1. Setup Blink environment. We need a real WebView and WebLocalFrame
-  // to get a frame-associated task runner for the renderer.
+class WebRtcAudioDeviceImplReleaseTest : public WebRtcAudioDeviceImplTest {
+ public:
+  WebRtcAudioDeviceImplReleaseTest() {
+    agent_group_scheduler_ =
+        std::make_unique<blink::scheduler::WebAgentGroupScheduler>(
+            ThreadScheduler::Current()
+                ->ToMainThreadScheduler()
+                ->CreateAgentGroupScheduler());
+
+    web_view_ = blink::WebView::Create(
+        /*client=*/nullptr,
+        /*is_hidden=*/false,
+        /*prerender_param=*/nullptr,
+        /*fenced_frame_mode=*/std::nullopt,
+        /*compositing_enabled=*/false,
+        /*widgets_never_composited=*/false,
+        /*opener=*/nullptr, mojo::NullAssociatedReceiver(),
+        *agent_group_scheduler_,
+        /*session_storage_namespace_id=*/std::string(),
+        /*page_base_background_color=*/std::nullopt,
+        /*browsing_context_group_token=*/base::UnguessableToken::Create(),
+        /*color_provider_colors=*/nullptr,
+        /*history_index=*/-1,
+        /*history_length=*/0);
+
+    web_local_frame_ = blink::WebLocalFrame::CreateMainFrame(
+        web_view_, &web_local_frame_client_, nullptr, mojo::NullRemote(),
+        LocalFrameToken(), DocumentToken(),
+        /*policy_container=*/nullptr);
+
+    MediaStreamComponentVector dummy_components;
+    stream_descriptor_ = MakeGarbageCollected<MediaStreamDescriptor>(
+        "new stream", dummy_components, dummy_components);
+
+    TestWebRtcAudioRenderer::destructor_thread_id_ = base::kInvalidThreadId;
+
+    renderer_ = base::MakeRefCounted<TestWebRtcAudioRenderer>(
+        scheduler::GetSingleThreadTaskRunnerForTesting(), stream_descriptor_,
+        *web_local_frame_, base::UnguessableToken::Create(), "",
+        base::RepeatingCallback<void()>(), run_loop_.QuitClosure());
+
+    test_audio_device_ = new webrtc::RefCountedObject<WebRtcAudioDeviceImpl>();
+    EXPECT_TRUE(test_audio_device_->SetAudioRenderer(renderer_.get()));
+
+    worker_thread_ = std::make_unique<base::Thread>("WebRTC_Worker");
+    worker_thread_->Start();
+
+    base::RunLoop init_loop;
+    worker_thread_->task_runner()->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](WebRtcAudioDeviceImpl* ADM, base::RunLoop* loop) {
+                         static_cast<webrtc::AudioDeviceModule*>(ADM)->Init();
+                         loop->Quit();
+                       },
+                       base::Unretained(test_audio_device_.get()),
+                       base::Unretained(&init_loop)));
+    init_loop.Run();
+  }
+
+  ~WebRtcAudioDeviceImplReleaseTest() override {
+    test_audio_device_ = nullptr;
+    web_local_frame_ = nullptr;
+    if (web_view_) {
+      web_view_.ExtractAsDangling()->Close();
+    }
+    blink::WebHeap::CollectAllGarbageForTesting();
+    worker_thread_->Stop();
+  }
+
+  void TerminateADMOnWorkerThread() {
+    base::RunLoop terminate_loop;
+    worker_thread_->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](WebRtcAudioDeviceImpl* ADM, base::RunLoop* loop) {
+              static_cast<webrtc::AudioDeviceModule*>(ADM)->Terminate();
+              loop->Quit();
+            },
+            base::Unretained(test_audio_device_.get()),
+            base::Unretained(&terminate_loop)));
+    terminate_loop.Run();
+  }
+
+  void StartStopUnderlyingRenderer() {
+    MediaStreamAudioRenderer* underlying_renderer =
+        static_cast<MediaStreamAudioRenderer*>(renderer_.get());
+    underlying_renderer->Start();
+    underlying_renderer->Stop();
+  }
+
+  void DetachFrame() { web_local_frame_->Detach(); }
+  void ReleaseAudioDevice() { test_audio_device_ = nullptr; }
+  void ReleaseRenderer() { renderer_ = nullptr; }
+  void RunLoop() { run_loop_.Run(); }
+
+ private:
   std::unique_ptr<blink::scheduler::WebAgentGroupScheduler>
-      agent_group_scheduler =
-          std::make_unique<blink::scheduler::WebAgentGroupScheduler>(
-              ThreadScheduler::Current()
-                  ->ToMainThreadScheduler()
-                  ->CreateAgentGroupScheduler());
-
-  WebView* web_view = blink::WebView::Create(
-      /*client=*/nullptr,
-      /*is_hidden=*/false,
-      /*prerender_param=*/nullptr,
-      /*fenced_frame_mode=*/std::nullopt,
-      /*compositing_enabled=*/false,
-      /*widgets_never_composited=*/false,
-      /*opener=*/nullptr, mojo::NullAssociatedReceiver(),
-      *agent_group_scheduler,
-      /*session_storage_namespace_id=*/std::string(),
-      /*page_base_background_color=*/std::nullopt,
-      /*browsing_context_group_token=*/base::UnguessableToken::Create(),
-      /*color_provider_colors=*/nullptr,
-      /*history_index=*/-1,
-      /*history_length=*/0);
-
-  WebLocalFrameClient web_local_frame_client;
-  WebLocalFrame* web_local_frame = blink::WebLocalFrame::CreateMainFrame(
-      web_view, &web_local_frame_client, nullptr, mojo::NullRemote(),
-      LocalFrameToken(), DocumentToken(),
-      /*policy_container=*/nullptr);
-
-  // 2. Setup Mock Platform. WebRtcAudioRenderer::Initialize calls
-  // Platform::Current()->NewAudioRendererSink, so we must mock it to return
-  // a valid mock sink.
+      agent_group_scheduler_;
+  WebLocalFrameClient web_local_frame_client_;
+  raw_ptr<WebView> web_view_;
+  raw_ptr<WebLocalFrame> web_local_frame_;
   ScopedTestingPlatformSupport<AudioDeviceFactoryTestingPlatformSupport>
-      platform_support;
+      platform_support_;
+  Persistent<MediaStreamDescriptor> stream_descriptor_;
+  base::RunLoop run_loop_;
+  scoped_refptr<TestWebRtcAudioRenderer> renderer_;
+  scoped_refptr<WebRtcAudioDeviceImpl> test_audio_device_;
+  std::unique_ptr<base::Thread> worker_thread_;
+};
 
-  MediaStreamComponentVector dummy_components;
-  Persistent<MediaStreamDescriptor> stream_descriptor =
-      MakeGarbageCollected<MediaStreamDescriptor>(
-          "new stream", dummy_components, dummy_components);
-
-  base::RunLoop run_loop;
+TEST_F(WebRtcAudioDeviceImplReleaseTest, ReleaseRendererSoonWithShutDownQueue) {
   base::PlatformThreadId main_thread_id = base::PlatformThread::CurrentId();
-  TestWebRtcAudioRenderer::destructor_thread_id_ = base::kInvalidThreadId;
 
-  // 3. Create our test renderer. It will use the frame's task runner (which
-  // is a BlinkSchedulerSingleThreadTaskRunner).
-  scoped_refptr<TestWebRtcAudioRenderer> renderer =
-      base::MakeRefCounted<TestWebRtcAudioRenderer>(
-          scheduler::GetSingleThreadTaskRunnerForTesting(), stream_descriptor,
-          *web_local_frame, base::UnguessableToken::Create(), "",
-          base::RepeatingCallback<void()>(), run_loop.QuitClosure());
+  // Detach the frame to shut down its task queues.
+  DetachFrame();
 
-  // 4. Create the ADM and associate the renderer with it.
-  scoped_refptr<WebRtcAudioDeviceImpl> test_audio_device =
-      new webrtc::RefCountedObject<WebRtcAudioDeviceImpl>();
+  // Terminate() bounces the renderer reference to the main thread. With the
+  // frame queue shut down, ReleaseSoon must successfully fall back to the
+  // default main thread task runner to ensure safe destruction.
+  TerminateADMOnWorkerThread();
 
-  EXPECT_TRUE(test_audio_device->SetAudioRenderer(renderer.get()));
+  // Destroy the ADM to simulate full teardown.
+  ReleaseAudioDevice();
 
-  // 5. Start a worker thread. In production, Terminate() is called on the
-  // WebRTC worker thread. To avoid thread checker failures in Terminate()
-  // (signaling_thread_checker_), we must also initialize (Init()) the ADM on
-  // this worker thread so the checker binds to it.
-  base::Thread worker_thread("WebRTC_Worker");
-  worker_thread.Start();
+  // Transition renderer state to kUninitialized to satisfy destructor DCHECKs.
+  StartStopUnderlyingRenderer();
 
-  base::RunLoop init_loop;
-  worker_thread.task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(
-                     [](WebRtcAudioDeviceImpl* ADM, base::RunLoop* loop) {
-                       static_cast<webrtc::AudioDeviceModule*>(ADM)->Init();
-                       loop->Quit();
-                     },
-                     base::Unretained(test_audio_device.get()),
-                     base::Unretained(&init_loop)));
-  init_loop.Run();
+  // Release the local reference so ReleaseSoon holds the sole remaining ref.
+  ReleaseRenderer();
 
-  // 6. Detach the frame. This shuts down the frame's task queues (including
-  // the one used by the renderer). Subsequent posts to this queue will fail.
-  web_local_frame->Detach();
+  // Execute the posted destruction task.
+  RunLoop();
 
-  // 7. Call Terminate() on the worker thread. This will attempt to disconnect
-  // the renderer and bounce the final reference back to the main thread.
-  // Because the frame queue is shut down, PostCrossThreadTask would fail and
-  // destroy the renderer inline on the worker thread. ReleaseSoon should
-  // fallback to the thread-level task runner and post it successfully.
-  base::RunLoop terminate_loop;
-  worker_thread.task_runner()->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](WebRtcAudioDeviceImpl* ADM, base::RunLoop* loop) {
-            static_cast<webrtc::AudioDeviceModule*>(ADM)->Terminate();
-            loop->Quit();
-          },
-          base::Unretained(test_audio_device.get()),
-          base::Unretained(&terminate_loop)));
-  terminate_loop.Run();
-
-  // 8. Release the ADM reference on the main thread. This drops the ADM's
-  // reference to the renderer.
-  test_audio_device = nullptr;
-
-  // 9. Start and Stop the renderer to transition its state to kUninitialized.
-  // This is necessary because Initialize() set it to kPaused, and the
-  // destructor DCHECKs that it is kUninitialized. We must do this after
-  // Terminate() has disconnected the source (setting it to null), so that
-  // Stop() doesn't try to call RemoveAudioRenderer on the ADM which is already
-  // being destroyed. We still hold a local reference 'renderer' so we can do
-  // this.
-  MediaStreamAudioRenderer* underlying_renderer =
-      static_cast<MediaStreamAudioRenderer*>(renderer.get());
-  underlying_renderer->Start();
-  underlying_renderer->Stop();
-
-  // Now release our local reference. The only remaining reference to the
-  // renderer should now be held by the task posted to the main thread via
-  // ReleaseSoon's fallback mechanism.
-  renderer = nullptr;
-
-  // 10. Run the main thread message loop. This will execute the posted delete
-  // task.
-  run_loop.Run();
-
-  // 11. Verify that the renderer was actually destructed on the main thread.
   EXPECT_EQ(TestWebRtcAudioRenderer::destructor_thread_id_, main_thread_id);
+}
 
-  // Clean up.
-  web_view->Close();
-  blink::WebHeap::CollectAllGarbageForTesting();
-  worker_thread.Stop();
+TEST_F(WebRtcAudioDeviceImplReleaseTest, TerminateReleasesRenderer) {
+  base::PlatformThreadId main_thread_id = base::PlatformThread::CurrentId();
+
+  // Terminate() must move renderer_ out of the ADM and post it via ReleaseSoon.
+  TerminateADMOnWorkerThread();
+
+  // Transition renderer state to kUninitialized to satisfy destructor DCHECKs.
+  StartStopUnderlyingRenderer();
+
+  // Release the local reference. The ADM is intentionally kept alive.
+  ReleaseRenderer();
+
+  // Run the loop. If Terminate() correctly cleared renderer_ via std::move,
+  // ReleaseSoon will drop the final reference and invoke the destructor.
+  // Otherwise, the ADM would retain a reference and this loop would hang.
+  RunLoop();
+
+  EXPECT_EQ(TestWebRtcAudioRenderer::destructor_thread_id_, main_thread_id);
 }
 
 }  // namespace blink

@@ -46,6 +46,10 @@ class DownloadRecordServiceImpl : public DownloadRecordService,
   void RemoveDownloadByIdAsync(
       const std::string& download_id,
       CompletionCallback callback = CompletionCallback()) override;
+  void GetDownloadsPageAsync(const DownloadRecordQuery& query,
+                             DownloadRecordsPageCallback callback) override;
+  void GetDownloadsCountAsync(std::optional<DownloadFilterType> filter,
+                              DownloadRecordsCountCallback callback) override;
   void UpdateDownloadFilePathAsync(
       const std::string& download_id,
       const base::FilePath& file_path,

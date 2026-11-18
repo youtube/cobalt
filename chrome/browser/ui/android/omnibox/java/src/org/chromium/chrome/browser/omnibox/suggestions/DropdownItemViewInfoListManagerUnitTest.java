@@ -91,7 +91,9 @@ public class DropdownItemViewInfoListManagerUnitTest {
      * Verify that PropertyModels of all suggestions on managed list reflect the expected values.
      */
     private void verifyPropertyValues(
-            int layoutDirection, @BrandedColorScheme int brandedColorScheme) {
+            int layoutDirection,
+            @BrandedColorScheme int brandedColorScheme,
+            boolean applySideSpacing) {
         for (int index = 0; index < mSuggestionModels.size(); index++) {
             assertEquals(
                     "Unexpected layout direction for suggestion at position " + index,
@@ -107,6 +109,13 @@ public class DropdownItemViewInfoListManagerUnitTest {
                             .get(index)
                             .model
                             .get(SuggestionCommonProperties.COLOR_SCHEME));
+            assertEquals(
+                    "Unexpected side spacing for suggestion at position " + index,
+                    applySideSpacing,
+                    mSuggestionModels
+                            .get(index)
+                            .model
+                            .get(SuggestionCommonProperties.APPLY_SIDE_SPACING));
         }
     }
 
@@ -172,16 +181,22 @@ public class DropdownItemViewInfoListManagerUnitTest {
 
         mManager.setSourceViewInfoList(list);
         verifyModelEquals(list);
-        verifyPropertyValues(View.LAYOUT_DIRECTION_INHERIT, BrandedColorScheme.LIGHT_BRANDED_THEME);
+        verifyPropertyValues(
+                View.LAYOUT_DIRECTION_INHERIT, BrandedColorScheme.LIGHT_BRANDED_THEME, true);
 
         mManager.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        verifyPropertyValues(View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.LIGHT_BRANDED_THEME);
+        verifyPropertyValues(
+                View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.LIGHT_BRANDED_THEME, true);
 
         mManager.setBrandedColorScheme(BrandedColorScheme.DARK_BRANDED_THEME);
-        verifyPropertyValues(View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.DARK_BRANDED_THEME);
+        verifyPropertyValues(
+                View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.DARK_BRANDED_THEME, true);
 
         mManager.setBrandedColorScheme(BrandedColorScheme.INCOGNITO);
-        verifyPropertyValues(View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.INCOGNITO);
+        verifyPropertyValues(View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.INCOGNITO, true);
+
+        mManager.setApplySideSpacing(false);
+        verifyPropertyValues(View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.INCOGNITO, false);
 
         // Finally, set the new list and confirm that the values are still applied.
         list =
@@ -204,7 +219,7 @@ public class DropdownItemViewInfoListManagerUnitTest {
                                 SECTION_2_WITH_HEADER));
         mManager.setSourceViewInfoList(list);
         verifyModelEquals(list);
-        verifyPropertyValues(View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.INCOGNITO);
+        verifyPropertyValues(View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.INCOGNITO, false);
     }
 
     @Test

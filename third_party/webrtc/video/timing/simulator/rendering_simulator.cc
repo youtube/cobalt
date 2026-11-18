@@ -207,6 +207,12 @@ class RenderingSimulatorStream : public RtcEventLogDriver::StreamInterface {
     receiver_.InsertSimulatedPacket(simulated_packet);
   }
 
+  void UpdateMaxRtt(TimeDelta max_rtt) override {
+    RTC_DCHECK_RUN_ON(&sequence_checker_);
+    assembler_.UpdateMaxRtt(max_rtt);
+    tracker_.UpdateMaxRtt(max_rtt);
+  }
+
   void Close() override {
     RTC_DCHECK_RUN_ON(&sequence_checker_);
     RenderingSimulator::Stream stream = collector_.GetStream();

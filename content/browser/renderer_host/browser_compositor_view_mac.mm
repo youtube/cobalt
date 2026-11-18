@@ -113,8 +113,7 @@ void BrowserCompositorMac::SetBackgroundColor(SkColor background_color) {
 }
 
 void BrowserCompositorMac::UpdateSurfaceFromNSView(
-    const gfx::Size& new_size_dip,
-    bool refresh_rate_changed_on_same_display) {
+    const gfx::Size& new_size_dip) {
   display::ScreenInfo current = client_->GetCurrentScreenInfo();
 
   bool needs_new_surface_id =
@@ -140,8 +139,7 @@ void BrowserCompositorMac::UpdateSurfaceFromNSView(
   if (recyclable_compositor_) {
     recyclable_compositor_->UpdateSurface(
         dfh_size_pixels_, current.device_scale_factor,
-        current.display_color_spaces, current.display_id,
-        refresh_rate_changed_on_same_display);
+        current.display_color_spaces, current.display_id);
   }
 }
 
@@ -163,8 +161,7 @@ void BrowserCompositorMac::UpdateSurfaceFromChild(
       if (recyclable_compositor_) {
         recyclable_compositor_->UpdateSurface(
             dfh_size_pixels_, current.device_scale_factor,
-            current.display_color_spaces, current.display_id,
-            /*refresh_rate_changed_on_same_display=*/false);
+            current.display_color_spaces, current.display_id);
       }
     }
     delegated_frame_host_->EmbedSurface(
@@ -256,8 +253,7 @@ void BrowserCompositorMac::TransitionToState(State new_state) {
     display::ScreenInfo current = client_->GetCurrentScreenInfo();
     recyclable_compositor_->UpdateSurface(
         dfh_size_pixels_, current.device_scale_factor,
-        current.display_color_spaces, current.display_id,
-        /*refresh_rate_changed_on_same_display=*/false);
+        current.display_color_spaces, current.display_id);
     recyclable_compositor_->compositor()->SetRootLayer(root_layer_.get());
     recyclable_compositor_->compositor()->SetBackgroundColor(background_color_);
     recyclable_compositor_->widget()->SetNSView(

@@ -105,6 +105,10 @@ const CGFloat kGrabberTopPadding = 5;
   UIView* _bottomSheetGrabber;
   /// Whether to show the bottom sheet grabber.
   BOOL _bottomSheetGrabberVisible;
+  /// Constraint for the web view container top to the stack view bottom.
+  NSLayoutConstraint* _webViewContainerTopToStackViewConstraint;
+  /// Constraint for the web view container top to the safe area top.
+  NSLayoutConstraint* _webViewContainerTopToSafeAreaConstraint;
 }
 
 - (instancetype)init {
@@ -238,6 +242,13 @@ const CGFloat kGrabberTopPadding = 5;
                      constant:kOmniboxContainerHorizontalPadding];
   _omniboxLeadingConstraint.priority = UILayoutPriorityDefaultHigh;
 
+  _webViewContainerTopToStackViewConstraint = [_webViewContainer.topAnchor
+      constraintEqualToAnchor:_horizontalStackView.bottomAnchor
+                     constant:kWebContainerTopPadding];
+  _webViewContainerTopToSafeAreaConstraint = [_webViewContainer.topAnchor
+      constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor
+                     constant:kViewTopPadding];
+
   [NSLayoutConstraint activateConstraints:@[
     [_horizontalStackView.topAnchor
         constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor
@@ -250,9 +261,7 @@ const CGFloat kGrabberTopPadding = 5;
     [self.view.trailingAnchor
         constraintEqualToAnchor:_horizontalStackView.trailingAnchor
                        constant:kOmniboxContainerHorizontalPadding],
-    [_webViewContainer.topAnchor
-        constraintEqualToAnchor:_horizontalStackView.bottomAnchor
-                       constant:kWebContainerTopPadding],
+    _webViewContainerTopToStackViewConstraint,
     [_omniboxPopupContainer.topAnchor
         constraintEqualToAnchor:_horizontalStackView.bottomAnchor],
     [_progressBar.leadingAnchor
@@ -308,6 +317,30 @@ const CGFloat kGrabberTopPadding = 5;
   _editView.translatesAutoresizingMaskIntoConstraints = NO;
   [_omniboxContainer insertSubview:_editView belowSubview:_omniboxTapTarget];
   AddSameConstraints(_editView, _omniboxContainer);
+}
+
+- (void)setSearchBarHidden:(BOOL)hidden animated:(BOOL)animated {
+  if (_horizontalStackView.hidden == hidden) {
+    return;
+  }
+
+  // Update visibility and constraints based on hidden state.
+  _horizontalStackView.hidden = hidden;
+  _webViewContainerTopToStackViewConstraint.active = !hidden;
+  _webViewContainerTopToSafeAreaConstraint.active = hidden;
+
+  if (!animated) {
+    return;
+  }
+
+  __weak __typeof(self) weakSelf = self;
+  [UIView animateWithDuration:kLensResultPageButtonAnimationDuration
+                        delay:0
+                      options:UIViewAnimationOptionCurveEaseInOut
+                   animations:^{
+                     [weakSelf.view layoutIfNeeded];
+                   }
+                   completion:nil];
 }
 
 - (void)setBottomSheetGrabberVisible:(BOOL)bottomSheetGrabberVisible {

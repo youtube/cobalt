@@ -95,7 +95,7 @@ source_set("impl") {
     deps += [
       "//ash/constants",
       "//chrome/browser/ash/boot_times_recorder",
-      "//chrome/browser/ash/profiles",
+      "//chromeos/ash/components/browser_context_helper",
       "//chromeos/ash/components/dbus",
       "//chromeos/ash/components/dbus/session_manager",
       "//chromeos/ash/components/dbus/update_engine",
@@ -156,6 +156,7 @@ source_set("impl") {
       "//chrome/browser/web_applications",
       "//components/keep_alive_registry",
       "//components/performance_manager",
+      "//components/site_engagement/content",
       "//ui/base/idle",
     ]
   }

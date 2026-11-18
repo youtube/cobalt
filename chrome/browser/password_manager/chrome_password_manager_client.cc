@@ -162,8 +162,8 @@
 #include "chrome/browser/password_manager/android/password_manager_launcher_android.h"
 #include "chrome/browser/password_manager/android/password_manager_ui_util_android.h"
 #include "chrome/browser/touch_to_fill/password_manager/password_generation/android/touch_to_fill_password_generation_controller.h"
-#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_controller_autofill_delegate.h"  // nogncheck
-#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_view.h"
+#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_password_manager_credential_delegate.h"  // nogncheck
+#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_password_manager_view.h"
 #include "components/password_manager/content/browser/keyboard_replacing_surface_visibility_controller_impl.h"
 #include "components/password_manager/core/browser/credential_cache.h"
 #include "components/password_manager/core/browser/password_credential_filler_impl.h"
@@ -672,26 +672,27 @@ void ChromePasswordManagerClient::ContinueShowKeyboardReplacingSurface(
 
   const PasswordForm* form_to_fill = password_manager_.GetParsedObservedForm(
       driver, request.field.element_id.renderer_id);
-  auto ttf_controller_autofill_delegate =
-      std::make_unique<TouchToFillControllerAutofillDelegate>(
+  auto ttf_password_manager_credential_delegate =
+      std::make_unique<TouchToFillPasswordManagerCredentialDelegate>(
           this, GetDeviceAuthenticator(), webauthn_delegate->AsWeakPtr(),
           std::make_unique<PasswordCredentialFillerImpl>(weak_driver, request),
           form_to_fill, request.field.element_id.renderer_id,
-          TouchToFillControllerAutofillDelegate::ShowHybridOption(
+          TouchToFillPasswordManagerCredentialDelegate::ShowHybridOption(
               should_show_hybrid_option));
 
   base::span<const password_manager::UiCredential> password_credentials =
       credential_cache_.GetCredentialStore(driver->GetLastCommittedOrigin())
           .GetCredentials();
-  std::vector<TouchToFillView::Credential> credentials;
+  std::vector<TouchToFillPasswordManagerView::Credential> credentials;
   credentials.reserve(password_credentials.size() + passkeys.size());
   credentials.insert(credentials.end(), passkeys.begin(), passkeys.end());
   credentials.insert(credentials.end(), password_credentials.begin(),
                      password_credentials.end());
 
-  TouchToFillController* ttf_controller = GetOrCreateTouchToFillController();
+  TouchToFillPasswordManagerController* ttf_controller =
+      GetOrCreateTouchToFillPasswordManagerController();
   ttf_controller->InitData(std::move(credentials), driver->AsWeakPtrImpl());
-  if (!ttf_controller->Show(std::move(ttf_controller_autofill_delegate),
+  if (!ttf_controller->Show(std::move(ttf_password_manager_credential_delegate),
                             GetWebAuthnCredManDelegateForDriver(driver))) {
     driver->GetPasswordAutofillManager()->ShowSuggestions(request.field);
   }
@@ -1770,12 +1771,14 @@ ChromePasswordManagerClient::GetOrCreatePasswordAccessory() {
                                                   &credential_cache_);
 }
 
-TouchToFillController*
-ChromePasswordManagerClient::GetOrCreateTouchToFillController() {
+TouchToFillPasswordManagerController*
+ChromePasswordManagerClient::GetOrCreateTouchToFillPasswordManagerController() {
   if (!touch_to_fill_controller_) {
-    touch_to_fill_controller_ = std::make_unique<TouchToFillController>(
-        GetProfile(), GetOrCreateKeyboardReplacingSurfaceVisibilityController(),
-        std::make_unique<AcknowledgeGroupedCredentialSheetController>());
+    touch_to_fill_controller_ =
+        std::make_unique<TouchToFillPasswordManagerController>(
+            GetProfile(),
+            GetOrCreateKeyboardReplacingSurfaceVisibilityController(),
+            std::make_unique<AcknowledgeGroupedCredentialSheetController>());
   }
   return touch_to_fill_controller_.get();
 }

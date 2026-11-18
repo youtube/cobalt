@@ -360,6 +360,13 @@ StoredCredential StoredCredentialFromSpecifics(
       ConvertToBaseTime(password_data.date_received_windows_epoch_micros());
   cred.sharing_notification_displayed =
       password_data.sharing_notification_displayed();
+
+  // Enforce auto-signin mitigation for shared credentials on secondary devices.
+  if (cred.type == PasswordForm::Type::kReceivedViaSharing &&
+      !cred.sharing_notification_displayed) {
+    cred.skip_zero_click = true;
+  }
+
   cred.sender_profile_image_url =
       GURL(password_data.sender_profile_image_url());
   if (base::FeatureList::IsEnabled(

@@ -77,22 +77,12 @@ Builds on | Variant | Description
  * Crashpad is a native library providing out-of-process crash dumping. When a
    dump is requested (e.g. after a crash), a Crashpad handler process is started
    to produce a dump.
- * Chrome (Android L through M):
-   * libchrome_crashpad_handler.so is a standalone executable containing all of
-     the crash dumping code. It is stored compressed and extracted automatically
-     by the system, allowing it to be directly executed to produce a crash dump.
- * Trichrome, Monochrome, and SystemWebView (Q+):
-    * All of the Crashpad handler code is linked into the package's native
-      library. libcrashpad_handler_trampoline.so is a minimal executable
-      packaged with the main native library, stored uncompressed and left
-      unextracted. When a dump is requested, /system/bin/linker is executed to
-      load the trampoline from the APK, which in turn `dlopen()`s the main
-      native library to load the remaining Crashpad handler code.
- * (Legacy) Monochrome (N through P) and SystemWebView (L through P):
-    * All of the Crashpad code is linked into the package's main native library
-      (e.g. libmonochrome.so). When a dump is requested, /system/bin/app_process
-      is executed, loading CrashpadMain.java which in turn uses JNI to call into
-      the native crash dumping code.
+ * All of the Crashpad handler code is linked into the package's native
+   library. `libcrashpad_handler_trampoline.so` is a minimal executable
+   packaged with the main native library, stored uncompressed and left
+   unextracted. When a dump is requested, `/system/bin/linker` is executed to
+   load the trampoline from the APK, which in turn `dlopen()`s the main
+   native library to load the remaining Crashpad handler code.
 
 ## Debug Information
 **What is it?**

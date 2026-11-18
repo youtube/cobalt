@@ -8,6 +8,7 @@ import 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
 import './synced_device_card.js';
 import '/strings.m.js';
 
+import {browserProxyFactory} from 'chrome://resources/cr_components/history/foreign_sessions.mojom-webui.js';
 // <if expr="not is_chromeos">
 import type {AccountInfo} from 'chrome://resources/cr_components/history/history.mojom-webui.js';
 // </if>
@@ -24,7 +25,6 @@ import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import {BrowserProxyImpl} from './browser_proxy.js';
 import {HistorySignInState, SYNCED_TABS_HISTOGRAM_NAME, SyncedTabsHistogram, SyncState} from './constants.js';
 import type {ForeignSession, ForeignSessionTab, HistoryIdentityState} from './externs.js';
-import {ForeignSessionBrowserProxyImpl} from './foreign_session_browser_proxy.js';
 import type {HistorySyncedDeviceCardElement} from './synced_device_card.js';
 import {getCss} from './synced_device_manager.css.js';
 import {getHtml} from './synced_device_manager.html.js';
@@ -274,8 +274,8 @@ export class HistorySyncedDeviceManagerElement extends
         SYNCED_TABS_HISTOGRAM_NAME, SyncedTabsHistogram.OPEN_ALL,
         SyncedTabsHistogram.LIMIT);
     assert(this.actionMenuModel_);
-    ForeignSessionBrowserProxyImpl.getInstance()
-        .handler.openForeignSessionAllTabs(this.actionMenuModel_);
+    browserProxyFactory.getInstance().handler.openForeignSessionAllTabs(
+        this.actionMenuModel_);
     this.actionMenuModel_ = null;
     menu.close();
   }
@@ -313,7 +313,7 @@ export class HistorySyncedDeviceManagerElement extends
         SYNCED_TABS_HISTOGRAM_NAME, SyncedTabsHistogram.HIDE_FOR_NOW,
         SyncedTabsHistogram.LIMIT);
     assert(this.actionMenuModel_);
-    ForeignSessionBrowserProxyImpl.getInstance().handler.deleteForeignSession(
+    browserProxyFactory.getInstance().handler.deleteForeignSession(
         this.actionMenuModel_);
     this.actionMenuModel_ = null;
     menu.close();

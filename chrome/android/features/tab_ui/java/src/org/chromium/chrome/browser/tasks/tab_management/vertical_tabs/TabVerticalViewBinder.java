@@ -15,15 +15,19 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.widget.ImageViewCompat;
+
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabListViewBinderUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties;
+import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
@@ -35,6 +39,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 class TabVerticalViewBinder {
     private static final float ROTATION_COLLAPSED = 0f;
     private static final float ROTATION_EXPANDED = 180f;
+    @VisibleForTesting static final long CHEVRON_ANIMATION_DURATION_MS = 200L;
 
     // Public Entry-Point Binders
 
@@ -130,6 +135,8 @@ class TabVerticalViewBinder {
             PropertyModel model, ViewGroup view, PropertyKey propertyKey) {
         if (TabProperties.FAVICON_FETCHER == propertyKey) {
             updateFavicon(model, view);
+        } else if (TabProperties.IS_LOADING == propertyKey) {
+            updateLoadingState(model, view);
         } else if (TabProperties.TAB_CLICK_LISTENER == propertyKey) {
             TabListViewBinderUtils.setNullableClickListener(
                     model.get(TabProperties.TAB_CLICK_LISTENER), view, model);
@@ -144,9 +151,39 @@ class TabVerticalViewBinder {
 
     private static void updateFavicon(PropertyModel model, ViewGroup view) {
         @Nullable ImageView faviconView = view.findViewById(R.id.tab_favicon);
-        if (faviconView != null) {
-            TabListViewBinderUtils.updateFavicon(model, faviconView);
+        if (faviconView == null) return;
+
+        TabListViewBinderUtils.updateFaviconImage(model, faviconView);
+        adjustFaviconVisibility(model, faviconView);
+    }
+
+    private static void updateLoadingState(PropertyModel model, ViewGroup view) {
+        boolean isLoading = model.get(TabProperties.IS_LOADING);
+        @Nullable CircularProgressIndicator spinner = view.findViewById(R.id.tab_loading_spinner);
+
+        if (spinner != null) {
+            if (isLoading) {
+                boolean isIncognito = model.get(TabProperties.IS_INCOGNITO);
+                spinner.setIndicatorColor(getLoadingSpinnerColor(view.getContext(), isIncognito));
+                spinner.show();
+            } else {
+                spinner.setVisibility(View.GONE);
+            }
         }
+
+        @Nullable ImageView faviconView = view.findViewById(R.id.tab_favicon);
+        if (faviconView != null) {
+            adjustFaviconVisibility(model, faviconView);
+        }
+    }
+
+    private static void adjustFaviconVisibility(PropertyModel model, ImageView faviconView) {
+        if (model.get(TabProperties.FAVICON_FETCHER) == null) {
+            faviconView.setVisibility(View.GONE);
+            return;
+        }
+        boolean isLoading = model.get(TabProperties.IS_LOADING);
+        faviconView.setVisibility(isLoading ? View.INVISIBLE : View.VISIBLE);
     }
 
     // Row-Specific Layout Color Binder Helpers
@@ -175,7 +212,7 @@ class TabVerticalViewBinder {
         }
 
         updateFavicon(model, view);
-        setupCloseButtonHoverListener(model, view);
+        setupTabHoverListener(model, view);
     }
 
     /**
@@ -246,9 +283,20 @@ class TabVerticalViewBinder {
         boolean isCollapsed = model.get(TabProperties.IS_COLLAPSED);
         @Nullable ImageView expandChevron = view.findViewById(R.id.expand_chevron);
         if (expandChevron != null) {
-            // TODO(crbug.com/509226293): Animate the rotation once child tab
-            // expansion transitions are implemented.
-            expandChevron.setRotation(isCollapsed ? ROTATION_COLLAPSED : ROTATION_EXPANDED);
+            expandChevron.animate().cancel();
+            float targetRotation = isCollapsed ? ROTATION_COLLAPSED : ROTATION_EXPANDED;
+
+            if (expandChevron.getRotation() == targetRotation) return;
+
+            if (expandChevron.isAttachedToWindow()) {
+                expandChevron
+                        .animate()
+                        .rotation(targetRotation)
+                        .setDuration(CHEVRON_ANIMATION_DURATION_MS)
+                        .start();
+            } else {
+                expandChevron.setRotation(targetRotation);
+            }
         }
     }
 
@@ -310,9 +358,17 @@ class TabVerticalViewBinder {
         return ColorStateList.valueOf(color);
     }
 
+    private static @ColorInt int getLoadingSpinnerColor(Context context, boolean isIncognito) {
+        if (isIncognito) {
+            return Color.WHITE;
+        } else {
+            return SemanticColorUtils.getDefaultIconColorAccent1(context);
+        }
+    }
+
     // Gesture & Interaction Layout Helpers
 
-    private static void setupCloseButtonHoverListener(PropertyModel model, ViewGroup view) {
+    private static void setupTabHoverListener(PropertyModel model, ViewGroup view) {
         @Nullable ImageView actionButton = view.findViewById(R.id.action_button);
         if (actionButton == null) return;
 
@@ -327,9 +383,17 @@ class TabVerticalViewBinder {
                     switch (motionEvent.getAction()) {
                         case MotionEvent.ACTION_HOVER_ENTER:
                             actionButton.setVisibility(View.VISIBLE);
+                            ViewCompat.setBackgroundTintList(
+                                    view,
+                                    ColorStateList.valueOf(
+                                            TabUiThemeUtil.getHoveredTabContainerColor(
+                                                    view.getContext(),
+                                                    model.get(TabProperties.IS_INCOGNITO))));
                             break;
                         case MotionEvent.ACTION_HOVER_EXIT:
                             actionButton.setVisibility(View.INVISIBLE);
+                            ViewCompat.setBackgroundTintList(
+                                    view, ColorStateList.valueOf(Color.TRANSPARENT));
                             break;
                     }
                     return false;

@@ -31,7 +31,7 @@ import java.lang.annotation.RetentionPolicy;
 public class Snackbar {
     /**
      * Snackbars that are created as an immediate response to user's action. These snackbars are
-     * managed in a stack and will be swiped away altogether after timeout.
+     * managed in a stack and will be dismissed one by one.
      */
     public static final int TYPE_ACTION = 0;
 
@@ -94,10 +94,10 @@ public class Snackbar {
     public static final int UMA_PAINT_PREVIEW_UPGRADE_NOTIFICATION = 36;
     public static final int UMA_READING_LIST_BOOKMARK_ADDED = 37;
     public static final int UMA_PRIVACY_SANDBOX_PAGE_OPEN = 38;
-    public static final int UMA_WEB_FEED_FOLLOW_SUCCESS = 39;
-    public static final int UMA_WEB_FEED_FOLLOW_FAILURE = 40;
-    public static final int UMA_WEB_FEED_UNFOLLOW_SUCCESS = 41;
-    public static final int UMA_WEB_FEED_UNFOLLOW_FAILURE = 42;
+    // Obsolete; don't use: public static final int UMA_WEB_FEED_FOLLOW_SUCCESS = 39;
+    // Obsolete; don't use: public static final int UMA_WEB_FEED_FOLLOW_FAILURE = 40;
+    // Obsolete; don't use: public static final int UMA_WEB_FEED_UNFOLLOW_SUCCESS = 41;
+    // Obsolete; don't use: public static final int UMA_WEB_FEED_UNFOLLOW_FAILURE = 42;
     public static final int UMA_LANGUAGE_SPLIT_RESTART = 43;
     public static final int UMA_AUTOFILL_VIRTUAL_CARD_FILLED = 44;
     public static final int UMA_WINDOW_ERROR = 45;
@@ -205,7 +205,7 @@ public class Snackbar {
     /**
      * Sets whether the snackbar is high priority. High priority snackbars are shielded from being
      * discarded by the timeout of other action-type snackbars in the queue (e.g. for security-
-     * critical notices).
+     * critical notices), and they stay at the front of the queue.
      */
     public Snackbar setHighPriority(boolean highPriority) {
         mIsHighPriority = highPriority;

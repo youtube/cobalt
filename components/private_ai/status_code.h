@@ -46,7 +46,19 @@ enum class StatusCode {
   kUnusedConnection = 14,
   // Failed to create proxy config.
   kProxyConfigFailed = 15,
-  kMaxValue = kProxyConfigFailed,
+  // The connection is closed by the client.
+  kConnectionClosedByClient = 16,
+  // Failed to fetch the proxy auth token.
+  kProxyTokenFetchFailed = 17,
+  // Unexpected transport error.
+  kUnexpectedTransportError = 18,
+  // Failed to fetch the client attestation token.
+  kClientAttestationTokenFetchFailed = 19,
+  // Failed to decode the client attestation token.
+  kClientAttestationTokenDecodeFailed = 20,
+  // The connection was closed by the server.
+  kConnectionClosedByServer = 21,
+  kMaxValue = kConnectionClosedByServer,
 };
 // LINT.ThenChange(//tools/metrics/histograms/enums.xml:PrivateAiStatusCode)
 

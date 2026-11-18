@@ -21,8 +21,8 @@
 #include <openssl/x509.h>
 
 #include "../asn1/internal.h"
-#include "../mem_internal.h"
 #include "../internal.h"
+#include "../mem_internal.h"
 
 // Internal structures.
 
@@ -356,12 +356,12 @@ BSSL_NAMESPACE_END
 // This is the functions plus an instance of the local variables.
 struct x509_lookup_st {
   const X509_LOOKUP_METHOD *method;  // the functions
-  void *method_data;           // method data
+  void *method_data;                 // method data
 
   X509_STORE *store_ctx;  // who owns us
 } /* X509_LOOKUP */;
 
-// This is a used when verifying cert chains.  Since the
+// This is used when verifying cert chains.  Since the
 // gathering of the cert chain can take some time (and have to be
 // 'retried', this needs to be kept and passed around.
 struct x509_store_ctx_st {
@@ -379,7 +379,7 @@ struct x509_store_ctx_st {
   STACK_OF(X509) *trusted_stack;
 
   // Callbacks for various operations
-  X509_STORE_CTX_verify_cb verify_cb;       // error callback
+  X509_STORE_CTX_verify_cb verify_cb;  // error callback
 
   // The following is built up
   int last_untrusted;     // index of last untrusted cert

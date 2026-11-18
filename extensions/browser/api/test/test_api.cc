@@ -13,6 +13,7 @@
 #include "content/public/common/content_switches.h"
 #include "extensions/browser/api/extensions_api_client.h"
 #include "extensions/browser/api/test/test_api_observer_registry.h"
+#include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_function_dispatcher.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/common/api/test.h"
@@ -138,6 +139,62 @@ ExtensionFunction::ResponseAction TestSendScriptResultFunction::Run() {
   EXTENSION_FUNCTION_VALIDATE(params);
 
   TestApiObserverRegistry::GetInstance()->NotifyScriptResult(params->result);
+  return RespondNow(NoArguments());
+}
+
+TestNotifyTestStartedFunction::~TestNotifyTestStartedFunction() = default;
+
+ExtensionFunction::ResponseAction TestNotifyTestStartedFunction::Run() {
+  std::optional<api::test::NotifyTestStarted::Params> params =
+      api::test::NotifyTestStarted::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  EventRouter* event_router = EventRouter::Get(browser_context());
+  if (event_router) {
+    base::ListValue event_details;
+    base::DictValue info;
+    info.Set("testName", params->test_name);
+    event_details.Append(std::move(info));
+
+    auto event = std::make_unique<Event>(
+        events::FOR_TEST, api::test::OnTestStarted::kEventName,
+        std::move(event_details), browser_context());
+    event->exclude_process_id =
+        content::ChildProcessId::FromUnsafeValue(source_process_id());
+    event_router->BroadcastEvent(std::move(event));
+  }
+
+  return RespondNow(NoArguments());
+}
+
+TestNotifyTestFinishedFunction::~TestNotifyTestFinishedFunction() = default;
+
+ExtensionFunction::ResponseAction TestNotifyTestFinishedFunction::Run() {
+  std::optional<api::test::NotifyTestFinished::Params> params =
+      api::test::NotifyTestFinished::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  EventRouter* event_router = EventRouter::Get(browser_context());
+  if (event_router) {
+    base::ListValue event_details;
+    base::DictValue info;
+    info.Set("testName", params->test_name);
+    info.Set("result", params->result);
+    info.Set("remainingTests", params->remaining_tests);
+    info.Set("assertionDescription", params->assertion_description);
+    if (params->message) {
+      info.Set("message", *params->message);
+    }
+    event_details.Append(std::move(info));
+
+    auto event = std::make_unique<Event>(
+        events::FOR_TEST, api::test::OnTestFinished::kEventName,
+        std::move(event_details), browser_context());
+    event->exclude_process_id =
+        content::ChildProcessId::FromUnsafeValue(source_process_id());
+    event_router->BroadcastEvent(std::move(event));
+  }
+
   return RespondNow(NoArguments());
 }
 

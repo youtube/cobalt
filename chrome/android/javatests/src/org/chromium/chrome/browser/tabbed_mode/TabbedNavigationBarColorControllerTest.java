@@ -134,7 +134,7 @@ public class TabbedNavigationBarColorControllerTest {
                 mWindow.getNavigationBarColor());
 
         LayoutTestUtils.startShowingAndWaitForLayout(
-                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.TAB_SWITCHER, false);
+                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.HUB, false);
 
         assertEquals(
                 "Navigation bar should be colorSurface in overview mode.",

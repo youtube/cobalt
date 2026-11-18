@@ -1,3 +1,7 @@
 include_rules = [
+  "+chrome/browser/gsa/java/src/org/chromium/chrome/browser/gsa",
+  "+chrome/browser/profiles/android/java/src/org/chromium/chrome/browser/profiles",
+  "+chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines",
+  "+components/search_engines/android/java/src/org/chromium/components/search_engines",
   "+content/public/android",
 ]

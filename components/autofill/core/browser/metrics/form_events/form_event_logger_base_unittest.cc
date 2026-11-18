@@ -290,18 +290,11 @@ class FormEventLoggerBaseKeyMetricsTest : public AutofillMetricsBaseTest,
 
 void FormEventLoggerBaseKeyMetricsTest::SetUp() {
   SetUpHelper();
-
   RecreateProfile();
-
-  // Load a fillable form.
-  form_ = CreateEmptyForm();
-  form_.set_fields(
-      {CreateTestFormField("State", "state", "", FormControlType::kInputText),
-       CreateTestFormField("City", "city", "", FormControlType::kInputText),
-       CreateTestFormField("Street", "street", "",
-                           FormControlType::kInputText)});
+  form_ = test::GetFormData({.fields = {{.role = ADDRESS_HOME_STATE},
+                                        {.role = ADDRESS_HOME_CITY},
+                                        {.role = ADDRESS_HOME_LINE1}}});
   field_types_ = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_LINE1};
-
   autofill_manager().AddSeenForm(form_, field_types_, field_types_);
 }
 

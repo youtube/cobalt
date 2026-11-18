@@ -58,7 +58,6 @@ if sys.platform == 'darwin':
 
 # vpython-provided modules.
 # pylint: disable=import-error
-import six
 import requests
 # pylint: enable=import-error
 
@@ -1441,7 +1440,7 @@ def main(sys_args):
     # crbug/1146949#c15
     # In the case that pinpoint passes all arguments to swarming through http
     # request, the passthrough_args are converted into a comma-separated string.
-    if passthrough_args and isinstance(passthrough_args, six.text_type):
+    if passthrough_args and isinstance(passthrough_args, str):
       passthrough_args = passthrough_args.split(',')
     # With --non-telemetry, the gtest executable file path will be passed in as
     # options.executable, which is different from running on shard map. Thus,

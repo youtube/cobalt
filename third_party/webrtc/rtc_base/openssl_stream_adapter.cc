@@ -87,6 +87,7 @@ struct SrtpCipherMapEntry {
 };
 
 // This isn't elegant, but it's better than an external reference
+// Note: these are not the IANA names but the OpenSSL/BoringSSL ones.
 constexpr SrtpCipherMapEntry kSrtpCipherMap[] = {
     {.internal_name = "SRTP_AES128_CM_SHA1_80", .id = kSrtpAes128CmSha1_80},
     {.internal_name = "SRTP_AES128_CM_SHA1_32", .id = kSrtpAes128CmSha1_32},

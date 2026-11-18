@@ -8,7 +8,6 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.tasks.tab_management.MessageCardViewProperties.MESSAGE_TYPE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_TYPE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.MESSAGE;
-import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.TAB;
 import static org.chromium.chrome.browser.tasks.tab_management.UiTypeHelper.isMessageCard;
 
 import android.content.Context;
@@ -357,7 +356,7 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
             if (mSelectedTabIndex != TabModel.INVALID_TAB_INDEX
                     && mSelectedTabIndex < mModel.size()
                     && !mActionAttempted
-                    && mModel.get(mSelectedTabIndex).model.get(CARD_TYPE) == TAB) {
+                    && TabListModel.isTabOrTabGroup(mModel.get(mSelectedTabIndex).model)) {
                 // If the child was ever dragged or swiped do not consume the next action, as the
                 // longpress will resolve safely due to the listener intercepting the DRAG event
                 // and negating any further action. However, if we just release the tab without
@@ -441,13 +440,11 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
             if (viewHolderModel == null) return;
 
             @Nullable PropertyModel cardModel = null;
-            if (viewHolderModel.get(CARD_TYPE) == TAB) {
-                cardModel =
-                        mModel.getModelFromTabId(viewHolderModel.get(TabProperties.TAB_ID));
+            if (TabListModel.isTabOrTabGroup(viewHolderModel)) {
+                cardModel = mModel.getModelFromTabId(viewHolderModel.get(TabProperties.TAB_ID));
             } else if (viewHolderModel.get(CARD_TYPE) == MESSAGE) {
                 int index =
-                        mModel.lastIndexForMessageItemFromType(
-                                viewHolderModel.get(MESSAGE_TYPE));
+                        mModel.lastIndexForMessageItemFromType(viewHolderModel.get(MESSAGE_TYPE));
                 if (index == TabModel.INVALID_TAB_INDEX) return;
 
                 cardModel = mModel.get(index).model;
@@ -530,7 +527,7 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
             mRecentlySwipedTabIdSupplier.set(tabId);
         }
 
-        if (model.get(CARD_TYPE) == TAB) {
+        if (TabListModel.isTabOrTabGroup(model)) {
             mTabClosedListener.run(
                     viewHolder.itemView,
                     model.get(TabProperties.TAB_ID),

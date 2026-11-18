@@ -13,6 +13,7 @@
 #include <cstdint>
 
 #include "api/field_trials.h"
+#include "api/units/data_size.h"
 #include "api/units/frequency.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -314,6 +315,31 @@ TEST(VCMTimingTest, GetTimingsBeforeAndAfterValidRtpTimestamp) {
   EXPECT_EQ(render_time, valid_frame_ts +
                              TimeDelta::Millis(frame_ts_delta_10fps) +
                              min_playout_delay);
+}
+
+TEST(VCMTimingTest, OnDecodableTemporalUnitUpdatesMinimumDelay) {
+  FieldTrials field_trials = CreateTestFieldTrials();
+  SimulatedClock clock(Timestamp::Millis(0));
+  VCMTiming timing(&clock, field_trials, kRenderDelay);
+
+  timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/0, DataSize::Bytes(789),
+                                 clock.CurrentTime(),
+                                 /*was_retransmitted=*/false);
+
+  EXPECT_GT(timing.GetTimings().minimum_delay, TimeDelta::Zero());
+}
+
+TEST(VCMTimingTest,
+     OnDecodableTemporalUnitDoesNotUpdateMinimumDelayOnRetransmission) {
+  FieldTrials field_trials = CreateTestFieldTrials();
+  SimulatedClock clock(Timestamp::Millis(0));
+  VCMTiming timing(&clock, field_trials, kRenderDelay);
+
+  timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/0, DataSize::Bytes(789),
+                                 clock.CurrentTime(),
+                                 /*was_retransmitted=*/true);
+
+  EXPECT_EQ(timing.GetTimings().minimum_delay, TimeDelta::Zero());
 }
 
 TEST(VCMTimingTest, RenderTimeAccountsForCurrentDelay) {

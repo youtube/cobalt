@@ -353,6 +353,10 @@ class AX_EXPORT AXNode final {
   //
   ax::mojom::Role GetRole() const { return data().role; }
 
+  // Returns kAriaValueText if present/non-empty, otherwise falls back to
+  // kValue. Returns std::nullopt if both attributes are empty
+  std::optional<std::string> GetAriaValueTextOrValue() const;
+
   bool HasBoolAttribute(ax::mojom::BoolAttribute attribute) const {
     return data().HasBoolAttribute(attribute);
   }

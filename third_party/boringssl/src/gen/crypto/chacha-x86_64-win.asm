@@ -15,7 +15,9 @@ section	.text code align=64
 
 
 section	.rdata rdata align=8
+
 ALIGN	64
+chacha_constants:
 $L$zero:
 	DD	0,0,0,0
 $L$one:

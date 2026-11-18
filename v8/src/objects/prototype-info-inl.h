@@ -11,8 +11,9 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/handler-configuration.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/maybe-object.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/module.h"
 #include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,8 +21,6 @@
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/prototype-info-tq-inl.inc"
 
 Tagged<UnionOf<JSModuleNamespace, Undefined>> PrototypeInfo::module_namespace()
     const {

@@ -22,7 +22,7 @@ suite('cr-policy-network-indicator-mojo', function() {
   }
 
   setup(function() {
-    PolymerTest.clearBody();
+    document.body.innerHTML = window.trustedTypes.emptyHTML;
 
     indicator = document.createElement('cr-policy-network-indicator-mojo');
     document.body.appendChild(indicator);
@@ -31,7 +31,8 @@ suite('cr-policy-network-indicator-mojo', function() {
   });
 
   teardown(function() {
-    PolymerTest.clearBody();  // crbug.com/40501029
+    document.body.innerHTML =
+        window.trustedTypes.emptyHTML;  // crbug.com/40501029
   });
 
   test('hidden by default', function() {

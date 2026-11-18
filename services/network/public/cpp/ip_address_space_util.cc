@@ -434,7 +434,7 @@ mojom::IPAddressSpace CalculateClientAddressSpace(
   }
 
   if (url.SchemeIsFile()) {
-    // See: https://wicg.github.io/cors-rfc1918/#file-url.
+    // See: https://wicg.github.io/local-network-access/#file-urls
     return mojom::IPAddressSpace::kLoopback;
   }
 
@@ -442,8 +442,9 @@ mojom::IPAddressSpace CalculateClientAddressSpace(
     return mojom::IPAddressSpace::kUnknown;
   }
 
-  // First, check whether the response forces itself into a public address space
-  // as per https://wicg.github.io/cors-rfc1918/#csp.
+  // First, check whether the response forces itself into a public address
+  // space as per
+  // https://wicg.github.io/local-network-access/#treat-as-public-address.
   DCHECK(*params->parsed_headers) << "CalculateIPAddressSpace() called for URL "
                                   << url << " with null parsed_headers.";
   if (ShouldTreatAsPublicAddress(
@@ -459,24 +460,11 @@ mojom::IPAddressSpace CalculateResourceAddressSpace(
     const GURL& url,
     const net::IPEndPoint& endpoint) {
   if (url.SchemeIsFile()) {
-    // See: https://wicg.github.io/cors-rfc1918/#file-url.
+    // See: https://wicg.github.io/local-network-access/#file-urls
     return mojom::IPAddressSpace::kLoopback;
   }
 
   return IPEndPointToIPAddressSpace(endpoint);
-}
-
-std::optional<net::IPAddress> ParsePrivateIpFromUrl(const GURL& url) {
-  net::IPAddress address;
-  if (!address.AssignFromIPLiteral(url.HostNoBracketsPiece())) {
-    return std::nullopt;
-  }
-
-  if (IPAddressToIPAddressSpace(address) != mojom::IPAddressSpace::kLocal) {
-    return std::nullopt;
-  }
-
-  return address;
 }
 
 std::optional<mojom::IPAddressSpace> GetAddressSpaceFromUrl(const GURL& url) {

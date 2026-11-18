@@ -18,6 +18,10 @@ class EntityType;
 personal_context::proto::EntityType
 AutofillEntityTypeToPersonalContextEntityType(EntityType type);
 
+// Converts a Personal Context proto EntityCase to an Autofill AI EntityType.
+std::optional<EntityType> ToEntityType(
+    personal_context::proto::Entity::EntityCase entity_case);
+
 // Converts a generic `personal_context::proto::Entity` to an `EntityInstance`.
 // If `is_masked` is true, sensitive attributes (passport, drivers license, and
 // national ID number) are marked as masked. Otherwise, they are kept unmasked.

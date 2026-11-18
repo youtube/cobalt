@@ -14,6 +14,8 @@ static_library("browser") {
     "autofill_annotations_provider.h",
     "media_transcript_provider.cc",
     "media_transcript_provider.h",
+    "page_content_image_extractor.cc",
+    "page_content_image_extractor.h",
     "page_content_metadata_observer.cc",
     "page_content_metadata_observer.h",
     "page_content_proto_provider.cc",
@@ -80,6 +82,8 @@ source_set("test_support") {
     "mock_media_transcript_provider.h",
     "no_response_ai_page_content_agent.cc",
     "no_response_ai_page_content_agent.h",
+    "page_content_test_utils.cc",
+    "page_content_test_utils.h",
   ]
   public_deps = [
     ":browser",

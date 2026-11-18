@@ -154,6 +154,19 @@ void ToolbarActionView::OnMouseEntered(const ui::MouseEvent& event) {
   MaybeUpdateHoverCardStatus(event);
 }
 
+void ToolbarActionView::OnFocus() {
+  MenuButton::OnFocus();
+  delegate_->UpdateHoverCard(this, ToolbarActionHoverCardUpdateType::kFocus);
+}
+
+void ToolbarActionView::OnBlur() {
+  MenuButton::OnBlur();
+  if (!delegate_->IsFocusOnExtensionAction()) {
+    delegate_->UpdateHoverCard(nullptr,
+                               ToolbarActionHoverCardUpdateType::kFocus);
+  }
+}
+
 void ToolbarActionView::MaybeUpdateHoverCardStatus(
     const ui::MouseEvent& event) {
   if (!GetWidget()->IsMouseEventsEnabled()) {

@@ -280,6 +280,7 @@ class RemoteValidation;
 namespace content {
 
 class AgentSchedulingGroupHost;
+class UnboundedSurfaceWindow;
 class BrowsingContextState;
 class CodeCacheHostImpl;
 class CrossOriginEmbedderPolicyReporter;
@@ -346,8 +347,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
       public LockManager<storage::BucketId>::Observer,
       public base::trace_event::TraceSessionObserver,
       public BucketContext,
-      public base::PassiveMemoryConsumer,
-      public blink::mojom::UnboundedSurfaceHost {
+      public base::PassiveMemoryConsumer {
  public:
   using BeforeUnloadExecutionMode = NavigationHandle::BeforeUnloadExecutionMode;
   using JavaScriptDialogCallback =
@@ -520,7 +520,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   const net::NetworkIsolationKey& GetNetworkIsolationKey() override;
   const net::IsolationInfo& GetIsolationInfoForSubresources() override;
   net::IsolationInfo GetPendingIsolationInfoForSubresources() override;
-  std::optional<base::UnguessableToken> GetNetworkRestrictionsID() override;
+  base::UnguessableToken GetNetworkRestrictionsID() override;
   gfx::NativeView GetNativeView() override;
   void AddMessageToConsole(blink::mojom::ConsoleMessageLevel level,
                            const std::string& message) override;
@@ -2218,6 +2218,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   void BindFederatedAuthRequestReceiver(
       mojo::PendingReceiver<blink::mojom::FederatedAuthRequest> receiver);
+  void BindFederatedRequestServiceReceiver(
+      mojo::PendingReceiver<blink::mojom::FederatedRequestService> receiver);
 
   void BindRestrictedCookieManager(
       mojo::PendingReceiver<network::mojom::RestrictedCookieManager> receiver);
@@ -2677,22 +2679,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
       mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient>
           client,
       const gfx::Rect& bounds) override;
-  void DismissUnboundedSurface();
-
-  // blink::mojom::UnboundedSurfaceHost overrides:
-  void GetCompositorFrameSink(
-      mojo::PendingReceiver<viz::mojom::CompositorFrameSink> sink,
-      mojo::PendingRemote<viz::mojom::CompositorFrameSinkClient> client)
-      override;
-  void UpdateBounds(const gfx::Rect& bounds) override;
-
-  RenderWidgetHostImpl* active_unbounded_widget() const {
-    return active_unbounded_widget_.get();
-  }
-
-  RenderFrameHostImpl* active_unbounded_frame() const {
-    return active_unbounded_frame_.get();
-  }
+  UnboundedSurfaceWindow* GetUnboundedSurfaceWindow();
+  RenderWidgetHostViewBase* GetUnboundedSurfaceRootView(
+      RenderWidgetHostViewBase** out_parent_view = nullptr);
 
   // blink::mojom::BackForwardCacheControllerHost:
   void EvictFromBackForwardCache(
@@ -4927,16 +4916,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // remote will be valid when the frame is the active main frame.
   mojo::AssociatedRemote<blink::mojom::LocalMainFrame> local_main_frame_;
 
-  // Holder of Mojo connection with the UnboundedSurfaceClient in Blink for
-  // visual isolation updates and notifications (e.g., dismissal). This
-  // connection is only established for trusted renderers (such as WebUI and
-  // chrome:// scheme callers).
-  mojo::AssociatedRemote<blink::mojom::UnboundedSurfaceClient>
-      unbounded_surface_client_;
-  mojo::AssociatedReceiver<blink::mojom::UnboundedSurfaceHost>
-      unbounded_surface_host_receiver_{this};
-  base::WeakPtr<RenderWidgetHostImpl> active_unbounded_widget_;
-
   // Holds the cross-document NavigationRequests that are waiting to commit.
   // These are navigations that have passed ReadyToCommit stage and are waiting
   // for a matching commit IPC.
@@ -5678,11 +5657,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   // True if this rfh was created via a window creation with user activation.
   bool opener_had_user_gesture_ = false;
-
-  // Tracks the frame with the active unbounded surface inside this page/frame
-  // tree. Only set on the outermost main frame. When set, this frame is
-  // strictly either the outermost main frame itself or one of its descendants.
-  base::WeakPtr<RenderFrameHostImpl> active_unbounded_frame_;
 
   // WeakPtrFactories are the last members, to ensure they are destroyed before
   // all other fields of `this`.

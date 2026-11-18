@@ -150,7 +150,7 @@ class PerProcessRenderViewHostSet : public base::SupportsUserData::Data {
  public:
   static PerProcessRenderViewHostSet* GetOrCreateForProcess(
       RenderProcessHost* process) {
-    DCHECK(process);
+    CHECK(process, base::NotFatalUntil::M152);
     auto* set = static_cast<PerProcessRenderViewHostSet*>(
         process->GetUserData(UserDataKey()));
     if (!set) {
@@ -229,7 +229,7 @@ RenderViewHost* RenderViewHost::From(RenderWidgetHost* rwh) {
 
 // static
 RenderViewHostImpl* RenderViewHostImpl::FromID(int process_id, int routing_id) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   RoutingIDViewMap& views = GetRoutingIDViewMap();
   auto it = views.find(RenderViewHostID(process_id, routing_id));
   return it == views.end() ? nullptr : it->second;
@@ -237,13 +237,13 @@ RenderViewHostImpl* RenderViewHostImpl::FromID(int process_id, int routing_id) {
 
 // static
 RenderViewHostImpl* RenderViewHostImpl::From(RenderWidgetHost* rwh) {
-  DCHECK(rwh);
+  CHECK(rwh, base::NotFatalUntil::M152);
   RenderWidgetHostOwnerDelegate* owner_delegate =
       RenderWidgetHostImpl::From(rwh)->owner_delegate();
   if (!owner_delegate)
     return nullptr;
   RenderViewHostImpl* rvh = static_cast<RenderViewHostImpl*>(owner_delegate);
-  DCHECK_EQ(rwh, rvh->GetWidget());
+  CHECK_EQ(rwh, rvh->GetWidget(), base::NotFatalUntil::M152);
   return rvh;
 }
 
@@ -326,8 +326,9 @@ RenderViewHostImpl::RenderViewHostImpl(
                     perfetto::Track::FromPointer(this),
                     "render_view_host_when_created", this);
 
-  DCHECK(delegate_);
-  DCHECK_NE(GetRoutingID(), render_widget_host_->GetRoutingID());
+  CHECK(delegate_, base::NotFatalUntil::M152);
+  CHECK_NE(GetRoutingID(), render_widget_host_->GetRoutingID(),
+           base::NotFatalUntil::M152);
 
   PerProcessRenderViewHostSet::GetOrCreateForProcess(GetProcess())
       ->Insert(this);
@@ -417,8 +418,8 @@ bool RenderViewHostImpl::CreateRenderView(
   // ignored, so this is safe.
   if (!GetAgentSchedulingGroup().Init())
     return false;
-  DCHECK(GetProcess()->IsInitializedAndNotDead());
-  DCHECK(GetProcess()->GetBrowserContext());
+  CHECK(GetProcess()->IsInitializedAndNotDead(), base::NotFatalUntil::M152);
+  CHECK(GetProcess()->GetBrowserContext(), base::NotFatalUntil::M152);
 
   // Exactly one of main_frame_routing_id_ or proxy_route_id should be set.
   CHECK(!(main_frame_routing_id_ != IPC::mojom::kRoutingIdNone &&
@@ -431,11 +432,11 @@ bool RenderViewHostImpl::CreateRenderView(
   if (main_frame_routing_id_ != IPC::mojom::kRoutingIdNone) {
     main_rfh = RenderFrameHostImpl::FromID(GetProcess()->GetDeprecatedID(),
                                            main_frame_routing_id_);
-    DCHECK(main_rfh);
+    CHECK(main_rfh, base::NotFatalUntil::M152);
   } else {
     main_rfph = RenderFrameProxyHost::FromID(GetProcess()->GetDeprecatedID(),
                                              proxy_route_id);
-    DCHECK(main_rfph);
+    CHECK(main_rfph, base::NotFatalUntil::M152);
   }
   FrameTreeNode* const frame_tree_node =
       main_rfh ? main_rfh->frame_tree_node() : main_rfph->frame_tree_node();
@@ -450,7 +451,8 @@ bool RenderViewHostImpl::CreateRenderView(
       frame_tree_node->current_replication_state().Clone();
   params->devtools_main_frame_token =
       frame_tree_node->current_frame_host()->devtools_frame_token();
-  DCHECK_EQ(&frame_tree_node->frame_tree(), frame_tree_);
+  CHECK_EQ(&frame_tree_node->frame_tree(), frame_tree_,
+           base::NotFatalUntil::M152);
   params->navigation_metrics_token = navigation_metrics_token;
 
   if (frame_tree_->is_prerendering()) {
@@ -633,7 +635,7 @@ void RenderViewHostImpl::SetMainFrameRoutingId(int routing_id) {
 void RenderViewHostImpl::SetFrameTree(FrameTree& frame_tree) {
   TRACE_EVENT("navigation", "RenderViewHostImpl::SetFrameTree",
               ChromeTrackEvent::kRenderViewHost, *this);
-  DCHECK(registered_with_frame_tree_);
+  CHECK(registered_with_frame_tree_, base::NotFatalUntil::M152);
   frame_tree_->UnregisterRenderViewHost(render_view_host_map_id_, this);
   frame_tree_ = &frame_tree;
   frame_tree_->RegisterRenderViewHost(render_view_host_map_id_, this);

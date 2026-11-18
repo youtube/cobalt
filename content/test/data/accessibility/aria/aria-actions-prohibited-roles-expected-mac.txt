@@ -1,0 +1,35 @@
+AXWebArea
+++AXButton AXTitle='OK'
+++AXGroup
+++++AXStaticText AXValue='caption host'
+++AXGroup AXSubrole=AXCodeStyleGroup
+++++AXStaticText AXValue='code host'
+++AXGroup AXSubrole=AXDefinition
+++++AXStaticText AXValue='definition host'
+++AXGroup AXSubrole=AXDeleteStyleGroup
+++++AXStaticText AXValue='deletion host'
+++AXGroup AXSubrole=AXEmphasisStyleGroup
+++++AXStaticText AXValue='emphasis host'
+++AXGroup
+++++AXStaticText AXValue='generic host'
+++AXGroup AXSubrole=AXInsertStyleGroup
+++++AXStaticText AXValue='insertion host'
+++AXGroup
+++++AXStaticText AXValue='mark host'
+++AXGroup
+++++AXStaticText AXValue='paragraph host'
+++AXGroup AXSubrole=AXStrongStyleGroup
+++++AXStaticText AXValue='strong host'
+++AXGroup AXSubrole=AXSubscriptStyleGroup
+++++AXStaticText AXValue='subscript host'
+++AXGroup
+++++AXStaticText AXValue='suggestion host'
+++AXGroup AXSubrole=AXSuperscriptStyleGroup
+++++AXStaticText AXValue='superscript host'
+++AXGroup AXSubrole=AXTerm AXTitle='term host'
+++++AXStaticText AXValue='term host'
+++AXGroup AXSubrole=AXTimeGroup
+++++AXStaticText AXValue='time host'
+++AXButton AXCustomActionNamesForTesting=['OK'] AXTitle='allowed button host'
+++AXLink AXCustomActionNamesForTesting=['OK'] AXDescription='allowed link host'
+++++AXStaticText AXValue='allowed link host'

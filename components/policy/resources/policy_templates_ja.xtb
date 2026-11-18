@@ -470,7 +470,6 @@ URL パターンは、<ph name="CONTROLLED_FRAME_ALLOWED_FOR_URLS_POLICY_NAME" /
       このポリシーを有効に設定した場合、改善された国際キーボード ショートカットが有効になります。
       未設定の場合、このポリシーは管理対象のデバイスに対して有効になり、ユーザーが所有するデバイスに対しても有効になります。
       なお、これは管理対象のユーザーが、サポートの終了した従来のショートカットを引き続き使用できるようにするための一時的なポリシーです。このポリシーは、キーボード ショートカットのカスタマイズが可能になった時点でサポート終了となります。</translation>
-<translation id="1359459742455216057"><ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> アプリの固有識別子。</translation>
 <translation id="1361661842732478894">ツールバーにホームボタンを表示する</translation>
 <translation id="1363275621236827384">ハードウェア プロファイルを Quirks サーバーに問い合わせられるようにする</translation>
 <translation id="1363839375295535439">このポリシーを有効に設定するか未設定のままにした場合、システム設定でサポートされていれば、印刷サービスで LPAC サンドボックスが有効になります。
@@ -7000,7 +6999,6 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="5649788773465136073">サイトでの保護されたコンテンツ識別子の使用を無効にします。これにより、保護されたコンテンツの再生品質が低下する可能性があります。</translation>
 <translation id="5650256117857913687">リモート アクセスのユーザーがローカルのクライアント ブラウザでホスト側の URL を開けないようにする</translation>
 <translation id="5650716720715977549">より限定されたプライベート ネットワーク エンドポイントに対するリクエストに制限を適用する</translation>
-<translation id="5651538748810288218">このポリシーを 1 に設定した場合、ウェブサイトによるモーション センサーや光センサーなどのセンサーへのアクセスと使用が許可されます。このポリシーを 2 に設定した場合、センサーへのアクセスは拒否されます。このポリシーを未設定のままにした場合、<ph name="ALLOW_SENSORS_POLICY_NAME" /> は適用されますが、ユーザーはこの設定を変更できます。</translation>
 <translation id="5652250453612826983">子どものアカウントのみに適用される、保護者向け管理ツールのポリシーを制御します。
       これらのポリシーは管理コンソールではなく、Kids API サーバーで直接設定します。</translation>
 <translation id="5654682237531873653">このポリシーを有効に設定した場合、スペルチェックがオンになり、ユーザーがオフにすることはできません。<ph name="MS_WIN_NAME" />、<ph name="PRODUCT_OS_NAME" />、<ph name="LINUX_OS_NAME" /> ではスペルチェック言語のオンとオフを個別に切り替えられるので、ユーザーがすべてのスペルチェック言語をオフにすれば、スペルチェックは実質的にオフになります。この状況を回避するには、<ph name="SPELLCHECK_LANGUAGE_POLICY_NAME" /> を使って特定のスペルチェック言語を強制的に有効にします。
@@ -7464,6 +7462,7 @@ IP アドレス空間のオーバーライドには次の 2 つの形式があ�
 <translation id="5962271004971310788">シークレット モードで使用する前にシークレット モードでの実行を許可するようユーザーに要求する拡張機能</translation>
 <translation id="5963752574792883406">ポート 990（ブロックの解除は 2022 年 2 年 1 日まで可能）</translation>
 <translation id="596523880465577341">このポリシーは非推奨で、サポートされていません。代わりに「<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />」ポリシーを使用してください。</translation>
+<translation id="5965344524743236327">有効にする <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> インスタンスに対応する <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> プロジェクトの ID または番号。プロジェクト ID の詳細については、https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects をご覧ください。</translation>
 <translation id="5966615072639944554">Remote Attestation API の使用が許可されている拡張機能</translation>
 <translation id="596732417280023843">証明書プロファイルの名前です。</translation>
 <translation id="5972538402066550344">詳細なレポート コントロールを許可する</translation>
@@ -7868,6 +7867,7 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="6264247808139384018">このポリシーを有効に設定するか未設定のままにした場合、パスワード認証を行うユーザーは画面をロックできます。
 
 このポリシーを無効に設定した場合、ユーザーは画面をロックできません（ユーザー セッションからのログアウトのみ可能です）。</translation>
+<translation id="6265114688953151459"><ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> エンジンの固有の識別子。形式は 1～63 文字で、パターン [a-z0-9][a-z0-9-_]* に一致する必要があります。詳しくは、https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine をご覧ください。</translation>
 <translation id="6265892395051519509">センサーへのアクセスを許可するサイトを指定します</translation>
 <translation id="6266043141694454734">サーバー証明書の確認に Chrome Root Store と組み込みの証明書確認機能を使用するかどうかを指定する</translation>
 <translation id="6266686172120601139">ウェブ オーディオのアダプティブ バッファリングを有効にする</translation>
@@ -8634,7 +8634,6 @@ False に設定すると、P2P は使用されません。
 
 <ph name="PRODUCT_NAME" /> の場合、このポリシーは <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> で登録されたマシンでのみ有効です。
 <ph name="PRODUCT_OS_NAME" /> の場合、このポリシーは常に有効です。</translation>
-<translation id="6714333117401088746">有効にする <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> インスタンスに対応する <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> プロジェクトの ID。</translation>
 <translation id="6720330829631914048">1 日の開始時間からの経過時間（24 時間表示）です。</translation>
 <translation id="6720862827454058309">IP アドレス空間のマッピングをオーバーライドする</translation>
 <translation id="6721252203593581486">サードパーティのコンテキスト（クロスサイト iframe など）での WebSQL は M97 の時点ではデフォルトでオフになっており、M101 では完全に削除されます。

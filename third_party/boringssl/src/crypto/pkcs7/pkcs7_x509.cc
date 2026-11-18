@@ -199,7 +199,7 @@ static int pkcs7_bundle_certificates_cb(CBB *out, void *arg) {
     }
   }
 
-  // `certificates` is a implicitly-tagged SET OF.
+  // `certificates` is an implicitly-tagged SET OF.
   return CBB_flush_asn1_set_of(&certificates) && CBB_flush(out);
 }
 
@@ -232,7 +232,7 @@ static int pkcs7_bundle_crls_cb(CBB *out, void *arg) {
     }
   }
 
-  // `crl_data` is a implicitly-tagged SET OF.
+  // `crl_data` is an implicitly-tagged SET OF.
   return CBB_flush_asn1_set_of(&crl_data) && CBB_flush(out);
 }
 

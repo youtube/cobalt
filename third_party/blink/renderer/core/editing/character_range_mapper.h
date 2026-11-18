@@ -58,8 +58,6 @@ extern template class CORE_EXTERN_TEMPLATE_EXPORT
     CharacterRangeMapperAlgorithm<EditingInFlatTreeStrategy>;
 
 using CharacterRangeMapper = CharacterRangeMapperAlgorithm<EditingStrategy>;
-using CharacterRangeMapperInFlatTree =
-    CharacterRangeMapperAlgorithm<EditingInFlatTreeStrategy>;
 
 }  // namespace blink
 

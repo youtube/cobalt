@@ -226,8 +226,15 @@ IN_PROC_BROWSER_TEST_P(MultiContentsViewTabDragEntrypointsUiParamTest,
       WaitForState(kDragStatePoller, false));
 }
 
+// TODO(crbug.com/477961009): Deflake and re-enable.
+#if defined(MEMORY_SANITIZER)
+#define MAYBE_DragAndDropDisabledForChromePage \
+  DISABLED_DragAndDropDisabledForChromePage
+#else
+#define MAYBE_DragAndDropDisabledForChromePage DragAndDropDisabledForChromePage
+#endif
 IN_PROC_BROWSER_TEST_P(MultiContentsViewTabDragEntrypointsUiParamTest,
-                       DragAndDropDisabledForChromePage) {
+                       MAYBE_DragAndDropDisabledForChromePage) {
   // TODO(crbug.com/448651072): Remove when Weston support is added.
 #if BUILDFLAG(IS_LINUX)
   if (views::test::InteractionTestUtilSimulatorViews::IsWayland()) {

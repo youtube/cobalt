@@ -15,7 +15,6 @@ source_set("send_tab_to_self") {
   deps = [
     "//base",
     "//chrome/android:chrome_jni_headers",
-    "//chrome/app:generated_resources",
     "//chrome/browser/android:tabs_public",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/send_tab_to_self",

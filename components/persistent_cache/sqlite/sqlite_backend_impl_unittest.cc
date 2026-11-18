@@ -157,4 +157,22 @@ TEST_F(SQLiteBackendImplTest,
               ValueIs(Eq(std::nullopt)));
 }
 
+TEST_F(SQLiteBackendImplTest, BindFailsWhenDatabaseFileIsInvalid) {
+  const base::FilePath db_path = base::FilePath::FromASCII("Cache");
+
+  ASSERT_OK_AND_ASSIGN(
+      auto pending_backend,
+      backend_storage_->MakePendingBackend(db_path, false, false));
+
+  // Invalidate the database file handle.
+  pending_backend.pending_file_set.db_file = base::File();
+
+  // Bind should fail because the database file is invalid.
+  // With the fix, we should get kConnectionError (due to SQLITE_CANTOPEN).
+  // Without the fix, we would get kPermanent (due to SQLITE_ERROR fallback).
+  ASSERT_THAT(
+      SqliteBackendImpl::Bind(std::move(pending_backend), Client::kTest),
+      ErrorIs(TransactionError::kConnectionError));
+}
+
 }  // namespace persistent_cache

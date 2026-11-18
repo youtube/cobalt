@@ -9,7 +9,6 @@
 
 #include "base/functional/callback_helpers.h"
 #include "build/build_config.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/permission_decision.h"
 #include "components/permissions/permission_prompt_decision.h"

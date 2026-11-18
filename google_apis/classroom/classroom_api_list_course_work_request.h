@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
@@ -44,10 +45,17 @@ class ListCourseWorkRequest : public UrlFetchRequestBase {
   using Callback = base::OnceCallback<void(
       base::expected<std::unique_ptr<CourseWork>, ApiErrorCode> result)>;
 
-  ListCourseWorkRequest(RequestSender* sender,
-                        const std::string& course_id,
-                        const std::string& page_token,
-                        Callback callback);
+  enum class AdditionalRequestField {
+    kMaterials,
+    kWorkType,
+  };
+
+  ListCourseWorkRequest(
+      RequestSender* sender,
+      const std::string& course_id,
+      const std::string& page_token,
+      base::span<const AdditionalRequestField> additional_request_fields,
+      Callback callback);
   ListCourseWorkRequest(const ListCourseWorkRequest&) = delete;
   ListCourseWorkRequest& operator=(const ListCourseWorkRequest&) = delete;
   ~ListCourseWorkRequest() override;
@@ -69,6 +77,7 @@ class ListCourseWorkRequest : public UrlFetchRequestBase {
 
   const std::string course_id_;
   const std::string page_token_;
+  const std::string requested_fields_;
   Callback callback_;
 
   base::WeakPtrFactory<ListCourseWorkRequest> weak_ptr_factory_{this};

@@ -394,7 +394,7 @@ void VerifyExtendedKeyUsage(const ParsedCertificate &cert,
     // intermediates, there are a number of exceptions regarding CA ownership
     // and cross signing which are impossible for us to know or enforce here.
     // Therefore, we can only enforce at the level of the intermediate that
-    // issued our target certificate. This means we we differ in the following
+    // issued our target certificate. This means we differ in the following
     // ways:
     // - We only enforce at the issuer of the TLS certificate.
     // - We allow email protection to exist in the issuer, since without
@@ -2152,21 +2152,21 @@ void PathVerifier::Run(
 
   valid_policy_graph_.Init();
 
-  // RFC 5280 section section 6.1.2:
+  // RFC 5280 section 6.1.2:
   //
   // If initial-explicit-policy is set, then the initial value
   // [of explicit_policy] is 0, otherwise the initial value is n+1.
   explicit_policy_ =
       initial_explicit_policy == InitialExplicitPolicy::kTrue ? 0 : n + 1;
 
-  // RFC 5280 section section 6.1.2:
+  // RFC 5280 section 6.1.2:
   //
   // If initial-any-policy-inhibit is set, then the initial value
   // [of inhibit_anyPolicy] is 0, otherwise the initial value is n+1.
   inhibit_any_policy_ =
       initial_any_policy_inhibit == InitialAnyPolicyInhibit::kTrue ? 0 : n + 1;
 
-  // RFC 5280 section section 6.1.2:
+  // RFC 5280 section 6.1.2:
   //
   // If initial-policy-mapping-inhibit is set, then the initial value
   // [of policy_mapping] is 0, otherwise the initial value is n+1.
@@ -2175,7 +2175,7 @@ void PathVerifier::Run(
           ? 0
           : n + 1;
 
-  // RFC 5280 section section 6.1.2:
+  // RFC 5280 section 6.1.2:
   //
   // max_path_length:  this integer is initialized to n, ...
   max_path_length_ = n;

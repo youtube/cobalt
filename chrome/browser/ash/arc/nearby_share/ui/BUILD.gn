@@ -50,6 +50,7 @@ source_set("unit_tests") {
     "//chrome/browser/ash/arc/nearby_share/ui",
     "//chrome/browser/nearby_sharing/common",
     "//chrome/browser/ui",
+    "//chrome/browser/ui/views:layout_provider",
     "//chromeos/ash/experiences/arc:arc_test_support",
     "//components/strings:components_strings_grit",
     "//testing/gtest",

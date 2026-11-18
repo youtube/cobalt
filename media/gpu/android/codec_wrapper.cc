@@ -101,7 +101,11 @@ class CodecWrapperImpl : public base::RefCountedThreadSafe<CodecWrapperImpl> {
 
   // The current output size. Updated when DequeueOutputBuffer() reports
   // OUTPUT_FORMAT_CHANGED.
-  gfx::Size size_;
+  gfx::Size media_format_output_size_;
+
+  // The current visible_rect. Updated when DequeueOutputBuffer() reports
+  // OUTPUT_FORMAT_CHANGED.
+  gfx::Rect visible_rect_;
 
   // A callback that's called whenever an output buffer is released back to the
   // codec.
@@ -121,23 +125,27 @@ class CodecWrapperImpl : public base::RefCountedThreadSafe<CodecWrapperImpl> {
 CodecOutputBuffer::CodecOutputBuffer(
     scoped_refptr<CodecWrapperImpl> codec,
     int64_t id,
-    const gfx::Size& size,
+    const gfx::Size& media_format_output_size,
+    const gfx::Rect& visible_rect,
     const MediaFormatColorSpace& color_space,
     std::optional<gfx::Size> coded_size_alignment)
     : codec_(std::move(codec)),
       id_(id),
-      size_(size),
+      media_format_output_size_(media_format_output_size),
+      visible_rect_(visible_rect),
       color_space_(color_space),
       coded_size_alignment_(coded_size_alignment) {}
 
 // For testing.
 CodecOutputBuffer::CodecOutputBuffer(
     int64_t id,
-    const gfx::Size& size,
+    const gfx::Size& media_format_output_size,
+    const gfx::Rect& visible_rect,
     const MediaFormatColorSpace& color_space,
     std::optional<gfx::Size> coded_size_alignment)
     : id_(id),
-      size_(size),
+      media_format_output_size_(media_format_output_size),
+      visible_rect_(visible_rect),
       color_space_(color_space),
       coded_size_alignment_(coded_size_alignment) {}
 
@@ -166,10 +174,11 @@ bool CodecOutputBuffer::CanGuessCodedSize() const {
 
 gfx::Size CodecOutputBuffer::GuessCodedSize() const {
   DCHECK(CanGuessCodedSize());
-  return gfx::Size(base::bits::AlignUpDeprecatedDoNotUse(
-                       size_.width(), coded_size_alignment_->width()),
-                   base::bits::AlignUpDeprecatedDoNotUse(
-                       size_.height(), coded_size_alignment_->height()));
+  return gfx::Size(
+      base::bits::AlignUpDeprecatedDoNotUse(visible_rect_.width(),
+                                            coded_size_alignment_->width()),
+      base::bits::AlignUpDeprecatedDoNotUse(visible_rect_.height(),
+                                            coded_size_alignment_->height()));
 }
 
 CodecWrapperImpl::CodecWrapperImpl(
@@ -179,7 +188,8 @@ CodecWrapperImpl::CodecWrapperImpl(
     std::optional<gfx::Size> coded_size_alignment)
     : codec_(std::move(codec_surface_pair.first)),
       surface_bundle_(std::move(codec_surface_pair.second)),
-      size_(initial_expected_size),
+      media_format_output_size_(initial_expected_size),
+      visible_rect_(initial_expected_size),
       output_buffer_release_cb_(std::move(output_buffer_release_cb)),
       coded_size_alignment_(coded_size_alignment) {
   CHECK(codec_);
@@ -368,7 +378,8 @@ CodecWrapperImpl::DequeueStatus CodecWrapperImpl::DequeueOutputBuffer(
         int64_t buffer_id = next_buffer_id_++;
         buffer_ids_[buffer_id] = index;
         *codec_buffer = base::WrapUnique(new CodecOutputBuffer(
-            this, buffer_id, size_, color_space_, coded_size_alignment_));
+            this, buffer_id, media_format_output_size_, visible_rect_,
+            color_space_, coded_size_alignment_));
         return DequeueStatus::Codes::kOk;
       }
       case MediaCodecResult::Codes::kTryAgainLater: {
@@ -380,7 +391,8 @@ CodecWrapperImpl::DequeueStatus CodecWrapperImpl::DequeueOutputBuffer(
       }
       case MediaCodecResult::Codes::kOutputFormatChanged: {
         gfx::Size temp_size;
-        result = codec_->GetOutputSize(&temp_size);
+        gfx::Rect visible_rect;
+        result = codec_->GetOutputSizeAndCropRect(temp_size, visible_rect);
         if (result.code() == MediaCodecResult::Codes::kError) {
           state_ = State::kError;
           return {DequeueStatus::Codes::kError,
@@ -394,8 +406,10 @@ CodecWrapperImpl::DequeueStatus CodecWrapperImpl::DequeueOutputBuffer(
         // change to avoid output errors. We'll either reuse the previous size
         // information or the size provided during configure.
         // See https://crbug.com/1207682.
-        if (!temp_size.IsEmpty())
-          size_ = temp_size;
+        if (!temp_size.IsEmpty()) {
+          media_format_output_size_ = temp_size;
+          visible_rect_ = visible_rect;
+        }
 
         bool error = codec_->GetOutputColorSpace(&color_space_) ==
                      MediaCodecResult::Codes::kError;
@@ -410,7 +424,7 @@ CodecWrapperImpl::DequeueStatus CodecWrapperImpl::DequeueOutputBuffer(
         // If we fail to get a color space after we have gotten a valid size,
         // reset the color space. The higher levels of the stack will decide
         // the color space (e.g, based on the container settings).
-        if (error && !size_.IsEmpty()) {
+        if (error && !media_format_output_size_.IsEmpty()) {
           color_space_ = MediaFormatColorSpace();
         }
         continue;

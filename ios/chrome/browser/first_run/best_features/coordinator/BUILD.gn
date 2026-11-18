@@ -39,3 +39,22 @@ source_set("coordinator") {
   ]
   frameworks = [ "UIKit.framework" ]
 }
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "best_features_screen_coordinator_unittest.mm" ]
+  deps = [
+    ":coordinator",
+    "//base",
+    "//base/test:test_support",
+    "//ios/chrome/browser/first_run/best_features/ui",
+    "//ios/chrome/browser/first_run/public:best_features_item",
+    "//ios/chrome/browser/first_run/public:features",
+    "//ios/chrome/browser/first_run/public:screen_delegate",
+    "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/web/public/test",
+    "//testing/gtest",
+  ]
+}

@@ -1,0 +1,11 @@
+Name: ref-cast-impl
+URL: https://crates.io/crates/ref-cast-impl
+Version: 1.0.25
+Revision: 8cea9d561e44ec4ebaf4de1ba64bedfdf2944138
+Update Mechanism: Manual (https://crbug.com/449898466)
+License: Apache-2.0
+License File: //third_party/rust/chromium_crates_io/vendor/ref-cast-impl-v1/LICENSE-APACHE
+Shipped: yes
+Security Critical: yes
+
+Description: Derive implementation for ref_cast::RefCast.

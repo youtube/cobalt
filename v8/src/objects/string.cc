@@ -139,6 +139,8 @@ void String::MakeThin(IsolateT* isolate,
   DisallowGarbageCollection no_gc;
   DCHECK_NE(this, internalized);
 
+  SYNCHRONIZATION_POINT_FOR_TESTING("MakeThinString");
+
   Tagged<Map> initial_map = map(kAcquireLoad);
   StringShape initial_shape(initial_map);
 
@@ -350,6 +352,8 @@ bool String::MakeExternal(Isolate* isolate,
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
 
+  SYNCHRONIZATION_POINT_FOR_TESTING("MakeExternalTwoByteString");
+
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
   DCHECK(
@@ -440,6 +444,8 @@ bool String::MakeExternal(Isolate* isolate,
                           v8::String::ExternalOneByteStringResource* resource) {
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
+
+  SYNCHRONIZATION_POINT_FOR_TESTING("MakeExternalOneByteString");
 
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
@@ -1947,7 +1953,7 @@ uint32_t String::ComputeAndSetRawHash(
   DCHECK_IMPLIES(!v8_flags.shared_string_table, !HasHashCode());
 
   // Store the hash code in the object.
-  const HashSeed seed = HashSeed(EarlyGetReadOnlyRoots());
+  const HashSeed seed = HashSeed(ReadOnlyHeap::EarlyGetReadOnlyRoots(this));
   size_t start = 0;
   Tagged<String> string = this;
   StringShape shape(string);
@@ -1994,7 +2000,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
     uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
     *index = StringHasher::DecodeArrayIndexFromHashField(
-        field, HashSeed(EarlyGetReadOnlyRoots()));
+        field, HashSeed(ReadOnlyHeap::EarlyGetReadOnlyRoots(this)));
     return true;
   }
   if (length == 0 || length > kMaxArrayIndexSize) return false;
@@ -2009,7 +2015,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
     uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
     *index = StringHasher::DecodeArrayIndexFromHashField(
-        field, HashSeed(EarlyGetReadOnlyRoots()));
+        field, HashSeed(ReadOnlyHeap::EarlyGetReadOnlyRoots(this)));
     return true;
   }
   if (length == 0 || length > kMaxIntegerIndexSize) return false;
@@ -2400,7 +2406,12 @@ namespace {
 // Check that the constants defined in src/objects/instance-type.h coincides
 // with the Torque-definition of string instance types in src/objects/string.tq.
 
-DEFINE_TORQUE_GENERATED_STRING_INSTANCE_TYPE()
+using RepresentationBits =
+    base::BitField<StringRepresentationTag, 0, 3, uint16_t>;
+using IsOneByteBit = base::BitField<bool, 3, 1, uint16_t>;
+using IsUncachedBit = base::BitField<bool, 4, 1, uint16_t>;
+using IsNotInternalizedBit = base::BitField<bool, 5, 1, uint16_t>;
+using IsSharedBit = base::BitField<bool, 6, 1, uint16_t>;
 
 static_assert(kStringRepresentationMask == RepresentationBits::kMask);
 

@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">السنة</translation>
 <translation id="1013952917065545813">يمكنك الرجوع إلى هذه الصفحة لإعادة فتح علامات التبويب التي أغلقتها مؤخرًا.</translation>
 <translation id="1016495303386450659">تم تحديث العنصر</translation>
+<translation id="1018804590490383958">المسح ضوئيًا وملء البيانات تلقائيًا</translation>
 <translation id="1019990162050689579">‏نشاطك على تطبيقات Gemini</translation>
 <translation id="102916930470544692">مفتاح المرور</translation>
 <translation id="1030376737535466765">فتح "مدير كلمات المرور"</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">‏يمكنك تحميل صورة لبدء استخدام Nano Banana</translation>
 <translation id="1377508275003315939">كلمات المرور</translation>
 <translation id="1381022135873211423">{count,plural, =1{العنوان {position} من إجمالي عنوان واحد ({count})}zero{العنوان {position} من إجمالي {count} عنوان}two{العنوان {position} من إجمالي عنوانَين ({count})}few{العنوان {position} من إجمالي {count} عناوين}many{العنوان {position} من إجمالي {count} عنوانًا}other{العنوان {position} من إجمالي {count} عنوان}}</translation>
+<translation id="13813615483058219">حدث خطأ. يُرجى التحقّق من اتصالك بالإنترنت أو رفع مستوى الصوت أو إعادة المحاولة.</translation>
 <translation id="1383876407941801731">البحث</translation>
 <translation id="138618066238211776">المتابعة بحساب "<ph name="USER_NAME" />"</translation>
 <translation id="138692594145659985">خيارات "حفظ البطاقة"</translation>
@@ -366,7 +368,7 @@
 <translation id="2196428379625389579">البحث على الويب</translation>
 <translation id="2199562093267256223">سيؤدي هذا الإجراء إلى حذف المجموعة من جميع الأجهزة التي تم تسجيل الدخول إلى حساب <ph name="USER_EMAIL" /> عليها.</translation>
 <translation id="2202084845446535117">لا تتوفر أي حسابات بريد إلكتروني</translation>
-<translation id="2214453882118345682">يمكنك التسوّق وترجمة النصوص والتعرّف على ما تراه باستخدام الكاميرا.</translation>
+<translation id="2214453882118345682">يمكنك تسوّق ما يظهر أمامك أو ترجمته أو التعرّف عليه باستخدام الكاميرا.</translation>
 <translation id="2216366330550244277">الانتقال إلى صفحة المنتج</translation>
 <translation id="2219935992754556187">‏يحمي Chrome بياناتك الحسّاسة باستخدام ميزة "التعرُّف على الوجه"</translation>
 <translation id="2220529011494928058">الإبلاغ عن مشكلة</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">تحديث المتصفِّح</translation>
 <translation id="4021931095789478915">‏إضافة ${url} إلى "قائمة القراءة"</translation>
 <translation id="4028871427853484857">الحفظ في الحساب…</translation>
+<translation id="4036529942385659684">عرض صفحة البدء بعد فترة من عدم النشاط</translation>
 <translation id="4038354071007134711">لا يمكن فتح هذا الملف بأي تطبيق موجود على هذا الجهاز.</translation>
 <translation id="4042870976416480368">البحث في الصفحة</translation>
 <translation id="4045441967987592849">إعادة فتح</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">إدارة المجموعة</translation>
 <translation id="4172051516777682613">الإظهار دائمًا</translation>
 <translation id="417273154673973994">{count,plural, =1{تمّ إغلاق مجموعة علامات تبويب واحدة وحفظها}zero{تمّ إغلاق {count} مجموعة علامات تبويب وحفظها}two{تمّ إغلاق مجموعتَي علامات تبويب ({count}) وحفظهما}few{تمّ إغلاق {count} مجموعات علامات تبويب وحفظها}many{تمّ إغلاق {count} مجموعة علامات تبويب وحفظها}other{تمّ إغلاق {count} مجموعة علامات تبويب وحفظها}}</translation>
-<translation id="417612446554534067">الإرسال إلى أجهزتك</translation>
 <translation id="4180726336228139707">على هذا الجهاز فقط</translation>
 <translation id="4181841719683918333">اللغات</translation>
 <translation id="4183350924949589798">هل تريد الحصول على مزيد من الأمان؟</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">تم إغلاق علامات التبويب وتسجيل خروجك من الحساب</translation>
 <translation id="4911042367886397055">مرحبًا بك من جديد، <ph name="USER_NAME" /></translation>
 <translation id="4913626501929406101">يمكنك مشاركة نسخة من كلمة المرور بأمان مع أي فرد في مجموعة عائلتك. <ph name="BEGIN_LINK" />مزيد من المعلومات<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">العدسة</translation>
 <translation id="4917025507570489430">يمكنك استخدام بيانات التصفّح الحالية عند تسجيل الدخول بحساب <ph name="USER_EMAIL" />. وقد تتمكن مؤسستك من الاطّلاع على هذه البيانات.</translation>
 <translation id="4918086044614829423">قبول</translation>
 <translation id="4930714375720679147">تفعيل</translation>
@@ -1547,6 +1550,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">اختيار موضع شريط العناوين</translation>
 <translation id="6307241780749477694">يُرجى إثبات هويتك للحصول على جميع كلمات المرور على هذا الجهاز</translation>
+<translation id="6307792728709337290">‏يمكنك حفظ بطاقتك في حسابك على Google لملء بياناتها تلقائيًا عند إجراء عملية الشراء هذه وعمليات شراء مستقبلية في Chrome.</translation>
 <translation id="6316141353357700666">اختَر كلمة المرور التي تريد استخدامها من القائمة التي تظهر.</translation>
 <translation id="6321526113093607004">الإضافة إلى الإشارات المرجعية</translation>
 <translation id="6327249202318869726">‏تم إيقاف Gemini في حسابك. يُرجى التواصل مع المشرف للحصول على مزيد من المعلومات.</translation>
@@ -2142,6 +2146,7 @@
 <translation id="8263809106706527890">قد يكون هناك تغيير في إعدادات المتصفِّح التلقائية. يمكنك التحقّق من ذلك في الإعدادات.</translation>
 <translation id="8264966119170358612">‏تم رصد بعض كلمات المرور المحفوظة الخاصة بك ضمن عملية اختراق للبيانات من خارج Google. <ph name="BEGIN_LINK" />مزيد من المعلومات<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">‏تم تسجيل خروج حسابك <ph name="USER_NAME" /> كجزء من عملية إعادة ضبط جهاز iPad. لإعادة تسجيل الدخول، انقر على "متابعة" أدناه.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">سيتم ملء المعلومات في <ph name="URL" />.</translation>
 <translation id="8275068909952022340">المزيد…</translation>
 <translation id="8281781826761538115">التلقائي - <ph name="DEFAULT_LOCALE" /></translation>

@@ -13,14 +13,14 @@ export function getHtml(this: InkTextBoxElement) {
       <textarea id="textbox" .value="${this.textValue_}" rows="1"
           @input="${this.onTextValueInput_}">
       </textarea>
-      <div class="handle top left" tabindex="0"></div>
-      <div class="handle top center" tabindex="0"></div>
-      <div class="handle top right" tabindex="0"></div>
-      <div class="handle left center" tabindex="0"></div>
-      <div class="handle right center" tabindex="0"></div>
-      <div class="handle bottom left" tabindex="0"></div>
-      <div class="handle bottom center" tabindex="0"></div>
-      <div class="handle bottom right" tabindex="0"></div>
+      <div class="handle top left"></div>
+      <div class="handle top center"></div>
+      <div class="handle top right"></div>
+      <div class="handle left center"></div>
+      <div class="handle right center"></div>
+      <div class="handle bottom left"></div>
+      <div class="handle bottom center"></div>
+      <div class="handle bottom right"></div>
     </div>
   <!--_html_template_end_-->`;
 }

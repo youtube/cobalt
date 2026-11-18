@@ -216,6 +216,8 @@ CertProvisioningWorkerDynamic::CertProvisioningWorkerDynamic(
   CHECK(cert_provisioning_client_);
   CHECK(invalidator_);
 
+  // This logs an empty cppId for deserealized workers. A different log line
+  // clarifies that.
   LOG(WARNING) << "Started provisioning a certificate" << GetLogInfoBlock();
 }
 
@@ -1105,7 +1107,7 @@ void CertProvisioningWorkerDynamic::CancelScheduledTasks() {
 // worker is asked to cleanup and shutdown while a key is being generated for
 // it. In that case this cleanup will miss that key and it's important to make
 // sure that there is another mechanism that will eventually clean up the key.
-// VA and PKS keys both are covered and the mechanism is described in seperate
+// VA and PKS keys both are covered and the mechanism is described in separate
 // comments.
 void CertProvisioningWorkerDynamic::CleanUpAndRunCallback() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1188,10 +1190,12 @@ void CertProvisioningWorkerDynamic::HandleSerialization() {
 
   switch (state_) {
     case CertProvisioningWorkerState::kInitState:
-      break;
     case CertProvisioningWorkerState::kKeypairGenerated:
-      // Serialize as we're going to perform a server-side request which could
-      // be repeated if we had e.g. no connectivity.
+      // Do not serialize in the early states, it's easier to retry from the
+      // beginning. Notably, the worker registers for invalidations both after
+      // deserialization and after calling the Start RPC, but it should only
+      // register once.
+      break;
     case CertProvisioningWorkerState::kReadyForNextOperation:
       // Serialize as we're going to wait for a server-side instruction.
     case CertProvisioningWorkerState::kSignCsrFinished:

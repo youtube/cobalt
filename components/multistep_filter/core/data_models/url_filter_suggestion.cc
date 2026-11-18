@@ -35,10 +35,12 @@ std::string FilterAttributeUiLabel::ToString() const {
 UrlFilterSuggestion::UrlFilterSuggestion(Params params)
     : navigation_url(std::move(params.navigation_url)),
       source_domain(std::move(params.source_domain)),
+      source_host(std::move(params.source_host)),
       extraction_timestamp(params.extraction_timestamp),
       attribute_ui_labels(std::move(params.attribute_ui_labels)),
       triggering_navigation_id(params.triggering_navigation_id),
       triggering_domain(std::move(params.triggering_domain)),
+      triggering_host(std::move(params.triggering_host)),
       task_type(std::move(params.task_type)),
       suggestion_message(std::move(params.suggestion_message)) {}
 
@@ -66,13 +68,15 @@ std::string UrlFilterSuggestion::ToString() const {
   return base::StrCat(
       {"UrlFilterSuggestion(navigation_url=", navigation_url.spec(),
        ", source_domain=", base::UTF16ToUTF8(source_domain),
+       ", source_host=", base::UTF16ToUTF8(source_host),
        ", extraction_timestamp=",
        base::NumberToString(
            extraction_timestamp.ToDeltaSinceWindowsEpoch().InMicroseconds()),
        ", attribute_ui_labels=[", base::JoinString(attribute_strings, ", "),
        "], triggering_navigation_id=",
        base::NumberToString(triggering_navigation_id), ", triggering_domain=",
-       triggering_domain, ", task_type=", task_type, message_suffix, ")"});
+       triggering_domain, ", triggering_host=", triggering_host,
+       ", task_type=", task_type, message_suffix, ")"});
 }
 
 }  // namespace multistep_filter

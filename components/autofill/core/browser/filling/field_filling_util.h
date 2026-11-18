@@ -35,7 +35,7 @@ struct FillingValueAndType {
   // `select_text` is only specified for <select> fields to disambiguate
   // multiple options that have the same `SelectOption::value`.
   std::optional<std::u16string> select_text = std::nullopt;
-  FieldType filling_type = NO_SERVER_DATA;
+  FieldType filling_type = UNKNOWN_TYPE;
 };
 
 // This file contains functions that are generically usefull for filling or

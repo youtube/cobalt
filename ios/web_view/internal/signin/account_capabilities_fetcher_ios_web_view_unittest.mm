@@ -44,7 +44,7 @@ TEST_F(AccountCapabilitiesFetcherIOSWebViewTest, CheckCapabilityFetchDisabled) {
       identity_test_environment_.MakePrimaryAccountAvailable(
           kTestEmail, signin::ConsentLevel::kSignin);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_fetch_family_member_info(true);
   identity_test_environment_.UpdateAccountInfoForAccount(account_info);
 

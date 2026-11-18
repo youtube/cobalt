@@ -3766,24 +3766,14 @@ bool View::UpdateParentLayers() {
 void View::OrphanLayers() {
   if (layer()) {
     if (ui::Layer* parent = layer()->parent()) {
+      base::WeakPtr<ui::Layer> weak_parent = layer()->parent()->AsWeakPtr();
       for (ui::Layer* layer : GetLayersInOrder()) {
-        // TODO(http://b/319941708): Please remove the below crash keys once the
-        // the crash is fixed. It seems one of the layers returned by
-        // `GetLayersInOrder()` is not a sibling of this view's `layer()` (i.e.
-        // the parent is different).
-        SCOPED_CRASH_KEY_BOOL("OrphanLayers", "layer_valid", !!layer);
-        SCOPED_CRASH_KEY_BOOL("OrphanLayers", "layer_is_sibling",
-                              layer->parent() == parent);
-        SCOPED_CRASH_KEY_STRING256("OrphanLayers", "this_layer_name",
-                                   this->layer()->name());
-        SCOPED_CRASH_KEY_STRING256("OrphanLayers", "parent_layer_name",
-                                   parent->name());
-        SCOPED_CRASH_KEY_STRING256("OrphanLayers", "sibling_layer_name",
-                                   layer->name());
-        SCOPED_CRASH_KEY_STRING256("OrphanLayers", "widget_name",
-                                   GetWidget() ? GetWidget()->GetName() : "");
-        SCOPED_CRASH_KEY_STRING256("OrphanLayers", "view_class_name",
-                                   GetClassName());
+        // Layer::Remove() will stop any layer animation on the parent, notify
+        // LayerAnimationObserver::OnLayerAnimationAborted(). If the observer
+        // deletes the layer, the weak_parent will become null.
+        if (!weak_parent) {
+          break;
+        }
         parent->Remove(layer);
       }
     }

@@ -171,6 +171,7 @@ L$_init_clmul:
 .private_extern _gcm_gmult_clmul
 
 .p2align	4
+.alt_entry _gcm_gmult_clmul
 _gcm_gmult_clmul:
 
 _CET_ENDBR
@@ -226,6 +227,7 @@ L$_gmult_clmul:
 .private_extern _gcm_ghash_clmul
 
 .p2align	5
+.alt_entry _gcm_ghash_clmul
 _gcm_ghash_clmul:
 
 
@@ -610,6 +612,7 @@ L$done:
 .private_extern _gcm_init_avx
 
 .p2align	5
+.alt_entry _gcm_init_avx
 _gcm_init_avx:
 
 
@@ -723,6 +726,7 @@ L$init_start_avx:
 .private_extern _gcm_gmult_avx
 
 .p2align	5
+.alt_entry _gcm_gmult_avx
 _gcm_gmult_avx:
 
 _CET_ENDBR
@@ -733,6 +737,7 @@ _CET_ENDBR
 .private_extern _gcm_ghash_avx
 
 .p2align	5
+.alt_entry _gcm_ghash_avx
 _gcm_ghash_avx:
 
 
@@ -1112,7 +1117,9 @@ L$tail_no_xor_avx:
 
 
 .section	__DATA,__const
+
 .p2align	6
+ghash_constants:
 L$bswap_mask:
 .byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
 L$0x1c2_polynomial:

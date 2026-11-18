@@ -270,6 +270,7 @@
 <translation id="1407135791313364759">បើកទាំងអស់</translation>
 <translation id="1408696301184924537">ដើម្បី​បំពេញ IBAN នេះ​ដោយ​ស្វ័យប្រវត្តិ​នៅលើកក្រោយ សូមរក្សាទុកវា​នៅក្នុង​គណនី Google របស់អ្នក</translation>
 <translation id="1408787208417187241">កិប​បីគ្រាប់​ខាងលើ</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />។ <ph name="SUGGESTION_TYPE" />។ <ph name="MATCH_POSITION" /> នៃ <ph name="NUM_MATCHES_IN_GROUP" /> នៅក្នុង​ក្រុម <ph name="GROUP_HEADER" />។</translation>
 <translation id="1410365862999780287">អ្នកផ្សេងទៀត​ដែលប្រើ​ឧបករណ៍នេះ​នឹងមិនឃើញ​សកម្មភាព​របស់អ្នកទេ ដូច្នេះ​អ្នកអាច​រុករក​បានក្នុងលក្ខណៈ​ឯកជនជាងមុន។ មុខងារនេះ​នឹងមិនប្ដូរ​របៀបដែល​ទិន្នន័យ​ត្រូវបាន​ប្រមូលដោយ​គេហទំព័រ​ដែលអ្នក​ចូលមើល និង​សេវាកម្ម​ដែលពួកគេ​ប្រើ រួមទាំង Google ទេ។ ឯកសារដែលបានទាញយក ចំណាំ និង​ធាតុបញ្ជីអាន​នឹងត្រូវបាន​រក្សាទុក។</translation>
 <translation id="1410941016594047814">ស្រោមសំបុត្រអញ្ជើញ</translation>
 <translation id="1413235258620101697">CVC របស់​កាតនេះ​នឹងត្រូវបាន​អ៊ីនគ្រីប និង​រក្សាទុក​នៅក្នុង Google Wallet ដើម្បី​បង់ប្រាក់ចេញ​កាន់តែរហ័ស</translation>
@@ -301,6 +302,7 @@
 <translation id="1445896388055045436">បង្ហាញ​រង្វាន់ និង​អត្ថប្រយោជន៍​កាតដែលមាន​នៅពេល​បង់ប្រាក់​ចេញ។ លក្ខខណ្ឌ​របស់​ស្ថាប័ន​ចេញកាត​ត្រូវបាន​អនុវត្ត។</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">មិនអាច​កំណត់កូដ "<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" នៅក្នុង​វចនានុក្រម​តែមួយ​ជាមួយកូដ "<ph name="DATA_CONTROLS_SECOND_KEY_SET" />" បានទេ</translation>
+<translation id="1449251255954293933">រក្សាទុក​លេខដោះស្រាយ​នៅក្នុង Google Wallet</translation>
 <translation id="1455413310270022028">ជ័រលុប</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{មើលមតិវាយតម្លៃ 0}=1{មើល​មតិវាយតម្លៃ 1}other{មើល​មតិវាយតម្លៃទាំង #}}</translation>
 <translation id="1458059624921545588">មនុស្ស និង​សង្គម</translation>
@@ -662,6 +664,7 @@
 <translation id="2045871135676061132">ស្រោមសំបុត្រផ្ទាល់ខ្លួន</translation>
 <translation id="2046951263634619614">អ្នក​លក់សៀវភៅរាយ​</translation>
 <translation id="2048261947532620704">កំពុងបកប្រែទំព័រ</translation>
+<translation id="2055016614992422886">ការសន្ទនា</translation>
 <translation id="2059166748188874810">ក្រុង</translation>
 <translation id="2059202684901022309">22 x 34 in</translation>
 <translation id="2064568741209980952">ឥណទាន និង​កម្ចី</translation>
@@ -1158,6 +1161,7 @@
 <translation id="2782088940970074970">ការជួល​រថយន្ត</translation>
 <translation id="278436560439594386">គ្រឿងអេឡិចត្រូនិកប្រើប្រាស់​ក្នុង​ផ្ទះ</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">ពាក្យ​សម្ងាត់ · កូដសម្ងាត់</translation>
 <translation id="2784949926578158345">ការភ្ជាប់ត្រូវបានកំណត់ឡើងវិញ។</translation>
 <translation id="2786008859124691917">កង់ និង​គ្រឿង​បន្ថែម</translation>
 <translation id="2792012897584536778">អ្នក​គ្រប់គ្រង​ឧបករណ៍​នេះ​បាន​រៀបចំ​វិញ្ញាបនបត្រ​សុវត្ថិភាព ដែលអាច​អនុញ្ញាតឱ្យពួកគេ​មើលឃើញ​ខ្លឹមសារ​គេហទំព័រ​ដែលអ្នក​ចូលមើល។</translation>
@@ -2309,6 +2313,7 @@
 <translation id="46128681529823442">បរិក្ខារ​កីឡា​បាល់​ទាត់</translation>
 <translation id="4612904677925722054">គេហទំព័រនេះ​អាចមាន​ខ្លឹមសារ​សម្រាប់​មនុស្ស​ពេញវ័យ។ មាតាបិតា ឬ​អាណាព្យាបាល​ចាំបាច់ត្រូវយល់ព្រមឱ្យអ្នក​ចូលទៅកាន់​គេហទំព័រ​នេះ។</translation>
 <translation id="4619564267100705184">ផ្ទៀងផ្ទាត់ថា​ជាអ្នក</translation>
+<translation id="4619669610757527494">រក្សាទុក​បណ្ណ​បើកបរ​នៅក្នុង Google Wallet</translation>
 <translation id="4622292761762557753">មិន​អី​ទេ ផ្ទេរ​ចុះ</translation>
 <translation id="4622647778991854660">បើក​ការជូនដំណឹង​នៅក្នុង​មជ្ឈមណ្ឌល​ជូនដំណឹង។ បើក<ph name="LINK" />។</translation>
 <translation id="4623894491222334521">ឯកសារ​សម្គាល់ខ្លួន</translation>
@@ -2838,6 +2843,7 @@
 <translation id="543656192084990644">មិនអនុញ្ញាតឱ្យប្រើសេនស័រចាប់ចលនាទេ</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, ពីមុន <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">ផ្ងារឡើងតាមលំដាប់លំដោយ​បញ្ច្រាស</translation>
+<translation id="5447103258548475868">រក្សាទុក​លិខិតឆ្លងដែន​នៅក្នុង Google Wallet</translation>
 <translation id="5447235695608032700">អនុញ្ញាត​ឱ្យ <ph name="SITE" /> ប្រើ​ព័ត៌មាន​ដែល​ពួកគេ​បាន​រក្សាទុក​អំពី​អ្នក</translation>
 <translation id="5447973833955560753">ពាក្យ​សម្ងាត់​សម្រាប់​ការស្ដារ​ឡើងវិញ</translation>
 <translation id="5451331376824595378">នៅពេល​ព្រឹត្តិការណ៍​ទាក់ទងនឹង​សុវត្ថិភាព​ត្រូវបានសម្គាល់​ដោយ Chrome ទិន្នន័យ​ដែលពាក់ព័ន្ធនឹង​ព្រឹត្តិការណ៍ទាំងនោះ​ត្រូវបានផ្ញើទៅ​អ្នកគ្រប់គ្រង​របស់អ្នក។ ទិន្នន័យនេះ​អាចរួមបញ្ចូល URL នៃទំព័រដែលអ្នកចូលមើលនៅក្នុង Chrome, URL នៃទំព័រដែលអ្នកបានចម្លងទិន្នន័យ, ឈ្មោះឯកសារឬទិន្នន័យ​មេតា, អាសយដ្ឋាន IP, ការគាំងកម្មវិធីរុករកតាមអ៊ីនធឺណិតឬផ្ទាំង និង​ឈ្មោះអ្នកប្រើប្រាស់ដែលអ្នកប្រើ​ដើម្បីចូលគណនីក្នុងកម្មវិធីផ្អែកលើ​វេប, ឧបករណ៍​របស់អ្នក និង Chrome។</translation>
@@ -3020,6 +3026,7 @@
 <translation id="5718601519531438273">រួមបញ្ចូល​ព័ត៌មាន ដូចជា​លិខិតឆ្លងដែន និង​បណ្ណ​បើកបរ​ជាដើម</translation>
 <translation id="5720705177508910913">អ្នកប្រើបច្ចុប្បន្ន</translation>
 <translation id="5720895412771013401">កុំព្យូទ័រ​លើ​តុ</translation>
+<translation id="5721147290164931316">ស្កេន​ដើម្បី​ចូលគណនី​ដោយប្រើ​ទូរសព្ទ​របស់អ្នក</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} និង 1 ទៀត}other{{website_1}, {website_2} និង {more_count} ទៀត}}</translation>
 <translation id="572328651809341494">ផ្ទាំងថ្មីៗ</translation>
 <translation id="5723873695528696965">គ្រប់គ្រង និង​សរសេរកម្មវិធី​ឧបករណ៍ MIDI របស់អ្នក​ឡើងវិញ</translation>
@@ -3561,6 +3568,7 @@
 <translation id="6550245281449521513">មិនអនុញ្ញាតឱ្យចាក់សោម៉ៅស៍ទេ</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, ថ្មី</translation>
 <translation id="6552566579578780089">ការបង់​ប្រាក់</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />។ <ph name="SUGGESTION_TYPE" />។ <ph name="MATCH_POSITION" /> នៃ <ph name="NUM_MATCHES_IN_GROUP" /> នៅក្នុង​ក្រុម <ph name="GROUP_HEADER" />។</translation>
 <translation id="6554732001434021288">បានចូលមើល​លើកចុងក្រោយ​កាលពី <ph name="NUM_DAYS" /> ថ្ងៃមុន</translation>
 <translation id="6556866813142980365">ធ្វើវិញ</translation>
 <translation id="6557715786897013164">14 x 17 in</translation>
@@ -4238,6 +4246,7 @@
 <translation id="7599089013883397081">ការទាញយក​អស់ម៉ោងហើយ</translation>
 <translation id="7602868996817972616">សួរ Google អំពី​ទំព័រនេះ</translation>
 <translation id="7606123685356405076">គំរូ Gemini 3</translation>
+<translation id="760632772920590778">រក្សាទុក​ព័ត៌មាន​យានជំនិះ​នៅក្នុង Google Wallet</translation>
 <translation id="7610193165460212391">តម្លៃនៅក្រៅចន្លោះ <ph name="VALUE" />។</translation>
 <translation id="761261689936461781">ក្រាស់</translation>
 <translation id="7613889955535752492">ផុតកំណត់៖ <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4266,7 +4275,9 @@
 <translation id="7646681339175747202">ពាក្យសម្ងាត់​ដែល​អ្នក​ទើបតែ​ប្រើ​ត្រូវបាន​រកឃើញ​នៅក្នុង​ការបែកធ្លាយទិន្នន័យ។ កម្មវិធីគ្រប់គ្រងពាក្យសម្ងាត់ណែនាំឱ្យ​ផ្លាស់ប្ដូរ​ពាក្យសម្ងាត់​របស់អ្នក​ឥឡូវនេះ។</translation>
 <translation id="7647206758853451655">គុណភាព​បោះពុម្ព</translation>
 <translation id="7648133459447652947">ដើម្បី​បង្ហាញ​ទស្សន៍ទ្រនិច​របស់អ្នក សូមប្ដូរ​កម្មវិធី ផ្ទុក​ទំព័រ​​ឡើងវិញ ឬ​ត្រឡប់ក្រោយ</translation>
+<translation id="764847582138410250">ស្កេន​ដើម្បី​ចូលគណនី​ដោយប្រើ​ទូរសព្ទ​របស់អ្នក</translation>
 <translation id="7648527891719919697">គេហទំព័រនេះ​នឹងនៅតែ​ត្រូវបាន​ទប់ស្កាត់ ដោយសារ​អ្នកបានបើក​ការការពារ​កម្រិតខ្ពស់​នៅក្នុង<ph name="BEGIN_ANDROID_SETTINGS_LINK" />ការកំណត់ Android<ph name="END_ANDROID_SETTINGS_LINK" />។ <ph name="BEGIN_LEARN_MORE_LINK" />ស្វែងយល់​បន្ថែម​អំពី​សារប្រុងប្រយ័ត្ន​នេះ<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">រក្សាទុក​លេខ​អ្នកដំណើរ​ដែលស្គាល់​នៅក្នុង Google Wallet</translation>
 <translation id="7648992873808071793">ផ្ទុកឯកសារនៅលើឧបករណ៍នេះ</translation>
 <translation id="7649070708921625228">ជំនួយ</translation>
 <translation id="7650141368285545431">ប្រើកូដសម្ងាត់ពីឧបករណ៍ផ្សេង</translation>
@@ -4359,6 +4370,7 @@
 <translation id="7773005668374414287">ផ្ងារឡើង​តាមលំដាប់​លំដោយដូចគ្នា</translation>
 <translation id="7779418012194492374">ដកសិទ្ធិ​ចូលប្រើ <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">ម្សិលមិញ</translation>
+<translation id="7782228658217918863">រក្សាទុក​អត្តសញ្ញាណ​ប័ណ្ណ​នៅក្នុង Google Wallet</translation>
 <translation id="7782465647372057580">ព័ត៌មាន​គណនី​ត្រូវបាន​អ៊ីនគ្រីប និង​រក្សាជា​លក្ខណៈ​ឯកជន</translation>
 <translation id="7785471469930192436">មើល​ការណែនាំ​របស់​ម៉ាស៊ីន​ស្វែងរកអ្នក ដើម្បីដឹង​អំពីរបៀប​លុបប្រវត្តិ​ស្វែងរក​របស់អ្នក ប្រសិនបើអាច</translation>
 <translation id="7785790577395078482">ថេប្លេតនេះ</translation>

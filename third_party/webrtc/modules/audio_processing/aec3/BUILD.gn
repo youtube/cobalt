@@ -317,7 +317,6 @@ if (rtc_include_tests) {
       "../../../api/audio:echo_control",
       "../../../api/audio:neural_residual_echo_estimator_api",
       "../../../api/environment",
-      "../../../api/environment:environment_factory",
       "../../../rtc_base:checks",
       "../../../rtc_base:cpu_info",
       "../../../rtc_base:random",

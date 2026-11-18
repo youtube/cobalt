@@ -199,14 +199,16 @@ sessions::LiveTab* AndroidLiveTabContext::AddRestoredTab(
 
   // Create new tab. Ownership is passed into java, which in turn creates a new
   // TabAndroid instance to own the WebContents. Only select the restored tab
-  // when restoring a single tab from a TAB session.
+  // when restoring a single tab (not as part of a bulk window/group
+  // restoration).
 
   // `tab_index` is ignored because TabRestoreServiceHelper resets it to the tab
   // count when the disposition is not `UNKNOWN`. We want to restore the tab to
   // its original index, so we use `tab.tabstrip_index` instead. The tab model
   // will handle the case where the index is out of bounds.
   TabModel::TabLaunchType type =
-      original_session_type == sessions::tab_restore::TAB
+      (original_session_type == sessions::tab_restore::TAB ||
+       (!is_restoring_group_or_window && select))
           ? TabModel::TabLaunchType::FROM_RECENT_TABS_FOREGROUND
           : TabModel::TabLaunchType::FROM_RECENT_TABS;
   tab_model_->CreateTab(nullptr, std::move(web_contents), tab.tabstrip_index,

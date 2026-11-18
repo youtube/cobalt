@@ -37,6 +37,7 @@ source_set("initializer") {
 
   deps = [
     "//base",
+    "//chrome/common:constants",
     "//chrome/common:non_code_constants",
     "//content/public/common",
     "//ui/gfx",
@@ -144,6 +145,7 @@ if (!is_android) {
       "//base",
       "//chrome/browser",
       "//chrome/browser/infobars",
+      "//chrome/common:constants",
       "//chrome/test:test_support",
       "//components/headless/clipboard",
       "//content/test:test_support",

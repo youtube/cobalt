@@ -10,6 +10,8 @@
 
 package org.webrtc;
 
+import org.jni_zero.NativeMethods;
+
 /**
  * Class for holding the native pointer of a histogram. Since there is no way to destroy a
  * histogram, please don't create unnecessary instances of this object. This class is thread safe.
@@ -27,18 +29,23 @@ class Histogram {
   }
 
   static public Histogram createCounts(String name, int min, int max, int bucketCount) {
-    return new Histogram(nativeCreateCounts(name, min, max, bucketCount));
+    return new Histogram(HistogramJni.get().createCounts(name, min, max, bucketCount));
   }
 
   static public Histogram createEnumeration(String name, int max) {
-    return new Histogram(nativeCreateEnumeration(name, max));
+    return new Histogram(HistogramJni.get().createEnumeration(name, max));
   }
 
   public void addSample(int sample) {
-    nativeAddSample(handle, sample);
+    HistogramJni.get().addSample(handle, sample);
   }
 
-  private static native long nativeCreateCounts(String name, int min, int max, int bucketCount);
-  private static native long nativeCreateEnumeration(String name, int max);
-  private static native void nativeAddSample(long handle, int sample);
+  @NativeMethods
+  interface Natives {
+    long createCounts(String name, int min, int max, int bucketCount);
+
+    long createEnumeration(String name, int max);
+
+    void addSample(long handle, int sample);
+  }
 }

@@ -443,7 +443,11 @@ public class SyncErrorMessage implements SyncService.SyncStateChangedListener {
 
     private void startUpdateCredentialsFlow(Activity activity) {
         final @Nullable AccountInfo primaryAccountInfo = mIdentityManager.getPrimaryAccountInfo();
-        assert primaryAccountInfo != null;
+        if (primaryAccountInfo == null) {
+            // Can happen in case of a race condition between a sign-out (because the primary
+            // account got removed from the device) and the user tapping the sync error message.
+            return;
+        }
         AccountManagerFacadeProvider.getInstance()
                 .updateCredentials(primaryAccountInfo.getId(), activity, null);
     }

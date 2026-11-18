@@ -53,8 +53,8 @@ const char kExtensionBlocklistHttpsUrlPrefix[] =
 }  // namespace
 
 ChromeExtensionsClient::ChromeExtensionsClient() {
-  AddAPIProvider(std::make_unique<ChromeExtensionsAPIProvider>());
   AddAPIProvider(std::make_unique<CoreExtensionsAPIProvider>());
+  AddAPIProvider(std::make_unique<ChromeExtensionsAPIProvider>());
 }
 
 ChromeExtensionsClient::~ChromeExtensionsClient() = default;

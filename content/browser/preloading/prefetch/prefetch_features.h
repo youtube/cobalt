@@ -112,12 +112,23 @@ CONTENT_EXPORT extern const base::FeatureParam<size_t>
 // To enable this, also enable `kPrefetchOffTheMainThread`.
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchOffTheMainThreadForceForTesting);
 
-// If enabled, prefetch activation beacon will be sent when a prefetch is
-// activated.
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchActivationBeacon);
-
 // Cancels unrelated prefetch when a navigation is started.
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchCancelUnrelatedPrefetch);
+
+enum class PrefetchCancelUnrelatedPrefetchCancelPolicy {
+  // Cancel prefetches that are not servable.
+  kNotServable,
+  // Cancel prefetches that are not servable && initiated by the navigation's
+  // initiator document.
+  //
+  // Since browser-initiated navigations do not have an initiator document,
+  // no prefetches are cancelled for them.
+  kNotServableSameInitiatorDocument,
+};
+
+CONTENT_EXPORT extern const base::FeatureParam<
+    PrefetchCancelUnrelatedPrefetchCancelPolicy>
+    kPrefetchCancelUnrelatedPrefetchCancelPolicy;
 
 // Kill switch for making `PrefetchHandle`'s callbacks async.
 // TODO(crbug.com/480271813): Remove it after confirming stability.

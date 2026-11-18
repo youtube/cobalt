@@ -41,7 +41,7 @@ class ExternalCache {
       const std::string& path,
       const std::string& version);
 
-  // If the external extension is not curently cached, whether the extension's
+  // If the external extension is not currently cached, whether the extension's
   // value should be added to the set of cached extensions (returned by
   // GetCachedExtensions()) regardless of the extension's download status.
   static bool ShouldCacheImmediately(const base::DictValue& extension_value);

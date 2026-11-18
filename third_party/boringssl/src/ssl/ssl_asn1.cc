@@ -824,7 +824,7 @@ int SSL_SESSION_to_bytes_for_ticket(const SSL_SESSION *in, uint8_t **out_data,
   return 1;
 }
 
-int i2d_SSL_SESSION(SSL_SESSION *in, uint8_t **pp) {
+int i2d_SSL_SESSION(const SSL_SESSION *in, uint8_t **pp) {
   ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 256) ||
       !SSL_SESSION_to_bytes_if_not_resumable(in, cbb.get(), 0)) {

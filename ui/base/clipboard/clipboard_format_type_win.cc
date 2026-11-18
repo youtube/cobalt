@@ -15,6 +15,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/synchronization/lock.h"
 #include "ui/base/clipboard/clipboard_constants.h"
 
 namespace ui {
@@ -234,6 +235,13 @@ std::map<LONG, ClipboardFormatType>& ClipboardFormatType::FileContentTypeMap() {
 // static
 const ClipboardFormatType& ClipboardFormatType::FileContentAtIndexType(
     LONG index) {
+  // FileContentTypeMap() is accessed from both the browser UI thread and
+  // base::ThreadPool workers during virtual-file drag-and-drop, so serialize
+  // map mutation. base::NoDestructor only makes construction thread-safe;
+  // std::map::insert itself is not.
+  static base::NoDestructor<base::Lock> map_lock;
+  base::AutoLock auto_lock(*map_lock);
+
   auto& index_to_type_map = FileContentTypeMap();
 
   auto insert_or_assign_result = index_to_type_map.insert(

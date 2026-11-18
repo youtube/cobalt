@@ -155,7 +155,7 @@ TEST_P(CaretDisplayItemClientTest, CaretPaintInvalidation) {
   // Move the caret to the end of the text. Should invalidate both the old and
   // new carets.
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(text, 5)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(text, 5)).Build(),
       SetSelectionOptions());
 
   EXPECT_TRUE(GetCaretDisplayItemClient().IsValid());
@@ -172,7 +172,7 @@ TEST_P(CaretDisplayItemClientTest, CaretPaintInvalidation) {
   ASSERT_CARET_LAYER();
 
   // Remove selection. Should invalidate the old caret.
-  Selection().SetSelection(SelectionInDOMTree(), SetSelectionOptions());
+  Selection().SetSelection(SelectionInDomTree(), SetSelectionOptions());
 
   EXPECT_TRUE(GetCaretDisplayItemClient().IsValid());
   UpdateAllLifecyclePhasesExceptPaint();
@@ -210,7 +210,7 @@ TEST_P(CaretDisplayItemClientTest, CaretMovesBetweenBlocks) {
   EXPECT_FALSE(ShouldPaintCursorCaret(*block2));
 
   // Move the caret into block2. Should invalidate both the old and new carets.
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(block_element2, 0))
                                .Build(),
                            SetSelectionOptions());
@@ -229,7 +229,7 @@ TEST_P(CaretDisplayItemClientTest, CaretMovesBetweenBlocks) {
   ASSERT_CARET_LAYER();
 
   // Move the caret back into block1.
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(block_element1, 0))
                                .Build(),
                            SetSelectionOptions());
@@ -260,7 +260,7 @@ TEST_P(CaretDisplayItemClientTest, UpdatePreviousLayoutBlock) {
 
   // Set caret into block2.
   GetDocument().body()->Focus();
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(block_element2, 0))
                                .Build(),
                            SetSelectionOptions());
@@ -272,7 +272,7 @@ TEST_P(CaretDisplayItemClientTest, UpdatePreviousLayoutBlock) {
   EXPECT_FALSE(PreviousCaretLayoutBlock());
 
   // Move caret into block1. Should set PreviousCaretLayoutBlock to block2.
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(block_element1, 0))
                                .Build(),
                            SetSelectionOptions());
@@ -285,7 +285,7 @@ TEST_P(CaretDisplayItemClientTest, UpdatePreviousLayoutBlock) {
 
   // Move caret into block2. Partial update should not change
   // PreviousCaretLayoutBlock.
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(block_element2, 0))
                                .Build(),
                            SetSelectionOptions());
@@ -302,13 +302,13 @@ TEST_P(CaretDisplayItemClientTest, UpdatePreviousLayoutBlock) {
   EXPECT_FALSE(PreviousCaretLayoutBlock());
 
   // Set caret into block1.
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(block_element1, 0))
                                .Build(),
                            SetSelectionOptions());
   UpdateAllLifecyclePhasesForCaretTest();
   // Remove selection.
-  Selection().SetSelection(SelectionInDOMTree(), SetSelectionOptions());
+  Selection().SetSelection(SelectionInDomTree(), SetSelectionOptions());
   GetDocument().View()->UpdateLifecycleToLayoutClean(
       DocumentUpdateReason::kTest);
   EXPECT_EQ(block1, PreviousCaretLayoutBlock());
@@ -352,7 +352,7 @@ TEST_P(CaretDisplayItemClientTest, EnsureInvalidatePreviousLayoutBlock) {
   // Set caret into p1.
   GetDocument().body()->Focus();
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(p1, 0)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(p1, 0)).Build(),
       SetSelectionOptions());
 
   GetDocument().View()->UpdateLifecycleToLayoutClean(
@@ -369,7 +369,7 @@ TEST_P(CaretDisplayItemClientTest, EnsureInvalidatePreviousLayoutBlock) {
   auto* p3 = GetDocument().getElementById(AtomicString("p3"));
   // Set caret into p3. Should set PreviousCaretLayoutBlock to p1.
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(p3, 0)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(p3, 0)).Build(),
       SetSelectionOptions());
   GetDocument().View()->UpdateLifecycleToLayoutClean(
       DocumentUpdateReason::kTest);
@@ -395,7 +395,7 @@ TEST_P(CaretDisplayItemClientTest, CaretHideMoveAndShow) {
   Selection().SetCaretEnabled(false);
   // Move the caret to the end of the text.
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(text, 5)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(text, 5)).Build(),
       SetSelectionOptions());
   // Simulate that the cursor blinking is restarted.
   Selection().SetCaretEnabled(true);
@@ -452,7 +452,7 @@ TEST_P(CaretDisplayItemClientTest, CompositingChange) {
   auto* editor = GetDocument().getElementById(AtomicString("editor"));
   auto* editor_block = To<LayoutBlock>(editor->GetLayoutObject());
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(editor, 0)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(editor, 0)).Build(),
       SetSelectionOptions());
 
   UpdateAllLifecyclePhasesExceptPaint();
@@ -536,7 +536,7 @@ TEST_P(CaretDisplayItemClientTest, MAYBE_InsertSpaceToWhiteSpacePreWrapRTL) {
   GetDocument().GetPage()->GetFocusController().SetActive(true);
   GetDocument().GetPage()->GetFocusController().SetFocused(true);
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(position).Build(),
+      SelectionInDomTree::Builder().Collapse(position).Build(),
       SetSelectionOptions());
 
   UpdateAllLifecyclePhasesExceptPaint();
@@ -595,7 +595,7 @@ TEST_P(CaretDisplayItemClientTest, InsertSpaceToWhiteSpacePreWrap) {
   GetDocument().GetPage()->GetFocusController().SetActive(true);
   GetDocument().GetPage()->GetFocusController().SetFocused(true);
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(position).Build(),
+      SelectionInDomTree::Builder().Collapse(position).Build(),
       SetSelectionOptions());
 
   UpdateAllLifecyclePhasesExceptPaint();
@@ -655,7 +655,7 @@ TEST_P(CaretDisplayItemClientTest, CaretAtEdgeOfInlineBlock) {
   auto test = [this, editable_block](const Position& position,
                                      const PhysicalRect& expected_rect) {
     Selection().SetSelection(
-        SelectionInDOMTree::Builder().Collapse(position).Build(),
+        SelectionInDomTree::Builder().Collapse(position).Build(),
         SetSelectionOptions());
 
     UpdateAllLifecyclePhasesExceptPaint();
@@ -869,14 +869,14 @@ TEST_P(CaretDisplayItemClientTest, BlockCaretAnchorFollowsCaretAcrossNodes) {
 
   // Place the caret in span 'a' first.
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(text_a, 0)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(text_a, 0)).Build(),
       SetSelectionOptions());
   UpdateAllLifecyclePhasesForCaretTest();
   ASSERT_EQ(BlockCaretAnchor(), text_a);
 
   // Move it into span 'b' at offset 1.
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(text_b, 1)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(text_b, 1)).Build(),
       SetSelectionOptions());
   UpdateAllLifecyclePhasesForCaretTest();
 

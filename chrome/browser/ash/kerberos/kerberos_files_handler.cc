@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "ash/constants/chrome_pref_names.h"
 #include "base/base_paths.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -16,7 +17,6 @@
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
-#include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 
 namespace ash {
@@ -97,7 +97,7 @@ KerberosFilesHandler::KerberosFilesHandler(
   // Listen to kDisableAuthNegotiateCnameLookup pref. It might change the
   // Kerberos config.
   negotiate_disable_cname_lookup_.Init(
-      prefs::kDisableAuthNegotiateCnameLookup, &local_state,
+      ash::chrome_prefs::kDisableAuthNegotiateCnameLookup, &local_state,
       base::BindRepeating(
           &KerberosFilesHandler::OnDisabledAuthNegotiateCnameLookupChanged,
           weak_factory_.GetWeakPtr()));

@@ -24,6 +24,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/link_to_text/link_to_text.mojom.h"
+#include "ui/views/widget/widget.h"
 
 namespace content {
 class Page;
@@ -40,6 +41,7 @@ namespace glic {
 
 enum class GlicNudgeActivity;
 
+class GlicSelectionWidgetDelegate;
 class GlicKeyedService;
 
 class GlicSelectionObserver
@@ -110,8 +112,12 @@ class GlicSelectionObserver
 
 
   bool ShouldShowSelectionWidget();
-  void OnWidgetDismissed();
   void OnWidgetPinToggled(bool is_pinned);
+  void OnAskGemini();
+  void OnCopy();
+  void OnCopyLink();
+  void OnHideForThisSite();
+  void OnSettings();
 
   void CopyLinkToHighlight(content::WeakDocumentPtr weak_document_ptr);
 
@@ -152,7 +158,22 @@ class GlicSelectionObserver
   // updates until the input event completes.
   bool is_selecting_ = false;
 
-  base::WeakPtr<views::Widget> selection_widget_;
+  // Private bridge implementation of
+  // GlicSelectionWidgetDelegate::ActionDelegate. This is required because
+  // GlicSelectionObserver (in the //chrome/browser/glic) cannot directly
+  // implement the UI-defined ActionDelegate interface to prevent circular
+  // target dependencies in the build configuration.
+  class WidgetActionDelegate;
+
+  void OnWidgetClosed(views::Widget::ClosedReason reason);
+
+  std::unique_ptr<views::Widget> selection_widget_;
+  std::unique_ptr<GlicSelectionWidgetDelegate> widget_delegate_;
+  std::unique_ptr<WidgetActionDelegate> action_delegate_;
+  // True if the user temporarily blocked the selection widget for the current
+  // page load.
+  // TODO(b/519247911): Remove this.
+  bool is_hidden_on_current_page_ = false;
 
   mojo::Remote<blink::mojom::TextFragmentReceiver> text_fragment_remote_;
   std::optional<GURL> generated_link_;

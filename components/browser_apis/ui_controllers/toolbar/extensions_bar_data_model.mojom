@@ -1,0 +1,22 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module extensions_bar.mojom;
+
+import "components/browser_apis/ui_controllers/toolbar/icon_handle.mojom";
+
+// Data of a toolbar button for dealing with extensions.
+struct ExtensionActionInfo {
+  // This is the action id used to identify the action in the
+  // ExtensionsContainer and related APIs --- and is the extenion's identifier
+  // string.
+  string id;
+  string accessible_name;
+  string tooltip;
+
+  // True if button is visible for any reason; e.g. pinned, or popped out
+  // because the user is interacting with this extension.
+  bool is_visible;
+  toolbar_ui_api.mojom.IconHandle icon;
+};

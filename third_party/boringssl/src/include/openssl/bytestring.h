@@ -264,11 +264,16 @@ OPENSSL_EXPORT int CBS_get_asn1(CBS *cbs, CBS *out, CBS_ASN1_TAG tag_value);
 OPENSSL_EXPORT int CBS_get_asn1_element(CBS *cbs, CBS *out,
                                         CBS_ASN1_TAG tag_value);
 
-// CBS_peek_asn1_tag looks ahead at the next ASN.1 tag and returns one
-// if the next ASN.1 element on `cbs` would have tag `tag_value`. If
-// `cbs` is empty or the tag does not match, it returns zero. Note: if
-// it returns one, CBS_get_asn1 may still fail if the rest of the
+// CBS_peek_any_asn1_tag looks ahead at the next ASN.1 tag and returns it. If a
+// tag could not be parsed, it returns zero, which is never a valid tag. Note:
+// if it returns non-zero, `CBS_get_asn1` may still fail if the rest of the
 // element is malformed.
+OPENSSL_EXPORT CBS_ASN1_TAG CBS_peek_any_asn1_tag(const CBS *cbs);
+
+// CBS_peek_asn1_tag looks ahead at the next ASN.1 tag and returns one if the
+// next ASN.1 element on `cbs` would have tag `tag_value`. If `cbs` is empty or
+// the tag does not match, it returns zero. Note: if it returns one,
+// `CBS_get_asn1` may still fail if the rest of the element is malformed.
 OPENSSL_EXPORT int CBS_peek_asn1_tag(const CBS *cbs, CBS_ASN1_TAG tag_value);
 
 // CBS_get_any_asn1 sets `*out` to contain the next ASN.1 element from `*cbs`

@@ -40,6 +40,7 @@
 #include "content/public/test/prerender_test_util.h"
 #include "content/shell/browser/shell.h"
 #include "content/test/content_browser_test_utils_internal.h"
+#include "media/audio/audio_constants.h"
 #include "media/base/media_content_type.h"
 #include "media/base/media_switches.h"
 #include "net/base/filename_util.h"
@@ -64,7 +65,6 @@ using ::testing::NiceMock;
 namespace {
 
 const double kDefaultVolumeMultiplier = 1.0;
-const double kDuckingVolumeMultiplier = 0.2;
 const double kDifferentDuckingVolumeMultiplier = 0.018;
 
 const std::u16string kExpectedSourceTitlePrefix = u"http://example.com:";
@@ -593,14 +593,14 @@ IN_PROC_BROWSER_TEST_P(MediaSessionImplParamBrowserTest,
   StartNewPlayer(player_observer.get());
   SystemStartDucking();
 
-  EXPECT_FLOAT_EQ(kDuckingVolumeMultiplier,
+  EXPECT_FLOAT_EQ(media::kDefaultDuckingVolumeMultiplier,
                   player_observer->GetVolumeMultiplier(0));
-  EXPECT_FLOAT_EQ(kDuckingVolumeMultiplier,
+  EXPECT_FLOAT_EQ(media::kDefaultDuckingVolumeMultiplier,
                   player_observer->GetVolumeMultiplier(1));
 
   StartNewPlayer(player_observer.get());
 
-  EXPECT_FLOAT_EQ(kDuckingVolumeMultiplier,
+  EXPECT_FLOAT_EQ(media::kDefaultDuckingVolumeMultiplier,
                   player_observer->GetVolumeMultiplier(2));
 }
 
@@ -657,7 +657,7 @@ IN_PROC_BROWSER_TEST_P(MediaSessionImplParamBrowserTest,
   EXPECT_FALSE(IsActive());
 
   SystemStartDucking();
-  EXPECT_FLOAT_EQ(kDuckingVolumeMultiplier,
+  EXPECT_FLOAT_EQ(media::kDefaultDuckingVolumeMultiplier,
                   player_observer->GetVolumeMultiplier(player_id));
 
   // On resume, ducking should stop.

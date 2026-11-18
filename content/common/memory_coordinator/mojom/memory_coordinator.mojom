@@ -31,6 +31,7 @@ interface ChildMemoryCoordinator {
 // is converted back and forth. See base/memory_coordinator/traits.h for a
 // description of each trait.
 struct MemoryConsumerTraits {
+  uint8 consumer_type;
   uint8 estimated_memory_usage;
   uint8 release_memory_cost;
   uint8 information_retention;

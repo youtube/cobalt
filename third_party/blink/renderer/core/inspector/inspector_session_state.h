@@ -266,7 +266,6 @@ class CORE_EXPORT InspectorAgentState {
   using String = SimpleField<blink::String>;
   using Bytes = SimpleField<std::vector<uint8_t>>;
   using BooleanMap = MapField<bool>;
-  using IntegerMap = MapField<int32_t>;
   using DoubleMap = MapField<double>;
   using StringMap = MapField<blink::String>;
 

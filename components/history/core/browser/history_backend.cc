@@ -10,6 +10,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -38,6 +39,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/tracing/protos/chrome_track_event.pbzero.h"
+#include "base/types/zip.h"
 #include "build/build_config.h"
 #include "build/ios_buildflags.h"
 #include "components/favicon/core/favicon_backend.h"
@@ -544,8 +546,10 @@ SegmentID HistoryBackend::CalculateSegmentID(
     const GURL& url,
     VisitID from_visit,
     ui::PageTransition transition_type) {
-  // We only consider main frames.
-  if (!ui::PageTransitionIsMainFrame(transition_type)) {
+  // Only consider main frames, and ignore redirects (i.e. consider only the
+  // start of a redirect chain).
+  if (!ui::PageTransitionIsMainFrame(transition_type) ||
+      ui::PageTransitionIsRedirect(transition_type)) {
     return 0;
   }
 
@@ -1026,10 +1030,13 @@ void HistoryBackend::AddPage(const HistoryAddPageArgs& request) {
       !ui::PageTransitionCoreTypeIs(request_transition,
                                     ui::PAGE_TRANSITION_TYPED) &&
       !is_keyword_generated) {
-    // Check both the start and end of a redirect chain, since the user will
-    // consider both to have been "navigated to".
-    if (IsUntypedIntranetHost(request.url) ||
-        (has_redirects && IsUntypedIntranetHost(request.redirects[0]))) {
+    // Check the start of the redirect chain (or the final URL if there are no
+    // redirects) to see if it is an intranet host. We only check the start of
+    // the redirect chain because the user typed/clicked it directly, so we
+    // want to avoid promoting other hosts (like localhost redirect targets)
+    // in the chain to TYPED.
+    if (IsUntypedIntranetHost(has_redirects ? request.redirects[0]
+                                            : request.url)) {
       request_transition = ui::PageTransitionFromInt(
           ui::PAGE_TRANSITION_TYPED |
           ui::PageTransitionGetQualifier(request_transition));
@@ -2056,6 +2063,18 @@ QueryURLResult HistoryBackend::QueryURL(const GURL& url) {
   return result;
 }
 
+std::optional<std::vector<URLID>> HistoryBackend::QueryUrlIds(
+    const std::vector<GURL>& urls) {
+  if (!db_) {
+    return std::nullopt;
+  }
+  std::vector<URLID> result(urls.size(), 0);
+  for (auto [url, id] : base::zip(urls, result)) {
+    id = db_->GetRowForURL(url, nullptr);
+  }
+  return result;
+}
+
 QueryURLAndVisitsResult HistoryBackend::QueryURLAndVisits(
     const GURL& url,
     VisitQuery404sPolicy policy_for_404s) {
@@ -2523,7 +2542,7 @@ void HistoryBackend::ReplaceClusters(
 }
 
 ClusterId HistoryBackend::ReserveNextClusterIdWithVisit(
-    const ClusterVisit& cluster_visit) {
+    ClusterVisit cluster_visit) {
   TRACE_EVENT0("browser", "HistoryBackend::ReserveNextClusterIdWithVisit");
   ClusterId cluster_id =
       db_ ? db_->ReserveNextClusterId(/*originator_cache_guid=*/"",
@@ -2533,13 +2552,14 @@ ClusterId HistoryBackend::ReserveNextClusterIdWithVisit(
     // DB write was not successful, just return.
     return ClusterId(0);
   }
-  AddVisitsToCluster(cluster_id, {cluster_visit});
+  std::vector<ClusterVisit> visits;
+  visits.push_back(std::move(cluster_visit));
+  AddVisitsToCluster(cluster_id, std::move(visits));
   return cluster_id;
 }
 
-void HistoryBackend::AddVisitsToCluster(
-    ClusterId cluster_id,
-    const std::vector<ClusterVisit>& visits) {
+void HistoryBackend::AddVisitsToCluster(ClusterId cluster_id,
+                                        std::vector<ClusterVisit> visits) {
   TRACE_EVENT0("browser", "HistoryBackend::AddVisitsToCluster");
   if (!db_) {
     return;
@@ -2591,8 +2611,7 @@ void HistoryBackend::HideVisits(const std::vector<VisitID>& visit_ids) {
   db_->HideVisits(visit_ids);
 }
 
-void HistoryBackend::UpdateClusterVisit(
-    const history::ClusterVisit& cluster_visit) {
+void HistoryBackend::UpdateClusterVisit(history::ClusterVisit cluster_visit) {
   TRACE_EVENT0("browser", "HistoryBackend::UpdateClusterVisit");
   if (!db_) {
     return;

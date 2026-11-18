@@ -47,6 +47,11 @@ namespace {
 // our scope are flagged.
 
 template <typename T>
+Span<const uint8_t> MemoryRepresentation(const T &t) {
+  return Span(reinterpret_cast<const uint8_t *>(&t), sizeof(T));
+}
+
+template <typename T>
 static void CheckRepresentation(T value) {
   SCOPED_TRACE(value);
 
@@ -76,8 +81,7 @@ static void CheckRepresentation(T value) {
   EXPECT_EQ(0u, value_u);
 
   // Check that `value` has the expected representation.
-  EXPECT_EQ(Bytes(expected),
-            Bytes(reinterpret_cast<const uint8_t *>(&value), sizeof(value)));
+  EXPECT_EQ(Bytes(expected), Bytes(MemoryRepresentation(value)));
 }
 
 TEST(CompilerTest, IntegerRepresentation) {
@@ -219,8 +223,25 @@ TEST(CompilerTest, PointerRepresentation) {
   // structs may be initialized by memset(0).
   int *null = nullptr;
   uint8_t bytes[sizeof(null)] = {0};
-  EXPECT_EQ(Bytes(bytes),
-            Bytes(reinterpret_cast<uint8_t *>(&null), sizeof(null)));
+  EXPECT_EQ(Bytes(bytes), Bytes(MemoryRepresentation(null)));
+
+  // The in-memory representation of pointers is not dependent on the type.
+  // crypto/asn1's table-based parser depends on being able to write to load and
+  // store pointers without knowing their types.
+  std::unique_ptr<int> obj(new int);
+  int *ptr_int = obj.get();
+  void *ptr_void = ptr_int;
+  char *ptr_char = reinterpret_cast<char *>(ptr_int);
+  // This is allowed as long as the pointer is aligned. (Dereferencing the
+  // pointer would be a strict aliasing violation.)
+  static_assert(alignof(short) <= alignof(int));
+  short *ptr_short = reinterpret_cast<short*>(ptr_int);
+  EXPECT_EQ(Bytes(MemoryRepresentation(ptr_int)),
+            Bytes(MemoryRepresentation(ptr_void)));
+  EXPECT_EQ(Bytes(MemoryRepresentation(ptr_int)),
+            Bytes(MemoryRepresentation(ptr_char)));
+  EXPECT_EQ(Bytes(MemoryRepresentation(ptr_int)),
+            Bytes(MemoryRepresentation(ptr_short)));
 }
 
 static uintptr_t aba(uintptr_t *a, void **b) {
@@ -232,7 +253,7 @@ static uintptr_t aba(uintptr_t *a, void **b) {
 TEST(CompilerTest, NoStrictAliasing) {
   // Sequential memory access must be sequentially consistent across types.
   // Compilers such as clang and gcc need to be passed -fno-strict-aliasing
-  // for this to remain true at at higher optimization levels. Use with the
+  // for this to remain true at higher optimization levels. Use with the
   // opposite configuration, -fstrict-aliasing, is not supported.
   // Even though some subset of type punning through memory is considered
   // undefined behavior, the subtlety of exactly which subset that is and the

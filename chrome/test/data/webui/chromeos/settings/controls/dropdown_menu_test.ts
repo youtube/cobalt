@@ -5,7 +5,7 @@
 import 'chrome://os-settings/os_settings.js';
 
 import type {SettingsDropdownMenuElement} from 'chrome://os-settings/os_settings.js';
-import {assertEquals, assertFalse, assertNotReached, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertNotReached, assertNull, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
 import {clearBody} from '../utils.js';
@@ -16,9 +16,6 @@ suite('SettingsDropdownMenu', function() {
 
   // The <select> used internally by the dropdown menu.
   let selectElement: HTMLSelectElement;
-
-  // The "Custom" option in the <select> menu.
-  let customOption: HTMLOptionElement;
 
   function waitUntilDropdownUpdated(): Promise<void> {
     return waitAfterNextRender(dropdown);
@@ -36,9 +33,6 @@ suite('SettingsDropdownMenu', function() {
     document.body.appendChild(dropdown);
     selectElement = dropdown.shadowRoot!.querySelector('select')!;
     assertTrue(!!selectElement);
-    const options = selectElement.options;
-    customOption = options[options.length - 1]!;
-    assertTrue(!!customOption);
   });
 
   test('with number options', async function() {
@@ -118,8 +112,13 @@ suite('SettingsDropdownMenu', function() {
     await waitUntilDropdownUpdated();
     // "Custom" initially selected.
     assertEquals(dropdown.notFoundValue, selectElement.value);
-    assertEquals('block', getComputedStyle(customOption).display);
-    assertFalse(customOption.disabled);
+    const customOption = selectElement.querySelector<HTMLOptionElement>(
+        `option[value="${dropdown.notFoundValue}"]`);
+    assertTrue(!!customOption);
+    if (customOption) {
+      assertEquals('block', getComputedStyle(customOption).display);
+      assertFalse(customOption.disabled);
+    }
 
     // Pref should not have changed.
     assertEquals('f', dropdown.pref.value);
@@ -163,7 +162,8 @@ suite('SettingsDropdownMenu', function() {
     await waitForTimeout(100);
     await waitUntilDropdownUpdated();
     assertTrue(selectElement.disabled);
-    assertEquals('SETTINGS_DROPDOWN_NOT_FOUND_ITEM', selectElement.value);
+    assertEquals('', selectElement.value);
+    assertEquals(0, selectElement.options.length);
 
     dropdown.menuOptions = [
       {value: 100, name: 'Option 100'},
@@ -179,8 +179,9 @@ suite('SettingsDropdownMenu', function() {
 
     // The "Custom" option should not show up in the dropdown list or be
     // reachable via type-ahead.
-    assertEquals('none', getComputedStyle(customOption).display);
-    assertTrue(customOption.disabled);
+    const customOption = selectElement.querySelector<HTMLOptionElement>(
+        `option[value="${dropdown.notFoundValue}"]`);
+    assertNull(customOption);
   });
 
   test('works with dictionary pref', async function() {

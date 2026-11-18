@@ -35,7 +35,6 @@
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profiles_state.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
@@ -444,14 +443,14 @@ void ArcSettingsServiceImpl::OnPrefChanged(const std::string& pref_name) const {
     if (pref_name == ::language::prefs::kApplicationLocale) {
       SyncCaptionStyle();
     }
-  } else if (pref_name == ::prefs::kConsumerAutoUpdateToggle) {
+  } else if (pref_name == ash::prefs::kConsumerAutoUpdateToggle) {
     SyncConsumerAutoUpdateToggle();
   } else if (pref_name == ash::prefs::kUse24HourClock) {
     SyncUse24HourClock();
   } else if (pref_name == ash::prefs::kResolveTimezoneByGeolocationMethod) {
     SyncTimeZoneByGeolocation();
   } else if (pref_name == proxy_config::prefs::kProxy ||
-             pref_name == ::prefs::kSystemProxyUserTrafficHostAndPort) {
+             pref_name == ash::prefs::kSystemProxyUserTrafficHostAndPort) {
     SyncProxySettings();
   } else {
     LOG(ERROR) << "Unknown pref changed.";
@@ -551,7 +550,7 @@ void ArcSettingsServiceImpl::StartObservingSettingsChanges() {
   AddPrefToObserve(::prefs::kAccessibilityCaptionsTextShadow);
   AddPrefToObserve(::prefs::kAccessibilityCaptionsTextSize);
   AddPrefToObserve(ash::prefs::kResolveTimezoneByGeolocationMethod);
-  AddPrefToObserve(::prefs::kSystemProxyUserTrafficHostAndPort);
+  AddPrefToObserve(ash::prefs::kSystemProxyUserTrafficHostAndPort);
   AddPrefToObserve(ash::prefs::kUse24HourClock);
   AddPrefToObserve(ash::prefs::kAccessibilityFocusHighlightEnabled);
   AddPrefToObserve(ash::prefs::kAccessibilityLargeCursorEnabled);
@@ -568,7 +567,7 @@ void ArcSettingsServiceImpl::StartObservingSettingsChanges() {
   AddPrefToObserve(proxy_config::prefs::kProxy);
 
   // Keep these lines ordered lexicographically.
-  AddLocalStatePrefToObserve(::prefs::kConsumerAutoUpdateToggle);
+  AddLocalStatePrefToObserve(ash::prefs::kConsumerAutoUpdateToggle);
 
   // Note that some preferences, such as kArcBackupRestoreEnabled and
   // kArcLocationServiceEnabled, are not dynamically updated after initial
@@ -809,12 +808,12 @@ void ArcSettingsServiceImpl::SyncProxySettings() const {
 
 bool ArcSettingsServiceImpl::IsSystemProxyActive() const {
   if (!profile_->GetPrefs()->HasPrefPath(
-          ::prefs::kSystemProxyUserTrafficHostAndPort)) {
+          ash::prefs::kSystemProxyUserTrafficHostAndPort)) {
     return false;
   }
 
   const std::string proxy_host_and_port = profile_->GetPrefs()->GetString(
-      ::prefs::kSystemProxyUserTrafficHostAndPort);
+      ash::prefs::kSystemProxyUserTrafficHostAndPort);
   // System-proxy can be active, but the network namespace for the worker
   // process is not yet configured.
   return !proxy_host_and_port.empty();
@@ -822,7 +821,7 @@ bool ArcSettingsServiceImpl::IsSystemProxyActive() const {
 
 void ArcSettingsServiceImpl::SyncProxySettingsForSystemProxy() const {
   const std::string proxy_host_and_port = profile_->GetPrefs()->GetString(
-      ::prefs::kSystemProxyUserTrafficHostAndPort);
+      ash::prefs::kSystemProxyUserTrafficHostAndPort);
   std::string host;
   int port;
   if (!net::ParseHostAndPort(proxy_host_and_port, &host, &port))
@@ -877,11 +876,12 @@ void ArcSettingsServiceImpl::SyncTimeZone() const {
 
 void ArcSettingsServiceImpl::SyncTimeZoneByGeolocation() const {
   base::DictValue extras;
-  extras.Set("autoTimeZone", ash::system::TimeZoneResolverManager::
-                                     GetEffectiveUserTimeZoneResolveMethod(
-                                         registrar_.prefs(), false) !=
-                                 ash::system::TimeZoneResolverManager::
-                                     TimeZoneResolveMethod::DISABLED);
+  extras.Set("autoTimeZone",
+             ash::system::TimeZoneResolverManager::
+                     GetEffectiveUserTimeZoneResolveMethod(
+                         local_state_.get(), registrar_.prefs(), false) !=
+                 ash::system::TimeZoneResolverManager::TimeZoneResolveMethod::
+                     DISABLED);
   SendSettingsBroadcast("org.chromium.arc.intent_helper.SET_AUTO_TIME_ZONE",
                         extras);
 }
@@ -926,7 +926,7 @@ void ArcSettingsServiceImpl::SyncUserGeolocationAccuracy() const {
 
 void ArcSettingsServiceImpl::SyncConsumerAutoUpdateToggle() const {
   SendBoolLocalStatePrefSettingsBroadcast(
-      ::prefs::kConsumerAutoUpdateToggle,
+      ash::prefs::kConsumerAutoUpdateToggle,
       "org.chromium.arc.intent_helper.SET_CONSUMER_AUTO_UPDATE");
 }
 

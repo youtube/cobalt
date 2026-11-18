@@ -584,6 +584,23 @@ void ExtensionsToolbarDesktop::MovePinnedActionBy(const std::string& action_id,
   toolbar_view_model_->MovePinnedActionBy(action_id, move_by);
 }
 
+bool ExtensionsToolbarDesktop::IsFocusOnExtensionAction() const {
+  const views::FocusManager* focus_manager = GetFocusManager();
+  if (!focus_manager) {
+    return false;
+  }
+  const views::View* focused_view = focus_manager->GetFocusedView();
+  if (!focused_view) {
+    return false;
+  }
+  for (const auto& pair : icons_) {
+    if (pair.second == focused_view) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void ExtensionsToolbarDesktop::UpdateHoverCard(
     ToolbarActionView* action_view,
     ToolbarActionHoverCardUpdateType update_type) {
@@ -801,7 +818,7 @@ void ExtensionsToolbarDesktop::CloseExtensionsMenuIfOpen() {
 
 bool ExtensionsToolbarDesktop::CanShowToolbarActionPopupForAPICall(
     const ToolbarActionsModel::ActionId& action_id) {
-  return !popped_out_action_ && browser_->window()->IsActive();
+  return !popped_out_action_ && browser_->GetWindow()->IsActive();
 }
 
 void ExtensionsToolbarDesktop::ToggleExtensionsMenu() {

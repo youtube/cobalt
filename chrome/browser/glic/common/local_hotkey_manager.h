@@ -52,8 +52,8 @@ class LocalHotkeyManager : public ui::AcceleratorTarget {
     // Show the title bar context menu
     kTitleBarContextMenu,
 #endif
-    // Open Glic.
-    kOpenGlic,
+    // Toggle the Glic panel.
+    kPanelToggle,
   };
 
   class Panel {
@@ -91,8 +91,8 @@ class LocalHotkeyManager : public ui::AcceleratorTarget {
       case Command::kTitleBarContextMenu:
         return "kTitleBarContextMenu";
 #endif
-      case Command::kOpenGlic:
-        return "kOpenGlic";
+      case Command::kPanelToggle:
+        return "kPanelToggle";
     }
   }
 

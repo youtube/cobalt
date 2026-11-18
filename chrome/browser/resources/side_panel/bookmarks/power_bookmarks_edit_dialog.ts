@@ -129,14 +129,14 @@ export class PowerBookmarksEditDialogElement extends CrLitElement {
 
   protected getBookmarkName_(): string {
     if (this.selectedBookmarks_.length === 1) {
-      return this.selectedBookmarks_[0].title;
+      return this.selectedBookmarks_[0]!.title;
     }
     return '';
   }
 
   protected getBookmarkUrl_(): string {
     if (this.selectedBookmarks_.length === 1) {
-      return this.selectedBookmarks_[0].url!;
+      return this.selectedBookmarks_[0]!.url!;
     }
     return '';
   }
@@ -220,7 +220,7 @@ export class PowerBookmarksEditDialogElement extends CrLitElement {
   private getShownFolder_(event: Event): BookmarksTreeNode {
     const target = event.currentTarget as HTMLElement;
     const index = Number(target.dataset['index']);
-    return this.shownFolders_[index];
+    return this.shownFolders_[index]!;
   }
 
   protected onBackButtonClick_() {

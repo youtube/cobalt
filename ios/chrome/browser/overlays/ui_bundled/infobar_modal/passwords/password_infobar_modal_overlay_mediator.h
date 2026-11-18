@@ -9,9 +9,17 @@
 #import "ios/chrome/browser/infobars/ui_bundled/modals/infobar_password_modal_delegate.h"
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_modal/infobar_modal_overlay_mediator.h"
 
+@protocol SettingsCommands;
+
 // Mediator that configures the modal UI for a passwords infobar.
 @interface PasswordInfobarModalOverlayMediator
     : InfobarModalOverlayMediator <InfobarPasswordModalDelegate>
+
+- (instancetype)initWithRequest:(OverlayRequest*)request
+         settingsCommandHandler:(id<SettingsCommands>)settingsCommandHandler
+    NS_DESIGNATED_INITIALIZER;
+
+- (instancetype)initWithRequest:(OverlayRequest*)request NS_UNAVAILABLE;
 
 // The consumer that is configured by this mediator.  Setting to a new value
 // configures the new consumer.

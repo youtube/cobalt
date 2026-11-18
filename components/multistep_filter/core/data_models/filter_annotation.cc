@@ -20,15 +20,18 @@ FilterAttribute::FilterAttribute(std::string key, std::string value)
 FilterAnnotation::FilterAnnotation(base::Uuid id,
                                    std::string task_type,
                                    std::string source_domain,
+                                   std::string source_host,
                                    base::Time creation_timestamp,
                                    std::vector<FilterAttribute> attributes)
     : id(std::move(id)),
       task_type(std::move(task_type)),
       source_domain(std::move(source_domain)),
+      source_host(std::move(source_host)),
       creation_timestamp(creation_timestamp),
       attributes(std::move(attributes)) {
   DCHECK(!this->task_type.empty());
   DCHECK(!this->source_domain.empty());
+  DCHECK(!this->source_host.empty());
 }
 
 FilterAnnotation::FilterAnnotation(const FilterAnnotation&) = default;
@@ -51,8 +54,9 @@ std::string FilterAnnotation::ToString() const {
     attribute_strings.push_back(attr.ToString());
   }
   return base::StrCat(
-      {"FilterAnnotation(id=", id.AsLowercaseString(), ", task_type=",
-       task_type, ", source_domain=", source_domain, ", creation_timestamp=",
+      {"FilterAnnotation(id=", id.AsLowercaseString(),
+       ", task_type=", task_type, ", source_domain=", source_domain,
+       ", source_host=", source_host, ", creation_timestamp=",
        base::NumberToString(
            creation_timestamp.ToDeltaSinceWindowsEpoch().InMicroseconds()),
        ", attributes=[", base::JoinString(attribute_strings, ", "), "])"});

@@ -675,9 +675,7 @@ NetworkMonitorInterface* AndroidNetworkMonitorFactory::CreateNetworkMonitor(
                                    j_application_context_, field_trials);
 }
 
-void AndroidNetworkMonitor::NotifyConnectionTypeChanged(
-    JNIEnv* env,
-    const JavaRef<jobject>& j_caller) {
+void AndroidNetworkMonitor::NotifyConnectionTypeChanged(JNIEnv* env) {
   network_thread_->PostTask(SafeTask(safety_flag_, [this] {
     RTC_LOG(LS_INFO)
         << "Android network monitor detected connection type change.";
@@ -687,7 +685,6 @@ void AndroidNetworkMonitor::NotifyConnectionTypeChanged(
 
 void AndroidNetworkMonitor::NotifyOfActiveNetworkList(
     JNIEnv* env,
-    const JavaRef<jobject>& j_caller,
     const JavaRef<jobjectArray>& j_network_infos) {
   std::vector<NetworkInformation> network_infos =
       JavaToNativeVector<NetworkInformation>(env, j_network_infos,
@@ -697,7 +694,6 @@ void AndroidNetworkMonitor::NotifyOfActiveNetworkList(
 
 void AndroidNetworkMonitor::NotifyOfNetworkConnect(
     JNIEnv* env,
-    const JavaRef<jobject>& j_caller,
     const JavaRef<jobject>& j_network_info) {
   NetworkInformation network_info =
       GetNetworkInformationFromJava(env, j_network_info);
@@ -709,7 +705,6 @@ void AndroidNetworkMonitor::NotifyOfNetworkConnect(
 
 void AndroidNetworkMonitor::NotifyOfNetworkDisconnect(
     JNIEnv* env,
-    const JavaRef<jobject>& j_caller,
     jlong network_handle) {
   network_thread_->PostTask(SafeTask(safety_flag_, [this, network_handle] {
     OnNetworkDisconnected_n(static_cast<NetworkHandle>(network_handle));
@@ -718,7 +713,6 @@ void AndroidNetworkMonitor::NotifyOfNetworkDisconnect(
 
 void AndroidNetworkMonitor::NotifyOfNetworkPreference(
     JNIEnv* env,
-    const JavaRef<jobject>& j_caller,
     const JavaRef<jobject>& j_connection_type,
     jint jpreference) {
   NetworkType type = GetNetworkTypeFromJava(env, j_connection_type);

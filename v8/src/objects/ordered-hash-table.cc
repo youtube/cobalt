@@ -6,6 +6,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects-inl.h"
@@ -290,7 +291,6 @@ HandleType<Derived>::MaybeType OrderedHashTable<Derived, entrysize>::Rehash(
   if (!new_table_candidate.ToHandle(&new_table)) {
     return new_table_candidate;
   }
-  int new_buckets = new_table->NumberOfBuckets();
   int new_entry = 0;
   int removed_holes_index = 0;
 
@@ -304,8 +304,7 @@ HandleType<Derived>::MaybeType OrderedHashTable<Derived, entrysize>::Rehash(
       continue;
     }
 
-    Tagged<Object> hash = Object::GetHash(key);
-    int bucket = Smi::ToInt(hash) & (new_buckets - 1);
+    int bucket = new_table->HashToBucket(Smi::ToInt(Object::GetHash(key)));
     Tagged<Object> chain_entry = new_table->get(HashTableStartIndex() + bucket);
     new_table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
     int new_index = new_table->EntryToIndexRaw(new_entry);

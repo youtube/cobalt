@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/autofill/autofill_message_controller_test_api.h"
 #include "chrome/browser/ui/autofill/autofill_message_model.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/messages/android/message_enums.h"
 #include "components/messages/android/mock_message_dispatcher_bridge.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,10 +27,23 @@ class AutofillMessageControllerImplTest
         &message_dispatcher_bridge_);
   }
 
-  raw_ptr<AutofillMessageModel> CreateAndShowNewMessage() {
+  AutofillMessageModel* CreateAndShowSaveCardFailureMessage() {
     std::unique_ptr<AutofillMessageModel> message =
         AutofillMessageModel::CreateForSaveCardFailure();
-    raw_ptr<AutofillMessageModel> message_ptr = message.get();
+    AutofillMessageModel* message_ptr = message.get();
+
+    controller().Show(std::move(message));
+
+    return message_ptr;
+  }
+
+  AutofillMessageModel* CreateAndShowEntitySaveUpdateFlowMessage() {
+    std::unique_ptr<AutofillMessageModel> message =
+        std::make_unique<AutofillMessageModel>(
+            std::make_unique<messages::MessageWrapper>(
+                messages::MessageIdentifier::SAVE_UPDATE_ENTITY),
+            AutofillMessageModel::Type::kEntitySaveUpdateFlow);
+    AutofillMessageModel* message_ptr = message.get();
 
     controller().Show(std::move(message));
 
@@ -51,7 +65,7 @@ class AutofillMessageControllerImplTest
   }
 
   // Find a message model owned by the controller.
-  raw_ptr<AutofillMessageModel> FindMessageModel(
+  AutofillMessageModel* FindMessageModel(
       AutofillMessageModel* message_model_ptr) {
     auto message_models = test_api(controller()).GetMessageModels();
     auto it = message_models.find(message_model_ptr);
@@ -80,7 +94,7 @@ class AutofillMessageControllerImplTest
 TEST_F(AutofillMessageControllerImplTest, Show) {
   ExpectEnqueueMessageCall();
 
-  raw_ptr<AutofillMessageModel> message = CreateAndShowNewMessage();
+  AutofillMessageModel* message = CreateAndShowSaveCardFailureMessage();
 
   EXPECT_EQ(FindMessageModel(message), message);
 }
@@ -88,15 +102,15 @@ TEST_F(AutofillMessageControllerImplTest, Show) {
 TEST_F(AutofillMessageControllerImplTest, ShowTwiceWithoutDismiss) {
   ExpectEnqueueMessageCall(/*times=*/2);
 
-  CreateAndShowNewMessage();
-  CreateAndShowNewMessage();
+  CreateAndShowSaveCardFailureMessage();
+  CreateAndShowSaveCardFailureMessage();
 
   EXPECT_THAT(message_models(), testing::SizeIs(2));
 }
 
 TEST_F(AutofillMessageControllerImplTest, OnDismissed) {
-  raw_ptr<AutofillMessageModel> first_message = CreateAndShowNewMessage();
-  raw_ptr<AutofillMessageModel> second_message = CreateAndShowNewMessage();
+  AutofillMessageModel* first_message = CreateAndShowSaveCardFailureMessage();
+  AutofillMessageModel* second_message = CreateAndShowSaveCardFailureMessage();
 
   test_api(controller())
       .OnDismissed(first_message, messages::DismissReason::PRIMARY_ACTION);
@@ -106,8 +120,8 @@ TEST_F(AutofillMessageControllerImplTest, OnDismissed) {
 }
 
 TEST_F(AutofillMessageControllerImplTest, Dismiss) {
-  CreateAndShowNewMessage();
-  CreateAndShowNewMessage();
+  CreateAndShowSaveCardFailureMessage();
+  CreateAndShowSaveCardFailureMessage();
 
   ExpectDismissMessageCallWithReason(messages::DismissReason::UNKNOWN,
                                      /*times=*/2);
@@ -122,18 +136,19 @@ TEST_F(AutofillMessageControllerImplTest, DismissWithoutMessages) {
   test_api(controller()).Dismiss();
 }
 
-TEST_F(AutofillMessageControllerImplTest, Metrics_Show) {
+TEST_F(AutofillMessageControllerImplTest, Metrics_Show_EntitySaveUpdateFlow) {
   base::HistogramTester histogram_tester;
-  raw_ptr<AutofillMessageModel> message = CreateAndShowNewMessage();
+  AutofillMessageModel* message = CreateAndShowEntitySaveUpdateFlowMessage();
 
   histogram_tester.ExpectUniqueSample(
       base::StrCat({"Autofill.Message.", message->GetTypeAsString(), ".Shown"}),
       true, 1);
 }
 
-TEST_F(AutofillMessageControllerImplTest, Metrics_OnActionClicked) {
+TEST_F(AutofillMessageControllerImplTest,
+       Metrics_OnActionClicked_EntitySaveUpdateFlow) {
   base::HistogramTester histogram_tester;
-  raw_ptr<AutofillMessageModel> message = CreateAndShowNewMessage();
+  AutofillMessageModel* message = CreateAndShowEntitySaveUpdateFlowMessage();
 
   test_api(controller()).OnActionClicked(message);
 
@@ -143,11 +158,12 @@ TEST_F(AutofillMessageControllerImplTest, Metrics_OnActionClicked) {
       true, 1);
 }
 
-TEST_F(AutofillMessageControllerImplTest, Metrics_OnDismissed) {
+TEST_F(AutofillMessageControllerImplTest,
+       Metrics_OnDismissed_EntitySaveUpdateFlow) {
   base::HistogramTester histogram_tester;
   messages::DismissReason dismiss_reason =
       messages::DismissReason::PRIMARY_ACTION;
-  raw_ptr<AutofillMessageModel> message = CreateAndShowNewMessage();
+  AutofillMessageModel* message = CreateAndShowEntitySaveUpdateFlowMessage();
   std::string_view type_as_string = message->GetTypeAsString();
 
   test_api(controller()).OnDismissed(message, dismiss_reason);
@@ -155,6 +171,42 @@ TEST_F(AutofillMessageControllerImplTest, Metrics_OnDismissed) {
   histogram_tester.ExpectUniqueSample(
       base::StrCat({"Autofill.Message.", type_as_string, ".Dismissed"}),
       dismiss_reason, 1);
+}
+
+TEST_F(AutofillMessageControllerImplTest, Metrics_Show_OtherTypesNoMetrics) {
+  base::HistogramTester histogram_tester;
+  AutofillMessageModel* message = CreateAndShowSaveCardFailureMessage();
+
+  histogram_tester.ExpectTotalCount(
+      base::StrCat({"Autofill.Message.", message->GetTypeAsString(), ".Shown"}),
+      0);
+}
+
+TEST_F(AutofillMessageControllerImplTest,
+       Metrics_OnActionClicked_OtherTypesNoMetrics) {
+  base::HistogramTester histogram_tester;
+  AutofillMessageModel* message = CreateAndShowSaveCardFailureMessage();
+
+  test_api(controller()).OnActionClicked(message);
+
+  histogram_tester.ExpectTotalCount(
+      base::StrCat(
+          {"Autofill.Message.", message->GetTypeAsString(), ".ActionClicked"}),
+      0);
+}
+
+TEST_F(AutofillMessageControllerImplTest,
+       Metrics_OnDismissed_OtherTypesNoMetrics) {
+  base::HistogramTester histogram_tester;
+  messages::DismissReason dismiss_reason =
+      messages::DismissReason::PRIMARY_ACTION;
+  AutofillMessageModel* message = CreateAndShowSaveCardFailureMessage();
+  std::string_view type_as_string = message->GetTypeAsString();
+
+  test_api(controller()).OnDismissed(message, dismiss_reason);
+
+  histogram_tester.ExpectTotalCount(
+      base::StrCat({"Autofill.Message.", type_as_string, ".Dismissed"}), 0);
 }
 
 }  // namespace autofill

@@ -61,7 +61,7 @@ public class LayoutTypeVisibleCondition extends Condition {
         return switch (layoutType) {
             case LayoutType.NONE -> "NONE";
             case LayoutType.BROWSING -> "BROWSING";
-            case LayoutType.TAB_SWITCHER -> "TAB_SWITCHER";
+            case LayoutType.HUB -> "HUB";
             case LayoutType.TOOLBAR_SWIPE -> "TOOLBAR_SWIPE";
             case LayoutType.SIMPLE_ANIMATION -> "SIMPLE_ANIMATION";
             default -> "UNKNOWN";

@@ -260,8 +260,7 @@ class ChromeAutofillClientYourSavedInfoTest
  public:
   void SetUpInProcessBrowserTestFixture() override {
     ChromeAutofillClientBrowserTest::SetUpInProcessBrowserTestFixture();
-    feature_list_.InitAndEnableFeature(
-        autofill::features::kYourSavedInfoSettingsPage);
+    feature_list_.InitAndEnableFeature(features::kYourSavedInfoSettingsPage);
   }
 
  private:

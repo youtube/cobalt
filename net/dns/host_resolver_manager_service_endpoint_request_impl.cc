@@ -108,7 +108,7 @@ HostResolverManager::ServiceEndpointRequestImpl::GetStaleInfo() const {
   return base::OptionalToPtr(stale_info_);
 }
 
-bool HostResolverManager::ServiceEndpointRequestImpl::IsStaleWhileRefresing()
+bool HostResolverManager::ServiceEndpointRequestImpl::IsStaleWhileRefreshing()
     const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return parameters_.cache_usage == ResolveHostParameters::CacheUsage::

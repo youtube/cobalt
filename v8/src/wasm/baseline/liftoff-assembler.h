@@ -826,7 +826,7 @@ class LiftoffAssembler : public MacroAssembler {
       LiftoffRegister result, uint32_t* trapping_load_pc,
       LiftoffRegList pinned);
 
-  inline void AtomicFence();
+  inline void AtomicFence(AtomicMemoryOrder order);
   inline void Pause();
 
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
@@ -946,7 +946,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_i64_shri(LiftoffRegister dst, LiftoffRegister src,
                             int32_t amount);
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64 || \
+    V8_TARGET_ARCH_MIPS64
   inline void emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
                            Register amount);
   inline void emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,

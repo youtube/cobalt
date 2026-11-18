@@ -22,8 +22,8 @@
 
 #include <openssl/base.h>
 #include <openssl/bytestring.h>
-#include <openssl/pool.h>
 #include <openssl/pki/verify.h>
+#include <openssl/pool.h>
 
 #include "cert_error_params.h"
 #include "cert_issuer_source.h"
@@ -78,11 +78,9 @@ class TestPathBuilderDelegate : public SimplePathBuilderDelegate {
 
   void DisallowPrecert() { allow_precertificate_ = false; }
 
-  bool AcceptPreCertificates() override {
-    return allow_precertificate_;
-  }
+  bool AcceptPreCertificates() override { return allow_precertificate_; }
 
-private:
+ private:
   bool deadline_is_expired_ = false;
   bool use_signature_cache_ = false;
   bool allow_precertificate_ = false;
@@ -1010,9 +1008,7 @@ TEST_F(PathBuilderMultiRootTest, TestDepthLimitMultiplePaths) {
 }
 
 TEST_F(PathBuilderMultiRootTest, TestPreCertificate) {
-
-  std::string test_dir =
-      "testdata/path_builder_unittest/precertificate/";
+  std::string test_dir = "testdata/path_builder_unittest/precertificate/";
   std::shared_ptr<const ParsedCertificate> root1 =
       ReadCertFromFile(test_dir + "root.pem");
   ASSERT_TRUE(root1);
@@ -1472,7 +1468,8 @@ TEST_F(PathBuilderKeyRolloverTest, ExploreAllPathsWithIterationLimit) {
       ASSERT_EQ(error.Code(), VerifyError::StatusCode::PATH_VERIFIED)
           << error.DiagnosticString();
     } else {
-      ASSERT_EQ(error.Code(), VerifyError::StatusCode::PATH_ITERATION_COUNT_EXCEEDED)
+      ASSERT_EQ(error.Code(),
+                VerifyError::StatusCode::PATH_ITERATION_COUNT_EXCEEDED)
           << error.DiagnosticString();
     }
 
@@ -2136,7 +2133,7 @@ TEST_F(PathBuilderDistrustTest, TargetIntermediateRoot) {
   CertPathBuilder::Result result = RunPathBuilderWithDistrustedCert(nullptr);
   {
     ASSERT_TRUE(result.HasValidPath());
-    // The built path should be identical the the one read from disk.
+    // The built path should be identical to the one read from disk.
     const auto &path = *result.GetBestValidPath();
     ASSERT_EQ(test_.chain.size(), path.certs.size());
     for (size_t i = 0; i < test_.chain.size(); ++i) {
@@ -2330,8 +2327,7 @@ TEST_F(PathBuilderCheckPathAfterVerificationTest, TestVerifyErrorMapping) {
     errors->AddError(mapping.internal_error, nullptr);
 
     VerifyError error = result.GetBestPathVerifyError();
-    ASSERT_EQ(error.Code(), mapping.code)
-        << error.DiagnosticString();
+    ASSERT_EQ(error.Code(), mapping.code) << error.DiagnosticString();
   }
 }
 
@@ -2635,44 +2631,42 @@ TEST_F(PathBuilderMTCPlants04Test, Verification) {
   EXPECT_FALSE(result.HasValidPath());
 
   // Cert with multiple cosigners (including valid CA cosigner) should validate
-  // succesfully, ignoring the unknown cosigners.
+  // successfully, ignoring the unknown cosigners.
   std::shared_ptr<const ParsedCertificate> standalone_leaf_3_cosigners;
-  ASSERT_TRUE(
-      ReadTestCert("mtc_plants04/mtc-leaf-standalone-3cosigners.pem",
-        &standalone_leaf_3_cosigners));
-  result = RunPathBuilder(standalone_leaf_3_cosigners,
-      &trust_store_no_subtrees, nullptr, nullptr);
+  ASSERT_TRUE(ReadTestCert("mtc_plants04/mtc-leaf-standalone-3cosigners.pem",
+                           &standalone_leaf_3_cosigners));
+  result = RunPathBuilder(standalone_leaf_3_cosigners, &trust_store_no_subtrees,
+                          nullptr, nullptr);
   EXPECT_TRUE(result.HasValidPath());
   // but it should fail if the CA key is wrong:
   result = RunPathBuilder(standalone_leaf_3_cosigners,
-      &trust_store_no_subtrees_wrong_key, nullptr, nullptr);
+                          &trust_store_no_subtrees_wrong_key, nullptr, nullptr);
   EXPECT_FALSE(result.HasValidPath());
 
   // Cert with a cosigner but no CA cosigner should fail:
   std::shared_ptr<const ParsedCertificate> standalone_leaf_no_ca_signer;
-  ASSERT_TRUE(
-      ReadTestCert("mtc_plants04/mtc-leaf-standalone-no_ca_signer.pem",
-        &standalone_leaf_no_ca_signer));
+  ASSERT_TRUE(ReadTestCert("mtc_plants04/mtc-leaf-standalone-no_ca_signer.pem",
+                           &standalone_leaf_no_ca_signer));
   result = RunPathBuilder(standalone_leaf_no_ca_signer,
-      &trust_store_no_subtrees, nullptr, nullptr);
+                          &trust_store_no_subtrees, nullptr, nullptr);
   EXPECT_FALSE(result.HasValidPath());
 
   // Cert with a duplicate CA cosigner should fail:
   std::shared_ptr<const ParsedCertificate> standalone_leaf_duplicate_ca_signer;
   ASSERT_TRUE(
       ReadTestCert("mtc_plants04/mtc-leaf-standalone-duplicate_ca_signer.pem",
-        &standalone_leaf_duplicate_ca_signer));
+                   &standalone_leaf_duplicate_ca_signer));
   result = RunPathBuilder(standalone_leaf_duplicate_ca_signer,
-      &trust_store_no_subtrees, nullptr, nullptr);
+                          &trust_store_no_subtrees, nullptr, nullptr);
   EXPECT_FALSE(result.HasValidPath());
 
   // Cert with a cosigners in non-sorted order should fail:
   std::shared_ptr<const ParsedCertificate> standalone_leaf_cosigner_wrong_order;
   ASSERT_TRUE(
       ReadTestCert("mtc_plants04/mtc-leaf-standalone-cosigner_wrong_order.pem",
-        &standalone_leaf_cosigner_wrong_order));
+                   &standalone_leaf_cosigner_wrong_order));
   result = RunPathBuilder(standalone_leaf_cosigner_wrong_order,
-      &trust_store_no_subtrees, nullptr, nullptr);
+                          &trust_store_no_subtrees, nullptr, nullptr);
   EXPECT_FALSE(result.HasValidPath());
 }
 

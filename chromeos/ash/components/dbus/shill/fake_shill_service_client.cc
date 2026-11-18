@@ -72,14 +72,14 @@ std::string GetSecurityClass(const base::DictValue& service_properties) {
     return shill::kSecurityClassNone;
   }
 
-  static const std::array<std::string, 6> psk_securities = {
+  static constexpr std::array<const char*, 6> psk_securities = {
       shill::kSecurityWpa,  shill::kSecurityWpaWpa2,  shill::kSecurityWpaAll,
       shill::kSecurityWpa2, shill::kSecurityWpa2Wpa3, shill::kSecurityWpa3};
   if (std::ranges::contains(psk_securities, *security)) {
     return shill::kSecurityClassPsk;
   }
 
-  static const std::array<std::string, 6> eap_securities = {
+  static constexpr std::array<const char*, 6> eap_securities = {
       shill::kSecurityWpaEnterprise,      shill::kSecurityWpaWpa2Enterprise,
       shill::kSecurityWpaAllEnterprise,   shill::kSecurityWpa2Enterprise,
       shill::kSecurityWpa2Wpa3Enterprise, shill::kSecurityWpa3Enterprise};

@@ -16,6 +16,7 @@ import androidx.constraintlayout.widget.ConstraintSet;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.ui.util.CommonOnLayoutChangeListeners;
 
 import java.util.Arrays;
 import java.util.List;
@@ -25,7 +26,7 @@ import java.util.List;
  * #setNavigationOnClickListener(OnClickListener)}.
  */
 @NullMarked
-public class PdfToolbar extends Toolbar implements View.OnLayoutChangeListener {
+public class PdfToolbar extends Toolbar {
     /** Listener for width changes of the toolbar. */
     public interface OnWidthChangedListener {
         void onWidthChanged(int widthPx);
@@ -91,26 +92,13 @@ public class PdfToolbar extends Toolbar implements View.OnLayoutChangeListener {
         mEndGroup = findViewById(R.id.pdf_toolbar_group_end);
         mTitle = findViewById(R.id.pdf_title);
 
-        addOnLayoutChangeListener(this);
-    }
-
-    @Override
-    public void onLayoutChange(
-            View v,
-            int left,
-            int top,
-            int right,
-            int bottom,
-            int oldLeft,
-            int oldTop,
-            int oldRight,
-            int oldBottom) {
-        int width = right - left;
-        if (width != (oldRight - oldLeft)) {
-            if (mOnWidthChangedListener != null) {
-                mOnWidthChangedListener.onWidthChanged(width);
-            }
-        }
+        addOnLayoutChangeListener(
+                CommonOnLayoutChangeListeners.createWidthChangedListener(
+                        (v, left, top, right, bottom) -> {
+                            if (mOnWidthChangedListener != null) {
+                                mOnWidthChangedListener.onWidthChanged(right - left);
+                            }
+                        }));
     }
 
     void setDownloadButtonVisible(boolean visible) {

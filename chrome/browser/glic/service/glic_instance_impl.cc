@@ -221,7 +221,7 @@ GlicInstanceImpl::GlicInstanceImpl(
                         profile->GetPrefs()),
       zero_state_suggestions_manager_(
           std::make_unique<GlicZeroStateSuggestionsManager>(
-              &sharing_manager(),
+              &GetSharingManagerInternal(),
               this,
               contextual_cueing_service)),
       last_activation_timestamp_(base::Time::Now()),
@@ -234,7 +234,7 @@ GlicInstanceImpl::GlicInstanceImpl(
           actor::ActorKeyedServiceFactory::GetActorKeyedService(profile_)) {
     actor_task_manager_ = std::make_unique<GlicActorTaskManager>(
         profile_, actor_keyed_service, service_->actor_policy_checker(),
-        &instance_metrics_, &sharing_manager(), this);
+        &instance_metrics_, &GetSharingManagerInternal(), this);
   }
 
   browser_collection_observation_.Observe(
@@ -243,7 +243,7 @@ GlicInstanceImpl::GlicInstanceImpl(
   host_observation_.Observe(&host_);
   if (base::FeatureList::IsEnabled(features::kGlicBindPinnedUnboundTab)) {
     pinned_tabs_change_subscription_ =
-        sharing_manager().AddTabPinningStatusEventCallback(
+        GetSharingManagerInternal().AddTabPinningStatusEventCallback(
             base::BindRepeating(&GlicInstanceImpl::OnTabPinningStatusEvent,
                                 weak_ptr_factory_.GetWeakPtr()));
   }
@@ -269,7 +269,7 @@ GlicInstanceImpl::~GlicInstanceImpl() {
     UnbindEmbedder(key);
   }
 
-  for (tabs::TabInterface* tab : sharing_manager().GetPinnedTabs()) {
+  for (tabs::TabInterface* tab : GetSharingManagerInternal().GetPinnedTabs()) {
     if (auto* helper = GlicInstanceHelper::From(tab)) {
       helper->OnUnpinnedByInstance(this);
     }
@@ -517,7 +517,8 @@ bool GlicInstanceImpl::ShouldUnbindOnClose(EmbedderKey key,
   if (!tab_key) {
     return false;
   }
-  auto usage = sharing_manager().GetPinnedTabUsage((**tab_key).GetHandle());
+  auto usage =
+      GetSharingManagerInternal().GetPinnedTabUsage((**tab_key).GetHandle());
   // This is the pin trigger used for entrypoint clicks.
   // TODO(b/501090068): Figure out how to separate this from invoke pin
   // triggers.
@@ -571,7 +572,7 @@ GlicInstanceImpl::EmbedderEntry* GlicInstanceImpl::GetEmbedderEntry(
   return nullptr;
 }
 
-GlicSharingManager& GlicInstanceImpl::sharing_manager() {
+GlicSharingManagerInternal& GlicInstanceImpl::GetSharingManagerInternal() {
   return sharing_manager_coordinator_.GetActiveSharingManager();
 }
 
@@ -688,8 +689,11 @@ void GlicInstanceImpl::PrepareForOpen() {
   // TODO(crbug.com/444463509): Update this when we have per-instance
   // sharing managers set up without auto-focus.
   auto* active_web_contents =
-      sharing_manager().GetFocusedTabData().focus()
-          ? sharing_manager().GetFocusedTabData().focus()->GetContents()
+      GetSharingManagerInternal().GetFocusedTabData().focus()
+          ? GetSharingManagerInternal()
+                .GetFocusedTabData()
+                .focus()
+                ->GetContents()
           : nullptr;
   ContextualCueingService* contextual_cueing_service =
       ContextualCueingServiceFactory::GetForProfile(profile_);
@@ -731,13 +735,13 @@ void GlicInstanceImpl::UnbindEmbedder(EmbedderKey key) {
   if (auto** tab = std::get_if<tabs::TabInterface*>(&key)) {
     auto tab_handle = (*tab)->GetHandle();
     std::optional<GlicPinnedTabUsage> usage =
-        sharing_manager().GetPinnedTabUsage(tab_handle);
+        GetSharingManagerInternal().GetPinnedTabUsage(tab_handle);
     // If the conversation hasn't had a turn since the tab was pinned and the
     // tab was not manually pinned, then we will unpin the tab.
     if (base::FeatureList::IsEnabled(kGlicUnpinOnUnbindIfUnused) && usage &&
         usage->pin_event.trigger != GlicPinTrigger::kRestore &&
         usage->Unused() && !usage->IsExplicitlyPinnedByUser()) {
-      sharing_manager().UnpinTabs({tab_handle});
+      GetSharingManagerInternal().UnpinTabs({tab_handle});
     }
 
     if (auto* helper = GlicInstanceHelper::From(*tab)) {
@@ -820,6 +824,10 @@ GlicActorTaskManager* GlicInstanceImpl::GetActorTaskManager() {
   return actor_task_manager_.get();
 }
 
+GlicSharingManager* GlicInstanceImpl::GetSharingManager() {
+  return &GetSharingManagerInternal();
+}
+
 void GlicInstanceImpl::FetchZeroStateSuggestions(
     bool is_first_run,
     std::optional<std::vector<std::string>> supported_tools,
@@ -828,8 +836,11 @@ void GlicInstanceImpl::FetchZeroStateSuggestions(
   // TODO(crbug.com/444463509): Update this when we have per-instance
   // sharing managers set up without auto-focus.
   auto* active_web_contents =
-      sharing_manager().GetFocusedTabData().focus()
-          ? sharing_manager().GetFocusedTabData().focus()->GetContents()
+      GetSharingManagerInternal().GetFocusedTabData().focus()
+          ? GetSharingManagerInternal()
+                .GetFocusedTabData()
+                .focus()
+                ->GetContents()
           : nullptr;
 
   ContextualCueingService* contextual_cueing_service =
@@ -1217,7 +1228,7 @@ GlicInstanceImpl::EmbedderEntry& GlicInstanceImpl::BindTab(
 
   if (pin_on_bind && ShouldPinOnBind()) {
     // Auto-pin on bind.
-    sharing_manager().PinTabs({tab->GetHandle()}, pin_trigger);
+    GetSharingManagerInternal().PinTabs({tab->GetHandle()}, pin_trigger);
   }
 
   UpdateFloatingPanelCanAttach();
@@ -1391,11 +1402,11 @@ void GlicInstanceImpl::MaybeRemoveBlankInstanceOnClose() {
 
   // Only remove the instance if there are no pinned tabs, or if the only pinned
   // tab is the one for this embedder.
-  if (sharing_manager().GetNumPinnedTabs() > 1) {
+  if (GetSharingManagerInternal().GetNumPinnedTabs() > 1) {
     return;
   }
-  if (sharing_manager().GetNumPinnedTabs() == 1 &&
-      !sharing_manager().IsTabPinned((*tab)->GetHandle())) {
+  if (GetSharingManagerInternal().GetNumPinnedTabs() == 1 &&
+      !GetSharingManagerInternal().IsTabPinned((*tab)->GetHandle())) {
     return;
   }
 
@@ -1648,7 +1659,8 @@ void GlicInstanceImpl::ExecuteRemoveInstance() {
 }
 
 bool GlicInstanceImpl::CanBeRemoved() {
-  return embedders_.empty() && sharing_manager().GetNumPinnedTabs() == 0;
+  return embedders_.empty() &&
+         GetSharingManagerInternal().GetNumPinnedTabs() == 0;
 }
 
 }  // namespace glic

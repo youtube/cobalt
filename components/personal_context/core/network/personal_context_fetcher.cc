@@ -9,10 +9,11 @@
 #include <string_view>
 
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
-#include "components/personal_context/core/personal_context_features.h"
+#include "components/personal_context/core/context_memory_features.h"
 #include "components/personal_context/proto/context_memory_service.pb.h"
 #include "components/signin/public/base/oauth_consumer_id.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
@@ -86,10 +87,22 @@ net::NetworkTrafficAnnotationTag GetNetworkTrafficAnnotation(
       // TODO(crbug.com/515050857): fill out at-memory traffic annotation
       // details.
       return MISSING_TRAFFIC_ANNOTATION;
+    case proto::CONTEXT_MEMORY_FEATURE_AUTO_TODOS:
+      // TODO(crbug.com/523284957): fill out auto-todos traffic annotation
+      // details.
+      return MISSING_TRAFFIC_ANNOTATION;
     case proto::CONTEXT_MEMORY_FEATURE_UNSPECIFIED:
     default:
       NOTREACHED();
   }
+}
+
+void RecordErrorStatusHistogram(proto::ContextMemoryFeature feature,
+                                ContextMemoryError::ExecutionError error) {
+  base::UmaHistogramEnumeration(
+      base::StrCat({"PersonalContext.FetchContext.ErrorStatus.",
+                    GetStringNameForContextMemoryFeature(feature)}),
+      error);
 }
 
 void OnAccessTokenRequestCompleted(
@@ -140,10 +153,14 @@ proto::FetchContextRequest PersonalContextFetcher::ToFetchContextRequest(
 }
 
 PersonalContextFetcher::PersonalContextFetcher(
+    proto::ContextMemoryFeature feature,
     signin::IdentityManager* identity_manager,
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    GURL memory_service_url)
     : identity_manager_(identity_manager),
-      url_loader_factory_(std::move(url_loader_factory)) {}
+      url_loader_factory_(std::move(url_loader_factory)),
+      memory_service_url_(std::move(memory_service_url)),
+      feature_(feature) {}
 
 PersonalContextFetcher::~PersonalContextFetcher() {
   RunErrorCallback(ContextMemoryError::FromExecutionError(
@@ -154,6 +171,7 @@ void PersonalContextFetcher::RunErrorCallback(ContextMemoryError error) {
   std::visit(absl::Overload{
                  [&](FetchContextResponseCallback& callback) {
                    if (callback) {
+                     RecordErrorStatusHistogram(feature_, error.error());
                      std::move(callback).Run(base::unexpected(error));
                    }
                  },
@@ -168,8 +186,7 @@ void PersonalContextFetcher::RunErrorCallback(ContextMemoryError error) {
 }
 
 template <typename RequestProto, typename CallbackType>
-void PersonalContextFetcher::Fetch(proto::ContextMemoryFeature feature,
-                                   const RequestProto& request,
+void PersonalContextFetcher::Fetch(const RequestProto& request,
                                    std::string_view rpc_method,
                                    std::optional<base::TimeDelta> timeout,
                                    CallbackType callback) {
@@ -188,37 +205,31 @@ void PersonalContextFetcher::Fetch(proto::ContextMemoryFeature feature,
   std::string serialized_request;
   request.SerializeToString(&serialized_request);
 
-  GURL endpoint_url(
-      base::StrCat({features::kContextMemoryServiceBaseUrl.Get(), rpc_method}));
+  GURL endpoint_url(base::StrCat({memory_service_url_.spec(), rpc_method}));
 
   HandleTokenRequestFlow(
       identity_manager_, signin::OAuthConsumerId::kContextMemoryService,
       base::BindOnce(&PersonalContextFetcher::OnAccessTokenReceived,
-                     weak_ptr_factory_.GetWeakPtr(), feature,
-                     std::move(endpoint_url), std::move(serialized_request),
-                     timeout));
+                     weak_ptr_factory_.GetWeakPtr(), std::move(endpoint_url),
+                     std::move(serialized_request), timeout));
 }
 
 void PersonalContextFetcher::FetchContext(
-    proto::ContextMemoryFeature feature,
     const google::protobuf::MessageLite& request_metadata,
     std::optional<base::TimeDelta> timeout,
     FetchContextResponseCallback callback) {
-  Fetch(feature, ToFetchContextRequest(feature, request_metadata),
-        kFetchContextMethod, timeout, std::move(callback));
+  Fetch(ToFetchContextRequest(feature_, request_metadata), kFetchContextMethod,
+        timeout, std::move(callback));
 }
 
 void PersonalContextFetcher::FetchPiiEntities(
-    proto::ContextMemoryFeature feature,
     const proto::FetchPiiEntitiesRequest& request,
     std::optional<base::TimeDelta> timeout,
     FetchPiiEntitiesResponseCallback callback) {
-  Fetch(feature, request, kFetchPiiEntitiesMethod, timeout,
-        std::move(callback));
+  Fetch(request, kFetchPiiEntitiesMethod, timeout, std::move(callback));
 }
 
 void PersonalContextFetcher::OnAccessTokenReceived(
-    proto::ContextMemoryFeature feature,
     GURL endpoint_url,
     std::string serialized_request,
     std::optional<base::TimeDelta> timeout,
@@ -244,10 +255,11 @@ void PersonalContextFetcher::OnAccessTokenReceived(
   resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
 
   active_url_loader_ = network::SimpleURLLoader::Create(
-      std::move(resource_request), GetNetworkTrafficAnnotation(feature));
+      std::move(resource_request), GetNetworkTrafficAnnotation(feature_));
 
   active_url_loader_->AttachStringForUpload(std::move(serialized_request),
                                             kRequestContentType);
+
   active_url_loader_->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
       url_loader_factory_.get(),
       base::BindOnce(&PersonalContextFetcher::OnURLLoadComplete,
@@ -285,9 +297,8 @@ void PersonalContextFetcher::OnURLLoadComplete(
             proto::FetchContextResponse fetch_response;
             if (!response_body ||
                 !fetch_response.ParseFromString(*response_body)) {
-              std::move(callback).Run(
-                  base::unexpected(ContextMemoryError::FromExecutionError(
-                      ContextMemoryError::ExecutionError::kGenericFailure)));
+              RunErrorCallback(ContextMemoryError::FromExecutionError(
+                  ContextMemoryError::ExecutionError::kGenericFailure));
               return;
             }
             std::move(callback).Run(base::ok(fetch_response));
@@ -299,9 +310,8 @@ void PersonalContextFetcher::OnURLLoadComplete(
             proto::FetchPiiEntitiesResponse pii_response;
             if (!response_body ||
                 !pii_response.ParseFromString(*response_body)) {
-              std::move(callback).Run(
-                  base::unexpected(ContextMemoryError::FromExecutionError(
-                      ContextMemoryError::ExecutionError::kGenericFailure)));
+              RunErrorCallback(ContextMemoryError::FromExecutionError(
+                  ContextMemoryError::ExecutionError::kGenericFailure));
               return;
             }
             std::move(callback).Run(base::ok(pii_response));

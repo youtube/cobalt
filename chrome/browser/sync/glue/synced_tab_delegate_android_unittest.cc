@@ -49,7 +49,6 @@ class MockTabAndroidDataProvider : public TabAndroidDataProvider {
 };
 
 const int kVersion = 2;
-const url::Origin kInitiatorOrigin;
 
 class SyncedTabDelegateAndroidTest : public testing::Test {
  protected:
@@ -86,6 +85,7 @@ class SyncedTabDelegateAndroidTest : public testing::Test {
         .WillOnce(Return(std::move(buffer)));
   }
 
+  const url::Origin kInitiatorOrigin;
   const std::u16string kTitle = u"";
   const GURL kInterestingUrl = GURL("fake://interesting");
   const GURL kBoringUrl = GURL("fake://boring");

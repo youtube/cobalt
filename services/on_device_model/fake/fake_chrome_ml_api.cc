@@ -178,10 +178,6 @@ struct FakeSessionInstance {
   bool awaiting_tool_responses = false;
 };
 
-struct FakeTsModelInstance {
-  std::string model_data;
-};
-
 struct FakeCancelInstance {
   bool cancelled = false;
 };
@@ -198,13 +194,6 @@ ChromeMLModel SessionCreateModel(const ChromeMLModelDescriptor* descriptor,
 void DestroyModel(ChromeMLModel model) {
   auto* instance = reinterpret_cast<FakeModelInstance*>(model);
   delete instance;
-}
-
-ChromeMLSafetyResult ClassifyTextSafety(ChromeMLModel model,
-                                        const char* text,
-                                        float* scores,
-                                        size_t* num_scores) {
-  return ChromeMLSafetyResult::kNoClassifier;
 }
 
 ChromeMLSession CreateSession(ChromeMLModel model,
@@ -477,34 +466,6 @@ bool GetTokenizerParamsV2(ChromeMLModel model,
   return GetTokenizerParams(session, model, fn, /*use_optimization=*/true);
 }
 
-ChromeMLTSModel CreateTSModel(const ChromeMLTSModelDescriptor* descriptor) {
-  auto* instance = new FakeTsModelInstance{};
-  return reinterpret_cast<ChromeMLTSModel>(instance);
-}
-
-void DestroyTSModel(ChromeMLTSModel model) {
-  auto* instance = reinterpret_cast<FakeTsModelInstance*>(model);
-  delete instance;
-}
-
-ChromeMLSafetyResult TSModelClassifyTextSafety(ChromeMLTSModel model,
-                                               const char* text,
-                                               float* scores,
-                                               size_t* num_scores) {
-  if (*num_scores != 2) {
-    *num_scores = 2;
-    return ChromeMLSafetyResult::kInsufficientStorage;
-  }
-  bool has_unsafe = std::string(text).find("unsafe") != std::string::npos;
-  // SAFETY: Follows a C-API, num_scores checked above, test-only code.
-  UNSAFE_BUFFERS(scores[0]) = has_unsafe ? 0.8 : 0.2;
-  bool has_reasonable =
-      std::string(text).find("reasonable") != std::string::npos;
-  // SAFETY: Follows a C-API, num_scores checked above, test-only code.
-  UNSAFE_BUFFERS(scores[1]) = has_reasonable ? 0.2 : 0.8;
-  return ChromeMLSafetyResult::kOk;
-}
-
 TfLiteDelegate* CreateGpuDelegate() {
   return nullptr;
 }
@@ -532,13 +493,11 @@ const ChromeMLAPI g_api = {
     .InitDawnProcs = &InitDawnProcs,
     .SetMetricsFns = &SetMetricsFns,
     .SetFatalErrorFn = &SetFatalErrorFn,
-    .ClassifyTextSafety = &ClassifyTextSafety,
     .DestroyModel = &DestroyModel,
     .GetEstimatedPerformance = &GetEstimatedPerformance,
     .QueryGPUAdapter = &QueryGPUAdapter,
     .GetCapabilities = &GetCapabilities,
     .SetFatalErrorNonGpuFn = &SetFatalErrorNonGpuFn,
-
     .SessionCreateModel = &SessionCreateModel,
     .SessionAppend = &SessionAppend,
     .SessionGenerate = &SessionGenerate,
@@ -557,12 +516,6 @@ const ChromeMLAPI g_api = {
     .CreateGpuDelegate = &CreateGpuDelegate,
     .CreateGpuDelegateWithPrecision = &CreateGpuDelegateWithPrecision,
     .DestroyGpuDelegate = &DestroyGpuDelegate,
-    .ts_api =
-        {
-            .CreateModel = &CreateTSModel,
-            .DestroyModel = &DestroyTSModel,
-            .ClassifyTextSafety = &TSModelClassifyTextSafety,
-        },
     .asr_api =
         {
             .CreateStream = &ASRCreateStream,

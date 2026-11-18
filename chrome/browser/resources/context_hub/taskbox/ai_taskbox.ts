@@ -6,6 +6,8 @@ import './todo_item.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import type {AutoTodoItem} from '../context_hub.mojom-webui.js';
+
 import {getCss} from './ai_taskbox.css.js';
 import {getHtml} from './ai_taskbox.html.js';
 
@@ -21,6 +23,14 @@ export class AiTaskboxElement extends CrLitElement {
   override render() {
     return getHtml.bind(this)();
   }
+
+  static override get properties() {
+    return {
+      todos: {type: Array},
+    };
+  }
+
+  accessor todos: AutoTodoItem[]|null = null;
 }
 
 declare global {

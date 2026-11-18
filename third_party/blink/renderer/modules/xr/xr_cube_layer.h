@@ -16,7 +16,8 @@ class XRCubeLayer : public XRShapedLayer {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  XRCubeLayer(const XRCubeLayerInit* init,
+  XRCubeLayer(XRSession* session,
+              const XRCubeLayerInit* init,
               V8XRLayerLayout::Enum final_layout,
               XRGraphicsBinding* binding,
               XRLayerDrawingContext* drawing_context);

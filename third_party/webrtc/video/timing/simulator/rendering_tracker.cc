@@ -116,6 +116,11 @@ void RenderingTracker::OnAssembledFrame(
   }
 }
 
+void RenderingTracker::UpdateMaxRtt(TimeDelta max_rtt) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  video_stream_buffer_controller_.UpdateRtt(max_rtt.ms());
+}
+
 void RenderingTracker::OnEncodedFrame(
     std::unique_ptr<EncodedFrame> encoded_frame) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
@@ -168,12 +173,14 @@ void RenderingTracker::OnDecodableFrameTimeout(TimeDelta wait_time) {
 }
 
 void RenderingTracker::OnDroppedFrames(uint32_t frames_dropped) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   vsbc_frames_dropped_ = frames_dropped;
 }
 
 void RenderingTracker::OnDecodableFrame(TimeDelta jitter_buffer_delay,
                                         TimeDelta jitter_buffer_target_delay,
                                         TimeDelta jitter_buffer_minimum_delay) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   vsbc_decodable_stats_ = VideoStreamBufferControllerObserverDecodableStats{
       .jitter_buffer_delay = jitter_buffer_delay,
       .jitter_buffer_target_delay = jitter_buffer_target_delay,
@@ -195,6 +202,7 @@ void RenderingTracker::OnFrame(const VideoFrame& decoded_frame) {
 }
 
 void RenderingTracker::ResetVideoStreamBufferControllerObserverStats() {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   vsbc_frames_dropped_.reset();
   vsbc_decodable_stats_.reset();
 }

@@ -23,9 +23,8 @@ v8::Local<v8::Value> DictionaryBase::ToV8(ScriptState* script_state) const {
   } else {
     Vector<std::string_view> properties;
     FillTemplateProperties(properties);
-    just_template = v8::DictionaryTemplate::New(
-        script_state->GetIsolate(), v8::MemorySpan<const std::string_view>(
-                                        properties.data(), properties.size()));
+    just_template =
+        v8::DictionaryTemplate::New(script_state->GetIsolate(), properties);
     per_isolate_data->AddV8DictionaryTemplate(key, just_template);
   }
   return FillValues(script_state, just_template).As<v8::Value>();

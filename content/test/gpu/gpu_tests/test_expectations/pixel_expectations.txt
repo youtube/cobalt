@@ -28,8 +28,8 @@
 #         web-engine-shell
 #         cros-chrome ]
 # GPU
-# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821
-#             amd-0x7340 amd-0x7480 amd-0x7550
+# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x67ef amd-0x6821 amd-0x7340
+#             amd-0x7480 amd-0x7550
 #         apple apple-apple-m1 apple-apple-m2 apple-apple-m3
 #             apple-angle-metal-renderer:-apple-m1
 #             apple-angle-metal-renderer:-apple-m2
@@ -285,7 +285,6 @@ crbug.com/42240193 [ win10 nvidia target-cpu-32 ] Pixel_WebGPU* [ Skip ]
 
 # WebGPU pixel tests crash on multiple mac fyi  bots.
 crbug.com/1213170 [ mac asan intel-0x3e9b ] Pixel_WebGPUImport* [ Skip ]
-crbug.com/1213170 [ mac amd-0x679e ] Pixel_WebGPUImport* [ Skip ]
 
 crbug.com/1213170 [ mac asan intel-0x3e9b ] Pixel_WebGPUCanvas* [ Skip ]
 
@@ -385,9 +384,6 @@ crbug.com/1474637 [ linux nvidia debug ] Pixel_SVGHuge [ Skip ]
 crbug.com/486121429 [ linux nvidia release ] Pixel_SVGHuge [ Slow ]
 crbug.com/486121429 [ linux intel ] Pixel_SVGHuge [ Slow ]
 crbug.com/486121429 [ linux amd ] Pixel_SVGHuge [ Slow ]
-
-# Long-running test, can flakily time out on old/slow hardware.
-[ mac arch-x86_64 amd-0x679e ] Pixel_ReflectedDiv [ Slow ]
 
 # Mac Asan timeouts
 crbug.com/338200323 [ mac angle-opengl asan graphite-disabled intel-0x3e9b passthrough ] Pixel_WebGPUToDataURL [ Slow ]

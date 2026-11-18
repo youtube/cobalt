@@ -4,11 +4,13 @@
 
 #include "base/containers/to_vector.h"
 
+#include <forward_list>
 #include <ranges>
 #include <set>
 
 #include "base/containers/adapters.h"
 #include "base/containers/flat_set.h"
+#include "base/types/zip.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -129,6 +131,22 @@ TEST(ToVectorTest, ConstexprTest) {
   static_assert(base::ToVector(a, [](int x) { return x + 1; }) ==
                 std::vector{2, 3, 4});
   static_assert(base::ToVector({1, 2, 3}) == std::vector{1, 2, 3});
+}
+
+TEST(ToVectorTest, UnsizedRangeProjected) {
+  const std::forward_list<int> a = {1, 2, 3};
+  EXPECT_THAT(base::ToVector(a, [](int x) { return x + 1; }),
+              ElementsAre(2, 3, 4));
+}
+
+TEST(ToVectorTest, ToVectorWithZipAndProjection) {
+  const std::vector a = {1, 2, 3};
+  const std::vector b = {3, 2, 1};
+  auto z = base::zip(a, b);
+
+  EXPECT_THAT(base::ToVector(
+                  z, [](std::pair<int, int> x) { return x.first + x.second; }),
+              ElementsAre(4, 4, 4));
 }
 
 }  // namespace

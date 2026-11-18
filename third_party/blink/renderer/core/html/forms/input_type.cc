@@ -74,6 +74,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/json/json_values.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 #include "third_party/blink/renderer/platform/text/text_break_iterator.h"
 
@@ -507,6 +508,13 @@ bool InputType::IsInRange(const String& value) const {
     return true;
 
   StepRange step_range(CreateStepRange(kRejectAny));
+  if (RuntimeEnabledFeatures::CSSInRangeOutOfRangeReversedRangesEnabled() &&
+      step_range.HasReversedRange()) {
+    // With a reversed range, any value outside of the midnight-crossing valid
+    // range is considered underflow and overflow.
+    return numeric_value >= step_range.Minimum() ||
+           numeric_value <= step_range.Maximum();
+  }
   return step_range.HasRangeLimitations() &&
          numeric_value >= step_range.Minimum() &&
          numeric_value <= step_range.Maximum();
@@ -524,6 +532,13 @@ bool InputType::IsOutOfRange(const String& value) const {
     return false;
 
   StepRange step_range(CreateStepRange(kRejectAny));
+  if (RuntimeEnabledFeatures::CSSInRangeOutOfRangeReversedRangesEnabled() &&
+      step_range.HasReversedRange()) {
+    // With a reversed range, any value outside of the midnight-crossing valid
+    // range is considered underflow and overflow.
+    return numeric_value > step_range.Maximum() &&
+           numeric_value < step_range.Minimum();
+  }
   return step_range.HasRangeLimitations() &&
          (numeric_value < step_range.Minimum() ||
           numeric_value > step_range.Maximum());

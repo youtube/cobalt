@@ -5,6 +5,7 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/auto_reset.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -38,7 +39,6 @@
 #include "chrome/browser/ui/webui/ash/login/sync_consent_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/welcome_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/settings/pref_names.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/consent_level.h"
@@ -252,7 +252,9 @@ class SyncConsentTest : public OobeBaseTest {
     return base::FeatureList::IsEnabled(
                syncer::kReplaceSyncPromosWithSignInPromos) &&
            base::FeatureList::IsEnabled(
-               ::switches::kChromeOsUseConsentLevelSigninForNewUsers);
+               ::switches::kChromeOsUseConsentLevelSigninForNewUsers) &&
+           !base::FeatureList::IsEnabled(
+               ::switches::kUndoChromeOsUseConsentLevelSignin);
   }
 
   std::optional<SyncConsentScreen::Result> screen_result_;
@@ -299,7 +301,7 @@ class SyncConsentTest : public OobeBaseTest {
     AccountInfo account_info =
         identity_manager->FindExtendedAccountInfoByGaiaId(
             GaiaId(test::kTestGaiaId));
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
         !is_minor_user);
     signin::UpdateAccountInfoForAccount(identity_manager, account_info);
@@ -598,13 +600,8 @@ IN_PROC_BROWSER_TEST_F(SyncConsentMinorModeTest, Accept) {
   EXPECT_EQ(identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync),
             !is_consent_level_signin);
   syncer::SyncUserSettings* settings = GetSyncUserSettings();
-  // prefs::internal::kSyncKeepEverythingSynced is not relevant with SignIn
-  // consent level.
-  // TODO(crbug.com/519114692): Remove the consent level guard once
-  // prefs::internal::kSyncKeepEverythingSynced is relevant again.
-  if (!is_consent_level_signin) {
-    EXPECT_FALSE(settings->IsSyncEverythingEnabled());
-  }
+
+  EXPECT_FALSE(settings->IsSyncEverythingEnabled());
   EXPECT_TRUE(settings->GetSelectedTypes().empty());
   EXPECT_FALSE(settings->IsSyncAllOsTypesEnabled());
   EXPECT_TRUE(settings->GetSelectedOsTypes().empty());
@@ -613,8 +610,13 @@ IN_PROC_BROWSER_TEST_F(SyncConsentMinorModeTest, Accept) {
   consent_recorded_waiter.Wait();
   screen->SetDelegateForTesting(nullptr);  // cleanup
 
-  // Expect sync everything toggle is on after user accepted sync consent.
-  EXPECT_TRUE(settings->IsSyncEverythingEnabled());
+  // Expect sync everything toggle is on after user accepted sync consent only
+  // if the consent level is kSync. With consent level kSignin,
+  // prefs::internal::kSyncKeepEverythingSynced is never true again once it's
+  // false.
+  if (!is_consent_level_signin) {
+    EXPECT_TRUE(settings->IsSyncEverythingEnabled());
+  }
   EXPECT_TRUE(settings->IsSyncAllOsTypesEnabled());
 
   EXPECT_EQ(SyncConsentScreen::CONSENT_GIVEN,
@@ -673,13 +675,8 @@ IN_PROC_BROWSER_TEST_F(SyncConsentMinorModeTest, Decline) {
   EXPECT_EQ(identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync),
             !is_consent_level_signin);
   syncer::SyncUserSettings* settings = GetSyncUserSettings();
-  // prefs::internal::kSyncKeepEverythingSynced is not relevant with SignIn
-  // consent level.
-  // TODO(crbug.com/519114692): Remove the consent level guard once
-  // prefs::internal::kSyncKeepEverythingSynced is relevant again.
-  if (!is_consent_level_signin) {
-    EXPECT_FALSE(settings->IsSyncEverythingEnabled());
-  }
+
+  EXPECT_FALSE(settings->IsSyncEverythingEnabled());
   EXPECT_TRUE(settings->GetSelectedTypes().empty());
   EXPECT_FALSE(settings->IsSyncAllOsTypesEnabled());
   EXPECT_TRUE(settings->GetSelectedOsTypes().empty());
@@ -689,13 +686,7 @@ IN_PROC_BROWSER_TEST_F(SyncConsentMinorModeTest, Decline) {
   screen->SetDelegateForTesting(nullptr);  // cleanup
 
   // Expect all data types are still disabled.
-  // prefs::internal::kSyncKeepEverythingSynced is not relevant with SignIn
-  // consent level.
-  // TODO(crbug.com/519114692): Remove the consent level guard once
-  // prefs::internal::kSyncKeepEverythingSynced is relevant again.
-  if (!is_consent_level_signin) {
-    EXPECT_FALSE(settings->IsSyncEverythingEnabled());
-  }
+  EXPECT_FALSE(settings->IsSyncEverythingEnabled());
   EXPECT_TRUE(settings->GetSelectedTypes().empty());
   EXPECT_FALSE(settings->IsSyncAllOsTypesEnabled());
   EXPECT_TRUE(settings->GetSelectedOsTypes().empty());

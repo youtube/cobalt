@@ -1,2 +1,2 @@
-TYPE_WINDOW_STATE_CHANGED - [contentTypes=SUBTREE] text=[]
-TYPE_WINDOW_STATE_CHANGED - [contentTypes=SUBTREE] text=[]
+TYPE_WINDOW_STATE_CHANGED [contentTypes=SUBTREE] text=[] on class_name=android.view.View
+TYPE_WINDOW_STATE_CHANGED [contentTypes=SUBTREE] text=[] on class_name=android.view.View

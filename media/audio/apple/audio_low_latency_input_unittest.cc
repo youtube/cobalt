@@ -40,6 +40,8 @@ using ::testing::NotNull;
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 ACTION_P4(CheckCountAndPostQuitTask, count, limit, task_runner, closure) {
   if (++*count >= limit) {
     task_runner->PostTask(FROM_HERE, closure);
@@ -53,7 +55,7 @@ class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
                     base::TimeTicks capture_time,
                     double volume,
                     const AudioGlitchInfo& glitch_info));
-  MOCK_METHOD0(OnError, void());
+  MOCK_METHOD1(OnError, void(Error));
 };
 
 // This audio sink implementation should be used for manual tests only since
@@ -104,7 +106,7 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
     }
   }
 
-  void OnError() override {}
+  void OnError(Error error_code) override {}
 
  private:
   media::SeekableBuffer buffer_;

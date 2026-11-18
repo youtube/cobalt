@@ -9,7 +9,6 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/contexts-inl.h"
-#include "src/objects/fixed-array-inl.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -17,8 +16,6 @@
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/arguments-tq-inl.inc"
 
 int AliasedArgumentsEntry::aliased_context_slot() const {
   return aliased_context_slot_.load().value();

@@ -55,10 +55,3 @@ void FakeAccountManagerUI::ShowReauthAccountDialog(
 bool FakeAccountManagerUI::IsDialogShown() {
   return is_dialog_shown_;
 }
-
-void FakeAccountManagerUI::ShowManageAccountsSettings() {
-  show_manage_accounts_settings_calls_++;
-
-  for (auto& obs : observers_)
-    obs.OnManageAccountsSettingsShown();
-}

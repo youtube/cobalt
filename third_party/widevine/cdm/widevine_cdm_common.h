@@ -13,12 +13,6 @@
 // "alpha" is a temporary name until a convention is defined.
 inline constexpr char kWidevineKeySystem[] = "com.widevine.alpha";
 
-#if BUILDFLAG(IS_WIN)
-// A sub key system of `kWidevineKeySystem` only used in experiments.
-inline constexpr char kWidevineExperimentKeySystem[] =
-    "com.widevine.alpha.experiment";
-#endif  // BUILDFLAG(IS_WIN)
-
 // Widevine CDM files are in a directory with this name. This path is also
 // hardcoded in some build files and changing it requires changing the build
 // files as well.

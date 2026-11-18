@@ -1733,7 +1733,9 @@ _CET_ENDBR
 .LSEH_end_rsaz_1024_gather5:
 .size	rsaz_1024_gather5_avx2,.-rsaz_1024_gather5_avx2
 .section	.rodata
+
 .align	64
+rsaz_avx2_constants:
 .Land_mask:
 .quad	0x1fffffff,0x1fffffff,0x1fffffff,0x1fffffff
 .Lscatter_permd:

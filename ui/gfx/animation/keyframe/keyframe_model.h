@@ -186,6 +186,10 @@ class GFX_KEYFRAME_ANIMATION_EXPORT KeyframeModel {
   base::TimeDelta CalculateCurrentTime(base::TimeTicks monotonic_time,
                                        double playback_rate) const;
 
+  // Calculate the effect end time[1].
+  // [1] https://www.w3.org/TR/web-animations-1/#end-time
+  base::TimeDelta CalculateEndTime() const;
+
  protected:
   KeyframeModel(std::unique_ptr<AnimationCurve> curve,
                 int keyframe_model_id,
@@ -227,9 +231,6 @@ class GFX_KEYFRAME_ANIMATION_EXPORT KeyframeModel {
   // [1] https://drafts.csswg.org/web-animations/#local-time-section
   base::TimeDelta ConvertMonotonicTimeToLocalTime(
       base::TimeTicks monotonic_time) const;
-  // Calculate the effect end time[1].
-  // [1] https://www.w3.org/TR/web-animations-1/#end-time
-  base::TimeDelta CalculateEndTime() const;
 
   std::unique_ptr<AnimationCurve> curve_;
 

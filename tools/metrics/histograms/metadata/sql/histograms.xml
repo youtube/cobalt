@@ -104,6 +104,19 @@ chromium-metrics-reviews@google.com.
   <variant name="Web" summary="Web"/>
 </variants>
 
+<histogram name="Sql.Database.DatabaseCloseTime.{DatabaseTag}"
+    units="microseconds" expires_after="2026-11-29">
+  <owner>jpgravel@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Reports the time spent in Database::CloseInternal, in microseconds, when
+    closing the {DatabaseTag} database.
+
+    Only reported for clients with high-resolution clocks.
+  </summary>
+  <token key="DatabaseTag" variants="DatabaseTag"/>
+</histogram>
+
 <histogram name="Sql.Database.DatabaseOpenTime.{DatabaseTag}"
     units="microseconds" expires_after="2026-11-29">
   <owner>olivierli@chromium.org</owner>
@@ -154,7 +167,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sql.Database.Raze.FailureReason.{DatabaseTag}"
-    enum="RazeDatabaseFailedReason" expires_after="2026-10-04">
+    enum="RazeDatabaseFailedReason" expires_after="2026-12-06">
   <owner>etienneb@chromium.org</owner>
   <owner>grt@chromium.org</owner>
   <summary>
@@ -165,7 +178,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sql.Database.Raze.UnhandledErrorCode.{DatabaseTag}"
-    enum="SqliteResultCode" expires_after="2026-10-04">
+    enum="SqliteResultCode" expires_after="2026-12-06">
   <owner>etienneb@chromium.org</owner>
   <owner>jpgravel@chromium.org</owner>
   <summary>
@@ -176,7 +189,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sql.Database.RazeTime.{DatabaseTag}" units="microseconds"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>etienneb@chromium.org</owner>
   <owner>grt@chromium.org</owner>
   <summary>
@@ -189,7 +202,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sql.Database.Statement.Error.{DatabaseTag}"
-    enum="SqliteErrorCode" expires_after="2026-10-04">
+    enum="SqliteErrorCode" expires_after="2026-12-06">
   <owner>etienneb@chromium.org</owner>
   <owner>grt@chromium.org</owner>
   <summary>

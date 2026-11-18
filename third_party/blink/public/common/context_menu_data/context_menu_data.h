@@ -121,7 +121,7 @@ struct ContextMenuData {
   // Suggested filename for saving file.
   std::string suggested_filename;
 
-  // The editable (possibily) misspelled word.
+  // The editable (possibly) misspelled word.
   std::u16string misspelled_word;
 
   // If misspelledWord is not empty, holds suggestions from the dictionary.

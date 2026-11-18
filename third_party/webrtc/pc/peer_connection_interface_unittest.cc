@@ -24,10 +24,12 @@
 #include "api/audio/audio_device.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
-#include "api/create_peerconnection_factory.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/crypto/crypto_options.h"
 #include "api/data_channel_interface.h"
+#include "api/enable_media.h"
 #include "api/enable_media_with_defaults.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
@@ -640,7 +642,8 @@ class PeerConnectionFactoryForTest : public PeerConnectionFactory {
 class PeerConnectionInterfaceBaseTest : public ::testing::Test {
  protected:
   explicit PeerConnectionInterfaceBaseTest(SdpSemantics sdp_semantics)
-      : vss_(new VirtualSocketServer()),
+      : env_(CreateTestEnvironment()),
+        vss_(new VirtualSocketServer()),
         main_(vss_.get()),
         sdp_semantics_(sdp_semantics) {
 #ifdef WEBRTC_ANDROID
@@ -659,17 +662,27 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     worker_thread_->SetName("WorkerThread", nullptr);
     ASSERT_TRUE(worker_thread_->Start());
 
-    pc_factory_ = CreatePeerConnectionFactory(
-        network_thread_.get(), worker_thread_.get(), Thread::Current(),
-        scoped_refptr<AudioDeviceModule>(fake_audio_capture_module_),
-        CreateBuiltinAudioEncoderFactory(), CreateBuiltinAudioDecoderFactory(),
+    PeerConnectionFactoryDependencies dependencies;
+    dependencies.network_thread = network_thread_.get();
+    dependencies.worker_thread = worker_thread_.get();
+    dependencies.signaling_thread = Thread::Current();
+    dependencies.socket_factory = network_thread_->socketserver();
+    dependencies.adm =
+        scoped_refptr<AudioDeviceModule>(fake_audio_capture_module_);
+    dependencies.audio_encoder_factory = CreateBuiltinAudioEncoderFactory();
+    dependencies.audio_decoder_factory = CreateBuiltinAudioDecoderFactory();
+    dependencies.video_encoder_factory =
         std::make_unique<VideoEncoderFactoryTemplate<
             LibvpxVp8EncoderTemplateAdapter, LibvpxVp9EncoderTemplateAdapter,
-            OpenH264EncoderTemplateAdapter, LibaomAv1EncoderTemplateAdapter>>(),
+            OpenH264EncoderTemplateAdapter, LibaomAv1EncoderTemplateAdapter>>();
+    dependencies.video_decoder_factory =
         std::make_unique<VideoDecoderFactoryTemplate<
             LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter,
-            OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>(),
-        nullptr /* audio_mixer */, nullptr /* audio_processing */);
+            OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>();
+    dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>();
+    dependencies.env = env_;
+    EnableMedia(dependencies);
+    pc_factory_ = CreateModularPeerConnectionFactory(std::move(dependencies));
     ASSERT_TRUE(pc_factory_);
   }
 
@@ -1285,6 +1298,7 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
 
   SocketServer* socket_server() const { return vss_.get(); }
 
+  const Environment env_;
   std::unique_ptr<VirtualSocketServer> vss_;
   test::RunLoop main_;
   std::unique_ptr<Thread> network_thread_;

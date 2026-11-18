@@ -131,17 +131,48 @@ DownloadInterruptReason BaseFile::Initialize(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!detached_);
 
+#if BUILDFLAG(IS_WIN)
+  constexpr uint32_t kTempFileFlags =
+      base::File::FLAG_READ | base::File::FLAG_WRITE |
+      base::File::FLAG_WIN_EXCLUSIVE_WRITE | base::File::FLAG_WIN_SHARE_DELETE;
+#endif
+
   if (full_path.empty()) {
     base::FilePath temp_file;
-    if ((default_directory.empty() ||
-         !base::CreateTemporaryFileInDir(default_directory, &temp_file)) &&
-        !base::CreateTemporaryFile(&temp_file)) {
-      return LogInterruptReason("Unable to create", 0,
-                                DOWNLOAD_INTERRUPT_REASON_FILE_FAILED);
+    base::File temp_base_file;
+    if (!default_directory.empty()) {
+#if BUILDFLAG(IS_WIN)
+      temp_base_file = base::CreateAndOpenTemporaryFileInDirWithFlags(
+          default_directory, &temp_file, kTempFileFlags);
+#else
+      temp_base_file =
+          base::CreateAndOpenTemporaryFileInDir(default_directory, &temp_file);
+#endif
+    }
+
+    if (!temp_base_file.IsValid()) {
+      base::FilePath system_temp_dir;
+      if (!base::GetTempDir(&system_temp_dir)) {
+        return LogInterruptReason("Unable to find temp directory", 0,
+                                  DOWNLOAD_INTERRUPT_REASON_FILE_FAILED);
+      }
+#if BUILDFLAG(IS_WIN)
+      temp_base_file = base::CreateAndOpenTemporaryFileInDirWithFlags(
+          system_temp_dir, &temp_file, kTempFileFlags);
+#else
+      temp_base_file =
+          base::CreateAndOpenTemporaryFileInDir(system_temp_dir, &temp_file);
+#endif
+      if (!temp_base_file.IsValid()) {
+        return LogInterruptReason("Unable to create temporary file", 0,
+                                  DOWNLOAD_INTERRUPT_REASON_FILE_FAILED);
+      }
     }
     full_path_ = temp_file;
+    file_ = std::move(temp_base_file);
   } else {
     full_path_ = full_path;
+    file_ = std::move(file);
   }
 
   bytes_so_far_ = bytes_so_far;
@@ -150,7 +181,6 @@ DownloadInterruptReason BaseFile::Initialize(
   // Sparse file doesn't validate hash.
   if (is_sparse_file_)
     secure_hash_.reset();
-  file_ = std::move(file);
 
   return Open(hash_so_far, bytes_wasted);
 }

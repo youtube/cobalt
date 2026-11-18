@@ -62,11 +62,12 @@ TEST(MediaEngineTest, ReturnsNotStoppedHeaderExtensions) {
        RtpHeaderExtensionCapability("uri5", RtpHeaderExtensionId(5),
                                     RtpTransceiverDirection::kRecvOnly)});
   EXPECT_CALL(mock, GetRtpHeaderExtensions).WillOnce(Return(extensions));
-  EXPECT_THAT(GetDefaultEnabledRtpHeaderExtensions(mock, nullptr),
-              ElementsAre(Field(&RtpExtension::uri, StrEq("uri1")),
-                          Field(&RtpExtension::uri, StrEq("uri2")),
-                          Field(&RtpExtension::uri, StrEq("uri4")),
-                          Field(&RtpExtension::uri, StrEq("uri5"))));
+  EXPECT_THAT(
+      GetDefaultEnabledRtpHeaderCapabilities(mock, nullptr),
+      ElementsAre(Field(&RtpHeaderExtensionCapability::uri, StrEq("uri1")),
+                  Field(&RtpHeaderExtensionCapability::uri, StrEq("uri2")),
+                  Field(&RtpHeaderExtensionCapability::uri, StrEq("uri4")),
+                  Field(&RtpHeaderExtensionCapability::uri, StrEq("uri5"))));
 }
 
 // This class mocks methods declared as pure virtual in the interface.

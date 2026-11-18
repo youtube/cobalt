@@ -87,6 +87,11 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/autofill/options/AutofillOptionsProperties.java",
     "java/src/org/chromium/chrome/browser/autofill/options/AutofillOptionsViewBinder.java",
     "java/src/org/chromium/chrome/browser/autofill/options/RadioButtonGroupThirdPartyPreference.java",
+    "java/src/org/chromium/chrome/browser/autofill/personal_context/AutofillPersonalContextCoordinator.java",
+    "java/src/org/chromium/chrome/browser/autofill/personal_context/AutofillPersonalContextFragment.java",
+    "java/src/org/chromium/chrome/browser/autofill/personal_context/AutofillPersonalContextMediator.java",
+    "java/src/org/chromium/chrome/browser/autofill/personal_context/AutofillPersonalContextProperties.java",
+    "java/src/org/chromium/chrome/browser/autofill/personal_context/AutofillPersonalContextViewBinder.java",
   ]
 
   resources_package = "org.chromium.chrome.browser.autofill"
@@ -102,6 +107,7 @@ android_library("java") {
     "//chrome/browser/feedback/android:java",
     "//chrome/browser/feedback/android:java_resources",
     "//chrome/browser/flags:java",
+    "//chrome/browser/language/android:java_resources",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/settings:java",
@@ -175,16 +181,6 @@ android_library("test_support_java") {
   srcjar_deps = [ ":jni_test_headers" ]
 }
 
-android_library("bottom_sheet_utils_java") {
-  sources = [ "java/src/org/chromium/chrome/browser/autofill/bottom_sheet_utils/DetailScreenScrollListener.java" ]
-
-  deps = [
-    "//base:base_java",
-    "//components/browser_ui/bottomsheet/android:java",
-    "//third_party/androidx:androidx_annotation_annotation_jvm_java",
-    "//third_party/androidx:androidx_recyclerview_recyclerview_java",
-  ]
-}
 
 generate_jni("jni_headers") {
   sources = [
@@ -239,6 +235,7 @@ android_resources("java_resources") {
     "java/res/values/dimens.xml",
     "java/res/values/ids.xml",
     "java/res/xml/autofill_options_preferences.xml",
+    "java/res/xml/autofill_personal_context_preferences.xml",
     "java/res/xml/home_of_transactions_preferences.xml",
   ]
 }
@@ -302,7 +299,6 @@ robolectric_library("junit") {
     "junit/src/org/chromium/chrome/browser/autofill/SaveUpdateAddressProfilePromptTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/autofill_ai/AutofillAiSaveUpdateEntityPromptTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/autofill_ai/EntityDataManagerTest.java",
-    "junit/src/org/chromium/chrome/browser/autofill/bottom_sheet_utils/DetailScreenScrollListenerTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/editors/address/AddressEditorTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/editors/autofill_ai/EntityEditorModuleTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/editors/autofill_ai/EntityEditorViewTest.java",
@@ -311,22 +307,24 @@ robolectric_library("junit") {
     "junit/src/org/chromium/chrome/browser/autofill/editors/common/text_field/TextFieldViewUnitTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/editors/utils/TestUtils.java",
     "junit/src/org/chromium/chrome/browser/autofill/options/AutofillOptionsTest.java",
+    "junit/src/org/chromium/chrome/browser/autofill/personal_context/AutofillPersonalContextTest.java",
   ]
 
   deps = [
-    ":bottom_sheet_utils_java",
     ":java",
     ":java_resources",
     ":third_party_provider_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
+    "//chrome/android:chrome_java",
     "//chrome/browser/device_reauth/android:java",
     "//chrome/browser/feedback/android:factory_java",
     "//chrome/browser/feedback/android:java",
     "//chrome/browser/flags:java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
+    "//chrome/browser/settings:search_java",
     "//chrome/browser/signin/services/android:java",
     "//chrome/browser/sync/android:java",
     "//chrome/test/android:chrome_java_unit_test_support",

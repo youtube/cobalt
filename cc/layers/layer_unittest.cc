@@ -103,19 +103,19 @@ using ::testing::StrictMock;
         {base::TimeTicks(), base::TimeTicks::Now()});                          \
   } while (false)
 
-#define EXPECT_SET_NEEDS_COMMIT_WAS_CALLED(code_to_test)           \
-  do {                                                             \
-    EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()) \
-        .Times(AtLeast(1));                                        \
-    code_to_test;                                                  \
-    layer_tree_host_->VerifyAndClearExpectations();                \
+#define EXPECT_SET_NEEDS_COMMIT_WAS_CALLED(code_to_test)            \
+  do {                                                              \
+    EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)) \
+        .Times(AtLeast(1));                                         \
+    code_to_test;                                                   \
+    layer_tree_host_->VerifyAndClearExpectations();                 \
   } while (false)
 
-#define EXPECT_SET_NEEDS_COMMIT_WAS_NOT_CALLED(code_to_test)                 \
-  do {                                                                       \
-    EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(0); \
-    code_to_test;                                                            \
-    layer_tree_host_->VerifyAndClearExpectations();                          \
+#define EXPECT_SET_NEEDS_COMMIT_WAS_NOT_CALLED(code_to_test)                  \
+  do {                                                                        \
+    EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(0); \
+    code_to_test;                                                             \
+    layer_tree_host_->VerifyAndClearExpectations();                           \
   } while (false)
 
 namespace cc {
@@ -138,7 +138,7 @@ class MockLayerTreeHostDelegate {
  public:
   MOCK_METHOD(void, SetNeedsUpdateLayers, (), ());
   MOCK_METHOD(void, SetNeedsFullTreeSync, (), ());
-  MOCK_METHOD(void, SetNeedsCommit, (), ());
+  MOCK_METHOD(void, SetNeedsCommit, (bool urgent), ());
 };
 
 class FakeLayerTreeHost : public LayerTreeHost {
@@ -171,7 +171,9 @@ class FakeLayerTreeHost : public LayerTreeHost {
     mock_delegate_->SetNeedsFullTreeSync();
   }
 
-  void SetNeedsCommit() override { mock_delegate_->SetNeedsCommit(); }
+  void SetNeedsCommit(bool urgent) override {
+    mock_delegate_->SetNeedsCommit(urgent);
+  }
 
   StrictMock<MockLayerTreeHostDelegate>& mock_delegate() {
     return *mock_delegate_;
@@ -357,7 +359,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
   child->AddChild(grand_child);
 
   // To force a transform node for |top|.
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit())
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_))
       .Times(AtLeast(1));
   gfx::Transform top_transform;
   top_transform.Scale3d(1, 2, 3);
@@ -373,7 +375,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
   EXPECT_SET_NEEDS_COMMIT_WAS_NOT_CALLED(
       mask_layer1->SetBounds(arbitrary_size));
   EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsFullTreeSync());
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit())
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_))
       .Times(AtLeast(1));
 
   layer_tree_host_->ClearPendingLayerCommitStates();
@@ -410,12 +412,12 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
 
   // Once there is a mask layer, resizes require subtree properties to update.
   arbitrary_size = gfx::Size(11, 22);
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(2);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(2);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetBounds(arbitrary_size));
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(mask_layer1->SetBounds(arbitrary_size));
   layer_tree_host_->VerifyAndClearExpectations();
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetMasksToBounds(true));
   layer_tree_host_->VerifyAndClearExpectations();
 
@@ -425,7 +427,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
       child2->PushPropertiesTo(child2_impl.get(), *commit_state);
       grand_child->PushPropertiesTo(grand_child_impl.get(), *commit_state));
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetContentsOpaque(true));
   layer_tree_host_->VerifyAndClearExpectations();
 
@@ -435,7 +437,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
       child2->PushPropertiesTo(child2_impl.get(), *commit_state);
       grand_child->PushPropertiesTo(grand_child_impl.get(), *commit_state));
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetTrilinearFiltering(true));
   layer_tree_host_->VerifyAndClearExpectations();
 
@@ -445,7 +447,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
       child2->PushPropertiesTo(child2_impl.get(), *commit_state);
       grand_child->PushPropertiesTo(grand_child_impl.get(), *commit_state));
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetTrilinearFiltering(false));
   layer_tree_host_->VerifyAndClearExpectations();
 
@@ -455,7 +457,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
       child2->PushPropertiesTo(child2_impl.get(), *commit_state);
       grand_child->PushPropertiesTo(grand_child_impl.get(), *commit_state));
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(2);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(2);
   top->SetRoundedCorner({1, 2, 3, 4});
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetIsFastRoundedCorner(true));
   layer_tree_host_->VerifyAndClearExpectations();
@@ -466,7 +468,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
       child2->PushPropertiesTo(child2_impl.get(), *commit_state);
       grand_child->PushPropertiesTo(grand_child_impl.get(), *commit_state));
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetHideLayerAndSubtree(true));
   layer_tree_host_->VerifyAndClearExpectations();
 
@@ -476,7 +478,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
       child2->PushPropertiesTo(child2_impl.get(), *commit_state);
       grand_child->PushPropertiesTo(grand_child_impl.get(), *commit_state));
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetBlendMode(arbitrary_blend_mode));
   layer_tree_host_->VerifyAndClearExpectations();
 
@@ -489,7 +491,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
   // Should be a different size than previous call, to ensure it marks tree
   // changed.
   arbitrary_size = gfx::Size(111, 222);
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(2);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(2);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetBounds(arbitrary_size));
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(mask_layer1->SetBounds(arbitrary_size));
   layer_tree_host_->VerifyAndClearExpectations();
@@ -502,7 +504,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
 
   FilterOperations arbitrary_filters;
   arbitrary_filters.Append(FilterOperation::CreateOpacityFilter(0.5f));
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(top->SetFilters(arbitrary_filters));
   layer_tree_host_->VerifyAndClearExpectations();
 
@@ -512,7 +514,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
       child2->PushPropertiesTo(child2_impl.get(), *commit_state);
       grand_child->PushPropertiesTo(grand_child_impl.get(), *commit_state));
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(2);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(2);
   EXECUTE_AND_VERIFY_SUBTREE_CHANGED(
       top->SetBackdropFilters(arbitrary_filters));
 
@@ -524,7 +526,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
       layer_tree_host_->VerifyAndClearExpectations());
 
   gfx::PointF arbitrary_point_f = gfx::PointF(0.125f, 0.25f);
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   top->SetPosition(arbitrary_point_f);
   TransformNode* node =
       &layer_tree_host_->property_trees()->transform_tree_mutable().MutableNode(
@@ -540,7 +542,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
   EXPECT_FALSE(node->transform_changed());
   layer_tree_host_->VerifyAndClearExpectations();
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   child->SetPosition(arbitrary_point_f);
   node =
       &layer_tree_host_->property_trees()->transform_tree_mutable().MutableNode(
@@ -558,7 +560,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
   EXPECT_FALSE(node->transform_changed());
 
   gfx::Point3F arbitrary_point_3f = gfx::Point3F(0.125f, 0.25f, 0.f);
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   top->SetTransformOrigin(arbitrary_point_3f);
   node =
       &layer_tree_host_->property_trees()->transform_tree_mutable().MutableNode(
@@ -575,7 +577,7 @@ TEST_F(LayerTest, LayerPropertyChangedForSubtree) {
 
   gfx::Transform arbitrary_transform;
   arbitrary_transform.Scale3d(0.1f, 0.2f, 0.3f);
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   top->SetTransform(arbitrary_transform);
   node =
       &layer_tree_host_->property_trees()->transform_tree_mutable().MutableNode(
@@ -1081,7 +1083,7 @@ TEST_F(LayerTest, CheckPropertyChangeCausesCorrectBehavior) {
           base::flat_map<viz::RegionCaptureCropId, gfx::Rect>{
               {viz::RegionCaptureCropId(123u, 456u),
                gfx::Rect(0, 0, 640, 480)}})));
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
   EXPECT_SET_NEEDS_FULL_TREE_SYNC(1, test_layer->SetMaskLayer(mask_layer1));
   layer_tree_host_->VerifyAndClearExpectations();
   // The above tests should not have caused a change to the needs_display
@@ -1487,7 +1489,7 @@ TEST_F(LayerTest, PushUpdatesShouldHitTest) {
       LayerImpl::Create(host_impl_.active_tree(), 1);
   EXPECT_SET_NEEDS_FULL_TREE_SYNC(1,
                                   layer_tree_host_->SetRootLayer(root_layer));
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(5);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(5);
 
   // A layer that draws content should be hit testable.
   root_layer->SetIsDrawable(true);
@@ -1663,7 +1665,7 @@ TEST_F(LayerTest, ElementIdIsPushed) {
   EXPECT_SET_NEEDS_FULL_TREE_SYNC(1,
                                   layer_tree_host_->SetRootLayer(test_layer));
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(1);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(1);
 
   test_layer->SetElementId(ElementId(2));
   EXPECT_FALSE(impl_layer->element_id());
@@ -1679,7 +1681,7 @@ TEST_F(LayerTest, SetLayerTreeHostNotUsingLayerListsManagesElementId) {
 
   // Expect additional calls due to has-animation check and initialization
   // of keyframes.
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(3);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(3);
   scoped_refptr<AnimationTimeline> timeline =
       AnimationTimeline::Create(AnimationIdProvider::NextTimelineId());
   animation_host_->AddAnimationTimeline(timeline);
@@ -1706,7 +1708,7 @@ TEST_F(LayerTest, SetLayerTreeHostNotUsingLayerListsManagesElementId) {
 // compositor is expensive and updated counts can wait until the next
 // commit to be pushed. See https://crbug.com/1083244.
 TEST_F(LayerTest, PushAnimationCountsLazily) {
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(0);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(0);
   animation_host_->SetAnimationCounts(0);
   animation_host_->SetCurrentFrameHadRaf(true);
   animation_host_->SetNextFrameHasPendingRaf(true);
@@ -1724,7 +1726,7 @@ TEST_F(LayerTest, SetElementIdNotUsingLayerLists) {
   scoped_refptr<Layer> test_layer = Layer::Create();
   test_layer->SetLayerTreeHost(layer_tree_host_.get());
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(2);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(2);
   ElementId element_id = ElementId(2);
   EXPECT_EQ(nullptr, layer_tree_host_->LayerByElementId(element_id));
 
@@ -1810,7 +1812,7 @@ TEST_F(LayerTest, UpdatingCaptureBounds) {
       base::flat_map<viz::RegionCaptureCropId, gfx::Rect>{
           {viz::RegionCaptureCropId(123u, 456u), gfx::Rect(0, 0, 1280, 720)}});
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit()).Times(3);
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_)).Times(3);
 
   // We don't track full tree syncs in this test.
   EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsFullTreeSync())
@@ -1862,7 +1864,7 @@ TEST_F(LayerTest, PushCanvasChildId) {
   std::unique_ptr<LayerImpl> layer_impl =
       LayerImpl::Create(host_impl_.active_tree(), layer->id());
 
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit())
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_))
       .Times(AnyNumber());
   EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsFullTreeSync())
       .Times(AnyNumber());
@@ -1906,7 +1908,7 @@ TEST_F(LayerTest, UpdatingClipRect) {
 
   EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsFullTreeSync())
       .Times(AtLeast(1));
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit())
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_))
       .Times(AtLeast(1));
   layer_tree_host_->SetRootLayer(root);
   root->AddChild(parent);
@@ -2018,7 +2020,7 @@ TEST_F(LayerTest, UpdatingRoundedCorners) {
 
   EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsFullTreeSync())
       .Times(AtLeast(1));
-  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit())
+  EXPECT_CALL_MOCK_DELEGATE(*layer_tree_host_, SetNeedsCommit(_))
       .Times(AtLeast(1));
 
   layer_tree_host_->SetRootLayer(root);

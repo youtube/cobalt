@@ -10,6 +10,8 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/containers/fixed_flat_map.h"
+#include "base/containers/map_util.h"
 #include "base/containers/span.h"
 #include "base/feature_buildflags.h"
 #include "base/feature_list.h"
@@ -54,6 +56,19 @@ namespace {
 // and saved in the dictionary pref (kAboutFlagsOriginLists).
 // E.g. --isolate_origins=http://example1.net,http://example2.net
 const char kOriginListValueSeparator[] = ",";
+
+// A mapping from old flag names to new flag names; used for migration.
+// TODO(crbug.com/524236481): Remove built-in AI API flag entries by June 2027.
+constexpr auto kRenamedFlags =
+    base::MakeFixedFlatMap<std::string_view, std::string_view>({
+        {"classifier-api-for-tiny-model", "classifier-api"},
+        {"prompt-api-for-gemini-nano", "prompt-api"},
+        {"prompt-api-for-gemini-nano-multimodal-input",
+         "prompt-api-multimodal-input"},
+        {"rewriter-api-for-gemini-nano", "rewriter-api"},
+        {"summarizer-api-for-gemini-nano", "summarizer-api"},
+        {"writer-api-for-gemini-nano", "writer-api"},
+    });
 
 const struct {
   unsigned bit;
@@ -398,13 +413,13 @@ bool FlagsState::IsRestartNeededToCommitChanges() {
 void FlagsState::SetFeatureEntryEnabled(FlagsStorage* flags_storage,
                                         const std::string& internal_name,
                                         bool enable) {
-  size_t at_index = internal_name.find(testing::kMultiSeparator);
-  if (at_index != std::string::npos) {
+  size_t separator_index = internal_name.find(testing::kMultiSeparator);
+  if (separator_index != std::string::npos) {
     DCHECK(enable);
     // We're being asked to enable a multi-choice entry. Disable the
     // currently selected choice.
-    DCHECK_NE(at_index, 0u);
-    const std::string entry_name = internal_name.substr(0, at_index);
+    DCHECK_NE(separator_index, 0u);
+    const std::string entry_name = internal_name.substr(0, separator_index);
     SetFeatureEntryEnabled(flags_storage, entry_name, false);
 
     // And enable the new choice, if it is not the default first choice.
@@ -904,14 +919,26 @@ std::set<std::string> FlagsState::SanitizeList(
     int platform_mask) const {
   std::set<std::string> new_enabled_entries;
 
-  // For each entry in |enabled_entries|, check whether it exists in the list
-  // of supported features. Remove those that don't. Note: Even though this is
-  // an O(n^2) search, this is more efficient than creating a set from
-  // |feature_entries_| first because |feature_entries_| is large and
-  // |enabled_entries| should generally be small/empty.
-  for (const std::string& entry_name : enabled_entries) {
-    if (IsSupportedFeature(storage, entry_name, platform_mask)) {
-      new_enabled_entries.insert(entry_name);
+  // For each entry in `enabled_entries`, map renamed entries to the new value,
+  // and remove any flags that don't exist in the list of supported features.
+  for (std::string_view entry : enabled_entries) {
+    size_t separator_index = entry.find(testing::kMultiSeparator);
+    // If `separator_index` is npos, substr returns the entire string_view.
+    std::string_view name = entry.substr(0, separator_index);
+    std::string new_entry;
+    if (auto* new_name = base::FindOrNull(kRenamedFlags, name); new_name) {
+      new_entry =
+          base::StrCat({*new_name, separator_index != std::string_view::npos
+                                       ? entry.substr(separator_index)
+                                       : ""});
+      entry = new_entry;
+    }
+
+    // Note: Even though this is an O(n^2) search, this is more efficient than
+    // creating a set from `feature_entries_` first because `feature_entries_`
+    // is large and `enabled_entries` should generally be small/empty.
+    if (IsSupportedFeature(storage, entry, platform_mask)) {
+      new_enabled_entries.emplace(entry);
     }
   }
 
@@ -923,7 +950,8 @@ void FlagsState::GetSanitizedEnabledFlags(FlagsStorage* flags_storage,
   std::set<std::string> enabled_entries = flags_storage->GetFlags();
   std::set<std::string> new_enabled_entries =
       SanitizeList(flags_storage, enabled_entries, -1);
-  if (new_enabled_entries.size() != enabled_entries.size()) {
+  // Sanitization may remove entries or migrate flag names using kRenamedFlags.
+  if (new_enabled_entries != enabled_entries) {
     SetFlags(flags_storage, new_enabled_entries, enabled_entries);
   }
   result->swap(new_enabled_entries);
@@ -1072,7 +1100,7 @@ const FeatureEntry* FlagsState::FindFeatureEntryByName(
 }
 
 bool FlagsState::IsSupportedFeature(const FlagsStorage* storage,
-                                    const std::string& name,
+                                    std::string_view name,
                                     int platform_mask) const {
   for (const auto& entry : feature_entries_) {
     DCHECK(entry.IsValid());

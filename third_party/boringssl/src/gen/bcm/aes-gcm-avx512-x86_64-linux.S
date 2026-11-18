@@ -5,7 +5,9 @@
 
 #if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64) && defined(__ELF__)
 .section	.rodata
+
 .align	64
+aes_gcm_avx512_constants:
 
 
 .Lbswap_mask:

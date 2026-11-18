@@ -6,6 +6,7 @@
 #define COMPONENTS_OMNIBOX_BROWSER_CROSS_DEVICE_TAB_PROVIDER_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 
 class AutocompleteInput;
@@ -24,6 +25,38 @@ class CrossDeviceTabProvider : public AutocompleteProvider {
 
  private:
   ~CrossDeviceTabProvider() override;
+
+  // Covers the user journey where the user switches to another (this) device
+  // shortly after navigating on a remote device (e.g. using both devices
+  // simultaneously).
+  bool IsVeryRecentRemoteTimestamp(base::Time timestamp) const;
+
+  // Covers the delayed continuation scenario: the user stopped using all
+  // devices for some time, then started using a device different to the one
+  // being used previously (and they may be interested in resuming their
+  // browsing journey).
+  bool IsModeratelyRecentRemoteTimestampWithRecentLocalSessionStart(
+      base::Time timestamp) const;
+
+  // Returns true if the remote `timestamp` satisfies any of the activation
+  // criteria required to surface the cross-device tab suggestion.
+  //
+  // The combined logic is:
+  // (
+  //    if tab is newer than 5 minutes (simultaneous use)
+  //    OR
+  //    (
+  //      if the tab is newer than 720 minutes (12 hours) (delayed continuation
+  //      age limit)
+  //      AND
+  //      profile uptime is less than 5 minutes (delayed continuation
+  //      uptime limit)
+  //    )
+  // )
+  //
+  // (Note: actual limits are configurable via features).
+  bool IsRecentEnoughRemoteTimestampToSuggestRemoteTab(
+      base::Time timestamp) const;
 
   const raw_ptr<AutocompleteProviderClient> client_;
 };

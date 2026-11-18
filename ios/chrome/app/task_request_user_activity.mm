@@ -806,12 +806,10 @@ void OpenSpotlightURL(NSURL* webpage_url,
   CHECK_EQ(URLs.size(), 1u);
   CHECK(URLs.back().is_valid());
 
-  // TODO(crbug.com/462018636): Find a centralized solution for dino game
-  // intents. Potentially move this logic inside TabOpener.
+  // User activities handled here include Siri shortcuts, which are allowed to
+  // open the dino game.
   UrlLoadParams params = UrlLoadParams::InNewTab(URLs.back());
-  if (self.userActivityType == UserActivityType::kPlayDinoGame) {
-    params.web_params.transition_type = ui::PAGE_TRANSITION_AUTO_BOOKMARK;
-  }
+  params.from_widget_or_siri = YES;
 
   [tabOpener dismissModalsAndMaybeOpenSelectedTabInMode:targetMode
                                       withUrlLoadParams:params

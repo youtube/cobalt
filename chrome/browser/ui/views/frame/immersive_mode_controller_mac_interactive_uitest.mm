@@ -118,7 +118,7 @@ class ImmersiveModeControllerMacInteractiveTest : public InProcessBrowserTest {
         base::BindRepeating(&ui::BaseWindow::IsActive,
                             base::Unretained(second_browser_->window())),
         true);
-    second_browser_->window()->Activate();
+    second_browser_->GetWindow()->Activate();
     EXPECT_TRUE(activate_waiter.Wait());
 
     views::test::PropertyWaiter active_space_waiter(
@@ -174,17 +174,13 @@ IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerMacInteractiveTest,
   EXPECT_EQ(GetMovedContentViewForWidget(overlay_widget),
             overlay_widget_content_view);
 
-  // Only on macOS 13 and higher will the contentView no longer live in the
-  // window.
-  if (base::mac::MacOSMajorVersion() >= 13) {
-    EXPECT_NE([overlay_widget_window contentView], overlay_widget_content_view);
-  }
+  EXPECT_NE(overlay_widget_window.contentView, overlay_widget_content_view);
 
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
 
   EXPECT_FALSE(fullscreen_controller->IsFullscreenForBrowser());
   EXPECT_EQ(GetMovedContentViewForWidget(overlay_widget), nullptr);
-  EXPECT_EQ([overlay_widget_window contentView], overlay_widget_content_view);
+  EXPECT_EQ(overlay_widget_window.contentView, overlay_widget_content_view);
 }
 
 // Tests that minimum content offset is nonzero iff the find bar is shown and
@@ -286,8 +282,8 @@ IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerMacInteractiveTest,
   ActivateSecondBrowserWindow();
 
   // Hide the widget. This would typically cause a space switch to the
-  // fullscreen space in macOS 13+. http://crbug.com/40272387 stops the space
-  // switch from happening on macOS 13+.
+  // fullscreen space. http://crbug.com/40272387 stops the space switch from
+  // happening.
   HideWidget();
 
   // The space switch happens out of process and asynchronously. We want to make
@@ -333,17 +329,13 @@ IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerMacInteractiveTest,
   EXPECT_EQ(GetMovedContentViewForWidget(overlay_widget),
             overlay_widget_content_view);
 
-  // Only on macOS 13 and higher will the contentView no longer live in the
-  // window.
-  if (base::mac::MacOSMajorVersion() >= 13) {
-    EXPECT_NE([overlay_widget_window contentView], overlay_widget_content_view);
-  }
+  EXPECT_NE(overlay_widget_window.contentView, overlay_widget_content_view);
 
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
 
   EXPECT_FALSE(fullscreen_controller->IsFullscreenForBrowser());
   EXPECT_EQ(GetMovedContentViewForWidget(overlay_widget), nullptr);
-  EXPECT_EQ([overlay_widget_window contentView], overlay_widget_content_view);
+  EXPECT_EQ(overlay_widget_window.contentView, overlay_widget_content_view);
 }
 
 // Tests that the browser does not crash when toggling between vertical and
@@ -372,11 +364,7 @@ IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerMacInteractiveTest,
   EXPECT_EQ(GetMovedContentViewForWidget(overlay_widget),
             overlay_widget_content_view);
 
-  // Only on macOS 13 and higher will the contentView no longer live in the
-  // window.
-  if (base::mac::MacOSMajorVersion() >= 13) {
-    EXPECT_NE([overlay_widget_window contentView], overlay_widget_content_view);
-  }
+  EXPECT_NE(overlay_widget_window.contentView, overlay_widget_content_view);
 
   tabs::VerticalTabStripStateController::From(browser())
       ->SetVerticalTabsEnabled(false);
@@ -410,18 +398,13 @@ IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerMacInteractiveTest,
 
 // Tests that an -orderOut: or a -close result in an ordering group rebuild of
 // the parent. The rebuild behavior is relied upon by a workaround to
-// http://crbug.com/40272387. If this test starts failing, the workaround for
-// issue 1454606 will need to be revisited.
-// TODO(http://crbug.com/40272387): Remove this test when Apple fixes
+// https://crbug.com/40272387. If this test starts failing, the workaround for
+// that issue will need to be revisited.
+//
+// TODO(https://crbug.com/40272387): Remove this test when Apple fixes
 // FB13529873.
 IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerMacInteractiveTest,
                        RebuildOrderingGroup) {
-  // This test only applies to macOS 13 or greater.
-  if (@available(macOS 13, *)) {
-  } else {
-    return;
-  }
-
   // This is the window under test. We want to make sure
   // `-_rebuildOrderingGroup:` is called  during a child's `-orderOut:` or
   // `-close` or during the parent's `-removeChildWindow:`.

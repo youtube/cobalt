@@ -118,7 +118,6 @@ if (!build_with_chromium) {
         "../../../api:time_controller",
         "../../../api/audio:audio_device",
         "../../../api/environment",
-        "../../../api/environment:environment_factory",
         "../../../api/rtc_event_log:rtc_event_log_factory",
         "../../../api/test/pclf:media_configuration",
         "../../../api/test/pclf:media_quality_test_params",

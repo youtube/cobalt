@@ -5,7 +5,7 @@
 import 'chrome://history/history.js';
 
 import type {HistoryAppElement} from 'chrome://history/history.js';
-import {BrowserProxyImpl, HistoryEmbeddingsBrowserProxyImpl, HistoryEmbeddingsPageHandlerRemote} from 'chrome://history/history.js';
+import {BrowserProxyImpl, historyEmbeddingsBrowserProxyFactory, HistoryEmbeddingsPageHandlerRemote} from 'chrome://history/history.js';
 import type {HistoryEntry, QueryResult} from 'chrome://resources/cr_components/history/history.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
@@ -35,8 +35,9 @@ suite('history-toolbar', function() {
     testProxy = new TestHistoryBrowserProxy();
     BrowserProxyImpl.setInstance(testProxy);
     embeddingsHandler = TestMock.fromClass(HistoryEmbeddingsPageHandlerRemote);
-    HistoryEmbeddingsBrowserProxyImpl.setInstance(
-        new HistoryEmbeddingsBrowserProxyImpl(embeddingsHandler));
+    const {instance} =
+        historyEmbeddingsBrowserProxyFactory.createForTest(embeddingsHandler);
+    historyEmbeddingsBrowserProxyFactory.setInstance(instance);
     embeddingsHandler.setResultFor(
         'search', Promise.resolve({result: {items: []}}));
 

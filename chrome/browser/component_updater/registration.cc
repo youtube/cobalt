@@ -26,7 +26,9 @@
 #include "chrome/browser/component_updater/indigo_component_installer.h"
 #include "chrome/browser/component_updater/mei_preload_component_installer.h"
 #include "chrome/browser/component_updater/pki_metadata_component_installer.h"
+#include "chrome/browser/component_updater/platform_runtime_component_installer.h"
 #include "chrome/browser/component_updater/privacy_sandbox_attestations_component_installer.h"
+#include "chrome/browser/component_updater/private_verification_tokens_installer.h"
 #include "chrome/browser/component_updater/ssl_error_assistant_component_installer.h"
 #include "chrome/browser/component_updater/subresource_filter_component_installer.h"
 #include "chrome/browser/component_updater/trust_token_key_commitments_component_installer.h"
@@ -69,10 +71,6 @@
 #include "chrome/browser/apps/app_service/chrome_app_deprecation/chrome_app_deprecation.h"
 #include "chrome/browser/component_updater/smart_dim_component_installer.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
-#if BUILDFLAG(ENABLE_MEDIA_FOUNDATION_WIDEVINE_CDM)
-#include "chrome/browser/component_updater/media_foundation_widevine_cdm_component_installer.h"
-#endif
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 #include "chrome/browser/component_updater/translate_kit_component_installer.h"
@@ -139,10 +137,6 @@ void RegisterComponentsForUpdate() {
   RegisterRecoveryImprovedComponent(cus, g_browser_process->local_state());
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(ENABLE_MEDIA_FOUNDATION_WIDEVINE_CDM)
-  RegisterMediaFoundationWidevineCdmComponent(cus);
-#endif
-
 #if BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)
   RegisterWidevineCdmComponent(cus);
 #endif  // BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)
@@ -152,6 +146,7 @@ void RegisterComponentsForUpdate() {
       cus, g_browser_process->GetApplicationLocale());
   RegisterOptimizationHintsComponent(cus);
   RegisterTrustTokenKeyCommitmentsComponentIfTrustTokensEnabled(cus);
+  RegisterPrivateVerificationTokensComponentIfEnabled(cus);
   RegisterFirstPartySetsComponent(cus);
   RegisterPrivacySandboxAttestationsComponent(cus);
   if (history_embeddings::IsHistoryEmbeddingsFeatureEnabled()) {
@@ -229,6 +224,8 @@ void RegisterComponentsForUpdate() {
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   RegisterCaptchaProviderComponent(cus);
+
+  MaybeRegisterPlatformRuntimeComponent(cus);
 
   base::FilePath path;
   if (base::PathService::Get(chrome::DIR_USER_DATA, &path)) {

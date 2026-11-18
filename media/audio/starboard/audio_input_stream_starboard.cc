@@ -164,7 +164,7 @@ void AudioInputStreamStarboard::SetOutputDeviceForAec(
 void AudioInputStreamStarboard::HandleError(const char* method) {
   LOG(WARNING) << "Error in: " << method;
   if (callback_) {
-    callback_->OnError();
+    callback_->OnError(AudioInputCallback::Error::kRuntimeError);
   }
 }
 

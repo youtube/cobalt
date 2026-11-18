@@ -26,9 +26,7 @@ source_set("app_dialog") {
     "//ui/base",
     "//ui/views",
   ]
-}
 
-source_set("impl") {
   sources = [
     "app_block_dialog_view.cc",
     "app_dialog_view.cc",
@@ -37,17 +35,16 @@ source_set("impl") {
     "app_uninstall_dialog_view.cc",
   ]
   deps = [
-    ":app_dialog",
     "//chrome/browser/ash/app_list/arc",
     "//chrome/browser/ash/borealis",
     "//chrome/browser/extensions",
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui/navigator",
+    "//chrome/browser/ui/views:layout_provider",
     "//chrome/browser/web_applications",
     "//components/webapps/isolated_web_apps:scheme",
     "//ui/chromeos",
   ]
-  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 }
 
 source_set("browser_tests") {

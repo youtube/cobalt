@@ -276,9 +276,6 @@ public final class EventConstants {
     /** The page load has failed and user has landed on an offline dino page. */
     public static final String USER_HAS_SEEN_DINO = "user_has_seen_dino";
 
-    /** WebFeed events. */
-    public static final String WEB_FEED_FOLLOW_INTRO_CLICKED = "web_feed_follow_intro_clicked";
-
     /**
      * User performed a web search for a query by choosing the Web Search option on the popup menu.
      */

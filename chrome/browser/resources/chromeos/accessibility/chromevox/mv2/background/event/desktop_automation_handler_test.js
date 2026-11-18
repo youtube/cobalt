@@ -495,7 +495,6 @@ TEST_F(
             .call(() => {
               EventGenerator.sendKeyPress(KeyCode.TAB);
               EventGenerator.sendKeyPress(KeyCode.TAB);
-              EventGenerator.sendKeyPress(KeyCode.DOWN);
             })
             // The Task Manager Refresh has a TabbedPane UI which splits system
             // processes and user-facing processes (tabs & extensions), so

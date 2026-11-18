@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chromeos/ash/services/bluetooth_config/fake_fast_pair_delegate.h"
 #include "chromeos/ash/services/bluetooth_config/public/cpp/device_image_info.h"
@@ -27,12 +28,18 @@ constexpr char kTestCaseImage[] = "data:image/png;base64,TestCaseImage";
 constexpr int kRenderingBitPosition = 18;
 constexpr int kAudioBitPosition = 21;
 
-const std::array<device::BluetoothUUID, 3> kAudioServiceUuids{
-    device::BluetoothUUID("00001108-0000-1000-8000-00805f9b34fb"),  // Headset
-    device::BluetoothUUID(
-        "0000110b-0000-1000-8000-00805f9b34fb"),  // Audio Sink
-    device::BluetoothUUID("0000111e-0000-1000-8000-00805f9b34fb"),  // Handsfree
-};
+const std::array<device::BluetoothUUID, 3>& GetAudioServiceUuids() {
+  static const base::NoDestructor<std::array<device::BluetoothUUID, 3>> uuids(
+      std::array<device::BluetoothUUID, 3>{
+          device::BluetoothUUID(
+              "00001108-0000-1000-8000-00805f9b34fb"),  // Headset
+          device::BluetoothUUID(
+              "0000110b-0000-1000-8000-00805f9b34fb"),  // Audio Sink
+          device::BluetoothUUID(
+              "0000111e-0000-1000-8000-00805f9b34fb"),  // Handsfree
+      });
+  return *uuids;
+}
 
 }  // namespace
 
@@ -315,7 +322,7 @@ TEST_F(DeviceConversionUtilTest, TestConversion_AudioOutputCapableUUIDs) {
   // device. This simulates the case where a device does not have the correct
   // Bluetooth class bits set but still contains a UUID corresponding to an
   // audio service.
-  for (device::BluetoothUUID uuid : kAudioServiceUuids) {
+  for (const device::BluetoothUUID& uuid : GetAudioServiceUuids()) {
     ChangeDeviceUUIDs({uuid});
     mojom::BluetoothDevicePropertiesPtr properties =
         GenerateBluetoothDeviceMojoProperties(device,

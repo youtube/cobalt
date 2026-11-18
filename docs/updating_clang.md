@@ -5,17 +5,17 @@ lld, that all developers and bots pull using `gclient runhooks` (which
 also runs automatically as part of `gclient sync`). These binaries are
 just regular LLVM binaries built at a fixed upstream revision. This document
 describes how to build a new package, and update Chromium to use it.
-An archive of all packages built so far is at https://is.gd/chromeclang.
+An archive of all packages built so far is at <https://is.gd/chromeclang>.
 
 It's recommended that you read our
 [primer on clang gardening](clang_gardening.md) first, to get an overview of
 our infrastructure.
 
-1.  Check that https://ci.chromium.org/p/chromium/g/chromium.clang/console
+1. Check that <https://ci.chromium.org/p/chromium/g/chromium.clang/console>
     looks reasonably green. Red bots with seemingly normal test failures are
     usually ok, that likely means the test is broken with the stable Clang as
     well.
-1.  Find a recent CL that ran the upload bots.
+1. Find a recent CL that ran the upload bots.
     1. This will probably be a [dry run CL](clang_gardening.md#dry-runs), but
        you can also [create your own](#making-your-own-roll-cl).
 1. Run [go/chrome-promote-clang](https://goto.google.com/chrome-promote-clang),
@@ -25,8 +25,9 @@ our infrastructure.
     For example:
 
     ```
-    $ /path/to/copy_staging_to_prod_and_goma.sh --clang-rev llvmorg-21-init-5118-g52cd27e6-1 --rust-rev f7b43542838f0a4a6cfdb17fbeadf45002042a77-1
+    /path/to/copy_staging_to_prod_and_goma.sh --clang-rev llvmorg-21-init-5118-g52cd27e6-1 --rust-rev f7b43542838f0a4a6cfdb17fbeadf45002042a77-1
     ```
+
     1. The clang and rust revisions to pass here correspond to the names of the
        packages produced by the upload bots. You can see them by selecting a bot,
        opening the logs for the "package clang/rust" step, and scrolling to the
@@ -35,26 +36,29 @@ our infrastructure.
     1. Writing to the production bucket requires special permissions.
        Then it will push the packages to RBE. If you do not have the necessary
        credentials to do the upload, ask the lexan team to find someone who
-       does. You can also email clang@chromium.org.
+       does. You can also email <clang@chromium.org>.
 1. Switch to a local branch with the contents of the roll CL. Make sure it's
    up-to-date before proceeding (pull and sync)!
     1. The most convenient way to do this is to run `git cl patch <gerrit url>`,
        which will download the contents of the patch and associate it with the
        existing dry run CL. We prefer to re-use the CL instead of creating a
        new one.
-1.  Run `tools/clang/scripts/sync_deps.py` to update the deps entries in DEPS.
-1.  Run `gclient sync` to download those packages.
-1.  Run `tools/rust/gnrt_stdlib.py` to update the GN files for the Rust standard
+1. Run `tools/clang/scripts/sync_deps.py` to update the deps entries in DEPS.
+1. Run `gclient sync` to download those packages.
+1. Run `tools/rust/gnrt_stdlib.py` to update the GN files for the Rust standard
     library.
-1.  Commit and upload your changes.
-1.  Run an exhaustive set of try jobs to test the new compiler. The CL
+1. Commit and upload your changes.
+1. Run an exhaustive set of try jobs to test the new compiler. The CL
     description created previously by upload_revision.py includes
     `Cq-Include-Trybots:` lines for all needed bots, so it's sufficient to just
     run `git cl try` (or hit "CQ DRY RUN" on gerrit).
     1. Much like a mega CQ run, it's common for some of the bots to be red for
        unrelated reasons. You may need to do some digging to determine if a
        problem is due to the roll CL or not.
-1.  Submit the CL! The bots will now pull the new package, and developers will
+    1. A good place to start is to see which issues also occur on a
+    [whitespace change](https://crrev.com/c/7899818), which will forces the bots
+    to recompile everything using pinned clang.
+1. Submit the CL! The bots will now pull the new package, and developers will
     get it the next time they sync.
 
 ## Making your own roll CL
@@ -64,6 +68,7 @@ doing this is to update the toolchain package without actually rolling forward.
 This is required, for example, after someone has changed one of our [compiler plugins](writing_clang_plugins.md), or if we want to try building clang with different settings (this is rare).
 
 To create your own roll CL
+
 1. Make sure your workspace is up to date (pull and sync).
 1. Change the CLANG_REVISION variable in
    [tools/clang/scripts/update.py](https://source.chromium.org/chromium/chromium/src/+/main:tools/clang/scripts/update.py;l=42;drc=6f920cff25ae8852f16c3bb71007b7a9aaebc497)
@@ -163,4 +168,4 @@ tools/clang/scripts/update.py --package your-package-name
 ```
 
 [an example of adding a new package](https://chromium-review.googlesource.com/c/chromium/src/+/5463029)
-[example bug]: https://crbug.com/335730441
+[example bug]: <https://crbug.com/335730441>

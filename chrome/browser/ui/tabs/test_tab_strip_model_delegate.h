@@ -89,10 +89,6 @@ class TestTabStripModelDelegate : public TabStripModelDelegate {
   void OnRemovingAllTabsFromGroups(
       const std::vector<tab_groups::TabGroupId>& group_ids,
       base::OnceCallback<void()> callback) override;
-  bool IsTabGlicPinned(tabs::TabHandle tab_handle) override;
-  bool GlicPinTabs(base::span<const tabs::TabHandle> tab_handles) override;
-  bool GlicUnpinTabs(base::span<const tabs::TabHandle> tab_handles) override;
-  void OpenGlicWindowFromSharedTab() override;
   void GlicUnpinTabsFromAllConversations(
       base::span<const tabs::TabHandle> tab_handles) override;
 

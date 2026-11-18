@@ -257,3 +257,16 @@ class TraceTestPages(pixel_test_pages.PixelTestPages):
                 '--enable-features=MediaFoundationD3D11VideoCapture',
             ]),
     ]
+
+  @staticmethod
+  def WgcDesktopCaptureTextureTests(prefix: str) -> list[SimpleTracingTest]:
+    return [
+        SimpleTracingTest(
+            name=f'{prefix}_WgcDesktopCaptureTexture',
+            url='wgc_desktop_capture_texture.html',
+            browser_args=[
+                '--use-fake-ui-for-media-stream',
+                '--auto-select-desktop-capture-source=Entire screen',
+                '--enable-features=WebRtcAllowWgcUsingTexture',
+            ]),
+    ]

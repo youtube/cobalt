@@ -404,6 +404,17 @@ chromium-metrics-reviews@google.com.
   <int value="44" label="kWebAppDatabaseCorruptionRecovery"/>
 </enum>
 
+<!-- LINT.IfChange(ProfileLockStatus) -->
+
+<enum name="ProfileLockStatus">
+  <int value="0" label="Acquired"/>
+  <int value="1" label="AcquiredSystemCrash"/>
+  <int value="2" label="FailedInUse"/>
+  <int value="3" label="FailedUnknown"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/profiles/profile_load_tracker_win.h:ProfileLockStatus) -->
+
 <!-- LINT.IfChange(ProfileManagementFlowStep) -->
 
 <enum name="ProfileManagementFlowStep">
@@ -424,6 +435,7 @@ chromium-metrics-reviews@google.com.
     browser.
   </int>
   <int value="10" label="Feature Showcase"/>
+  <int value="11" label="Finish Or Continue"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/views/profiles/profile_management_flow_controller.h:Step) -->
@@ -536,6 +548,17 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Finish flow: Sync conformation"/>
   <int value="4" label="Finish flow: History optin"/>
 </enum>
+
+<!-- LINT.IfChange(ProfilePreviousExitStatus) -->
+
+<enum name="ProfilePreviousExitStatus">
+  <int value="0" label="NoCrash"/>
+  <int value="1" label="NoCrashDidNotAck"/>
+  <int value="2" label="Dirty"/>
+  <int value="3" label="DirtyDidNotAck"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/profiles/profile_load_tracker_win.h:ProfilePreviousExitStatus) -->
 
 <enum name="ProfileSignedInFlowOutcome">
   <int value="0" label="A consumer account is added and syncing"/>

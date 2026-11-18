@@ -22,8 +22,7 @@ namespace coreml {
 
 class BufferContent;
 
-class API_AVAILABLE(macos(12.3)) TensorImplCoreml final
-    : public WebNNTensorImpl {
+class TensorImplCoreml final : public WebNNTensorImpl {
  public:
   static base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr> Create(
       mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,

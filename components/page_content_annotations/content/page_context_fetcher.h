@@ -111,6 +111,7 @@ struct FetchPageContextResult {
   std::optional<PdfResult> pdf_result;
   base::expected<PageContentResultWithEndTime, std::string>
       annotated_page_content_result;
+  std::optional<optimization_guide::proto::ScreenshotInfo> screenshot_info;
 };
 
 enum class FetchPageContextError {
@@ -265,7 +266,7 @@ class PageContextFetcher : public content::WebContentsObserver {
   void CollectTrackedElementRectsForIframes(
       const viz::TrackedElementRects& tracked_element_rects);
 
-  void MaybeAddIframeInfoToAPC();
+  void MaybeAddIframeInfo();
 
   void CollectTrackedElementRectsForPassword(
       const viz::TrackedElementRects& tracked_element_rects);

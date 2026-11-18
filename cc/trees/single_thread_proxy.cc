@@ -187,7 +187,7 @@ void SingleThreadProxy::SetLayerTreeFrameSink(
       DebugScopedSetImplThread impl(task_runner_provider_);
       scheduler_on_impl_thread_->DidCreateAndInitializeLayerTreeFrameSink();
     } else if (!inside_synchronous_composite_) {
-      SetNeedsCommit();
+      SetNeedsCommit(false);
     }
     layer_tree_frame_sink_creation_requested_ = false;
     layer_tree_frame_sink_lost_ = false;
@@ -305,14 +305,14 @@ void SingleThreadProxy::CommitComplete() {
   next_frame_is_newly_committed_frame_ = true;
 }
 
-void SingleThreadProxy::SetNeedsCommit() {
+void SingleThreadProxy::SetNeedsCommit(bool urgent) {
   DCHECK(task_runner_provider_->IsMainThread());
   if (commit_requested_)
     return;
   commit_requested_ = true;
   DebugScopedSetImplThread impl(task_runner_provider_);
   if (scheduler_on_impl_thread_)
-    scheduler_on_impl_thread_->SetNeedsBeginMainFrame(/* urgent = */ false);
+    scheduler_on_impl_thread_->SetNeedsBeginMainFrame(urgent);
 }
 
 void SingleThreadProxy::SetNeedsRedraw(const gfx::Rect& damage_rect) {
@@ -1301,10 +1301,5 @@ void SingleThreadProxy::DidReceiveCompositorFrameAck() {
   layer_tree_host_->DidReceiveCompositorFrameAckDeprecatedForCompositor();
 }
 
-void SingleThreadProxy::SetShouldThrottleFrameRate(bool flag) {
-  if (scheduler_on_impl_thread_) {
-    scheduler_on_impl_thread_->SetShouldThrottleFrameRate(flag);
-  }
-}
 
 }  // namespace cc

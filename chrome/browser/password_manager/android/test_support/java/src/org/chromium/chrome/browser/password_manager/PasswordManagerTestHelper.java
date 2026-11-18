@@ -19,7 +19,7 @@ public class PasswordManagerTestHelper {
     private PasswordManagerTestHelper() {}
 
     /**
-     * Sets a fake GMS Core version equal to the minimum required one by the password manger. In
+     * Sets a fake GMS Core version equal to the minimum required one by the password manager. In
      * order to be able to use the PasswordStore, this has to be set before the ProfileStoreFactory
      * creates the store, so either before native initialization or very early in the process.
      *

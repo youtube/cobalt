@@ -220,6 +220,9 @@ void ClassroomPageHandlerImpl::ListAssignmentsHelper(
     ListAssignmentsCallback callback) {
   sender_->StartRequestWithAuthRetry(std::make_unique<ListCourseWorkRequest>(
       sender_.get(), course_id, page_token,
+      std::vector<ListCourseWorkRequest::AdditionalRequestField>{
+          ListCourseWorkRequest::AdditionalRequestField::kWorkType,
+          ListCourseWorkRequest::AdditionalRequestField::kMaterials},
       base::BindOnce(&ClassroomPageHandlerImpl::OnListAssignmentsFetched,
                      weak_factory_.GetWeakPtr(), course_id,
                      std::move(fetched_assignments), std::move(callback))));

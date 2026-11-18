@@ -11,6 +11,7 @@
 #include "components/unexportable_keys/service_error.h"
 #include "components/unexportable_keys/unexportable_key_id.h"
 #include "crypto/signature_verifier.h"
+#include "crypto/unexportable_key.h"
 
 namespace unexportable_keys {
 
@@ -55,6 +56,15 @@ void FakeUnexportableKeyService::SignSlowlyAsync(
     base::span<const uint8_t> data,
     BackgroundTaskPriority priority,
     base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)> callback) {
+  std::move(callback).Run(base::unexpected(ServiceError::kKeyNotFound));
+}
+void FakeUnexportableKeyService::CertifySlowlyAsync(
+    UnexportableAttestationKeyId attestation_key_id,
+    UnexportableSigningKeyId signing_key_id,
+    base::span<const uint8_t> challenge,
+    BackgroundTaskPriority priority,
+    base::OnceCallback<void(ServiceErrorOr<crypto::AttestationStatement>)>
+        callback) {
   std::move(callback).Run(base::unexpected(ServiceError::kKeyNotFound));
 }
 void FakeUnexportableKeyService::DeleteKeysSlowlyAsync(

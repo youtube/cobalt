@@ -15,7 +15,6 @@
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "chrome/browser/ash/policy/reporting/single_arc_app_install_event_log.h"
-#include "chrome/browser/ash/policy/reporting/single_extension_install_event_log.h"
 #include "testing/libfuzzer/libfuzzer_base_wrappers.h"
 
 namespace policy {
@@ -38,12 +37,6 @@ DEFINE_LLVM_FUZZER_TEST_ONE_INPUT_SPAN(const base::span<const uint8_t> data) {
     base::File file = CreatePipeFileWithContents(data);
     std::unique_ptr<SingleArcAppInstallEventLog> log;
     SingleArcAppInstallEventLog::Load(&file, &log);
-  }
-
-  {
-    base::File file = CreatePipeFileWithContents(data);
-    std::unique_ptr<SingleExtensionInstallEventLog> log;
-    SingleExtensionInstallEventLog::Load(&file, &log);
   }
 
   return 0;

@@ -25,8 +25,10 @@
 #include "src/objects/data-handler.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/hash-seed-wrapper.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type.h"
@@ -344,6 +346,13 @@ class HeapNumber::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
   static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     return sizeof(HeapNumber);
+  }
+};
+
+class HashSeedWrapper::BodyDescriptor final : public DataOnlyBodyDescriptor {
+ public:
+  static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return sizeof(HashSeedWrapper);
   }
 };
 
@@ -1172,13 +1181,12 @@ class DebugInfo::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    IterateSelfIndirectPointer(obj, kDebugInfoIndirectPointerTag, v);
     IteratePointers(obj, offsetof(DebugInfo, shared_),
                     offsetof(DebugInfo, coverage_info_) + kTaggedSize, v);
-    Tagged<DebugInfo> debug_info = Cast<DebugInfo>(obj);
-    IterateTrustedPointer(obj, &debug_info->debug_bytecode_array_, v,
-                          IndirectPointerMode::kStrong);
-    IterateTrustedPointer(obj, &debug_info->original_bytecode_array_, v,
-                          IndirectPointerMode::kStrong);
+    IterateProtectedPointer(obj, offsetof(DebugInfo, debug_bytecode_array_), v);
+    IterateProtectedPointer(obj, offsetof(DebugInfo, original_bytecode_array_),
+                            v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
@@ -1371,24 +1379,6 @@ class WasmTagObject::BodyDescriptor final : public BodyDescriptorBase {
                           IndirectPointerMode::kStrong);
     IterateJSObjectBodyImpl(map, obj, WasmTagObject::kHeaderSize, object_size,
                             v);
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return map->instance_size();
-  }
-};
-
-class WasmMemoryMapDescriptor::BodyDescriptor final
-    : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset,
-                    offsetof(WasmMemoryMapDescriptor, memory_), v);
-    IterateMaybeWeakPointer(obj, offsetof(WasmMemoryMapDescriptor, memory_), v);
-    IterateJSObjectBodyImpl(map, obj, WasmMemoryMapDescriptor::kHeaderSize,
-                            object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

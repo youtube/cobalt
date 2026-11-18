@@ -16,6 +16,7 @@ struct NavigationDownloadTypes {
   bool ad_frame;
   bool sandbox;
   bool no_gesture;
+  bool ad_script;
 };
 
 // This struct represents blink::NavigationDownloadPolicy.
