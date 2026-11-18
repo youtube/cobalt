@@ -253,9 +253,13 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
 
 // Configures MediaCodecVideoDecoder to re-attempt creating the platform
 // MediaCodec after a creation failure, which can be transient on devices whose
-// vendor HAL releases the previous codec instance asynchronously. Inputs are
-// buffered while a retry is pending. Retries are disabled when the setting is
-// unset (or 0, the "unset" sentinel) or negative.
+// vendor HAL releases the previous codec instance asynchronously. While a retry
+// is pending, inputs are buffered and the decoder keeps its output surface. A
+// decode error is reported only once the retries are exhausted. The retry
+// budget applies to each codec creation, and is refilled after a successful
+// creation and on seek. Retries are disabled when the setting is unset (or 0,
+// the "unset" sentinel) or negative, in which case a creation failure is
+// reported immediately.
 //
 // The value encodes two parts: the retry count (bits 0-7) and the retry base
 // delay in milliseconds (bits 8-15); bits 16-31 are ignored. A retry count of
