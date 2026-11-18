@@ -375,17 +375,14 @@ class NET_EXPORT UDPSocketPosix {
   void DoWriteCallback(int rv);
 
   void DidCompleteRead();
-<<<<<<< HEAD
   void DidCompleteMultipleRead();
   void OnFallbackReadComplete(
       base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
           callback,
       int rv);
-=======
 #if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
   void DidCompleteMultiplePacketRead();
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
->>>>>>> parent of 9b968d70d51 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void DidCompleteWrite();
 
   // Handles stats and logging. |result| is the number of bytes transferred, on
