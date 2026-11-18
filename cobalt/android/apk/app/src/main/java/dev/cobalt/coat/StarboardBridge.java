@@ -66,20 +66,16 @@ public class StarboardBridge extends BaseStarboardBridge {
   }
 
   @Override
-  void raisePlatformError(int errorType, long data, String url, boolean disableDismiss) {
-    Activity activity = mActivityHolder.get();
-    if (activity instanceof CobaltActivity cobaltActivity) {
-      if (disableDismiss) {
-        if (cobaltActivity.hasHiddenSplashScreen()) {
-          android.util.Log.i(
-              "StarboardBridge",
-              "Ignoring platform error because splash screen has already been hidden.");
-          return;
-        }
-      }
+  void raisePlatformError(int errorType, long data, String url) {
+    if (mActivityHolder.get() instanceof CobaltActivity cobaltActivity
+        && cobaltActivity.hasHiddenSplashScreen()) {
+      android.util.Log.i(
+          "StarboardBridge",
+          "Ignoring platform error because splash screen has already been hidden.");
+      return;
     }
     StartupGuard.getInstance().setStartupMilestone(StartupGuard.PLATFORM_ERROR_RAISED);
-    mPlatformError = new PlatformError(mActivityHolder, errorType, data, url, disableDismiss);
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data, url);
     mPlatformError.raise();
   }
 
@@ -108,7 +104,7 @@ public class StarboardBridge extends BaseStarboardBridge {
   protected void hideSplashScreen() {
     PlatformError platformError = mPlatformError;
     mPlatformError = null;
-    if (platformError != null && platformError.isDismissButtonDisabled()) {
+    if (platformError != null) {
       platformError.dismiss();
     }
     if (mActivityHolder.get() instanceof CobaltActivity activity) {

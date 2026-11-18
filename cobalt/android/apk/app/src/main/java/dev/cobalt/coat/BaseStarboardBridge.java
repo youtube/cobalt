@@ -530,7 +530,7 @@ public class BaseStarboardBridge {
   }
 
   @CalledByNative
-  void raisePlatformError(int errorType, long data, String url, boolean disableDismiss) {}
+  void raisePlatformError(int errorType, long data, String url) {}
 
   @CalledByNative
   public boolean isPlatformErrorShowing() {

@@ -14,13 +14,11 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
-#include "cobalt/browser/features.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "cobalt/build/configs/buildflags.h"
@@ -134,9 +132,7 @@ void CobaltWebContentsObserver::DidStartNavigation(
 
   // Same-document navigations (pushState, fragment changes) don't load a new
   // document, so they don't restart the web app's splash screen state.
-  if (!handle->IsSameDocument() &&
-      base::FeatureList::IsEnabled(
-          features::kDisableNetworkDialogDismissButton)) {
+  if (!handle->IsSameDocument()) {
     OnPrimaryMainFrameNavigationStarted();
   }
 
@@ -252,11 +248,8 @@ void CobaltWebContentsObserver::RaisePlatformError(int64_t navigation_id,
   platform_error_raised_count_++;
   base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
                               platform_error_raised_count_);
-
-  bool disable_dismiss_button = base::FeatureList::IsEnabled(
-      features::kDisableNetworkDialogDismissButton);
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0,
-                                       url, disable_dismiss_button);
+                                       url);
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
 #elif BUILDFLAG(IS_STARBOARD)
