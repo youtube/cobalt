@@ -98,8 +98,8 @@ public class PlatformError
         dialogBuilder
             .setMessage(R.string.starboard_platform_connection_error)
             .addButton(RETRY_BUTTON, R.string.starboard_platform_retry)
-            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
-        dialogBuilder.addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
+            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings)
+            .addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
         break;
       default:
         Log.e(TAG, "Unknown platform error " + mErrorType);
