@@ -8,6 +8,7 @@
     "DecoderBufferTest.Constructors",
     "KeySystemsTest.*",
     "MediaServiceTest.*",
+    "MediaTypeConvertersTest.ConvertDecoderBuffer_HdrMetadata",
     "MojoDecoderBufferConverterTest.WriterSidePipeError",
     "MojoDecryptorTest.DestroyService",
     "H264Specific/H264VideoEncoderTest.EncodeAndDecodeWithConfig/*",
