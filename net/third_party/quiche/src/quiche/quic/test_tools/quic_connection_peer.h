@@ -253,6 +253,11 @@ class QuicConnectionPeer {
   static void OnForwardProgressMade(QuicConnection* connection);
 
   static bool CanReceiveAckFrequencyFrames(QuicConnection* connection);
+
+#if BUILDFLAG(IS_COBALT)
+  static void SetAllowDeferringAckOnlyPackets(QuicConnection* connection,
+                                              bool allow);
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace test
