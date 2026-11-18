@@ -488,7 +488,7 @@ void SbPlayerTestFixture::Initialize() {
   if (output_mode_ == kSbPlayerOutputModeInvalid) {
     output_mode_ = GetPreferredOutputMode(CreatePlayerCreationParam(
         audio_codec, video_codec, output_mode_, audio_stream_info, drm_system_,
-        max_video_capabilities_.c_str()));
+        max_video_capabilities_));
     ASSERT_NE(output_mode_, kSbPlayerOutputModeInvalid);
   }
 

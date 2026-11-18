@@ -109,20 +109,31 @@ starboard::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   return video_stream_info;
 }
 
+PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
+                                              SbMediaVideoCodec video_codec,
+                                              SbPlayerOutputMode output_mode) {
+  PlayerCreationParam creation_param;
+
+  creation_param.audio_stream_info = CreateAudioStreamInfo(audio_codec);
+  creation_param.video_stream_info = CreateVideoStreamInfo(video_codec);
+  creation_param.output_mode = output_mode;
+
+  return creation_param;
+}
+
 PlayerCreationParam CreatePlayerCreationParam(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     const starboard::AudioStreamInfo* audio_stream_info,
     SbDrmSystem drm_system,
-    const char* max_video_capabilities) {
-  PlayerCreationParam creation_param;
+    std::string_view max_video_capabilities) {
+  PlayerCreationParam creation_param =
+      CreatePlayerCreationParam(audio_codec, video_codec, output_mode);
 
-  creation_param.audio_stream_info = audio_stream_info
-                                         ? *audio_stream_info
-                                         : CreateAudioStreamInfo(audio_codec);
-  creation_param.video_stream_info = CreateVideoStreamInfo(video_codec);
-  creation_param.output_mode = output_mode;
+  if (audio_stream_info) {
+    creation_param.audio_stream_info = *audio_stream_info;
+  }
   creation_param.drm_system = drm_system;
   creation_param.video_stream_info.max_video_capabilities =
       max_video_capabilities;
