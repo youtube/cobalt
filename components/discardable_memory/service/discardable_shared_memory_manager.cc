@@ -598,7 +598,42 @@ void DiscardableSharedMemoryManager::DeletedDiscardableSharedMemory(
     BytesAllocatedChanged(bytes_allocated_);
 }
 
+<<<<<<< HEAD
 void DiscardableSharedMemoryManager::ReduceMemoryUsageUntilWithinMaxBytes() {
+=======
+void DiscardableSharedMemoryManager::OnMemoryPressure(
+    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+  DCHECK(memory_pressure_task_runner_->RunsTasksInCurrentSequence());
+
+  base::AutoLock lock(lock_);
+
+  switch (memory_pressure_level) {
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
+      break;
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+#if BUILDFLAG(IS_COBALT)
+      if (base::FeatureList::IsEnabled(
+              base::features::kCobaltDiscardableModeratePressureLimit)) {
+        const double clamped_fraction = std::clamp(
+            base::features::kCobaltDiscardableModeratePressureLimitFraction
+                .Get(), 0.0, 1.0);
+        ReduceMemoryUsageUntilWithinLimit(
+            static_cast<size_t>(memory_limit_ * clamped_fraction));
+        break;
+      }
+#endif  // BUILDFLAG(IS_COBALT)
+      // Purge memory until usage is within half of |memory_limit_|.
+      ReduceMemoryUsageUntilWithinLimit(memory_limit_ / 2);
+      break;
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+      // Purge everything possible when pressure is critical.
+      ReduceMemoryUsageUntilWithinLimit(0);
+      break;
+  }
+}
+
+void DiscardableSharedMemoryManager::ReduceMemoryUsageUntilWithinMemoryLimit() {
+>>>>>>> 7d0506d8c51 (Cobalt: Make discardable memory purge limit on moderate pressure configurable  (#14025))
   lock_.AssertAcquired();
 
   size_t effective_max_bytes = GetEffectiveMaxBytes();
