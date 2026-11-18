@@ -36,6 +36,7 @@
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
 #include "media/starboard/mock_sbplayer_interface.h"
+#include "media/starboard/sb_media_histograms.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -59,33 +60,26 @@ namespace media {
 
 namespace {
 
-constexpr char kSbPlayerCreateHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreate";
-constexpr char kSbPlayerCreateToInitializedHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
-constexpr char kSbPlayerDestroyHistogramPrefix[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
-constexpr char kSbPlayerDestroyBeforePrerollingHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.BeforePrerolling";
-
 size_t GetTotalDestroyCount(const base::HistogramTester& histogram_tester) {
   size_t count = 0;
   for (const auto& [name, histogram_count] :
        histogram_tester.GetTotalCountsForPrefix(
-           kSbPlayerDestroyHistogramPrefix)) {
+           sb_media_histograms::kSbPlayerDestroyHistogramPrefix)) {
     count += histogram_count;
   }
   return count;
 }
 
-// Returns the number of samples recorded in histogram |name| and in its
-// ".Subsequent" variant. Which of the two a sample lands in depends on whether
-// an earlier test in the same process already created an SbPlayer.
+// Returns the number of samples recorded in |first_call_histogram| and
+// |subsequent_call_histogram|. Which of the two a sample lands in depends on
+// whether an earlier test in the same process already created an SbPlayer.
 size_t GetTotalCountAcrossOccurrences(
     const base::HistogramTester& histogram_tester,
-    const std::string& name) {
+    const std::string& first_call_histogram,
+    const std::string& subsequent_call_histogram) {
   size_t count = 0;
-  for (const std::string& histogram : {name, name + ".Subsequent"}) {
+  for (const std::string& histogram :
+       {first_call_histogram, subsequent_call_histogram}) {
     for (const base::Bucket& bucket :
          histogram_tester.GetAllSamples(histogram)) {
       count += bucket.count;
@@ -415,23 +409,31 @@ TEST_F(StarboardRendererTest, InitializeWithInvalidSbPlayer) {
 TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencies) {
   base::HistogramTester histogram_tester;
   SbPlayer player = InitializeWithAudioAndVideo();
-  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
-                                           kSbPlayerCreateHistogram),
-            1u);
   EXPECT_EQ(GetTotalCountAcrossOccurrences(
-                histogram_tester, kSbPlayerCreateToInitializedHistogram),
-            0u);
+                histogram_tester, sb_media_histograms::kSbPlayerCreateHistogram,
+                sb_media_histograms::kSbPlayerCreateSubsequentHistogram),
+            1u);
+  EXPECT_EQ(
+      GetTotalCountAcrossOccurrences(
+          histogram_tester,
+          sb_media_histograms::kSbPlayerCreateToInitializedHistogram,
+          sb_media_histograms::kSbPlayerCreateToInitializedSubsequentHistogram),
+      0u);
 
   ASSERT_TRUE(player_status_cb_);
   player_status_cb_(player, context_, kSbPlayerStateInitialized,
                     /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
-  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
-                                           kSbPlayerCreateHistogram),
-            1u);
   EXPECT_EQ(GetTotalCountAcrossOccurrences(
-                histogram_tester, kSbPlayerCreateToInitializedHistogram),
+                histogram_tester, sb_media_histograms::kSbPlayerCreateHistogram,
+                sb_media_histograms::kSbPlayerCreateSubsequentHistogram),
             1u);
+  EXPECT_EQ(
+      GetTotalCountAcrossOccurrences(
+          histogram_tester,
+          sb_media_histograms::kSbPlayerCreateToInitializedHistogram,
+          sb_media_histograms::kSbPlayerCreateToInitializedSubsequentHistogram),
+      1u);
 }
 
 TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencyOnFailure) {
@@ -449,12 +451,16 @@ TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencyOnFailure) {
 
   // The failed SbPlayerCreate() call is still recorded, but a player that was
   // never created can't report kSbPlayerStateInitialized.
-  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
-                                           kSbPlayerCreateHistogram),
-            1u);
   EXPECT_EQ(GetTotalCountAcrossOccurrences(
-                histogram_tester, kSbPlayerCreateToInitializedHistogram),
-            0u);
+                histogram_tester, sb_media_histograms::kSbPlayerCreateHistogram,
+                sb_media_histograms::kSbPlayerCreateSubsequentHistogram),
+            1u);
+  EXPECT_EQ(
+      GetTotalCountAcrossOccurrences(
+          histogram_tester,
+          sb_media_histograms::kSbPlayerCreateToInitializedHistogram,
+          sb_media_histograms::kSbPlayerCreateToInitializedSubsequentHistogram),
+      0u);
 
   // A player that was never created isn't destroyed either.
   renderer_.reset();
@@ -475,8 +481,8 @@ TEST_F(StarboardRendererTest, RecordsSbPlayerDestroyLatency) {
   renderer_.reset();
   task_environment_.RunUntilIdle();
   EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 1u);
-  histogram_tester.ExpectTotalCount(kSbPlayerDestroyBeforePrerollingHistogram,
-                                    1);
+  histogram_tester.ExpectTotalCount(
+      sb_media_histograms::kSbPlayerDestroyBeforePrerollingHistogram, 1);
 }
 
 TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksPresenting) {
@@ -1008,23 +1014,31 @@ TEST_F(StarboardRendererTest,
 TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatenciesForUrlPlayer) {
   base::HistogramTester histogram_tester;
   SbPlayer player = InitializeUrlPlayer();
-  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
-                                           kSbPlayerCreateHistogram),
-            1u);
   EXPECT_EQ(GetTotalCountAcrossOccurrences(
-                histogram_tester, kSbPlayerCreateToInitializedHistogram),
-            0u);
+                histogram_tester, sb_media_histograms::kSbPlayerCreateHistogram,
+                sb_media_histograms::kSbPlayerCreateSubsequentHistogram),
+            1u);
+  EXPECT_EQ(
+      GetTotalCountAcrossOccurrences(
+          histogram_tester,
+          sb_media_histograms::kSbPlayerCreateToInitializedHistogram,
+          sb_media_histograms::kSbPlayerCreateToInitializedSubsequentHistogram),
+      0u);
 
   ASSERT_TRUE(player_status_cb_);
   player_status_cb_(player, context_, kSbPlayerStateInitialized,
                     /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
-  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
-                                           kSbPlayerCreateHistogram),
-            1u);
   EXPECT_EQ(GetTotalCountAcrossOccurrences(
-                histogram_tester, kSbPlayerCreateToInitializedHistogram),
+                histogram_tester, sb_media_histograms::kSbPlayerCreateHistogram,
+                sb_media_histograms::kSbPlayerCreateSubsequentHistogram),
             1u);
+  EXPECT_EQ(
+      GetTotalCountAcrossOccurrences(
+          histogram_tester,
+          sb_media_histograms::kSbPlayerCreateToInitializedHistogram,
+          sb_media_histograms::kSbPlayerCreateToInitializedSubsequentHistogram),
+      1u);
 }
 
 TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedDuringInitialization) {
