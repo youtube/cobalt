@@ -323,6 +323,7 @@ MediaCodecVideoDecoder::CreateInternal(
   }
   return video_decoder;
 }
+
 // Non-positive values (including the 0 "unset" sentinel) disable retries.
 // Otherwise, bits 0-7 hold the retry count and bits 8-15 the base delay in
 // milliseconds, where 0 selects the default.

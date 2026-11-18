@@ -131,8 +131,9 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
          static_cast<int64_t>(setting)}});
   }
 
-  // Creates a decoder with a retry budget of |codec_creation_retry_count|,
-  // whose first |codec_creation_failures| MediaCodec creations fail.
+  // Creates a decoder with a retry budget of |codec_creation_retry_count| (at
+  // most 255, so that it is not read as a packed setting) and the default base
+  // delay, whose first |codec_creation_failures| MediaCodec creations fail.
   void CreateDecoderWithCodecCreationRetries(int codec_creation_retry_count,
                                              int codec_creation_failures) {
     CreateDecoder(/*max_video_capabilities=*/"",
@@ -553,6 +554,19 @@ TEST_F(MediaCodecVideoDecoderTest,
 }
 
 TEST_F(MediaCodecVideoDecoderTest,
+       NegativeCodecCreationRetrySettingWithNonZeroLowByteDisablesRetries) {
+  // -253 is 0x...FF03, whose low byte alone would mean 3 retries.
+  auto result = TryCreateDecoder(/*max_video_capabilities=*/"",
+                                 /*initial_stream_info=*/nullptr,
+                                 CodecCreationRetryFeatures(-253),
+                                 /*enable_flush_during_seek=*/false,
+                                 /*codec_creation_failures=*/1);
+
+  EXPECT_FALSE(result);
+  fake_factory_ = nullptr;
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
        CtorCodecCreationFailureIsRetriedAndInputsAreBuffered) {
   CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
                                         /*codec_creation_failures=*/1);
@@ -631,7 +645,24 @@ TEST_F(MediaCodecVideoDecoderTest,
   EXPECT_EQ(last_error_, kSbPlayerErrorDecode);
   // Initial attempt + 2 retries.
   EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
+  // A delay decoded too large (e.g. as seconds) is caught by the
+  // kRetryWaitTimeoutMs bound above.
   EXPECT_GE(elapsed, std::chrono::milliseconds(30 + 60));
+}
+
+TEST_F(MediaCodecVideoDecoderTest, CodecCreationRetrySettingIgnoresUpperBits) {
+  // 0x10102: bit 16 is ignored, leaving 2 retries with a 1ms base delay.
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                CodecCreationRetryFeatures(0x10102),
+                /*enable_flush_during_seek=*/false,
+                /*codec_creation_failures=*/10);
+  InitializeDecoder();
+
+  ASSERT_TRUE(PumpJobQueueUntil([this] { return error_called_.load(); },
+                                kRetryWaitTimeoutMs));
+  EXPECT_EQ(last_error_, kSbPlayerErrorDecode);
+  // Initial attempt + 2 retries.
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
 }
 
 TEST_F(MediaCodecVideoDecoderTest,
