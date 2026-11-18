@@ -114,7 +114,6 @@ public abstract class CobaltBrowserTestActivity extends NativeBrowserTestActivit
             false,
             false,
             /* singleProcess= */ true, // Cobalt always runs in single-process mode
-            /* scheduleFlushStartupTasks= */ false,
             new StartupCallback() {
               @Override
               public void onSuccess(BrowserStartupController.@Nullable StartupMetrics metrics) {
