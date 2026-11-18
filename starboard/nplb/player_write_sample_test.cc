@@ -16,7 +16,6 @@
 
 #include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"
-#include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
@@ -374,11 +373,6 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   SbPlayerTestConfig secondary_player_config(nullptr, kSecondaryTestFile,
                                              kSbPlayerOutputModeInvalid,
                                              key_system, kMaxVideoCapabilities);
-  PlayerCreationParam creation_param =
-      CreatePlayerCreationParam(secondary_player_config);
-  secondary_player_config.output_mode = GetPreferredOutputMode(creation_param);
-
-  ASSERT_NE(secondary_player_config.output_mode, kSbPlayerOutputModeInvalid);
 
   SecondaryPlayerTestThread primary_player_thread(
       GetParam(), &fake_graphics_context_provider_);

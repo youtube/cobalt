@@ -1,7 +1,7 @@
 {
   "comment": "AOSP nplb exclusions.",
   "failing_tests": [
-    "*SbPlayerWriteSampleTest.SecondaryPlayerTest/*widevine*",
+    "*SbPlayerWriteSampleTest.SecondaryPlayerTest/*_dmp_output_*widevine*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*_137_avc_*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*sintel_329_ec3*",
     "MultiplePlayerTest.SunnyDay"

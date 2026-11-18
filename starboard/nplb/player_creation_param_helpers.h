@@ -15,11 +15,12 @@
 #ifndef STARBOARD_NPLB_PLAYER_CREATION_PARAM_HELPERS_H_
 #define STARBOARD_NPLB_PLAYER_CREATION_PARAM_HELPERS_H_
 
+#include <string_view>
+
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
-#include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -60,8 +61,13 @@ starboard::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec);
 PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
                                               SbMediaVideoCodec video_codec,
                                               SbPlayerOutputMode output_mode);
-
-PlayerCreationParam CreatePlayerCreationParam(const SbPlayerTestConfig& config);
+PlayerCreationParam CreatePlayerCreationParam(
+    SbMediaAudioCodec audio_codec,
+    SbMediaVideoCodec video_codec,
+    SbPlayerOutputMode output_mode,
+    const starboard::AudioStreamInfo* audio_stream_info,
+    SbDrmSystem drm_system,
+    std::string_view max_video_capabilities);
 
 SbPlayerOutputMode GetPreferredOutputMode(
     const PlayerCreationParam& creation_param);
