@@ -170,6 +170,7 @@ public class BaseStarboardBridge {
   private final long mTimeNanosecondsPerMicrosecond = 1000;
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
   private static final String DEFAULT_DEVICE_NAME = "Android";
+  private static final int INVALID_GRAPHICS_MEMORY_KB = -1;
   private static volatile Boolean sWasLowMemoryKilledForTesting;
   private final Natives mNatives = BaseStarboardBridgeJni.get();
 
@@ -1243,8 +1244,6 @@ public class BaseStarboardBridge {
   @CalledByNative
   protected void setStartupDiagnosisInfo(String key, String value) {}
 
-  private static final int INVALID_GRAPHICS_MEMORY_KB = -1;
-
   /**
    * Returns the "summary.graphics" value of ActivityManager memory info for this process, in KB, or
    * INVALID_GRAPHICS_MEMORY_KB if it can't be read.
@@ -1263,6 +1262,7 @@ public class BaseStarboardBridge {
       }
       return CobaltMemoryInfoBridge.getGraphicsMemoryKb(infos[0]);
     } catch (RuntimeException e) {
+      Log.w(TAG, "Unable to read process memory info", e);
       return INVALID_GRAPHICS_MEMORY_KB;
     }
   }
