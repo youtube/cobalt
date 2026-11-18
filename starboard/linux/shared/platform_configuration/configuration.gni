@@ -14,16 +14,7 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
-nasm_exists = true
-
 sb_enable_benchmark = true
-
-sb_enable_opus_sse = false
-
-pedantic_warnings_config_path =
-    "//starboard/linux/shared/platform_configuration:pedantic_warnings"
-no_pedantic_warnings_config_path =
-    "//starboard/linux/shared/platform_configuration:no_pedantic_warnings"
 
 sb_widevine_platform = "linux"
 
