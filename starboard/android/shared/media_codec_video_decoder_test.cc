@@ -123,11 +123,12 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
         });
   }
 
-  // Experimental features setting the H5VCC codec creation retry count.
-  static ExperimentalFeatures CodecCreationRetryFeatures(int retry_count) {
+  // Experimental features with the H5VCC codec creation retry |setting|, which
+  // is the retry count when it fits in the low byte (default base delay).
+  static ExperimentalFeatures CodecCreationRetryFeatures(int setting) {
     return ExperimentalFeatures(ExperimentalFeatures::Map{
-        {std::string(kMediaVideoCodecCreationRetryCount.key()),
-         static_cast<int64_t>(retry_count)}});
+        {std::string(kMediaVideoCodecCreationRetry.key()),
+         static_cast<int64_t>(setting)}});
   }
 
   // Creates a decoder with a retry budget of |codec_creation_retry_count|,
@@ -611,6 +612,39 @@ TEST_F(MediaCodecVideoDecoderTest,
   PumpJobQueueFor(200);
   EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
   EXPECT_EQ(error_count_, 1);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       PackedCodecCreationRetrySettingSetsCountAndBaseDelay) {
+  // 0x1E02: 2 retries with a 30ms base delay, i.e. after 30 and 60ms.
+  const auto start = std::chrono::steady_clock::now();
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                CodecCreationRetryFeatures(0x1E02),
+                /*enable_flush_during_seek=*/false,
+                /*codec_creation_failures=*/10);
+  InitializeDecoder();
+
+  ASSERT_TRUE(PumpJobQueueUntil([this] { return error_called_.load(); },
+                                kRetryWaitTimeoutMs));
+  const auto elapsed = std::chrono::steady_clock::now() - start;
+
+  EXPECT_EQ(last_error_, kSbPlayerErrorDecode);
+  // Initial attempt + 2 retries.
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 3);
+  EXPECT_GE(elapsed, std::chrono::milliseconds(30 + 60));
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       CodecCreationRetrySettingWithoutCountDisablesRetries) {
+  // 0x1E00: a 30ms base delay, but no retries.
+  auto result = TryCreateDecoder(/*max_video_capabilities=*/"",
+                                 /*initial_stream_info=*/nullptr,
+                                 CodecCreationRetryFeatures(0x1E00),
+                                 /*enable_flush_during_seek=*/false,
+                                 /*codec_creation_failures=*/1);
+
+  EXPECT_FALSE(result);
+  fake_factory_ = nullptr;
 }
 
 TEST_F(MediaCodecVideoDecoderTest,

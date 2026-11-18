@@ -125,10 +125,11 @@ constexpr int kVideoFrameTrackerCapacity = kMaxPendingInputsSize + 100;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
-// Base delay before re-attempting MediaCodec creation after a transient
-// failure. Attempt n waits n * kCodecCreationRetryBaseDelayUsec (linear
-// backoff), giving the vendor HAL time to release the previous codec instance.
-constexpr int64_t kCodecCreationRetryBaseDelayUsec = 10'000;  // 10ms
+// Default base delay before re-attempting MediaCodec creation after a
+// transient failure, used when the `Media.VideoCodecCreationRetry` setting
+// doesn't specify one. Attempt n waits n * base delay (linear backoff), giving
+// the vendor HAL time to release the previous codec instance.
+constexpr int64_t kDefaultCodecCreationRetryBaseDelayUsec = 10'000;  // 10ms
 
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
@@ -322,6 +323,17 @@ MediaCodecVideoDecoder::CreateInternal(
   }
   return video_decoder;
 }
+// Non-positive values (including the 0 "unset" sentinel) disable retries.
+// Otherwise, bits 0-7 hold the retry count and bits 8-15 the base delay in
+// milliseconds, where 0 selects the default.
+MediaCodecVideoDecoder::CodecCreationRetryState::CodecCreationRetryState(
+    int setting)
+    : max_retries(setting > 0 ? (setting & 0xFF) : 0),
+      base_delay_usec(setting > 0 && ((setting >> 8) & 0xFF) > 0
+                          ? ((setting >> 8) & 0xFF) * int64_t{1'000}
+                          : kDefaultCodecCreationRetryBaseDelayUsec),
+      retries_left(max_retries) {}
+
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     PassKey<MediaCodecVideoDecoder>,
     std::unique_ptr<MediaCodec::Factory> media_codec_factory,
@@ -391,11 +403,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               .Get(kMediaVideoDecoderInitialPrerollCount)
               .value_or(kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
-      codec_creation_retry_(
-          std::max(0,
-                   pipeline_config.experimental_features
-                       .Get(kMediaVideoCodecCreationRetryCount)
-                       .value_or(0))),
+      codec_creation_retry_(pipeline_config.experimental_features
+                                .Get(kMediaVideoCodecCreationRetry)
+                                .value_or(0)),
       surface_texture_bridge_(
           output_mode_ == kSbPlayerOutputModeDecodeToTexture
               ? std::make_unique<VideoSurfaceTextureBridge>(this)
@@ -453,7 +463,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", ignore_stale_rendered_frames_after_seek="
                << ToString(ignore_stale_rendered_frames_after_seek_)
                << ", codec creation retries="
-               << codec_creation_retry_.max_retries;
+               << codec_creation_retry_.max_retries
+               << ", codec creation retry base delay(ms)="
+               << codec_creation_retry_.base_delay_usec / 1000;
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -1002,7 +1014,7 @@ MediaCodecVideoDecoder::TryInitializeCodec(
   --codec_creation_retry_.retries_left;
   const int attempt =
       codec_creation_retry_.max_retries - codec_creation_retry_.retries_left;
-  const int64_t delay_usec = attempt * kCodecCreationRetryBaseDelayUsec;
+  const int64_t delay_usec = attempt * codec_creation_retry_.base_delay_usec;
   SB_LOG(WARNING) << "MediaCodec creation failed (" << result.error()
                   << "), retrying in " << delay_usec / 1000 << "ms, "
                   << codec_creation_retry_.retries_left << " retries left.";

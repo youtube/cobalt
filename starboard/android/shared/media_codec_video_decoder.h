@@ -317,11 +317,14 @@ class MediaCodecVideoDecoder : public VideoDecoder,
     VideoStreamInfo stream_info;
   };
   struct CodecCreationRetryState {
-    explicit CodecCreationRetryState(int max_retries)
-        : max_retries(max_retries), retries_left(max_retries) {}
+    // Decodes the `Media.VideoCodecCreationRetry` H5VCC setting, see
+    // kMediaVideoCodecCreationRetry.
+    explicit CodecCreationRetryState(int setting);
 
     // 0 when retries are disabled.
     const int max_retries;
+    // Attempt n waits n * |base_delay_usec|.
+    const int64_t base_delay_usec;
     // Reset on every successful codec creation and on Reset(), i.e. the
     // budget applies per codec initialization episode.
     int retries_left;

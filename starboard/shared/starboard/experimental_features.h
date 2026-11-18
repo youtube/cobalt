@@ -251,13 +251,21 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
     "Media.SkipVideoFramesOver60Fps");
 
-// Number of times MediaCodecVideoDecoder re-attempts to create the platform
+// Configures MediaCodecVideoDecoder to re-attempt creating the platform
 // MediaCodec after a creation failure, which can be transient on devices whose
 // vendor HAL releases the previous codec instance asynchronously. Inputs are
 // buffered while a retry is pending. Retries are disabled when the setting is
 // unset (or 0, the "unset" sentinel) or negative.
-inline constexpr ExperimentalFeatureKey<int> kMediaVideoCodecCreationRetryCount(
-    "Media.VideoCodecCreationRetryCount");
+//
+// The value encodes two parts: the retry count (bits 0-7) and the retry base
+// delay in milliseconds (bits 8-15). Attempt n waits n times the base delay,
+// and a base delay of 0 uses the default of 10ms. For example, 0x1E03 (7683)
+// retries up to 3 times after 30, 60 and 90ms, and 3 retries up to 3 times
+// after 10, 20 and 30ms. Passing multiple parameters encoded within a single
+// integer is not ideal, but it simplifies experiment setup in the current
+// framework.
+inline constexpr ExperimentalFeatureKey<int> kMediaVideoCodecCreationRetry(
+    "Media.VideoCodecCreationRetry");
 
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
