@@ -67,6 +67,8 @@ std::string GetSbPlayerTestConfigName(
 
 void SkipTestIfNotSupported(const SbPlayerTestConfig& config);
 
+inline constexpr char kWidevineL3KeySystem[] = "com.youtube.widevine.l3";
+
 bool IsWidevineKeySystem(std::string_view key_system);
 
 // Generates a session update request on a Widevine `drm_system`. Some platforms
