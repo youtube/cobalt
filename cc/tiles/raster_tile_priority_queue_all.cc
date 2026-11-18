@@ -8,6 +8,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/tiles/tiling_set_raster_queue_all.h"
 
@@ -28,6 +29,18 @@ class RasterOrderComparator {
     const TilePriority& a_priority = a_queue->Top().priority();
     const TilePriority& b_priority = b_queue->Top().priority();
     bool prioritize_low_res = tree_priority_ == SMOOTHNESS_TAKES_PRIORITY;
+
+#if BUILDFLAG(IS_COBALT)
+    // Ensure genuinely visible NOW tiles (distance == 0) always precede
+    // skewport lookahead NOW tiles (distance > 0) within a tree regardless of
+    // drawing-layer status or resolution.
+    if (a_priority.priority_bin == TilePriority::NOW &&
+        b_priority.priority_bin == TilePriority::NOW &&
+        (a_priority.distance_to_visible == 0.f) !=
+            (b_priority.distance_to_visible == 0.f)) {
+      return b_priority.distance_to_visible == 0.f;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
     // If the priority bin is the same but one of the tiles is from a
     // non-drawing layer, then the drawing layer has a higher priority.
@@ -172,12 +185,27 @@ RasterTilePriorityQueueAll::GetNextQueues() const {
   // pending for smoothness and new content modes.
   if (pending_priority.priority_bin == TilePriority::NOW &&
       active_priority.priority_bin == TilePriority::NOW) {
+#if BUILDFLAG(IS_COBALT)
+    // Only let tree priority override IsHigherPriorityThan when the favored
+    // tree's tile is actually visible (distance == 0), so skewport lookahead
+    // tiles (NOW with distance > 0) never jump ahead of the other tree's
+    // visible tiles.
+    if (tree_priority_ == SMOOTHNESS_TAKES_PRIORITY &&
+        active_priority.distance_to_visible == 0.f) {
+      return active_queues_;
+    }
+    if (tree_priority_ == NEW_CONTENT_TAKES_PRIORITY &&
+        pending_priority.distance_to_visible == 0.f) {
+      return pending_queues_;
+    }
+#else
     if (tree_priority_ == SMOOTHNESS_TAKES_PRIORITY) {
       return active_queues_;
     }
     if (tree_priority_ == NEW_CONTENT_TAKES_PRIORITY) {
       return pending_queues_;
     }
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
   // Then, use the IsHigherPriorityThan condition for
