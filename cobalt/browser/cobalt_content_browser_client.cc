@@ -102,6 +102,7 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
+#include "cobalt/browser/media_session/media_session_extension_bridge.h"
 #endif
 
 #if BUILDFLAG(USE_EVERGREEN)
@@ -857,6 +858,13 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   // and register its frames (including the main frame) for lifecycle events
   // from the very start.
   CobaltLifecycleManager::GetInstance()->InitializeTracker(web_contents);
+#if BUILDFLAG(IS_STARBOARD)
+  // Reset first so the previous bridge unregisters from the platform before
+  // the new one registers.
+  media_session_bridge_.reset();
+  media_session_bridge_ =
+      MediaSessionExtensionBridge::MaybeCreate(web_contents);
+#endif  // BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(USE_EVERGREEN)
   // Create the updater module singleton if not already created.
   auto* storage_partition =

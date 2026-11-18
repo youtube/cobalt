@@ -1,0 +1,54 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Bridges content::MediaSession to the Starboard MediaSession extension. Only
+# meaningful on Starboard builds; the Android TV (non-Starboard) build uses
+# CobaltMediaSession.java instead.
+assert(is_starboard)
+
+source_set("media_session") {
+  sources = [
+    "media_session_extension_bridge.cc",
+    "media_session_extension_bridge.h",
+  ]
+
+  public_deps = [
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//services/media_session/public/cpp",
+    "//services/media_session/public/mojom",
+    "//starboard:starboard_headers_only",
+  ]
+
+  deps = [
+    "//base",
+    "//starboard:starboard_group",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "media_session_extension_bridge_unittest.cc" ]
+  deps = [
+    ":media_session",
+    "//base",
+    "//base/test:test_support",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/gfx/geometry",
+    "//url",
+  ]
+}
