@@ -4,6 +4,9 @@
   "tests_to_run": [
     "HttpCacheTest.CobaltFontMimeTypesCachedWhenFeatureEnabled",
     "HttpCacheTest.CobaltShouldPassThroughExcludedUrls",
-    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty"
+    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty",
+    "*QuicConnectionTest.ScopedAckDeferrer*",
+    "*QuicChromiumClientSessionTest.MultiPacketReadsSendImmediateAcksWithoutDaop*",
+    "*QuicChromiumClientSessionTest.ScopedAckDeferrer*"
   ]
 }

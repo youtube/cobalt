@@ -86,9 +86,24 @@
 #include "url/scheme_host_port.h"
 #include "url/url_constants.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/auto_reset.h"
+#include "base/check_op.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 using testing::_;
 
 namespace net::test {
+#if BUILDFLAG(IS_COBALT)
+class QuicChromiumPacketReaderPeer {
+ public:
+  [[nodiscard]] static base::AutoReset<bool> SetTryReadingMultiplePackets(
+      bool value) {
+    return base::AutoReset<bool>(
+        &QuicChromiumPacketReader::try_reading_multiple_packets_, value);
+  }
+};
+#endif  // BUILDFLAG(IS_COBALT)
 namespace {
 
 const IPEndPoint kIpEndPoint = IPEndPoint(IPAddress::IPv4AllZeros(), 0);
@@ -2525,6 +2540,315 @@ TEST_P(QuicChromiumClientSessionTest, SendPeriodicPings) {
   // Check if we call keep alive timeout even without any outstanding packets.
   CHECK_EQ(1, keep_alive_timeouts_);
 }
+
+#if BUILDFLAG(IS_COBALT)
+class BatchingDatagramClientSocket : public DatagramClientSocket {
+ public:
+  struct PacketBatch {
+    IoMode mode;
+    std::vector<std::unique_ptr<quic::QuicEncryptedPacket>> packets;
+  };
+
+  explicit BatchingDatagramClientSocket(
+      std::unique_ptr<DatagramClientSocket> inner)
+      : inner_(std::move(inner)) {}
+
+  void AddPacketBatch(
+      IoMode mode,
+      std::vector<std::unique_ptr<quic::QuicEncryptedPacket>> packets) {
+    batches_.push_back({mode, std::move(packets)});
+  }
+
+  void CompletePendingBatch() {
+    ASSERT_FALSE(pending_callback_.is_null());
+    ASSERT_LT(next_batch_, batches_.size());
+    int rv = PopulateResults(batches_[next_batch_++].packets, pending_results_,
+                             pending_read_buffer_size_);
+    pending_results_ = nullptr;
+    std::move(pending_callback_).Run(rv);
+  }
+
+  int ReadMultiplePackets(ReadPacketResults* results,
+                          int read_buffer_size,
+                          CompletionOnceCallback callback) override {
+    if (next_batch_ >= batches_.size() ||
+        batches_[next_batch_].mode == ASYNC) {
+      pending_results_ = results;
+      pending_read_buffer_size_ = read_buffer_size;
+      pending_callback_ = std::move(callback);
+      return ERR_IO_PENDING;
+    }
+    return PopulateResults(batches_[next_batch_++].packets, results,
+                           read_buffer_size);
+  }
+
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override {
+    return inner_->Read(buf, buf_len, std::move(callback));
+  }
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation) override {
+    return inner_->Write(buf, buf_len, std::move(callback), traffic_annotation);
+  }
+  int SetReceiveBufferSize(int32_t size) override {
+    return inner_->SetReceiveBufferSize(size);
+  }
+  int SetSendBufferSize(int32_t size) override {
+    return inner_->SetSendBufferSize(size);
+  }
+  void Close() override {
+    pending_callback_.Reset();
+    pending_results_ = nullptr;
+    inner_->Close();
+  }
+  int GetPeerAddress(IPEndPoint* address) const override {
+    return inner_->GetPeerAddress(address);
+  }
+  int GetLocalAddress(IPEndPoint* address) const override {
+    return inner_->GetLocalAddress(address);
+  }
+  void UseNonBlockingIO() override { inner_->UseNonBlockingIO(); }
+  int SetDoNotFragment() override { return inner_->SetDoNotFragment(); }
+  int SetRecvTos() override { return inner_->SetRecvTos(); }
+  int SetTos(DiffServCodePoint dscp, EcnCodePoint ecn) override {
+    return inner_->SetTos(dscp, ecn);
+  }
+  void SetMsgConfirm(bool confirm) override { inner_->SetMsgConfirm(confirm); }
+  const NetLogWithSource& NetLog() const override { return inner_->NetLog(); }
+  DscpAndEcn GetLastTos() const override { return inner_->GetLastTos(); }
+  int Connect(const IPEndPoint& address) override {
+    return inner_->Connect(address);
+  }
+  int ConnectUsingNetwork(handles::NetworkHandle network,
+                          const IPEndPoint& address) override {
+    return inner_->ConnectUsingNetwork(network, address);
+  }
+  int ConnectUsingDefaultNetwork(const IPEndPoint& address) override {
+    return inner_->ConnectUsingDefaultNetwork(address);
+  }
+  int ConnectAsync(const IPEndPoint& address,
+                   CompletionOnceCallback callback) override {
+    return inner_->ConnectAsync(address, std::move(callback));
+  }
+  int ConnectUsingNetworkAsync(handles::NetworkHandle network,
+                               const IPEndPoint& address,
+                               CompletionOnceCallback callback) override {
+    return inner_->ConnectUsingNetworkAsync(network, address,
+                                            std::move(callback));
+  }
+  int ConnectUsingDefaultNetworkAsync(
+      const IPEndPoint& address,
+      CompletionOnceCallback callback) override {
+    return inner_->ConnectUsingDefaultNetworkAsync(address,
+                                                   std::move(callback));
+  }
+  handles::NetworkHandle GetBoundNetwork() const override {
+    return inner_->GetBoundNetwork();
+  }
+  void ApplySocketTag(const SocketTag& tag) override {
+    inner_->ApplySocketTag(tag);
+  }
+  int SetMulticastInterface(uint32_t interface_index) override {
+    return inner_->SetMulticastInterface(interface_index);
+  }
+
+ private:
+  int PopulateResults(
+      const std::vector<std::unique_ptr<quic::QuicEncryptedPacket>>& packets,
+      ReadPacketResults* results,
+      int read_buffer_size) {
+    size_t stride = static_cast<size_t>(read_buffer_size);
+    results->buffer =
+        base::MakeRefCounted<IOBufferWithSize>(stride * packets.size());
+    results->packet_buffer_size = read_buffer_size;
+    results->result = static_cast<int>(packets.size());
+    packet_entries_.assign(packets.size(), ReadPacketResult{nullptr, 0});
+    base::span<char> chars = base::as_writable_chars(results->buffer->span());
+    for (size_t i = 0; i < packets.size(); ++i) {
+      base::span<const char> src = base::span(packets[i]->AsStringPiece());
+      CHECK_LE(src.size(), stride);
+      base::span<char> dst = chars.subspan(i * stride, src.size());
+      dst.copy_from(src);
+      packet_entries_[i].buffer = dst.data();
+      packet_entries_[i].result = static_cast<int>(src.size());
+    }
+    results->packets = packet_entries_.data();
+    return results->result;
+  }
+
+  std::unique_ptr<DatagramClientSocket> inner_;
+  std::vector<PacketBatch> batches_;
+  size_t next_batch_ = 0;
+  std::vector<ReadPacketResult> packet_entries_;
+  raw_ptr<ReadPacketResults> pending_results_ = nullptr;
+  int pending_read_buffer_size_ = 0;
+  CompletionOnceCallback pending_callback_;
+};
+
+// Verifies that when DAOP is not configured, Cobalt's multi-packet recvmmsg
+// reader preserves baseline behavior and emits mid-batch standalone ACKs.
+TEST_P(QuicChromiumClientSessionTest,
+       MultiPacketReadsSendImmediateAcksWithoutDaop) {
+  MockQuicData quic_data(version_);
+  int write_packet_num = 1;
+  int read_packet_num = 1;
+  quic_data.AddWrite(SYNCHRONOUS,
+                     client_maker_.MakeInitialSettingsPacket(write_packet_num++));
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.Packet(write_packet_num++)
+                                      .AddAckFrame(1, 2, 1)
+                                      .Build());
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.Packet(write_packet_num++)
+                                      .AddAckFrame(1, 4, 1)
+                                      .Build());
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  MockQuicData batch_backing_data(version_);
+  batch_backing_data.AddRead(ASYNC, ERR_IO_PENDING);
+  batch_backing_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  batch_backing_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+  CompleteCryptoHandshake();
+
+  base::AutoReset<bool> reset_multi_packet_reads =
+      QuicChromiumPacketReaderPeer::SetTryReadingMultiplePackets(true);
+
+  std::unique_ptr<DatagramClientSocket> inner_socket =
+      socket_factory_.CreateDatagramClientSocket(
+          DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(inner_socket->Connect(kIpEndPoint), IsOk());
+  auto batch_socket =
+      std::make_unique<BatchingDatagramClientSocket>(std::move(inner_socket));
+  std::vector<std::unique_ptr<quic::QuicEncryptedPacket>> batch;
+  for (int i = 0; i < 4; ++i) {
+    batch.push_back(
+        server_maker_.Packet(read_packet_num++).AddPingFrame().Build());
+  }
+  batch_socket->AddPacketBatch(SYNCHRONOUS, std::move(batch));
+
+  QuicChromiumPacketReader batch_reader(
+      std::move(batch_socket), &clock_, session_.get(),
+      kQuicYieldAfterPacketsRead,
+      quic::QuicTime::Delta::FromMilliseconds(
+          kQuicYieldAfterDurationMilliseconds),
+      net_log_with_source_);
+  batch_reader.StartReading();
+
+  EXPECT_TRUE(quic_data.AllWriteDataConsumed());
+}
+
+// Verifies that when DAOP is configured on a Cobalt QUIC client session, both
+// synchronous and asynchronous ReadMultiplePackets (recvmmsg) batches hold
+// standalone ACK-only packets until the entire batch has been processed.
+TEST_P(QuicChromiumClientSessionTest,
+       ScopedAckDeferrerBatchesMultiPacketReadsWithDaop) {
+  config_.SetClientConnectionOptions({quic::kDAOP});
+
+  MockQuicData quic_data(version_);
+  int write_packet_num = 1;
+  int read_packet_num = 1;
+  quic_data.AddWrite(SYNCHRONOUS,
+                     client_maker_.MakeInitialSettingsPacket(write_packet_num++));
+  // Synchronous 4-packet batch produces a single consolidated ACK for 1..4.
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.Packet(write_packet_num++)
+                                      .AddAckFrame(1, 4, 1)
+                                      .Build());
+  // Asynchronous 4-packet batch produces a single consolidated ACK for 1..8.
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.Packet(write_packet_num++)
+                                      .AddAckFrame(1, 8, 1)
+                                      .Build());
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  MockQuicData batch_backing_data(version_);
+  batch_backing_data.AddRead(ASYNC, ERR_IO_PENDING);
+  batch_backing_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  batch_backing_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+  CompleteCryptoHandshake();
+
+  base::AutoReset<bool> reset_multi_packet_reads =
+      QuicChromiumPacketReaderPeer::SetTryReadingMultiplePackets(true);
+
+  std::unique_ptr<DatagramClientSocket> inner_socket =
+      socket_factory_.CreateDatagramClientSocket(
+          DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(inner_socket->Connect(kIpEndPoint), IsOk());
+  auto batch_socket =
+      std::make_unique<BatchingDatagramClientSocket>(std::move(inner_socket));
+  BatchingDatagramClientSocket* raw_batch_socket = batch_socket.get();
+
+  std::vector<std::unique_ptr<quic::QuicEncryptedPacket>> sync_batch;
+  for (int i = 0; i < 4; ++i) {
+    sync_batch.push_back(
+        server_maker_.Packet(read_packet_num++).AddPingFrame().Build());
+  }
+  batch_socket->AddPacketBatch(SYNCHRONOUS, std::move(sync_batch));
+
+  std::vector<std::unique_ptr<quic::QuicEncryptedPacket>> async_batch;
+  for (int i = 0; i < 4; ++i) {
+    async_batch.push_back(
+        server_maker_.Packet(read_packet_num++).AddPingFrame().Build());
+  }
+  batch_socket->AddPacketBatch(ASYNC, std::move(async_batch));
+
+  QuicChromiumPacketReader batch_reader(
+      std::move(batch_socket), &clock_, session_.get(),
+      kQuicYieldAfterPacketsRead,
+      quic::QuicTime::Delta::FromMilliseconds(
+          kQuicYieldAfterDurationMilliseconds),
+      net_log_with_source_);
+  batch_reader.StartReading();
+  raw_batch_socket->CompletePendingBatch();
+
+  EXPECT_TRUE(quic_data.AllWriteDataConsumed());
+}
+
+// Verifies that on platforms falling back to single-packet socket->Read(),
+// DAOP still coalesces standalone ACK-only packets across synchronous socket
+// drain bursts in QuicChromiumPacketReader::OnReadComplete and StartReading.
+TEST_P(QuicChromiumClientSessionTest,
+       ScopedAckDeferrerBatchesSynchronousSinglePacketReadDrainWithDaop) {
+  config_.SetClientConnectionOptions({quic::kDAOP});
+
+  MockQuicData quic_data(version_);
+  int write_packet_num = 1;
+  int read_packet_num = 1;
+  quic_data.AddWrite(SYNCHRONOUS,
+                     client_maker_.MakeInitialSettingsPacket(write_packet_num++));
+  quic_data.AddReadPause();
+  quic_data.AddRead(
+      ASYNC, server_maker_.Packet(read_packet_num++).AddPingFrame().Build());
+  quic_data.AddRead(
+      SYNCHRONOUS,
+      server_maker_.Packet(read_packet_num++).AddPingFrame().Build());
+  quic_data.AddRead(
+      SYNCHRONOUS,
+      server_maker_.Packet(read_packet_num++).AddPingFrame().Build());
+  quic_data.AddRead(
+      SYNCHRONOUS,
+      server_maker_.Packet(read_packet_num++).AddPingFrame().Build());
+  quic_data.AddReadPauseForever();
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.Packet(write_packet_num++)
+                                      .AddAckFrame(1, 4, 1)
+                                      .Build());
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+  CompleteCryptoHandshake();
+
+  quic_data.Resume();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(quic_data.AllWriteDataConsumed());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace
 }  // namespace net::test
