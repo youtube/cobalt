@@ -430,6 +430,81 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     out_deps = mock_make_tar.call_args[0][3][0][0]
     self.assertIn('app/custom/lib/libcustom.so', out_deps)
 
+  def _setup_stripped_library(self):
+    deps_file = os.path.join(self.out_dir, 'my_test.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('./libmy_test.so\n')
+      f.write('./lib.unstripped/libother.so\n')  # Excluded by default.
+    for path in [
+        os.path.join(self.out_dir, 'libmy_test.so'),
+        os.path.join(self.out_dir, 'lib.unstripped', 'libmy_test.so'),
+        os.path.join(self.source_dir, 'third_party', 'llvm-build',
+                     'Release+Asserts', 'bin', 'llvm-symbolizer'),
+    ]:
+      os.makedirs(os.path.dirname(path), exist_ok=True)
+      with open(path, 'w', encoding='utf-8') as f:
+        f.write('')
+
+  def _create_combined_archive(self, include_symbols):
+    archive_test_artifacts.create_archive(
+        targets=['cobalt/test:my_test'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=False,
+        use_android_deps_path=False,
+        compression='zstd',
+        compression_level=1,
+        flatten_deps=False,
+        include_symbols=include_symbols)
+
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_include_symbols(self, mock_make_tar):
+    self._setup_stripped_library()
+    self._create_combined_archive(include_symbols=True)
+
+    file_list = mock_make_tar.call_args[0][3][0][0]
+    self.assertIn(
+        os.path.relpath(os.path.join(self.out_dir, 'libmy_test.so')), file_list)
+    self.assertIn(
+        os.path.relpath(
+            os.path.join(self.out_dir, 'lib.unstripped', 'libmy_test.so')),
+        file_list)
+    self.assertIn(
+        os.path.relpath(
+            os.path.join(self.source_dir, 'third_party', 'llvm-build',
+                         'Release+Asserts', 'bin', 'llvm-symbolizer')),
+        file_list)
+    self.assertNotIn(
+        os.path.relpath(
+            os.path.join(self.out_dir, 'lib.unstripped', 'libother.so')),
+        file_list)
+
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_without_symbols(self, mock_make_tar):
+    self._setup_stripped_library()
+    self._create_combined_archive(include_symbols=False)
+
+    file_list = mock_make_tar.call_args[0][3][0][0]
+    self.assertEqual(
+        {
+            os.path.relpath(os.path.join(self.out_dir, 'libmy_test.so')),
+        }, set(file_list))
+
+  def test_include_symbols_requires_combined_archive(self):
+    with self.assertRaises(ValueError):
+      archive_test_artifacts.create_archive(
+          targets=['cobalt/test:my_test'],
+          source_dir=self.source_dir,
+          out_dir=self.out_dir,
+          destination_dir=self.dest_dir,
+          archive_per_target=True,
+          use_android_deps_path=False,
+          compression='gz',
+          compression_level=1,
+          flatten_deps=True,
+          include_symbols=True)
+
 
 if __name__ == '__main__':
   unittest.main()

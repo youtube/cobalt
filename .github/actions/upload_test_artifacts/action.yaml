@@ -55,6 +55,14 @@ runs:
           browser_archive_flags="${host_archive_flags}"
         fi
 
+        # Evergreen libraries are stripped at link time. Include their
+        # unstripped copies and llvm-symbolizer in the on-host test archive so
+        # that failing tests' stack traces can be symbolized where they run
+        # (see .github/scripts/symbolize_test_log.py).
+        if [[ "${PLATFORM}" == evergreen* ]]; then
+          host_archive_flags="${host_archive_flags} --include-symbols"
+        fi
+
         echo "host_archive_flags=${host_archive_flags}" >> $GITHUB_OUTPUT
         echo "device_archive_flags=${device_archive_flags}" >> $GITHUB_OUTPUT
         echo "browser_archive_flags=${browser_archive_flags}" >> $GITHUB_OUTPUT

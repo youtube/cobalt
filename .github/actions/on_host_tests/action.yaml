@@ -92,6 +92,7 @@ runs:
         GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
         TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
         PLATFORM: ${{ matrix.platform }}
+        CONFIG: ${{ matrix.config }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
       run: |
         set -exo pipefail
@@ -153,6 +154,12 @@ runs:
             if [[ "${test_exit_code}" -ne 0 ]]; then
               failed_suites="${failed_suites} ${test_executable}"
               if [[ -f "${log_path}" ]]; then
+                # Resolve stack frames in stripped Evergreen libraries against
+                # lib.unstripped/ before the log is reported. Never fails.
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/symbolize_test_log.py" \
+                    --log "${log_path}" \
+                    --out-dir "${GITHUB_WORKSPACE}/out/${PLATFORM}_${CONFIG}" \
+                    --source-dir "${GITHUB_WORKSPACE}" || true
                 python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
               fi
             fi
