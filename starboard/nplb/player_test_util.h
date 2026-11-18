@@ -52,7 +52,7 @@ struct SbPlayerTestConfig {
   const char* video_filename;
   SbPlayerOutputMode output_mode;
   const char* key_system;
-  std::string_view max_video_capabilities;
+  std::string max_video_capabilities;
 };
 
 std::vector<const char*> GetStereoAudioTestFiles();

@@ -22,7 +22,6 @@
 #include <ostream>
 #include <set>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include "starboard/nplb/posix_compliance/posix_timezone_test_helpers.h"
@@ -34,8 +33,8 @@ namespace {
 struct IANATestData {
   const char* tz;
   long offset;
-  std::string_view std;
-  std::optional<std::string_view> dst = std::nullopt;
+  const char* std;
+  std::optional<const char*> dst = std::nullopt;
 
   friend void PrintTo(const IANATestData& data, ::std::ostream* os) {
     *os << "{ tz: \"" << data.tz << "\""
@@ -1005,7 +1004,7 @@ TEST_P(IANAFormat, TzSetHandles) {
       << "Timezone offset mismatch for " << param.tz;
 
   ASSERT_NE(tzname[0], nullptr);
-  EXPECT_EQ(std::string_view(tzname[0]), param.std)
+  EXPECT_STREQ(tzname[0], param.std)
       << "Standard TZ name mismatch for " << param.tz;
 
   ASSERT_NE(tzname[1], nullptr);
@@ -1013,7 +1012,7 @@ TEST_P(IANAFormat, TzSetHandles) {
     // This is a timezone WITH daylight savings, so we check the DST name
     // and that the daylight flag is set.
     EXPECT_EQ(daylight, 1) << "Daylight flag should be 1 for " << param.tz;
-    EXPECT_EQ(std::string_view(tzname[1]), param.dst.value())
+    EXPECT_STREQ(tzname[1], param.dst.value())
         << "Daylight TZ name mismatch for " << param.tz;
   } else {
     // This is a timezone WITHOUT daylight savings. We do not check `daylight`

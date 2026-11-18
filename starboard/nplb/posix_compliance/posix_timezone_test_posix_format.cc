@@ -22,7 +22,6 @@
 #include <ostream>
 #include <set>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include "starboard/nplb/posix_compliance/posix_timezone_test_helpers.h"
@@ -32,12 +31,12 @@ namespace nplb {
 namespace {
 
 struct PosixTestData {
-  std::string_view test_name;
+  const char* test_name;
   const char* tz;
   long std_offset;
-  std::string_view std;
+  const char* std;
   long dst_offset = 0;
-  std::optional<std::string_view> dst = std::nullopt;
+  std::optional<const char*> dst = std::nullopt;
 
   friend void PrintTo(const PosixTestData& data, ::std::ostream* os) {
     *os << "{ test_name: \"" << data.test_name << "\", tz: \"" << data.tz
@@ -52,7 +51,7 @@ struct PosixTestData {
 };
 
 std::string GetTestName(const ::testing::TestParamInfo<PosixTestData>& info) {
-  return std::string(info.param.test_name);
+  return info.param.test_name;
 }
 
 }  // namespace
@@ -142,11 +141,11 @@ TEST_P(PosixFormat, TzSetHandles) {
   EXPECT_EQ(daylight, expected_daylight);
 
   ASSERT_NE(tzname[0], nullptr);
-  EXPECT_EQ(std::string_view(tzname[0]), param.std);
+  EXPECT_STREQ(tzname[0], param.std);
 
   if (param.dst.has_value()) {
     ASSERT_NE(tzname[1], nullptr);
-    EXPECT_EQ(std::string_view(tzname[1]), param.dst.value());
+    EXPECT_STREQ(tzname[1], param.dst.value());
   }
 }
 
