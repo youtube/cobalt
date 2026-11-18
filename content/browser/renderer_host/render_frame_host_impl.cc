@@ -15034,19 +15034,17 @@ void RenderFrameHostImpl::BindFederatedAuthRequestReceiver(
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   webid::RequestService* service =
       webid::RequestService::GetOrCreateForCurrentDocument(this);
-<<<<<<< HEAD
   service->BindFederatedAuthRequest(std::move(receiver));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void RenderFrameHostImpl::BindFederatedRequestServiceReceiver(
     mojo::PendingReceiver<blink::mojom::FederatedRequestService> receiver) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   webid::RequestService* service =
       webid::RequestService::GetOrCreateForCurrentDocument(this);
   service->BindFederatedRequestService(std::move(receiver));
-=======
-  service->BindReceiver(std::move(receiver));
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void RenderFrameHostImpl::BindRestrictedCookieManager(

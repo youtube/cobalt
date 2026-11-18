@@ -30,8 +30,8 @@
 #include "base/strings/stringprintf.h"
 #include "include/core/SkData.h"
 #include "include/core/SkStream.h"
-#include "src/base/SkTSearch.h"
 #include "src/core/SkOSFile.h"
+#include "src/core/SkTSearch.h"
 #include "src/utils/SkOSPath.h"
 
 namespace {

@@ -13,12 +13,7 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
-<<<<<<< HEAD
 #include "gpu/ipc/client/gpu_channel_observer.h"
-#include "media/capture/video/create_video_capture_device_factory.h"
-=======
-#include "gpu/ipc/client/client_shared_image_interface.h"
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "media/capture/video/video_capture_buffer_pool.h"
 #include "media/capture/video/video_capture_buffer_tracker.h"
 #include "media/capture/video/video_capture_system_impl.h"

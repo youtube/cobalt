@@ -82,18 +82,16 @@ struct StructTraits<media::mojom::VideoDecoderConfigDataView,
     return input.level();
   }
 
-<<<<<<< HEAD
   static const media::VideoSpatialFormat& spatial_format(
       const media::VideoDecoderConfig& input) {
     return input.spatial_format();
   }
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   static const std::string& mime_type(const media::VideoDecoderConfig& input) {
     return input.mime_type();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   static bool Read(media::mojom::VideoDecoderConfigDataView input,
                    media::VideoDecoderConfig* output);

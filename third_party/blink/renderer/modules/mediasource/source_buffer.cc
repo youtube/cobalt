@@ -2070,14 +2070,9 @@ void SourceBuffer::AppendBufferInternal(
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
                                         ExceptionState& exception_state) {
-<<<<<<< HEAD
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   TRACE_EVENT_BEGIN("media", "SourceBuffer::appendBuffer", trace_track_, "size",
                     data.size());
-=======
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-  TRACE_EVENT_BEGIN("media", "SourceBuffer::appendBuffer",
-                    perfetto::Track::FromPointer(this), "size", data.size());
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Section 3.2 appendBuffer()
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
   //
@@ -2109,19 +2104,15 @@ void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
   // Note `release_runner` is moved into the callback: if the attachment is
   // closing and the callback is never run, destroying it releases the retained
   // ArrayBuffer.
-  if (!source_->RunUnlessElementGoneOrClosingUs(
-          blink::BindOnce(&SourceBuffer::AppendBufferInternal_Locked,
-                        WrapPersistent(this), data, std::move(release_runner),
-                        Unretained(&exception_state)))) {
+  if (!source_->RunUnlessElementGoneOrClosingUs(blink::BindOnce(
+          &SourceBuffer::AppendBufferInternal_Locked, WrapPersistent(this),
+          data, std::move(release_runner),
+          blink::subtle::UnretainedException(&exception_state)))) {
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!source_->RunUnlessElementGoneOrClosingUs(blink::BindOnce(
           &SourceBuffer::AppendBufferInternal_Locked, WrapPersistent(this),
-<<<<<<< HEAD
           data, blink::subtle::UnretainedException(&exception_state)))) {
-=======
-          data, Unretained(&exception_state)))) {
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, exception should be for this case.
     MediaSource::LogAndThrowDOMException(

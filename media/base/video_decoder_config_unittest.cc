@@ -39,7 +39,6 @@ TEST(VideoDecoderConfigTest, SetProfile) {
   EXPECT_EQ(config.profile(), VP9PROFILE_PROFILE2);
 }
 
-<<<<<<< HEAD
 TEST(VideoDecoderConfigTest, MatchesWithProjection) {
   VideoDecoderConfig config(VideoCodec::kVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
                             VideoDecoderConfig::AlphaMode::kIsOpaque,
@@ -65,7 +64,7 @@ TEST(VideoDecoderConfigTest, MatchesWithProjection) {
   });
   EXPECT_TRUE(config.Matches(config2));
 }
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 TEST(VideoDecoderConfigTest, SetMimeTypeAndMatches) {
   VideoDecoderConfig config1(VideoCodec::kVP9, VP9PROFILE_PROFILE0,
@@ -83,6 +82,5 @@ TEST(VideoDecoderConfigTest, SetMimeTypeAndMatches) {
   EXPECT_FALSE(config1.Matches(config2));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace media

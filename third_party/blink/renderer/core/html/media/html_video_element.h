@@ -36,16 +36,14 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_snapshot_info.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
-<<<<<<< HEAD
-namespace gfx {
-class Size;
-}
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/public/platform/web_media_player_client.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+namespace gfx {
+class Size;
+}
 
 namespace blink {
 

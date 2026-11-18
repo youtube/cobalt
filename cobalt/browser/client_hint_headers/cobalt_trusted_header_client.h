@@ -20,6 +20,7 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace browser {
@@ -38,7 +39,8 @@ class CobaltTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
   ~CobaltTrustedHeaderClient() override = default;
 
   // network::mojom::TrustedHeaderClient:
-  void OnBeforeSendHeaders(const net::HttpRequestHeaders& headers,
+  void OnBeforeSendHeaders(const GURL& url,
+                           const net::HttpRequestHeaders& headers,
                            OnBeforeSendHeadersCallback callback) override;
   void OnHeadersReceived(const std::string& headers,
                          const net::IPEndPoint& endpoint,
