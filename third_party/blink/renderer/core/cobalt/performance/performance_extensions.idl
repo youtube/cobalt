@@ -60,4 +60,11 @@
 
     // Returns the application startup timestamp in millisecs (ms).
     [CallWith=ScriptState, RaisesException] Promise<DOMHighResTimeStamp> getAppStartupTimeStamp();
+
+    // Returns the active CPU frame preparation duration in milliseconds
+    // (time from previous frame swap end to current frame swap start).
+    [CallWith=ScriptState] DOMHighResTimeStamp measureCpuFramePrepTime();
+
+    // Returns the display root paint damage percentage.
+    [CallWith=ScriptState] double measurePaintDamage();
 };
