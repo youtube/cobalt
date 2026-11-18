@@ -1,5 +1,0 @@
-specific_include_rules = {
-  "neural_residual_echo_estimator_creator\\.h" : [
-    "+third_party/tflite",
-  ],
-}
