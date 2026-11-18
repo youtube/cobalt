@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/string_util.h"
 #include "starboard/configuration.h"
 
 namespace starboard {

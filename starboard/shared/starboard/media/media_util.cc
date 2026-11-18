@@ -320,11 +320,10 @@ std::string GetStringRepresentation(const uint8_t* data, const int size) {
   std::string result;
 
   for (int i = 0; i < size; ++i) {
-    const char ch = static_cast<char>(data[i]);
-    if (IsAsciiWhitespace(ch)) {
+    if (IsAsciiWhitespace(data[i])) {
       result += ' ';
-    } else if (IsAsciiPrintable(ch)) {
-      result += ch;
+    } else if (IsAsciiPrintable(data[i])) {
+      result += static_cast<char>(data[i]);
     } else {
       result += '?';
     }

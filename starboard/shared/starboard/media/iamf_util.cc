@@ -14,7 +14,6 @@
 
 #include "starboard/shared/starboard/media/iamf_util.h"
 
-#include <cctype>
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -23,6 +22,7 @@
 
 #include "starboard/common/span.h"
 #include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 
 namespace starboard {
 namespace {
@@ -96,8 +96,8 @@ bool StringToProfile(const std::string& input, uint32_t* profile) {
     return false;
   }
 
-  if (!std::isdigit(input[0]) || !std::isdigit(input[1]) ||
-      !std::isdigit(input[2])) {
+  if (!IsAsciiDigit(input[0]) || !IsAsciiDigit(input[1]) ||
+      !IsAsciiDigit(input[2])) {
     return false;
   }
 
@@ -116,7 +116,7 @@ std::optional<IamfMimeUtil> IamfMimeUtil::Create(const std::string& mime_type) {
   //            v1.0.0
   //            6.3. Codecs Parameter String
   // (https://aomediacodec.github.io/iamf/v1.0.0-errata.html#codecsparameter)
-  if (mime_type.find("iamf") != 0) {
+  if (!StartsWith(mime_type, "iamf")) {
     return std::nullopt;
   }
 

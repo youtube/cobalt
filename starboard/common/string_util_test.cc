@@ -14,12 +14,63 @@
 
 #include "starboard/common/string_util.h"
 
+#include <cstdint>
+#include <cstdio>
 #include <string_view>
+#include <type_traits>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace {
+
+template <typename T, typename = void>
+struct CanCallAsciiHelpers : std::false_type {};
+
+template <typename T>
+struct CanCallAsciiHelpers<
+    T,
+    std::void_t<decltype(IsAsciiWhitespace(std::declval<T>())),
+                decltype(IsAsciiUpper(std::declval<T>())),
+                decltype(IsAsciiLower(std::declval<T>())),
+                decltype(IsAsciiAlpha(std::declval<T>())),
+                decltype(IsAsciiDigit(std::declval<T>())),
+                decltype(IsHexDigit(std::declval<T>())),
+                decltype(IsAsciiPrintable(std::declval<T>())),
+                decltype(ToLowerASCII(std::declval<T>()))>> : std::true_type {};
+
+template <typename T, typename = void>
+struct CanExplicitlyInstantiateAsciiHelpers : std::false_type {};
+
+template <typename T>
+struct CanExplicitlyInstantiateAsciiHelpers<
+    T,
+    std::void_t<decltype(IsAsciiWhitespace<T>(std::declval<T>())),
+                decltype(IsAsciiUpper<T>(std::declval<T>())),
+                decltype(IsAsciiLower<T>(std::declval<T>())),
+                decltype(IsAsciiAlpha<T>(std::declval<T>())),
+                decltype(IsAsciiDigit<T>(std::declval<T>())),
+                decltype(IsHexDigit<T>(std::declval<T>())),
+                decltype(IsAsciiPrintable<T>(std::declval<T>())),
+                decltype(ToLowerASCII<T>(std::declval<T>()))>>
+    : std::true_type {};
+
+enum TestEnum { kZero = 0 };
+enum class TestScopedEnum : char { kDigitZero = '0' };
+
+static_assert(CanCallAsciiHelpers<char>::value, "");
+static_assert(CanCallAsciiHelpers<signed char>::value, "");
+static_assert(CanCallAsciiHelpers<unsigned char>::value, "");
+static_assert(CanCallAsciiHelpers<wchar_t>::value, "");
+static_assert(CanCallAsciiHelpers<char16_t>::value, "");
+static_assert(CanCallAsciiHelpers<char32_t>::value, "");
+static_assert(CanCallAsciiHelpers<int>::value, "");
+static_assert(!CanCallAsciiHelpers<bool>::value, "");
+static_assert(!CanCallAsciiHelpers<TestEnum>::value, "");
+static_assert(!CanCallAsciiHelpers<TestScopedEnum>::value, "");
+static_assert(!CanExplicitlyInstantiateAsciiHelpers<bool>::value, "");
+static_assert(!CanExplicitlyInstantiateAsciiHelpers<const bool>::value, "");
+static_assert(!CanExplicitlyInstantiateAsciiHelpers<volatile bool>::value, "");
 
 TEST(StringUtilTest, StartsWith) {
   EXPECT_TRUE(StartsWith("vp09.00.41.08", "vp09."));
@@ -41,6 +92,24 @@ TEST(StringUtilTest, EndsWith) {
   EXPECT_FALSE(EndsWith("lz4", ".lz4"));
   EXPECT_FALSE(EndsWith("", ".lz4"));
   EXPECT_FALSE(EndsWith("libcobalt.zst", ".lz4"));
+}
+
+// Verifies compile-time prefix/suffix matching on codec strings, Evergreen
+// archive names, truncated views, and views containing embedded NUL bytes.
+TEST(StringUtilTest, StartsWithAndEndsWithConstexprAndEmbeddedNul) {
+  static_assert(StartsWith("vp09.00.41.08", "vp09."), "");
+  static_assert(!StartsWith(std::string_view("vp09.", 4), "vp09."), "");
+  static_assert(EndsWith("libcobalt.lz4", ".lz4"), "");
+  static_assert(EndsWith("libcobalt.lz4", std::string_view(".lz45", 4)), "");
+
+  constexpr std::string_view kWithNul("a\0b\0c", 5);
+  static_assert(StartsWith(kWithNul, std::string_view("a\0b", 3)), "");
+  static_assert(!StartsWith(kWithNul, std::string_view("a\0x", 3)), "");
+  static_assert(EndsWith(kWithNul, std::string_view("b\0c", 3)), "");
+
+  EXPECT_TRUE(StartsWith(kWithNul, std::string_view("a\0b", 3)));
+  EXPECT_FALSE(StartsWith(kWithNul, std::string_view("a\0x", 3)));
+  EXPECT_TRUE(EndsWith(kWithNul, std::string_view("b\0c", 3)));
 }
 
 TEST(StringUtilTest, IsAsciiWhitespace) {
@@ -196,6 +265,31 @@ TEST(StringUtilTest, ToLowerASCII) {
   }
   EXPECT_EQ('5', ToLowerASCII('5'));
   EXPECT_EQ(static_cast<char>(0xff), ToLowerASCII(static_cast<char>(0xff)));
+}
+
+TEST(StringUtilTest, IntegralTypesDoNotNarrow) {
+  // uint8_t / unsigned char works directly without casting.
+  static_assert(IsAsciiWhitespace(uint8_t{' '}), "");
+  static_assert(!IsAsciiWhitespace(uint8_t{0xa0}), "");
+  static_assert(IsAsciiPrintable(uint8_t{'~'}), "");
+  static_assert(!IsAsciiPrintable(uint8_t{0x80}), "");
+  static_assert(ToLowerASCII(uint8_t{'Z'}) == uint8_t{'z'}, "");
+
+  // Wider character/integer values with ASCII-matching low 8 bits must not
+  // truncate to true.
+  static_assert(!IsAsciiWhitespace(u'\u0120'), "");  // Low byte 0x20 (' ')
+  static_assert(!IsAsciiUpper(u'\u0141'), "");       // Low byte 0x41 ('A')
+  static_assert(!IsAsciiLower(u'\u0161'), "");       // Low byte 0x61 ('a')
+  static_assert(!IsAsciiAlpha(u'\u0141'), "");
+  static_assert(!IsAsciiDigit(u'\u0130'), "");  // Low byte 0x30 ('0')
+  static_assert(!IsHexDigit(u'\u0146'), "");    // Low byte 0x46 ('F')
+  static_assert(!IsAsciiPrintable(u'\u0120'), "");
+  static_assert(ToLowerASCII(u'\u0141') == u'\u0141', "");
+  static_assert(ToLowerASCII(U'A') == U'a', "");
+  static_assert(ToLowerASCII(EOF) == EOF, "");
+
+  EXPECT_FALSE(IsAsciiDigit(u'\u0130'));
+  EXPECT_EQ(EOF, ToLowerASCII(EOF));
 }
 
 }  // namespace

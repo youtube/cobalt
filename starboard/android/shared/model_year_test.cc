@@ -35,7 +35,7 @@ TEST(ModelYearTest, YearIsFourDigitsOrUnknown) {
     GTEST_SKIP() << "Unknown year";
   }
   EXPECT_EQ(4U, year.length());
-  EXPECT_TRUE(std::all_of(year.cbegin(), year.cend(), IsAsciiDigit));
+  EXPECT_TRUE(std::all_of(year.cbegin(), year.cend(), IsAsciiDigit<char>));
   EXPECT_EQ("20", year.substr(0, 2));
 }
 

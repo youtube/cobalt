@@ -119,6 +119,20 @@ TEST(IamfUtilTest, Invalid) {
   EXPECT_FALSE(IamfMimeUtil::Create("ec-3").has_value());
 }
 
+// Verifies that malformed IAMF codec strings containing non-ASCII bytes
+// (>= 0x80) are safely rejected without invoking signed-char <cctype>
+// undefined behavior when checking media supportability.
+TEST(IamfUtilTest, RejectsNonAsciiBytesInProfile) {
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.\xff"
+                                    "00.000.Opus")
+                   .has_value());
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.000.\x80"
+                                    "00.Opus")
+                   .has_value());
+  // 3-byte UTF-8 fullwidth digit '0' (U+FF10).
+  EXPECT_FALSE(IamfMimeUtil::Create("iamf.\xef\xbc\x90.000.Opus").has_value());
+}
+
 TEST(IamfUtilTest, SubstreamCodecOpus) {
   auto util = IamfMimeUtil::Create("iamf.000.000.Opus");
   ASSERT_TRUE(util.has_value());

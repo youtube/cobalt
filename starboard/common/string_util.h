@@ -19,54 +19,90 @@
 #define STARBOARD_COMMON_STRING_UTIL_H_
 
 #include <string_view>
+#include <type_traits>
 
 namespace starboard {
 
 // Returns true if `str` starts with `prefix`.
-inline bool StartsWith(std::string_view str, std::string_view prefix) {
-  return str.substr(0, prefix.size()) == prefix;
+constexpr bool StartsWith(std::string_view str,
+                          std::string_view prefix) noexcept {
+  return str.size() >= prefix.size() &&
+         str.compare(0, prefix.size(), prefix) == 0;
 }
 
 // Returns true if `str` ends with `suffix`.
-inline bool EndsWith(std::string_view str, std::string_view suffix) {
+constexpr bool EndsWith(std::string_view str,
+                        std::string_view suffix) noexcept {
   return str.size() >= suffix.size() &&
          str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 // Locale-independent ASCII character classification helpers. Unlike <cctype>
-// functions, these are constexpr and safe to call with any signed or unsigned
-// char value without casting.
-constexpr bool IsAsciiWhitespace(char c) noexcept {
+// functions, these are constexpr, safe to call with any signed or unsigned
+// char value without casting, and do not narrow wider integer/character types.
+template <typename Char,
+          std::enable_if_t<std::is_integral_v<Char> &&
+                               !std::is_same_v<std::remove_cv_t<Char>, bool>,
+                           int> = 0>
+constexpr bool IsAsciiWhitespace(Char c) noexcept {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
          c == '\v';
 }
 
-constexpr bool IsAsciiUpper(char c) noexcept {
+template <typename Char,
+          std::enable_if_t<std::is_integral_v<Char> &&
+                               !std::is_same_v<std::remove_cv_t<Char>, bool>,
+                           int> = 0>
+constexpr bool IsAsciiUpper(Char c) noexcept {
   return c >= 'A' && c <= 'Z';
 }
 
-constexpr bool IsAsciiLower(char c) noexcept {
+template <typename Char,
+          std::enable_if_t<std::is_integral_v<Char> &&
+                               !std::is_same_v<std::remove_cv_t<Char>, bool>,
+                           int> = 0>
+constexpr bool IsAsciiLower(Char c) noexcept {
   return c >= 'a' && c <= 'z';
 }
 
-constexpr bool IsAsciiAlpha(char c) noexcept {
+template <typename Char,
+          std::enable_if_t<std::is_integral_v<Char> &&
+                               !std::is_same_v<std::remove_cv_t<Char>, bool>,
+                           int> = 0>
+constexpr bool IsAsciiAlpha(Char c) noexcept {
   return IsAsciiUpper(c) || IsAsciiLower(c);
 }
 
-constexpr bool IsAsciiDigit(char c) noexcept {
+template <typename Char,
+          std::enable_if_t<std::is_integral_v<Char> &&
+                               !std::is_same_v<std::remove_cv_t<Char>, bool>,
+                           int> = 0>
+constexpr bool IsAsciiDigit(Char c) noexcept {
   return c >= '0' && c <= '9';
 }
 
-constexpr bool IsHexDigit(char c) noexcept {
+template <typename Char,
+          std::enable_if_t<std::is_integral_v<Char> &&
+                               !std::is_same_v<std::remove_cv_t<Char>, bool>,
+                           int> = 0>
+constexpr bool IsHexDigit(Char c) noexcept {
   return IsAsciiDigit(c) || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 }
 
-constexpr bool IsAsciiPrintable(char c) noexcept {
+template <typename Char,
+          std::enable_if_t<std::is_integral_v<Char> &&
+                               !std::is_same_v<std::remove_cv_t<Char>, bool>,
+                           int> = 0>
+constexpr bool IsAsciiPrintable(Char c) noexcept {
   return c >= ' ' && c <= '~';
 }
 
-constexpr char ToLowerASCII(char c) noexcept {
-  return (c >= 'A' && c <= 'Z') ? static_cast<char>(c + ('a' - 'A')) : c;
+template <typename Char,
+          std::enable_if_t<std::is_integral_v<Char> &&
+                               !std::is_same_v<std::remove_cv_t<Char>, bool>,
+                           int> = 0>
+constexpr Char ToLowerASCII(Char c) noexcept {
+  return (c >= 'A' && c <= 'Z') ? static_cast<Char>(c + ('a' - 'A')) : c;
 }
 
 }  // namespace starboard
