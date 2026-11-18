@@ -16,6 +16,7 @@
 #define STARBOARD_TVOS_SHARED_OBSERVER_REGISTRY_H_
 
 #include <atomic>
+#include <cstdint>
 
 namespace starboard {
 
