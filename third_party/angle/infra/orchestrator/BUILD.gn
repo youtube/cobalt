@@ -1,0 +1,54 @@
+# Copyright 2026 The ANGLE Project Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# The targets in this file are used to allow child testers to function without
+# the need for a full checkout. If a child tester opts in, the parent builder
+# will package all data for the `orchestrator_all` target into a CAS isolate
+# for the child tester to download and extract.
+
+group("orchestrator_all") {
+  write_runtime_deps = "$root_out_dir/orchestrator_all.runtime_deps"
+
+  data_deps = [
+    ":orchestrator_infra",
+    ":orchestrator_mb",
+    ":orchestrator_merge_scripts",
+  ]
+}
+
+group("orchestrator_infra") {
+  data = [
+    "//infra/config/generated/",
+    "//infra/specs/",
+  ]
+}
+
+group("orchestrator_mb") {
+  data = [
+    "//build/gn_helpers.py",
+    "//tools/mb/",
+  ]
+  data_deps = [ ":orchestrator_python" ]
+}
+
+group("orchestrator_merge_scripts") {
+  data = [
+    "//build/android/",
+    "//build/util/lib/common/",
+    "//scripts/",
+    "//src/tests/py_utils/",
+    "//testing/merge_scripts/",
+    "//third_party/catapult/",
+    "//third_party/depot_tools/",
+    "//third_party/logdog/",
+    "//tools/perf/",
+
+    "//src/commit_id.py",
+  ]
+  data_deps = [ ":orchestrator_python" ]
+}
+
+group("orchestrator_python") {
+  data = [ "//.vpython3" ]
+}

@@ -1,0 +1,371 @@
+// Copyright (C) 2024 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import './styles.scss';
+import {addWattsonThreadTrack} from './wattson_thread_utils';
+import type {App} from '../../public/app';
+import {createAggregationTab} from '../../components/aggregation_adapter';
+import {CounterTrack} from '../../components/tracks/counter_track';
+import {SliceTrack} from '../../components/tracks/slice_track';
+import type {PerfettoPlugin} from '../../public/plugin';
+import type {Trace} from '../../public/trace';
+import {SLICE_TRACK_KIND} from '../../public/track_kinds';
+import {TrackNode} from '../../public/workspace';
+import type {Engine} from '../../trace_processor/engine';
+import SchedPlugin from '../dev.perfetto.Sched';
+import {SourceDataset} from '../../trace_processor/dataset';
+import {LONG, LONG_NULL, NUM, STR} from '../../trace_processor/query_result';
+import type {RouteArgs} from '../../public/route_schema';
+import {WattsonEstimateSelectionAggregator} from './estimate_aggregator';
+import {
+  WattsonCpuPackageSelectionAggregator,
+  WattsonGpuPackageSelectionAggregator,
+} from './package_aggregator';
+import {WattsonProcessSelectionAggregator} from './process_aggregator';
+import {WattsonThreadSelectionAggregator} from './thread_aggregator';
+import {
+  CPUSS_ESTIMATE_TRACK_KIND,
+  GPUSS_ESTIMATE_TRACK_KIND,
+  TPUSS_ESTIMATE_TRACK_KIND,
+} from './track_kinds';
+import {createCpuWarnings, missingWattsonCpuConfigs} from './warning';
+
+const WINDOW_MAP: Record<string, string> = {
+  perfetto_wattson_markers: 'markers',
+  perfetto_wattson_trace: 'trace',
+  perfetto_wattson_apps: 'atrace_apps',
+  perfetto_wattson_app_startup: 'app_startup',
+};
+
+export default class Wattson implements PerfettoPlugin {
+  static readonly id = `org.kernel.Wattson`;
+  static readonly dependencies = [SchedPlugin];
+  public static windowsOfInterest = new Set<string>();
+
+  static onActivate(_app: App, args: RouteArgs): void {
+    const metrics: string[] = [];
+    if (typeof args.metrics === 'string') {
+      metrics.push(...args.metrics.split('--'));
+    }
+    Wattson.updateWindowsOfInterest(metrics);
+  }
+
+  async onTraceLoad(ctx: Trace): Promise<void> {
+    const [
+      markersSupported,
+      cpuSupported,
+      gpuSupported,
+      tpuSupported,
+      realCpuIdleCounters,
+    ] = await Promise.all([
+      hasWattsonMarkersSupport(ctx.engine),
+      hasWattsonCpuSupport(ctx.engine),
+      hasWattsonGpuSupport(ctx.engine),
+      hasWattsonTpuSupport(ctx.engine),
+      hasCpuIdleCounters(ctx.engine),
+    ]);
+
+    const missingEvents = markersSupported
+      ? await missingWattsonCpuConfigs(ctx.engine)
+      : [];
+
+    // Short circuit if Wattson is not supported for this Perfetto trace
+    if (!(markersSupported || cpuSupported || gpuSupported || tpuSupported)) {
+      return;
+    }
+
+    // Register selection aggregators that are common to all subsystems.
+    ctx.selection.registerAreaSelectionTab(
+      createAggregationTab(ctx, new WattsonEstimateSelectionAggregator()),
+    );
+
+    const group = new TrackNode({name: 'Wattson', isSummary: true});
+    ctx.defaultWorkspace.addChildInOrder(group);
+
+    if (markersSupported) {
+      await addWattsonMarkersElements(ctx, group);
+    }
+    if (cpuSupported || markersSupported) {
+      await addWattsonCpuElements(
+        ctx,
+        group,
+        missingEvents,
+        realCpuIdleCounters,
+      );
+    }
+    if (gpuSupported) {
+      await addWattsonGpuElements(ctx, group);
+    }
+    if (tpuSupported) {
+      await addWattsonTpuElements(ctx, group);
+    }
+
+    if (Wattson.windowsOfInterest.size > 0) {
+      await this.pinThreadPowerTracks(ctx);
+      Wattson.windowsOfInterest.clear();
+    }
+  }
+
+  async pinThreadPowerTracks(ctx: Trace) {
+    if (Wattson.windowsOfInterest.size === 0) return;
+
+    // Gather all utids from all windows
+    const windowQueries = Array.from(Wattson.windowsOfInterest)
+      .map((window) => {
+        const suffix = WINDOW_MAP[window];
+        if (suffix === undefined) return undefined;
+        return `
+          INCLUDE PERFETTO MODULE wattson.aggregation;
+          INCLUDE PERFETTO MODULE wattson.windows;
+
+          SELECT utid
+          FROM wattson_threads_aggregation!(wattson_window_${suffix})
+          GROUP BY utid
+          ORDER BY SUM(total_mws) DESC
+          LIMIT 3
+        `;
+      })
+      .filter((q): q is string => q !== undefined);
+
+    const queryResults = await Promise.all(
+      windowQueries.map((q) => ctx.engine.query(q)),
+    );
+
+    const utidsToPin = new Set<number>();
+    for (const result of queryResults) {
+      const it = result.iter({utid: NUM});
+      for (; it.valid(); it.next()) {
+        utidsToPin.add(it.utid);
+      }
+    }
+
+    // Only add tracks of unique utids
+    for (const utid of utidsToPin) {
+      await addWattsonThreadTrack(ctx, utid, {pin: true, scrollTo: false});
+    }
+  }
+
+  public static updateWindowsOfInterest(metrics: string[]) {
+    for (const metric of metrics) {
+      for (const key of Object.keys(WINDOW_MAP)) {
+        if (metric.includes(key)) {
+          Wattson.windowsOfInterest.add(key);
+        }
+      }
+    }
+  }
+}
+
+function makeWattsonEstimateTrack(
+  trace: Trace,
+  uri: string,
+  queryKey: string,
+  yRangeKey: string,
+): CounterTrack {
+  return CounterTrack.create({
+    trace,
+    uri,
+    sqlSource: `SELECT ts, ${queryKey} AS value FROM _system_state_${queryKey}`,
+    unit: 'mW',
+    yRangeSharingKey: yRangeKey,
+    onInit: async () => {
+      await trace.engine.query(
+        `INCLUDE PERFETTO MODULE wattson.ui.continuous_estimates;`,
+      );
+    },
+  });
+}
+
+async function hasCpuIdleCounters(engine: Engine): Promise<boolean> {
+  const result = await engine.query(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM cpu_counter_track
+      WHERE type = 'cpu_idle'
+    ) AS supported
+  `);
+  return !!result.firstRow({supported: NUM}).supported;
+}
+
+async function hasWattsonMarkersSupport(engine: Engine): Promise<boolean> {
+  const result = await engine.query(`
+    INCLUDE PERFETTO MODULE wattson.windows;
+    SELECT EXISTS (
+      SELECT 1 FROM wattson_window_markers
+    ) AS supported
+  `);
+  return !!result.firstRow({supported: NUM}).supported;
+}
+
+async function hasWattsonCpuSupport(engine: Engine): Promise<boolean> {
+  const result = await engine.query(`
+    INCLUDE PERFETTO MODULE wattson.device_infos;
+    SELECT
+      EXISTS (SELECT 1 FROM _wattson_device) as device,
+      EXISTS (SELECT 1 FROM cpu_counter_track WHERE type = 'cpu_frequency') as freq,
+      EXISTS (SELECT 1 FROM cpu_counter_track WHERE type = 'cpu_idle') as idle
+  `);
+  const row = result.firstRow({device: NUM, freq: NUM, idle: NUM});
+  return !!row.device && !!row.freq && !!row.idle;
+}
+
+async function hasWattsonGpuSupport(engine: Engine): Promise<boolean> {
+  const result = await engine.query(`
+    INCLUDE PERFETTO MODULE android.gpu.frequency;
+    INCLUDE PERFETTO MODULE wattson.gpu.freq_idle;
+    INCLUDE PERFETTO MODULE wattson.curves.utils;
+    SELECT
+      EXISTS (SELECT 1 FROM android_gpu_frequency) as freq,
+      EXISTS (SELECT 1 FROM _gpu_power_state) as idle,
+      EXISTS (SELECT 1 FROM _gpu_filtered_curves) as has_curves
+  `);
+  const row = result.firstRow({freq: NUM, idle: NUM, has_curves: NUM});
+  return !!row.freq && !!row.idle && !!row.has_curves;
+}
+
+async function hasWattsonTpuSupport(engine: Engine): Promise<boolean> {
+  const result = await engine.query(`
+    INCLUDE PERFETTO MODULE wattson.tpu.freq_idle;
+    SELECT EXISTS (
+      SELECT 1 FROM _tpu_freq WHERE dur IS NOT NULL
+    ) AS supported
+  `);
+  return !!result.firstRow({supported: NUM}).supported;
+}
+
+async function addWattsonMarkersElements(ctx: Trace, group: TrackNode) {
+  const uri = `/wattson/markers_window`;
+  const track = await SliceTrack.createMaterialized({
+    trace: ctx,
+    uri,
+    dataset: new SourceDataset({
+      schema: {
+        ts: LONG,
+        dur: LONG_NULL,
+        name: STR,
+      },
+      src: '_wattson_markers_window',
+    }),
+    // Use default details panel
+  });
+  ctx.tracks.registerTrack({
+    uri,
+    tags: {
+      kinds: [SLICE_TRACK_KIND],
+    },
+    renderer: track,
+  });
+  group.addChildInOrder(new TrackNode({uri, name: 'Wattson markers window'}));
+}
+
+async function addWattsonCpuElements(
+  ctx: Trace,
+  group: TrackNode,
+  missingEvents: string[],
+  hasCpuIdleCounters: boolean,
+) {
+  const warningDesc = createCpuWarnings(missingEvents, hasCpuIdleCounters);
+
+  // CPUs estimate as part of CPU subsystem
+  const estimateSuffix = `${hasCpuIdleCounters ? '' : ' crude'} estimate`;
+  const cpuResult = await ctx.engine.query(
+    `SELECT cpu FROM cpu WHERE machine_id = 0`,
+  );
+  const it = cpuResult.iter({cpu: NUM});
+  for (; it.valid(); it.next()) {
+    const queryKey = `cpu${it.cpu}_mw`;
+    const uri = `/wattson/cpu_subsystem_estimate_cpu${it.cpu}`;
+    ctx.tracks.registerTrack({
+      uri,
+      description: () => warningDesc,
+      renderer: makeWattsonEstimateTrack(ctx, uri, queryKey, `CpuSubsystem`),
+      tags: {
+        kinds: [CPUSS_ESTIMATE_TRACK_KIND],
+        wattson: `CPU${it.cpu}`,
+      },
+    });
+    group.addChildInOrder(
+      new TrackNode({
+        uri,
+        name: `Cpu${it.cpu}${estimateSuffix}`,
+      }),
+    );
+  }
+
+  const uri = `/wattson/cpu_subsystem_estimate_dsu_scu`;
+  ctx.tracks.registerTrack({
+    uri,
+    renderer: makeWattsonEstimateTrack(ctx, uri, `dsu_scu_mw`, `CpuSubsystem`),
+    tags: {
+      kinds: [CPUSS_ESTIMATE_TRACK_KIND],
+      wattson: 'Dsu_Scu',
+    },
+  });
+  group.addChildInOrder(new TrackNode({uri, name: `DSU/SCU${estimateSuffix}`}));
+
+  // Register selection aggregators.
+  // NOTE: The registration order matters because subsequent aggregators
+  // (Process, Package) depend on views created by Thread aggregator
+  ctx.selection.registerAreaSelectionTab(
+    createAggregationTab(ctx, new WattsonThreadSelectionAggregator(ctx)),
+  );
+  ctx.selection.registerAreaSelectionTab(
+    createAggregationTab(ctx, new WattsonProcessSelectionAggregator()),
+  );
+
+  if (await isProcessMetadataPresent(ctx.engine)) {
+    ctx.selection.registerAreaSelectionTab(
+      createAggregationTab(ctx, new WattsonCpuPackageSelectionAggregator()),
+    );
+  }
+}
+
+async function isProcessMetadataPresent(engine: Engine) {
+  const packageInfo = await engine.query(`
+    INCLUDE PERFETTO MODULE android.process_metadata;
+    SELECT COUNT(*) as count FROM android_process_metadata
+    WHERE package_name IS NOT NULL
+  `);
+  return packageInfo.firstRow({count: NUM}).count > 0;
+}
+
+async function addWattsonGpuElements(ctx: Trace, group: TrackNode) {
+  const id = `/wattson/gpu_subsystem_estimate`;
+  ctx.tracks.registerTrack({
+    uri: id,
+    renderer: makeWattsonEstimateTrack(ctx, id, `gpu_mw`, `GpuSubsystem`),
+    tags: {
+      kinds: [GPUSS_ESTIMATE_TRACK_KIND],
+      wattson: 'Gpu',
+    },
+  });
+  group.addChildInOrder(new TrackNode({uri: id, name: `GPU Estimate`}));
+
+  ctx.selection.registerAreaSelectionTab(
+    createAggregationTab(ctx, new WattsonGpuPackageSelectionAggregator()),
+  );
+}
+
+async function addWattsonTpuElements(ctx: Trace, group: TrackNode) {
+  const id = `/wattson/tpu_subsystem_estimate`;
+  ctx.tracks.registerTrack({
+    uri: id,
+    renderer: makeWattsonEstimateTrack(ctx, id, `tpu_mw`, `TpuSubsystem`),
+    tags: {
+      kinds: [TPUSS_ESTIMATE_TRACK_KIND],
+      wattson: 'Tpu',
+    },
+  });
+  group.addChildInOrder(new TrackNode({uri: id, name: `TPU Estimate`}));
+}
