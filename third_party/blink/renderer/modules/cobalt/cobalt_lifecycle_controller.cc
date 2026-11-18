@@ -14,10 +14,15 @@
 
 #include "third_party/blink/renderer/modules/cobalt/cobalt_lifecycle_controller.h"
 
+#include <utility>
+
+#include "base/check.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
 
@@ -35,7 +40,8 @@ void CobaltLifecycleController::BindReceiver(
     LocalFrame* frame,
     mojo::PendingReceiver<cobalt::mojom::blink::CobaltLifecycleController>
         receiver) {
-  if (!frame || !frame->DomWindow()) {
+  if (!frame || !frame->GetPage() || !frame->DomWindow() ||
+      frame->DomWindow()->IsContextDestroyed()) {
     return;
   }
   LocalDOMWindow& window = *frame->DomWindow();
@@ -52,11 +58,16 @@ void CobaltLifecycleController::BindReceiver(
 void CobaltLifecycleController::BindMojoReceiver(
     mojo::PendingReceiver<cobalt::mojom::blink::CobaltLifecycleController>
         receiver) {
-  if (receiver.is_valid()) {
-    receiver_.reset();
-    receiver_.Bind(std::move(receiver), GetExecutionContext()->GetTaskRunner(
-                                            TaskType::kInternalDefault));
+  if (!receiver.is_valid()) {
+    return;
   }
+  ExecutionContext* context = GetExecutionContext();
+  if (!context || context->IsContextDestroyed()) {
+    return;
+  }
+  receiver_.reset();
+  receiver_.Bind(std::move(receiver),
+                 context->GetTaskRunner(TaskType::kInternalDefault));
 }
 
 CobaltLifecycleController::CobaltLifecycleController(
@@ -69,17 +80,15 @@ CobaltLifecycleController::CobaltLifecycleController(
       Supplement<LocalDOMWindow>(window),
       receiver_(this, &window),
       remote_observer_(&window) {
+  CHECK(window.GetFrame() && window.GetFrame()->GetPage());
   UpdateStateIfNeeded();
-  if (receiver.is_valid()) {
-    receiver_.Bind(std::move(receiver),
-                   window.GetExecutionContext()->GetTaskRunner(
-                       TaskType::kInternalDefault));
-  }
+  BindMojoReceiver(std::move(receiver));
 }
 
 CobaltLifecycleController::~CobaltLifecycleController() = default;
 
 void CobaltLifecycleController::ContextDestroyed() {
+  SetPage(nullptr);
   receiver_.reset();
   remote_observer_.reset();
 }
@@ -87,10 +96,13 @@ void CobaltLifecycleController::ContextDestroyed() {
 void CobaltLifecycleController::SetObserver(
     mojo::PendingRemote<cobalt::mojom::blink::CobaltLifecycleObserver>
         observer) {
+  ExecutionContext* context = GetExecutionContext();
+  if (!context || context->IsContextDestroyed()) {
+    return;
+  }
   remote_observer_.reset();
-  remote_observer_.Bind(
-      std::move(observer),
-      GetExecutionContext()->GetTaskRunner(TaskType::kInternalDefault));
+  remote_observer_.Bind(std::move(observer),
+                        context->GetTaskRunner(TaskType::kInternalDefault));
 
   if (!remote_observer_.is_bound()) {
     return;
@@ -118,48 +130,24 @@ void CobaltLifecycleController::SetObserver(
 }
 
 void CobaltLifecycleController::PageVisibilityChanged() {
-  bool visible = GetPage() ? GetPage()->IsPageVisible() : false;
-  if (!remote_observer_.is_bound()) {
+  if (!remote_observer_.is_bound() || !GetPage()) {
     return;
   }
-  if (GetPage()) {
-    NotifyObserver(base::BindOnce(
-        [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
-               observer,
-           bool visible) {
-          if (observer.is_bound()) {
-            observer->OnPageVisibilityChanged(visible);
-          }
-        },
-        std::ref(remote_observer_), visible));
-  }
+  NotifyObserver(
+      WTF::BindOnce(&CobaltLifecycleController::SendPageVisibilityChanged,
+                    WrapWeakPersistent(this), GetPage()->IsPageVisible()));
 }
 
 void CobaltLifecycleController::FocusedFrameChanged() {
-  if (!remote_observer_.is_bound()) {
+  if (!remote_observer_.is_bound() || !GetPage()) {
     return;
   }
-  if (GetPage()) {
-    bool is_focused = GetPage()->GetFocusController().IsFocused();
-    if (is_focused) {
-      NotifyObserver(base::BindOnce(
-          [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
-                 observer) {
-            if (observer.is_bound()) {
-              observer->OnPageFocused();
-            }
-          },
-          std::ref(remote_observer_)));
-    } else {
-      NotifyObserver(base::BindOnce(
-          [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
-                 observer) {
-            if (observer.is_bound()) {
-              observer->OnPageBlurred();
-            }
-          },
-          std::ref(remote_observer_)));
-    }
+  if (GetPage()->GetFocusController().IsFocused()) {
+    NotifyObserver(WTF::BindOnce(&CobaltLifecycleController::SendPageFocused,
+                                 WrapWeakPersistent(this)));
+  } else {
+    NotifyObserver(WTF::BindOnce(&CobaltLifecycleController::SendPageBlurred,
+                                 WrapWeakPersistent(this)));
   }
 }
 
@@ -167,14 +155,8 @@ void CobaltLifecycleController::ContextLifecycleStateChanged(
     mojom::blink::FrameLifecycleState state) {
   if (state == mojom::blink::FrameLifecycleState::kRunning) {
     if (remote_observer_.is_bound()) {
-      NotifyObserver(base::BindOnce(
-          [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
-                 observer) {
-            if (observer.is_bound()) {
-              observer->OnPageResumed();
-            }
-          },
-          std::ref(remote_observer_)));
+      NotifyObserver(WTF::BindOnce(&CobaltLifecycleController::SendPageResumed,
+                                   WrapWeakPersistent(this)));
     }
   } else if (state == mojom::blink::FrameLifecycleState::kFrozen) {
     // LocalFrame::OnPageLifecycleStateUpdated() invokes DidFreeze() (which
@@ -187,6 +169,30 @@ void CobaltLifecycleController::ContextLifecycleStateChanged(
     if (remote_observer_.is_bound()) {
       remote_observer_->OnPageFrozen();
     }
+  }
+}
+
+void CobaltLifecycleController::SendPageVisibilityChanged(bool visible) {
+  if (remote_observer_.is_bound()) {
+    remote_observer_->OnPageVisibilityChanged(visible);
+  }
+}
+
+void CobaltLifecycleController::SendPageFocused() {
+  if (remote_observer_.is_bound()) {
+    remote_observer_->OnPageFocused();
+  }
+}
+
+void CobaltLifecycleController::SendPageBlurred() {
+  if (remote_observer_.is_bound()) {
+    remote_observer_->OnPageBlurred();
+  }
+}
+
+void CobaltLifecycleController::SendPageResumed() {
+  if (remote_observer_.is_bound()) {
+    remote_observer_->OnPageResumed();
   }
 }
 
@@ -207,11 +213,11 @@ void CobaltLifecycleController::ContextLifecycleStateChanged(
 // exact same line as pending JS DOM events, forcing Blink's scheduler to
 // execute them in strict FIFO (First-In-First-Out) sequential order.
 void CobaltLifecycleController::NotifyObserver(base::OnceClosure callback) {
-  if (!GetExecutionContext()) {
+  ExecutionContext* context = GetExecutionContext();
+  if (!context || context->IsContextDestroyed()) {
     return;
   }
-  GetExecutionContext()
-      ->GetTaskRunner(TaskType::kDOMManipulation)
+  context->GetTaskRunner(TaskType::kDOMManipulation)
       ->PostTask(FROM_HERE, std::move(callback));
 }
 

@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/page/focus_changed_observer.h"
 #include "third_party/blink/renderer/core/page/page_visibility_observer.h"
+#include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
@@ -40,7 +41,7 @@ namespace blink {
 // Threading Model:
 // This class is thread-affine and must only be used on the main thread of the
 // renderer process (the Blink main thread).
-class CobaltLifecycleController
+class MODULES_EXPORT CobaltLifecycleController
     : public GarbageCollected<CobaltLifecycleController>,
       public cobalt::mojom::blink::CobaltLifecycleController,
       public ExecutionContextLifecycleStateObserver,
@@ -88,7 +89,10 @@ class CobaltLifecycleController
   void Trace(Visitor* visitor) const override;
 
  private:
-  void EnsureRemoteIsBound();
+  void SendPageVisibilityChanged(bool visible);
+  void SendPageFocused();
+  void SendPageBlurred();
+  void SendPageResumed();
   void NotifyObserver(base::OnceClosure callback);
 
   HeapMojoReceiver<cobalt::mojom::blink::CobaltLifecycleController,
