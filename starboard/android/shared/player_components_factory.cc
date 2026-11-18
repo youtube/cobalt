@@ -452,11 +452,17 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_LOG_IF(INFO, pause_using_audio_track_state)
           << "pause_using_audio_track_state is set to true.";
 
+      const bool async_audio_codec_creation =
+          experimental_features.GetBool(kMediaAsyncAudioCodecCreation);
+      SB_LOG_IF(INFO, async_audio_codec_creation)
+          << "async_audio_codec_creation is set to true.";
+
       const bool force_platform_opus_decoder = force_platform_opus_decoder_;
       auto decoder_creator =
-          [enable_flush_during_seek, force_platform_opus_decoder, job_queue](
-              const AudioStreamInfo& audio_stream_info,
-              SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
+          [enable_flush_during_seek, async_audio_codec_creation,
+           force_platform_opus_decoder,
+           job_queue](const AudioStreamInfo& audio_stream_info,
+                      SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (UseLibopusDecoder(audio_stream_info.codec, drm_system,
                               force_platform_opus_decoder)) {
           return OpusAudioDecoder::Create(job_queue, audio_stream_info);
@@ -464,7 +470,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto audio_decoder_impl = MediaCodecAudioDecoder::Create(
               job_queue, audio_stream_info, drm_system,
-              enable_flush_during_seek);
+              enable_flush_during_seek, async_audio_codec_creation);
           if (audio_decoder_impl) {
             return std::move(audio_decoder_impl.value());
           }

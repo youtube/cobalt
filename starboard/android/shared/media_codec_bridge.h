@@ -43,6 +43,14 @@ class MediaCodecBridge : public MediaCodec {
       Handler* handler,
       const jni_zero::JavaRef<jobject>& j_media_crypto);
 
+  // The two halves of CreateAudioMediaCodec() for a clear audio stream, see
+  // MediaCodec::Factory. PrepareAudioMediaCodec() can be called on any thread.
+  static std::unique_ptr<PreparedAudioCodec> PrepareAudioMediaCodec(
+      const AudioStreamInfo& audio_stream_info);
+  static std::unique_ptr<MediaCodecBridge> AttachAudioMediaCodec(
+      std::unique_ptr<PreparedAudioCodec> prepared_codec,
+      Handler* handler);
+
   static NonNullResult<std::unique_ptr<MediaCodecBridge>> CreateVideoMediaCodec(
       SbMediaVideoCodec video_codec,
       const std::string& decoder_name,

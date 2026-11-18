@@ -90,4 +90,38 @@ class MediaCodecBridgeBuilder {
 
     return bridge;
   }
+
+  /**
+   * Creates an audio decoder with no native owner, which is neither configured nor started. This is
+   * the first step of createAudioDecoder() for a clear stream; it is followed by
+   * MediaCodecBridge.configureDetachedAudioDecoder() and MediaCodecBridge.attachAndStart(). Can be
+   * called on any thread. See "Media.AsyncAudioCodecCreation".
+   *
+   * @return null on failure.
+   */
+  @CalledByNative
+  @Nullable
+  public static MediaCodecBridge createDetachedAudioDecoder(String mime, String decoderName) {
+    if (decoderName.equals("")) {
+      Log.e(TAG, "Invalid decoder name.");
+      return null;
+    }
+    MediaCodec mediaCodec = null;
+    try {
+      Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
+      mediaCodec = MediaCodec.createByCodecName(decoderName);
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to create MediaCodec: %s, DecoderName: %s", mime, decoderName, e);
+      return null;
+    }
+    if (mediaCodec == null) {
+      return null;
+    }
+    return new MediaCodecBridge(
+        /* nativeMediaCodecBridge= */ 0,
+        mediaCodec,
+        decoderName,
+        TunnelModeAudioSessionId.NONE,
+        /* enableFrameRendererListener= */ false);
+  }
 }

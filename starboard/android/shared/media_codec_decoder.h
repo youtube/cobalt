@@ -93,6 +93,16 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       Host* host,
       const AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system);
+  // Same as above, for a clear stream whose codec has already been created and
+  // configured by MediaCodec::Factory::PrepareAudioMediaCodec() of
+  // |media_codec_factory|, possibly on another thread. The codec is started
+  // here. See |kMediaAsyncAudioCodecCreation|.
+  static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForAudio(
+      MediaCodec::Factory& media_codec_factory,
+      JobQueue* job_queue,
+      Host* host,
+      const AudioStreamInfo& audio_stream_info,
+      std::unique_ptr<MediaCodec::PreparedAudioCodec> prepared_codec);
   static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForVideo(
       MediaCodec::Factory& media_codec_factory,
       JobQueue* job_queue,
@@ -117,13 +127,17 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       bool use_dual_threads,
       const VideoExperimentalOptions& experimental_options);
 
-  MediaCodecDecoder(PassKey<MediaCodecDecoder>,
-                    MediaCodec::Factory& media_codec_factory,
-                    JobQueue* job_queue,
-                    Host* host,
-                    const AudioStreamInfo& audio_stream_info,
-                    SbDrmSystem drm_system,
-                    std::string* error_message);
+  MediaCodecDecoder(
+      PassKey<MediaCodecDecoder>,
+      MediaCodec::Factory& media_codec_factory,
+      JobQueue* job_queue,
+      Host* host,
+      const AudioStreamInfo& audio_stream_info,
+      SbDrmSystem drm_system,
+      // When not null, the codec to start and use instead of
+      // creating one.
+      std::unique_ptr<MediaCodec::PreparedAudioCodec> prepared_codec,
+      std::string* error_message);
   MediaCodecDecoder(
       PassKey<MediaCodecDecoder>,
       MediaCodec::Factory& media_codec_factory,

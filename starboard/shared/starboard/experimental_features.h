@@ -192,6 +192,13 @@ inline const char* ToString(NdkAudioMode mode) {
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 
+// When set, the MediaCodec of a clear (not encrypted) audio stream is created
+// and configured on a helper thread, instead of on the player worker thread
+// inside the first audio write. The worker thread starts the codec once it is
+// ready, and audio input written in the meantime is held back until then.
+inline constexpr ExperimentalFeatureKey<bool> kMediaAsyncAudioCodecCreation(
+    "Media.AsyncAudioCodecCreation");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 

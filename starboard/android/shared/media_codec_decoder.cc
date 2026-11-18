@@ -120,7 +120,28 @@ MediaCodecDecoder::CreateForAudio(MediaCodec::Factory& media_codec_factory,
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
-      audio_stream_info, drm_system, &error_message);
+      audio_stream_info, drm_system, /*prepared_codec=*/nullptr,
+      &error_message);
+  if (!decoder->media_codec_bridge_) {
+    return Failure(error_message);
+  }
+  return decoder;
+}
+
+// static
+NonNullResult<std::unique_ptr<MediaCodecDecoder>>
+MediaCodecDecoder::CreateForAudio(
+    MediaCodec::Factory& media_codec_factory,
+    JobQueue* job_queue,
+    Host* host,
+    const AudioStreamInfo& audio_stream_info,
+    std::unique_ptr<MediaCodec::PreparedAudioCodec> prepared_codec) {
+  SB_CHECK(prepared_codec);
+  std::string error_message;
+  auto decoder = std::make_unique<MediaCodecDecoder>(
+      PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
+      audio_stream_info, kSbDrmSystemInvalid, std::move(prepared_codec),
+      &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -165,13 +186,15 @@ MediaCodecDecoder::CreateForVideo(
   return decoder;
 }
 
-MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
-                                     MediaCodec::Factory& media_codec_factory,
-                                     JobQueue* job_queue,
-                                     Host* host,
-                                     const AudioStreamInfo& audio_stream_info,
-                                     SbDrmSystem drm_system,
-                                     std::string* error_message)
+MediaCodecDecoder::MediaCodecDecoder(
+    PassKey<MediaCodecDecoder>,
+    MediaCodec::Factory& media_codec_factory,
+    JobQueue* job_queue,
+    Host* host,
+    const AudioStreamInfo& audio_stream_info,
+    SbDrmSystem drm_system,
+    std::unique_ptr<MediaCodec::PreparedAudioCodec> prepared_codec,
+    std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeAudio),
       host_(host),
@@ -189,8 +212,15 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
         ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
   }
   SB_DCHECK(!drm_system_ || j_media_crypto);
-  media_codec_bridge_ = media_codec_factory.CreateAudioMediaCodec(
-      audio_stream_info, this, j_media_crypto);
+  if (prepared_codec) {
+    // A prepared codec is configured without MediaCrypto.
+    SB_CHECK(!drm_system_);
+    media_codec_bridge_ = media_codec_factory.AttachAudioMediaCodec(
+        std::move(prepared_codec), this);
+  } else {
+    media_codec_bridge_ = media_codec_factory.CreateAudioMediaCodec(
+        audio_stream_info, this, j_media_crypto);
+  }
   if (!media_codec_bridge_) {
     *error_message = "Failed to create audio media codec.";
     SB_LOG(ERROR) << *error_message;

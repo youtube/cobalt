@@ -19,6 +19,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_bridge.h"
@@ -69,6 +70,19 @@ std::unique_ptr<MediaCodec> DefaultMediaCodecFactory::CreateAudioMediaCodec(
     const jni_zero::JavaRef<jobject>& j_media_crypto) {
   return MediaCodecBridge::CreateAudioMediaCodec(audio_stream_info, handler,
                                                  j_media_crypto);
+}
+
+std::unique_ptr<MediaCodec::PreparedAudioCodec>
+DefaultMediaCodecFactory::PrepareAudioMediaCodec(
+    const AudioStreamInfo& audio_stream_info) {
+  return MediaCodecBridge::PrepareAudioMediaCodec(audio_stream_info);
+}
+
+std::unique_ptr<MediaCodec> DefaultMediaCodecFactory::AttachAudioMediaCodec(
+    std::unique_ptr<MediaCodec::PreparedAudioCodec> prepared_codec,
+    MediaCodec::Handler* handler) {
+  return MediaCodecBridge::AttachAudioMediaCodec(std::move(prepared_codec),
+                                                 handler);
 }
 
 NonNullResult<std::unique_ptr<MediaCodec>>
