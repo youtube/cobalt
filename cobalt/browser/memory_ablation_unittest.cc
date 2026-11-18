@@ -22,7 +22,16 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "cobalt/browser/features.h"
+#include "gpu/command_buffer/common/shm_count.h"
+#include "gpu/command_buffer/service/scheduler.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
+#include "gpu/command_buffer/service/sync_point_manager.h"
+#include "gpu/config/gpu_feature_info.h"
+#include "gpu/config/gpu_preferences.h"
+#include "gpu/ipc/service/gpu_channel_manager.h"
+#include "gpu/ipc/service/gpu_channel_manager_delegate.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gl/gl_surface_stub.h"
 
 namespace cobalt {
 namespace {
@@ -341,6 +350,81 @@ TEST_F(MemoryAblationTest, GpuExecutesAtMostOnce) {
   histogram_tester_.ExpectUniqueSample(
       "Cobalt.Features.GpuMemoryAblation.Result",
       GpuMemoryAblationResult::kSuccess, 1);
+}
+
+// Covers the user journey where Cobalt starts concealed (Preload) with EGL
+// initialization deferred so default_offscreen_surface() is initially null,
+// verifying that MaybeApplyGpuMemoryAblation waits until the first Reveal
+// provides an offscreen surface and runs exactly once.
+TEST_F(MemoryAblationTest, GpuDefersUntilDefaultOffscreenSurfaceReady) {
+  class StubGpuChannelManagerDelegate : public gpu::GpuChannelManagerDelegate {
+   public:
+    explicit StubGpuChannelManagerDelegate(gpu::Scheduler* scheduler)
+        : scheduler_(scheduler) {}
+    void LoseAllContexts() override {}
+    void DidCreateContextSuccessfully() override {}
+    void DidCreateOffscreenContext(const GURL& active_url) override {}
+    void DidDestroyChannel(int client_id) override {}
+    void DidDestroyAllChannels() override {}
+    void DidDestroyOffscreenContext(const GURL& active_url) override {}
+    void DidLoseContext(gpu::error::ContextLostReason reason,
+                        const GURL& active_url) override {}
+    void StoreBlobToDisk(const gpu::GpuDiskCacheHandle& handle,
+                         const std::string& key,
+                         const std::string& shader) override {}
+    void GetIsolationKey(int client_id,
+                         const blink::WebGPUExecutionContextToken& token,
+                         GetIsolationKeyCallback cb) override {}
+    void MaybeExitOnContextLost(
+        gpu::error::ContextLostReason context_lost_reason) override {}
+    bool IsExiting() const override { return false; }
+    gpu::Scheduler* GetGpuScheduler() override { return scheduler_; }
+
+   private:
+    raw_ptr<gpu::Scheduler> scheduler_;
+  };
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltGpuMemoryAblation,
+      {{"CobaltGpuMemoryAblation_ablation_size_mb", "0"}});
+
+  gpu::SyncPointManager sync_point_manager;
+  gpu::SharedImageManager shared_image_manager(/*thread_safe=*/false);
+  gpu::Scheduler scheduler(&sync_point_manager);
+  StubGpuChannelManagerDelegate delegate(&scheduler);
+  gpu::GpuChannelManager channel_manager(
+      gpu::GpuPreferences(), &delegate, /*watchdog=*/nullptr,
+      task_environment_.GetMainThreadTaskRunner(),
+      task_environment_.GetMainThreadTaskRunner(), &scheduler,
+      &sync_point_manager, &shared_image_manager,
+      /*gpu_memory_buffer_factory=*/nullptr, gpu::GpuFeatureInfo(),
+      gpu::GpuProcessShmCount(), /*default_offscreen_surface=*/nullptr,
+      /*image_decode_accelerator_worker=*/nullptr);
+
+  // While default_offscreen_surface() is null (deferred preload), ablation must
+  // not run or emit its Enabled histogram yet.
+  MaybeApplyGpuMemoryAblation(&channel_manager);
+  task_environment_.RunUntilIdle();
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.Features.GpuMemoryAblation.Enabled", 0);
+
+  // Setting the default offscreen surface on first Reveal runs the deferred
+  // ablation exactly once.
+  auto stub_surface = base::MakeRefCounted<gl::GLSurfaceStub>();
+  channel_manager.SetDefaultOffscreenSurface(stub_surface);
+  task_environment_.RunUntilIdle();
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.GpuMemoryAblation.Enabled", true, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Features.GpuMemoryAblation.AllocatedMB", 0, 1);
+
+  // Subsequent Conceal -> Reveal surface resets must not re-run ablation.
+  channel_manager.SetDefaultOffscreenSurface(nullptr);
+  channel_manager.SetDefaultOffscreenSurface(stub_surface);
+  task_environment_.RunUntilIdle();
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.Features.GpuMemoryAblation.Enabled", 1);
 }
 
 }  // namespace

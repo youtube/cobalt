@@ -144,6 +144,8 @@
 #endif  // BUILDFLAG(IS_OZONE)
 
 #if BUILDFLAG(IS_COBALT)
+#include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
 #include "ui/gl/gl_display.h"
 #include "ui/gl/gl_surface_egl.h"
 #endif  // BUILDFLAG(IS_COBALT)
@@ -300,9 +302,46 @@ GpuServiceImpl::GpuServiceImpl(
       vulkan_context_provider(), io_runner_);
 
   weak_ptr_ = weak_ptr_factory_.GetWeakPtr();
+
+#if BUILDFLAG(IS_COBALT)
+  deferred_gl_init_pending_ =
+      gpu_preferences_.watchdog_starts_backgrounded &&
+      base::FeatureList::IsEnabled(features::kCobaltDeferEglInitUntilVisible) &&
+      gl::GetGLImplementation() != gl::kGLImplementationDisabled &&
+      gpu_info_.gl_version.empty();
+  if (deferred_gl_init_pending_) {
+    deferred_gl_init_memory_pressure_listener_ =
+        std::make_unique<base::MemoryPressureListener>(
+            FROM_HERE,
+            base::BindRepeating(
+                &GpuServiceImpl::HandleDeferredInitMemoryPressure, weak_ptr_));
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 #if BUILDFLAG(IS_COBALT)
+GpuServiceImpl::PendingLoadedBlob::PendingLoadedBlob(
+    const gpu::GpuDiskCacheHandle& handle,
+    std::string key,
+    std::string data)
+    : handle(handle), key(std::move(key)), data(std::move(data)) {}
+
+GpuServiceImpl::PendingLoadedBlob::PendingLoadedBlob(PendingLoadedBlob&& other) =
+    default;
+
+GpuServiceImpl::PendingLoadedBlob& GpuServiceImpl::PendingLoadedBlob::operator=(
+    PendingLoadedBlob&& other) = default;
+
+GpuServiceImpl::PendingLoadedBlob::~PendingLoadedBlob() = default;
+
+void GpuServiceImpl::HandleDeferredInitMemoryPressure(
+    base::MemoryPressureListener::MemoryPressureLevel level) {
+  DCHECK(main_runner_->BelongsToCurrentThread());
+  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+    pending_loaded_blobs_.clear();
+    pending_loaded_blobs_.shrink_to_fit();
+  }
+}
 GpuServiceImpl::PendingEstablishGpuChannelRequest::
     PendingEstablishGpuChannelRequest(int32_t client_id,
                                       uint64_t client_tracing_id,
@@ -974,6 +1013,13 @@ void GpuServiceImpl::LoadedBlob(const gpu::GpuDiskCacheHandle& handle,
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (deferred_gl_init_pending_) {
+    pending_loaded_blobs_.emplace_back(handle, key, data);
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   std::string no_prefix_key = key;
   if (GetHandleType(handle) == gpu::GpuDiskCacheType::kGlShaders) {
     std::string prefix = GetShaderPrefixKey();
@@ -1316,20 +1362,101 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
   // centrally in GpuServiceImpl keeps GpuChannelManager's offscreen surface
   // accessor simple and avoids lazy-initialization races across client threads.
   gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-  if (display) {
-    if (!display->IsInitialized()) {
-      gl::init::GetOrInitializeGLOneOffPlatformImplementation(
-          /*fallback_to_software_gl=*/false,
-          /*disable_gl_drawing=*/false,
-          /*init_extensions=*/true,
-          gl::GpuPreference::kDefault);
+  if (deferred_gl_init_pending_) {
+    const base::TimeTicks cold_init_start = base::TimeTicks::Now();
+    TRACE_EVENT0("gpu,startup", "GpuServiceImpl::DeferredColdGLInit");
+    // Deferred cold GL init targets Starboard EGL platforms and intentionally
+    // skips desktop Linux compatibility-to-core profile retry and SwiftShader
+    // fallback.
+    gl::GLDisplay* initialized_display =
+        gl::init::InitializeGLNoExtensionsOneOff(
+            /*init_bindings=*/false, gl::GpuPreference::kDefault);
+    if (initialized_display && initialized_display->IsInitialized()) {
+      display = initialized_display->GetAs<gl::GLDisplayEGL>();
+      deferred_gl_init_pending_ = false;
+      deferred_gl_init_memory_pressure_listener_.reset();
+      shader_prefix_key_.clear();
+
+      if (!gpu::CollectContextGraphicsInfo(&gpu_info_)) {
+        VLOG(1) << "gpu::CollectContextGraphicsInfo failed";
+      }
+      gpu::SetKeysForCrashLogging(gpu_info_);
+      gpu::GpuFeatureInfo computed_feature_info = gpu::ComputeGpuFeatureInfo(
+          gpu_info_, gpu_preferences_, base::CommandLine::ForCurrentProcess(),
+          nullptr);
+      computed_feature_info
+          .supported_buffer_formats_for_allocation_and_texturing = std::move(
+          gpu_feature_info_
+              .supported_buffer_formats_for_allocation_and_texturing);
+#if BUILDFLAG(IS_OZONE)
+      computed_feature_info.supported_buffer_formats_for_gl_native_pixmap_import =
+          std::move(gpu_feature_info_
+                        .supported_buffer_formats_for_gl_native_pixmap_import);
+#endif  // BUILDFLAG(IS_OZONE)
+      computed_feature_info.status_values[gpu::GPU_FEATURE_TYPE_VULKAN] =
+          gpu_feature_info_.status_values[gpu::GPU_FEATURE_TYPE_VULKAN];
+      // Safe without locking: this runs on |main_runner_| strictly before any
+      // GPU channel or root CompositorFrameSink exists to read these members.
+      gpu_feature_info_ = std::move(computed_feature_info);
+
+      if (!gpu_feature_info_.disabled_extensions.empty()) {
+        gl::init::SetDisabledExtensionsPlatform(
+            gpu_feature_info_.disabled_extensions);
+      }
+      if (!gl::init::InitializeExtensionSettingsOneOffPlatform(
+              initialized_display)) {
+        VLOG(1)
+            << "gl::init::InitializeExtensionSettingsOneOffPlatform failed";
+      }
+      if (!gpu::CollectGpuExtraInfo(&gpu_extra_info_, gpu_preferences_)) {
+        VLOG(1) << "gpu::CollectGpuExtraInfo failed";
+      }
+
+      gpu_driver_bug_workarounds_ = gpu::GpuDriverBugWorkarounds(
+          gpu_feature_info_.enabled_gpu_driver_bug_workarounds);
+      gpu_channel_manager_->UpdateGpuFeatureInfo(gpu_feature_info_);
+      gpu_host_->DidUpdateGPUInfoAndFeatures(gpu_info_, gpu_feature_info_,
+                                             gpu_extra_info_);
+      base::UmaHistogramTimes("Cobalt.GPU.DeferEglInit.ColdInitDuration",
+                              base::TimeTicks::Now() - cold_init_start);
+
+      if (!pending_loaded_blobs_.empty()) {
+        const base::TimeTicks replay_start = base::TimeTicks::Now();
+        TRACE_EVENT1("gpu,startup",
+                     "GpuServiceImpl::ReplayPendingLoadedBlobs", "count",
+                     pending_loaded_blobs_.size());
+        auto pending_blobs = std::move(pending_loaded_blobs_);
+        pending_loaded_blobs_.clear();
+        for (auto& blob : pending_blobs) {
+          LoadedBlob(blob.handle, blob.key, blob.data);
+          // Release each buffered string immediately to avoid doubling peak
+          // memory while populating Skia's in-memory cache.
+          blob.key.clear();
+          blob.key.shrink_to_fit();
+          blob.data.clear();
+          blob.data.shrink_to_fit();
+        }
+        base::UmaHistogramTimes(
+            "Cobalt.GPU.DeferEglInit.ShaderBlobReplayDuration",
+            base::TimeTicks::Now() - replay_start);
+      }
+    } else {
+      LOG(ERROR) << "Failed to initialize deferred GLDisplay on foreground.";
+      pending_loaded_blobs_.clear();
+      pending_loaded_blobs_.shrink_to_fit();
     }
-    if (display->IsInitialized() &&
-        !gpu_channel_manager_->default_offscreen_surface()) {
-      scoped_refptr<gl::GLSurface> surface =
-          gl::init::CreateOffscreenGLSurface(display, gfx::Size());
-      gpu_channel_manager_->SetDefaultOffscreenSurface(std::move(surface));
-    }
+  } else if (display && !display->IsInitialized()) {
+    gl::init::GetOrInitializeGLOneOffPlatformImplementation(
+        /*fallback_to_software_gl=*/false,
+        /*disable_gl_drawing=*/false,
+        /*init_extensions=*/true,
+        gl::GpuPreference::kDefault);
+  }
+  if (display && display->IsInitialized() &&
+      !gpu_channel_manager_->default_offscreen_surface()) {
+    scoped_refptr<gl::GLSurface> surface =
+        gl::init::CreateOffscreenGLSurface(display, gfx::Size());
+    gpu_channel_manager_->SetDefaultOffscreenSurface(std::move(surface));
   }
 
   // Fulfill all channel establishment requests that arrived while backgrounded,

@@ -33,6 +33,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/first_party_sets_handler.h"
+#include "content/public/browser/gpu_utils.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/result_codes.h"
@@ -199,6 +200,7 @@ void ShellBrowserMainParts::ToolkitInitialized() {
 }
 
 int ShellBrowserMainParts::PreCreateThreads() {
+  SetGpuApplicationVisibleOnUI(is_visible_);
 #if BUILDFLAG(IS_ANDROID)
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();

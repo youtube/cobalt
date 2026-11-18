@@ -999,6 +999,21 @@ void GpuInit::InitializeInProcess(base::CommandLine* command_line,
 
   gl::GLDisplay* gl_display = nullptr;
 
+#if BUILDFLAG(IS_COBALT)
+  // On concealed (preload) startup, load static GL bindings only and defer
+  // GLDisplayEGL initialization and context info collection until first
+  // foreground in GpuServiceImpl::OnForegroundedOnMainThread().
+  const bool defer_gl_display_init =
+      gpu_preferences_.watchdog_starts_backgrounded &&
+      base::FeatureList::IsEnabled(features::kCobaltDeferEglInitUntilVisible);
+  if (defer_gl_display_init) {
+    if (!gl::init::InitializeStaticGLBindingsOneOff()) {
+      VLOG(1) << "gl::init::InitializeStaticGLBindingsOneOff failed";
+      return;
+    }
+    gpu_info_.gl_implementation_parts = gl::GetGLImplementationParts();
+  } else {
+#endif  // BUILDFLAG(IS_COBALT)
   gl_use_swiftshader_ = EnableSwiftShaderIfNeeded(
       command_line, gpu_feature_info_,
       gpu_preferences_.disable_software_rasterizer, needs_more_info);
@@ -1096,6 +1111,9 @@ void GpuInit::InitializeInProcess(base::CommandLine* command_line,
   if (gl_use_swiftshader_) {
     AdjustInfoToSwiftShader();
   }
+#if BUILDFLAG(IS_COBALT)
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_OZONE)
   const std::vector<gfx::BufferFormat> supported_buffer_formats_for_texturing =

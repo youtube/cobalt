@@ -81,6 +81,7 @@ TestShell* TestShell::CreateNewWindow(
     const scoped_refptr<SiteInstance>& site_instance,
     const gfx::Size& initial_size) {
   WebContents::CreateParams create_params(browser_context, site_instance);
+  create_params.initially_hidden = !GetPlatform()->IsVisible();
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;

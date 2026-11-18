@@ -496,6 +496,11 @@ void GpuHostImpl::OnChannelEstablished(
   // that currently uses it. This is because in that mode the sync mojo call
   // in the caller means we won't get the async DidInitialize() call before
   // this point, so the delegate_ methods won't have the GPU info structs yet.
+#if BUILDFLAG(IS_COBALT)
+  std::move(callback).Run(std::move(channel_handle), gpu_info, gpu_feature_info,
+                          shared_image_capabilities,
+                          EstablishChannelStatus::kSuccess);
+#else
   if (sync) {
     std::move(callback).Run(std::move(channel_handle), gpu_info,
                             gpu_feature_info, shared_image_capabilities,
@@ -506,6 +511,7 @@ void GpuHostImpl::OnChannelEstablished(
                             shared_image_capabilities,
                             EstablishChannelStatus::kSuccess);
   }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void GpuHostImpl::DidInitialize(
@@ -617,6 +623,16 @@ void GpuHostImpl::GetIsolationKey(
 void GpuHostImpl::DidUpdateGPUInfo(const gpu::GPUInfo& gpu_info) {
   delegate_->DidUpdateGPUInfo(gpu_info);
 }
+
+#if BUILDFLAG(IS_COBALT)
+void GpuHostImpl::DidUpdateGPUInfoAndFeatures(
+    const gpu::GPUInfo& gpu_info,
+    const gpu::GpuFeatureInfo& gpu_feature_info,
+    const gfx::GpuExtraInfo& gpu_extra_info) {
+  delegate_->DidUpdateGPUInfoAndFeatures(gpu_info, gpu_feature_info,
+                                         gpu_extra_info);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_WIN)
 void GpuHostImpl::DidUpdateOverlayInfo(const gpu::OverlayInfo& overlay_info) {

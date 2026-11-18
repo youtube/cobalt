@@ -1037,6 +1037,27 @@ void GpuProcessHost::DidUpdateGPUInfo(const gpu::GPUInfo& gpu_info) {
   GpuDataManagerImpl::GetInstance()->UpdateGpuInfo(gpu_info, std::nullopt);
 }
 
+#if BUILDFLAG(IS_COBALT)
+void GpuProcessHost::DidUpdateGPUInfoAndFeatures(
+    const gpu::GPUInfo& gpu_info,
+    const gpu::GpuFeatureInfo& gpu_feature_info,
+    const gfx::GpuExtraInfo& gpu_extra_info) {
+  if (kind_ == GPU_PROCESS_KIND_INFO_COLLECTION) {
+    return;
+  }
+  auto* gpu_data_manager = GpuDataManagerImpl::GetInstance();
+  gpu_data_manager->UpdateGpuFeatureInfo(gpu_feature_info, std::nullopt);
+  gpu_data_manager->UpdateGpuInfo(gpu_info, std::nullopt);
+  gpu_data_manager->UpdateGpuExtraInfo(gpu_extra_info);
+}
+
+scoped_refptr<base::SingleThreadTaskRunner>
+GpuProcessHost::GetInProcessGpuThreadTaskRunnerForTesting() const {
+  return in_process_gpu_thread_ ? in_process_gpu_thread_->task_runner()
+                                : nullptr;
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 #if BUILDFLAG(IS_WIN)
 void GpuProcessHost::DidUpdateOverlayInfo(
     const gpu::OverlayInfo& overlay_info) {

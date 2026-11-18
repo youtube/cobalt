@@ -211,7 +211,10 @@ static_library("cobalt_shell_switches") {
 }
 
 static_library("cobalt_shell_lib") {
-  deps = [ "//cobalt/browser:features" ]
+  deps = [
+    "//cobalt/browser:features",
+    "//gpu/config",
+  ]
 
   public_deps = [
     ":cobalt_shell_lib_deps",
@@ -273,7 +276,6 @@ static_library("cobalt_shell_lib") {
       "browser/shell_platform_delegate_android.cc",
       "browser/shell_web_contents_view_delegate_android.cc",
     ]
-    deps += [ "//gpu/config" ]
   }
 
   if (is_ios) {

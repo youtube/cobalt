@@ -24,6 +24,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/bind.h"
+#include "ui/gl/gl_surface.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gpu {
 
 class GpuChannelManagerTest : public GpuChannelTestCommon {
@@ -263,5 +268,45 @@ TEST_F(GpuChannelManagerTest, GetPeakMemoryUsageCalculatedPerSequence) {
   EXPECT_EQ(initial_memory, GetManagersPeakMemoryUsage(sequence_num_1));
   EXPECT_EQ(localized_peak_memory, GetManagersPeakMemoryUsage(sequence_num_2));
 }
+
+#if BUILDFLAG(IS_COBALT)
+// Covers the user journey where a GPU startup task (such as GPU memory
+// ablation) registers while EGL initialization is deferred during preload and
+// runs exactly once when the first Reveal creates the default offscreen
+// surface, without re-running on subsequent Conceal/Reveal cycles.
+TEST_F(GpuChannelManagerTest, RunsOffscreenSurfaceReadyCallbacksOnce) {
+  scoped_refptr<gl::GLSurface> original_surface =
+      channel_manager()->default_offscreen_surface();
+  ASSERT_NE(original_surface, nullptr);
+
+  channel_manager()->SetDefaultOffscreenSurface(nullptr);
+  EXPECT_EQ(channel_manager()->default_offscreen_surface(), nullptr);
+
+  int runs = 0;
+  channel_manager()->RunWhenDefaultOffscreenSurfaceReady(
+      base::BindLambdaForTesting([&]() { ++runs; }));
+  EXPECT_EQ(runs, 0);
+
+  channel_manager()->SetDefaultOffscreenSurface(original_surface);
+  EXPECT_EQ(runs, 1);
+
+  channel_manager()->SetDefaultOffscreenSurface(nullptr);
+  channel_manager()->SetDefaultOffscreenSurface(original_surface);
+  EXPECT_EQ(runs, 1);
+}
+
+// Covers the user journey where Cobalt launches directly into a visible state
+// (default offscreen surface already initialized), verifying that a task
+// registered with RunWhenDefaultOffscreenSurfaceReady executes immediately.
+TEST_F(GpuChannelManagerTest,
+       RunsOffscreenSurfaceReadyImmediatelyWhenAlreadySet) {
+  ASSERT_NE(channel_manager()->default_offscreen_surface(), nullptr);
+
+  int runs = 0;
+  channel_manager()->RunWhenDefaultOffscreenSurfaceReady(
+      base::BindLambdaForTesting([&]() { ++runs; }));
+  EXPECT_EQ(runs, 1);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace gpu
