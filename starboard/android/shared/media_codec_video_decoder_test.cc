@@ -843,6 +843,30 @@ TEST_F(MediaCodecVideoDecoderTest,
   EXPECT_FALSE(error_called_);
 }
 
+TEST_F(MediaCodecVideoDecoderTest,
+       CapabilityChangedErrorCancelsPendingCodecCreationRetry) {
+  VideoStreamInfo initial_info = kDefaultVideoStreamInfo;
+  initial_info.frame_size = {1280, 720};
+  CreateDecoder("width=1280; height=720", &initial_info,
+                CodecCreationRetryFeatures(3),
+                /*enable_flush_during_seek=*/false,
+                /*codec_creation_failures=*/1);
+  InitializeDecoder();
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
+
+  VideoStreamInfo oversized_info = kDefaultVideoStreamInfo;
+  oversized_info.frame_size = {1920, 1080};
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      0, 1024, &oversized_info, /*is_key_frame=*/true)});
+  ASSERT_TRUE(error_called_.load());
+  EXPECT_EQ(last_error_, kSbPlayerErrorCapabilityChanged);
+
+  // The errored decoder must not create a codec afterwards.
+  PumpJobQueueFor(300);
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_EQ(GetFakeVideoCodec(), nullptr);
+}
+
 TEST_F(MediaCodecVideoDecoderTest, HdrColorMetadataSurvivesCodecCreationRetry) {
   CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
                                         /*codec_creation_failures=*/1);

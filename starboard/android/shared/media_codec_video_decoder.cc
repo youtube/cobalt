@@ -565,6 +565,9 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
           SB_LOG(ERROR) << "Video frame size " << frame_size
                         << " exceeds max resolution " << max_video_size_.value()
                         << ". Raising kSbPlayerErrorCapabilityChanged.";
+          // The player is replaced after this error, so a pending retry must
+          // not grab the hardware codec (and surface) from its replacement.
+          CancelPendingCodecCreationRetry();
           ReportError(kSbPlayerErrorCapabilityChanged,
                       "Video frame size exceeds max resolution.");
           return;
@@ -646,6 +649,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       std::string error_message =
           "Failed to reinitialize codec with error: " + status.error();
       SB_LOG(ERROR) << error_message;
+      pending_input_buffers_.clear();
       ReportError(kSbPlayerErrorDecode, error_message);
       return;
     }
@@ -707,6 +711,7 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
       std::string error_message =
           "Failed to reinitialize codec with error: " + status.error();
       SB_LOG(ERROR) << error_message;
+      pending_input_buffers_.clear();
       ReportError(kSbPlayerErrorDecode, error_message);
       return;
     }
@@ -1066,12 +1071,14 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
     }
   }
 
+  // Retries made so far, including this one.
+  const int attempt =
+      codec_creation_retry_.max_retries - codec_creation_retry_.retries_left;
   auto status = TryInitializeCodec(stream_info);
   if (!status) {
-    std::string error_message =
-        "Failed to create MediaCodec after " +
-        std::to_string(codec_creation_retry_.max_retries) +
-        " retries: " + status.error();
+    std::string error_message = "Failed to create MediaCodec after " +
+                                std::to_string(attempt) +
+                                " retries: " + status.error();
     SB_LOG(ERROR) << error_message;
     pending_input_buffers_.clear();
     ReportError(kSbPlayerErrorDecode, error_message);
