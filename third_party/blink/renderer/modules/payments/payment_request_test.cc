@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_tester.h"
@@ -686,7 +685,6 @@ TEST(PaymentRequestTest, NoCrashWhenPaymentMethodChangeEventDestroysContext) {
                               /*stringified_details=*/"{}");
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 TEST(PaymentRequestTest, SPCActivationlessShow) {
   test::TaskEnvironment task_environment;
 
@@ -748,7 +746,6 @@ TEST(PaymentRequestTest, SPCActivationlessNotConsumedWithActivation) {
         WebFeature::kPaymentRequestShowWithoutGestureOrToken));
   }
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 TEST(PaymentRequestTest, DeprecatedPaymentMethod) {
   test::TaskEnvironment task_environment;

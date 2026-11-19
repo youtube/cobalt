@@ -310,6 +310,7 @@ void SetBuildInfoAnnotations(std::map<std::string, std::string>* annotations) {
 }
 
 
+
 #if defined(__arm__) && defined(__ARM_ARCH_7A__)
 #define CURRENT_ABI "armeabi-v7a"
 #elif defined(__arm__)
@@ -346,7 +347,6 @@ void MakePackagePaths(std::string* classpath, std::string* libpath) {
 }
 
 
-const char kCrashReportUrl[] = "https://clients2.google.com/cr/report";
 
 void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
                       base::FilePath* database_path,
@@ -357,10 +357,8 @@ void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
   crash_reporter_client->GetCrashDumpLocation(database_path);
   crash_reporter_client->GetCrashMetricsLocation(metrics_path);
 
-  *url = crash_reporter_client->GetUploadUrl();
-  if (url->empty()) {
-    *url = kCrashReportUrl;
-  }
+  // TODO(jperaza): Set URL for Android when Crashpad takes over report upload.
+  *url = std::string();
 
   ProductInfo product_info;
   crash_reporter_client->GetProductInfo(&product_info);
@@ -422,14 +420,6 @@ class HandlerStarter {
     BuildHandlerArgs(GetCrashReporterClient(), &database_path, &metrics_path,
                      &url, &process_annotations, &arguments);
 
-#if BUILDFLAG(IS_COBALT)
-    // Disable periodic tasks. In the Android "at-crash" execution model, this
-    // flag prevents an unnecessary file system scan for pending reports,
-    // reducing thread contention during the critical crash dumping window.
-    // Database pruning is handled synchronously via PruneNow() in the upload
-    // thread observation callback upon report completion.
-    arguments.push_back("--no-periodic-tasks");
-#endif
     if (crashpad::SetSanitizationInfo(GetCrashReporterClient(),
                                       &browser_sanitization_info_)) {
       arguments.push_back(base::StringPrintf("--sanitization-information=%p",
@@ -444,17 +434,7 @@ class HandlerStarter {
     // Don't handle SIGQUIT in the browser process on Android; the system masks
     // this and uses it for generating ART stack traces, and if it gets unmasked
     // (e.g. by a WebView app) we don't want to treat this as a crash.
-
-
-    #if BUILDFLAG(IS_COBALT)
-    // Prevent Crashpad from handling standard crash signals. Only hangs are handled.
-    GetCrashpadClient().SetUnhandledSignals({
-        SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGQUIT, SIGSEGV, SIGSYS, SIGTRAP,
-    });
-    #else
     GetCrashpadClient().SetUnhandledSignals({SIGQUIT});
-    #endif
-
 
     internal::GetHandlerTrampoline(&handler_trampoline_, &handler_library_);
 
@@ -503,9 +483,6 @@ class HandlerStarter {
         return false;
       }
 
-#if BUILDFLAG(IS_COBALT)
-      LOG(INFO) << "Launching handler with Linker for client.";
-#endif
       return GetCrashpadClient().StartHandlerWithLinkerForClient(
           handler_trampoline_, handler_library_, kUse64Bit, &env, database_path,
           metrics_path, url, process_annotations, arguments, fd);
