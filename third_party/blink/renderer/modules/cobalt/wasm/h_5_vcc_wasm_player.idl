@@ -59,13 +59,18 @@ interface H5vccWasmPlayer {
   // be kSbPlayerOutputModePunchOut. `surface` (0 for none)
   // plays the role of SbWindow: it ties the player to a <video> element (see
   // H5vccWasmSurface). Returns a player handle, or 0, e.g. while a previous
-  // player still holds the video surface; retry after its
-  // kWasmSbEventPlayerDestroyed. Handles aren't reused.
+  // player still holds the video surface (retry after its
+  // kWasmSbEventPlayerDestroyed) or while 4 players are live. Handles aren't
+  // reused.
   [CallWith=Isolate, NoAllocDirectCall]
   unsigned long create(unsigned long surface,
                        unsigned long creationParam,
                        unsigned long creationParamSize);
-  // Afterwards the player reports only kWasmSbEventPlayerDestroyed.
+  // Afterwards the player reports only kWasmSbEventPlayerDestroyed. Before
+  // terminating a worker that has players, or playing video in a <video>,
+  // destroy the players and wait for that event: worker.terminate() returns
+  // before the worker's players are destroyed. When a context goes away, its
+  // remaining players are destroyed before it does.
   [NoAllocDirectCall] undefined destroy(unsigned long player);
 
   // `seekToTimestamp` is in microseconds, at most 2^53 in magnitude.
@@ -139,7 +144,8 @@ interface H5vccWasmPlayer {
   [NoAllocDirectCall] undefined requestWake();
 
   // Moves up to `count` queued WasmSbEvent records to `events`; returns how
-  // many.
+  // many. Beyond 1024 queued events, new ones other than
+  // kWasmSbEventPlayerDestroyed are dropped.
   [CallWith=Isolate, NoAllocDirectCall]
   unsigned long pollEvents(unsigned long events, unsigned long count);
 };

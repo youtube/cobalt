@@ -163,6 +163,8 @@ class WasmPlayerHost : public cobalt::media::mojom::VideoGeometryChangeClient {
                              int32_t z_index) override;
 
  private:
+  static constexpr size_t kMaxPlayers = 4;
+
   struct Player;
   struct CallbackContext;
   struct Surface {
@@ -180,6 +182,7 @@ class WasmPlayerHost : public cobalt::media::mojom::VideoGeometryChangeClient {
                            const SbMediaVideoStreamInfo& info) const;
 
   void OnDeallocateSample(uint32_t player, const void* sample_buffer);
+  void OnDestroyFinished();
 
   static void PushEvent(void* context, WasmSbEvent event);
 
@@ -204,6 +207,8 @@ class WasmPlayerHost : public cobalt::media::mojom::VideoGeometryChangeClient {
   const scoped_refptr<EventQueue> events_;
   const raw_ref<::media::SbPlayerInterface> sbplayer_;
   const scoped_refptr<base::SequencedTaskRunner> destroy_task_runner_;
+  // destroy()ed players whose SbPlayerDestroy() hasn't returned yet.
+  size_t pending_destroys_ = 0;
   uint32_t next_player_ = 1;
   std::map<uint32_t, std::unique_ptr<Player>> players_;
   uint32_t next_surface_ = 1;

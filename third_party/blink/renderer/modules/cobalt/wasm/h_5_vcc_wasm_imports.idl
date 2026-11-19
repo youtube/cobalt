@@ -25,8 +25,10 @@
 // Hidden until the page calls h5vcc.settings.set("H5vccWasmImports", 1), which
 // exposes these interfaces in that page, in later pages and in dedicated
 // workers created afterwards (see H5vccWasmImports in
-// runtime_enabled_features.json5). Only the outermost main frame and dedicated
-// workers same-origin with it get an instance; the attribute is null elsewhere.
+// runtime_enabled_features.json5). The setting is refused in AndroidOverlay
+// mode, which has no video SurfaceView for punch-out. Only the outermost main
+// frame and dedicated workers same-origin with it get an instance; the
+// attribute is null elsewhere.
 [
     Exposed=(Window,DedicatedWorker),
     RuntimeEnabled=H5vccWasmImports,

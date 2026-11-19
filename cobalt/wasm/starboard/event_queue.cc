@@ -14,10 +14,12 @@
 
 #include "cobalt/wasm/starboard/event_queue.h"
 
+#include <bit>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/logging.h"
 
 namespace cobalt {
 
@@ -29,6 +31,14 @@ EventQueue::~EventQueue() = default;
 
 void EventQueue::Push(const WasmSbEvent& event) {
   base::AutoLock lock(lock_);
+  if (events_.size() >= kMaxEvents &&
+      event.kind != kWasmSbEventPlayerDestroyed) {
+    if (std::has_single_bit(++dropped_)) {
+      LOG(WARNING) << "Dropped " << dropped_
+                   << " Wasm player events: pollEvents() isn't keeping up.";
+    }
+    return;
+  }
   events_.push_back(event);
   if (wake_requested_) {
     PostWakeLocked();

@@ -31,13 +31,17 @@
 namespace cobalt {
 
 // The events waiting for H5vccWasmPlayer.pollEvents(). Starboard callbacks
-// Push() on their own threads; the queue never drops events. Players hold a
-// reference, so callbacks during an SbPlayerDestroy() that outlives the
-// execution context stay safe.
+// Push() on their own threads. Beyond kMaxEvents, events other than
+// kWasmSbEventPlayerDestroyed are dropped and counted: a guest that stops
+// polling is already broken, but mustn't grow the single-process app's
+// memory without bound. Players hold a reference, so callbacks during an
+// SbPlayerDestroy() that outlives the execution context stay safe.
 // `on_wake` runs on `task_runner` at most once per RequestWake(): as soon as
 // an event is queued, or right away if one already is.
 class EventQueue : public base::RefCountedThreadSafe<EventQueue> {
  public:
+  static constexpr size_t kMaxEvents = 1024;
+
   EventQueue(scoped_refptr<base::SequencedTaskRunner> task_runner,
              base::RepeatingClosure on_wake);
   EventQueue(const EventQueue&) = delete;
@@ -67,6 +71,7 @@ class EventQueue : public base::RefCountedThreadSafe<EventQueue> {
   base::RepeatingClosure on_wake_ GUARDED_BY(lock_);
   base::circular_deque<WasmSbEvent> events_ GUARDED_BY(lock_);
   bool wake_requested_ GUARDED_BY(lock_) = false;
+  size_t dropped_ GUARDED_BY(lock_) = 0;
 };
 
 }  // namespace cobalt

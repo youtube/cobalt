@@ -27,8 +27,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/ref_counted.h"
 #include "base/no_destructor.h"
 #include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
@@ -343,9 +345,32 @@ WasmPlayerHost::WasmPlayerHost(scoped_refptr<EventQueue> events,
 
 WasmPlayerHost::~WasmPlayerHost() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  while (!players_.empty()) {
-    Destroy(players_.begin()->first);
+  // The context is going away, e.g. on navigation. Unlike destroy(), this
+  // waits for SbPlayerDestroy() so the video surface is free before the next
+  // document can create a player: Android has one, and a <video> whose
+  // SbPlayerCreate() fails for lack of it doesn't retry. That includes
+  // destroys destroy() already posted. The wait is bounded because the
+  // thread pool skips the task once it shuts down.
+  if (pending_destroys_) {
+    auto done = base::MakeRefCounted<base::RefCountedData<base::WaitableEvent>>(
+        std::in_place);
+    destroy_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](scoped_refptr<base::RefCountedData<base::WaitableEvent>> done) {
+              done->data.Signal();
+            },
+            done));
+    done->data.TimedWait(base::Seconds(2));
   }
+  for (auto& [id, player] : players_) {
+    {
+      base::AutoLock lock(player->context->lock);
+      player->context->destroyed = true;
+    }
+    sbplayer_->Destroy(player->sb_player);
+  }
+  players_.clear();
   for (const auto& [id, surface] : surfaces_) {
     SurfaceVideoSize::RemoveSurface(surface.token);
   }
@@ -507,8 +532,10 @@ uint32_t WasmPlayerHost::Create(GuestMemory& memory,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CreationParam param;
   // Only punch-out can show video: nothing binds SbPlayerGetCurrentFrame(),
-  // and only Android gets a decode-target provider.
-  if ((surface != 0 && !surfaces_.contains(surface)) ||
+  // and only Android gets a decode-target provider. The cap bounds the
+  // SbPlayers a guest holds, including ones still being destroyed.
+  if (players_.size() + pending_destroys_ >= kMaxPlayers ||
+      (surface != 0 && !surfaces_.contains(surface)) ||
       !ResolveCreationParam(memory, creation_param, creation_param_size,
                             &param) ||
       param.param.output_mode != kSbPlayerOutputModePunchOut) {
@@ -554,6 +581,7 @@ void WasmPlayerHost::Destroy(uint32_t player) {
     destroyed->context->destroyed = true;
   }
   events_->DropPlayer(player);
+  ++pending_destroys_;
   // SbPlayerDestroy() can block, e.g. until the platform releases the video
   // surface. Starboard may use the samples and the callback context
   // until it returns.
@@ -565,6 +593,9 @@ void WasmPlayerHost::Destroy(uint32_t player) {
             sbplayer->Destroy(player->sb_player);
             player->context->events->Push({kWasmSbEventPlayerDestroyed,
                                            player->context->player, 0, 0, 0});
+            player->context->events->task_runner()->PostTask(
+                FROM_HERE, base::BindOnce(&WasmPlayerHost::OnDestroyFinished,
+                                          player->context->host));
           },
           base::Unretained(&*sbplayer_), std::move(destroyed)));
 }
@@ -879,6 +910,11 @@ void WasmPlayerHost::SetSurfaceVideoSize(
     SurfaceVideoSize::Set(surface->second.token,
                           gfx::Size(info.frame_width, info.frame_height));
   }
+}
+
+void WasmPlayerHost::OnDestroyFinished() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  --pending_destroys_;
 }
 
 void WasmPlayerHost::OnDeallocateSample(uint32_t player,

@@ -86,8 +86,15 @@ void CobaltContentGpuClient::CreateVideoGeometrySetterService() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
   // Lets Wasm players follow their <video> holes. Cobalt is single-process,
   // so the renderer's hosts can use the service directly. Posting keeps the
-  // service's WeakPtrs on this sequence. Nothing uses it until a page turns
-  // the Wasm API on.
+  // service's WeakPtrs on this sequence.
+  //
+  // Not gated on the H5vccWasmImports runtime feature, unlike the rest of the
+  // Wasm ABI: this runs once at GPU service startup, while the feature is
+  // turned on later, at runtime, by a page calling
+  // h5vcc.settings.set("H5vccWasmImports", 1). Gating here would read it as
+  // off for the rest of the process. Installing it is inert: it only stores
+  // a callback, which runs only when a WasmPlayerHost creates a surface, and
+  // a host exists only once the page has turned the feature on.
   WasmPlayerHost::SetVideoGeometrySubscriberBinder(
       base::BindPostTaskToCurrentDefault(
           video_geometry_setter_service_->GetBindSubscriberCallback()));
