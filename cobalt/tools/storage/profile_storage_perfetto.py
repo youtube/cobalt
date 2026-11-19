@@ -304,17 +304,18 @@ def _device_info(serial: Optional[str], package: str) -> Dict[str, str]:
     detail = res.stderr.strip() or res.stdout.strip()
     raise RuntimeError(f"No adb device (serial {serial}): {detail}")
   res = _adb_shell(
-      serial, f"perfetto --version | head -1; dumpsys package {package} | "
-      "grep -m1 versionName; getprop ro.build.fingerprint")
+      serial, 'echo "perfetto: $(perfetto --version 2>/dev/null | head -1)"; '
+      f"dumpsys package {package} | grep -m1 versionName; "
+      'echo "fingerprint: $(getprop ro.build.fingerprint)"')
   version_name = re.search(r"versionName=(\S+)", res.stdout)
   if not version_name:
     raise RuntimeError(f"{package} is not installed on the device.")
-  perfetto = re.search(r"^Perfetto.*$", res.stdout, re.M)
-  lines = res.stdout.strip().splitlines()
+  perfetto = re.search(r"^perfetto:[ \t]*(.*)$", res.stdout, re.M)
+  fingerprint = re.search(r"^fingerprint:[ \t]*(.*)$", res.stdout, re.M)
   return {
-      "perfetto": perfetto.group(0).strip() if perfetto else "",
+      "perfetto": perfetto.group(1).strip() if perfetto else "",
       "app_version_name": version_name.group(1),
-      "build_fingerprint": lines[-1].strip(),
+      "build_fingerprint": fingerprint.group(1).strip() if fingerprint else "",
   }
 
 
@@ -370,18 +371,22 @@ def _wait_for_exit(serial: Optional[str], pid: int, timeout_s: int = 60):
       file=sys.stderr)
 
 
-def _uptime_action(serial: Optional[str], phase: str, name: str,
-                   command: str) -> Dict[str, Any]:
+def _uptime_action(serial: Optional[str],
+                   phase: str,
+                   name: str,
+                   command: str,
+                   check: bool = True) -> Dict[str, Any]:
   """Runs `command` on the device between two /proc/uptime reads.
 
   /proc/uptime is CLOCK_BOOTTIME, the trace clock, so start_s * 1e9 and
   end_s * 1e9 are trace timestamps.
   """
-  res = _adb_shell(serial, f"cat /proc/uptime; {command}; cat /proc/uptime")
+  res = _adb_shell(
+      serial, f"cat /proc/uptime; {command}; rc=$?; cat /proc/uptime; exit $rc")
   uptimes = re.findall(r"^(\d+\.\d+) \d+\.\d+\s*$", res.stdout, re.M)
   output = (res.stdout + res.stderr).strip()
-  if len(uptimes) < 2 or "Error" in output:
-    raise RuntimeError(f"{name} failed: {output}")
+  if len(uptimes) < 2 or (check and (res.returncode != 0 or "Error" in output)):
+    raise RuntimeError(f"{name} failed (exit code {res.returncode}): {output}")
   return {
       "phase": phase,
       "name": name,
@@ -491,8 +496,10 @@ def record_trace(args: argparse.Namespace, config: str, trace_path: str,
     capture["error"] = f"{type(exc).__name__}: {exc}"
     raise
   finally:
+    # Perfetto may have already exited if the safety duration_ms cap elapsed.
     events.append(
-        _uptime_action(serial, "stop", "stop_trace", f"kill -INT {pid}"))
+        _uptime_action(
+            serial, "stop", "stop_trace", f"kill -INT {pid}", check=False))
     _wait_for_exit(serial, pid)
     capture["phases"] = phase_bounds(events)
     with open(phases_path, "w", encoding="utf-8") as f:

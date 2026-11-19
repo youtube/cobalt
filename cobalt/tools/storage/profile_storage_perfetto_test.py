@@ -74,8 +74,9 @@ class FakeSubprocess:
         with open(cmd[-1], "wb") as f:
           f.write(b"trace-bytes")
       elif "versionName" in shell:
-        out = ("Perfetto v44.0-abc (abc)\n    versionName=8.03.1-DEVELOPER\n"
-               "google/sabrina/sabrina:14/user/release-keys\n")
+        out = ("perfetto: Perfetto v44.0-abc (abc)\n"
+               "    versionName=8.03.1-DEVELOPER\n"
+               "fingerprint: google/sabrina/sabrina:14/user/release-keys\n")
       elif "drop_caches" in shell:
         rc = self.drop_caches_rc
       elif "perfetto --background-wait" in shell:
@@ -225,7 +226,7 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
     self.assertTrue(
         all(
             s.startswith("cat /proc/uptime; ") and
-            s.endswith("; cat /proc/uptime") for s in shells))
+            s.endswith("; rc=$?; cat /proc/uptime; exit $rc") for s in shells))
     self.assertIn("am start -S ", shells[0])
     self.assertIn(
         "-d 'https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ' "
@@ -332,7 +333,8 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
                      ["launch", "stop_trace"])
     shells = [" ".join(cmd[3:]) for cmd in fake.commands]
     self.assertEqual(shells[-5:], [
-        "shell cat /proc/uptime; kill -INT 4242; cat /proc/uptime",
+        ("shell cat /proc/uptime; kill -INT 4242; rc=$?; "
+         "cat /proc/uptime; exit $rc"),
         "shell test -d /proc/4242",
         "shell test -d /proc/4242",
         f"pull /data/misc/perfetto-traces/cold.pftrace {trace}",
@@ -536,6 +538,40 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
     self.assertIn("--cuj-cmd exited with 3", stderr.getvalue())
     self.assertEqual(summary["capture"]["cuj_cmd_returncode"], 3)
     self.assertTrue(summary["trace_health"]["healthy"])
+
+  def test_device_info_parses_prefixed_and_empty_fields(self):
+    responses = [
+        subprocess.CompletedProcess([], 0, "device\n", ""),
+        subprocess.CompletedProcess(
+            [], 0, "perfetto: \n    versionName=8.03.1-DEVELOPER\n"
+            "fingerprint: \n", ""),
+    ]
+    with mock.patch.object(psp.subprocess, "run", side_effect=responses):
+      info = psp._device_info("s1", "com.google.android.youtube.tv")  # pylint: disable=protected-access
+    self.assertEqual(
+        info, {
+            "perfetto": "",
+            "app_version_name": "8.03.1-DEVELOPER",
+            "build_fingerprint": "",
+        })
+
+  def test_uptime_action_checks_exit_code(self):
+    ok_uptimes = "10.00 1.00\n10.25 1.00\n"
+    with mock.patch.object(
+        psp.subprocess,
+        "run",
+        return_value=subprocess.CompletedProcess([], 2, ok_uptimes,
+                                                 "quiet failure")):
+      with self.assertRaisesRegex(RuntimeError,
+                                  r"launch failed \(exit code 2\)"):
+        psp._uptime_action("s1", "cold_start", "launch", "false")  # pylint: disable=protected-access
+      event = psp._uptime_action(  # pylint: disable=protected-access
+          "s1",
+          "stop",
+          "stop_trace",
+          "kill -INT 42",
+          check=False)
+    self.assertEqual((event["start_s"], event["end_s"]), (10.0, 10.25))
 
 
 if __name__ == "__main__":
