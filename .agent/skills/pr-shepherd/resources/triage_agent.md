@@ -379,30 +379,7 @@ forbidden.)*
 
 ---
 
-## 6. Isolated Workspace & Stacked PRs (`gh stack`)
-
-### Isolated Workspace Hygiene
-- Issue Workers **MUST** edit, build, and rebase inside an isolated workspace
-  (`Workspace: "branch"` or a WISP worktree) so concurrent checks or main
-  checkouts are never corrupted.
-- Keep temporary downloaded logs/reports inside `<artifacts_dir>` or `/tmp`.
-- Never commit `shepherding_report.md`, `shepherding_report.lock`, or
-  `artifacts/` to the PR branch.
-
-### Stacked PRs (`gh stack`)
-1. **Branch Naming**: Stack branches pushed to `origin` follow
-   `origin:stack/<username>/<branch>`.
-2. **Bottom-Up Progression**: Stabilize lower layers before upper layers.
-3. **Upstack Cascade**: Whenever you modify or rebase a lower layer in a stack:
-   ```bash
-   gh stack rebase --upstack
-   gh stack submit --auto
-   ```
-   Verify dependent layers compile and pass tests.
-
----
-
-## 7. Action Ledger & Shepherding Status Report (`shepherding_report.md`)
+## 6. Action Ledger & Shepherding Status Report (`shepherding_report.md`)
 
 `shepherding_report.md` at the workspace root is the single source of truth
 for progress, handoffs between Watch Coordinators, and auditability of every
