@@ -291,6 +291,8 @@ TEST(MediaUtilTest, IsSDRColor) {
                          kSbMediaMatrixIdSmpte170M));
   EXPECT_TRUE(IsSDRColor(kSbMediaPrimaryIdBt470Bg, kSbMediaTransferIdBt709,
                          kSbMediaMatrixIdBt470Bg));
+  EXPECT_TRUE(IsSDRColor(kSbMediaPrimaryIdBt709, kSbMediaTransferIdBt709,
+                         kSbMediaMatrixIdBt470Bg));
 
   EXPECT_FALSE(IsSDRColor(kSbMediaPrimaryIdBt2020, kSbMediaTransferIdBt709,
                           kSbMediaMatrixIdBt709));
@@ -314,6 +316,13 @@ TEST(MediaUtilTest, Is8BitSDRVideo_Mime) {
   // transfer function (01), and matrix coefficients (01).
   EXPECT_TRUE(
       Is8BitSDRVideo("video/webm; codecs=\"vp09.00.51.08.01.01.01.01.01\""));
+  // 8-bit AV1 SDR streams tagged with legacy PAL BT.470BG primaries (05),
+  // BT.709 transfer (01), and SMPTE 170M (06) or BT.470BG (05) matrix
+  // coefficients are recognized as SDR for client format selection.
+  EXPECT_TRUE(
+      Is8BitSDRVideo("video/mp4; codecs=\"av01.0.08M.08.0.110.05.01.06.0\""));
+  EXPECT_TRUE(
+      Is8BitSDRVideo("video/mp4; codecs=\"av01.0.08M.08.0.110.05.01.05.0\""));
 
   // 10-bit depth (Profile 2 VP9) is HDR, not SDR.
   EXPECT_FALSE(
