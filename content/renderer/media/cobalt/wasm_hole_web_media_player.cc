@@ -253,9 +253,12 @@ std::unique_ptr<blink::WebMediaPlayer> MaybeCreateWasmHoleWebMediaPlayer(
     blink::WebMediaPlayerClient* client,
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     scoped_refptr<base::SingleThreadTaskRunner> compositor_task_runner) {
+  // Only a surface a WasmPlayerHost created gets a hole, so nothing changes
+  // for pages that don't use the Wasm API.
   const std::optional<base::UnguessableToken> overlay_plane_id =
       WasmSurfaceFromUrl(GURL(web_url));
-  if (!overlay_plane_id) {
+  if (!overlay_plane_id ||
+      !cobalt::SurfaceVideoSize::HasSurface(*overlay_plane_id)) {
     return nullptr;
   }
   return std::make_unique<WasmHoleWebMediaPlayer>(

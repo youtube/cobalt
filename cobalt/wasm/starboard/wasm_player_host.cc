@@ -347,7 +347,7 @@ WasmPlayerHost::~WasmPlayerHost() {
     Destroy(players_.begin()->first);
   }
   for (const auto& [id, surface] : surfaces_) {
-    SurfaceVideoSize::Set(surface.token, gfx::Size());
+    SurfaceVideoSize::RemoveSurface(surface.token);
   }
 }
 
@@ -459,6 +459,7 @@ uint32_t WasmPlayerHost::CreateSurface() {
   const uint32_t id = next_surface_++;
   Surface& surface = surfaces_[id];
   surface.token = base::UnguessableToken::Create();
+  SurfaceVideoSize::AddSurface(surface.token);
   if (!geometry_subscriber_.is_bound()) {
     GeometrySubscriberBinder& global = GetGeometrySubscriberBinder();
     base::AutoLock lock(global.lock);
@@ -483,7 +484,7 @@ void WasmPlayerHost::DestroySurface(uint32_t surface) {
     return;
   }
   geometry_receivers_.Remove(it->second.receiver);
-  SurfaceVideoSize::Set(it->second.token, gfx::Size());
+  SurfaceVideoSize::RemoveSurface(it->second.token);
   surfaces_.erase(it);
   for (auto& [id, player] : players_) {
     if (player->surface == surface) {

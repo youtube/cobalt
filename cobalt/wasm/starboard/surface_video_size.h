@@ -22,17 +22,24 @@
 
 namespace cobalt {
 
-// The size of the video on each Wasm surface, from its players' stream info.
-// The surface's <video> element reports it as its natural size, so the
-// element's object-fit places the hole. Process-wide and thread-safe: the
-// player host and the element can be on different threads.
+// The Wasm surfaces that exist, and the size of the video on each, from its
+// players' stream info. A <video> becomes a surface's hole only while the
+// surface exists, and reports the size as its natural size, so the element's
+// object-fit places the hole. Process-wide and thread-safe: the player host
+// and the element can be on different threads.
 class SurfaceVideoSize {
  public:
   using Callback = base::RepeatingCallback<void(const gfx::Size&)>;
 
   SurfaceVideoSize() = delete;
 
-  // An empty `size` forgets the surface without notifying.
+  // Called by WasmPlayerHost when it creates and destroys `surface`. Removing
+  // it also forgets its size, without notifying.
+  static void AddSurface(const base::UnguessableToken& surface);
+  static void RemoveSurface(const base::UnguessableToken& surface);
+  static bool HasSurface(const base::UnguessableToken& surface);
+
+  // Ignored for a surface that doesn't exist.
   static void Set(const base::UnguessableToken& surface, const gfx::Size& size);
 
   // Posts `callback` to the calling sequence with the current size, if any,

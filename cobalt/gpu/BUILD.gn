@@ -32,9 +32,6 @@ source_set("gpu") {
   ]
 
   if (use_starboard_media && is_android) {
-    deps += [
-      "//cobalt/wasm/starboard",
-      "//third_party/blink/public/common",
-    ]
+    deps += [ "//cobalt/wasm/starboard" ]
   }
 }

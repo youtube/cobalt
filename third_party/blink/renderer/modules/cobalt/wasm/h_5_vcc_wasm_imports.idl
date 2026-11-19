@@ -18,15 +18,15 @@
 //   const imports = {sb_player: {
 //     destroy: call.bind(H5vccWasmPlayer.prototype.destroy), ...}};
 //   // Wasm: (import "sb_player" "destroy" (func (param externref i32)))
-// With V8's --wasm-fast-api, optimized Wasm code calls these
-// [NoAllocDirectCall] operations without going through JavaScript.
 // Pointer arguments are byte offsets into the WebAssembly.Memory passed to
 // bindMemory(); without bound memory, or for an out-of-bounds range, the
 // operation fails. Records are defined in
 // cobalt/wasm/starboard/wasm_starboard_abi.h.
-// Disabled by default (see H5vccWasmImports in runtime_enabled_features.json5).
-// When enabled, only the outermost main frame and dedicated workers
-// same-origin with it get an instance; the attribute is null elsewhere.
+// Hidden until the page calls h5vcc.settings.set("H5vccWasmImports", 1), which
+// exposes these interfaces in that page, in later pages and in dedicated
+// workers created afterwards (see H5vccWasmImports in
+// runtime_enabled_features.json5). Only the outermost main frame and dedicated
+// workers same-origin with it get an instance; the attribute is null elsewhere.
 [
     Exposed=(Window,DedicatedWorker),
     RuntimeEnabled=H5vccWasmImports,

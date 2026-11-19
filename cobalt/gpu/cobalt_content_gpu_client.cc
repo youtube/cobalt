@@ -27,10 +27,8 @@
 #include "content/public/child/child_thread.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
-#include "base/feature_list.h"
 #include "base/task/bind_post_task.h"
 #include "cobalt/wasm/starboard/wasm_player_host.h"
-#include "third_party/blink/public/common/features.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 
 namespace cobalt {
@@ -88,12 +86,11 @@ void CobaltContentGpuClient::CreateVideoGeometrySetterService() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
   // Lets Wasm players follow their <video> holes. Cobalt is single-process,
   // so the renderer's hosts can use the service directly. Posting keeps the
-  // service's WeakPtrs on this sequence.
-  if (base::FeatureList::IsEnabled(blink::features::kH5vccWasmImports)) {
-    WasmPlayerHost::SetVideoGeometrySubscriberBinder(
-        base::BindPostTaskToCurrentDefault(
-            video_geometry_setter_service_->GetBindSubscriberCallback()));
-  }
+  // service's WeakPtrs on this sequence. Nothing uses it until a page turns
+  // the Wasm API on.
+  WasmPlayerHost::SetVideoGeometrySubscriberBinder(
+      base::BindPostTaskToCurrentDefault(
+          video_geometry_setter_service_->GetBindSubscriberCallback()));
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 }
 

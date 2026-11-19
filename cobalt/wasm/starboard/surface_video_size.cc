@@ -42,6 +42,7 @@ struct Watcher {
 };
 
 struct Entry {
+  bool has_surface = false;
   gfx::Size size;
   std::optional<Watcher> watcher;
 };
@@ -53,16 +54,33 @@ class Registry {
     return *registry;
   }
 
-  void Set(const base::UnguessableToken& surface, const gfx::Size& size) {
+  void SetHasSurface(const base::UnguessableToken& surface, bool has_surface) {
     base::AutoLock lock(lock_);
     auto it = entries_.try_emplace(surface).first;
-    if (it->second.size != size) {
-      it->second.size = size;
-      if (it->second.watcher && !size.IsEmpty()) {
-        it->second.watcher->Notify(size);
-      }
+    it->second.has_surface = has_surface;
+    if (!has_surface) {
+      it->second.size = gfx::Size();
     }
     EraseIfUnused(it);
+  }
+
+  bool HasSurface(const base::UnguessableToken& surface) {
+    base::AutoLock lock(lock_);
+    auto it = entries_.find(surface);
+    return it != entries_.end() && it->second.has_surface;
+  }
+
+  void Set(const base::UnguessableToken& surface, const gfx::Size& size) {
+    base::AutoLock lock(lock_);
+    auto it = entries_.find(surface);
+    if (it == entries_.end() || !it->second.has_surface ||
+        it->second.size == size) {
+      return;
+    }
+    it->second.size = size;
+    if (it->second.watcher && !size.IsEmpty()) {
+      it->second.watcher->Notify(size);
+    }
   }
 
   uint64_t Watch(const base::UnguessableToken& surface,
@@ -93,7 +111,8 @@ class Registry {
   using Entries = std::map<base::UnguessableToken, Entry>;
 
   void EraseIfUnused(Entries::iterator it) EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    if (it->second.size.IsEmpty() && !it->second.watcher) {
+    if (!it->second.has_surface && it->second.size.IsEmpty() &&
+        !it->second.watcher) {
       entries_.erase(it);
     }
   }
@@ -104,6 +123,21 @@ class Registry {
 };
 
 }  // namespace
+
+// static
+void SurfaceVideoSize::AddSurface(const base::UnguessableToken& surface) {
+  Registry::Get().SetHasSurface(surface, true);
+}
+
+// static
+void SurfaceVideoSize::RemoveSurface(const base::UnguessableToken& surface) {
+  Registry::Get().SetHasSurface(surface, false);
+}
+
+// static
+bool SurfaceVideoSize::HasSurface(const base::UnguessableToken& surface) {
+  return Registry::Get().HasSurface(surface);
+}
 
 // static
 void SurfaceVideoSize::Set(const base::UnguessableToken& surface,

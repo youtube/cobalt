@@ -12,7 +12,6 @@
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
@@ -58,7 +57,6 @@
 #include "services/service_manager/public/cpp/connect.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
-#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/media/key_system_config_selector.h"
@@ -412,8 +410,7 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
 #if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
   // Only the top-level document positions Wasm players, so an embedded frame
   // can't move another document's video.
-  if (base::FeatureList::IsEnabled(blink::features::kH5vccWasmImports) &&
-      web_frame->IsOutermostMainFrame()) {
+  if (web_frame->IsOutermostMainFrame()) {
     if (auto hole_player = MaybeCreateWasmHoleWebMediaPlayer(
             url, client,
             render_frame_->GetTaskRunner(blink::TaskType::kInternalMedia),

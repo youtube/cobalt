@@ -2496,7 +2496,15 @@
     {
       // Cobalt: h5vccWasmImports on Window and DedicatedWorkerGlobalScope,
       // which gives a page direct control of Starboard (e.g. SbPlayer).
+      // Disabled by default; the H5VCC setting `H5vccWasmImports` enables it
+      // at runtime the way `Media.EnableChangeType` enables
+      // MediaSourceChangeType: it force-enables the (token-less) origin trial
+      // on the calling document and flips the global flag for contexts
+      // created afterwards, including dedicated workers.
       name: "H5vccWasmImports",
+      base_feature: "none",
+      origin_trial_feature_name: "H5vccWasmImports",
+      public: true,
     },
     {
       // Enables Skipping children for invisible select elements containing
