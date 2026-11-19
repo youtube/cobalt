@@ -106,6 +106,15 @@ TEST(AndroidTvFlagMapTest, EnableQuic) {
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
 }
 
+TEST(AndroidTvFlagMapTest, ExplicitEnableQuicSwitchSuppressesDisableQuic) {
+  base::CommandLine cmd_line(base::CommandLine::NO_PROGRAM);
+  cmd_line.AppendSwitch(::switches::kEnableQuic);
+  ExpandAndroidTvFlags(MapFrom(""), &cmd_line);
+
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  EXPECT_TRUE(cmd_line.HasSwitch(::switches::kEnableQuic));
+}
+
 TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
   const base::CommandLine cmd_line = ExpandWith(
       "AllowCriticalMemoryPressureHandlingInForeground,"
