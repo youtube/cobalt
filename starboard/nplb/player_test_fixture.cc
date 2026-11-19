@@ -495,7 +495,7 @@ void SbPlayerTestFixture::Initialize() {
   // TODO: refine CallSbPlayerCreate() to use real video sample info.
   player_ = CallSbPlayerCreate(
       fake_graphics_context_provider_->window(), video_codec, audio_codec,
-      drm_system_, audio_stream_info, max_video_capabilities_.c_str(),
+      drm_system_, audio_stream_info, max_video_capabilities_,
       DummyDeallocateSampleFunc, DecoderStatusCallback, PlayerStatusCallback,
       ErrorCallback, this, output_mode_,
       fake_graphics_context_provider_->decoder_target_provider());

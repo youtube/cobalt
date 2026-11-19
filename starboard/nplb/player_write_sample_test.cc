@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <limits>
+#include <string_view>
 
 #include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"
@@ -366,7 +367,8 @@ class SecondaryPlayerTestThread : public AbstractTestThread {
 TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   // The secondary player should at least support h264 at 480p, 30fps and with
   // a drm system.
-  const char* kMaxVideoCapabilities = "width=640; height=480; framerate=30;";
+  static constexpr std::string_view kMaxVideoCapabilities =
+      "width=640; height=480; framerate=30;";
   const char* kSecondaryTestFile = "beneath_the_canopy_135_avc.dmp";
   const char* key_system = GetParam().key_system;
 

@@ -14,6 +14,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "build/build_config.h"
@@ -955,7 +956,7 @@ TEST(SbMediaCanPlayMimeAndKeySystem, FLAKY_ValidatePerformance) {
   auto test_sequential_function_calls =
       [](const SbMediaCanPlayMimeAndKeySystemParam* mime_params,
          int num_function_calls, int64_t max_time_delta_per_call,
-         const char* query_type) {
+         std::string_view query_type) {
         const int64_t time_start = starboard::CurrentMonotonicTime();
         for (int i = 0; i < num_function_calls; ++i) {
           SbMediaCanPlayMimeAndKeySystem(mime_params[i].mime,
