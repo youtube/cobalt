@@ -1,60 +1,54 @@
 #!/usr/bin/env python3
-# Copyright 2026 Google LLC
-# TAG=agy
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """PR Shepherd: Minimal GitHub PR monitor for CI checks and review comments."""
-
-# pylint: disable=bad-indentation,inconsistent-quotes,broad-exception-caught,subprocess-run-check,unused-argument,line-too-long
 
 import argparse
 import glob
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Dict, List, Optional, Tuple
 
-GQL_QUERY = """{{
-  repository(owner: "{owner}", name: "{name}") {{
-    pullRequest(number: {pr}) {{
-      number title state isDraft reviewDecision url mergeable mergeStateStatus headRefName headRefOid
-      statusCheckRollup {{
-        contexts(first: 100) {{
-          nodes {{
+GQL_QUERY = """query($owner: String!, $name: String!, $pr: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $pr) {
+      number title state isDraft reviewDecision url mergeable mergeStateStatus
+      headRefName headRefOid
+      statusCheckRollup {
+        contexts(first: 100, after: $after) {
+          nodes {
             __typename
-            ... on CheckRun {{ name status conclusion detailsUrl }}
-            ... on StatusContext {{ context state targetUrl }}
-          }}
-          pageInfo {{ hasNextPage endCursor }}
-        }}
-      }}
-      reviewThreads(first: 100) {{
-        nodes {{
+            ... on CheckRun { name status conclusion detailsUrl databaseId }
+            ... on StatusContext { context state targetUrl }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+      reviewThreads(first: 100) {
+        nodes {
           isResolved path line
-          comments(last: 1) {{ nodes {{ databaseId author {{ login }} body url }} }}
-        }}
-      }}
-    }}
-  }}
-}}"""
-
-GQL_QUERY_CONTEXTS_PAGE = """{{
-  repository(owner: "{owner}", name: "{name}") {{
-    pullRequest(number: {pr}) {{
-      statusCheckRollup {{
-        contexts(first: 100, after: "{after}") {{
-          nodes {{
-            __typename
-            ... on CheckRun {{ name status conclusion detailsUrl }}
-            ... on StatusContext {{ context state targetUrl }}
-          }}
-          pageInfo {{ hasNextPage endCursor }}
-        }}
-      }}
-    }}
-  }}
-}}"""
+          comments(last: 1) { nodes { databaseId author { login } body url } }
+        }
+      }
+    }
+  }
+}"""
 
 SUCCESS_STATES = {"SUCCESS", "NEUTRAL", "SKIPPED"}
 PENDING_STATES = {"PENDING", "EXPECTED", "IN_PROGRESS", "QUEUED"}
@@ -72,429 +66,404 @@ EXCLUDED_CI_WORKFLOWS = {
 
 
 def is_failed_state(state: str) -> bool:
-    return state not in SUCCESS_STATES and state not in PENDING_STATES
+  return state not in SUCCESS_STATES and state not in PENDING_STATES
 
 
-def gh_call(cmd: List[str]) -> str:
-    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if res.returncode != 0:
-        raise RuntimeError(res.stderr.strip()
-                           or f"Command failed: {' '.join(cmd)}")
-    return res.stdout.strip()
+def gh_run(*args: str) -> subprocess.CompletedProcess:
+  return subprocess.run(
+      ["gh", *args], capture_output=True, text=True, check=False
+  )
 
 
-def resolve_repo(repo_arg: Optional[str]) -> Tuple[str, str]:
-    if repo_arg:
-        cleaned = repo_arg.rstrip("/").removesuffix(".git")
-        parts = cleaned.split("/")
-        if len(parts) == 2:
-            return parts[0], parts[1]
-    raw = gh_call([
-        "gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"
-    ])
-    owner, repo = raw.split("/")
-    return owner, repo_arg.split("/")[-1] if repo_arg else repo
+def gh_call(*args: str) -> str:
+  result = gh_run(*args)
+  if result.returncode != 0:
+    raise RuntimeError(
+        result.stderr.strip() or f"Command failed: gh {' '.join(args)}"
+    )
+  return result.stdout.strip()
 
 
-def resolve_prs(pr_arg: Optional[str]) -> List[int]:
-    if pr_arg:
-        return [int(p.strip()) for p in str(pr_arg).split(",") if p.strip()]
-    return [
-        int(gh_call(["gh", "pr", "view", "--json", "number", "-q", ".number"]))
+def resolve_repo(repo_arg: str | None) -> tuple[str, str]:
+  raw = repo_arg or gh_call(
+      "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"
+  )
+  owner, name = raw.split("/")
+  return owner, name
+
+
+def resolve_prs(pr_arg: str | None) -> list[int]:
+  if pr_arg:
+    return [int(item.strip()) for item in pr_arg.split(",") if item.strip()]
+  return [int(gh_call("pr", "view", "--json", "number", "-q", ".number"))]
+
+
+def parse_test_failures(raw_tests: dict | None) -> list[dict]:
+  if not raw_tests:
+    return []
+  tests_by_target = raw_tests.get("failing_tests", raw_tests)
+  failures = []
+  for items in tests_by_target.values():
+    for item in items:
+      failures.append({
+          "name": item["name"],
+          "message": (item.get("message") or "").strip(),
+      })
+  return failures
+
+
+def parse_shepherd_report(filepath: str) -> dict:
+  with open(filepath, "r", encoding="utf-8") as report_file:
+    data = json.load(report_file)
+  checks = data["checks"]
+  failing_jobs = [
+      job for job, status in checks.items() if status in ("failure", "cancelled")
+  ]
+  test_failures = parse_test_failures(data.get("test_failures"))
+  return {
+      "platform": data["platform"],
+      "workflow": data.get("workflow", ""),
+      "run_url": data.get("run_url", ""),
+      "run_attempt": int(data.get("run_attempt") or 1),
+      "failing_jobs": failing_jobs,
+      "test_failures": test_failures,
+      "has_failures": bool(failing_jobs or test_failures),
+  }
+
+
+def fetch_ci_shepherd_reports(
+    owner: str, name: str, head_sha: str, results_dir: str | None = None
+) -> list[dict]:
+  runs = json.loads(gh_call(
+      "run", "list", "--repo", f"{owner}/{name}",
+      "--commit", head_sha, "--json", "databaseId,workflowName",
+  ))
+  winners = {}
+
+  with tempfile.TemporaryDirectory(prefix="shepherd_reports_") as tmpdir:
+    for run in runs:
+      if (run["workflowName"] or "").lower() in EXCLUDED_CI_WORKFLOWS:
+        continue
+      run_id = str(run["databaseId"])
+      gh_run(
+          "run", "download", run_id, "--repo", f"{owner}/{name}",
+          "-p", "shepherd-report-*", "-D", os.path.join(tmpdir, run_id),
+      )
+
+    for report_path in sorted(
+        glob.glob(os.path.join(tmpdir, "**", "shepherd_report.json"), recursive=True)
+    ):
+      report = parse_shepherd_report(report_path)
+      platform = report["platform"]
+      prev = winners.get(platform)
+      if prev is None or report["run_attempt"] >= prev[0]["run_attempt"]:
+        winners[platform] = (report, os.path.dirname(report_path))
+
+    if results_dir and winners:
+      os.makedirs(results_dir, exist_ok=True)
+      for report, report_dir in winners.values():
+        shutil.copytree(
+            report_dir,
+            os.path.join(results_dir, os.path.basename(report_dir)),
+            dirs_exist_ok=True,
+        )
+
+  return [report for report, report_dir in winners.values()]
+
+
+def format_failed_report(report: dict) -> list[str]:
+  workflow = report["workflow"] or "unknown"
+  url_str = f" - {report['run_url']}" if report["run_url"] else ""
+  lines = [f"CI Shepherd Report [{report['platform']}] ({workflow}){url_str}:"]
+  if report["failing_jobs"]:
+    lines.append(f"  Failing jobs: {', '.join(report['failing_jobs'])}")
+  if report["test_failures"]:
+    lines.append(f"  Failing tests ({len(report['test_failures'])}):")
+    for test_fail in report["test_failures"]:
+      msg_lines = test_fail["message"].splitlines()
+      if msg_lines and msg_lines[0]:
+        lines.append(f"    - {test_fail['name']}: {msg_lines[0][:80]}")
+      else:
+        lines.append(f"    - {test_fail['name']}")
+  return lines
+
+
+def fetch_pr_status(owner: str, name: str, pr_number: int) -> tuple[dict, list[dict]]:
+  pr_data = None
+  all_nodes = []
+  after = None
+  while True:
+    args = [
+        "api", "graphql", "-f", f"query={GQL_QUERY}",
+        "-f", f"owner={owner}", "-f", f"name={name}", "-F", f"pr={pr_number}",
     ]
+    if after:
+      args.extend(["-f", f"after={after}"])
+    pull_request = json.loads(gh_call(*args))["data"]["repository"]["pullRequest"]
+    if pr_data is None:
+      pr_data = pull_request
+    rollup = pull_request["statusCheckRollup"]
+    if rollup is None:
+      break
+    contexts = rollup["contexts"]
+    all_nodes.extend(contexts["nodes"])
+    page_info = contexts["pageInfo"]
+    if not page_info["hasNextPage"]:
+      break
+    after = page_info["endCursor"]
+  return pr_data, all_nodes
 
 
-def _parse_test_failures(raw_tests: Any) -> List[Dict[str, Any]]:
-    """Parse and normalize raw test failure payload structures into standardized failure dictionaries."""
-    if isinstance(raw_tests, dict):
-        raw_tests = raw_tests.get("failing_tests", raw_tests)
-    if not isinstance(raw_tests, dict):
-        return []
-
-    test_failures = []
-    for target, val in raw_tests.items():
-        items = val if isinstance(val, list) else [val]
-        for item in items:
-            if isinstance(item, dict):
-                test_failures.append({
-                    "name":
-                    item.get("name", "Unknown test"),
-                    "message": (item.get("message") or "").strip(),
-                    "target":
-                    target,
-                })
-            elif isinstance(item, str):
-                test_failures.append({
-                    "name": item,
-                    "message": "",
-                    "target": target,
-                })
-    return test_failures
+def _save_log(logs_dir: str, filename_base: str, *gh_args: str) -> None:
+  result = gh_run(*gh_args)
+  if result.returncode == 0 and result.stdout:
+    os.makedirs(logs_dir, exist_ok=True)
+    safe_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename_base).strip("_")
+    with open(os.path.join(logs_dir, f"{safe_name or 'check'}.log"), "w", encoding="utf-8") as log_file:
+      log_file.write(result.stdout)
 
 
-def _parse_shepherd_report_file(filepath: str) -> Optional[Dict[str, Any]]:
-    """Parse a single shepherd_report.json file into a standardized report structure."""
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if not isinstance(data, dict):
-            return None
+def download_failed_logs(
+    owner: str, name: str, checks: dict[str, dict], ci_reports: list[dict], logs_dir: str
+) -> None:
+  repo = f"{owner}/{name}"
+  for check_name, check_info in checks.items():
+    if not is_failed_state(check_info["state"]):
+      continue
+    url = check_info["url"]
+    job_id = check_info["job_id"]
+    if not job_id:
+      job_match = re.search(r"/job/(\d+)", url)
+      if job_match:
+        job_id = job_match.group(1)
+    if job_id:
+      _save_log(logs_dir, check_name, "run", "view", "--job", job_id, "--log-failed", "--repo", repo)
+    else:
+      run_match = re.search(r"/actions/runs/(\d+)", url)
+      if run_match:
+        _save_log(logs_dir, check_name, "run", "view", run_match.group(1), "--log-failed", "--repo", repo)
 
-        platform = data.get("platform") or data.get(
-            "platform_name") or "unknown"
-        checks = data.get("checks") if isinstance(data.get("checks"),
-                                                  dict) else {}
-        failing_jobs = [
-            k for k, v in checks.items() if v in ("failure", "cancelled")
-        ]
-        test_failures = _parse_test_failures(data.get("test_failures", {}))
-
-        return {
-            "platform": platform,
-            "workflow": data.get("workflow", ""),
-            "run_url": data.get("run_url", ""),
-            "failing_jobs": failing_jobs,
-            "test_failures": test_failures,
-            "has_failures": bool(failing_jobs or test_failures),
-        }
-    except Exception:
-        return None
-
-
-def _download_run_artifacts(owner: str, name: str, run_id: str,
-                            dest_dir: str) -> None:
-    """Download shepherd-report-* artifacts for a specific workflow run."""
-    try:
-        subprocess.run([
-            "gh", "run", "download", run_id, "--repo", f"{owner}/{name}", "-p",
-            "shepherd-report-*", "-D", dest_dir
-        ],
-                       capture_output=True,
-                       text=True,
-                       check=False)
-    except Exception:
-        pass
-
-
-def fetch_ci_shepherd_reports(owner: str, name: str,
-                              head_sha: str) -> List[Dict[str, Any]]:
-    """Fetch and parse shepherd_report.json artifacts for a commit in a single pass."""
-    if not head_sha:
-        return []
-    try:
-        raw_runs = gh_call([
-            "gh", "run", "list", "--repo", f"{owner}/{name}", "--commit",
-            head_sha, "--json", "databaseId,workflowName"
-        ])
-        runs = json.loads(raw_runs)
-        if not isinstance(runs, list):
-            return []
-    except Exception:
-        return []
-
-    reports = []
-    with tempfile.TemporaryDirectory(prefix="shepherd_reports_") as tmpdir:
-        for r in runs:
-            if not isinstance(r, dict):
-                continue
-            wf_name = (r.get("workflowName") or "").lower()
-            if wf_name in EXCLUDED_CI_WORKFLOWS:
-                continue
-            run_id = str(r.get("databaseId"))
-            _download_run_artifacts(owner, name, run_id,
-                                    os.path.join(tmpdir, run_id))
-
-        for rf in sorted(
-                glob.glob(os.path.join(tmpdir, "**", "shepherd_report.json"),
-                          recursive=True)):
-            report = _parse_shepherd_report_file(rf)
-            if report:
-                reports.append(report)
-
-    return reports
-
-
-def format_ci_shepherd_report_summary(reports: List[Dict[str, Any]],
-                                      only_failures: bool = True) -> List[str]:
-    """Format CI Shepherd reports into concise summary lines."""
-    lines = []
-    for r in reports:
-        has_fail = r.get("has_failures", False)
-        if only_failures and not has_fail:
-            continue
-
-        plat, wf, run_url = r.get("platform", "unknown"), r.get(
-            "workflow", "unknown"), r.get("run_url", "")
-        url_str = f" - {run_url}" if run_url else ""
-
-        if not has_fail:
-            lines.append(
-                f"CI Shepherd Report [{plat}] ({wf}){url_str}: ALL PASS")
-        else:
-            lines.append(f"CI Shepherd Report [{plat}] ({wf}){url_str}:")
-            if r.get("failing_jobs"):
-                lines.append(f"  Failing jobs: {', '.join(r['failing_jobs'])}")
-            if r.get("test_failures"):
-                lines.append(f"  Failing tests ({len(r['test_failures'])}):")
-                for tf in r["test_failures"][:5]:
-                    msg = (tf.get("message") or "").splitlines()
-                    lines.append(f"    - {tf['name']}: {msg[0][:80]}"
-                                 if msg and msg[0] else f"    - {tf['name']}")
-                if len(r["test_failures"]) > 5:
-                    lines.append(
-                        f"    ... and {len(r['test_failures']) - 5} more failing tests"
-                    )
-    return lines
-
-
-def fetch_pr_status(owner: str, name: str, pr_number: int) -> Dict[str, Any]:
-    """Fetch PR details and handle paginated GraphQL statusCheckRollup contexts."""
-    query = GQL_QUERY.format(owner=owner, name=name, pr=pr_number)
-    out = gh_call(["gh", "api", "graphql", "-f", f"query={query}"])
-    pr = json.loads(out)["data"]["repository"]["pullRequest"]
-
-    rollup = pr.get("statusCheckRollup") or {}
-    contexts_conn = rollup.get("contexts") or {}
-    nodes = contexts_conn.get("nodes", [])
-    page_info = contexts_conn.get("pageInfo", {})
-
-    while page_info.get("hasNextPage"):
-        after = page_info.get("endCursor")
-        page_query = GQL_QUERY_CONTEXTS_PAGE.format(owner=owner,
-                                                    name=name,
-                                                    pr=pr_number,
-                                                    after=after)
-        page_out = gh_call(
-            ["gh", "api", "graphql", "-f", f"query={page_query}"])
-        page_pr = json.loads(page_out)["data"]["repository"]["pullRequest"]
-        page_contexts = (page_pr.get("statusCheckRollup")
-                         or {}).get("contexts") or {}
-        nodes.extend(page_contexts.get("nodes", []))
-        page_info = page_contexts.get("pageInfo", {})
-
-    if rollup and contexts_conn:
-        contexts_conn["nodes"] = nodes
-    return pr
+  for report in ci_reports:
+    if not report["has_failures"] or not report["failing_jobs"]:
+      continue
+    run_match = re.search(r"/actions/runs/(\d+)", report["run_url"])
+    if not run_match:
+      continue
+    jobs_res = gh_run("run", "view", run_match.group(1), "--json", "jobs", "--repo", repo)
+    if jobs_res.returncode != 0 or not jobs_res.stdout:
+      continue
+    jobs_by_name = {
+        job["name"]: str(job["databaseId"])
+        for job in json.loads(jobs_res.stdout)["jobs"]
+    }
+    for job_name in report["failing_jobs"]:
+      if job_name in jobs_by_name:
+        _save_log(
+            logs_dir, f"{report['platform']}_{job_name}",
+            "run", "view", "--job", jobs_by_name[job_name], "--log-failed", "--repo", repo,
+        )
 
 
 def evaluate_pr(
-    owner: str,
-    name: str,
-    pr_number: int,
-    fetch_ci_reports: bool = True,
-) -> Dict[str, Any]:
-    """Evaluate a PR's state, checks, review threads, and CI shepherd report failures."""
-    pr = fetch_pr_status(owner, name, pr_number)
-    head_sha = pr.get("headRefOid") or ""
-    contexts = (pr.get("statusCheckRollup") or {}).get("contexts",
-                                                       {}).get("nodes", [])
+    owner: str, name: str, pr_number: int, artifacts_dir: str | None = None
+) -> dict:
+  pr, contexts = fetch_pr_status(owner, name, pr_number)
+  head_sha = pr["headRefOid"] or ""
 
-    checks = {}
-    for c in contexts:
-        if c.get("__typename") == "CheckRun":
-            name_key = c.get("name", "check")
-            st, conc = c.get("status"), c.get("conclusion")
-            state = conc if st == "COMPLETED" else (st or "PENDING")
-            url = c.get("detailsUrl") or ""
-        else:
-            name_key = c.get("context", "status")
-            state = c.get("state", "PENDING")
-            url = c.get("targetUrl") or ""
-        checks[name_key] = {"state": state, "url": url}
+  checks = {}
+  for node in contexts:
+    if node["__typename"] == "CheckRun":
+      check_name = node["name"]
+      state = (node["conclusion"] or "PENDING") if node["status"] == "COMPLETED" else node["status"]
+      url = node["detailsUrl"] or ""
+      job_id = str(node["databaseId"]) if node.get("databaseId") else ""
+    else:
+      check_name = node["context"]
+      state = node["state"]
+      url = node["targetUrl"] or ""
+      job_id = ""
+    checks[check_name] = {"state": state, "url": url, "job_id": job_id}
 
-    unresolved = []
-    for t in (pr.get("reviewThreads") or {}).get("nodes", []):
-        if not t.get("isResolved"):
-            path = t.get("path", "")
-            line = t.get("line")
-            loc = f"{path}:{line}" if line else path
+  unresolved = []
+  for thread in pr["reviewThreads"]["nodes"]:
+    if thread["isResolved"]:
+      continue
+    location = f"{thread['path']}:{thread['line']}" if thread["line"] else thread["path"]
+    comments = thread["comments"]["nodes"]
+    last_comment = comments[-1] if comments else {}
+    author = (last_comment.get("author") or {}).get("login", "unknown")
+    raw_body = last_comment.get("body") or ""
+    body = raw_body.splitlines()[0][:80] if raw_body else ""
+    unresolved.append(f"{location} by @{author}: {body}")
 
-            comments = (t.get("comments") or {}).get("nodes") or []
-            last_comment = comments[-1] if comments else {}
-            author = (last_comment.get("author") or {}).get("login", "unknown")
-            raw_body = last_comment.get("body") or ""
-            body = raw_body.splitlines()[0][:80] if raw_body else ""
+  decision = pr["reviewDecision"] or "NONE"
+  mergeable = pr["mergeable"]
+  has_failed_checks = any(is_failed_state(info["state"]) for info in checks.values())
+  ci_reports = []
+  if has_failed_checks and head_sha:
+    results_dir = os.path.join(artifacts_dir, "test_results") if artifacts_dir else None
+    ci_reports = fetch_ci_shepherd_reports(owner, name, head_sha, results_dir=results_dir)
 
-            unresolved.append(f"{loc} by @{author}: {body}")
+  has_failures = has_failed_checks or any(report["has_failures"] for report in ci_reports)
+  downloaded_to = None
+  if has_failures and artifacts_dir:
+    download_failed_logs(owner, name, checks, ci_reports, os.path.join(artifacts_dir, "logs"))
+    downloaded_to = artifacts_dir
 
-    decision = pr.get("reviewDecision") or "NONE"
-    is_draft = pr.get("isDraft", False)
-    state = pr.get("state", "OPEN")
-    mergeable = pr.get("mergeable") or "UNKNOWN"
-    merge_status = pr.get("mergeStateStatus") or "UNKNOWN"
+  is_green = (
+      bool(checks)
+      and all(info["state"] in SUCCESS_STATES for info in checks.values())
+      and not unresolved
+      and decision != "CHANGES_REQUESTED"
+      and not pr["isDraft"]
+      and pr["state"] == "OPEN"
+      and mergeable == "MERGEABLE"
+  )
 
-    has_failed_checks = any(
-        is_failed_state(v["state"]) for v in checks.values())
-
-    ci_reports = []
-    if (fetch_ci_reports or has_failed_checks) and head_sha:
-        ci_reports = fetch_ci_shepherd_reports(owner, name, head_sha)
-
-    is_green = (bool(checks) and all(v["state"] in SUCCESS_STATES
-                                     for v in checks.values())
-                and not any(r.get("has_failures")
-                            for r in ci_reports) and not unresolved
-                and decision != "CHANGES_REQUESTED" and not is_draft
-                and state == "OPEN" and mergeable == "MERGEABLE")
-
-    return {
-        "pr": pr_number,
-        "head_sha": head_sha,
-        "is_green": is_green,
-        "checks": checks,
-        "ci_shepherd_reports": ci_reports,
-        "unresolved_threads": unresolved,
-        "decision": decision,
-        "is_draft": is_draft,
-        "state": state,
-        "mergeable": mergeable,
-        "merge_state_status": merge_status,
-    }
+  return {
+      "pr": pr_number,
+      "is_green": is_green,
+      "has_failures": has_failures,
+      "downloaded_to": downloaded_to,
+      "checks": checks,
+      "ci_shepherd_reports": ci_reports,
+      "unresolved_threads": unresolved,
+      "decision": decision,
+      "mergeable": mergeable,
+      "merge_state_status": pr["mergeStateStatus"],
+  }
 
 
-def print_initial_summary(pr_num: int, curr: Dict[str, Any]):
-    """Print initial PR tracking status."""
-    print(f"[PR #{pr_num}] Tracking started. Checks: {len(curr['checks'])},"
-          f" Threads: {len(curr['unresolved_threads'])}, Mergeable:"
-          f" {curr['mergeable']}")
+def print_initial_summary(pr_num: int, curr: dict) -> None:
+  print(
+      f"[PR #{pr_num}] Tracking started. Checks: {len(curr['checks'])}, "
+      f"Threads: {len(curr['unresolved_threads'])}, Mergeable: {curr['mergeable']}"
+  )
+  if curr["mergeable"] == "CONFLICTING":
+    print(f"[PR #{pr_num}] WARNING: PR has merge conflicts! (State: {curr['merge_state_status']})")
+  for check_name, check_info in curr["checks"].items():
+    if is_failed_state(check_info["state"]):
+      url_str = f" (URL: {check_info['url']})" if check_info["url"] else ""
+      print(f"[PR #{pr_num}] Failed check '{check_name}' is {check_info['state']}{url_str}")
+  for report in curr["ci_shepherd_reports"]:
+    if report["has_failures"]:
+      for line in format_failed_report(report):
+        print(f"[PR #{pr_num}] {line}")
+  for thread in curr["unresolved_threads"]:
+    print(f"[PR #{pr_num}] Open thread: {thread}")
+  if curr["downloaded_to"]:
+    print(f"[PR #{pr_num}] Downloaded test results and logs for failed jobs to '{curr['downloaded_to']}'")
+
+
+def print_diff(pr_num: int, prev: dict, curr: dict) -> None:
+  changes = []
+  for check_name, check_info in curr["checks"].items():
+    url_str = (
+        f" (URL: {check_info['url']})"
+        if is_failed_state(check_info["state"]) and check_info["url"]
+        else ""
+    )
+    if check_name not in prev["checks"]:
+      changes.append(f"New check '{check_name}' is {check_info['state']}{url_str}")
+    elif prev["checks"][check_name] != check_info:
+      changes.append(
+          f"Check '{check_name}' changed {prev['checks'][check_name]['state']} "
+          f"-> {check_info['state']}{url_str}"
+      )
+
+  prev_reports = {report["platform"]: report for report in prev["ci_shepherd_reports"]}
+  for report in curr["ci_shepherd_reports"]:
+    prev_report = prev_reports.get(report["platform"])
+    if (
+        not prev_report
+        or prev_report["failing_jobs"] != report["failing_jobs"]
+        or len(prev_report["test_failures"]) != len(report["test_failures"])
+    ):
+      if report["has_failures"]:
+        changes.extend(format_failed_report(report))
+      elif prev_report and prev_report["has_failures"]:
+        changes.append(f"CI Shepherd Report [{report['platform']}]: Failures resolved (ALL PASS)")
+
+  for thread in sorted(set(curr["unresolved_threads"]) - set(prev["unresolved_threads"])):
+    changes.append(f"New thread: {thread}")
+  for thread in sorted(set(prev["unresolved_threads"]) - set(curr["unresolved_threads"])):
+    changes.append(f"Resolved thread: {thread}")
+
+  if prev["decision"] != curr["decision"]:
+    changes.append(f"Review decision: {prev['decision']} -> {curr['decision']}")
+
+  if prev["mergeable"] != curr["mergeable"] or prev["merge_state_status"] != curr["merge_state_status"]:
+    msg = (
+        f"Mergeable status changed: {prev['mergeable']} ({prev['merge_state_status']}) "
+        f"-> {curr['mergeable']} ({curr['merge_state_status']})"
+    )
     if curr["mergeable"] == "CONFLICTING":
-        print(f"[PR #{pr_num}] WARNING: PR has merge conflicts! (State:"
-              f" {curr['merge_state_status']})")
-    for k, v in curr["checks"].items():
-        if is_failed_state(v["state"]):
-            url_str = f" (URL: {v['url']})" if v.get("url") else ""
-            print(
-                f"[PR #{pr_num}] Failed check '{k}' is {v['state']}{url_str}")
-    if curr.get("ci_shepherd_reports"):
-        for line in format_ci_shepherd_report_summary(
-                curr["ci_shepherd_reports"], only_failures=True):
-            print(f"[PR #{pr_num}] {line}")
-    for t in curr["unresolved_threads"]:
-        print(f"[PR #{pr_num}] Open thread: {t}")
+      msg += " - WARNING: Merge conflicts detected!"
+    changes.append(msg)
+
+  if curr["downloaded_to"]:
+    changes.append(f"Downloaded test results and logs for failed jobs to '{curr['downloaded_to']}'")
+
+  for change in changes:
+    print(f"[PR #{pr_num}] {change}")
 
 
-def print_diff(pr_num: int, prev: Dict[str, Any], curr: Dict[str, Any]):
-    """Print PR state changes between polling iterations."""
-    changes = []
-    prev_checks, curr_checks = prev.get("checks", {}), curr.get("checks", {})
-    for k, v in curr_checks.items():
-        is_fail = is_failed_state(v["state"])
-        url_str = f" (URL: {v['url']})" if is_fail and v.get("url") else ""
-        if k not in prev_checks:
-            changes.append(f"New check '{k}' is {v['state']}{url_str}")
-        elif prev_checks[k]["state"] != v["state"] or prev_checks[k][
-                "url"] != v["url"]:
-            changes.append(
-                f"Check '{k}' changed {prev_checks[k]['state']} -> {v['state']}{url_str}"
-            )
+def main() -> None:
+  parser = argparse.ArgumentParser(description="PR Shepherd: Minimal PR monitor.")
+  parser.add_argument("--repo", help="Repository in owner/name format.")
+  parser.add_argument("--pr", help="PR number(s), comma-separated.")
+  parser.add_argument("--watch", action="store_true", help="Watch until green.")
+  parser.add_argument("--interval", type=int, default=30, help="Poll interval in seconds.")
+  parser.add_argument(
+      "--artifacts-dir", "--download-dir", dest="artifacts_dir", default="artifacts",
+      help="Directory for downloaded failure logs and test results.",
+  )
+  parser.add_argument(
+      "--no-download", action="store_true",
+      help="Disable automatic download of failure artifacts and logs.",
+  )
+  args = parser.parse_args()
 
-    prev_reports = {
-        r.get("platform"): r
-        for r in prev.get("ci_shepherd_reports", [])
-    }
-    curr_reports = {
-        r.get("platform"): r
-        for r in curr.get("ci_shepherd_reports", [])
-    }
-    for plat, r in curr_reports.items():
-        prev_r = prev_reports.get(plat)
-        if not prev_r or prev_r.get("failing_jobs") != r.get(
-                "failing_jobs") or len(prev_r.get("test_failures", [])) != len(
-                    r.get("test_failures", [])):
-            if r.get("has_failures"):
-                changes.extend(
-                    format_ci_shepherd_report_summary([r], only_failures=True))
-            elif prev_r and prev_r.get(
-                    "has_failures") and not r.get("has_failures"):
-                changes.append(
-                    f"CI Shepherd Report [{plat}]: Failures resolved (ALL PASS)"
-                )
+  owner, repo_name = resolve_repo(args.repo)
+  pr_numbers = resolve_prs(args.pr)
+  prev_states = {}
 
-    new_threads = set(curr.get("unresolved_threads", [])) - set(
-        prev.get("unresolved_threads", []))
-    resolved_threads = set(prev.get("unresolved_threads", [])) - set(
-        curr.get("unresolved_threads", []))
-    for t in new_threads:
-        changes.append(f"New thread: {t}")
-    for t in resolved_threads:
-        changes.append(f"Resolved thread: {t}")
+  while True:
+    all_green = True
+    has_failure = False
+    for pr_num in pr_numbers:
+      if args.no_download:
+        target_dir = None
+      elif len(pr_numbers) > 1:
+        target_dir = os.path.join(args.artifacts_dir, f"pr_{pr_num}")
+      else:
+        target_dir = args.artifacts_dir
 
-    if prev.get("decision") != curr.get("decision"):
-        changes.append(
-            f"Review decision: {prev.get('decision')} -> {curr.get('decision')}"
-        )
+      try:
+        curr = evaluate_pr(owner, repo_name, pr_num, artifacts_dir=target_dir)
+      except (RuntimeError, json.JSONDecodeError) as err:
+        print(f"[PR #{pr_num}] Error: {err}", file=sys.stderr)
+        all_green = False
+        continue
 
-    if prev.get("mergeable") != curr.get("mergeable") or prev.get(
-            "merge_state_status") != curr.get("merge_state_status"):
-        msg = (
-            f"Mergeable status changed: {prev.get('mergeable')}"
-            f" ({prev.get('merge_state_status')}) -> {curr.get('mergeable')}"
-            f" ({curr.get('merge_state_status')})")
-        if curr.get("mergeable") == "CONFLICTING":
-            msg += " - WARNING: Merge conflicts detected!"
-        changes.append(msg)
+      all_green = all_green and curr["is_green"]
+      has_failure = has_failure or curr["has_failures"]
+      if pr_num not in prev_states:
+        print_initial_summary(pr_num, curr)
+      else:
+        print_diff(pr_num, prev_states[pr_num], curr)
+      prev_states[pr_num] = curr
 
-    for c in changes:
-        print(f"[PR #{pr_num}] {c}")
-
-
-def main():
-    """CLI entry point for PR Shepherd."""
-    parser = argparse.ArgumentParser(
-        description="PR Shepherd: Minimal PR monitor.")
-    parser.add_argument("--repo", help="Repository in owner/name format.")
-    parser.add_argument("--pr", help="PR number(s), comma-separated.")
-    parser.add_argument("--watch",
-                        action="store_true",
-                        help="Watch until green.")
-    parser.add_argument("--interval",
-                        type=int,
-                        default=30,
-                        help="Poll interval in seconds.")
-    args = parser.parse_args()
-
-    try:
-        owner, repo_name = resolve_repo(args.repo)
-        pr_numbers = resolve_prs(args.pr)
-    except Exception as err:
-        sys.exit(f"Error initializing: {err}")
-
-    prev_states = {}
-    try:
-        while True:
-            all_green = True
-            for p in pr_numbers:
-                try:
-                    fetch_ci = not args.watch or p not in prev_states
-                    curr = evaluate_pr(owner,
-                                       repo_name,
-                                       p,
-                                       fetch_ci_reports=fetch_ci)
-                    if not curr["is_green"]:
-                        all_green = False
-
-                    if p not in prev_states:
-                        print_initial_summary(p, curr)
-                    else:
-                        print_diff(p, prev_states[p], curr)
-                    prev_states[p] = curr
-                except Exception as err:
-                    print(f"[PR #{p}] Error: {err}", file=sys.stderr)
-                    all_green = False
-
-            if all_green:
-                print("SUPER GREEN! Multipass authorized.")
-                sys.exit(0)
-
-            if not args.watch:
-                sys.exit(1)
-
-            time.sleep(args.interval)
-
-    except KeyboardInterrupt:
-        print("Stopped by user.")
-        sys.exit(130)
+    if all_green:
+      print("SUPER GREEN! Multipass authorized.")
+      sys.exit(0)
+    if not args.watch:
+      sys.exit(1)
+    if has_failure:
+      print("ACTION REQUIRED: Triage failure immediately!")
+      sys.exit(1)
+    time.sleep(args.interval)
 
 
 if __name__ == "__main__":
-    main()
+  main()
