@@ -9,7 +9,13 @@ since the version previous to it.
 
 ## Version 19
 
-### Removed unused Starboard GN configuration variables
+### Cleaned up GN platform configuration files
+Unused and redundant GN variables were removed from
+`starboard/build/config/base_configuration.gni` and the in-tree
+`platform_configuration/configuration.gni` files, as a step toward removing
+these configuration files in favor of defaults and `args.gn` settings.
+
+#### Removed unused Starboard GN configuration variables
 The following GN variables were removed from
 `starboard/build/config/base_configuration.gni` and/or in-tree
 `platform_configuration/configuration.gni` files because no build file read
@@ -36,7 +42,7 @@ Ports can delete any assignments of these variables from their platform
 configuration files. Setting any of them in `args.gn` now results in a GN
 "Build argument has no effect" warning.
 
-### Removed redundant upstream GN arg overrides from platform configurations
+#### Removed redundant upstream GN arg overrides from platform configurations
 The following assignments were removed from in-tree
 `platform_configuration/configuration.gni` files because they had no effect:
 * `arm_float_abi = "softfp"` (android-arm): already forced for Android by
