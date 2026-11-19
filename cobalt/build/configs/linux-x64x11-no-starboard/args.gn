@@ -15,6 +15,3 @@ trial_comparison_cert_verifier_supported = false
 # Disable Mozilla/NSS cert store access
 # We use Chromium root store
 use_nss_certs = false
-
-# Use ANGLE for EGL/GLES on x64 Linux.
-gl_type = "angle"

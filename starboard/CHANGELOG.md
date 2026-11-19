@@ -36,19 +36,6 @@ Ports can delete any assignments of these variables from their platform
 configuration files. Setting any of them in `args.gn` now results in a GN
 "Build argument has no effect" warning.
 
-### `gl_type` for linux-x64x11 is now set in args.gn
-`gl_type = "angle"` is no longer set by
-`starboard/linux/x64x11/platform_configuration/configuration.gni` (or by
-`starboard/tvos/shared/platform_configuration/configuration.gni`). It is now
-set in the `args.gn` files of the in-tree build configurations that use these
-platforms. Ports that import the linux-x64x11 platform configuration, or build
-with `starboard_target_platform = "linux-x64x11"` using their own `args.gn`,
-will now default to `gl_type = "system_gles2"` and must add
-`gl_type = "angle"` to their `args.gn` to keep using ANGLE.
-
-Values of `gl_type` set in `args.gn` are also no longer overridden by the RDK
-platform configuration.
-
 ### Removed redundant upstream GN arg overrides from platform configurations
 The following assignments were removed from in-tree
 `platform_configuration/configuration.gni` files because they had no effect:

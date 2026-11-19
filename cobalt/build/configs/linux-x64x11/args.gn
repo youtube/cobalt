@@ -1,6 +1,3 @@
 import("//cobalt/build/configs/linux_common.gn")
 
 target_cpu = "x64"
-
-# Use ANGLE for EGL/GLES on x64 Linux.
-gl_type = "angle"

@@ -34,6 +34,7 @@ import("//starboard/build/config/linux/rdk/config_variables.gni")
 cobalt_font_package = "limited"
 
 sb_filter_based_player = false
+gl_type = "system_gles2"
 
 if (is_starboard) {
   sb_evergreen_compatible_use_libunwind = true
