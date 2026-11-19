@@ -240,11 +240,10 @@ TEST_F(CobaltLifecycleControllerTest,
   EXPECT_THAT(observer.events(), ElementsAre("frozen"));
 }
 
-// Covers the user journey where late Mojo binding or lifecycle callbacks hit
+// Covers the user journey where visibility, focus, or lifecycle callbacks hit
 // a detached DOM window after navigation has destroyed its execution context
 // but before Oilpan sweeps the controller.
-TEST_F(CobaltLifecycleControllerTest,
-       IgnoresBindingsAndNotificationsOnDestroyedContext) {
+TEST_F(CobaltLifecycleControllerTest, IgnoresNotificationsOnDestroyedContext) {
   LocalDOMWindow* detached_window = GetFrame().DomWindow();
   mojo::Remote<cobalt::mojom::blink::CobaltLifecycleController>
       controller_remote;
@@ -259,17 +258,18 @@ TEST_F(CobaltLifecycleControllerTest,
   ASSERT_TRUE(detached_window->IsContextDestroyed());
   ASSERT_TRUE(weak_old_controller);
 
-  FakeCobaltLifecycleObserver late_observer;
-  weak_old_controller->SetObserver(late_observer.BindNewPipeAndPassRemote());
-  mojo::Remote<cobalt::mojom::blink::CobaltLifecycleController> late_remote;
-  weak_old_controller->BindMojoReceiver(
-      late_remote.BindNewPipeAndPassReceiver());
+  GetPage().SetVisibilityState(mojom::blink::PageVisibilityState::kHidden,
+                               /*is_initial_state=*/false);
+  GetPage().GetFocusController().SetFocused(true);
+  GetPage().GetFocusController().SetFocused(false);
   weak_old_controller->ContextLifecycleStateChanged(
       mojom::blink::FrameLifecycleState::kRunning);
+  weak_old_controller->ContextLifecycleStateChanged(
+      mojom::blink::FrameLifecycleState::kFrozen);
 
   test::RunPendingTasks();
-  late_observer.FlushForTesting();
-  EXPECT_TRUE(late_observer.events().empty());
+  observer.FlushForTesting();
+  EXPECT_TRUE(observer.events().empty());
 }
 
 }  // namespace

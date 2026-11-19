@@ -89,10 +89,7 @@ class MODULES_EXPORT CobaltLifecycleController
   void Trace(Visitor* visitor) const override;
 
  private:
-  void SendPageVisibilityChanged(bool visible);
-  void SendPageFocused();
-  void SendPageBlurred();
-  void SendPageResumed();
+  void EnsureRemoteIsBound();
   void NotifyObserver(base::OnceClosure callback);
 
   HeapMojoReceiver<cobalt::mojom::blink::CobaltLifecycleController,

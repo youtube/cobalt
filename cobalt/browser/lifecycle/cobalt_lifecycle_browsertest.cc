@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <atomic>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
@@ -72,6 +74,11 @@ std::unique_ptr<net::test_server::HttpResponse> HandleInlinePageRequest(
   return response;
 }
 
+struct LifecycleHookState {
+  std::atomic<bool> pagehide_fired{false};
+  std::atomic<bool> gc_completed{false};
+};
+
 // Renderer-side helper that installs a pagehide hook to toggle WebView
 // visibility during navigation (queuing TaskType::kDOMManipulation tasks on the
 // outgoing CobaltLifecycleController) and posts a high-priority frame task on
@@ -84,8 +91,9 @@ std::unique_ptr<net::test_server::HttpResponse> HandleInlinePageRequest(
 // renderer main thread.
 class LifecycleDuringCommitObserver : public content::RenderFrameObserver {
  public:
-  explicit LifecycleDuringCommitObserver(content::RenderFrame* render_frame)
-      : content::RenderFrameObserver(render_frame) {}
+  LifecycleDuringCommitObserver(content::RenderFrame* render_frame,
+                                std::shared_ptr<LifecycleHookState> state)
+      : content::RenderFrameObserver(render_frame), state_(std::move(state)) {}
   ~LifecycleDuringCommitObserver() override = default;
 
   void InstallPagehideVisibilityTrigger() {
@@ -124,9 +132,14 @@ class LifecycleDuringCommitObserver : public content::RenderFrameObserver {
     queued_during_pagehide_ = false;
     render_frame()
         ->GetTaskRunner(blink::TaskType::kInternalHighPriorityLocalFrame)
-        ->PostTask(
-            FROM_HERE,
-            base::BindOnce(&blink::WebHeap::CollectAllGarbageForTesting));
+        ->PostTask(FROM_HERE,
+                   base::BindOnce(
+                       [](std::shared_ptr<LifecycleHookState> state) {
+                         blink::WebHeap::CollectAllGarbageForTesting();
+                         state->gc_completed.store(true,
+                                                   std::memory_order_release);
+                       },
+                       state_));
   }
 
   void OnDestruct() override { delete this; }
@@ -144,6 +157,7 @@ class LifecycleDuringCommitObserver : public content::RenderFrameObserver {
       return;
     }
     self->queued_during_pagehide_ = true;
+    self->state_->pagehide_fired.store(true, std::memory_order_release);
     blink::WebView* view = web_frame->View();
     view->SetVisibilityState(blink::mojom::PageVisibilityState::kHidden,
                              /*is_initial_state=*/false);
@@ -151,6 +165,7 @@ class LifecycleDuringCommitObserver : public content::RenderFrameObserver {
                              /*is_initial_state=*/false);
   }
 
+  std::shared_ptr<LifecycleHookState> state_;
   bool queued_during_pagehide_ = false;
 };
 
@@ -247,16 +262,17 @@ IN_PROC_BROWSER_TEST_F(
       RenderProcessHostImpl::GetInProcessRendererThreadTaskRunnerForTesting();
   ASSERT_NE(renderer_task_runner, nullptr);
 
+  auto hook_state = std::make_shared<LifecycleHookState>();
   base::RunLoop attach_loop;
   renderer_task_runner->PostTaskAndReply(
-      FROM_HERE, base::BindLambdaForTesting([frame_token]() {
+      FROM_HERE, base::BindLambdaForTesting([frame_token, hook_state]() {
         blink::WebLocalFrame* web_frame =
             blink::WebLocalFrame::FromFrameToken(frame_token);
         ASSERT_NE(web_frame, nullptr);
         content::RenderFrame* rf =
             content::RenderFrame::FromWebFrame(web_frame);
         ASSERT_NE(rf, nullptr);
-        auto* observer = new LifecycleDuringCommitObserver(rf);
+        auto* observer = new LifecycleDuringCommitObserver(rf, hook_state);
         observer->InstallPagehideVisibilityTrigger();
       }),
       attach_loop.QuitClosure());
@@ -270,12 +286,17 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ("visible",
             content::EvalJs(shell()->web_contents(), "document.visibilityState")
                 .ExtractString());
+  EXPECT_TRUE(hook_state->pagehide_fired.load(std::memory_order_acquire));
+  EXPECT_TRUE(hook_state->gc_completed.load(std::memory_order_acquire));
 
   VisibilityAckWaiter waiter(shell()->web_contents());
   CobaltLifecycleManager::GetInstance()->StartWaitingForAck(
       shell()->web_contents(), PendingAck::kConceal);
   shell()->web_contents()->WasHidden();
   waiter.WaitForConcealed();
+  EXPECT_EQ("hidden",
+            content::EvalJs(shell()->web_contents(), "document.visibilityState")
+                .ExtractString());
 }
 
 }  // namespace cobalt
