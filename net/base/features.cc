@@ -789,6 +789,10 @@ BASE_FEATURE(kCobaltHttpCacheFontAndPassThrough,
              "CobaltHttpCacheFontAndPassThrough",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltQuicDeferAckOnlyPackets,
+             "CobaltQuicDeferAckOnlyPackets",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltQuicReadBatch,
              "CobaltQuicReadBatch",
              base::FEATURE_DISABLED_BY_DEFAULT);

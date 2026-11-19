@@ -3053,6 +3053,96 @@ TEST_P(QuicChromiumClientSessionTest,
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(quic_data.AllWriteDataConsumed());
 }
+
+// Verifies that InitializeQuicConfig() appends DAOP only when the Cobalt Finch
+// feature CobaltQuicDeferAckOnlyPackets is enabled, and avoids duplicating DAOP
+// when it was already provided via QuicParams::client_connection_options.
+TEST_P(QuicChromiumClientSessionTest,
+       InitializeQuicConfigAddsDaopOnlyWhenFinchFeatureEnabled) {
+  {
+    QuicParams params;
+    quic::QuicConfig config = InitializeQuicConfig(params);
+    EXPECT_FALSE(config.HasClientRequestedIndependentOption(
+        quic::kDAOP, quic::Perspective::IS_CLIENT));
+  }
+
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltQuicDeferAckOnlyPackets);
+
+    QuicParams params;
+    quic::QuicConfig config = InitializeQuicConfig(params);
+    EXPECT_TRUE(config.HasClientRequestedIndependentOption(
+        quic::kDAOP, quic::Perspective::IS_CLIENT));
+
+    params.client_connection_options = {quic::kDAOP};
+    quic::QuicConfig dedup_config = InitializeQuicConfig(params);
+    EXPECT_EQ(1, std::ranges::count(
+                     dedup_config.ClientRequestedIndependentOptions(
+                         quic::Perspective::IS_CLIENT),
+                     quic::kDAOP));
+  }
+}
+
+// Verifies end-to-end that enabling the CobaltQuicDeferAckOnlyPackets Finch
+// feature causes InitializeQuicConfig() and QuicChromiumPacketReader to batch
+// standalone ACK-only packets across a ReadMultiplePackets (recvmmsg) burst.
+TEST_P(QuicChromiumClientSessionTest,
+       ScopedAckDeferrerBatchesMultiPacketReadsWithFinchFeature) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltQuicDeferAckOnlyPackets);
+  quic::QuicConfig initialized_config = InitializeQuicConfig(QuicParams());
+  config_.SetClientConnectionOptions(
+      initialized_config.ClientRequestedIndependentOptions(
+          quic::Perspective::IS_CLIENT));
+
+  MockQuicData quic_data(version_);
+  int write_packet_num = 1;
+  int read_packet_num = 1;
+  quic_data.AddWrite(SYNCHRONOUS,
+                     client_maker_.MakeInitialSettingsPacket(write_packet_num++));
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.Packet(write_packet_num++)
+                                      .AddAckFrame(1, 4, 1)
+                                      .Build());
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  MockQuicData batch_backing_data(version_);
+  batch_backing_data.AddRead(ASYNC, ERR_IO_PENDING);
+  batch_backing_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  batch_backing_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+  CompleteCryptoHandshake();
+
+  base::AutoReset<bool> reset_multi_packet_reads =
+      QuicChromiumPacketReaderPeer::ScopedSetTryReadingMultiplePackets(true);
+
+  std::unique_ptr<DatagramClientSocket> inner_socket =
+      socket_factory_.CreateDatagramClientSocket(
+          DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(inner_socket->Connect(kIpEndPoint), IsOk());
+  auto batch_socket =
+      std::make_unique<BatchingDatagramClientSocket>(std::move(inner_socket));
+
+  std::vector<std::unique_ptr<quic::QuicEncryptedPacket>> batch;
+  for (int i = 0; i < 4; ++i) {
+    batch.push_back(
+        server_maker_.Packet(read_packet_num++).AddPingFrame().Build());
+  }
+  batch_socket->AddPacketBatch(SYNCHRONOUS, std::move(batch));
+
+  QuicChromiumPacketReader batch_reader(
+      std::move(batch_socket), &clock_, session_.get(),
+      kQuicYieldAfterPacketsRead,
+      quic::QuicTime::Delta::FromMilliseconds(
+          kQuicYieldAfterDurationMilliseconds),
+      net_log_with_source_);
+  batch_reader.StartReading();
+
+  EXPECT_TRUE(quic_data.AllWriteDataConsumed());
+}
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace

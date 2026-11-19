@@ -26,6 +26,7 @@
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcnMultiplePackets/RFCv1",
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcnMultiplePackets/RFCv2",
     "*QuicConnectionTest.ScopedAckDeferrer*",
+    "*QuicChromiumClientSessionTest.InitializeQuicConfigAddsDaopOnlyWhenFinchFeatureEnabled*",
     "*QuicChromiumClientSessionTest.MultiPacketReadsSendImmediateAcksWithoutDaop*",
     "*QuicChromiumClientSessionTest.ScopedAckDeferrer*"
   ]
