@@ -208,6 +208,18 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
     // contexts in the explicitly requested share group
     if (share_command_buffer_stub) {
       share_group_ = share_command_buffer_stub->share_group();
+#if BUILDFLAG(IS_COBALT)
+    } else if (gl::GLDisplayEGL* display_egl =
+                   display ? display->GetAs<gl::GLDisplayEGL>() : nullptr;
+               display_egl &&
+               !display_egl->ext->b_EGL_ANGLE_display_texture_share_group) {
+      // Without ANGLE (e.g. native GLES on RDK) there is no display-wide
+      // texture share group, so the textures backing shared images (created
+      // by the SharedContextState) are only visible to contexts in its share
+      // group. Use the channel's share group, which the SharedContextState
+      // also uses in this case (see GpuChannelManager::GetSharedContextState).
+      share_group_ = channel_->share_group();
+#endif
     } else {
       share_group_ = base::MakeRefCounted<gl::GLShareGroup>();
     }

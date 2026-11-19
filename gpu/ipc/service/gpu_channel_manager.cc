@@ -990,9 +990,27 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
   bool enable_angle_validation = features::IsANGLEValidationEnabled();
 
   scoped_refptr<gl::GLShareGroup> share_group;
+#if BUILDFLAG(IS_COBALT)
+  bool share_with_decoder_contexts = false;
+#endif
   bool use_passthrough_decoder = use_passthrough_cmd_decoder();
   if (use_passthrough_decoder) {
     share_group = new gl::GLShareGroup();
+#if BUILDFLAG(IS_COBALT)
+    // Without ANGLE (e.g. native GLES on RDK) there is no display-wide texture
+    // share group. Share textures with the passthrough contexts (WebGL, media)
+    // through the manager's share group instead, so they can access the
+    // textures backing shared images. See GLES2CommandBufferStub::Initialize.
+    if (gl::GLDisplayEGL* display_egl =
+            surface->GetGLDisplay()
+                ? surface->GetGLDisplay()->GetAs<gl::GLDisplayEGL>()
+                : nullptr;
+        display_egl &&
+        !display_egl->ext->b_EGL_ANGLE_display_texture_share_group) {
+      share_group = share_group_;
+      share_with_decoder_contexts = true;
+    }
+#endif
     // Virtualized contexts don't work with passthrough command decoder.
     // See https://crbug.com/914976
     use_virtualized_gl_contexts = false;
@@ -1019,6 +1037,14 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
     }
 
     attribs.can_skip_validation = !enable_angle_validation;
+#if BUILDFLAG(IS_COBALT)
+    if (share_with_decoder_contexts) {
+      // EGL requires contexts in a share group to agree on robust buffer
+      // access (EGL_BAD_MATCH otherwise), and the passthrough decoder contexts
+      // (WebGL, media) always request it.
+      attribs.robust_buffer_access = true;
+    }
+#endif
 
     context =
         gl::init::CreateGLContext(share_group.get(), surface.get(), attribs);

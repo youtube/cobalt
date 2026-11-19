@@ -45,6 +45,10 @@
 #include "ui/gl/progress_reporter.h"
 #include "ui/gl/scoped_make_current.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "gpu/command_buffer/service/gles2_cmd_decoder_passthrough_robust_fallbacks_cobalt.h"
+#endif
+
 #if BUILDFLAG(IS_WIN)
 #include "gpu/command_buffer/service/shared_image/d3d_image_backing_factory.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -930,6 +934,13 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   // to dynamically enable extensions.
   InitializeFeatureInfo(attrib_helper.context_type, DisallowedFeatures(),
                         false);
+#if BUILDFLAG(IS_COBALT)
+  // Without ANGLE (e.g. native GLES on RDK) the robust client memory entry
+  // points this decoder relies on are missing; emulate them.
+  if (!feature_info_->feature_flags().angle_robust_client_memory) {
+    InstallRobustANGLEFallbacksIfNeeded(gl::g_current_gl_driver);
+  }
+#endif
 
   // Check for required extensions
   // TODO(geofflang): verify

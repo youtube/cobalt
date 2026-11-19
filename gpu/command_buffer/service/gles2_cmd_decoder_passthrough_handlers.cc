@@ -1615,9 +1615,24 @@ error::Error
 GLES2DecoderPassthroughImpl::HandleGetRequestableExtensionsCHROMIUM(
     uint32_t immediate_data_size,
     const volatile void* cmd_data) {
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt on some platforms (like RDK) runs the passthrough decoder on a
+  // native GLES driver without ANGLE. Blink unconditionally queries the
+  // requestable extensions when creating a WebGL context, so report an empty
+  // list instead of failing the command, which would lose the context.
+  if (!features().angle_request_extension) {
+    const volatile gles2::cmds::GetRequestableExtensionsCHROMIUM& c =
+        *static_cast<
+            const volatile gles2::cmds::GetRequestableExtensionsCHROMIUM*>(
+            cmd_data);
+    CreateBucket(c.bucket_id)->SetFromString("");
+    return error::kNoError;
+  }
+#else
   if (!features().angle_request_extension) {
     return error::kUnknownCommand;
   }
+#endif
   const volatile gles2::cmds::GetRequestableExtensionsCHROMIUM& c =
       *static_cast<
           const volatile gles2::cmds::GetRequestableExtensionsCHROMIUM*>(
@@ -1642,7 +1657,13 @@ error::Error GLES2DecoderPassthroughImpl::HandleRequestExtensionCHROMIUM(
     uint32_t immediate_data_size,
     const volatile void* cmd_data) {
   if (!features().angle_request_extension) {
+#if BUILDFLAG(IS_COBALT)
+    // No extensions are requestable without ANGLE (see
+    // HandleGetRequestableExtensionsCHROMIUM), so this is a no-op.
+    return error::kNoError;
+#else
     return error::kUnknownCommand;
+#endif
   }
   const volatile gles2::cmds::RequestExtensionCHROMIUM& c =
       *static_cast<const volatile gles2::cmds::RequestExtensionCHROMIUM*>(

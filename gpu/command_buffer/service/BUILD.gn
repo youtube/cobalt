@@ -333,6 +333,13 @@ target(link_target_type, "gles2_sources") {
     ]
   }
 
+  if (is_cobalt) {
+    sources += [
+      "gles2_cmd_decoder_passthrough_robust_fallbacks_cobalt.cc",
+      "gles2_cmd_decoder_passthrough_robust_fallbacks_cobalt.h",
+    ]
+  }
+
   if (is_cobalt && use_starboard_media) {
     sources += [
       "shared_image/starboard/starboard_gl_texture_image_backing.cc",
