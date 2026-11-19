@@ -120,9 +120,13 @@ runs:
         PLATFORM: ${{ matrix.platform }}
       run: |
         if ! grep -q "target_cpu" .gclient; then
-          if [[ "${PLATFORM}" == *"evergreen-arm64"* ]]; then
+          if [[ "${PLATFORM}" == *"evergreen-arm64"* || "${PLATFORM}" == "aosp-arm64" ]]; then
             echo "target_cpu=['x64', 'arm64']" >> .gclient
+<<<<<<< HEAD
           elif [[ "${PLATFORM}" == *"evergreen-arm"* ]] || [[ "${PLATFORM}" == *"aosp-arm"* ]]; then
+=======
+          elif [[ "${PLATFORM}" == *"evergreen-arm"* || "${PLATFORM}" == "aosp-arm" ]]; then
+>>>>>>> 1d80e64602c (aosp: Add non-Evergreen AOSP build configs (#14092))
             echo "target_cpu=['x64', 'arm']" >> .gclient
           fi
         fi

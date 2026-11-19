@@ -58,6 +58,8 @@ _CHROMIUM_PLATFORMS = [
     'chromium_mac-arm64',
 ]
 _COBALT_STARBOARD_PLATFORMS = [
+    'aosp-arm',
+    'aosp-arm64',
     'evergreen-arm-softfp',
     'evergreen-arm-softfp-aosp',
     'evergreen-arm64',
