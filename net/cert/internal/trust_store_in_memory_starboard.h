@@ -47,12 +47,18 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
   TrustStoreInMemoryStarboard& operator=(const TrustStoreInMemoryStarboard&) =
       delete;
 
-  TrustStoreInMemory underlying_trust_store_;
+  // Mutable because certificates are loaded lazily, including from the const
+  // GetTrust(). Guarded by |load_mutex_|.
+  mutable TrustStoreInMemory underlying_trust_store_;
 
   // Given a certificate's canonical name, try to load this cert from trusted
-  // certs on disk if it is found.
+  // certs on disk if it is found and has not been loaded yet.
   scoped_refptr<ParsedCertificate> TryLoadCert(
       const base::StringPiece& cert_name) const;
+
+  // Adds the on-disk certificate for |cert_name|, if any, to
+  // |underlying_trust_store_|. |load_mutex_| must be held.
+  void MaybeLoadCertLocked(const base::StringPiece& cert_name) const;
 
   // The memory trust store can be accessed by multiple threads, in Chromium,
   // the synchronization issue is solved by initializing trust store at startup
@@ -60,7 +66,8 @@ class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
   // therefore guards the underlying_trust_store_ with mutex.
   starboard::Mutex load_mutex_;
 
-  const std::unordered_set<std::string> trusted_cert_names_on_disk_;
+  // File names of certificates on disk that have not been loaded yet.
+  mutable std::unordered_set<std::string> trusted_cert_names_on_disk_;
 };
 
 }  // namespace net
