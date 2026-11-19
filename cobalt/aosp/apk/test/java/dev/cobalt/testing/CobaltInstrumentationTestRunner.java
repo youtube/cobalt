@@ -32,4 +32,10 @@ public class CobaltInstrumentationTestRunner extends NativeTestInstrumentationTe
     arguments.putString(EXTRA_NATIVE_TEST_ACTIVITY, TEST_ACTIVITY);
     super.onCreate(arguments);
   }
+
+  @Override
+  public void onStart() {
+    WidevineProvisioner.ensureProvisioned();
+    super.onStart();
+  }
 }

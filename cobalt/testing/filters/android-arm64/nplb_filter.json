@@ -6,7 +6,6 @@
     "MultiplePlayerTest.*",
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.TimeAfterSeek/audio_beneath_the_canopy_aac_5_1*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*_dmp_output_*widevine*",
-    "SbDrmSessionTest.*",
     "SbSocketAddressTypes/*",
     "PosixSocketHints/*",
     "SbDirectoryCanOpenTest.*",
