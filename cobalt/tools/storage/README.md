@@ -122,8 +122,44 @@ It is followed by two sections:
 
 ---
 
+## Perfetto Storage Tracing (`profile_storage_perfetto.py`)
+
+`profile_storage_perfetto.py` records an on-device Perfetto trace during a CUJ and shows why storage I/O is slow: which Chromium storage engine (SQLite, LevelDB, `base::File`, `ScopedBlockingCall`) ran when and for how long, and which concurrent fsyncs and block requests the UI, renderer, GPU and compositor threads were waiting on (kernel `io_wait`).
+
+The tool launches the app itself because Chromium only connects to the system tracing service with `--enable-features=EnablePerfettoSystemTracing`, which is disabled by default on Android. The CUJs do not poll the device, so the trace only shows the app's own I/O.
+
+```bash
+python3 cobalt/tools/storage/profile_storage_perfetto.py \
+  [--serial SERIAL] [--package com.google.android.youtube.tv] \
+  [--cuj cold_start|lifecycle|manual] [--duration-s 65] [--cuj-cmd "<host command>"] \
+  [--golden-tar /data/local/tmp/golden.tar] [--drop-caches] [--extra-args "--enable-features=A;B"] \
+  [--include-memory-infra] [--out out/perfetto/cold_start.pftrace] [--report-dir DIR]
+python3 cobalt/tools/storage/profile_storage_perfetto.py --analyze-only TRACE [--report-dir DIR]
+python3 cobalt/tools/storage/profile_storage_perfetto.py --print-config
+```
+
+| `--cuj` | What it does |
+| :--- | :--- |
+| `cold_start` (default) | `am start -S` cold launch, then traces for `--duration-s` (default `65` s). |
+| `lifecycle` (`~125 s`) | Cold launch and 30 s; 8 × (`KEYCODE_DPAD_DOWN`, `KEYCODE_DPAD_RIGHT`) 2 s apart; `#/watch?v=1La4QzGeaaQ` intent and 45 s; `KEYCODE_HOME` and 15 s. |
+| `manual` | Cold launch, then traces until `Ctrl+C`, `--duration-s`, or until the `--cuj-cmd` host command exits. |
+
+- `--golden-tar` restores the app data from a tar on the device with `run-as`, deletes `BrowserStabilityMetrics/*.pma`, and runs `sync` before tracing.
+- `--drop-caches` needs root; otherwise it warns and traces with a warm page cache.
+- `--extra-args` is comma-separated like in `storage_monitor.py`. Cobalt merges repeated `--enable-features`, so pass several features as `--enable-features=A;B`.
+- Analysis needs `trace_processor_shell` (default `~/.local/share/perfetto/prebuilts/trace_processor_shell`; `curl -LO https://get.perfetto.dev/trace_processor && python3 trace_processor --version` downloads it there).
+- If the CUJ fails or is interrupted, the tool still stops Perfetto and saves the trace and `<stem>.phases.json`. As a safety net, the trace stops by itself 120 s after its expected length (`manual`: after 1 hour). The exit code is 1 if the CUJ, a query, or `--cuj-cmd` fails, or if the trace is unhealthy.
+
+Outputs, where `<stem>` is the trace file name without its extension:
+- `<stem>.q1.csv` … `<stem>.q8.csv`: the queries in `perfetto_storage_queries.sql`: Q1 I/O by subsystem, Q2 slowest operations, Q3/Q4 storage histogram samples, Q5 first/last I/O per engine, Q6 overlapping slow operations of different engines, Q7 kernel `io_wait` per app thread, and Q8 the `io_wait` of `CrBrowserMain`, `Chrome_InProcRendererThread`, `Chrome_InProcGpuThread` and `VizCompositorThread`/`Compositor` that overlaps worker storage slices, `ext4`/`f2fs` fsyncs, or block requests.
+- `<stem>.phases.json`: the CUJ actions and phases in `/proc/uptime` seconds (`CLOCK_BOOTTIME`, the trace clock: trace timestamp in ns = seconds × 1e9).
+- `<stem>.summary.json` and `<stem>.md`: trace sha256, size and duration, versions, trace health, phases, and row counts and top rows of each query. A healthy trace is complete (it has `tracing_disabled_ns` and the end-of-trace stats) and has no failed flushes, overwritten or discarded buffer chunks, ftrace overruns, out-of-order events, or other `data_loss` stats. Ftrace events that the kernel does not support (for example `android_fs` and `f2fs` on some retail devices) are listed as ftrace setup errors.
+
+---
+
 ## Running Unit Tests
 
 ```bash
 python3 -m unittest cobalt/tools/storage/storage_monitor_test.py
+python3 -m unittest cobalt/tools/storage/profile_storage_perfetto_test.py
 ```
