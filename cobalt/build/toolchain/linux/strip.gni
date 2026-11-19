@@ -14,7 +14,22 @@
 
 import("//build/config/clang/clang.gni")
 
-if (is_official_build && is_cobalt_hermetic_build) {
+declare_args() {
+  # Whether the hermetic Linux toolchains strip shared libraries and
+  # executables at link time. The unstripped binaries are kept in
+  # lib.unstripped/ and exe.unstripped/.
+  #
+  # Non-official x64 builds are not stripped by default because their tests
+  # run on the build host, where Starboard symbolizes crash stacks in-process
+  # by reading the loaded library. All other configurations are deployed to
+  # devices, where unstripped binaries waste storage and memory.
+  cobalt_strip_binaries =
+      is_cobalt_hermetic_build && (is_official_build || target_cpu != "x64")
+}
+
+if (cobalt_strip_binaries) {
+  assert(is_cobalt_hermetic_build,
+         "cobalt_strip_binaries requires a hermetic build.")
   assert(target_cpu == "arm" || target_cpu == "arm64" || target_cpu == "x64",
          "Unsupported architecture.")
 
