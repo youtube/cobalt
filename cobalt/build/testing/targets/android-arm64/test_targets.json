@@ -83,7 +83,8 @@
     "target": "starboard/nplb:nplb",
     "executable": "out/android-arm64_devel/nplb_apk/nplb-debug.apk",
     "runs_on": "device",
-    "test_type": "gtest"
+    "test_type": "gtest",
+    "shards": 2
   },
   {
     "target": "starboard/android/shared:starboard_platform_tests",
@@ -137,7 +138,8 @@
     "target": "third_party/boringssl:boringssl_crypto_tests",
     "executable": "out/android-arm64_devel/boringssl_crypto_tests_apk/boringssl_crypto_tests-debug.apk",
     "runs_on": "device",
-    "test_type": "gtest"
+    "test_type": "gtest",
+    "shards": 2
   },
   {
     "target": "third_party/boringssl:boringssl_ssl_tests",

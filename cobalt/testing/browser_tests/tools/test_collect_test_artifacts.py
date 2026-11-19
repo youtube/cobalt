@@ -6,6 +6,9 @@
 
 import os
 from pathlib import Path
+import sys
+import tarfile
+import tempfile
 import unittest
 from unittest import mock
 
@@ -38,13 +41,15 @@ class TestCollectTestArtifacts(unittest.TestCase):
 
   @mock.patch('subprocess.run')
   @mock.patch('os.makedirs')
+  @mock.patch('os.path.islink', return_value=False)
   @mock.patch('os.path.isdir', return_value=True)
-  def test_copy_fast_dir(self, mock_isdir, mock_makedirs, mock_run):
-    del mock_isdir  # Unused argument.
-    collect_test_artifacts.copy_fast('src/dir', 'dst/dir')
+  def test_copy_fast_dir(self, mock_isdir, mock_islink, mock_makedirs,
+                         mock_run):
+    del mock_isdir, mock_islink  # Unused arguments.
+    collect_test_artifacts.copy_fast('src/custom_dir', 'dst/renamed_dir')
     mock_makedirs.assert_called_once_with('dst', exist_ok=True)
-    mock_run.assert_called_once_with(['cp', '-af', 'src/dir', 'dst/'],
-                                     check=True)
+    mock_run.assert_called_once_with(
+        ['cp', '-afT', 'src/custom_dir', 'dst/renamed_dir'], check=True)
 
   @mock.patch('subprocess.run')
   @mock.patch('os.makedirs')
@@ -143,6 +148,62 @@ class TestCollectTestArtifactsMain(unittest.TestCase):
 
       mock_error.assert_called_once()
       self.assertIn('cannot be an absolute path', mock_error.call_args[0][0])
+
+  def test_main_toolchain_only_creates_slim_archive(self):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      src_root = os.path.join(tmp_dir, 'src')
+      dest_dir = os.path.join(tmp_dir, 'dest')
+      dt_dir = os.path.join(tmp_dir, 'dt')
+      for rel in ('build/android/test_runner.py', 'build/gn_helpers.py',
+                  'build/config/gclient_args.gni',
+                  'third_party/android_build_tools/aapt2/aapt2',
+                  'third_party/android_build_tools/bundletool/bt.jar',
+                  'third_party/android_build_tools/lint/lint.jar',
+                  'third_party/catapult/third_party/vinn/vinn',
+                  'third_party/llvm-build/Release+Asserts/bin/llvm-symbolizer',
+                  'out/android-arm_devel/build_vars.json',
+                  'out/android-arm_devel/url_unittests.apk'):
+        Path(src_root, rel).parent.mkdir(parents=True, exist_ok=True)
+        Path(src_root, rel).write_text('x', encoding='utf-8')
+      for rel in ('vpython3', 'python3', 'bootstrap-3.11/bin/py',
+                  '.cipd_bin/reclient/rewrapper'):
+        Path(dt_dir, rel).parent.mkdir(parents=True, exist_ok=True)
+        Path(dt_dir, rel).write_text('x', encoding='utf-8')
+
+      old_cwd = os.getcwd()
+      os.chdir(src_root)
+      try:
+        argv = [
+            'collect_test_artifacts.py', 'out/android-arm_devel', '-o',
+            'android_test_host_deps.tar.gz', '--output_dir', dest_dir,
+            '--compression', 'gz', '--toolchain-only'
+        ]
+        with mock.patch('sys.argv', argv), mock.patch(
+            'shutil.which', return_value=os.path.join(dt_dir, 'vpython3')):
+          collect_test_artifacts.main()
+      finally:
+        os.chdir(old_cwd)
+
+      extract_dir = os.path.join(tmp_dir, 'extracted')
+      with tarfile.open(
+          os.path.join(dest_dir, 'android_test_host_deps.tar.gz'),
+          'r:gz') as tar:
+        kw = {'filter': 'data'} if sys.version_info >= (3, 12) else {}
+        tar.extractall(extract_dir, **kw)
+
+      for inc in ('src/out/android-arm_devel/build_vars.json',
+                  'src/build/config/gclient_args.gni',
+                  'src/third_party/android_build_tools/aapt2/aapt2',
+                  'src/third_party/android_build_tools/bundletool/bt.jar',
+                  'depot_tools/vpython3'):
+        self.assertTrue(os.path.isfile(os.path.join(extract_dir, inc)))
+      for exc in ('src/third_party/android_build_tools/lint',
+                  'src/third_party/catapult/third_party/vinn',
+                  'src/third_party/llvm-build',
+                  'src/out/android-arm_devel/url_unittests.apk',
+                  'depot_tools/python3', 'depot_tools/bootstrap-3.11',
+                  'depot_tools/.cipd_bin/reclient', 'run_tests.py'):
+        self.assertFalse(os.path.exists(os.path.join(extract_dir, exc)))
 
 
 if __name__ == '__main__':
