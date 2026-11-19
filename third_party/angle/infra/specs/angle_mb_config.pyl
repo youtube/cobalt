@@ -1,0 +1,25 @@
+# Copyright 2021 The ANGLE Project Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# This is a .pyl, or "Python Literal", file. You can treat it just like a
+# .json file, with the following exceptions:
+# * all keys must be quoted (use single quotes, please);
+# * comments are allowed, using '#' syntax; and
+# * trailing commas are allowed.
+
+{
+  # Paths to gn_args_locations.json relative to the directory containing angle_mb_config.pyl.
+  # Such json files contain maps of
+  # builder group -> builder ID -> file path of "gn-args.json" generated from starlark.
+  'gn_args_locations_files': [
+      '../config/generated/builders/gn_args_locations.json',
+  ],
+
+  # builder_groups, configs, and mixins are not expected to be used since Dawn
+  # specifies its GN args via Starlark now. However, mb.py assumes that these
+  # keys exist, so have empty dicts for each.
+  'builder_groups': {},
+  'configs': {},
+  'mixins': {},
+}
