@@ -52,6 +52,7 @@ android_library("test_instrumentation_java") {
   deps = [
     ":cobalt_apk_java",
     "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
+    "//cobalt/android:widevine_provisioner_java",
     "//testing/android/reporter:reporter_java",
   ]
 }
