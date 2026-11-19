@@ -35,8 +35,11 @@ public class SysUtils {
 
     private static @Nullable Boolean sLowEndDevice;
     private static @Nullable Integer sAmountOfPhysicalMemoryKB;
+<<<<<<< HEAD
     private static @Nullable Boolean sHasCameraForTesting;
     private static @Nullable Boolean sIsCurrentlyLowMemoryForTesting;
+=======
+>>>>>>> ab415d8daaf (BACKPORT: Enable low-end device mode on Android (#12967))
     private static int sLowMemoryThresholdMB = LOW_MEMORY_DEVICE_THRESHOLD_MB;
 
     private SysUtils() {}
@@ -203,6 +206,7 @@ public class SysUtils {
         return sLowMemoryThresholdMB;
     }
 
+<<<<<<< HEAD
     /** Queries ActivityManager and checks if the process importance is Cached or below. */
     @CalledByNative
     public static boolean isProcessInBackground() {
@@ -217,6 +221,8 @@ public class SysUtils {
         }
     }
 
+=======
+>>>>>>> ab415d8daaf (BACKPORT: Enable low-end device mode on Android (#12967))
     /**
      * Creates a new trace event to log the number of minor / major page faults, if tracing is
      * enabled.

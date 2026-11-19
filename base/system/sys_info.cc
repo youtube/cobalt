@@ -205,6 +205,7 @@ bool DetectLowEndDevice() {
     return false;
   }
 
+<<<<<<< HEAD
   ByteSize ram_size = SysInfo::AmountOfTotalPhysicalMemory();
 #if BUILDFLAG(IS_ANDROID)
   if (FeatureList::GetInstance() == nullptr) {
@@ -218,6 +219,19 @@ bool DetectLowEndDevice() {
   return ram_size > ByteSize(0) &&
          ram_size <= MiBU(checked_cast<unsigned>(
                          features::kLowMemoryDeviceThresholdMB.Get()));
+=======
+  int ram_size_mb = SysInfo::AmountOfPhysicalMemoryMB();
+#if BUILDFLAG(IS_ANDROID)
+  if (FeatureList::GetInstance() == nullptr) {
+    int threshold_mb = base::android::GetCachedLowMemoryDeviceThresholdMb();
+    if (threshold_mb > 0) {
+      return ram_size_mb > 0 && ram_size_mb <= threshold_mb;
+    }
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+  return ram_size_mb > 0 &&
+         static_cast<unsigned>(ram_size_mb) <= features::kLowMemoryDeviceThresholdMB.Get();
+>>>>>>> ab415d8daaf (BACKPORT: Enable low-end device mode on Android (#12967))
   // LINT.ThenChange(//base/android/java/src/org/chromium/base/SysUtils.java)
 }
 
