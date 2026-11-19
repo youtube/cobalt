@@ -26,5 +26,3 @@ platform_tests_path = "//starboard/android/shared:starboard_platform_tests"
 cobalt_platform_dependencies = []
 
 cobalt_font_package = "android_system"
-
-v8_enable_webassembly = true

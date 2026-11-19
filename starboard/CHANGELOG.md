@@ -7,6 +7,50 @@ since the version previous to it.
 
 **NOTE: Starboard versions 16 and older are no longer supported.**
 
+## Version 19
+
+### Cleaned up GN platform configuration files
+Unused and redundant GN variables were removed from
+`starboard/build/config/base_configuration.gni` and the in-tree
+`platform_configuration/configuration.gni` files, as a step toward removing
+these configuration files in favor of defaults and `args.gn` settings.
+
+#### Removed unused Starboard GN configuration variables
+The following GN variables were removed from
+`starboard/build/config/base_configuration.gni` and/or in-tree
+`platform_configuration/configuration.gni` files because no build file read
+them, so they had no effect:
+* `cobalt_licenses_platform`
+* `cobalt_v8_emit_builtins_as_inline_asm`
+* `enable_shared_player_filter_tests`
+* `gtest_target_type`
+* `loadable_module_configs`
+* `nasm_exists`
+* `no_pedantic_warnings_config_path`
+* `path_to_nasm`
+* `pedantic_warnings_config_path`
+* `sb_angle_enable_gl`
+* `sb_enable_opus_sse`
+* `sb_has_unused_symbol_issue`
+* `sb_libevent_method`
+* `sb_use_no_rtti`
+* `size_config_path`
+* `speed_config_path`
+* `v8_enable_pointer_compression_override`
+
+Ports can delete any assignments of these variables from their platform
+configuration files. Setting any of them in `args.gn` now results in a GN
+"Build argument has no effect" warning.
+
+#### Removed redundant upstream GN arg overrides from platform configurations
+The following assignments were removed from in-tree
+`platform_configuration/configuration.gni` files because they had no effect:
+* `arm_float_abi = "softfp"` (android-arm): already forced for Android by
+  `//build/config/arm.gni`.
+* `arm_version = 8` (evergreen-arm64, rdk-arm64): `arm_version` only applies
+  to 32-bit ARM builds.
+* `v8_enable_webassembly = true` (android, stub): already V8's default.
+
 ## Version 18
 
 ### RDK: Suspend hangwatcher while backgrounded and bound lifecycle
