@@ -1,0 +1,21 @@
+{
+  "docker_service": "linux",
+  "platforms": [
+    "aosp-arm64"
+  ],
+  "build_configs": [
+    "debug",
+    "devel",
+    "qa",
+    "gold"
+  ],
+  "targets": [
+    "cobalt:gn_all"
+  ],
+  "includes": [
+    {
+      "name": "arm64-aosp",
+      "platform": "aosp-arm64"
+    }
+  ]
+}
