@@ -6,6 +6,7 @@
     "HttpCacheTest.CobaltShouldPassThroughExcludedUrls",
     "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty",
     "*QuicConnectionTest.ScopedAckDeferrer*",
+    "*QuicChromiumClientSessionTest.InitializeQuicConfigAddsDaopOnlyWhenFinchFeatureEnabled*",
     "*QuicChromiumClientSessionTest.MultiPacketReadsSendImmediateAcksWithoutDaop*",
     "*QuicChromiumClientSessionTest.ScopedAckDeferrer*"
   ]

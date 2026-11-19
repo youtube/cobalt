@@ -804,6 +804,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // Enables web font MIME caching and ShouldPassThrough pre-entry filtering in
 // Cobalt's HTTP cache.
 NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
+
+// Enables batching standalone QUIC ACK-only packets across receive batches by
+// adding the client-only DAOP connection option.
+NET_EXPORT BASE_DECLARE_FEATURE(kCobaltQuicDeferAckOnlyPackets);
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net::features
