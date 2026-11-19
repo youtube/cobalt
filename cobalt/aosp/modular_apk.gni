@@ -19,6 +19,9 @@ import("//starboard/content/fonts/variables.gni")
 import("//starboard/content/ssl/certs.gni")
 import("//third_party/icu/config.gni")
 
+# In modular builds, Android is only targeted by the Starboard toolchain.
+assert(current_toolchain == starboard_toolchain)
+
 template("modular_apk") {
   _name = invoker.module_name
   _lib_name = invoker.lib_name
