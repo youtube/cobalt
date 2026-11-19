@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <memory>
+#include <string_view>
 
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -190,7 +191,7 @@ TEST(PosixThreadAttrTest, SchedPolicyAttr) {
   ASSERT_EQ(ret, 0) << "pthread_attr_init failed: " << strerror(ret);
 
   // Helper lambda to test setting and getting a specific policy.
-  auto test_policy = [&](int policy_to_set, const char* policy_name) {
+  auto test_policy = [&](int policy_to_set, std::string_view policy_name) {
     const int set_ret = pthread_attr_setschedpolicy(&attr, policy_to_set);
     EXPECT_EQ(set_ret, 0) << "pthread_attr_setschedpolicy (to " << policy_name
                           << ") failed unexpectedly: " << strerror(set_ret);
@@ -297,7 +298,7 @@ TEST(PosixThreadAttrTest, SchedParam) {
 
   // Helper lambda to test setting and getting a specific policy and priority.
   auto test_runtime_sched_param = [&](pthread_t th, int policy_to_set,
-                                      const char* policy_name) {
+                                      std::string_view policy_name) {
     struct sched_param new_param = {};
     if (policy_to_set == SCHED_OTHER) {
       new_param.sched_priority = 0;
