@@ -991,6 +991,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     // arrived while a codec creation retry was pending.
     if (needs_fps_to_initialize_codec_) {
       SB_DCHECK(!pending_input_buffers_.empty());
+    } else if (codec_creation_retry_.max_retries == 0) {
+      SB_DCHECK(pending_input_buffers_.empty());
     }
     if (!pending_input_buffers_.empty()) {
       WriteInputBuffersInternal(pending_input_buffers_);
