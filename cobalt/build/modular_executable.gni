@@ -110,10 +110,12 @@ set_defaults("modular_executable") {
 }
 
 template("evergreen_final_target") {
+  # Evergreen libraries are only built in the default toolchain.
+  assert(current_toolchain == default_toolchain)
+
   original_target_name = target_name
   lib_name = invoker.lib_name
 
-  if (current_toolchain == default_toolchain) {
     group("${original_target_name}_loader") {
       testonly = true
       data_deps = [
@@ -270,7 +272,6 @@ template("evergreen_final_target") {
     shared_library(original_target_name) {
       forward_variables_from(invoker, "*", [ "lib_name" ])
     }
-  }
 }
 
 set_defaults("evergreen_final_target") {
