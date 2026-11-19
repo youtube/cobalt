@@ -14,10 +14,13 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
 
+#include "base/feature_list.h"
 #include "base/types/expected.h"
+#include "build/build_config.h"
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_memory_limit.h"
+#include "media/base/media_switches.h"
 #include "media/base/stream_parser.h"
 #include "third_party/blink/public/mojom/origin_trials/origin_trial_feature.mojom-shared.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
@@ -153,6 +156,29 @@ bool ExposeSourceBufferChangeType(ExecutionContext* execution_context) {
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+// Exposes h5vccWasmImports and the H5vccWasm* interfaces, which are hidden by
+// default behind the H5vccWasmImports runtime feature. Not in AndroidOverlay
+// mode, which has no video SurfaceView for the API's punch-out players.
+bool ExposeH5vccWasmImports(ExecutionContext* execution_context) {
+  if (!execution_context ||
+      base::FeatureList::IsEnabled(::media::kCobaltUsingAndroidOverlay)) {
+    return false;
+  }
+  auto* origin_trial_context = execution_context->GetOriginTrialContext();
+  if (!origin_trial_context) {
+    return false;
+  }
+
+  // For later documents and the dedicated workers the page creates.
+  WebRuntimeFeatures::EnableH5vccWasmImports(true);
+  // Installs the interfaces and the attribute into the current global.
+  origin_trial_context->AddFeature(
+      mojom::blink::OriginTrialFeature::kH5vccWasmImports);
+  return true;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+
 }  // namespace
 
 H5vccSettings::H5vccSettings(LocalDOMWindow& window)
@@ -199,6 +225,14 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
               ExecutionContext::From(script_state));
         });
   }
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+  if (name == "H5vccWasmImports") {
+    return ProcessSettingAsEnableOnly(
+        script_state, exception_context, name, *value, [script_state] {
+          return ExposeH5vccWasmImports(ExecutionContext::From(script_state));
+        });
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
   if (name == "Media.IncrementalParseLookAhead") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [] {

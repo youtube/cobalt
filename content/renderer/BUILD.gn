@@ -342,6 +342,14 @@ target(link_target_type, "renderer") {
     ]
   }
 
+  if (is_cobalt && use_starboard_media && is_android) {
+    sources += [
+      "media/cobalt/wasm_hole_web_media_player.cc",
+      "media/cobalt/wasm_hole_web_media_player.h",
+    ]
+    deps += [ "//cobalt/wasm/starboard:surface_video_size" ]
+  }
+
   if (is_android) {
     deps += [
       # Used by Android WebView only.
