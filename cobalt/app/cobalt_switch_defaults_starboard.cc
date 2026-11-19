@@ -94,6 +94,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // missing and causes errors. So Enable it by default. (More context in
        // b/444042898)
        "DefaultEnableANGLEValidation, "
+       "DefaultEnableGpuRasterization, "
        "SmallerInterestArea, "
        "ReclaimPrepaintTilesWhenIdle, "
        "ReclaimOldPrepaintTiles, "
