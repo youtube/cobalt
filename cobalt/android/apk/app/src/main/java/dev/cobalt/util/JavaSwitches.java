@@ -239,9 +239,8 @@ public class JavaSwitches {
     // Read by Java SysUtils.isLowEndDevice(), which caches the result, and by
     // SysInfo::IsLowEndDevice() in JNI_LibraryLoader_LibraryLoaded() (orderfile optimization).
     // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices.
-    if (!javaSwitches.containsKey(DISABLE_LOW_END_DEVICE_MODE)) {
-      args.add("--" + BaseSwitches.ENABLE_LOW_END_DEVICE_MODE);
-    }
+    // ATOM_PERF (PoC DisableLowEndDeviceMode): Disable low-end device mode by default.
+    args.add("--" + BaseSwitches.DISABLE_LOW_END_DEVICE_MODE);
 
     // Read and cached by PhysicalDisplayAndroid, via
     // DeviceUtils.updateDeviceSpecificUserAgentSwitch().
