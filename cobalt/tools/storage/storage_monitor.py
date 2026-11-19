@@ -197,6 +197,15 @@ class StorageTypeStats:
 
 
 _ADB_PREFIX_CACHE: Dict[str, List[str]] = {}
+# Device serial for every adb call; main() sets it from --serial.
+_ADB_SERIAL: Optional[str] = None
+
+
+def adb_command(*args: str) -> List[str]:
+  """Returns the adb argv for |args|, targeting _ADB_SERIAL when set."""
+  if _ADB_SERIAL:
+    return ["adb", "-s", _ADB_SERIAL, *args]
+  return ["adb", *args]
 
 
 def _format_adb_command(prefix: List[str], cmd_str: str) -> str:
@@ -227,13 +236,14 @@ def _get_adb_storage_prefix(package: str) -> List[str]:
   for prefix in candidates:
     cmd_str = _format_adb_command(prefix, f"ls {test_dir}")
     try:
-      res = subprocess.run(["adb", "shell", cmd_str],
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE,
-                           text=True,
-                           errors="replace",
-                           check=False,
-                           timeout=10)
+      res = subprocess.run(
+          adb_command("shell", cmd_str),
+          stdout=subprocess.PIPE,
+          stderr=subprocess.PIPE,
+          text=True,
+          errors="replace",
+          check=False,
+          timeout=10)
       if res.returncode == 0 and "Permission denied" not in res.stderr:
         _ADB_PREFIX_CACHE[package] = prefix
         return prefix
@@ -251,13 +261,14 @@ def run_adb_shell(cmd_str: str,
   full_cmd = _format_adb_command(prefix, cmd_str)
 
   try:
-    res = subprocess.run(["adb", "shell", full_cmd],
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE,
-                         text=True,
-                         errors="replace",
-                         check=False,
-                         timeout=timeout)
+    res = subprocess.run(
+        adb_command("shell", full_cmd),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        errors="replace",
+        check=False,
+        timeout=timeout)
     return res.returncode, res.stdout
   except subprocess.TimeoutExpired:
     return -1, ""
@@ -584,16 +595,13 @@ def verify_storage_apis_via_cdp(
     timeout_sec: float = 10.0) -> Optional[Dict[str, Any]]:
   """Forwards the Android CDP socket and verifies Web Storage & Media APIs."""
   try:
-    subprocess.run([
-        "adb",
-        "forward",
-        f"tcp:{port}",
-        "localabstract:content_shell_devtools_remote",
-    ],
-                   stdout=subprocess.PIPE,
-                   stderr=subprocess.PIPE,
-                   check=False,
-                   timeout=5)
+    subprocess.run(
+        adb_command("forward", f"tcp:{port}",
+                    "localabstract:content_shell_devtools_remote"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        timeout=5)
     with urllib.request.urlopen(
         f"http://127.0.0.1:{port}/json", timeout=timeout_sec) as resp:
       targets = json.loads(resp.read().decode("utf-8"))
@@ -1194,21 +1202,22 @@ def _launch_cobalt_android(url: str,
 def verify_android_device_connected() -> None:
   """Verifies that an Android device is connected and reachable via ADB."""
   try:
-    res = subprocess.run(["adb", "get-state"],
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE,
-                         text=True,
-                         errors="replace",
-                         check=False,
-                         timeout=5)
+    res = subprocess.run(
+        adb_command("get-state"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        errors="replace",
+        check=False,
+        timeout=5)
   except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
     raise RuntimeError(f"Failed to run 'adb get-state': {exc}") from exc
 
   if res.returncode != 0 or res.stdout.strip() != "device":
     err = res.stderr.strip() or res.stdout.strip() or "no device connected"
     raise RuntimeError(f"No active Android TV device found via ADB ({err}). "
-                       "Verify 'adb devices'; with several devices, set "
-                       "ANDROID_SERIAL.")
+                       "Verify 'adb devices'; with several devices, pass "
+                       "--serial (or set ANDROID_SERIAL).")
 
 
 def _make_scroll_action() -> Callable[[float], None]:
@@ -1406,6 +1415,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
             f"(default: '{DEFAULT_PACKAGE}', or "
             "'com.google.android.youtube.tv' for Kimono)."))
   parser.add_argument(
+      "--serial",
+      default=os.environ.get("ANDROID_SERIAL"),
+      help="adb device serial (default: $ANDROID_SERIAL).")
+  parser.add_argument(
       "--cuj",
       default="manual",
       choices=SUPPORTED_CUJS,
@@ -1455,7 +1468,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+  global _ADB_SERIAL
   args = parse_args(argv)
+  _ADB_SERIAL = args.serial
 
   if args.compare:
     a, b = (

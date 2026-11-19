@@ -55,6 +55,7 @@ python3 cobalt/tools/storage/storage_monitor.py --compare a_footprint.jsonl b_fo
 | :--- | :--- | :--- |
 | `--platform` | `android` | Target platform (currently supports `android`). |
 | `--package` | `dev.cobalt.coat` | Target Android package name to inspect (e.g., `dev.cobalt.coat` for Chrobalt or `com.google.android.youtube.tv` for Kimono). |
+| `--serial` | `$ANDROID_SERIAL` | Device serial passed as `adb -s` to every `adb` call (needed when several devices are connected). |
 | `--cuj` | `manual` | The Critical User Journey to execute and monitor (`manual`, `cold_start`, `home_scroll`, `video_playback`, `pause_flush`, `warm_relaunch`, or `all`). Defaults to `manual` (polls passively until `Ctrl+C`). |
 | `--interval` | `1.0` | Polling frequency in seconds during the CUJ run. |
 | `--verify-storage-apis` | `False` | When set, enables `--remote-allow-origins=*` on launch and runs a CDP `Runtime.evaluate` check verifying `window.sessionStorage`, `window.localStorage`, `document.cookie`, and `navigator.mediaCapabilities.decodingInfo()`. |

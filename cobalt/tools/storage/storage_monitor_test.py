@@ -466,6 +466,32 @@ class StorageMonitorTest(unittest.TestCase):
         "ls /data",
     )
 
+  @mock.patch("cobalt.tools.storage.storage_monitor.subprocess.run")
+  def test_adb_calls_pass_serial(self, mock_run):
+    mock_run.return_value = mock.Mock(
+        returncode=0, stdout="device\n", stderr="")
+    with mock.patch.object(storage_monitor, "_ADB_SERIAL", None):
+      storage_monitor.verify_android_device_connected()
+      self.assertEqual(mock_run.call_args.args[0], ["adb", "get-state"])
+    with mock.patch.object(storage_monitor, "_ADB_SERIAL", "localhost:40501"):
+      storage_monitor.verify_android_device_connected()
+      self.assertEqual(mock_run.call_args.args[0],
+                       ["adb", "-s", "localhost:40501", "get-state"])
+      storage_monitor.run_adb_shell("input keyevent KEYCODE_HOME", package=None)
+      self.assertEqual(mock_run.call_args.args[0], [
+          "adb", "-s", "localhost:40501", "shell", "input keyevent KEYCODE_HOME"
+      ])
+
+  def test_serial_defaults_to_android_serial(self):
+    with mock.patch.dict(os.environ, {"ANDROID_SERIAL": "emulator-5554"}):
+      self.assertEqual(storage_monitor.parse_args([]).serial, "emulator-5554")
+      self.assertEqual(
+          storage_monitor.parse_args(["--serial", "localhost:40501"]).serial,
+          "localhost:40501")
+    with mock.patch.dict(os.environ):
+      os.environ.pop("ANDROID_SERIAL", None)
+      self.assertIsNone(storage_monitor.parse_args([]).serial)
+
 
 if __name__ == "__main__":
   unittest.main()
