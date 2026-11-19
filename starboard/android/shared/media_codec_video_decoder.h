@@ -288,9 +288,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
-  // The global video surface acquired by PrepareOutputSurface(), kept across
-  // codec creation retries so that this decoder remains its holder. Reset in
-  // TeardownCodec().
+  // The acquired global video surface, kept only while a codec creation retry
+  // is pending so that the retry can reuse it. Reset once a codec is created
+  // and in TeardownCodec().
   jni_zero::ScopedJavaGlobalRef<jobject> j_acquired_video_surface_;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;

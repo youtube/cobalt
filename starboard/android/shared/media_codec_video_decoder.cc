@@ -602,9 +602,9 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
-      // Without a codec (e.g. while a creation retry is pending) there is
-      // nothing to rebuild; the next attempt picks up |color_metadata_|.
-      if (media_decoder_) {
+      // While a codec creation retry is pending there is no codec to rebuild;
+      // keep the surface kept for the retry, which picks up |color_metadata_|.
+      if (!codec_creation_retry_.pending) {
         TeardownCodec();
       }
       color_metadata_ = color_metadata;
@@ -866,7 +866,8 @@ MediaCodecVideoDecoder::PrepareOutputSurface() {
   // Setup the output surface object.  If we are in punch-out mode, target
   // the passed in Android video surface.  If we are in decode-to-texture
   // mode, create a surface from a new texture target and use that as the
-  // output surface.
+  // output surface. On a codec creation retry, reuse the surface prepared by
+  // the failed attempt.
   JNIEnv* env = AttachCurrentThread();
   jni_zero::ScopedJavaLocalRef<jobject> j_output_surface;
   switch (output_mode_) {
@@ -877,16 +878,15 @@ MediaCodecVideoDecoder::PrepareOutputSurface() {
         j_output_surface = j_acquired_video_surface_.AsLocalRef(env);
       } else {
         j_output_surface = AcquireVideoSurface();
-        if (j_output_surface) {
-          j_acquired_video_surface_.Reset(j_output_surface);
-        }
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
       }
     } break;
     case kSbPlayerOutputModeDecodeToTexture: {
-      {
+      // A decode target kept from a failed attempt only exists with codec
+      // creation retries enabled.
+      if (codec_creation_retry_.max_retries > 0) {
         std::lock_guard lock(decode_target_mutex_);
         if (decode_target_) {
           j_output_surface = jni_zero::ScopedJavaLocalRef<jobject>(
@@ -1024,6 +1024,8 @@ Result<void> MediaCodecVideoDecoder::TryInitializeCodec() {
   auto result = InitializeCodec(stream_info_, *j_output_surface);
   if (result) {
     codec_creation_retry_.retries_left = codec_creation_retry_.max_retries;
+    // The codec now holds the surface; drop the reference kept for a retry.
+    j_acquired_video_surface_.Reset();
     return Success();
   }
 
@@ -1034,6 +1036,9 @@ Result<void> MediaCodecVideoDecoder::TryInitializeCodec() {
   // Keep the prepared surface for the retry: this decoder stays the holder of
   // the global video surface, so another player can't take it in the meantime
   // and OnSurfaceDestroyed() still cancels the retry on suspend.
+  if (output_mode_ == kSbPlayerOutputModePunchOut && !surface_view_) {
+    j_acquired_video_surface_.Reset(*j_output_surface);
+  }
   --codec_creation_retry_.retries_left;
   const int64_t delay_usec = codec_creation_retry_.attempts_made() *
                              codec_creation_retry_.base_delay_usec;
