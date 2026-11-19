@@ -32,7 +32,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
-#include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
@@ -76,8 +76,8 @@ Range GetRange(JNIEnv* env,
 }
 
 void ConvertStringToLowerCase(std::string* str) {
-  for (size_t i = 0; i < str->length(); i++) {
-    (*str)[i] = std::tolower((*str)[i]);
+  for (char& c : *str) {
+    c = ToLowerASCII(c);
   }
 }
 

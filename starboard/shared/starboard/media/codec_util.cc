@@ -15,7 +15,6 @@
 #include "starboard/shared/starboard/media/codec_util.h"
 
 #include <algorithm>
-#include <cctype>
 #include <string>
 
 #include "starboard/common/log.h"

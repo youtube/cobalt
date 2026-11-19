@@ -13,10 +13,10 @@
 // limitations under the License.
 
 #include <algorithm>
-#include <cctype>
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string_util.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -35,8 +35,7 @@ TEST(ModelYearTest, YearIsFourDigitsOrUnknown) {
     GTEST_SKIP() << "Unknown year";
   }
   EXPECT_EQ(4U, year.length());
-  EXPECT_TRUE(std::all_of(year.cbegin(), year.cend(),
-                          [](unsigned char c) { return std::isdigit(c); }));
+  EXPECT_TRUE(std::all_of(year.cbegin(), year.cend(), IsAsciiDigit<char>));
   EXPECT_EQ("20", year.substr(0, 2));
 }
 
