@@ -217,7 +217,7 @@ SbDecodeTargetGraphicsContextProvider* DecodeTargetProvider() {
       /*egl_display=*/nullptr, /*egl_context=*/nullptr, &RunInline,
       /*gles_context_runner_context=*/nullptr};
   return &provider;
-#else
+#else  // BUILDFLAG(IS_ANDROID)
   return nullptr;
 #endif  // BUILDFLAG(IS_ANDROID)
 }
