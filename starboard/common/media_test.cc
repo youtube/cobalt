@@ -94,13 +94,21 @@ TEST_F(ParseVideoCodecTest, LongFormAv1) {
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdBt2020NonconstantLuminance);
 }
 
-TEST_F(ParseVideoCodecTest, LongFormAv1Bt470BgPrimaries) {
+// Verify long-form AV1 codec strings used by 8-bit SDR streams with BT.470BG
+// primaries (05) and SMPTE 170M (06) or BT.470BG (05) matrix coefficients
+// parse all codec metadata fields accurately.
+TEST_F(ParseVideoCodecTest, LongFormAv1Bt470BgColorimetry) {
   ASSERT_TRUE(Parse("av01.0.08M.08.0.110.05.01.06.0"));
   EXPECT_EQ(codec_, kSbMediaVideoCodecAv1);
+  EXPECT_EQ(profile_, 0);
+  EXPECT_EQ(level_, 40);
   EXPECT_EQ(bit_depth_, 8);
   EXPECT_EQ(color_primary_id_, kSbMediaPrimaryIdBt470Bg);
   EXPECT_EQ(transfer_id_, kSbMediaTransferIdBt709);
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdSmpte170M);
+
+  ASSERT_TRUE(Parse("av01.0.08M.08.0.110.05.01.05.0"));
+  EXPECT_EQ(matrix_id_, kSbMediaMatrixIdBt470Bg);
 }
 
 TEST_F(ParseVideoCodecTest, InvalidAv1) {
