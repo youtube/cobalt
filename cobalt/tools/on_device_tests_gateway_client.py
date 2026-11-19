@@ -445,10 +445,7 @@ def process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       if args.gcs_result_path:
         params.append(f'gcs_result_path={args.gcs_result_path}')
         params.append(f'gcs_result_filename={target_name}_testoutput.xml')
-        if test_type == 'e2e_test':
-          params.append(f'gcs_log_filename={target_name}_cobalt.log')
-        else:
-          params.append(f'gcs_log_filename={target_name}_log.txt')
+        params.append(f'gcs_log_filename={target_name}_log.txt')
 
     else:
       raise ValueError(f'Unsupported test type: {test_type}')

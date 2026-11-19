@@ -12,27 +12,27 @@
     "test_type": "gtest"
   },
   {
-    "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_nvidia_shield",
+    "internal_target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_nvidia_shield",
     "runs_on": "device",
     "test_type": "e2e_test",
-    "build": false
+    "test_attempts": 2
   },
   {
-    "target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_nvidia_shield",
+    "internal_target": "web/living_room/unplugged/testing/end2end/misc:smoke_login_test_custom_coat_nvidia_shield",
     "runs_on": "device",
     "test_type": "e2e_test",
-    "build": false
+    "test_attempts": 2
   },
   {
-    "target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_nvidia_shield",
+    "internal_target": "web/living_room/unplugged/testing/end2end/misc:smoke_home_test_custom_coat_nvidia_shield",
     "runs_on": "device",
     "test_type": "e2e_test",
-    "build": false
+    "test_attempts": 2
   },
   {
-    "target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_nvidia_shield",
+    "internal_target": "web/living_room/unplugged/testing/end2end/misc:smoke_watch_test_custom_coat_nvidia_shield",
     "runs_on": "device",
     "test_type": "e2e_test",
-    "build": false
+    "test_attempts": 2
   }
 ]

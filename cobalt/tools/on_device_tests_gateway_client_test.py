@@ -433,8 +433,39 @@ class ProcessTestRequestsTest(unittest.TestCase):
         'gcs_result_filename='
         'yts_wpt_test_ci_android_arm_devices_testoutput.xml', req['params'])
     self.assertIn(
-        'gcs_log_filename=yts_wpt_test_ci_android_arm_devices_cobalt.log',
+        'gcs_log_filename=yts_wpt_test_ci_android_arm_devices_log.txt',
         req['params'])
+
+  def test_internal_test_skips_when_filtered_out_and_passes_attempts(self):
+    self._write_filter('infra_smoke_test_custom_coat_sabrina_filter.json',
+                       {'failing_tests': ['*']})
+    args = self._make_args(
+        targets=[
+            {
+                'target': ('web/living_room/kabuki/testing/end2end/browse:'
+                           'infra_smoke_test_custom_coat_sabrina'),
+                'test_attempts': 6,
+            },
+            {
+                'target': ('web/living_room/kabuki/testing/end2end/browse:'
+                           'infra_smoke_test_custom_coat_kirkwood'),
+                'test_attempts': 6,
+            },
+        ],
+        test_type='e2e_test',
+    )
+    requests = process_test_requests(args)
+    self.assertEqual(len(requests), 1)
+    self.assertEqual(
+        requests[0]['test_target'],
+        'web/living_room/kabuki/testing/end2end/browse:'
+        'infra_smoke_test_custom_coat_kirkwood',
+    )
+    self.assertIn('test_attempts=6', requests[0]['test_args'])
+    self.assertIn(
+        'gcs_log_filename=infra_smoke_test_custom_coat_kirkwood_log.txt',
+        requests[0]['params'],
+    )
 
 
 if __name__ == '__main__':
