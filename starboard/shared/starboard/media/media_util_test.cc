@@ -289,6 +289,8 @@ TEST(MediaUtilTest, IsSDRColor) {
                          kSbMediaMatrixIdSmpte170M));
   EXPECT_TRUE(IsSDRColor(kSbMediaPrimaryIdBt470Bg, kSbMediaTransferIdBt709,
                          kSbMediaMatrixIdSmpte170M));
+  EXPECT_TRUE(IsSDRColor(kSbMediaPrimaryIdBt470Bg, kSbMediaTransferIdBt709,
+                         kSbMediaMatrixIdBt470Bg));
 
   EXPECT_FALSE(IsSDRColor(kSbMediaPrimaryIdBt2020, kSbMediaTransferIdBt709,
                           kSbMediaMatrixIdBt709));
