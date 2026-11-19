@@ -930,7 +930,7 @@ void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
     }
 #endif
     socket_->DidCompleteRead();
->>>>>>> parent of 306a37951f1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9b968d70d51 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 
@@ -1021,7 +1021,7 @@ void UDPSocketPosix::DidCompleteMultiplePacketRead() {
   }
 }
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
->>>>>>> parent of 306a37951f1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9b968d70d51 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 void UDPSocketPosix::LogRead(int result,
                              const char* bytes,

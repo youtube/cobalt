@@ -135,7 +135,7 @@ void GrowableIOBuffer::SetCapacity(int capacity) {
   }
 #endif
 
->>>>>>> parent of 306a37951f1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9b968d70d51 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // The span will be set again in `set_offset()`. Need to clear raw pointers to
   // the data before reallocating the buffer.
   ClearSpan();

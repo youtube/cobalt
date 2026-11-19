@@ -385,7 +385,7 @@ class NET_EXPORT UDPSocketPosix {
 #if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
   void DidCompleteMultiplePacketRead();
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
->>>>>>> parent of 306a37951f1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9b968d70d51 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void DidCompleteWrite();
 
   // Handles stats and logging. |result| is the number of bytes transferred, on

@@ -642,4 +642,4 @@ use_checked_span = !(is_asan || is_ubsan || is_tsan) && use_partition_alloc &&
 =======
                    has_64_bit_pointers && is_debug
 }
->>>>>>> parent of 306a37951f1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9b968d70d51 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

@@ -663,7 +663,7 @@ struct NetworkContextParams {
   // are fixed for the lifetime of the context.
   [EnableIf=is_cobalt]
   map<string, string> cobalt_extra_request_headers;
->>>>>>> parent of 306a37951f1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9b968d70d51 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 struct NetworkConditions {
