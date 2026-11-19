@@ -80,46 +80,246 @@ runs:
         DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
         IS_PR: ${{ inputs.is_pr }}
       run: |
-        # Pull Existing Docker Image
-        set -x
-        DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${GITHUB_REPOSITORY}/${DOCKER_SERVICE}"
+        # Check Registry for Existing Docker Image
+        set -euo pipefail
 
-        if [[ "${IS_PR}" == "true" ]]; then
-          if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
-            # A postsubmit image exists, use it.
-            echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
-
-          else
-            # No fitting post-submit image was found. Check PR registry to see if there's an image there.
-            PROJECT_NAME=$(gcloud config get-value project)
-            DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
-
-            if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
-              echo "::warning::No pre-built docker image found for tag ${DOCKER_CONTENT_SHA}."
-              echo "build_image=true" >> "${GITHUB_OUTPUT}"
+        manifest_exists() {
+          local ref="$1"
+          local out=""
+          local attempt
+          for attempt in 1 2 3; do
+            if out=$(docker manifest inspect "${ref}" 2>&1); then
+              return 0
             fi
+            case "${out,,}" in
+              *"no such manifest"*|*"manifest unknown"*|*"name unknown"*|*"not found"*)
+                return 1
+                ;;
+            esac
+            if [[ "${attempt}" -lt 3 ]]; then
+              local delay=$(( 1 + (RANDOM % 3) ))
+              echo "::warning::Transient error inspecting ${ref} (attempt ${attempt}/3): ${out}. Retrying in ${delay}s..." >&2
+              sleep "${delay}"
+            fi
+          done
+          echo "::warning::Failed to inspect ${ref} after 3 attempts: ${out}" >&2
+          return 1
+        }
+
+        DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${GITHUB_REPOSITORY,,}/${DOCKER_SERVICE}"
+
+        if manifest_exists "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
+          # An existing postsubmit image is already in GHCR; reuse it without rebuilding.
+          echo "Using existing ${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
+        elif [[ "${IS_PR}" == "true" ]]; then
+          # No fitting post-submit image was found. Check PR registry to see if there's an image there.
+          PROJECT_NAME=$(gcloud config get-value project)
+          DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
+
+          if manifest_exists "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
+            echo "Using existing ${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
+          else
+            echo "::warning::No pre-built docker image found for tag ${DOCKER_CONTENT_SHA}."
+            echo "build_image=true" >> "${GITHUB_OUTPUT}"
           fi
+        else
+          echo "::warning::No pre-built docker image found for tag ${DOCKER_CONTENT_SHA}."
+          echo "build_image=true" >> "${GITHUB_OUTPUT}"
         fi
 
         # Tell builders which image tag to use.
         echo "docker_tag=${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}" >> "${GITHUB_OUTPUT}"
 
-        # Make the compose image tag available to the build step below.
+        # Make the compose image tag available to subsequent steps.
         echo "DOCKER_COMPOSE_IMAGE=${DOCKER_COMPOSE_IMAGE}" >> "${GITHUB_ENV}"
       shell: bash
 
     - name: Build and Push Docker Image
-      if: inputs.is_pr != 'true' || steps.pull-cached-image.outputs.build_image == 'true'
+      if: steps.pull-cached-image.outputs.build_image == 'true'
       env:
+        BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
         DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
         DOCKER_SERVICE: ${{ inputs.docker_service }}
       run: |
-        # Build and Push Docker Image
-        set -x
-        docker compose build ${DOCKER_SERVICE}
+        # Build and Push Content-Addressed Docker Image Tag Only
+        set -euo pipefail
 
-        # The compose build tags the built image with ${DOCKER_COMPOSE_IMAGE}. Add the Docker content sha and floating tag and push.
-        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
-        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_FLOATING_TAG}"
-        docker push --all-tags "${DOCKER_COMPOSE_IMAGE}"
+        docker compose build "${DOCKER_SERVICE}"
+
+        # Tag and push only the immutable content-SHA tag (never --all-tags) so parallel
+        # jobs do not clobber :latest or race on floating branch tags with divergent layers.
+        SHA_REF="${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
+        docker tag "${DOCKER_COMPOSE_IMAGE}" "${SHA_REF}"
+
+        MAX_ATTEMPTS=5
+        PUSHED_SHA="false"
+        SHA_READY="false"
+
+        for attempt in 1 2 3 4 5; do
+          if docker manifest inspect "${SHA_REF}" >/dev/null 2>&1; then
+            echo "Remote manifest ${SHA_REF} already exists (published by a concurrent job); skipping push."
+            SHA_READY="true"
+            break
+          fi
+
+          echo "Pushing ${SHA_REF} (attempt ${attempt}/${MAX_ATTEMPTS})..."
+          if docker push "${SHA_REF}"; then
+            echo "Successfully pushed ${SHA_REF}."
+            PUSHED_SHA="true"
+            SHA_READY="true"
+            break
+          fi
+
+          if docker manifest inspect "${SHA_REF}" >/dev/null 2>&1; then
+            echo "Concurrent job published ${SHA_REF} during push race; using existing remote manifest."
+            SHA_READY="true"
+            break
+          fi
+
+          if [[ "${attempt}" -lt "${MAX_ATTEMPTS}" ]]; then
+            sleep_sec=$(( (attempt * 2) + (RANDOM % 5) ))
+            echo "::warning::Failed to push ${SHA_REF} (attempt ${attempt}/${MAX_ATTEMPTS}). Retrying in ${sleep_sec}s..."
+            sleep "${sleep_sec}"
+          fi
+        done
+
+        if [[ "${SHA_READY}" != "true" ]]; then
+          echo "::error::Failed to push or verify ${SHA_REF} after ${MAX_ATTEMPTS} attempts."
+          exit 1
+        fi
+
+        echo "DID_PUSH_SHA=${PUSHED_SHA}" >> "${GITHUB_ENV}"
+      shell: bash
+
+    - name: Update Floating Docker Tag
+      if: inputs.is_pr != 'true'
+      env:
+        BUILD_IMAGE: ${{ steps.pull-cached-image.outputs.build_image }}
+        DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
+      run: |
+        # Ensure floating branch tag points to the same config digest as DOCKER_CONTENT_SHA
+        set -euo pipefail
+
+        if [[ -z "${DOCKER_FLOATING_TAG:-}" ]]; then
+          echo "::warning::DOCKER_FLOATING_TAG is empty; skipping floating tag update."
+          exit 0
+        fi
+
+        if [[ "${DOCKER_FLOATING_TAG}" == "${DOCKER_CONTENT_SHA}" ]]; then
+          echo "Floating tag matches content SHA (${DOCKER_CONTENT_SHA}); nothing to alias."
+          exit 0
+        fi
+
+        SHA_REF="${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
+        FLOATING_REF="${DOCKER_COMPOSE_IMAGE}:${DOCKER_FLOATING_TAG}"
+
+        get_config_digest() {
+          local ref="$1"
+          local raw_json=""
+          if ! raw_json=$(docker manifest inspect --verbose "${ref}" 2>/dev/null); then
+            return 1
+          fi
+          local digest=""
+          if ! digest=$(jq -er '
+            (if type == "array" then . else [.] end)
+            | map(
+                select(
+                  ((.Descriptor.platform.architecture // "") != "unknown")
+                  and ((.Descriptor.platform.os // "") != "unknown")
+                  and (((.Descriptor.annotations // {})["vnd.docker.reference.type"] // "") != "attestation-manifest")
+                )
+                | (.OCIManifest.config.digest // .SchemaV2Manifest.config.digest // .config.digest // empty)
+                | select(type == "string" and test("^sha(256:[0-9a-f]{64}|512:[0-9a-f]{128})$"))
+              )
+            | unique
+            | select(length > 0)
+            | join(",")
+          ' <<< "${raw_json}" 2>/dev/null); then
+            return 1
+          fi
+          printf '%s\n' "${digest}"
+        }
+
+        # When losing a cold-SHA build race, give the winning builder a brief head start
+        # to update the floating tag so concurrent runners hit the digest fast-path.
+        if [[ "${BUILD_IMAGE:-}" == "true" && "${DID_PUSH_SHA:-false}" != "true" ]]; then
+          stagger_sec=$(( 3 + (RANDOM % 5) ))
+          echo "Another job published ${SHA_REF}; waiting ${stagger_sec}s before checking ${FLOATING_REF}..."
+          sleep "${stagger_sec}"
+        fi
+
+        HAS_BUILDX="false"
+        HAS_PREFER_INDEX="false"
+        if docker buildx version >/dev/null 2>&1; then
+          HAS_BUILDX="true"
+          if [[ "$(docker buildx imagetools create --help 2>&1 || true)" == *"--prefer-index"* ]]; then
+            HAS_PREFER_INDEX="true"
+          fi
+        fi
+
+        MAX_ATTEMPTS=5
+        SYNCED="false"
+
+        for attempt in 1 2 3 4 5; do
+          SHA_DIGEST=$(get_config_digest "${SHA_REF}" || true)
+          if [[ -z "${SHA_DIGEST}" ]]; then
+            echo "::warning::Unable to resolve config digest for canonical tag ${SHA_REF} (attempt ${attempt}/${MAX_ATTEMPTS})."
+          else
+            FLOATING_DIGEST=$(get_config_digest "${FLOATING_REF}" || true)
+            if [[ -n "${FLOATING_DIGEST}" && "${SHA_DIGEST}" == "${FLOATING_DIGEST}" ]]; then
+              echo "Floating tag ${FLOATING_REF} already matches ${SHA_REF} (config digest: ${SHA_DIGEST})."
+              SYNCED="true"
+              break
+            fi
+
+            echo "Updating ${FLOATING_REF} -> ${SHA_REF} (target config: ${SHA_DIGEST}, current: ${FLOATING_DIGEST:-<missing>}, attempt ${attempt}/${MAX_ATTEMPTS})..."
+
+            UPDATED="false"
+            if [[ "${HAS_BUILDX}" == "true" ]]; then
+              if [[ "${HAS_PREFER_INDEX}" == "true" ]]; then
+                if docker buildx imagetools create --prefer-index=false -t "${FLOATING_REF}" "${SHA_REF}"; then
+                  UPDATED="true"
+                else
+                  echo "::warning::docker buildx imagetools create (--prefer-index=false) failed; falling back to pull/tag/push."
+                fi
+              else
+                if docker buildx imagetools create -t "${FLOATING_REF}" "${SHA_REF}"; then
+                  UPDATED="true"
+                else
+                  echo "::warning::docker buildx imagetools create failed; falling back to pull/tag/push."
+                fi
+              fi
+            fi
+
+            if [[ "${UPDATED}" != "true" ]]; then
+              if docker pull "${SHA_REF}" && docker tag "${SHA_REF}" "${FLOATING_REF}" && docker push "${FLOATING_REF}"; then
+                UPDATED="true"
+              else
+                echo "::warning::Fallback pull/tag/push for ${FLOATING_REF} failed (attempt ${attempt}/${MAX_ATTEMPTS})."
+              fi
+            fi
+
+            if [[ "${UPDATED}" == "true" ]]; then
+              SHA_DIGEST=$(get_config_digest "${SHA_REF}" || true)
+              FLOATING_DIGEST=$(get_config_digest "${FLOATING_REF}" || true)
+              if [[ -n "${SHA_DIGEST}" && -n "${FLOATING_DIGEST}" && "${SHA_DIGEST}" == "${FLOATING_DIGEST}" ]]; then
+                echo "Verified ${FLOATING_REF} matches ${SHA_REF} (config digest: ${SHA_DIGEST})."
+                SYNCED="true"
+                break
+              fi
+              echo "::warning::Post-update digest check did not match yet (sha=${SHA_DIGEST:-<empty>}, floating=${FLOATING_DIGEST:-<empty>})."
+            fi
+          fi
+
+          if [[ "${attempt}" -lt "${MAX_ATTEMPTS}" ]]; then
+            sleep_sec=$(( (attempt * 2) + (RANDOM % 5) ))
+            echo "Retrying floating tag update in ${sleep_sec}s..."
+            sleep "${sleep_sec}"
+          fi
+        done
+
+        if [[ "${SYNCED}" != "true" ]]; then
+          echo "::error::Failed to update floating tag ${FLOATING_REF} to ${SHA_REF} after ${MAX_ATTEMPTS} attempts."
+          exit 1
+        fi
       shell: bash
