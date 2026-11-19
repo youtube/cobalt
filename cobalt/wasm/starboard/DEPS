@@ -7,10 +7,3 @@ include_rules = [
   "+ui/gfx/geometry",
   "+v8/include",
 ]
-
-specific_include_rules = {
-  ".*_unittest\\.cc": [
-    "+gin",
-    "+media/starboard/mock_sbplayer_interface.h",
-  ],
-}

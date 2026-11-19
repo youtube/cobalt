@@ -16,17 +16,22 @@
 
 #include <memory>
 
-#include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
-#include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/memory_ablation.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
-#include "cobalt/wasm/starboard/wasm_player_host.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "content/public/child/child_thread.h"
-#include "third_party/blink/public/common/features.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+#include "base/feature_list.h"
+#include "base/task/bind_post_task.h"
+#include "cobalt/wasm/starboard/wasm_player_host.h"
+#include "third_party/blink/public/common/features.h"  // nogncheck
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 
 namespace cobalt {
 
@@ -80,6 +85,7 @@ void CobaltContentGpuClient::CreateVideoGeometrySetterService() {
           new media::VideoGeometrySetterService,
           base::OnTaskRunnerDeleter(
               base::SingleThreadTaskRunner::GetCurrentDefault()));
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
   // Lets Wasm players follow their <video> holes. Cobalt is single-process,
   // so the renderer's hosts can use the service directly. Posting keeps the
   // service's WeakPtrs on this sequence.
@@ -88,6 +94,7 @@ void CobaltContentGpuClient::CreateVideoGeometrySetterService() {
         base::BindPostTaskToCurrentDefault(
             video_geometry_setter_service_->GetBindSubscriberCallback()));
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace cobalt

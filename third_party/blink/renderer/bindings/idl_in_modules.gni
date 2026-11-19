@@ -1293,6 +1293,11 @@ if (is_cobalt && use_starboard_media) {
 if (is_cobalt && use_starboard_media && target_os_is_android) {
   static_idl_files_in_modules += [
     "//third_party/blink/renderer/modules/webgl/cobalt/cobalt_video_texture_transform.idl",
+    "//third_party/blink/renderer/modules/cobalt/wasm/dedicated_worker_global_scope_h_5_vcc_wasm_imports.idl",
+    "//third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_imports.idl",
+    "//third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_player.idl",
+    "//third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_surface.idl",
+    "//third_party/blink/renderer/modules/cobalt/wasm/window_h_5_vcc_wasm_imports.idl",
   ]
 }
 
@@ -1340,11 +1345,6 @@ if (is_cobalt) {
             [
               "//third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_extensions.idl",
               "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.idl",
-              "//third_party/blink/renderer/modules/cobalt/wasm/dedicated_worker_global_scope_h_5_vcc_wasm_imports.idl",
-              "//third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_imports.idl",
-              "//third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_player.idl",
-              "//third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_surface.idl",
-              "//third_party/blink/renderer/modules/cobalt/wasm/window_h_5_vcc_wasm_imports.idl",
             ],
             "abspath")
   }

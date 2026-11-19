@@ -342,7 +342,7 @@ target(link_target_type, "renderer") {
     ]
   }
 
-  if (is_cobalt && use_starboard_media) {
+  if (is_cobalt && use_starboard_media && is_android) {
     sources += [
       "media/cobalt/wasm_hole_web_media_player.cc",
       "media/cobalt/wasm_hole_web_media_player.h",
@@ -603,7 +603,6 @@ group("for_content_tests") {
   ]
   if (is_cobalt) {
     visibility += [
-      "//cobalt:*",
       "//cobalt/testing:*",
       "//cobalt/testing/browser_tests:*",
     ]

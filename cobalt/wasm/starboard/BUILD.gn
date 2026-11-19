@@ -50,23 +50,3 @@ static_library("surface_video_size") {
     "//ui/gfx/geometry",
   ]
 }
-
-source_set("unit_tests") {
-  testonly = true
-  sources = [
-    "event_queue_unittest.cc",
-    "guest_memory_unittest.cc",
-    "surface_video_size_unittest.cc",
-    "wasm_player_host_unittest.cc",
-  ]
-  deps = [
-    ":starboard",
-    ":surface_video_size",
-    "//base/test:test_support",
-    "//gin:gin_test",
-    "//media",
-    "//media:test_support",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-}

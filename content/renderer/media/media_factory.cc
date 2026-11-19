@@ -141,10 +141,13 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "content/renderer/media/cobalt/wasm_hole_web_media_player.h"
 #include "media/base/starboard/renderer_factory_traits.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+#include "content/renderer/media/cobalt/wasm_hole_web_media_player.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 
 namespace {
 
@@ -406,7 +409,7 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
   if (!render_thread)
     return nullptr;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
   // Only the top-level document positions Wasm players, so an embedded frame
   // can't move another document's video.
   if (base::FeatureList::IsEnabled(blink::features::kH5vccWasmImports) &&
@@ -418,7 +421,7 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
       return hole_player;
     }
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 
   // There may be many media elements on a page. Creating OS output streams for
   // each can be very expensive, so we create an audio output sink which can be
