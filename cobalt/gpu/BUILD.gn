@@ -28,5 +28,6 @@ source_set("gpu") {
     "//components/viz/service",
     "//content/public/child",
     "//content/public/gpu",
+    "//third_party/blink/public/common",
   ]
 }

@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
@@ -25,6 +26,7 @@
 #include "cobalt/wasm/starboard/wasm_player_host.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "content/public/child/child_thread.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace cobalt {
 
@@ -81,9 +83,11 @@ void CobaltContentGpuClient::CreateVideoGeometrySetterService() {
   // Lets Wasm players follow their <video> holes. Cobalt is single-process,
   // so the renderer's hosts can use the service directly. Posting keeps the
   // service's WeakPtrs on this sequence.
-  WasmPlayerHost::SetVideoGeometrySubscriberBinder(
-      base::BindPostTaskToCurrentDefault(
-          video_geometry_setter_service_->GetBindSubscriberCallback()));
+  if (base::FeatureList::IsEnabled(blink::features::kH5vccWasmImports)) {
+    WasmPlayerHost::SetVideoGeometrySubscriberBinder(
+        base::BindPostTaskToCurrentDefault(
+            video_geometry_setter_service_->GetBindSubscriberCallback()));
+  }
 }
 
 }  // namespace cobalt
