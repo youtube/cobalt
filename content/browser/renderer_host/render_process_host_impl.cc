@@ -28,6 +28,7 @@
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -1834,6 +1835,14 @@ bool RenderProcessHostImpl::Init() {
     // 252KB RSS in testing). We explicitly set it to 1MB to exclude it from
     // the reduction and prevent stack overflow crashes.
     options.stack_size = 1024 * 1024;
+#elif BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD) &&        \
+    defined(ARCH_CPU_32_BITS) && !defined(ADDRESS_SANITIZER) && \
+    !defined(THREAD_SANITIZER)
+    // Same 1MB carve-out when the 32-bit Starboard stack reduction is enabled.
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltReduceStarboardThreadStackSize)) {
+      options.stack_size = 1024 * 1024;
+    }
 #endif
 #if BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_MAC)
     // In-process plugins require this to be a UI message loop.

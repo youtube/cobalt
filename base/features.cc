@@ -242,6 +242,12 @@ BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
              "CobaltAndroidDisplayCriticalInProcessRenderer",
              FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_STARBOARD)
+BASE_FEATURE(kCobaltReduceStarboardThreadStackSize,
+             "CobaltReduceStarboardThreadStackSize",
+             FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled
