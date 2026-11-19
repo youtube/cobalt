@@ -31,12 +31,16 @@ namespace {
 
 constexpr int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
+constexpr char kNotInitializedError[] = "The ExoPlayer is not initialized.";
+
 }  // namespace
 
 ExoPlayerPlayerWorkerHandler::ExoPlayerPlayerWorkerHandler(
-    const SbPlayerCreationParam* creation_param)
+    const SbPlayerCreationParam* creation_param,
+    SbDecodeTargetGraphicsContextProvider* provider)
     : JobOwner(kDetached),
       update_job_([this]() { Update(); }),
+      decode_target_graphics_context_provider_(provider),
       audio_stream_info_(creation_param->audio_stream_info),
       video_stream_info_(creation_param->video_stream_info) {
   SB_CHECK_EQ(creation_param->output_mode, kSbPlayerOutputModePunchOut)
@@ -69,18 +73,20 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
   SbMediaVideoStreamInfo video_stream_info = {};
   video_stream_info_.ConvertTo(&video_stream_info);
 
-  bridge_ =
-      std::make_unique<ExoPlayerBridge>(audio_stream_info, video_stream_info);
-
-  if (!bridge_->is_valid() ||
-      !bridge_->Init(
-          [this](SbPlayerError error, const std::string& error_message) {
-            OnError(error, error_message);
-          },
-          [this]() { OnPrerolled(); }, [this]() { OnEnded(); })) {
+  auto bridge = std::make_unique<ExoPlayerBridge>(
+      audio_stream_info, video_stream_info,
+      decode_target_graphics_context_provider_,
+      [this](SbPlayerError error, const std::string& error_message) {
+        OnError(error, error_message);
+      },
+      [this]() { OnPrerolled(); }, [this]() { OnEnded(); });
+  if (!bridge->is_valid()) {
+    // |bridge| is destroyed here, so that it releases the video surface, and
+    // |bridge_| stays null.
     return Failure("Failed to initialize the ExoPlayer: " +
-                   bridge_->GetInitErrorMessage());
+                   bridge->GetInitErrorMessage());
   }
+  bridge_ = std::move(bridge);
 
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 
@@ -90,7 +96,9 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
 Result<void> ExoPlayerPlayerWorkerHandler::Seek(int64_t seek_to_time,
                                                 int ticket) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(bridge_->is_valid());
+  if (!bridge_) {
+    return Failure(kNotInitializedError);
+  }
 
   audio_eos_written_ = false;
   video_eos_written_ = false;
@@ -105,8 +113,10 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
     int* samples_written) {
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(!input_buffers.empty());
-  SB_CHECK(bridge_->is_valid());
   SB_CHECK(samples_written);
+  if (!bridge_) {
+    return Failure(kNotInitializedError);
+  }
 
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
@@ -128,7 +138,9 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
 Result<void> ExoPlayerPlayerWorkerHandler::WriteEndOfStream(
     SbMediaType sample_type) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(bridge_->is_valid());
+  if (!bridge_) {
+    return Failure(kNotInitializedError);
+  }
 
   if (IsEOSWritten(sample_type)) {
     SB_LOG(WARNING) << "Tried to write "
@@ -150,7 +162,9 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteEndOfStream(
 
 Result<void> ExoPlayerPlayerWorkerHandler::SetPause(bool pause) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(bridge_->is_valid());
+  if (!bridge_) {
+    return Failure(kNotInitializedError);
+  }
 
   bridge_->SetPause(pause);
 
@@ -160,7 +174,9 @@ Result<void> ExoPlayerPlayerWorkerHandler::SetPause(bool pause) {
 Result<void> ExoPlayerPlayerWorkerHandler::SetPlaybackRate(
     double playback_rate) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(bridge_->is_valid());
+  if (!bridge_) {
+    return Failure(kNotInitializedError);
+  }
 
   bridge_->SetPlaybackRate(playback_rate);
 
@@ -169,18 +185,23 @@ Result<void> ExoPlayerPlayerWorkerHandler::SetPlaybackRate(
 
 void ExoPlayerPlayerWorkerHandler::SetVolume(double volume) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(bridge_->is_valid());
+  if (!bridge_) {
+    // StarboardRenderer sets the volume right after creating the player, i.e.
+    // before it is notified that Init() failed.
+    return;
+  }
 
   bridge_->SetVolume(volume);
 }
 
 void ExoPlayerPlayerWorkerHandler::Stop() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(bridge_->is_valid());
 
   RemoveJobByToken(&update_job_token_);
 
-  bridge_->Stop();
+  if (bridge_) {
+    bridge_->Stop();
+  }
 
   update_media_info_cb_ = nullptr;
   get_player_state_cb_ = nullptr;
@@ -190,7 +211,8 @@ void ExoPlayerPlayerWorkerHandler::Stop() {
 
 void ExoPlayerPlayerWorkerHandler::Update() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(bridge_->is_valid());
+  // Only scheduled once Init() has succeeded.
+  SB_DCHECK(bridge_);
   SB_CHECK(get_player_state_cb_);
 
   if (get_player_state_cb_() == kSbPlayerStatePresenting) {

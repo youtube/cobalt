@@ -20,6 +20,7 @@
 #include <string>
 
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
+#include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -50,8 +51,10 @@ namespace starboard {
 class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
                                      private JobQueue::JobOwner {
  public:
-  explicit ExoPlayerPlayerWorkerHandler(
-      const SbPlayerCreationParam* creation_param);
+  // |provider| is used to clear the video surface when the playback ends, and
+  // can be null.
+  ExoPlayerPlayerWorkerHandler(const SbPlayerCreationParam* creation_param,
+                               SbDecodeTargetGraphicsContextProvider* provider);
 
  private:
   Result<void> Init(JobQueue* job_queue,
@@ -83,8 +86,9 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
 
   void Update();
 
-  // The following functions must be called only on the ExoPlayer's internal
-  // Looper thread.
+  // The following functions can be called on any thread: the ExoPlayer's
+  // internal Looper thread, the Android UI thread when the video surface is
+  // destroyed, and the PlayerWorker thread.
   void OnError(SbPlayerError error, const std::string& error_message);
   void OnPrerolled();
   void OnEnded();
@@ -101,6 +105,12 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   JobQueue::JobToken update_job_token_ = JobQueue::JobToken::kUnscheduled;
   const std::function<void()> update_job_;
 
+  SbDecodeTargetGraphicsContextProvider* const
+      decode_target_graphics_context_provider_;
+
+  // Null until Init() succeeds, and always valid when it is set. As
+  // PlayerWorker keeps calling the handler after a failed Init(), at least to
+  // stop it, all the functions have to handle it being null.
   std::unique_ptr<ExoPlayerBridge> bridge_;
 
   const AudioStreamInfo audio_stream_info_;

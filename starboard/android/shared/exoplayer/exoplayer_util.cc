@@ -16,6 +16,8 @@
 
 #include <jni.h>
 
+#include <optional>
+
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
@@ -90,8 +92,12 @@ ScopedJavaLocalRef<jobject> CreateAudioFormat(
     return ScopedJavaLocalRef<jobject>();
   }
 
-  if (!MimeType::Create(stream_info.mime)) {
-    SB_LOG(ERROR) << "Invalid audio MIME: '" << stream_info.mime << "'";
+  // The MIME is empty for progressive playbacks, which is fine as none of its
+  // parameters is used.
+  if (!stream_info.mime ||
+      (stream_info.mime[0] != '\0' && !MimeType::Create(stream_info.mime))) {
+    SB_LOG(ERROR) << "Invalid audio MIME: '"
+                  << (stream_info.mime ? stream_info.mime : "(null)") << "'";
     return ScopedJavaLocalRef<jobject>();
   }
 
@@ -132,8 +138,17 @@ ScopedJavaLocalRef<jobject> CreateVideoFormat(
     return ScopedJavaLocalRef<jobject>();
   }
 
-  auto mime_type = MimeType::Create(stream_info.mime);
-  if (!mime_type) {
+  if (!stream_info.mime) {
+    SB_LOG(ERROR) << "The video MIME cannot be null";
+    return ScopedJavaLocalRef<jobject>();
+  }
+
+  // The MIME is empty for progressive playbacks, in which case the optional
+  // parameters below are left unset.
+  const bool has_mime = stream_info.mime[0] != '\0';
+  const std::optional<MimeType> mime_type =
+      has_mime ? MimeType::Create(stream_info.mime) : std::optional<MimeType>();
+  if (has_mime && !mime_type) {
     SB_LOG(ERROR) << "Invalid video MIME: '" << stream_info.mime << "'";
     return ScopedJavaLocalRef<jobject>();
   }
@@ -146,8 +161,10 @@ ScopedJavaLocalRef<jobject> CreateVideoFormat(
   ScopedJavaLocalRef<jstring> j_mime(ConvertUTF8ToJavaString(
       env, SupportedVideoCodecToMimeType(stream_info.codec)));
 
-  int framerate = mime_type->GetParamIntValue(kMimeParamFramerate, 0);
-  int bitrate = mime_type->GetParamIntValue(kMimeParamBitrate, 0);
+  int framerate =
+      mime_type ? mime_type->GetParamIntValue(kMimeParamFramerate, 0) : 0;
+  int bitrate =
+      mime_type ? mime_type->GetParamIntValue(kMimeParamBitrate, 0) : 0;
 
   ScopedJavaLocalRef<jobject> j_color_info =
       CreateExoPlayerColorInfo(stream_info.color_metadata);

@@ -220,16 +220,21 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
 #endif
   if (use_exoplayer &&
       (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture ||
-       creation_param->drm_system != kSbDrmSystemInvalid)) {
+       creation_param->drm_system != kSbDrmSystemInvalid ||
+       starboard::GetSurfaceViewForCurrentThread())) {
+    // ExoPlayer can only render to the surface of the VideoSurfaceView, as it
+    // isn't notified when another surface is destroyed.
     SB_LOG(WARNING)
-        << "ExoPlayer does not support decode-to-texture mode or DRM playback, "
-           "defaulting to FilterBasedPlayerWorkerHandler.";
+        << "ExoPlayer does not support decode-to-texture mode, DRM playback, "
+           "or rendering to a custom surface view, defaulting to "
+           "FilterBasedPlayerWorkerHandler.";
     use_exoplayer = false;
   }
 
   std::unique_ptr<PlayerWorker::Handler> handler;
   if (use_exoplayer) {
-    handler = std::make_unique<ExoPlayerPlayerWorkerHandler>(creation_param);
+    handler = std::make_unique<ExoPlayerPlayerWorkerHandler>(creation_param,
+                                                             provider);
   } else {
     handler = std::make_unique<FilterBasedPlayerWorkerHandler>(creation_param,
                                                                provider);
