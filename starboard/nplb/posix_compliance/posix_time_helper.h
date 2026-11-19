@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 #include <time.h>
 
+#include <string_view>
 #include <type_traits>
 
 namespace nplb {
@@ -140,7 +141,7 @@ static constexpr time_t kSecondsInDay = 24 * 60 * 60;
 // Compare two 'struct tm' using EXPECT_EQ().
 void ExpectTmEqual(const struct tm& actual,
                    const struct tm& expected,
-                   const std::string& context);
+                   std::string_view context);
 
 }  // namespace nplb
 

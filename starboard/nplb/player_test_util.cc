@@ -295,7 +295,7 @@ SbPlayer CallSbPlayerCreate(
     SbMediaAudioCodec audio_codec,
     SbDrmSystem drm_system,
     const starboard::AudioStreamInfo* audio_stream_info,
-    const char* max_video_capabilities,
+    std::string_view max_video_capabilities,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
