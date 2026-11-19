@@ -14,7 +14,25 @@
 
 import("//build/config/clang/clang.gni")
 
-if (is_official_build && is_cobalt_hermetic_build) {
+declare_args() {
+  # Whether the hermetic Linux toolchains strip shared libraries and
+  # executables at link time. The unstripped binaries are kept in
+  # lib.unstripped/ and exe.unstripped/.
+  #
+  # All Evergreen and official configurations are stripped. Starboard prints
+  # frames inside an Evergreen library it can't symbolize as offsets from the
+  # library's load address, which CI resolves against lib.unstripped/ after
+  # the test run (see .github/scripts/symbolize_test_log.py). Non-official
+  # non-Evergreen modular builds (linux-x64x11-modular) are not stripped by
+  # default because their stack dumps contain absolute addresses that can't be
+  # symbolized after the fact.
+  cobalt_strip_binaries =
+      is_cobalt_hermetic_build && (is_official_build || use_evergreen)
+}
+
+if (cobalt_strip_binaries) {
+  assert(is_cobalt_hermetic_build,
+         "cobalt_strip_binaries requires a hermetic build.")
   assert(target_cpu == "arm" || target_cpu == "arm64" || target_cpu == "x64",
          "Unsupported architecture.")
 

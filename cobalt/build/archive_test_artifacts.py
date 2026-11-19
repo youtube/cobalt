@@ -40,6 +40,12 @@ _EXCLUDE_EXTENSIONS = ('.map',)
 
 _EXCLUDE_EXTENSIONS_ANDROID = ('.apk', '.jar', '.pak.info', '.so')
 
+# Toolchains that strip binaries at link time keep the unstripped copies here.
+_UNSTRIPPED_DIRS = ('lib.unstripped', 'exe.unstripped')
+
+# Symbolizer used to resolve stack traces against the unstripped binaries.
+_LLVM_SYMBOLIZER = 'third_party/llvm-build/Release+Asserts/bin/llvm-symbolizer'
+
 # Secondary toolchains write their outputs to a subfolder of the out dir.
 _TOOLCHAIN_SUBDIRS = ('starboard', 'native_target')
 
@@ -89,6 +95,18 @@ def _copy_or_strip(deps: set[str], src_dir: str, dest_dir: str,
       continue
     else:
       shutil.copy2(src, dest)
+
+
+def _unstripped_counterparts(deps: set[str]) -> set[str]:
+  """Returns the unstripped copies of the stripped binaries in deps."""
+  unstripped = set()
+  for dep in deps:
+    dep_dir, dep_name = os.path.split(dep)
+    for unstripped_dir in _UNSTRIPPED_DIRS:
+      candidate = os.path.join(dep_dir, unstripped_dir, dep_name)
+      if os.path.isfile(candidate):
+        unstripped.add(candidate)
+  return unstripped
 
 
 def _make_tar(archive_path: str, compression: str, compression_level: int,
@@ -198,8 +216,12 @@ def create_archive(
     compression_level: int,
     flatten_deps: bool,
     strip_binaries: bool = False,
+    include_symbols: bool = False,
 ):
   """Main logic. Collects runtime dependencies for each target."""
+  if include_symbols and archive_per_target:
+    raise ValueError('--include-symbols is only supported for the combined '
+                     'archive.')
   os.makedirs(destination_dir, exist_ok=True)
   strip_tool = _find_strip_tool(source_dir) if strip_binaries else None
   if strip_binaries:
@@ -341,6 +363,15 @@ def create_archive(
 
   # Linux tests and deps are all bundled into a single tar file.
   if not archive_per_target:
+    if include_symbols:
+      # Paths in combined_deps are relative to the source dir (the current
+      # working directory), which is also the root of the archive.
+      combined_deps |= _unstripped_counterparts(combined_deps)
+      symbolizer = os.path.relpath(os.path.join(source_dir, _LLVM_SYMBOLIZER))
+      if os.path.isfile(symbolizer):
+        combined_deps.add(symbolizer)
+      else:
+        print(f'Warning: {symbolizer} not found, not archiving it.')
     output_path = os.path.join(destination_dir,
                                f'test_artifacts.tar.{compression}')
     _make_tar(
@@ -387,6 +418,12 @@ def main():
       action='store_true',
       help='Strip shared libraries and executables before packaging.')
   parser.add_argument(
+      '--include-symbols',
+      action='store_true',
+      help='Also archive the unstripped copies of stripped binaries from '
+      'lib.unstripped/ and exe.unstripped/, and llvm-symbolizer, so that '
+      'stack traces can be symbolized where the tests run.')
+  parser.add_argument(
       '--compression',
       choices=['xz', 'gz', 'zstd'],
       default='zstd',
@@ -416,7 +453,8 @@ def main():
       compression=args.compression,
       compression_level=args.compression_level,
       flatten_deps=args.flatten_deps,
-      strip_binaries=args.strip)
+      strip_binaries=args.strip,
+      include_symbols=args.include_symbols)
 
 
 if __name__ == '__main__':
