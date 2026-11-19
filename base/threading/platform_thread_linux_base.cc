@@ -5,11 +5,29 @@
 // Linux-derivatives.
 
 #include "base/threading/platform_thread.h"
-#include "base/command_line.h"
+#include "build/build_config.h"
+
+#if !defined(THREAD_SANITIZER) && !defined(ADDRESS_SANITIZER) && \
+    BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD) &&           \
+    defined(ARCH_CPU_32_BITS)
+#include "base/feature_list.h"
+#include "base/features.h"
+#endif
 
 namespace base {
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {
+#if !defined(THREAD_SANITIZER) && !defined(ADDRESS_SANITIZER) && \
+    BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD) &&           \
+    defined(ARCH_CPU_32_BITS)
+  if (FeatureList::GetInstance() &&
+      FeatureList::IsEnabled(features::kCobaltReduceStarboardThreadStackSize)) {
+    // Reduces default helper thread stacks to 256KB to save virtual memory on
+    // 32-bit Starboard devices (b/552601001). High-risk threads (renderer, GPU,
+    // Blink worker threads) are explicitly assigned 1MB elsewhere.
+    return 256 * 1024;
+  }
+#endif
 #if !defined(THREAD_SANITIZER) && defined(__GLIBC__)
   // Generally glibc sets ample default stack sizes, so use the default there.
   return 0;
