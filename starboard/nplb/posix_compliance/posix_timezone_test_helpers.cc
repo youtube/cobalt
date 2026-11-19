@@ -49,21 +49,21 @@ TimeSamples GetTimeSamples(int year) {
 // Helper to assert the values of a tm struct.
 void AssertTM(const tm& tminfo,
               long offset,
-              std::string_view std_zone,
-              std::optional<std::string_view> dst_zone,
-              std::string_view tz,
+              const char* std_zone,
+              const std::optional<const char*>& dst_zone,
+              const char* tz,
               starboard::SourceLocation location) {
   ASSERT_NE(tminfo.tm_zone, nullptr)
       << location << " tm_zone can not be nullptr for " << tz;
   EXPECT_EQ(tminfo.tm_gmtoff, -offset)
       << location << " tm_gmtoff mismatch for " << tz;
   if (dst_zone.has_value()) {
-    EXPECT_EQ(std::string_view(tminfo.tm_zone), dst_zone.value())
+    EXPECT_STREQ(tminfo.tm_zone, dst_zone.value())
         << location << "Daylight time tm_zone mismatch for " << tz;
     EXPECT_GT(tminfo.tm_isdst, 0)
         << location << "Daylight time tm_isdst should be > 0 for " << tz;
   } else {
-    EXPECT_EQ(std::string_view(tminfo.tm_zone), std_zone)
+    EXPECT_STREQ(tminfo.tm_zone, std_zone)
         << location << "Standard time tm_zone mismatch for " << tz;
     EXPECT_EQ(tminfo.tm_isdst, 0)
         << location << "Standard time tm_isdst should be 0 for " << tz;

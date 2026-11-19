@@ -368,7 +368,7 @@ class SecondaryPlayerTestThread : public AbstractTestThread {
 TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   // The secondary player should at least support h264 at 480p, 30fps and with
   // a drm system.
-  constexpr std::string_view kMaxVideoCapabilities =
+  static constexpr std::string_view kMaxVideoCapabilities =
       "width=640; height=480; framerate=30;";
   const char* kSecondaryTestFile = "beneath_the_canopy_135_avc.dmp";
   const char* key_system = GetParam().key_system;

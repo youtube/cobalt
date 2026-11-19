@@ -20,7 +20,7 @@
 #include <time.h>
 
 #include <optional>
-#include <string_view>
+#include <string>
 #include <type_traits>
 
 #include "starboard/common/source_location.h"
@@ -63,9 +63,9 @@ TimeSamples GetTimeSamples(int year);
 void AssertTM(
     const tm& tminfo,
     long offset,
-    std::string_view std_zone,
-    std::optional<std::string_view> dst_zone,
-    std::string_view tz,
+    const char* std_zone,
+    const std::optional<const char*>& dst_zone,
+    const char* tz,
     starboard::SourceLocation location = starboard::SourceLocation::current());
 
 }  // namespace nplb

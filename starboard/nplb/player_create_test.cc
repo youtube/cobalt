@@ -168,7 +168,7 @@ TEST_F(SbPlayerTest, SunnyDay) {
 }
 
 TEST_F(SbPlayerTest, MaxVideoCapabilities) {
-  constexpr std::string_view kMaxVideoCapabilities[] = {
+  static constexpr std::string_view kMaxVideoCapabilities[] = {
       "width=432; height=240;",
       "width=432; height=240; framerate=15",
       "width=432; height=240; framerate=30",

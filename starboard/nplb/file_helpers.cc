@@ -23,6 +23,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/check_op.h"
@@ -90,7 +91,7 @@ std::vector<std::string> MakePathsVector(const std::string_view (&files)[N]) {
 }
 
 std::vector<std::string> GetFileTestsFilePaths() {
-  constexpr std::string_view kFiles[] = {
+  static constexpr std::string_view kFiles[] = {
       // This long file MUST be first -- SbFileSeekTest depends on it!
       "file_with_long_name_and_contents_for_seek_testing_1234567890",
       "file01",
@@ -103,7 +104,7 @@ std::vector<std::string> GetFileTestsFilePaths() {
 }
 
 std::vector<std::string> GetFileTestsDirectoryPaths() {
-  constexpr std::string_view kDirs[] = {
+  static constexpr std::string_view kDirs[] = {
       "dir_with_files",
       "dir_with_only_subdir",
       "dir_with_only_subdir/dir_with_files",
