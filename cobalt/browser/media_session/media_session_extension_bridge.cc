@@ -238,7 +238,9 @@ void MediaSessionExtensionBridge::HandleAction(
   if (!media_session) {
     return;
   }
-  VLOG(1) << "MediaSession action from platform: " << details.action;
+  VLOG(1) << "MediaSession action from platform: " << details.action
+          << " seek_offset=" << details.seek_offset
+          << " seek_time=" << details.seek_time;
 
   switch (details.action) {
     case kCobaltExtensionMediaSessionActionPlay:
@@ -267,14 +269,22 @@ void MediaSessionExtensionBridge::HandleAction(
     case kCobaltExtensionMediaSessionActionSeekbackward: {
       const bool forward =
           details.action == kCobaltExtensionMediaSessionActionSeekforward;
-      // content::MediaSession has no way to pass |seek_offset| to the page's
-      // seekforward/seekbackward handlers. When the platform asks for a
-      // specific offset (e.g. "skip ahead 30 seconds") and the position is
-      // known, translate it into an absolute seek so the offset is honored.
-      if (details.seek_offset > 0 && position_.has_value()) {
+      const base::TimeDelta offset = details.seek_offset > 0
+                                         ? base::Seconds(details.seek_offset)
+                                         : kDefaultSeekOffset;
+      // When the position is known, translate relative seeks into an absolute
+      // seekto. Two reasons:
+      //  * content::MediaSession cannot pass |seek_offset| to the page's
+      //    seekforward/seekbackward handlers, so "skip ahead 30 seconds"
+      //    would otherwise lose its offset.
+      //  * The YouTube TV app treats seekforward/seekbackward like the
+      //    remote's fast-forward/rewind keys: it pauses and moves a scrubber
+      //    preview, and the seek is discarded when playback is resumed with a
+      //    "play" action. Platform transport controls (e.g. "Alexa, fast
+      //    forward") expect an immediate skip, which seekto provides.
+      if (position_.has_value()) {
         base::TimeDelta target =
-            position_->GetPosition() +
-            (forward ? 1 : -1) * base::Seconds(details.seek_offset);
+            position_->GetPosition() + (forward ? offset : -offset);
         target = std::max(target, base::TimeDelta());
         if (!position_->duration().is_zero() &&
             !position_->duration().is_max()) {
@@ -283,9 +293,6 @@ void MediaSessionExtensionBridge::HandleAction(
         media_session->SeekTo(target);
         break;
       }
-      const base::TimeDelta offset = details.seek_offset > 0
-                                         ? base::Seconds(details.seek_offset)
-                                         : kDefaultSeekOffset;
       // Routes to the page's seek handler if any, else seeks players.
       media_session->Seek(forward ? offset : -offset);
       break;
@@ -310,6 +317,8 @@ void MediaSessionExtensionBridge::HandleAction(
 void MediaSessionExtensionBridge::MediaSessionInfoChanged(
     media_session::mojom::MediaSessionInfoPtr info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  VLOG(1) << "MediaSession info changed: state=" << info->state
+          << " playback_state=" << info->playback_state;
   session_info_ = std::move(info);
   PushStateToPlatform();
 }
@@ -344,6 +353,8 @@ void MediaSessionExtensionBridge::MediaSessionImagesChanged(
 void MediaSessionExtensionBridge::MediaSessionPositionChanged(
     const std::optional<media_session::MediaPosition>& position) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  VLOG(1) << "MediaSession position changed: "
+          << (position ? position->ToString() : "none");
   position_ = position;
   PushStateToPlatform();
 }

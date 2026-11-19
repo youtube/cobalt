@@ -309,6 +309,20 @@ TEST_F(MediaSessionExtensionBridgeTest, SeekWithoutOffsetUsesDefault) {
   InvokeFromPlatform(kCobaltExtensionMediaSessionActionSeekbackward);
 }
 
+TEST_F(MediaSessionExtensionBridgeTest, SeekWithoutOffsetWithPositionSeeksTo) {
+  bridge_->MediaSessionPositionChanged(media_session::MediaPosition(
+      /*playback_rate=*/0.0, /*duration=*/base::Seconds(100),
+      /*position=*/base::Seconds(50), /*end_of_media=*/false));
+
+  EXPECT_CALL(media_session_, SeekTo(base::Seconds(60)));
+  InvokeFromPlatform(kCobaltExtensionMediaSessionActionSeekforward);
+
+  EXPECT_CALL(media_session_, SeekTo(base::Seconds(40)));
+  InvokeFromPlatform(kCobaltExtensionMediaSessionActionSeekbackward);
+
+  EXPECT_CALL(media_session_, Seek(_)).Times(0);
+}
+
 TEST_F(MediaSessionExtensionBridgeTest, SeekOffsetWithoutPositionUsesSeek) {
   auto details = MakeAction(kCobaltExtensionMediaSessionActionSeekforward);
   details.seek_offset = 30;
