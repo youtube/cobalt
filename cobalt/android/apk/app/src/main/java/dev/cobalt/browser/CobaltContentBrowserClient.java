@@ -14,6 +14,7 @@
 
 package dev.cobalt.browser;
 
+import org.chromium.content_public.browser.WebContents;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -24,6 +25,8 @@ public class CobaltContentBrowserClient {
   public interface Natives {
     void flushCookiesAndLocalStorage();
 
+    void freezeAndFlushCookiesAndLocalStorage(WebContents webContents);
+
     void dispatchBlur();
 
     void dispatchFocus();
@@ -32,11 +35,17 @@ public class CobaltContentBrowserClient {
 
     int getFreezeOnBackgroundDelayMs();
 
+    boolean isFlushStorageOnFreezeEnabled();
+
     boolean isPlatformServicesOffUiThreadEnabled();
   }
 
   public static void flushCookiesAndLocalStorage() {
     CobaltContentBrowserClientJni.get().flushCookiesAndLocalStorage();
+  }
+
+  public static void freezeAndFlushCookiesAndLocalStorage(WebContents webContents) {
+    CobaltContentBrowserClientJni.get().freezeAndFlushCookiesAndLocalStorage(webContents);
   }
 
   public static void dispatchBlur() {
@@ -61,6 +70,14 @@ public class CobaltContentBrowserClient {
    */
   public static int getFreezeOnBackgroundDelayMs() {
     return CobaltContentBrowserClientJni.get().getFreezeOnBackgroundDelayMs();
+  }
+
+  /**
+   * Returns whether the CobaltFlushStorageOnFreeze Finch feature is enabled. Requires native to be
+   * initialized.
+   */
+  public static boolean isFlushStorageOnFreezeEnabled() {
+    return CobaltContentBrowserClientJni.get().isFlushStorageOnFreezeEnabled();
   }
 
   /**

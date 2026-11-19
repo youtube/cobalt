@@ -27,6 +27,16 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableModerateMemoryPressure);
 // descriptor and maps a segment only briefly when purging it.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDiscardableSingleMapping);
 
+// When enabled, MODERATE memory pressure makes DiscardableSharedMemoryManager
+// purge unlocked discardable segments until usage is within
+// |moderate_limit_fraction| of the memory limit, instead of upstream's 1/2.
+// Purging uses madvise, so the memory of unlocked (not in use) image decodes,
+// Skia cache entries, etc. is returned to the OS immediately.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDiscardableModeratePressureLimit);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kCobaltDiscardableModeratePressureLimitFraction);
+
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessImageTransferCache);
@@ -78,6 +88,10 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8InitialOldSpaceSizeMb);
 // 30 FPS UI framerates, while allowing dynamic control via Finch or command
 // line.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8OptimizeForSize);
+
+// When enabled, forces V8 to flush eligible bytecode/code (kForceFlush) during
+// CRITICAL memory pressure GCs.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8FlushCodeOnCriticalMemoryPressure);
 
 // When enabled, overrides the compositor skewport target times, which control
 // speculative pre-rastering of offscreen tiles. When disabled, the upstream

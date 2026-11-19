@@ -203,7 +203,7 @@ class SbPlayerTestFixture {
   }
 
   starboard::ThreadChecker thread_checker_;
-  const SbPlayerOutputMode output_mode_;
+  SbPlayerOutputMode output_mode_;
   std::string key_system_;
   std::string max_video_capabilities_;
   std::unique_ptr<starboard::VideoDmpReader> audio_dmp_reader_;

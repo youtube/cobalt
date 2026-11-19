@@ -48,6 +48,16 @@ BASE_FEATURE(kCobaltDiscardableSingleMapping,
              "CobaltDiscardableSingleMapping",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltDiscardableModeratePressureLimit,
+             "CobaltDiscardableModeratePressureLimit",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(double,
+                   kCobaltDiscardableModeratePressureLimitFraction,
+                   &kCobaltDiscardableModeratePressureLimit,
+                   "moderate_limit_fraction",
+                   0.25);
+
 BASE_FEATURE(kCobaltMemoryPressureCooldown,
              "CobaltMemoryPressureCooldown",
              FEATURE_DISABLED_BY_DEFAULT);
@@ -158,6 +168,10 @@ BASE_FEATURE(kCobaltV8OptimizeForSize,
 #else
              FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+BASE_FEATURE(kCobaltV8FlushCodeOnCriticalMemoryPressure,
+             "CobaltV8FlushCodeOnCriticalMemoryPressure",
+             FEATURE_DISABLED_BY_DEFAULT);
 
 // Enabled by default, except on Android where the upstream Chromium defaults
 // are kept until a dedicated experiment has been run there. The memory and
