@@ -12,105 +12,139 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Converts a chromium test JSON results file to JUnit XML format."""
+"""Converts one or more test JSON result files into a single JUnit XML file."""
 
+from datetime import datetime
 import json
-import xml.etree.ElementTree as ET
-import sys
 import re
+import sys
+import xml.etree.ElementTree as ET
+
+_INVALID_XML_RE = re.compile(
+    r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x84\x86-\x9f\ud800-\udfff\ufffe\uffff]')
+
+_STATUS = {
+    'PASS': 'SUCCESS',
+    'PASSED': 'SUCCESS',
+    'SUCCESS': 'SUCCESS',
+    'OK': 'SUCCESS',
+    'SKIP': 'SKIPPED',
+    'SKIPPED': 'SKIPPED',
+    'FAIL': 'FAILURE',
+    'FAILED': 'FAILURE',
+    'FAILURE': 'FAILURE',
+}
 
 
-def _sanitize_xml_string(s):
-  if not s:
-    return ''
-  # Remove invalid XML 1.0 characters
-  return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x84\x86-\x9f]', '', s)
+def _map_status(raw):
+  """Maps a raw test result status strictly; unknown/missing becomes ERROR."""
+  return _STATUS.get(str(raw).upper(), 'ERROR') if raw is not None else 'ERROR'
 
 
-def convert(json_path, xml_path):
-  with open(json_path, 'r', encoding='utf-8') as f:
-    data = json.load(f)
+def _sanitize(text):
+  """Strips characters disallowed in XML 1.0."""
+  return _INVALID_XML_RE.sub('', str(text)) if text else ''
 
-  testsuites = ET.Element('testsuites')
 
-  # Group by class name
-  suites = {}
+def _elapsed_sec(entry):
+  """Computes test duration in seconds from duration or start/end timestamps."""
+  if entry.get('duration') is not None:
+    return max(0.0, float(entry['duration']))
+  start, end = entry.get('start_time'), entry.get('end_time')
+  if isinstance(start, (int, float)) and isinstance(end, (int, float)):
+    return max(0.0, (end - start) / 1000.0)
+  if isinstance(start, str) and isinstance(end, str):
+    try:
+      return max(0.0, (
+          datetime.fromisoformat(end.replace('Z', '+00:00')) -
+          datetime.fromisoformat(start.replace('Z', '+00:00'))).total_seconds())
+    except ValueError:
+      return 0.0
+  return 0.0
 
-  total_tests = 0
-  total_failures = 0
-  total_errors = 0
-  total_time = 0.0
 
+def _iter_cases(data):
+  """Yields (classname, method, status, elapsed_sec, output) tuples."""
   for iteration in data.get('per_iteration_data', []):
-    for test_key, results in iteration.items():
+    for key, results in iteration.items():
+      cls, name = key.split('#', 1) if '#' in key else ('UnknownClass', key)
+      name = name.split('[')[0]
       for res in results:
-        # Key format: ClassName#MethodName[Suffix]
-        if '#' in test_key:
-          classname, method_with_suffix = test_key.split('#', 1)
-          method = method_with_suffix.split('[')[0]
-        else:
-          classname = 'UnknownClass'
-          method = test_key.split('[')[0]
+        yield (cls, name, _map_status(res.get('status')),
+               (res.get('elapsed_time_ms') or 0) / 1000.0,
+               res.get('output_snippet', ''))
 
-        status = res.get('status', 'SUCCESS')
-        elapsed_ms = res.get('elapsed_time_ms', 0)
-        elapsed_sec = elapsed_ms / 1000.0
-        output_snippet = res.get('output_snippet', '')
+  for t in data.get('tests', []):
+    cls = (
+        t.get('class_name') or t.get('test_suite') or t.get('test_category') or
+        'VegaTest')
+    name = (
+        t.get('test_title') or t.get('name') or t.get('test_category') or
+        'UnknownTest')
+    status = _map_status(t.get('result') or t.get('status'))
+    out = '\n'.join(
+        str(x)
+        for k in ('output', 'errors')
+        for x in (t.get(k) if isinstance(t.get(k), list) else [t.get(k)])
+        if x)
+    yield cls, name, status, _elapsed_sec(t), out
 
-        if classname not in suites:
-          suites[classname] = []
-        suites[classname].append({
-            'name': method,
-            'status': status,
-            'time': elapsed_sec,
-            'output': output_snippet
-        })
 
-        total_tests += 1
-        total_time += elapsed_sec
-        if status in ('FAILURE', 'FAIL'):
-          total_failures += 1
-        elif status in ('CRASH', 'TIMEOUT', 'ERROR'):
-          total_errors += 1
+def convert(json_paths, xml_path):
+  """Merges 1..N JSON test reports into a single JUnit XML output file."""
+  suites = {}
+  totals = [0, 0, 0, 0.0]  # tests, failures, errors, time
 
-  testsuites.set('tests', str(total_tests))
-  testsuites.set('failures', str(total_failures))
-  testsuites.set('errors', str(total_errors))
-  testsuites.set('time', f'{total_time:.3f}')
-  testsuites.set('name', 'AllTests')
+  for path in json_paths:
+    with open(path, 'r', encoding='utf-8') as f:
+      data = json.load(f)
+    for cls, name, status, elapsed, out in _iter_cases(data):
+      suites.setdefault(cls, []).append((name, status, elapsed, out))
+      totals[0] += 1
+      totals[3] += elapsed
+      if status == 'FAILURE':
+        totals[1] += 1
+      elif status == 'ERROR':
+        totals[2] += 1
 
+  if totals[0] == 0:
+    sys.exit(f'No test cases found in {json_paths}')
+
+  root = ET.Element(
+      'testsuites', {
+          'name': 'AllTests',
+          'tests': str(totals[0]),
+          'failures': str(totals[1]),
+          'errors': str(totals[2]),
+          'time': f'{totals[3]:.3f}',
+      })
   for suite_name, cases in suites.items():
-    suite_el = ET.SubElement(testsuites, 'testsuite')
-    suite_el.set('name', suite_name)
+    clean_suite = _sanitize(suite_name)
+    s_el = ET.SubElement(
+        root, 'testsuite', {
+            'name': clean_suite,
+            'tests': str(len(cases)),
+            'failures': str(sum(1 for c in cases if c[1] == 'FAILURE')),
+            'errors': str(sum(1 for c in cases if c[1] == 'ERROR')),
+            'time': f'{sum(c[2] for c in cases):.3f}',
+        })
+    for name, status, elapsed, out in cases:
+      c_el = ET.SubElement(
+          s_el, 'testcase', {
+              'name': _sanitize(name),
+              'classname': clean_suite,
+              'time': f'{elapsed:.3f}',
+          })
+      if status == 'FAILURE':
+        el = ET.SubElement(c_el, 'failure', {'message': 'Test failed'})
+        el.text = _sanitize(out)
+      elif status == 'ERROR':
+        el = ET.SubElement(c_el, 'error', {'message': f'Test {status}'})
+        el.text = _sanitize(out)
+      elif status == 'SKIPPED':
+        ET.SubElement(c_el, 'skipped')
 
-    suite_tests = len(cases)
-    suite_failures = sum(1 for c in cases if c['status'] in ('FAILURE', 'FAIL'))
-    suite_errors = sum(
-        1 for c in cases if c['status'] in ('CRASH', 'TIMEOUT', 'ERROR'))
-    suite_time = sum(c['time'] for c in cases)
-
-    suite_el.set('tests', str(suite_tests))
-    suite_el.set('failures', str(suite_failures))
-    suite_el.set('errors', str(suite_errors))
-    suite_el.set('time', f'{suite_time:.3f}')
-
-    for case in cases:
-      case_el = ET.SubElement(suite_el, 'testcase')
-      case_el.set('name', case['name'])
-      case_el.set('classname', suite_name)
-      case_time = case['time']
-      case_el.set('time', f'{case_time:.3f}')
-
-      if case['status'] in ('FAILURE', 'FAIL'):
-        fail_el = ET.SubElement(case_el, 'failure')
-        fail_el.set('message', 'Test failed')
-        fail_el.text = _sanitize_xml_string(case['output'])
-      elif case['status'] in ('CRASH', 'TIMEOUT', 'ERROR'):
-        err_el = ET.SubElement(case_el, 'error')
-        err_el.set('message', 'Test ' + case['status'])
-        err_el.text = _sanitize_xml_string(case['output'])
-
-  tree = ET.ElementTree(testsuites)
+  tree = ET.ElementTree(root)
   if hasattr(ET, 'indent'):
     ET.indent(tree, space='  ', level=0)
   tree.write(xml_path, encoding='utf-8', xml_declaration=True)
@@ -118,6 +152,8 @@ def convert(json_path, xml_path):
 
 if __name__ == '__main__':
   if len(sys.argv) < 3:
-    print('Usage: convert_json_to_junit_xml.py <input_json> <output_xml>')
+    print(
+        'Usage: convert_json_to_junit_xml.py <input_json>... <output_xml>',
+        file=sys.stderr)
     sys.exit(1)
-  convert(sys.argv[1], sys.argv[2])
+  convert(sys.argv[1:-1], sys.argv[-1])

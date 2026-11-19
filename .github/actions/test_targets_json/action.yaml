@@ -40,10 +40,16 @@ runs:
               )
           ]' "${JSON_FILE}")"
 
-        test_targets_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.target != null) | .target]')"
+        test_targets_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | (.target // .internal_target) | select(. != null)]')"
         printf "test_targets_json=%s\n" "${test_targets_json}" >> "$GITHUB_OUTPUT"
         printf "test_targets_count=%s\n" "$(jq -ncr --argjson data "${test_targets_json}" '$data | length')" >> "$GITHUB_OUTPUT"
 
+<<<<<<< HEAD
+=======
+        test_target_configs_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select((.target // .internal_target) != null) | del(.internal_target) + {target: (.target // .internal_target)}]')"
+        printf "test_target_configs_json=%s\n" "${test_target_configs_json}" >> "$GITHUB_OUTPUT"
+
+>>>>>>> 5c14f357323 (ci: Consolidate internal tests into unified test_targets.json and ODT pipeline (#12980))
         test_executables_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.executable != null) | .executable]')"
         printf "test_executables_json=%s\n" "${test_executables_json}" >> "$GITHUB_OUTPUT"
       shell: bash
