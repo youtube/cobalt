@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/experimental_features.h"
 
+#include <cstdint>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -125,6 +126,46 @@ TEST(StarboardExperimentalFeaturesTest, OutputStreamOperatorFormatsCorrectly) {
   std::ostringstream ss;
   ss << features;
   EXPECT_EQ(ss.str(), "{Test.IntKey=42}");
+}
+
+TEST(StarboardExperimentalFeaturesTest,
+     AndroidVideoDecoderImprovementsBitfield) {
+  using android_video_decoder_improvements::kGuardSurfaceCleanupByOwnership;
+
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      ExperimentalFeatures(), kGuardSurfaceCleanupByOwnership));
+
+  ExperimentalFeatures unset_sentinel(ExperimentalFeatures::Map{
+      {std::string(kMediaAndroidVideoDecoderImprovements.key()),
+       static_cast<int64_t>(0)}});
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      unset_sentinel, kGuardSurfaceCleanupByOwnership));
+
+  // Negative values act as disabled/placebo even though bit 0 is set in two's
+  // complement representation.
+  ExperimentalFeatures negative_placebo(ExperimentalFeatures::Map{
+      {std::string(kMediaAndroidVideoDecoderImprovements.key()),
+       static_cast<int64_t>(-1)}});
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      negative_placebo, kGuardSurfaceCleanupByOwnership));
+
+  ExperimentalFeatures other_bit_only(ExperimentalFeatures::Map{
+      {std::string(kMediaAndroidVideoDecoderImprovements.key()),
+       static_cast<int64_t>(1 << 1)}});
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      other_bit_only, kGuardSurfaceCleanupByOwnership));
+
+  ExperimentalFeatures bit_zero_only(ExperimentalFeatures::Map{
+      {std::string(kMediaAndroidVideoDecoderImprovements.key()),
+       static_cast<int64_t>(kGuardSurfaceCleanupByOwnership)}});
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      bit_zero_only, kGuardSurfaceCleanupByOwnership));
+
+  ExperimentalFeatures multiple_bits(ExperimentalFeatures::Map{
+      {std::string(kMediaAndroidVideoDecoderImprovements.key()),
+       static_cast<int64_t>(kGuardSurfaceCleanupByOwnership | (1 << 1))}});
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      multiple_bits, kGuardSurfaceCleanupByOwnership));
 }
 
 }  // namespace

@@ -348,6 +348,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      guard_surface_cleanup_by_ownership_(
+          IsAndroidVideoDecoderImprovementEnabled(
+              pipeline_config.experimental_features,
+              android_video_decoder_improvements::
+                  kGuardSurfaceCleanupByOwnership)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -413,11 +418,21 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_)
+               << ", guard_surface_cleanup_by_ownership="
+               << ToString(guard_surface_cleanup_by_ownership_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
+  const bool can_clean_up_surface =
+      has_acquired_video_surface_ &&
+      (owns_video_surface_ || surface_view_ || IsVideoSurfaceAvailable());
+  const bool should_clean_up_surface =
+      !guard_surface_cleanup_by_ownership_ || can_clean_up_surface;
   TeardownCodec();
+  if (!should_clean_up_surface) {
+    return;
+  }
   // The video surface must be reset after tunnel mode playbacks. This prevents
   // video distortion on some platforms. For details, see http://b/182610842.
   if (tunnel_mode_audio_session_id_.has_value()) {
@@ -826,6 +841,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
+        has_acquired_video_surface_ = true;
       }
     } break;
     case kSbPlayerOutputModeDecodeToTexture: {
@@ -1209,6 +1225,7 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
   }
   // When this function is called, the decoder no longer owns the surface.
   owns_video_surface_ = false;
+  has_acquired_video_surface_ = false;
   TeardownCodec();
   {
     std::lock_guard lock(surface_destroy_mutex_);

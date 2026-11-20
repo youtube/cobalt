@@ -217,6 +217,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
+  const bool guard_surface_cleanup_by_ownership_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -268,10 +269,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   volatile int64_t first_buffer_timestamp_;  // microseconds
   std::atomic_bool has_new_texture_available_{false};
 
-  // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
-  // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
-  // do nothing if not own the surface.
+  // Accessed only on the decoder thread. |owns_video_surface_| tracks active
+  // surface ownership, while |has_acquired_video_surface_| remains true across
+  // codec resets/teardowns unless the surface itself is destroyed.
   bool owns_video_surface_ = false;
+  bool has_acquired_video_surface_ = false;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
