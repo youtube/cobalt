@@ -182,7 +182,7 @@ AvcParameterSets AvcParameterSets::ConvertTo(Format new_format) const {
   std::vector<std::vector<uint8_t>> new_parameter_sets = parameter_sets_;
   size_t new_combined_size_in_bytes = combined_size_in_bytes_;
   for (auto& parameter_set : new_parameter_sets) {
-    SB_DCHECK_GE(parameter_set.size(), kAnnexBHeaderSizeInBytes);
+    SB_CHECK_GE(parameter_set.size(), kAnnexBHeaderSizeInBytes);
     parameter_set.erase(parameter_set.begin(),
                         parameter_set.begin() + kAnnexBHeaderSizeInBytes);
     new_combined_size_in_bytes -= kAnnexBHeaderSizeInBytes;

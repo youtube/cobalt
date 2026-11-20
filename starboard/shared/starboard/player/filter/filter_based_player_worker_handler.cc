@@ -186,7 +186,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
 Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
     const InputBuffers& input_buffers,
     int* samples_written) {
-  SB_DCHECK(!input_buffers.empty());
+  SB_CHECK(!input_buffers.empty());
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(samples_written);
   for (const auto& input_buffer : input_buffers) {

@@ -186,7 +186,7 @@ int32_t WidevineStorage::size(const std::string& name) {
 }
 
 bool WidevineStorage::list(std::vector<std::string>* records) {
-  SB_DCHECK(records);
+  SB_CHECK(records);
   std::lock_guard scoped_lock(lock_);
   records->clear();
   for (auto item : cache_) {

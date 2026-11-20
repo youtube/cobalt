@@ -237,7 +237,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result,
     int /*number_of_pending_inputs*/) {
-  SB_DCHECK(media_codec_bridge);
+  SB_CHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
@@ -263,7 +263,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
       // frame rate in place by averaging each pair of consecutive frames per
       // channel, so the audio sink can play it with the correct pitch.
       const size_t channels = audio_stream_info_.number_of_channels;
-      SB_DCHECK_GT(channels, 0u);
+      SB_CHECK_GT(channels, 0u);
       const size_t frames = size / sizeof(int16_t) / channels;
       for (size_t frame = 0; frame + 1 < frames; frame += 2) {
         for (size_t channel = 0; channel < channels; ++channel) {
