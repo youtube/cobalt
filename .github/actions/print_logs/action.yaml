@@ -53,12 +53,17 @@ runs:
           exit 1
         else
           for log_file in "${log_files[@]}"; do
+            echo "::group::${log_file}"
+            rc=0
             if [ "${SYMBOLIZE}" == "true" ]; then
               # TODO: stack.py fails import packages. Perhaps needs depot tools setup?
-              cat "../${log_file}" | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/"${PLATFORM}_${CONFIG}"/
+              cat "../${log_file}" | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/"${PLATFORM}_${CONFIG}"/ || rc=$?
             else
-              echo "=== ${log_file} ==="
-              cat "${log_file}"
+              cat "${log_file}" || rc=$?
+            fi
+            echo "::endgroup::"
+            if [ "${rc}" -ne 0 ]; then
+              exit "${rc}"
             fi
           done
         fi
