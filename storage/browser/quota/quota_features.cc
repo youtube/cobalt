@@ -41,5 +41,11 @@ BASE_FEATURE(kStaticStorageQuota,
              "StaticStorageQuota",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltLazyServiceWorkerAndQuotaInit,
+             "CobaltLazyServiceWorkerAndQuotaInit",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace features
 }  // namespace storage

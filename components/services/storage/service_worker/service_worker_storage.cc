@@ -31,6 +31,10 @@
 #include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "storage/browser/quota/quota_features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage {
 
 namespace {
@@ -1579,6 +1583,23 @@ void ServiceWorkerStorage::ReadInitialDataFromDB() {
   std::unique_ptr<ServiceWorkerStorage::InitialData> data(
       new ServiceWorkerStorage::InitialData());
 
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltLazyServiceWorkerAndQuotaInit)) {
+    const base::FilePath db_path = GetDatabasePath();
+    if (!db_path.empty() && !base::PathExists(db_path.AppendASCII("CURRENT"))) {
+      data->next_registration_id = 0;
+      data->next_version_id = 0;
+      data->next_resource_id = 0;
+      DidReadInitialData(std::move(data), ServiceWorkerDatabase::Status::kOk);
+      base::UmaHistogramMediumTimes(
+          "ServiceWorker.Storage.ReadInitialDataFromDB.Time",
+          base::TimeTicks::Now() - now);
+      return;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   ServiceWorkerDatabase::Status status = database_->GetNextAvailableIds(
       &data->next_registration_id, &data->next_version_id,
       &data->next_resource_id);
@@ -1592,6 +1613,32 @@ void ServiceWorkerStorage::ReadInitialDataFromDB() {
     DidReadInitialData(std::move(data), status);
     return;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltLazyServiceWorkerAndQuotaInit) &&
+      data->keys.empty() && !GetDatabasePath().empty()) {
+    std::vector<int64_t> uncommitted_ids;
+    std::vector<int64_t> purgeable_ids;
+    if (database_->GetUncommittedResourceIds(&uncommitted_ids) ==
+            ServiceWorkerDatabase::Status::kOk &&
+        uncommitted_ids.empty() &&
+        database_->GetPurgeableResourceIds(&purgeable_ids) ==
+            ServiceWorkerDatabase::Status::kOk &&
+        purgeable_ids.empty()) {
+      database_->DestroyDatabase();
+      database_ = std::make_unique<ServiceWorkerDatabase>(GetDatabasePath());
+      data->next_registration_id = 0;
+      data->next_version_id = 0;
+      data->next_resource_id = 0;
+      DidReadInitialData(std::move(data), ServiceWorkerDatabase::Status::kOk);
+      base::UmaHistogramMediumTimes(
+          "ServiceWorker.Storage.ReadInitialDataFromDB.Time",
+          base::TimeTicks::Now() - now);
+      return;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   DidReadInitialData(std::move(data), status);
 

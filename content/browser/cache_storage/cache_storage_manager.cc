@@ -444,6 +444,62 @@ CacheStorageHandle CacheStorageManager::OpenCacheStorage(
   return it->second.get()->CreateHandle();
 }
 
+#if BUILDFLAG(IS_COBALT)
+void CacheStorageManager::HasAnyPersistedOrOpenCacheStorage(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!cache_storage_map_.empty()) {
+    std::move(callback).Run(true);
+    return;
+  }
+  if (IsMemoryBacked()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  const base::FilePath profile_path = profile_path_;
+  cache_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          [](const base::FilePath& path) {
+            const base::FilePath first_party_root =
+                CacheStorageManager::ConstructFirstPartyDefaultRootPath(path);
+            if (base::DirectoryExists(first_party_root)) {
+              base::FileEnumerator first_party_enum(
+                  first_party_root, /*recursive=*/false,
+                  base::FileEnumerator::DIRECTORIES);
+              if (!first_party_enum.Next().empty()) {
+                return true;
+              }
+            }
+
+            // Note: `ConstructThirdPartyAndNonDefaultRootPath(path)` is
+            // `<profile_path>/WebStorage`, which also holds the `QuotaManager`
+            // SQLite file on upgraded profiles. Only treat it as having
+            // persisted CacheStorage if a `<bucket_id>/{CacheStorage,
+            // BackgroundFetch}` subdirectory actually exists.
+            const base::FilePath web_storage_root = CacheStorageManager::
+                ConstructThirdPartyAndNonDefaultRootPath(path);
+            if (base::DirectoryExists(web_storage_root)) {
+              base::FileEnumerator bucket_enum(
+                  web_storage_root, /*recursive=*/false,
+                  base::FileEnumerator::DIRECTORIES);
+              for (base::FilePath bucket_dir = bucket_enum.Next();
+                   !bucket_dir.empty(); bucket_dir = bucket_enum.Next()) {
+                if (base::DirectoryExists(
+                        bucket_dir.Append(storage::kCacheStorageDirectory)) ||
+                    base::DirectoryExists(bucket_dir.Append(
+                        storage::kBackgroundFetchDirectory))) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          },
+          profile_path),
+      std::move(callback));
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void CacheStorageManager::NotifyCacheListChanged(
     const storage::BucketLocator& bucket_locator) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);

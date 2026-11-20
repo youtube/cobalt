@@ -662,21 +662,37 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
       const DocumentIsolationPolicy& document_isolation_policy,
       mojo::PendingRemote<network::mojom::DocumentIsolationPolicyReporter>
           dip_reporter,
-      storage::mojom::CacheStorageOwner owner)
+      storage::mojom::CacheStorageOwner owner
+#if BUILDFLAG(IS_COBALT)
+      ,
+      const blink::StorageKey& storage_key = blink::StorageKey(),
+      bool defer_default_bucket_lookup = false
+#endif  // BUILDFLAG(IS_COBALT)
+      )
       : host_(host),
         bucket_(bucket),
         cross_origin_embedder_policy_(cross_origin_embedder_policy),
         coep_reporter_(std::move(coep_reporter)),
         document_isolation_policy_(document_isolation_policy),
         dip_reporter_(std::move(dip_reporter)),
-        owner_(owner) {
+        owner_(owner)
+#if BUILDFLAG(IS_COBALT)
+        ,
+        storage_key_(storage_key),
+        defer_default_bucket_lookup_(defer_default_bucket_lookup)
+#endif  // BUILDFLAG(IS_COBALT)
+  {
     // Eagerly initialize the backend when the mojo connection is bound.
     //
     // Note, we only do this for non-incognito mode.  The memory cache mode
     // will incorrectly report cache file usage and break tests if we eagerly
     // initialize it here.  Also, eagerly initializing memory cache mode does
     // not really provide any performance benefit.
+#if BUILDFLAG(IS_COBALT)
+    if (!incognito && !defer_default_bucket_lookup_) {
+#else
     if (!incognito) {
+#endif  // BUILDFLAG(IS_COBALT)
       GetOrCreateCacheStorage(
           base::BindOnce([](content::CacheStorage* cache_storage) {
             if (cache_storage) {
@@ -718,6 +734,38 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
           std::move(callback).Run(cache_names);
         },
         base::TimeTicks::Now(), trace_id, std::move(callback));
+
+#if BUILDFLAG(IS_COBALT)
+    if (defer_default_bucket_lookup_ && !bucket_.has_value()) {
+      EnsureBucketReady(
+          /*create_if_empty=*/false,
+          base::BindOnce(
+              [](base::WeakPtr<CacheStorageImpl> self, int64_t trace_id,
+                 content::CacheStorage::EnumerateCachesCallback cb,
+                 bool no_existing_storage) {
+                if (!self) {
+                  return;
+                }
+                if (no_existing_storage || !self->bucket_.has_value()) {
+                  std::move(cb).Run(std::vector<std::u16string>());
+                  return;
+                }
+                self->GetOrCreateCacheStorage(base::BindOnce(
+                    [](int64_t trace_id,
+                       content::CacheStorage::EnumerateCachesCallback cb,
+                       content::CacheStorage* cache_storage) {
+                      if (!cache_storage) {
+                        std::move(cb).Run(std::vector<std::u16string>());
+                        return;
+                      }
+                      cache_storage->EnumerateCaches(trace_id, std::move(cb));
+                    },
+                    trace_id, std::move(cb)));
+              },
+              weak_factory_.GetWeakPtr(), trace_id, std::move(cb)));
+      return;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
     // Return error if failed to retrieve bucket from QuotaManager.
     if (!bucket_.has_value()) {
@@ -765,6 +813,47 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
           std::move(callback).Run(error);
         },
         base::TimeTicks::Now(), trace_id, std::move(callback));
+
+#if BUILDFLAG(IS_COBALT)
+    if (defer_default_bucket_lookup_ && !bucket_.has_value()) {
+      EnsureBucketReady(
+          /*create_if_empty=*/false,
+          base::BindOnce(
+              [](base::WeakPtr<CacheStorageImpl> self,
+                 std::u16string cache_name, int64_t trace_id,
+                 content::CacheStorage::ErrorCallback cb,
+                 bool no_existing_storage) {
+                if (!self) {
+                  return;
+                }
+                if (no_existing_storage) {
+                  std::move(cb).Run(CacheStorageError::kErrorNotFound);
+                  return;
+                }
+                if (!self->bucket_.has_value()) {
+                  std::move(cb).Run(
+                      MakeErrorStorage(ErrorStorageType::kDefaultBucketError));
+                  return;
+                }
+                self->GetOrCreateCacheStorage(base::BindOnce(
+                    [](std::u16string cache_name, int64_t trace_id,
+                       content::CacheStorage::ErrorCallback cb,
+                       content::CacheStorage* cache_storage) {
+                      if (!cache_storage) {
+                        std::move(cb).Run(MakeErrorStorage(
+                            ErrorStorageType::kStorageHandleNull));
+                        return;
+                      }
+                      cache_storage->DoomCache(cache_name, trace_id,
+                                               std::move(cb));
+                    },
+                    std::move(cache_name), trace_id, std::move(cb)));
+              },
+              weak_factory_.GetWeakPtr(), std::move(cache_name), trace_id,
+              std::move(cb)));
+      return;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
     // Return error if failed to retrieve bucket from QuotaManager.
     if (!bucket_.has_value()) {
@@ -817,6 +906,51 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
           std::move(callback).Run(error);
         },
         base::TimeTicks::Now(), trace_id, std::move(callback));
+
+#if BUILDFLAG(IS_COBALT)
+    if (defer_default_bucket_lookup_ && !bucket_.has_value()) {
+      EnsureBucketReady(
+          /*create_if_empty=*/false,
+          base::BindOnce(
+              [](base::WeakPtr<CacheStorageImpl> self,
+                 std::u16string cache_name, int64_t trace_id,
+                 content::CacheStorage::BoolAndErrorCallback cb,
+                 bool no_existing_storage) {
+                if (!self) {
+                  return;
+                }
+                if (no_existing_storage) {
+                  std::move(cb).Run(/*has_cache=*/false,
+                                    CacheStorageError::kErrorNotFound);
+                  return;
+                }
+                if (!self->bucket_.has_value()) {
+                  std::move(cb).Run(
+                      /*has_cache=*/false,
+                      MakeErrorStorage(ErrorStorageType::kDefaultBucketError));
+                  return;
+                }
+                self->GetOrCreateCacheStorage(base::BindOnce(
+                    [](std::u16string cache_name, int64_t trace_id,
+                       content::CacheStorage::BoolAndErrorCallback cb,
+                       content::CacheStorage* cache_storage) {
+                      if (!cache_storage) {
+                        std::move(cb).Run(
+                            /*has_cache=*/false,
+                            MakeErrorStorage(
+                                ErrorStorageType::kStorageHandleNull));
+                        return;
+                      }
+                      cache_storage->HasCache(cache_name, trace_id,
+                                              std::move(cb));
+                    },
+                    std::move(cache_name), trace_id, std::move(cb)));
+              },
+              weak_factory_.GetWeakPtr(), std::move(cache_name), trace_id,
+              std::move(cb)));
+      return;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
     // Return error if failed to retrieve bucket from QuotaManager.
     if (!bucket_.has_value()) {
@@ -921,6 +1055,68 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
         !match_options->cache_name, in_related_fetch_event,
         in_range_fetch_event, trace_id, std::move(callback));
 
+#if BUILDFLAG(IS_COBALT)
+    if (defer_default_bucket_lookup_ && !bucket_.has_value()) {
+      EnsureBucketReady(
+          /*create_if_empty=*/false,
+          base::BindOnce(
+              [](base::WeakPtr<CacheStorageImpl> self,
+                 blink::mojom::FetchAPIRequestPtr request,
+                 blink::mojom::MultiCacheQueryOptionsPtr match_options,
+                 bool in_related_fetch_event, int64_t trace_id,
+                 content::CacheStorageCache::ResponseCallback cb,
+                 bool no_existing_storage) {
+                if (!self) {
+                  return;
+                }
+                if (no_existing_storage) {
+                  std::move(cb).Run(CacheStorageError::kErrorNotFound, nullptr);
+                  return;
+                }
+                if (!self->bucket_.has_value()) {
+                  std::move(cb).Run(
+                      MakeErrorStorage(ErrorStorageType::kDefaultBucketError),
+                      nullptr);
+                  return;
+                }
+                self->GetOrCreateCacheStorage(base::BindOnce(
+                    [](blink::mojom::FetchAPIRequestPtr request,
+                       blink::mojom::MultiCacheQueryOptionsPtr match_options,
+                       bool in_related_fetch_event, int64_t trace_id,
+                       content::CacheStorageCache::ResponseCallback cb,
+                       content::CacheStorage* cache_storage) {
+                      if (!cache_storage) {
+                        std::move(cb).Run(CacheStorageError::kErrorNotFound,
+                                          nullptr);
+                        return;
+                      }
+                      CacheStorageSchedulerPriority priority =
+                          in_related_fetch_event
+                              ? CacheStorageSchedulerPriority::kHigh
+                              : CacheStorageSchedulerPriority::kNormal;
+                      if (!match_options->cache_name) {
+                        cache_storage->MatchAllCaches(
+                            std::move(request),
+                            std::move(match_options->query_options), priority,
+                            trace_id, std::move(cb));
+                        return;
+                      }
+                      cache_storage->MatchCache(
+                          std::move(*match_options->cache_name),
+                          std::move(request),
+                          std::move(match_options->query_options), priority,
+                          trace_id, std::move(cb));
+                    },
+                    std::move(request), std::move(match_options),
+                    in_related_fetch_event, trace_id, std::move(cb)));
+              },
+              weak_factory_.GetWeakPtr(), std::move(request),
+              std::move(match_options), in_related_fetch_event, trace_id,
+              std::move(cb)));
+      return;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
+
     // Return error if failed to retrieve bucket from QuotaManager.
     if (!bucket_.has_value()) {
       std::move(cb).Run(MakeErrorStorage(ErrorStorageType::kDefaultBucketError),
@@ -1023,6 +1219,46 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
         weak_factory_.GetWeakPtr(), base::TimeTicks::Now(), trace_id,
         std::move(callback));
 
+#if BUILDFLAG(IS_COBALT)
+    if (defer_default_bucket_lookup_ && !bucket_.has_value()) {
+      EnsureBucketReady(
+          /*create_if_empty=*/true,
+          base::BindOnce(
+              [](base::WeakPtr<CacheStorageImpl> self,
+                 std::u16string cache_name, int64_t trace_id,
+                 content::CacheStorage::CacheAndErrorCallback cb,
+                 bool /*no_existing_storage*/) {
+                if (!self) {
+                  return;
+                }
+                if (!self->bucket_.has_value()) {
+                  std::move(cb).Run(
+                      CacheStorageCacheHandle(),
+                      MakeErrorStorage(ErrorStorageType::kDefaultBucketError));
+                  return;
+                }
+                self->GetOrCreateCacheStorage(base::BindOnce(
+                    [](std::u16string cache_name, int64_t trace_id,
+                       content::CacheStorage::CacheAndErrorCallback cb,
+                       content::CacheStorage* cache_storage) {
+                      if (!cache_storage) {
+                        std::move(cb).Run(
+                            CacheStorageCacheHandle(),
+                            MakeErrorStorage(
+                                ErrorStorageType::kStorageHandleNull));
+                        return;
+                      }
+                      cache_storage->OpenCache(cache_name, trace_id,
+                                               std::move(cb));
+                    },
+                    std::move(cache_name), trace_id, std::move(cb)));
+              },
+              weak_factory_.GetWeakPtr(), std::move(cache_name), trace_id,
+              std::move(cb)));
+      return;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
+
     // Return error if failed to retrieve bucket from QuotaManager.
     if (!bucket_.has_value()) {
       std::move(cb).Run(
@@ -1047,6 +1283,81 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
   }
 
  private:
+#if BUILDFLAG(IS_COBALT)
+  void EnsureBucketReady(
+      bool create_if_empty,
+      base::OnceCallback<void(bool no_existing_storage)> callback) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (bucket_.has_value() || !defer_default_bucket_lookup_) {
+      std::move(callback).Run(/*no_existing_storage=*/false);
+      return;
+    }
+    if (bucket_lookup_in_progress_) {
+      pending_bucket_callbacks_.push_back(std::move(callback));
+      return;
+    }
+    if (create_if_empty) {
+      StartDefaultBucketLookup(std::move(callback));
+      return;
+    }
+    host_->HasAnyPersistedOrOpenCacheStorage(
+        base::BindOnce(&CacheStorageImpl::OnCheckedExistingStorage,
+                       weak_factory_.GetWeakPtr(), std::move(callback)));
+  }
+
+  void OnCheckedExistingStorage(
+      base::OnceCallback<void(bool no_existing_storage)> callback,
+      bool exists) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (bucket_.has_value() || !defer_default_bucket_lookup_) {
+      std::move(callback).Run(/*no_existing_storage=*/false);
+      return;
+    }
+    if (bucket_lookup_in_progress_) {
+      pending_bucket_callbacks_.push_back(std::move(callback));
+      return;
+    }
+    if (!exists) {
+      std::move(callback).Run(/*no_existing_storage=*/true);
+      return;
+    }
+    StartDefaultBucketLookup(std::move(callback));
+  }
+
+  void StartDefaultBucketLookup(
+      base::OnceCallback<void(bool no_existing_storage)> callback) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    pending_bucket_callbacks_.push_back(std::move(callback));
+    if (bucket_lookup_in_progress_) {
+      return;
+    }
+    bucket_lookup_in_progress_ = true;
+    host_->UpdateOrCreateDefaultBucket(
+        storage_key_, base::BindOnce(&CacheStorageImpl::OnDefaultBucketResolved,
+                                     weak_factory_.GetWeakPtr()));
+  }
+
+  void OnDefaultBucketResolved(
+      storage::QuotaErrorOr<storage::BucketInfo> result) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    bucket_lookup_in_progress_ = false;
+    defer_default_bucket_lookup_ = false;
+    if (result.has_value()) {
+      bucket_ = result->ToBucketLocator();
+      if (host_->WasNotifiedOfBucketDataDeletion(*bucket_)) {
+        host_->deleted_buckets_.erase(*bucket_);
+      }
+    } else {
+      bucket_ = std::nullopt;
+    }
+    std::vector<base::OnceCallback<void(bool)>> callbacks;
+    callbacks.swap(pending_bucket_callbacks_);
+    for (auto& cb : callbacks) {
+      std::move(cb).Run(/*no_existing_storage=*/false);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   void UpdateOrCreateBucketCallback(
       base::OnceCallback<void(content::CacheStorage*)> callback,
       storage::QuotaErrorOr<storage::BucketInfo> result) {
@@ -1118,6 +1429,12 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
   const DocumentIsolationPolicy document_isolation_policy_;
   mojo::Remote<network::mojom::DocumentIsolationPolicyReporter> dip_reporter_;
   const storage::mojom::CacheStorageOwner owner_;
+#if BUILDFLAG(IS_COBALT)
+  const blink::StorageKey storage_key_;
+  bool defer_default_bucket_lookup_ = false;
+  bool bucket_lookup_in_progress_ = false;
+  std::vector<base::OnceCallback<void(bool)>> pending_bucket_callbacks_;
+#endif  // BUILDFLAG(IS_COBALT)
   CacheStorageHandle cache_storage_handle_;
 
   SEQUENCE_CHECKER(sequence_checker_);
@@ -1145,7 +1462,12 @@ void CacheStorageDispatcherHost::AddReceiver(
     const blink::StorageKey& storage_key,
     const std::optional<storage::BucketLocator>& bucket,
     storage::mojom::CacheStorageOwner owner,
+#if BUILDFLAG(IS_COBALT)
+    mojo::PendingReceiver<blink::mojom::CacheStorage> receiver,
+    bool defer_default_bucket_lookup) {
+#else
     mojo::PendingReceiver<blink::mojom::CacheStorage> receiver) {
+#endif  // BUILDFLAG(IS_COBALT)
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (bucket.has_value()) {
     DCHECK_EQ(bucket->storage_key, storage_key);
@@ -1161,10 +1483,17 @@ void CacheStorageDispatcherHost::AddReceiver(
     }
   }
   bool incognito = context_ ? context_->is_incognito() : false;
+#if BUILDFLAG(IS_COBALT)
+  auto impl = std::make_unique<CacheStorageImpl>(
+      this, bucket, incognito, cross_origin_embedder_policy,
+      std::move(coep_reporter), document_isolation_policy,
+      std::move(dip_reporter), owner, storage_key, defer_default_bucket_lookup);
+#else
   auto impl = std::make_unique<CacheStorageImpl>(
       this, bucket, incognito, cross_origin_embedder_policy,
       std::move(coep_reporter), document_isolation_policy,
       std::move(dip_reporter), owner);
+#endif  // BUILDFLAG(IS_COBALT)
   receivers_.Add(std::move(impl), std::move(receiver));
 }
 
@@ -1199,6 +1528,23 @@ void CacheStorageDispatcherHost::UpdateOrCreateDefaultBucket(
       storage::BucketInitParams::ForDefaultBucket(storage_key),
       base::SequencedTaskRunner::GetCurrentDefault(), std::move(callback));
 }
+
+#if BUILDFLAG(IS_COBALT)
+void CacheStorageDispatcherHost::HasAnyPersistedOrOpenCacheStorage(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!context_) {
+    std::move(callback).Run(false);
+    return;
+  }
+  scoped_refptr<CacheStorageManager> manager = context_->cache_manager();
+  if (!manager) {
+    std::move(callback).Run(false);
+    return;
+  }
+  manager->HasAnyPersistedOrOpenCacheStorage(std::move(callback));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 bool CacheStorageDispatcherHost::WasNotifiedOfBucketDataDeletion(
     const storage::BucketLocator& bucket_locator) {

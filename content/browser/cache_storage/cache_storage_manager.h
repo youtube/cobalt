@@ -106,6 +106,13 @@ class CONTENT_EXPORT CacheStorageManager
 
   base::FilePath profile_path() const { return profile_path_; }
 
+#if BUILDFLAG(IS_COBALT)
+  // Checks whether any CacheStorage instance is open in memory or has an
+  // on-disk directory under `profile_path_` without opening QuotaDatabase.
+  void HasAnyPersistedOrOpenCacheStorage(
+      base::OnceCallback<void(bool)> callback);
+#endif  // BUILDFLAG(IS_COBALT)
+
   static base::FilePath ConstructFirstPartyDefaultRootPath(
       const base::FilePath& profile_path);
 
