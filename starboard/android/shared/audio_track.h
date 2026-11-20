@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <ostream>
 
 #include "starboard/common/span.h"
 #include "starboard/media.h"
@@ -107,6 +108,9 @@ class AudioTrack {
 };
 
 using AudioDeviceChange = AudioTrack::AudioDeviceChange;
+
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrack::AudioTimestamp& timestamp);
 
 }  // namespace starboard
 

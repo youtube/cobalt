@@ -571,9 +571,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         stopped_timestamp_ = audio_track_->GetAudioTimestamp();
         total_frames_written_ = total_frames_written_on_audio_track_thread_;
         decoded_audio_writing_in_progress_ = std::nullopt;
-        SB_LOG(INFO) << "Audio track stopped at "
-                     << stopped_timestamp_->updated_at_us << ", playback head: "
-                     << stopped_timestamp_->frame_position;
+        SB_LOG(INFO) << "Audio track stopped: " << *stopped_timestamp_;
       }
     } else {
       auto sample_buffer = decoded_audio_writing_in_progress_->data() +
