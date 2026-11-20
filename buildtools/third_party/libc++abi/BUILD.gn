@@ -19,7 +19,11 @@ source_set("libc++abi") {
   # Fuchsia builds don't link against any libraries that provide stack
   # unwinding symbols, unlike Linux does with glibc (same applies for Android).
   # Build and link against libunwind manually to get this functionality.
-  if (use_custom_libunwind) {
+  # Neither do the hermetic Cobalt builds, which don't link the platform's
+  # libraries. Link Cobalt's copy.
+  if (is_cobalt_hermetic_build) {
+    deps = [ "//third_party/llvm-project/libunwind:unwind" ]
+  } else if (use_custom_libunwind) {
     deps = [ "//buildtools/third_party/libunwind" ]
   }
 
