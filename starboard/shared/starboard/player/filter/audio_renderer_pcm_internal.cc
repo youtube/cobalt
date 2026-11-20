@@ -423,10 +423,8 @@ int64_t AudioRendererPcm::AdjustTimestampToAudioClock(int64_t timestamp) {
          adjusted_frame_position * 1'000'000LL / *decoder_sample_rate_;
 }
 
-void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
-                                       int* offset_in_frames,
-                                       bool* is_playing,
-                                       bool* is_eos_reached) {
+AudioRendererSink::RenderCallback::SourceStatus
+AudioRendererPcm::GetSourceStatus() {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   ++sink_callbacks_since_last_check_;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
@@ -435,27 +433,26 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
     UpdateVariablesOnSinkThread_Locked(frames_consumed_set_at_on_sink_thread_);
   }
 
-  *is_eos_reached = is_eos_reached_on_sink_thread_;
-  *is_playing = is_playing_on_sink_thread_;
+  SourceStatus status;
+  status.is_eos_reached = is_eos_reached_on_sink_thread_;
+  status.is_playing = is_playing_on_sink_thread_;
 
-  if (*is_playing || allow_audio_writing_on_pause_) {
-    *frames_in_buffer =
+  if (status.is_playing || allow_audio_writing_on_pause_) {
+    status.frames_in_buffer =
         frames_in_buffer_on_sink_thread_ - frames_consumed_on_sink_thread_;
-    *offset_in_frames =
+    status.offset_in_frames =
         (offset_in_frames_on_sink_thread_ + frames_consumed_on_sink_thread_) %
         max_cached_frames_;
-  } else {
-    *frames_in_buffer = *offset_in_frames = 0;
   }
 
-  if (*is_eos_reached && *frames_in_buffer < max_cached_frames_) {
+  if (status.is_eos_reached && status.frames_in_buffer < max_cached_frames_) {
     // Fill silence frames on EOS to ensure keep the audio sink playing.
-    if (max_cached_frames_ - *frames_in_buffer >
+    if (max_cached_frames_ - status.frames_in_buffer >
         silence_frames_written_after_eos_on_sink_thread_) {
       auto silence_frames_to_write =
-          max_cached_frames_ - *frames_in_buffer -
+          max_cached_frames_ - status.frames_in_buffer -
           silence_frames_written_after_eos_on_sink_thread_;
-      auto start_offset = (*offset_in_frames + *frames_in_buffer +
+      auto start_offset = (status.offset_in_frames + status.frames_in_buffer +
                            silence_frames_written_after_eos_on_sink_thread_) %
                           max_cached_frames_;
 
@@ -472,8 +469,10 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
       silence_frames_written_after_eos_on_sink_thread_ +=
           silence_frames_to_write;
     }
-    *frames_in_buffer = max_cached_frames_;
+    status.frames_in_buffer = max_cached_frames_;
   }
+
+  return status;
 }
 
 void AudioRendererPcm::ConsumeFrames(int frames_consumed,

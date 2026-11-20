@@ -135,10 +135,7 @@ class AudioRendererPcm : public AudioRenderer,
   double playback_rate_ = 1.0;
 
   // AudioRendererSink methods
-  void GetSourceStatus(int* frames_in_buffer,
-                       int* offset_in_frames,
-                       bool* is_playing,
-                       bool* is_eos_reached) override;
+  SourceStatus GetSourceStatus() override;
   void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override;
   void OnError(bool capability_changed,
                const std::string& error_message) override;

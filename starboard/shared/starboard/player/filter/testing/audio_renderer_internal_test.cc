@@ -41,6 +41,7 @@ using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
+using SourceStatus = AudioRendererSink::RenderCallback::SourceStatus;
 
 // TODO: Write tests to cover callbacks.
 class AudioRendererTest : public ::testing::Test {
@@ -329,20 +330,16 @@ TEST_F(AudioRendererTest, SunnyDay) {
   EXPECT_FALSE(info.is_eos_played);
   EXPECT_EQ(info.playback_rate, 1.0);
 
-  int frames_in_buffer;
-  int offset_in_frames;
-  bool is_playing;
-  bool is_eos_reached;
-  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                      &is_playing, &is_eos_reached);
-  EXPECT_GT(frames_in_buffer, 0);
-  EXPECT_GE(offset_in_frames, 0);
-  EXPECT_TRUE(is_playing);
-  EXPECT_TRUE(is_eos_reached);
+  SourceStatus status = renderer_callback_->GetSourceStatus();
+  EXPECT_GT(status.frames_in_buffer, 0);
+  EXPECT_GE(status.offset_in_frames, 0);
+  EXPECT_TRUE(status.is_playing);
+  EXPECT_TRUE(status.is_eos_reached);
 
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
-  const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
+  const int frames_to_consume =
+      std::min(frames_written, status.frames_in_buffer) / 2;
   int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
@@ -356,7 +353,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
   EXPECT_GT(new_media_time, media_time);
   media_time = new_media_time;
 
-  const int remaining_frames = frames_in_buffer - frames_to_consume;
+  const int remaining_frames = status.frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   info = audio_renderer_->GetCurrentMediaTime();
   new_media_time = info.media_time;
@@ -408,22 +405,16 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime().media_time;
 
-  int frames_in_buffer;
-  int offset_in_frames;
-  bool is_playing;
-  bool is_eos_reached;
-  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                      &is_playing, &is_eos_reached);
-
-  EXPECT_GT(frames_in_buffer, 0);
-  EXPECT_GE(offset_in_frames, 0);
-  EXPECT_TRUE(is_playing);
-  EXPECT_TRUE(is_eos_reached);
+  SourceStatus status = renderer_callback_->GetSourceStatus();
+  EXPECT_GT(status.frames_in_buffer, 0);
+  EXPECT_GE(status.offset_in_frames, 0);
+  EXPECT_TRUE(status.is_playing);
+  EXPECT_TRUE(status.is_eos_reached);
 
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume =
-      std::min(frames_written / kPlaybackRate, frames_in_buffer) / 2;
+      std::min(frames_written / kPlaybackRate, status.frames_in_buffer) / 2;
   int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
@@ -433,7 +424,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   EXPECT_GT(new_media_time, media_time);
   media_time = new_media_time;
 
-  const int remaining_frames = frames_in_buffer - frames_to_consume;
+  const int remaining_frames = status.frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime().media_time;
   EXPECT_GT(new_media_time, media_time);
@@ -482,18 +473,14 @@ TEST_F(AudioRendererTest, SunnyDayWithInt16SamplesWithoutResampling) {
   EXPECT_TRUE(info.is_playing);
   EXPECT_FALSE(info.is_eos_played);
 
-  int frames_in_buffer;
-  int offset_in_frames;
-  bool is_playing;
-  bool is_eos_reached;
-  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                      &is_playing, &is_eos_reached);
-  EXPECT_GT(frames_in_buffer, 0);
-  EXPECT_TRUE(is_eos_reached);
+  SourceStatus status = renderer_callback_->GetSourceStatus();
+  EXPECT_GT(status.frames_in_buffer, 0);
+  EXPECT_TRUE(status.is_eos_reached);
 
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
-  const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
+  const int frames_to_consume =
+      std::min(frames_written, status.frames_in_buffer) / 2;
   int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
@@ -505,7 +492,7 @@ TEST_F(AudioRendererTest, SunnyDayWithInt16SamplesWithoutResampling) {
   EXPECT_GT(new_media_time, media_time);
   media_time = new_media_time;
 
-  const int remaining_frames = frames_in_buffer - frames_to_consume;
+  const int remaining_frames = status.frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   info = audio_renderer_->GetCurrentMediaTime();
   new_media_time = info.media_time;
@@ -538,20 +525,16 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime().media_time;
 
-  int frames_in_buffer;
-  int offset_in_frames;
-  bool is_playing;
-  bool is_eos_reached;
-  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                      &is_playing, &is_eos_reached);
-  EXPECT_GT(frames_in_buffer, 0);
-  EXPECT_GE(offset_in_frames, 0);
-  EXPECT_TRUE(is_playing);
-  EXPECT_TRUE(is_eos_reached);
+  SourceStatus status = renderer_callback_->GetSourceStatus();
+  EXPECT_GT(status.frames_in_buffer, 0);
+  EXPECT_GE(status.offset_in_frames, 0);
+  EXPECT_TRUE(status.is_playing);
+  EXPECT_TRUE(status.is_eos_reached);
 
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
-  const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
+  const int frames_to_consume =
+      std::min(frames_written, status.frames_in_buffer) / 2;
   int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
@@ -565,7 +548,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   EXPECT_GE(new_media_time, media_time);
   media_time = new_media_time;
 
-  const int remaining_frames = frames_in_buffer - frames_to_consume;
+  const int remaining_frames = status.frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   info = audio_renderer_->GetCurrentMediaTime();
   new_media_time = info.media_time;
@@ -703,21 +686,17 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
   info = audio_renderer_->GetCurrentMediaTime();
   int64_t media_time = info.media_time;
 
-  int frames_in_buffer;
-  int offset_in_frames;
-  bool is_playing;
-  bool is_eos_reached;
-  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                      &is_playing, &is_eos_reached);
-  EXPECT_GT(frames_in_buffer, 0);
-  EXPECT_GE(offset_in_frames, 0);
-  EXPECT_TRUE(is_playing);
+  SourceStatus status = renderer_callback_->GetSourceStatus();
+  EXPECT_GT(status.frames_in_buffer, 0);
+  EXPECT_GE(status.offset_in_frames, 0);
+  EXPECT_TRUE(status.is_playing);
   EXPECT_FALSE(info.is_eos_played);
-  EXPECT_TRUE(is_eos_reached);
+  EXPECT_TRUE(status.is_eos_reached);
 
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
-  const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
+  const int frames_to_consume =
+      std::min(frames_written, status.frames_in_buffer) / 2;
   int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
@@ -731,7 +710,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
   EXPECT_GE(new_media_time, media_time);
   media_time = new_media_time;
 
-  const int remaining_frames = frames_in_buffer - frames_to_consume;
+  const int remaining_frames = status.frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   info = audio_renderer_->GetCurrentMediaTime();
   new_media_time = info.media_time;
@@ -791,20 +770,16 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime().media_time;
 
-  int frames_in_buffer;
-  int offset_in_frames;
-  bool is_playing;
-  bool is_eos_reached;
-  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                      &is_playing, &is_eos_reached);
-  EXPECT_GT(frames_in_buffer, 0);
-  EXPECT_GE(offset_in_frames, 0);
-  EXPECT_TRUE(is_playing);
-  EXPECT_TRUE(is_eos_reached);
+  SourceStatus status = renderer_callback_->GetSourceStatus();
+  EXPECT_GT(status.frames_in_buffer, 0);
+  EXPECT_GE(status.offset_in_frames, 0);
+  EXPECT_TRUE(status.is_playing);
+  EXPECT_TRUE(status.is_eos_reached);
 
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
-  const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
+  const int frames_to_consume =
+      std::min(frames_written, status.frames_in_buffer) / 2;
   int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
@@ -814,7 +789,7 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
   EXPECT_GE(new_media_time, media_time);
   media_time = new_media_time;
 
-  const int remaining_frames = frames_in_buffer - frames_to_consume;
+  const int remaining_frames = status.frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime().media_time;
   EXPECT_GE(new_media_time, media_time);
@@ -856,20 +831,16 @@ TEST_F(AudioRendererTest, Seek) {
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime().media_time;
 
-  int frames_in_buffer;
-  int offset_in_frames;
-  bool is_playing;
-  bool is_eos_reached;
-  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                      &is_playing, &is_eos_reached);
-  EXPECT_GT(frames_in_buffer, 0);
-  EXPECT_GE(offset_in_frames, 0);
-  EXPECT_TRUE(is_playing);
-  EXPECT_TRUE(is_eos_reached);
+  SourceStatus status = renderer_callback_->GetSourceStatus();
+  EXPECT_GT(status.frames_in_buffer, 0);
+  EXPECT_GE(status.offset_in_frames, 0);
+  EXPECT_TRUE(status.is_playing);
+  EXPECT_TRUE(status.is_eos_reached);
 
   // Consume frames in multiple batches, so we can test if
   // |GetCurrentMediaTime()| is incrementing in an expected manner.
-  const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 10;
+  const int frames_to_consume =
+      std::min(frames_written, status.frames_in_buffer) / 10;
   int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
@@ -887,13 +858,13 @@ TEST_F(AudioRendererTest, Seek) {
   audio_renderer_->Play();
   SendDecoderOutput(DecodedAudio::CreateEOSBuffer());
 
-  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                      &is_playing, &is_eos_reached);
-  EXPECT_GT(frames_in_buffer, 0);
-  EXPECT_GE(offset_in_frames, 0);
-  EXPECT_TRUE(is_playing);
-  EXPECT_TRUE(is_eos_reached);
-  renderer_callback_->ConsumeFrames(frames_in_buffer, CurrentMonotonicTime());
+  status = renderer_callback_->GetSourceStatus();
+  EXPECT_GT(status.frames_in_buffer, 0);
+  EXPECT_GE(status.offset_in_frames, 0);
+  EXPECT_TRUE(status.is_playing);
+  EXPECT_TRUE(status.is_eos_reached);
+  renderer_callback_->ConsumeFrames(status.frames_in_buffer,
+                                    CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime().media_time;
   EXPECT_GE(new_media_time, kSeekTime);
 

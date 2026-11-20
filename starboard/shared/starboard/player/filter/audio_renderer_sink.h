@@ -34,10 +34,14 @@ class AudioRendererSink {
 
   class RenderCallback {
    public:
-    virtual void GetSourceStatus(int* frames_in_buffer,
-                                 int* offset_in_frames,
-                                 bool* is_playing,
-                                 bool* is_eos_reached) = 0;
+    struct SourceStatus {
+      int frames_in_buffer = 0;
+      int offset_in_frames = 0;
+      bool is_playing = false;
+      bool is_eos_reached = false;
+    };
+
+    virtual SourceStatus GetSourceStatus() = 0;
     virtual void ConsumeFrames(int frames_consumed,
                                int64_t frames_consumed_at) = 0;
 
