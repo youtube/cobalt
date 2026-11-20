@@ -804,6 +804,24 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // Enables web font MIME caching and ShouldPassThrough pre-entry filtering in
 // Cobalt's HTTP cache.
 NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
+
+// When enabled, Cobalt advertises smaller QUIC flow-control receive windows:
+// kCobaltQuicReceiveWindowsStreamKb per stream and
+// kCobaltQuicReceiveWindowsSessionKb per session (the session window is raised
+// to at least the stream window). The param defaults are 2 MB and 6 MB;
+// Chromium's windows, used when the feature is off, are 6 MB and 15 MB. The
+// windows cap the data the server may send beyond what the app has read; QUIC
+// holds that backlog, including out-of-order data, in 8 KiB heap blocks, which
+// in our traces added PartitionAlloc super pages (b/586557818). HTTP/1.1 over
+// TCP leaves it in the kernel socket buffer. A stream window W sustains about
+// W / (2 * RTT) without stalling the sender; keep the session window at least
+// ~3 streams' worth so two paused streams can't block the connection. This
+// feature clamps stream values to [64 KiB, 16 MiB] and session values to
+// [64 KiB, 24 MiB]. QUICHE's own limits are 16 KiB to 16 MiB (stream) and
+// 16 KiB to 24 MiB (session).
+NET_EXPORT BASE_DECLARE_FEATURE(kCobaltQuicReceiveWindows);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltQuicReceiveWindowsStreamKb);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltQuicReceiveWindowsSessionKb);
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net::features
