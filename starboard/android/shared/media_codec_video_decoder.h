@@ -62,9 +62,9 @@ namespace android_video_decoder_improvements {
 // Note: Only bits 0 to 30 are supported. Bit 31 (the sign bit) must not be
 // used as a flag because negative values are treated as disabled/placebo.
 
-// Guards video surface cleanup and reset in `~MediaCodecVideoDecoder()` by
+// Guards video surface reset and cleanup in `~MediaCodecVideoDecoder()` by
 // video surface ownership.
-inline constexpr uint32_t kGuardSurfaceCleanupByOwnership = 1u << 0;
+inline constexpr uint32_t kGuardSurfaceResetAndCleanupByOwnership = 1u << 0;
 
 }  // namespace android_video_decoder_improvements
 
@@ -300,10 +300,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::atomic_bool has_new_texture_available_{false};
 
   // Accessed only on the decoder thread. |owns_video_surface_| tracks active
-  // surface ownership, while |has_acquired_video_surface_| remains true across
-  // codec resets/teardowns unless the surface itself is destroyed.
+  // surface ownership, while |needs_surface_reset_or_cleanup_| remains true
+  // across codec resets/teardowns unless the surface itself is destroyed.
   bool owns_video_surface_ = false;
-  bool has_acquired_video_surface_ = false;
+  bool needs_surface_reset_or_cleanup_ = false;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.

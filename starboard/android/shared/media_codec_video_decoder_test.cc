@@ -626,7 +626,8 @@ TEST_F(MediaCodecVideoDecoderTest,
   CreateDecoder(
       /*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
       MakeVideoDecoderImprovementsFeatures(
-          android_video_decoder_improvements::kGuardSurfaceCleanupByOwnership));
+          android_video_decoder_improvements::
+              kGuardSurfaceResetAndCleanupByOwnership));
   ASSERT_EQ(GetFakeVideoCodec(), nullptr);
   decoder_.reset();
   EXPECT_EQ(gles_context_runner_count_, 0);
@@ -637,7 +638,8 @@ TEST_F(MediaCodecVideoDecoderTest,
   CreateDecoder(
       /*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
       MakeVideoDecoderImprovementsFeatures(
-          android_video_decoder_improvements::kGuardSurfaceCleanupByOwnership));
+          android_video_decoder_improvements::
+              kGuardSurfaceResetAndCleanupByOwnership));
   InitializeDecoder();
   decoder_->WriteInputBuffers(
       {CreateDummyVideoInputBuffer(0, 1024, &kAv1VideoStreamInfo)});
@@ -675,7 +677,8 @@ TEST_F(MediaCodecVideoDecoderTest,
   CreateDecoder(
       /*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
       MakeVideoDecoderImprovementsFeatures(
-          android_video_decoder_improvements::kGuardSurfaceCleanupByOwnership));
+          android_video_decoder_improvements::
+              kGuardSurfaceResetAndCleanupByOwnership));
   InitializeDecoder();
   ASSERT_NE(GetFakeVideoCodec(), nullptr);
   decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
@@ -688,7 +691,8 @@ TEST_F(MediaCodecVideoDecoderTest,
   CreateDecoder(
       /*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
       MakeVideoDecoderImprovementsFeatures(
-          android_video_decoder_improvements::kGuardSurfaceCleanupByOwnership));
+          android_video_decoder_improvements::
+              kGuardSurfaceResetAndCleanupByOwnership));
   InitializeDecoder();
   ASSERT_EQ(GetFakeVideoCodec(), nullptr);
   decoder_->WriteInputBuffers(
@@ -715,7 +719,8 @@ TEST_F(MediaCodecVideoDecoderTest,
   MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
   MediaCodecVideoDecoder::PipelineConfig pipeline_config;
   pipeline_config.experimental_features = MakeVideoDecoderImprovementsFeatures(
-      android_video_decoder_improvements::kGuardSurfaceCleanupByOwnership);
+      android_video_decoder_improvements::
+          kGuardSurfaceResetAndCleanupByOwnership);
   MediaCodecVideoDecoder::PlatformOptions platform_options;
 
   auto first_decoder = MediaCodecVideoDecoder::CreateForTesting(
@@ -745,41 +750,42 @@ TEST_F(MediaCodecVideoDecoderTest,
 }
 
 TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
-  using android_video_decoder_improvements::kGuardSurfaceCleanupByOwnership;
+  using android_video_decoder_improvements::
+      kGuardSurfaceResetAndCleanupByOwnership;
   constexpr uint32_t kOtherImprovementBit = 1u << 1;
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(ExperimentalFeatures()),
-      kGuardSurfaceCleanupByOwnership));
+      kGuardSurfaceResetAndCleanupByOwnership));
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(0)),
-      kGuardSurfaceCleanupByOwnership));
+      kGuardSurfaceResetAndCleanupByOwnership));
 
   // Negative values act as disabled/placebo even though bit 0 is set in two's
   // complement representation.
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(-1)),
-      kGuardSurfaceCleanupByOwnership));
+      kGuardSurfaceResetAndCleanupByOwnership));
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(kOtherImprovementBit)),
-      kGuardSurfaceCleanupByOwnership));
+      kGuardSurfaceResetAndCleanupByOwnership));
 
   EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(
-              kGuardSurfaceCleanupByOwnership)),
-      kGuardSurfaceCleanupByOwnership));
+              kGuardSurfaceResetAndCleanupByOwnership)),
+      kGuardSurfaceResetAndCleanupByOwnership));
 
   EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
-          MakeVideoDecoderImprovementsFeatures(kGuardSurfaceCleanupByOwnership |
-                                               kOtherImprovementBit)),
-      kGuardSurfaceCleanupByOwnership));
+          MakeVideoDecoderImprovementsFeatures(
+              kGuardSurfaceResetAndCleanupByOwnership | kOtherImprovementBit)),
+      kGuardSurfaceResetAndCleanupByOwnership));
 }
 
 }  // namespace
