@@ -1,4 +1,4 @@
-name: raspi-2_rc_11
+name: raspi-2
 
 on:
   pull_request:
