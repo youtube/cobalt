@@ -70,11 +70,8 @@
 #include "content/browser/attribution_reporting/attribution_host.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_os_level_manager.h"
-<<<<<<< HEAD
-#include "content/browser/back_forward_cache/back_forward_cache_impl.h"
-=======
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
->>>>>>> parent of 561957e6603 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/browser_context_impl.h"
 #include "content/browser/browser_main_loop.h"
