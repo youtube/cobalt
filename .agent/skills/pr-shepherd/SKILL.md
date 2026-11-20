@@ -25,7 +25,8 @@ through delegation so the Main Agent's context stays minimal.
 ### 1. Delegate Everything (Conserve Context)
 - **MUST** spawn a **Watch Coordinator** subagent
   (`Role: "pr-shepherd-watcher"`) to monitor the PR(s).
-- **MUST NOT** read [resources/triage_agent.md][triage-agent-ref] directly.
+- **MUST NOT** read [resources/watcher_agent.md][watcher-agent-ref] or
+  [resources/fixer_agent.md][fixer-agent-ref] directly.
 - **MUST NOT** run `shepherd_pr.py --watch`, inspect CI logs, download
   artifacts, perform failure triage, or edit PR code yourself.
 - Only read `shepherding_report.md` when summarizing progress for the user or
@@ -34,9 +35,10 @@ through delegation so the Main Agent's context stays minimal.
 ### 2. Spawning the Watch Coordinator
 When launching `pr-shepherd-watcher`, provide:
 1. Target repository (`<owner>/<repo>`), PR number(s), and base branch.
-2. Instruction to read [resources/triage_agent.md][triage-agent-ref] **first**
-   and follow its watch loop, active interruption dispatch, triage/escalation
-   protocols, and `shepherding_report.md` Action Ledger rules.
+2. Instruction to read [resources/watcher_agent.md][watcher-agent-ref] **first**
+   and follow its watch loop, active interruption dispatch (spawning
+   `pr-shepherd-fixer` with [resources/fixer_agent.md][fixer-agent-ref]),
+   context-limit handoff, and `shepherding_report.md` Action Ledger rules.
 3. Explicit GitHub comment-reply policy: autonomous replies are **prohibited**
    unless the user explicitly granted single-use consent in chat for a specific
    reply.
@@ -61,4 +63,5 @@ When launching `pr-shepherd-watcher`, provide:
   review replies without explicit single-use user consent in chat. Every
   granted consent expires immediately after one use.
 
-[triage-agent-ref]: resources/triage_agent.md
+[watcher-agent-ref]: resources/watcher_agent.md
+[fixer-agent-ref]: resources/fixer_agent.md
