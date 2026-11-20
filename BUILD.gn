@@ -1571,6 +1571,7 @@ if (use_blink && !is_cronet_build) {
 
     if (is_cobalt) {
       data += [
+        "//third_party/blink/web_tests/CobaltTestExpectations",
         "//third_party/blink/web_tests/wpt_internal/cobalt",
       ]
     }
