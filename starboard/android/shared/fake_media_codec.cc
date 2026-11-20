@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/fake_media_codec.h"
 
+#include <utility>
+
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
@@ -24,8 +26,12 @@ constexpr size_t kBufferSize = 8192;
 }  // namespace
 
 FakeMediaCodec::FakeMediaCodec(Handler* handler,
-                               std::atomic<FakeMediaCodec*>* tracker)
-    : handler_(handler), buffers_(kNumBuffers), tracker_(tracker) {
+                               std::atomic<FakeMediaCodec*>* tracker,
+                               std::shared_ptr<std::atomic<int>> flush_count)
+    : handler_(handler),
+      buffers_(kNumBuffers),
+      tracker_(tracker),
+      flush_count_(std::move(flush_count)) {
   SB_CHECK(handler_);
   for (int i = 0; i < kNumBuffers; ++i) {
     buffers_[i].resize(kBufferSize);
@@ -114,6 +120,9 @@ bool FakeMediaCodec::Restart() {
 }
 
 jint FakeMediaCodec::Flush() {
+  if (flush_count_) {
+    ++*flush_count_;
+  }
   std::lock_guard lock(mutex_);
   queue_input_buffer_status_ = MEDIA_CODEC_OK;
   queue_input_buffer_attempts_ = 0;
@@ -152,6 +161,10 @@ void FakeMediaCodec::SimulateOutputAvailable(int index,
   handler_->OnMediaCodecOutputBufferAvailable(index, flags, offset, pts, size);
 }
 
+void FakeMediaCodec::SimulateFirstTunnelFrameReady() {
+  handler_->OnMediaCodecFirstTunnelFrameReady();
+}
+
 bool FakeMediaCodec::WaitForInputQueue(size_t num_packets, int timeout_ms) {
   std::unique_lock<std::mutex> lock(mutex_);
   return cv_.wait_for(
@@ -183,8 +196,8 @@ std::unique_ptr<MediaCodec> FakeMediaCodecFactory::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
     MediaCodec::Handler* handler,
     const jni_zero::JavaRef<jobject>& j_media_crypto) {
-  auto fake =
-      std::make_unique<FakeMediaCodec>(handler, &last_created_audio_codec_);
+  auto fake = std::make_unique<FakeMediaCodec>(
+      handler, &last_created_audio_codec_, codec_flush_count_);
   last_created_audio_codec_ = fake.get();
   return fake;
 }
@@ -205,10 +218,16 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
     std::lock_guard lock(mutex_);
     last_video_color_metadata_ =
         color_metadata ? std::make_optional(*color_metadata) : std::nullopt;
+    last_video_platform_options_ = platform_options;
   }
   video_codec_create_count_++;
-  auto fake =
-      std::make_unique<FakeMediaCodec>(handler, &last_created_video_codec_);
+  auto fake = std::make_unique<FakeMediaCodec>(
+      handler, &last_created_video_codec_, codec_flush_count_);
+  if (platform_options.enable_reuse_video_codec &&
+      reusable_video_codec_count_ > 0) {
+    --reusable_video_codec_count_;
+    fake->set_is_reused(true);
+  }
   last_created_video_codec_ = fake.get();
   return std::move(fake);
 }

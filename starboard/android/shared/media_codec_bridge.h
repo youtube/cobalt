@@ -16,6 +16,7 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -62,12 +63,20 @@ class MediaCodecBridge : public MediaCodec {
       const SbMediaColorMetadata* color_metadata,
       const VideoPlatformOptions& platform_options);
 
+  // Releases the video codec parked for reuse in the Java MediaCodecCache, if
+  // any. To be called before creating a video codec in any other way than
+  // CreateVideoMediaCodec(), which takes care of it. Does nothing unless a
+  // codec has been created with |enable_reuse_video_codec| in this process.
+  static void DiscardParkedVideoCodec();
+
   explicit MediaCodecBridge(Handler* handler);
   ~MediaCodecBridge() override;
 
   void Initialize(jobject j_media_codec_bridge);
 
   // MediaCodec implementation
+  bool IsReused() const override { return is_reused_; }
+  void PreventReuse() override;
   span<uint8_t> GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
@@ -110,10 +119,13 @@ class MediaCodecBridge : public MediaCodec {
                                  jlong presentation_time_us,
                                  jlong render_at_system_time_ns);
   void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
+  void OnParkedVideoCodecReleased(JNIEnv* env);
 
  private:
   Handler* const handler_;
   jni_zero::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+  bool is_reused_ = false;
+  std::function<void()> on_parked_codec_released_;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;

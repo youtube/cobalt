@@ -139,6 +139,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void SetPlaybackRate(double playback_rate);
 
   void OnFrameAvailable() override;
+  void OnSurfaceDestroyed() override;
+  bool ManagesParkedCodecAndSurfaceVisibility() const override {
+    return apply_transaction_to_frame_on_surface_cleanup_;
+  }
 
  private:
   // Attempt to initialize the codec.
@@ -161,9 +165,20 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFirstTunnelFrameReady();
   void OnTunnelModeCheckForNeedMoreInput();
 
+  void OnVideoFrameDraw();
   void OnVideoFrameRelease();
+  void MaybeHideVideoSurfaceOnTeardown();
 
-  void OnSurfaceDestroyed() override;
+  // Clears the video surface after a parked codec was released, as is done
+  // after a codec is released without the cache.
+  void OnParkedCodecReleased();
+  // Keeps the inputs written to a reused codec until it produces output, and
+  // makes sure OnReusedCodecWatchdog() runs if it doesn't.
+  void WatchReusedCodec(const InputBuffers& input_buffers);
+  // Replaces a reused codec that has not produced any output with a new one,
+  // and writes the inputs again.
+  void OnReusedCodecWatchdog();
+
   void ReportError(SbPlayerError error, const std::string& error_message);
 
   void ResetInternal(bool skip_flush);
@@ -217,6 +232,16 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
+  // True if the shared punch-out video surface is hidden on teardown, and
+  // shown together with the first frame of the next playback, instead of being
+  // cleared via EGL. That is the case whenever |kMediaReuseVideoCodec| is set,
+  // as a parked codec stays connected to the surface, which then can't be
+  // cleared via EGL. Must be declared before |enable_reuse_video_codec_|, which
+  // depends on it.
+  const bool apply_transaction_to_frame_on_surface_cleanup_;
+  // True if the MediaCodec of this decoder may be taken from, and parked in,
+  // the Java MediaCodecCache. See |kMediaReuseVideoCodec|.
+  const bool enable_reuse_video_codec_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -267,11 +292,33 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   bool end_of_stream_written_ = false;
   volatile int64_t first_buffer_timestamp_;  // microseconds
   std::atomic_bool has_new_texture_available_{false};
+  // Set when the first frame is drawn, or when the surface is hidden on
+  // teardown, so that the surface is shown at most once per decoder.
+  std::atomic_bool has_drawn_first_frame_{false};
 
   // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
+  // Only used on the decoder thread.
+  bool has_hidden_video_surface_on_teardown_ = false;
+
+  // The following are only used when |enable_reuse_video_codec_| is true. They
+  // are written on the player thread while no codec thread is running, unless
+  // noted otherwise.
+  // True if the current codec was taken over from a previous player.
+  bool codec_is_reused_ = false;
+  // Set once a reused codec had to be replaced. Codecs are then neither reused
+  // nor parked by this decoder.
+  bool reused_codec_failed_ = false;
+  int64_t codec_create_started_us_ = 0;
+  int64_t codec_created_us_ = 0;
+  // True from the creation of a codec until its first output. Cleared on the
+  // codec thread.
+  std::atomic_bool awaiting_first_output_{false};
+  // The inputs written to a reused codec that has not produced output yet.
+  InputBuffers inputs_since_reuse_;
+  bool reused_codec_watchdog_scheduled_ = false;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
