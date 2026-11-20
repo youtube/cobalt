@@ -348,6 +348,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      skip_redundant_color_codec_reinit_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaSkipRedundantColorCodecReinit)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -392,6 +395,16 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   }
 
   if (!needs_fps_to_initialize_codec_) {
+    // SbPlayerBridge::UpdateVideoConfig() populates
+    // |stream_config.video_stream_info.color_metadata| before SbPlayerCreate().
+    // Seed |color_metadata_| before eager InitializeCodec() so HDR streams are
+    // configured on the first MediaCodec instance instead of creating an SDR
+    // codec and tearing it down on the first input buffer.
+    if (skip_redundant_color_codec_reinit_ &&
+        ShouldConfigureHdrColorMetadata(
+            stream_config.video_stream_info.color_metadata)) {
+      color_metadata_ = stream_config.video_stream_info.color_metadata;
+    }
     auto result = InitializeCodec(stream_config.video_stream_info);
     if (!result) {
       *error_message =
@@ -413,7 +426,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_)
+               << ", skip_redundant_color_codec_reinit="
+               << ToString(skip_redundant_color_codec_reinit_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -539,15 +554,37 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
 
-    // If color metadata is present and is not an identity mapping, then
-    // teardown the codec so it can be reinitalized with the new metadata.
     const auto& color_metadata =
         input_buffers.front()->video_stream_info().color_metadata;
-    if (!IsIdentity(color_metadata)) {
-      SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
-      SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
-      TeardownCodec();
-      color_metadata_ = color_metadata;
+    if (skip_redundant_color_codec_reinit_) {
+      // Only rebuild on the first buffer if in-band color metadata differs from
+      // what the eager constructor already configured.
+      if (NeedsCodecTransition(input_buffers.front())) {
+        SB_LOG(INFO)
+            << "Reinitializing codec due to first-buffer color metadata "
+               "mismatch.";
+        TeardownCodec();
+        if (reset_delay_usec_ > 0) {
+          usleep(reset_delay_usec_);
+        }
+      }
+
+      // Populate |color_metadata_| whenever |media_decoder_| has not been
+      // created yet (deferred AV1 fps-estimation path, post-Reset() re-init, or
+      // after the first-buffer mismatch TeardownCodec() above).
+      if (!media_decoder_ && ShouldConfigureHdrColorMetadata(color_metadata)) {
+        SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
+        color_metadata_ = color_metadata;
+      }
+    } else {
+      // If color metadata is present and is not an identity mapping, then
+      // teardown the codec so it can be reinitialized with the new metadata.
+      if (!IsIdentity(color_metadata)) {
+        SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
+        SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
+        TeardownCodec();
+        color_metadata_ = color_metadata;
+      }
     }
 
     // Re-initialize the codec now if it was torn down either in |Reset| or
@@ -889,12 +926,14 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaCodecDecoder
   //                    ctor.
+  const bool is_high_bit_depth =
+      video_stream_info.color_metadata.bits_per_channel > 8;
   auto result = MediaCodecDecoder::CreateForVideo(
       *media_codec_factory_, job_queue(), /*host=*/this,
       video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
       video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
-      video_stream_info.color_metadata.bits_per_channel > 8,
+      is_high_bit_depth,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
@@ -904,9 +943,12 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           /*enable_ndk_video=*/enable_ndk_video_,
           /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
           /*enable_codec_thread_improvements=*/
-          enable_codec_thread_improvements_});
+          enable_codec_thread_improvements_,
+          /*skip_redundant_color_codec_reinit=*/
+          skip_redundant_color_codec_reinit_});
   if (result) {
     media_decoder_ = std::move(result.value());
+    codec_is_high_bit_depth_ = is_high_bit_depth;
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
@@ -925,6 +967,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     return Success();
   }
   media_decoder_.reset();
+  codec_is_high_bit_depth_ = false;
   return Failure("Media Decoder is not valid: " + result.error());
 }
 
@@ -936,6 +979,7 @@ void MediaCodecVideoDecoder::TeardownCodec() {
   }
   media_decoder_.reset();
   color_metadata_ = std::nullopt;
+  codec_is_high_bit_depth_ = false;
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
@@ -1284,20 +1328,48 @@ bool MediaCodecVideoDecoder::NeedsCodecTransition(
   }
   const SbMediaColorMetadata& stream_color =
       input_buffer->video_stream_info().color_metadata;
-  const bool stream_is_hdr = !IsIdentity(stream_color);
+  if (!skip_redundant_color_codec_reinit_) {
+    const bool stream_is_hdr = !IsIdentity(stream_color);
+    const bool codec_is_hdr = color_metadata_.has_value();
+    if (stream_is_hdr != codec_is_hdr) {
+      return true;
+    }
+    // Only compare the fields that reach MediaCodec: CreateVideoMediaCodec()
+    // passes these to the Java ColorInfo, which sets the MediaFormat's color
+    // standard/transfer/range and HDR static info. Others (e.g. matrix) are
+    // unused by the codec.
+    return stream_is_hdr &&
+           (stream_color.primaries != color_metadata_->primaries ||
+            stream_color.transfer != color_metadata_->transfer ||
+            stream_color.range != color_metadata_->range ||
+            stream_color.max_cll != color_metadata_->max_cll ||
+            stream_color.max_fall != color_metadata_->max_fall ||
+            !Equal(stream_color.mastering_metadata,
+                   color_metadata_->mastering_metadata));
+  }
+
+  const bool stream_is_high_bit_depth = stream_color.bits_per_channel > 8;
+  if (stream_is_high_bit_depth != codec_is_high_bit_depth_) {
+    return true;
+  }
+  const bool stream_is_hdr = ShouldConfigureHdrColorMetadata(stream_color);
   const bool codec_is_hdr = color_metadata_.has_value();
   if (stream_is_hdr != codec_is_hdr) {
     return true;
   }
-  // Only compare the fields that reach MediaCodec: CreateVideoMediaCodec()
-  // passes these to the Java ColorInfo, which sets the MediaFormat's color
-  // standard/transfer/range and HDR static info. Others (e.g. matrix) are
-  // unused by the codec.
-  return stream_is_hdr &&
-         (stream_color.primaries != color_metadata_->primaries ||
-          stream_color.transfer != color_metadata_->transfer ||
-          stream_color.range != color_metadata_->range ||
-          stream_color.max_cll != color_metadata_->max_cll ||
+  if (!stream_is_hdr) {
+    return false;
+  }
+  // Only compare fields that MediaCodecBridge forwards to MediaFormat: color
+  // standard/transfer/range for all HDR streams, plus SMPTE ST 2086 / CTA-861.3
+  // static metadata for PQ (ST2084) streams.
+  if (stream_color.primaries != color_metadata_->primaries ||
+      stream_color.transfer != color_metadata_->transfer ||
+      stream_color.range != color_metadata_->range) {
+    return true;
+  }
+  return stream_color.transfer == kSbMediaTransferIdSmpteSt2084 &&
+         (stream_color.max_cll != color_metadata_->max_cll ||
           stream_color.max_fall != color_metadata_->max_fall ||
           !Equal(stream_color.mastering_metadata,
                  color_metadata_->mastering_metadata));

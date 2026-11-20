@@ -180,6 +180,32 @@ inline jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
   }
 }
 
+// Returns true iff |color_metadata| describes an HDR color configuration that
+// MediaCodecBridge forwards to MediaFormat (PQ/ST2084 or HLG transfer with
+// primaries, transfer, and range that map to Android constants).
+//
+// Unlike `!IsIdentity(color_metadata)`, this returns false for:
+//   1. Non-BT.709 SDR streams (such as BT.601 / kSbMediaPrimaryIdSmpte170M or
+//      unspecified color fields), whose primaries map to COLOR_VALUE_UNKNOWN
+//      and produce `j_color_info == nullptr` in MediaCodecBridge anyway.
+//   2. Full-range BT.709 SDR streams (`range = kSbMediaRangeIdFull`), so they
+//      are not treated as HDR or given default HDR10 static metadata.
+inline bool ShouldConfigureHdrColorMetadata(
+    const SbMediaColorMetadata& color_metadata) {
+  const bool is_hdr_transfer =
+      color_metadata.transfer == kSbMediaTransferIdSmpteSt2084 ||
+      color_metadata.transfer == kSbMediaTransferIdAribStdB67;
+  if (!is_hdr_transfer) {
+    return false;
+  }
+  return SbMediaPrimaryIdToColorStandard(color_metadata.primaries) !=
+             COLOR_VALUE_UNKNOWN &&
+         SbMediaTransferIdToColorTransfer(color_metadata.transfer) !=
+             COLOR_VALUE_UNKNOWN &&
+         SbMediaRangeIdToColorRange(color_metadata.range) !=
+             COLOR_VALUE_UNKNOWN;
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_

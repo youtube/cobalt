@@ -110,6 +110,61 @@ TEST(MediaCodecVideoDecoderHelpersTest, EqualAndIsIdentity) {
   EXPECT_FALSE(IsIdentity(non_empty_mastering));
 }
 
+TEST(MediaCodecVideoDecoderHelpersTest, ShouldConfigureHdrColorMetadata) {
+  SbMediaColorMetadata bt709_limited = {};
+  bt709_limited.primaries = kSbMediaPrimaryIdBt709;
+  bt709_limited.transfer = kSbMediaTransferIdBt709;
+  bt709_limited.matrix = kSbMediaMatrixIdBt709;
+  bt709_limited.range = kSbMediaRangeIdLimited;
+  EXPECT_FALSE(ShouldConfigureHdrColorMetadata(bt709_limited));
+
+  // <= 480p SD BT.601 SDR (Smpte170M) fails IsIdentity(), but maps to
+  // COLOR_VALUE_UNKNOWN in MediaCodecBridge and must not be configured as HDR.
+  SbMediaColorMetadata bt601_sdr = bt709_limited;
+  bt601_sdr.primaries = kSbMediaPrimaryIdSmpte170M;
+  bt601_sdr.transfer = kSbMediaTransferIdSmpte170M;
+  bt601_sdr.matrix = kSbMediaMatrixIdSmpte170M;
+  EXPECT_FALSE(IsIdentity(bt601_sdr));
+  EXPECT_EQ(SbMediaPrimaryIdToColorStandard(bt601_sdr.primaries),
+            COLOR_VALUE_UNKNOWN);
+  EXPECT_FALSE(ShouldConfigureHdrColorMetadata(bt601_sdr));
+
+  // Full-range BT.709 SDR fails IsIdentity(), but must not be configured as HDR
+  // (which would attach default HDR10 static metadata on HDR-capable decoders).
+  SbMediaColorMetadata bt709_full_sdr = bt709_limited;
+  bt709_full_sdr.range = kSbMediaRangeIdFull;
+  EXPECT_FALSE(IsIdentity(bt709_full_sdr));
+  EXPECT_FALSE(ShouldConfigureHdrColorMetadata(bt709_full_sdr));
+
+  // HDR10 (BT.2020 + PQ/ST2084) requires HDR MediaFormat configuration.
+  SbMediaColorMetadata hdr10_pq = bt709_limited;
+  hdr10_pq.primaries = kSbMediaPrimaryIdBt2020;
+  hdr10_pq.transfer = kSbMediaTransferIdSmpteSt2084;
+  hdr10_pq.matrix = kSbMediaMatrixIdBt2020NonconstantLuminance;
+  hdr10_pq.mastering_metadata.luminance_max = 1000.0f;
+  EXPECT_TRUE(ShouldConfigureHdrColorMetadata(hdr10_pq));
+
+  // HLG (BT.2020 + ARIB STD-B67) requires HDR MediaFormat configuration, both
+  // with limited range and with unspecified range.
+  SbMediaColorMetadata hlg = bt709_limited;
+  hlg.primaries = kSbMediaPrimaryIdBt2020;
+  hlg.transfer = kSbMediaTransferIdAribStdB67;
+  hlg.matrix = kSbMediaMatrixIdBt2020NonconstantLuminance;
+  EXPECT_TRUE(ShouldConfigureHdrColorMetadata(hlg));
+  hlg.range = kSbMediaRangeIdUnspecified;
+  EXPECT_TRUE(ShouldConfigureHdrColorMetadata(hlg));
+
+  // PQ or HLG transfer with unmapped primaries or range produces nullptr
+  // ColorInfo in MediaCodecBridge::CreateVideoMediaCodec(), so return false.
+  SbMediaColorMetadata pq_unknown_primaries = hdr10_pq;
+  pq_unknown_primaries.primaries = kSbMediaPrimaryIdUnspecified;
+  EXPECT_FALSE(ShouldConfigureHdrColorMetadata(pq_unknown_primaries));
+
+  SbMediaColorMetadata hlg_derived_range = hlg;
+  hlg_derived_range.range = kSbMediaRangeIdDerived;
+  EXPECT_FALSE(ShouldConfigureHdrColorMetadata(hlg_derived_range));
+}
+
 TEST(MediaCodecVideoDecoderHelpersTest, GetDecodeTargetGeometryFromMatrix) {
   // Identity 4x4 matrix
   std::array<float, 16> identity = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,

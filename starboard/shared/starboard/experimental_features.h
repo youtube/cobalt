@@ -248,6 +248,14 @@ inline constexpr ExperimentalFeatureKey<bool>
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
 
+// When enabled, MediaCodecVideoDecoder seeds HDR color metadata before eager
+// codec creation, skips redundant codec re-initializations across non-HDR SDR
+// color-space differences (e.g. BT.601 <-> BT.709 or full-range SDR), and
+// restricts MediaFormat HDR configuration in MediaCodecBridge to PQ and HLG
+// transfers. Disabled (false) by default.
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaSkipRedundantColorCodecReinit("Media.SkipRedundantColorCodecReinit");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
     "Media.SkipVideoFramesOver60Fps");
 

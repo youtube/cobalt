@@ -89,6 +89,7 @@ class MediaCodec {
     bool enable_ndk_video = false;
     // True for video with more than 8 bits per channel.
     bool is_high_bit_depth = false;
+    bool skip_redundant_color_codec_reinit = false;
   };
 
   static constexpr int32_t kBufferFlagCodecConfig = 2;

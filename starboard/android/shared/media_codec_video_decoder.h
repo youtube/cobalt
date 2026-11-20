@@ -217,6 +217,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
+  const bool skip_redundant_color_codec_reinit_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -252,6 +253,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // The last enqueued |SbMediaColorMetadata|.
   std::optional<SbMediaColorMetadata> color_metadata_;
+  // True when the active |media_decoder_| was created with
+  // |is_high_bit_depth = true| (bits_per_channel > 8).
+  bool codec_is_high_bit_depth_ = false;
 
   // media_codec_factory_ cannot be null.
   const std::unique_ptr<MediaCodec::Factory> media_codec_factory_;
