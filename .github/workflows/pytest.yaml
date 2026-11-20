@@ -1,4 +1,4 @@
-name: python-tests_25.lts.1+
+name: python-tests
 
 on:
   pull_request:

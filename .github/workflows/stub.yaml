@@ -1,6 +1,13 @@
-name: xb1_25.lts.1+
+name: stub
 
 on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    branches:
+      - '25.lts.1\+'
+  push:
+    branches:
+      - '25.lts.1\+'
   workflow_dispatch:
     inputs:
       nightly:
@@ -10,11 +17,12 @@ on:
         default: false
 
 jobs:
-  xb1:
-    uses: ./.github/workflows/main_win.yaml
+  stub:
+    uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: xb1
+      platform: stub
       nightly: ${{ github.event.inputs.nightly }}
+      leak_manifest_filename: "gn_built_docker_debian11_manifest"
