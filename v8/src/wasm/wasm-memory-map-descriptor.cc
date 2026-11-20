@@ -73,13 +73,8 @@ v8::Local<v8::Object> WasmMemoryMapDescriptor::NewFromFileDescriptor(
 // static
 v8::MaybeLocal<v8::Object> WasmMemoryMapDescriptor::NewFromAnonymous(
     v8::Isolate* isolate, size_t length, v8::Local<v8::Object> wrapper) {
-<<<<<<< HEAD
   CHECK(v8_flags.wasm_memory_control);
-#if V8_TARGET_OS_LINUX
-=======
-  CHECK(v8_flags.experimental_wasm_memory_control);
 #if V8_TARGET_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 561957e6603 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   int fd = memfd_create("wasm_memory_map_descriptor", MFD_CLOEXEC);
   if (fd == -1) return {};
   if (ftruncate(fd, length) == -1) {
