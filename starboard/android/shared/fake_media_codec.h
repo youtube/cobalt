@@ -92,6 +92,7 @@ class FakeMediaCodec : public MediaCodec {
                                int offset,
                                int64_t pts,
                                int size);
+  void SimulateFirstTunnelFrameReady();
   bool WaitForInputQueue(size_t num_packets, int timeout_ms);
   bool WaitForOutputReleased(size_t num_packets, int timeout_ms);
 
