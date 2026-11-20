@@ -76,12 +76,10 @@ void VideoRenderAlgorithmAndroid::Render(
       break;
     }
 
-    bool is_audio_playing;
-    bool is_audio_eos_played;
-    bool is_underflow;
-    double playback_rate;
-    int64_t playback_time = media_time_provider->GetCurrentMediaTime(
-        &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+    const MediaTimeInfo media_time_info =
+        media_time_provider->GetCurrentMediaTime();
+    const int64_t playback_time = media_time_info.media_time;
+    const double playback_rate = media_time_info.playback_rate;
 
     if (release_frames_after_audio_starts_) {
       // After the first frame, stop rendering if audio isn't playing, or if
@@ -89,11 +87,11 @@ void VideoRenderAlgorithmAndroid::Render(
       // initial time 0). This ensures video doesn't run ahead if audio is
       // stalled or hasn't consumed frames yet.
       if (first_frame_released_ &&
-          (!is_audio_playing || playback_time == seek_to_time_)) {
+          (!media_time_info.is_playing || playback_time == seek_to_time_)) {
         break;
       }
     } else {
-      if (!is_audio_playing) {
+      if (!media_time_info.is_playing) {
         break;
       }
     }
@@ -103,7 +101,7 @@ void VideoRenderAlgorithmAndroid::Render(
       video_decoder_->SetPlaybackRate(playback_rate);
     }
 
-    if (is_audio_eos_played) {
+    if (media_time_info.is_eos_played) {
       // If the audio stream has reached end of stream before the video stream,
       // we should end the video stream immediately by only keeping one frame in
       // the backlog.
