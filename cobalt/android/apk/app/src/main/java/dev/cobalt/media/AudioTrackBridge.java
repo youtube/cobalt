@@ -22,6 +22,7 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.media.PlaybackParams;
 import android.os.Build;
+import android.os.Build.VERSION;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -120,6 +121,7 @@ public class AudioTrackBridge {
         return new byte[maxSamplesPerWrite * getBytesPerSample(sampleType)];
       case AudioFormat.ENCODING_AC3:
       case AudioFormat.ENCODING_E_AC3:
+      case 37:
         return new byte[maxSamplesPerWrite];
       default:
         // Throwing RuntimeException crashes the app, which is intended since the invariant is
@@ -150,6 +152,16 @@ public class AudioTrackBridge {
         break;
       case 6:
         channelConfig = AudioFormat.CHANNEL_OUT_5POINT1;
+        break;
+      case 8:
+       channelConfig = AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
+        break;
+      case 10:
+        if (VERSION.SDK_INT >= 32) {
+          channelConfig = AudioFormat.CHANNEL_OUT_7POINT1POINT2;
+       } else {
+          throw new RuntimeException("Unsupported channel count: " + channelCount);
+        }
         break;
       default:
         throw new RuntimeException("Unsupported channel count: " + channelCount);
@@ -188,7 +200,7 @@ public class AudioTrackBridge {
           isWebAudio ? AudioAttributes.USAGE_NOTIFICATION : AudioAttributes.USAGE_MEDIA;
       // TODO: Support ENCODING_E_AC3_JOC for api level 28 or later.
       final boolean isSurround =
-          sampleType == AudioFormat.ENCODING_AC3 || sampleType == AudioFormat.ENCODING_E_AC3;
+          sampleType == AudioFormat.ENCODING_AC3 || sampleType == AudioFormat.ENCODING_E_AC3 || channelCount > 2;
       final boolean useContentTypeMovie = isSurround || !isWebAudio;
       attributes =
           new AudioAttributes.Builder()
@@ -582,6 +594,14 @@ public class AudioTrackBridge {
     return 0;
   }
 
+  @CalledByNative
+  private int setStartThresholdInFrames(int startThresholdInFrames) {
+    if (Build.VERSION.SDK_INT >= 31) {
+      return setStartThresholdInFramesV31(startThresholdInFrames);
+    }
+    return 0;
+  }
+
   /** A wrapper of the android AudioTimestamp class to be used by JNI. */
   @VisibleForTesting
   static class AudioTimestamp {
@@ -611,5 +631,14 @@ public class AudioTrackBridge {
       return 0;
     }
     return mAudioTrack.getStartThresholdInFrames();
+  }
+
+  @RequiresApi(31)
+  private int setStartThresholdInFramesV31(int startThresholdInFrames) {
+    if (mAudioTrack == null) {
+      Log.e(TAG, "Unable to call setStartThresholdInFrames() with NULL audio track.");
+      return 0;
+    }
+    return mAudioTrack.setStartThresholdInFrames(startThresholdInFrames);
   }
 }
