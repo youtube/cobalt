@@ -39,8 +39,8 @@ public class StarboardBridge extends BaseStarboardBridge {
   }
 
   @Override
-  void raisePlatformError(int errorType, long data, String url, boolean disableDismiss) {
-    mPlatformError = new PlatformError(mActivityHolder, errorType, data, disableDismiss);
+  void raisePlatformError(int errorType, long data, String url) {
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data);
     mPlatformError.raise();
   }
 
