@@ -1,4 +1,4 @@
-name: raspi-2_COBALT_9
+name: raspi-2
 
 on:
   pull_request:
