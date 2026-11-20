@@ -161,8 +161,8 @@ void ShellPlatformDelegate::OnConceal() {
   pending_conceal_web_contents_.clear();
   for (auto* shell : Shell::windows()) {
     // Show every WebContents again on the next reveal, which waits for a
-    // Reveal ACK from each. Include hidden ones, such as the main
-    // WebContents while the splash screen is up.
+    // Reveal ACK from each. Include hidden ones, such as a preloaded main
+    // WebContents before its first reveal.
     TrackWebContentsToReveal(shell->web_contents());
     // Wait for a Conceal ACK only from visible ones. A hidden one doesn't
     // change state, so it never sends one.
