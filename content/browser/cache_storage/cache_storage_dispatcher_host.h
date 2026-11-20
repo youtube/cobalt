@@ -62,7 +62,12 @@ class CacheStorageDispatcherHost {
       const blink::StorageKey& storage_key,
       const std::optional<storage::BucketLocator>& bucket,
       storage::mojom::CacheStorageOwner owner,
+#if BUILDFLAG(IS_COBALT)
+      mojo::PendingReceiver<blink::mojom::CacheStorage> receiver,
+      bool defer_default_bucket_lookup = false);
+#else
       mojo::PendingReceiver<blink::mojom::CacheStorage> receiver);
+#endif  // BUILDFLAG(IS_COBALT)
 
   base::WeakPtr<CacheStorageDispatcherHost> AsWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
@@ -89,6 +94,12 @@ class CacheStorageDispatcherHost {
       const blink::StorageKey& storage_key,
       base::OnceCallback<void(storage::QuotaErrorOr<storage::BucketInfo>)>
           callback);
+#if BUILDFLAG(IS_COBALT)
+  void HasPersistedDefaultBucketCacheStorage(
+      const blink::StorageKey& storage_key,
+      storage::mojom::CacheStorageOwner owner,
+      base::OnceCallback<void(bool)> callback);
+#endif  // BUILDFLAG(IS_COBALT)
 
   // `this` is owned by `context_`.
   const raw_ptr<CacheStorageContextImpl> context_;

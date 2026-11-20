@@ -8,6 +8,7 @@
 #include "base/component_export.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "build/build_config.h"
 
 namespace storage {
 
@@ -22,6 +23,15 @@ extern const base::FeatureParam<double> kShouldRemainAvailableBytes;
 extern const base::FeatureParam<double> kShouldRemainAvailableRatio;
 
 COMPONENT_EXPORT(STORAGE_BROWSER) BASE_DECLARE_FEATURE(kStaticStorageQuota);
+
+#if BUILDFLAG(IS_COBALT)
+// Defers creating default QuotaManager SQLite buckets on CacheStorage binding
+// until CacheStorage::Open() is called or persisted CacheStorage data already
+// exists on disk for the origin, avoiding cold-start SQLite work on empty
+// read/delete probes.
+COMPONENT_EXPORT(STORAGE_BROWSER)
+BASE_DECLARE_FEATURE(kCobaltDeferCacheStorageQuotaBucket);
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace features
 

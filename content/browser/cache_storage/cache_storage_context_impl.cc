@@ -27,6 +27,10 @@
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "url/origin.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "storage/browser/quota/quota_features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace content {
 
 BASE_FEATURE(kCacheStorageTaskPriority,
@@ -121,6 +125,30 @@ void CacheStorageContextImpl::AddReceiver(
     storage::mojom::CacheStorageOwner owner,
     mojo::PendingReceiver<blink::mojom::CacheStorage> receiver) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+#if BUILDFLAG(IS_COBALT)
+  if (bucket_locator.is_default &&
+      base::FeatureList::IsEnabled(
+          storage::features::kCobaltDeferCacheStorageQuotaBucket)) {
+    if (bucket_locator.id.is_null()) {
+      dispatcher_host_->AddReceiver(
+          cross_origin_embedder_policy, std::move(coep_reporter),
+          document_isolation_policy, std::move(dip_reporter),
+          bucket_locator.storage_key, std::nullopt, owner, std::move(receiver),
+          /*defer_default_bucket_lookup=*/true);
+    } else {
+      quota_manager_proxy_->GetBucketById(
+          bucket_locator.id, base::SequencedTaskRunner::GetCurrentDefault(),
+          base::BindOnce(&CacheStorageContextImpl::AddReceiverWithBucketInfo,
+                         weak_factory_.GetWeakPtr(),
+                         cross_origin_embedder_policy, std::move(coep_reporter),
+                         document_isolation_policy, std::move(dip_reporter),
+                         bucket_locator.storage_key, owner,
+                         std::move(receiver)));
+    }
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   auto add_receiver =
       base::BindOnce(&CacheStorageContextImpl::AddReceiverWithBucketInfo,

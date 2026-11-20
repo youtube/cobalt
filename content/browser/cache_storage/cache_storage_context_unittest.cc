@@ -27,6 +27,13 @@
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/files/file_util.h"
+#include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
+#include "storage/browser/quota/quota_features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace content {
 
 const char kExampleStorageKey[] = "https://example.com";
@@ -210,5 +217,185 @@ TEST_F(CacheStorageContextTest, GetDefaultBucketError) {
       }));
   loop_5.Run();
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(CacheStorageContextTest,
+       CobaltDeferredDefaultBucketSkipsQuotaUntilOpen) {
+  base::test::ScopedFeatureList feature_list(
+      storage::features::kCobaltDeferCacheStorageQuotaBucket);
+
+  // Re-initialize with a real disk profile directory (including a pre-existing
+  // `WebStorage/QuotaManager` SQLite file as found on upgraded user profiles)
+  // so CacheStorageManager exercises HasAnyPersistedOrOpenCacheStorage().
+  base::ScopedTempDir disk_profile_dir;
+  ASSERT_TRUE(disk_profile_dir.CreateUniqueTempDir());
+  const base::FilePath web_storage_dir =
+      disk_profile_dir.GetPath().AppendASCII("WebStorage");
+  ASSERT_TRUE(base::CreateDirectory(web_storage_dir));
+  ASSERT_TRUE(
+      base::WriteFile(web_storage_dir.AppendASCII("QuotaManager"), "sqlite"));
+  ASSERT_TRUE(
+      base::WriteFile(web_storage_dir.AppendASCII("QuotaManager-journal"), ""));
+  mojo::Remote<storage::mojom::CacheStorageControl> disk_control_remote;
+  mojo::Remote<storage::mojom::QuotaClient> disk_cache_quota_client_remote;
+  mojo::Remote<storage::mojom::QuotaClient> disk_bg_fetch_quota_client_remote;
+  mojo::PendingReceiver<storage::mojom::BlobStorageContext> disk_blob_receiver;
+  auto disk_context =
+      std::make_unique<CacheStorageContextImpl>(quota_manager_proxy());
+  disk_context->Init(
+      disk_control_remote.BindNewPipeAndPassReceiver(),
+      disk_profile_dir.GetPath(),
+      disk_cache_quota_client_remote.BindNewPipeAndPassReceiver(),
+      disk_bg_fetch_quota_client_remote.BindNewPipeAndPassReceiver(),
+      disk_blob_receiver.InitWithNewPipeAndPassRemote());
+
+  const blink::StorageKey storage_key =
+      blink::StorageKey::CreateFromStringForTesting(kExampleStorageKey);
+  mojo::Remote<blink::mojom::CacheStorage> remote;
+  disk_context->AddReceiver(
+      network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
+      network::DocumentIsolationPolicy(), mojo::NullRemote(),
+      storage::BucketLocator::ForDefaultBucket(storage_key),
+      storage::mojom::CacheStorageOwner::kCacheAPI,
+      remote.BindNewPipeAndPassReceiver());
+
+  storage::QuotaManagerProxySync quota_manager_proxy_sync(
+      quota_manager_proxy());
+
+  // Non-creating operations (Keys, Has, Delete, Match) must short-circuit
+  // without creating a QuotaManager bucket when no CacheStorage exists on disk.
+  {
+    base::RunLoop loop;
+    remote->Keys(
+        /*trace_id=*/0, base::BindLambdaForTesting(
+                            [&](const std::vector<std::u16string>& keys) {
+                              EXPECT_TRUE(keys.empty());
+                              loop.Quit();
+                            }));
+    loop.Run();
+  }
+  {
+    base::RunLoop loop;
+    remote->Has(
+        u"v1", /*trace_id=*/0,
+        base::BindLambdaForTesting([&](blink::mojom::CacheStorageError error) {
+          EXPECT_EQ(error, blink::mojom::CacheStorageError::kErrorNotFound);
+          loop.Quit();
+        }));
+    loop.Run();
+  }
+  {
+    base::RunLoop loop;
+    remote->Delete(
+        u"v1", /*trace_id=*/0,
+        base::BindLambdaForTesting([&](blink::mojom::CacheStorageError error) {
+          EXPECT_EQ(error, blink::mojom::CacheStorageError::kErrorNotFound);
+          loop.Quit();
+        }));
+    loop.Run();
+  }
+  {
+    auto options = blink::mojom::MultiCacheQueryOptions::New();
+    options->query_options = blink::mojom::CacheQueryOptions::New();
+    options->cache_name = u"v1";
+    base::RunLoop loop;
+    remote->Match(
+        blink::mojom::FetchAPIRequest::New(), std::move(options),
+        /*in_related_fetch_event=*/false, /*in_range_fetch_event=*/false,
+        /*trace_id=*/0,
+        base::BindLambdaForTesting([&](blink::mojom::MatchResultPtr result) {
+          ASSERT_TRUE(result->is_status());
+          EXPECT_EQ(result->get_status(),
+                    blink::mojom::CacheStorageError::kErrorNotFound);
+          loop.Quit();
+        }));
+    loop.Run();
+  }
+
+  auto bucket_before_open = quota_manager_proxy_sync.GetBucket(
+      storage_key, storage::kDefaultBucketName);
+  ASSERT_FALSE(bucket_before_open.has_value());
+  EXPECT_EQ(bucket_before_open.error(), storage::QuotaError::kNotFound);
+
+  // Pipelining Has() immediately before Open() and immediately after Open()
+  // without awaiting intermediate replies must preserve strict FIFO ordering:
+  // the pre-Open Has("v1") sees kErrorNotFound while Open("v1") creates the
+  // default bucket + cache and the post-Open Has("v1") sees kSuccess.
+  {
+    base::RunLoop loop;
+    std::vector<std::string> events;
+    remote->Has(
+        u"v1", /*trace_id=*/0,
+        base::BindLambdaForTesting([&](blink::mojom::CacheStorageError error) {
+          EXPECT_EQ(error, blink::mojom::CacheStorageError::kErrorNotFound);
+          events.push_back("has_before");
+        }));
+    remote->Open(u"v1", /*trace_id=*/0,
+                 base::BindLambdaForTesting([&](blink::mojom::OpenResultPtr r) {
+                   EXPECT_TRUE(r->is_cache());
+                   events.push_back("open");
+                 }));
+    remote->Has(
+        u"v1", /*trace_id=*/0,
+        base::BindLambdaForTesting([&](blink::mojom::CacheStorageError error) {
+          EXPECT_EQ(error, blink::mojom::CacheStorageError::kSuccess);
+          events.push_back("has_after");
+          loop.Quit();
+        }));
+    loop.Run();
+    EXPECT_EQ(events,
+              (std::vector<std::string>{"has_before", "open", "has_after"}));
+  }
+
+  ASSERT_OK_AND_ASSIGN(storage::BucketInfo bucket_after_open,
+                       quota_manager_proxy_sync.GetBucket(
+                           storage_key, storage::kDefaultBucketName));
+  EXPECT_GT(bucket_after_open.id.value(), 0);
+
+  // A newly bound receiver sees the existing cache storage and resolves Keys().
+  mojo::Remote<blink::mojom::CacheStorage> second_remote;
+  disk_context->AddReceiver(
+      network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
+      network::DocumentIsolationPolicy(), mojo::NullRemote(),
+      storage::BucketLocator::ForDefaultBucket(storage_key),
+      storage::mojom::CacheStorageOwner::kCacheAPI,
+      second_remote.BindNewPipeAndPassReceiver());
+  {
+    base::RunLoop loop;
+    second_remote->Keys(
+        /*trace_id=*/0, base::BindLambdaForTesting(
+                            [&](const std::vector<std::u16string>& keys) {
+                              EXPECT_EQ(keys,
+                                        std::vector<std::u16string>({u"v1"}));
+                              loop.Quit();
+                            }));
+    loop.Run();
+  }
+
+  // A receiver bound with a pre-resolved default BucketLocator (non-null id)
+  // resolves via GetBucketById without asserting on a non-null BucketId.
+  mojo::Remote<blink::mojom::CacheStorage> resolved_default_remote;
+  disk_context->AddReceiver(
+      network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
+      network::DocumentIsolationPolicy(), mojo::NullRemote(),
+      bucket_after_open.ToBucketLocator(),
+      storage::mojom::CacheStorageOwner::kCacheAPI,
+      resolved_default_remote.BindNewPipeAndPassReceiver());
+  {
+    base::RunLoop loop;
+    resolved_default_remote->Keys(
+        /*trace_id=*/0, base::BindLambdaForTesting(
+                            [&](const std::vector<std::u16string>& keys) {
+                              EXPECT_EQ(keys,
+                                        std::vector<std::u16string>({u"v1"}));
+                              loop.Quit();
+                            }));
+    loop.Run();
+  }
+
+  disk_context.reset();
+  task_environment_.RunUntilIdle();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace content
