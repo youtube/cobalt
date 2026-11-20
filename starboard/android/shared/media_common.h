@@ -180,6 +180,41 @@ inline jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
   }
 }
 
+// Returns true iff |color_metadata| describes an HDR color configuration that
+// Android's MediaCodecBridge actually forwards to MediaFormat
+// (KEY_COLOR_TRANSFER = ST2084/PQ or HLG, plus valid primary/range mappings).
+//
+// Why we must NOT use `!IsIdentity(color_metadata)` for MediaCodec lifecycle
+// decisions:
+//   1. Non-BT.709 SDR streams (e.g. <= 480p SD streams using BT.601 /
+//      kSbMediaPrimaryIdSmpte170M, or streams with Unspecified color fields)
+//      fail `IsIdentity()`, yet SbMediaPrimaryIdToColorStandard() maps them to
+//      COLOR_VALUE_UNKNOWN so MediaCodecBridge::CreateVideoMediaCodec() passes
+//      `j_color_info = nullptr` anyway. Treating `!IsIdentity()` as HDR tore
+//      down a working MediaCodec (`j_color_info = nullptr`) only to recreate an
+//      identical MediaCodec (`j_color_info = nullptr`) on startup and on every
+//      480p <-> 1080p flushed seek / gapless Short transition.
+//   2. Full-range BT.709 SDR streams (`range = kSbMediaRangeIdFull`) also fail
+//      `IsIdentity()` and construct a non-null Java ColorInfo, which previously
+//      caused MediaCodecBridge.java on HDR-capable TVs to attach fabricated
+//      HDR10 static metadata (defaultMaxCll = 1000, defaultMaxFall = 200) to an
+//      8-bit SDR video.
+inline bool ShouldConfigureHdrColorMetadata(
+    const SbMediaColorMetadata& color_metadata) {
+  const bool is_hdr_transfer =
+      color_metadata.transfer == kSbMediaTransferIdSmpteSt2084 ||
+      color_metadata.transfer == kSbMediaTransferIdAribStdB67;
+  if (!is_hdr_transfer) {
+    return false;
+  }
+  return SbMediaPrimaryIdToColorStandard(color_metadata.primaries) !=
+             COLOR_VALUE_UNKNOWN &&
+         SbMediaTransferIdToColorTransfer(color_metadata.transfer) !=
+             COLOR_VALUE_UNKNOWN &&
+         SbMediaRangeIdToColorRange(color_metadata.range) !=
+             COLOR_VALUE_UNKNOWN;
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_

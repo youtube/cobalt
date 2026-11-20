@@ -140,6 +140,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void OnFrameAvailable() override;
 
+  void OnSurfaceDestroyedForTesting() { OnSurfaceDestroyed(); }
+
  private:
   // Attempt to initialize the codec.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
@@ -275,6 +277,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
+  std::atomic<bool> surface_destroy_requested_{false};
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
@@ -288,6 +291,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::optional<VideoOutputFormat> output_format_;
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
+  const bool skip_redundant_color_codec_reinit_;
+  const int max_codec_creation_retries_;
 
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateInternal(
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,

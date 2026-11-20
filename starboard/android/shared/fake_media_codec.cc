@@ -201,12 +201,30 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
     const SbMediaColorMetadata* color_metadata,
     const MediaCodec::VideoPlatformOptions& platform_options) {
   SB_LOG(INFO) << "[FakeMediaCodec] CreateVideoMediaCodec called";
+  std::function<void()> on_create_cb;
   {
     std::lock_guard lock(mutex_);
     last_video_color_metadata_ =
         color_metadata ? std::make_optional(*color_metadata) : std::nullopt;
+    last_video_platform_options_ = platform_options;
+    on_create_cb = on_create_video_codec_callback_;
+  }
+  if (on_create_cb) {
+    on_create_cb();
   }
   video_codec_create_count_++;
+  if (external_video_codec_create_counter_) {
+    (*external_video_codec_create_counter_)++;
+  }
+  int failures_remaining = video_codec_creation_failures_remaining_.load();
+  while (failures_remaining > 0) {
+    if (video_codec_creation_failures_remaining_.compare_exchange_weak(
+            failures_remaining, failures_remaining - 1)) {
+      SB_LOG(INFO)
+          << "[FakeMediaCodec] Simulating video codec creation failure";
+      return Failure("Simulated MediaCodec start failure");
+    }
+  }
   auto fake =
       std::make_unique<FakeMediaCodec>(handler, &last_created_video_codec_);
   last_created_video_codec_ = fake.get();
