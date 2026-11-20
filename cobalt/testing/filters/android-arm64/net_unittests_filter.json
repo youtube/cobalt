@@ -4,6 +4,13 @@
   "tests_to_run": [
     "HttpCacheTest.CobaltFontMimeTypesCachedWhenFeatureEnabled",
     "HttpCacheTest.CobaltShouldPassThroughExcludedUrls",
-    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty"
+    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty",
+    "QuicChromiumPacketReaderCobaltTest.CloseSocketCancelsYieldedTaskAndReleasesBuffers",
+    "QuicChromiumPacketReaderCobaltTest.FallbackSinglePacketKeepsBufferAliveDuringOnPacketCloseSocket",
+    "QuicChromiumPacketReaderCobaltTest.FallbackToSinglePacketLazilyAllocatesReadBuffer",
+    "QuicChromiumPacketReaderCobaltTest.LazyReadBufferAndBufferRecycling",
+    "UDPSocketTest.ReadMultiplePacketsCapsBatchAt16AndDrainsRemaining",
+    "UDPSocketTest.ReadMultiplePacketsCloseWhilePendingReleasesState",
+    "UDPSocketTest.ReadMultiplePacketsReleasesBufferWhenIdleAndReusesPool"
   ]
 }

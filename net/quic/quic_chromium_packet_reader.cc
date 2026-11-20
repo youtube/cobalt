@@ -48,7 +48,11 @@ QuicChromiumPacketReader::QuicChromiumPacketReader(
       yield_after_packets_(yield_after_packets),
       yield_after_duration_(yield_after_duration),
       yield_after_(quic::QuicTime::Infinite()),
+#if BUILDFLAG(IS_COBALT)
+      // Lazily allocated on single-packet fallback in StartReading().
+#else
       read_buffer_(base::MakeRefCounted<IOBufferWithSize>(kReadBufferSize)),
+#endif
       net_log_(net_log) {}
 
 QuicChromiumPacketReader::~QuicChromiumPacketReader() = default;
@@ -104,6 +108,10 @@ if (read_pending_)
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
 #if BUILDFLAG(IS_COBALT)
   quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
+  // Move the batch out of |read_results_| before invoking the visitor so any
+  // reentrant read or CloseSocket() cannot clobber it and the backing buffer is
+  // always recycled on exit, even if OnPacket() destroys |this|.
+  Socket::ReadPacketResults read_results = std::move(read_results_);
 #endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
@@ -136,8 +144,8 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
       ToQuicSocketAddress(peer_address);
 
   auto self = weak_factory_.GetWeakPtr();
-  struct Socket::ReadPacketResult* read_packet = read_results_.packets;
-  for (int p = 0; p < read_results_.result; ++p, ++read_packet) {
+  struct Socket::ReadPacketResult* read_packet = read_results.packets;
+  for (int p = 0; p < read_results.result; ++p, ++read_packet) {
     if (read_packet->result <= 0) {
       continue;
     }
@@ -193,6 +201,11 @@ void QuicChromiumPacketReader::StartReading() {
       yield_after_ = clock_->Now() + yield_after_duration_;
 
     CHECK(socket_);
+#if BUILDFLAG(IS_COBALT)
+    if (!read_buffer_) {
+      read_buffer_ = base::MakeRefCounted<IOBufferWithSize>(kReadBufferSize);
+    }
+#endif
     read_pending_ = true;
     int rv =
         socket_->Read(read_buffer_.get(), read_buffer_->size(),
@@ -223,6 +236,13 @@ void QuicChromiumPacketReader::StartReading() {
 
 void QuicChromiumPacketReader::CloseSocket() {
   socket_->Close();
+#if BUILDFLAG(IS_COBALT)
+  // Cancel any queued yielded read completions before releasing buffers so a
+  // post-close task never dereferences cleared buffers or reads a closed fd.
+  weak_factory_.InvalidateWeakPtrs();
+  read_results_.ReleaseBuffer();
+  read_buffer_.reset();
+#endif
 }
 
 static_assert(static_cast<EcnCodePoint>(quic::ECN_NOT_ECT) == ECN_NOT_ECT &&
@@ -254,7 +274,10 @@ bool QuicChromiumPacketReader::ProcessReadResult(int result) {
   }
 
 #if BUILDFLAG(IS_COBALT)
-  quic::QuicReceivedPacket packet(read_buffer_->data(), result,
+  // Keep the backing buffer alive across OnPacket() in case the visitor closes
+  // the socket (which resets read_buffer_) or destroys |this|.
+  scoped_refptr<IOBufferWithSize> read_buffer = read_buffer_;
+  quic::QuicReceivedPacket packet(read_buffer->data(), result,
                                   clock_->ApproximateNow());
 #else
   DscpAndEcn tos = socket_->GetLastTos();

@@ -86,6 +86,13 @@
 #include "url/scheme_host_port.h"
 #include "url/url_constants.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <algorithm>
+#include <cstring>
+
+#include "base/compiler_specific.h"
+#endif
+
 using testing::_;
 
 namespace net::test {
@@ -2527,4 +2534,352 @@ TEST_P(QuicChromiumClientSessionTest, SendPeriodicPings) {
 }
 
 }  // namespace
+
+#if BUILDFLAG(IS_COBALT)
+// Test peer granting controlled inspection of QuicChromiumPacketReader's
+// private buffer state and static multi-packet fallback flag.
+class QuicChromiumPacketReaderPeer {
+ public:
+  static bool GetTryReadingMultiplePackets() {
+    return QuicChromiumPacketReader::try_reading_multiple_packets_;
+  }
+  static void SetTryReadingMultiplePackets(bool value) {
+    QuicChromiumPacketReader::try_reading_multiple_packets_ = value;
+  }
+  static bool HasReadBuffer(const QuicChromiumPacketReader* reader) {
+    return reader->read_buffer_ != nullptr;
+  }
+  static bool HasReadResultsBuffer(const QuicChromiumPacketReader* reader) {
+    return reader->read_results_.buffer != nullptr;
+  }
+};
+
+namespace {
+
+// Restores QuicChromiumPacketReader::try_reading_multiple_packets_ on exit so
+// individual tests never leak global fallback state.
+class ScopedTryReadingMultiplePackets {
+ public:
+  explicit ScopedTryReadingMultiplePackets(bool value)
+      : previous_(QuicChromiumPacketReaderPeer::GetTryReadingMultiplePackets()) {
+    QuicChromiumPacketReaderPeer::SetTryReadingMultiplePackets(value);
+  }
+  ~ScopedTryReadingMultiplePackets() {
+    QuicChromiumPacketReaderPeer::SetTryReadingMultiplePackets(previous_);
+  }
+
+ private:
+  bool previous_;
+};
+
+// Minimal fake DatagramClientSocket driving deterministic multi-packet and
+// single-packet reads without real OS sockets.
+class FakeMultiPacketDatagramSocket : public MockUDPClientSocket {
+ public:
+  FakeMultiPacketDatagramSocket() : MockUDPClientSocket() {}
+
+  int ReadMultiplePackets(ReadPacketResults* results,
+                          int read_buffer_size,
+                          CompletionOnceCallback callback) override {
+    ++read_multiple_calls_;
+    if (return_not_implemented_) {
+      return ERR_NOT_IMPLEMENTED;
+    }
+    if (queued_batches_.empty()) {
+      return ERR_IO_PENDING;
+    }
+    std::vector<std::string> batch = std::move(queued_batches_.front());
+    queued_batches_.erase(queued_batches_.begin());
+    results->AcquireBuffer(static_cast<int>(batch.size()), read_buffer_size);
+    results->result = static_cast<int>(batch.size());
+    for (size_t i = 0; i < batch.size(); ++i) {
+      UNSAFE_TODO(std::memcpy(results->packets[i].buffer, batch[i].data(),
+                              batch[i].size()));
+      UNSAFE_TODO(results->packets[i].result) =
+          static_cast<int>(batch[i].size());
+    }
+    return results->result;
+  }
+
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override {
+    ++single_read_calls_;
+    if (queued_single_reads_.empty()) {
+      return ERR_IO_PENDING;
+    }
+    std::string payload = std::move(queued_single_reads_.front());
+    queued_single_reads_.erase(queued_single_reads_.begin());
+    const int n =
+        std::min(buf_len, static_cast<int>(payload.size()));
+    UNSAFE_TODO(std::memcpy(buf->data(), payload.data(), static_cast<size_t>(n)));
+    return n;
+  }
+
+  void Close() override { closed_ = true; }
+
+  int GetLocalAddress(IPEndPoint* address) const override {
+    *address = IPEndPoint(IPAddress::IPv4Localhost(), 12345);
+    return OK;
+  }
+
+  int GetPeerAddress(IPEndPoint* address) const override {
+    *address = IPEndPoint(IPAddress::IPv4Localhost(), 443);
+    return OK;
+  }
+
+  void QueueBatch(std::vector<std::string> packets) {
+    queued_batches_.push_back(std::move(packets));
+  }
+  void QueueSingleRead(std::string payload) {
+    queued_single_reads_.push_back(std::move(payload));
+  }
+  void set_return_not_implemented(bool value) {
+    return_not_implemented_ = value;
+  }
+  int read_multiple_calls() const { return read_multiple_calls_; }
+  int single_read_calls() const { return single_read_calls_; }
+  bool closed() const { return closed_; }
+
+ private:
+  std::vector<std::vector<std::string>> queued_batches_;
+  std::vector<std::string> queued_single_reads_;
+  bool return_not_implemented_ = false;
+  int read_multiple_calls_ = 0;
+  int single_read_calls_ = 0;
+  bool closed_ = false;
+};
+
+// Visitor that records delivered packets and read errors while allowing tests
+// to inject reentrant callbacks during OnPacket().
+class RecordingPacketReaderVisitor : public QuicChromiumPacketReader::Visitor {
+ public:
+  bool OnReadError(int result, const DatagramClientSocket* socket) override {
+    read_errors_.push_back(result);
+    return false;
+  }
+
+  bool OnPacket(const quic::QuicReceivedPacket& packet,
+                const quic::QuicSocketAddress& local_address,
+                const quic::QuicSocketAddress& peer_address) override {
+    packets_.emplace_back(packet.data(), packet.length());
+    if (on_packet_with_data_callback_) {
+      return on_packet_with_data_callback_.Run(packet);
+    }
+    if (on_packet_callback_) {
+      return on_packet_callback_.Run();
+    }
+    return true;
+  }
+
+  void set_on_packet_callback(base::RepeatingCallback<bool()> cb) {
+    on_packet_callback_ = std::move(cb);
+  }
+  void set_on_packet_with_data_callback(
+      base::RepeatingCallback<bool(const quic::QuicReceivedPacket&)> cb) {
+    on_packet_with_data_callback_ = std::move(cb);
+  }
+  const std::vector<std::string>& packets() const { return packets_; }
+  const std::vector<int>& read_errors() const { return read_errors_; }
+
+ private:
+  std::vector<std::string> packets_;
+  std::vector<int> read_errors_;
+  base::RepeatingCallback<bool()> on_packet_callback_;
+  base::RepeatingCallback<bool(const quic::QuicReceivedPacket&)>
+      on_packet_with_data_callback_;
+};
+
+// Test fixture for Cobalt-specific QuicChromiumPacketReader buffer lifecycle
+// and CloseSocket() behavior.
+class QuicChromiumPacketReaderCobaltTest : public ::testing::Test,
+                                           public WithTaskEnvironment {
+ protected:
+  void SetUp() override {
+    Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  }
+  void TearDown() override {
+    Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  }
+
+  quic::MockClock clock_;
+  NetLogWithSource net_log_;
+};
+
+// Verifies the QUIC packet-reader receive journey on Cobalt: constructing a
+// reader allocates neither the single-packet fallback buffer nor a multi-packet
+// buffer, and every delivered batch recycles its scratch buffer back to the
+// pool immediately—even if OnPacket() destroys the reader reentrantly.
+TEST_F(QuicChromiumPacketReaderCobaltTest, LazyReadBufferAndBufferRecycling) {
+  ScopedTryReadingMultiplePackets enable_multi_packet(true);
+
+  auto socket = std::make_unique<FakeMultiPacketDatagramSocket>();
+  socket->QueueBatch({"alpha", "beta"});
+
+  RecordingPacketReaderVisitor visitor;
+  auto reader = std::make_unique<QuicChromiumPacketReader>(
+      std::move(socket), &clock_, &visitor, kQuicYieldAfterPacketsRead,
+      quic::QuicTime::Delta::FromMilliseconds(
+          kQuicYieldAfterDurationMilliseconds),
+      net_log_);
+
+  // Neither buffer is allocated at construction.
+  EXPECT_FALSE(QuicChromiumPacketReaderPeer::HasReadBuffer(reader.get()));
+  EXPECT_FALSE(
+      QuicChromiumPacketReaderPeer::HasReadResultsBuffer(reader.get()));
+
+  bool member_cleared_during_on_packet = true;
+  visitor.set_on_packet_callback(base::BindRepeating(
+      [](QuicChromiumPacketReader* r, bool* cleared) {
+        *cleared =
+            *cleared && !QuicChromiumPacketReaderPeer::HasReadResultsBuffer(r);
+        return true;
+      },
+      reader.get(), &member_cleared_during_on_packet));
+
+  reader->StartReading();
+
+  EXPECT_TRUE(member_cleared_during_on_packet);
+  EXPECT_THAT(visitor.packets(), testing::ElementsAre("alpha", "beta"));
+  EXPECT_FALSE(QuicChromiumPacketReaderPeer::HasReadBuffer(reader.get()));
+  EXPECT_FALSE(
+      QuicChromiumPacketReaderPeer::HasReadResultsBuffer(reader.get()));
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  // Verify reentrant reader destruction inside OnPacket() safely stops
+  // iteration and still returns the backing buffer to the pool.
+  Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  auto socket2 = std::make_unique<FakeMultiPacketDatagramSocket>();
+  socket2->QueueBatch({"first-destroy", "never-delivered"});
+  RecordingPacketReaderVisitor visitor2;
+  auto reader2 = std::make_unique<QuicChromiumPacketReader>(
+      std::move(socket2), &clock_, &visitor2, kQuicYieldAfterPacketsRead,
+      quic::QuicTime::Delta::FromMilliseconds(
+          kQuicYieldAfterDurationMilliseconds),
+      net_log_);
+  visitor2.set_on_packet_callback(base::BindRepeating(
+      [](std::unique_ptr<QuicChromiumPacketReader>* r) {
+        r->reset();
+        return true;
+      },
+      &reader2));
+
+  reader2->StartReading();
+
+  EXPECT_EQ(reader2, nullptr);
+  EXPECT_THAT(visitor2.packets(), testing::ElementsAre("first-destroy"));
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+}
+
+// Verifies closing a QUIC connection right after a burst read caused the
+// packet reader to yield to the message loop: CloseSocket() cancels the queued
+// callback and releases buffered packets immediately rather than delivering
+// post-close packets or issuing another ReadMultiplePackets() call.
+TEST_F(QuicChromiumPacketReaderCobaltTest,
+       CloseSocketCancelsYieldedTaskAndReleasesBuffers) {
+  ScopedTryReadingMultiplePackets enable_multi_packet(true);
+
+  auto socket = std::make_unique<FakeMultiPacketDatagramSocket>();
+  FakeMultiPacketDatagramSocket* raw_socket = socket.get();
+  socket->QueueBatch({"batch-1"});
+  socket->QueueBatch({"batch-2-yielded"});
+
+  RecordingPacketReaderVisitor visitor;
+  // yield_after_packets=1 processes batch 1 inline and posts a task for batch 2.
+  auto reader = std::make_unique<QuicChromiumPacketReader>(
+      std::move(socket), &clock_, &visitor, /*yield_after_packets=*/1,
+      quic::QuicTime::Delta::FromMilliseconds(
+          kQuicYieldAfterDurationMilliseconds),
+      net_log_);
+
+  reader->StartReading();
+  EXPECT_THAT(visitor.packets(), testing::ElementsAre("batch-1"));
+  EXPECT_TRUE(
+      QuicChromiumPacketReaderPeer::HasReadResultsBuffer(reader.get()));
+  const int calls_before_close = raw_socket->read_multiple_calls();
+
+  reader->CloseSocket();
+  EXPECT_TRUE(raw_socket->closed());
+  EXPECT_FALSE(
+      QuicChromiumPacketReaderPeer::HasReadResultsBuffer(reader.get()));
+  EXPECT_FALSE(QuicChromiumPacketReaderPeer::HasReadBuffer(reader.get()));
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  base::RunLoop().RunUntilIdle();
+  EXPECT_THAT(visitor.packets(), testing::ElementsAre("batch-1"));
+  EXPECT_TRUE(visitor.read_errors().empty());
+  EXPECT_EQ(raw_socket->read_multiple_calls(), calls_before_close);
+}
+
+// Verifies the single-packet fallback journey when a platform or socket
+// reports ERR_NOT_IMPLEMENTED for ReadMultiplePackets: the reader lazily
+// allocates read_buffer_ only when falling back to Read(), and drops it on
+// CloseSocket().
+TEST_F(QuicChromiumPacketReaderCobaltTest,
+       FallbackToSinglePacketLazilyAllocatesReadBuffer) {
+  ScopedTryReadingMultiplePackets enable_multi_packet(true);
+
+  auto socket = std::make_unique<FakeMultiPacketDatagramSocket>();
+  FakeMultiPacketDatagramSocket* raw_socket = socket.get();
+  socket->set_return_not_implemented(true);
+
+  RecordingPacketReaderVisitor visitor;
+  auto reader = std::make_unique<QuicChromiumPacketReader>(
+      std::move(socket), &clock_, &visitor, kQuicYieldAfterPacketsRead,
+      quic::QuicTime::Delta::FromMilliseconds(
+          kQuicYieldAfterDurationMilliseconds),
+      net_log_);
+
+  EXPECT_FALSE(QuicChromiumPacketReaderPeer::HasReadBuffer(reader.get()));
+  reader->StartReading();
+
+  EXPECT_EQ(raw_socket->read_multiple_calls(), 1);
+  EXPECT_EQ(raw_socket->single_read_calls(), 1);
+  EXPECT_FALSE(QuicChromiumPacketReaderPeer::GetTryReadingMultiplePackets());
+  EXPECT_TRUE(QuicChromiumPacketReaderPeer::HasReadBuffer(reader.get()));
+  EXPECT_FALSE(
+      QuicChromiumPacketReaderPeer::HasReadResultsBuffer(reader.get()));
+
+  reader->CloseSocket();
+  EXPECT_FALSE(QuicChromiumPacketReaderPeer::HasReadBuffer(reader.get()));
+}
+
+// Verifies receiving a single-packet fallback datagram whose processing closes
+// the socket (for example a QUIC CONNECTION_CLOSE on platforms without
+// recvmmsg): the packet payload stays readable throughout OnPacket() even
+// after CloseSocket() drops the reader's buffer reference.
+TEST_F(QuicChromiumPacketReaderCobaltTest,
+       FallbackSinglePacketKeepsBufferAliveDuringOnPacketCloseSocket) {
+  ScopedTryReadingMultiplePackets disable_multi_packet(false);
+
+  auto socket = std::make_unique<FakeMultiPacketDatagramSocket>();
+  socket->QueueSingleRead("close-frame-payload");
+
+  RecordingPacketReaderVisitor visitor;
+  auto reader = std::make_unique<QuicChromiumPacketReader>(
+      std::move(socket), &clock_, &visitor, kQuicYieldAfterPacketsRead,
+      quic::QuicTime::Delta::FromMilliseconds(
+          kQuicYieldAfterDurationMilliseconds),
+      net_log_);
+
+  std::string observed_after_close;
+  visitor.set_on_packet_with_data_callback(base::BindRepeating(
+      [](QuicChromiumPacketReader* r, std::string* after_close,
+         const quic::QuicReceivedPacket& packet) {
+        r->CloseSocket();
+        EXPECT_FALSE(QuicChromiumPacketReaderPeer::HasReadBuffer(r));
+        after_close->assign(packet.data(), packet.length());
+        return false;
+      },
+      reader.get(), &observed_after_close));
+
+  reader->StartReading();
+
+  EXPECT_EQ(observed_after_close, "close-frame-payload");
+  EXPECT_FALSE(QuicChromiumPacketReaderPeer::HasReadBuffer(reader.get()));
+}
+
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace net::test

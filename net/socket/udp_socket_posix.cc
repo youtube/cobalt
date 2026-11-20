@@ -77,8 +77,9 @@ constexpr int kPortStart = 1024;
 constexpr int kPortEnd = 65535;
 
 #if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
-// Read in larger batches to minimize recvmmsg overhead.
-inline constexpr int kNumPacketsPerReadMmsgCall = 64;
+// Read up to 16 packets per recvmmsg call so each scratch buffer fits in a
+// 24 KiB regular PartitionAlloc slot span while covering >p95 batch sizes.
+inline constexpr int kNumPacketsPerReadMmsgCall = 16;
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 int GetSocketFDHash(int fd) {
@@ -188,6 +189,9 @@ void UDPSocketPosix::Close() {
   read_buf_len_ = 0;
   read_callback_.Reset();
   recv_from_address_ = nullptr;
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+  results_ = nullptr;
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
   write_buf_.reset();
   write_buf_len_ = 0;
   write_callback_.Reset();
@@ -303,31 +307,19 @@ int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
   // Disallow other reads to be pending.
   DCHECK(read_callback_.is_null());
 
-  if ((!results->buffer || results->buffer->size() == 0) ||
-      results->packet_buffer_size != packet_buffer_size ||
-      results->packets == nullptr) {
-
-    int packets_array_size = kNumPacketsPerReadMmsgCall * sizeof(Socket::ReadPacketResult);
-    int all_packet_buffers_size = kNumPacketsPerReadMmsgCall * packet_buffer_size;
-    int total_size = packets_array_size + all_packet_buffers_size;
-
-    results->buffer = base::MakeRefCounted<IOBufferWithSize>(total_size);
-    results->packet_buffer_size = packet_buffer_size;
-
-    results->packets = reinterpret_cast<Socket::ReadPacketResult*>(results->buffer->data());
-    memset(results->packets, 0, packets_array_size);
-
-    char* packet_data_start = results->buffer->data() + packets_array_size;
-
-    for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
-      results->packets[i].buffer = packet_data_start + (i * packet_buffer_size);
-    }
-  }
+  results->AcquireBuffer(kNumPacketsPerReadMmsgCall, packet_buffer_size);
 
   int nread = InternalReadMultiplePackets(results);
   if (callback.is_null() || nread != ERR_IO_PENDING) {
+    if (nread <= 0) {
+      results->ReleaseBuffer();
+    }
     return nread;
   }
+
+  // Release the receive buffer back to the shared pool while waiting for
+  // readiness so idle sockets hold no packet-batch memory.
+  results->ReleaseBuffer();
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_, true, base::MessagePumpForIO::WATCH_READ,
@@ -713,12 +705,19 @@ void UDPSocketPosix::DidCompleteRead() {
 
 #if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 void UDPSocketPosix::DidCompleteMultiplePacketRead() {
+  results_->AcquireBuffer(kNumPacketsPerReadMmsgCall, read_buf_len_);
   int result = InternalReadMultiplePackets(results_);
   if (result != ERR_IO_PENDING) {
+    if (result <= 0) {
+      results_->ReleaseBuffer();
+    }
     results_ = nullptr;
+    read_buf_len_ = 0;
     bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
     DCHECK(ok);
     DoReadCallback(result);
+  } else {
+    results_->ReleaseBuffer();
   }
 }
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
