@@ -226,6 +226,14 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreStaleRenderedFramesAfterSeek(
         "Media.IgnoreStaleRenderedFramesAfterSeek");
 
+// When set, MediaCodecVideoDecoder initializes MediaCodec with non-identity
+// color metadata from StreamConfig in its constructor and skips redundant
+// Frame #1 teardown/reinitialization when the first buffer's color metadata
+// matches.
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaInitializeVideoCodecWithColorMetadata(
+        "Media.InitializeVideoCodecWithColorMetadata");
+
 // Selects which NDK audio mode to use. The int value maps to `NdkAudioMode`.
 // TODO: b/565474970 - Remove this flag once the experiment is complete.
 inline constexpr ExperimentalFeatureKey<int> kMediaNdkAudioMode(

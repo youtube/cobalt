@@ -340,6 +340,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       ignore_stale_rendered_frames_after_seek_(
           pipeline_config.experimental_features.GetBool(
               kMediaIgnoreStaleRenderedFramesAfterSeek)),
+      initialize_codec_with_color_metadata_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaInitializeVideoCodecWithColorMetadata)),
       enable_trivial_optimizations_(
           pipeline_config.experimental_features.GetBool(
               kMediaEnableTrivialOptimizations)),
@@ -392,6 +395,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   }
 
   if (!needs_fps_to_initialize_codec_) {
+    if (initialize_codec_with_color_metadata_ &&
+        !IsIdentity(stream_config.video_stream_info.color_metadata)) {
+      color_metadata_ = stream_config.video_stream_info.color_metadata;
+    }
     auto result = InitializeCodec(stream_config.video_stream_info);
     if (!result) {
       *error_message =
@@ -413,7 +420,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_)
+               << ", initialize_codec_with_color_metadata="
+               << ToString(initialize_codec_with_color_metadata_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -539,11 +548,28 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
 
-    // If color metadata is present and is not an identity mapping, then
-    // teardown the codec so it can be reinitalized with the new metadata.
     const auto& color_metadata =
         input_buffers.front()->video_stream_info().color_metadata;
-    if (!IsIdentity(color_metadata)) {
+    if (initialize_codec_with_color_metadata_) {
+      // If the codec was already initialized with a different color
+      // configuration than the first input buffer, teardown the codec so it can
+      // be reinitialized with the new metadata.
+      if (NeedsCodecTransition(input_buffers.front())) {
+        SB_LOG(INFO) << "Reinitializing codec due to color metadata change.";
+        TeardownCodec();
+        if (reset_delay_usec_ > 0) {
+          usleep(reset_delay_usec_);
+        }
+      }
+
+      if (!IsIdentity(color_metadata)) {
+        SB_DCHECK(media_decoder_ || !color_metadata_)
+            << "Unexpected residual color metadata.";
+        color_metadata_ = color_metadata;
+      }
+    } else if (!IsIdentity(color_metadata)) {
+      // If color metadata is present and is not an identity mapping, then
+      // teardown the codec so it can be reinitialized with the new metadata.
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
       TeardownCodec();
