@@ -21,7 +21,7 @@ namespace nplb {
 
 void ExpectTmEqual(const struct tm& actual,
                    const struct tm& expected,
-                   const std::string& context) {
+                   std::string_view context) {
   EXPECT_EQ(actual.tm_sec, expected.tm_sec)
       << "tm_sec mismatch for " << context;
   EXPECT_EQ(actual.tm_min, expected.tm_min)

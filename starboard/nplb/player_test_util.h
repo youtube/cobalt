@@ -37,13 +37,12 @@ struct SbPlayerTestConfig {
       : audio_filename(audio_filename),
         video_filename(video_filename),
         output_mode(output_mode),
-        key_system(key_system),
-        max_video_capabilities("") {}
+        key_system(key_system) {}
   SbPlayerTestConfig(const char* audio_filename,
                      const char* video_filename,
                      SbPlayerOutputMode output_mode,
                      const char* key_system,
-                     const char* max_video_capabilities)
+                     std::string_view max_video_capabilities)
       : audio_filename(audio_filename),
         video_filename(video_filename),
         output_mode(output_mode),
@@ -53,7 +52,7 @@ struct SbPlayerTestConfig {
   const char* video_filename;
   SbPlayerOutputMode output_mode;
   const char* key_system;
-  const char* max_video_capabilities;
+  std::string max_video_capabilities;
 };
 
 std::vector<const char*> GetStereoAudioTestFiles();
@@ -124,7 +123,7 @@ SbPlayer CallSbPlayerCreate(
     SbMediaAudioCodec audio_codec,
     SbDrmSystem drm_system,
     const starboard::AudioStreamInfo* audio_stream_info,
-    const char* max_video_capabilities,
+    std::string_view max_video_capabilities,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,

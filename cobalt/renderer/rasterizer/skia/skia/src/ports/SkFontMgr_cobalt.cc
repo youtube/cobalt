@@ -15,7 +15,6 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
 #include <algorithm>
-#include <cctype>
 #include <memory>
 #include <string>
 #include <utility>

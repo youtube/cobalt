@@ -118,6 +118,8 @@ test("audio_sink_benchmarks") {
     "audio_sink/audio_sink_benchmark_helper.cc",
     "audio_sink/audio_sink_benchmark_helper.h",
     "audio_sink/audio_sink_create_benchmark.cc",
+    "audio_sink/audio_sink_destroy_benchmark.cc",
+    "audio_sink/audio_sink_get_min_buffer_size_benchmark.cc",
   ]
 
   deps = cobalt_platform_dependencies + [
