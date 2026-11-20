@@ -9,7 +9,7 @@ import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test
 
 import {getNewTestBeforeUnloadProxy} from './test_before_unload_proxy.js';
 import {setUpTestPdfViewerPrivateProxy} from './test_pdf_viewer_private_proxy.js';
-import {createTextBox, getRequiredElement, setupMockMetricsPrivate, setupTestMockPluginForInk, startFinishModifiedInkStroke} from './test_util.js';
+import {createTextBox, getRequiredElement, getTextBox, setupMockMetricsPrivate, setupTestMockPluginForInk, startFinishModifiedInkStroke} from './test_util.js';
 
 const viewer = document.body.querySelector('pdf-viewer')!;
 const viewerToolbar = viewer.$.toolbar;
@@ -336,7 +336,7 @@ chrome.test.runTests([
     chrome.test.assertEq(AnnotationMode.TEXT, viewerToolbar.annotationMode);
     createTextBox();
     await microtasksFinished();
-    const textbox = viewer.shadowRoot.querySelector('ink-text-box');
+    const textbox = getTextBox(viewer);
     chrome.test.assertTrue(!!textbox);
     chrome.test.assertTrue(isVisible(textbox));
 
@@ -382,7 +382,7 @@ chrome.test.runTests([
 
     createTextBox();
     await microtasksFinished();
-    const textbox = viewer.shadowRoot.querySelector('ink-text-box');
+    const textbox = getTextBox(viewer);
     chrome.test.assertTrue(!!textbox);
     chrome.test.assertTrue(isVisible(textbox));
     textbox.$.textbox.value = 'Hello';
@@ -496,7 +496,7 @@ chrome.test.runTests([
     // Create a textbox.
     createTextBox();
     await microtasksFinished();
-    const textbox = viewer.shadowRoot.querySelector('ink-text-box')!;
+    const textbox = getTextBox(viewer)!;
     chrome.test.assertTrue(!!textbox);
 
     // Edit the textbox.
@@ -565,7 +565,7 @@ chrome.test.runTests([
     // Create a textbox.
     createTextBox();
     await microtasksFinished();
-    const textbox = viewer.shadowRoot.querySelector('ink-text-box')!;
+    const textbox = getTextBox(viewer)!;
     chrome.test.assertTrue(!!textbox);
     chrome.test.assertTrue(isVisible(textbox));
 

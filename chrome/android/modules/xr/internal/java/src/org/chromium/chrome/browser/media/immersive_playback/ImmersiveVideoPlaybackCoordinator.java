@@ -97,8 +97,8 @@ public class ImmersiveVideoPlaybackCoordinator
     /** Disposes the coordinator and its components. */
     public void dispose() {
         mAutoHideManager.stopTimer();
-        mControlCoordinator.dispose();
         mFormatCoordinator.dispose();
+        mControlCoordinator.dispose();
         mPlayerCoordinator.dispose();
     }
 

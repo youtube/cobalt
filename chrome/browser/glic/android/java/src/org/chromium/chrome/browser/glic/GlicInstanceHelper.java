@@ -31,14 +31,16 @@ public class GlicInstanceHelper {
 
     private String mConversationId = "";
     private String mConversationTitle = "";
+    private int mTaskId;
 
     @CalledByNative
     private GlicInstanceHelper() {}
 
     @CalledByNative
-    private void onInstanceChanged(String conversationId, String conversationTitle) {
+    private void onInstanceChanged(String conversationId, String conversationTitle, int taskId) {
         mConversationId = conversationId;
         mConversationTitle = conversationTitle;
+        mTaskId = taskId;
         for (Observer observer : mObservers) {
             observer.onInstanceChanged();
         }
@@ -80,6 +82,13 @@ public class GlicInstanceHelper {
      */
     public String getConversationTitle() {
         return mConversationTitle;
+    }
+
+    /**
+     * @return The ID of the active task associated with this instance, or 0 if none.
+     */
+    public int getTaskId() {
+        return mTaskId;
     }
 
     /**

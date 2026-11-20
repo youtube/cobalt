@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #![no_std]
-#![no_main]
+
 extern crate prost;
 
 pub mod pb {

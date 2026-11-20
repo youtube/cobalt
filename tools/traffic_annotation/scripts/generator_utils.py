@@ -99,12 +99,12 @@ def map_annotations(tsv_contents):
   """
   unique_id_rel_attributes_map = {}
   for annotation_row in tsv_contents:
-    unique_id = annotation_row[0].encode("utf-8")
-    description = annotation_row[3].encode("utf-8")
-    trigger = annotation_row[4].encode("utf-8")
-    data = annotation_row[5].encode("utf-8")
-    settings = annotation_row[9].encode("utf-8")
-    policy = annotation_row[10].encode("utf-8")
+    unique_id = annotation_row[0]
+    description = annotation_row[3]
+    trigger = annotation_row[4]
+    data = annotation_row[5]
+    settings = annotation_row[9]
+    policy = annotation_row[10]
     payload = [unique_id, description, trigger, data, settings, policy]
 
     unique_id_rel_attributes_map[unique_id] = TrafficAnnotation._make(payload)
@@ -149,12 +149,13 @@ class XMLParser:
         sender_name = sender.attrib["name"]
         # Suppress if hidden="true" (or hidden is even mentioned) in the given
         # annotation, don't include in traffic_annotations.
-        traffic_annotations = sorted([
-            t_annotation.attrib["unique_id"]
-            for t_annotation in sender.iter("traffic_annotation")
-            if t_annotation.attrib.get("hidden", "") != "true"
-        ])
-        self.parsed_xml[group_name][sender_name] = traffic_annotations
+        traffic_annotations = []
+        for tag in ["traffic_annotation", "annotation"]:
+          for t_annotation in sender.iter(tag):
+            if t_annotation.attrib.get("hidden", "") != "true":
+              traffic_annotations.append(t_annotation.attrib.get("id", t_annotation.attrib.get("unique_id", "")))
+
+        self.parsed_xml[group_name][sender_name] = sorted(traffic_annotations)
 
   def _sort_parsed_xml(self):
     """Sort on the group and sender keys in alphabetical order, note that
@@ -223,6 +224,7 @@ def extract_body(document=None, target="body", json_file_path="template.json"):
   the document can be obtained by running the update_annotations_doc.py script
   using the --debug flag.
   """
+  doc = None
   if document:
     doc = document
   else:
@@ -231,6 +233,7 @@ def extract_body(document=None, target="body", json_file_path="template.json"):
         doc = json.load(json_file)
     except IOError:
       print("Couldn't find the .json file.")
+      return None
 
   if target == "all":
     return doc
@@ -256,7 +259,7 @@ def find_first_index(doc):
       end_index = element["endIndex"]
       lines = element["paragraph"]["elements"]
       for text_run in lines:
-        if target_text in text_run["textRun"]["content"]:
+        if "textRun" in text_run and target_text in text_run["textRun"]["content"]:
           return end_index + padding
 
 
@@ -281,7 +284,7 @@ def find_chrome_browser_version(doc):
     The chrome browser version string.
   """
   # Only one header.
-  header = extract_body(document=doc, target="headers").values()[0]
+  header = list(extract_body(document=doc, target="headers").values())[0]
   header_elements = header["content"][0]["paragraph"]["elements"]
   text = header_elements[0]["textRun"]["content"]
   current_version = re.search(r"([\d.]+)", text).group()

@@ -1,0 +1,113 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/enterprise/network_header_injection/http_header_injection_client.h"
+
+#include <optional>
+
+#include "base/check.h"
+#include "base/functional/bind.h"
+#include "base/memory/ptr_util.h"
+#include "components/enterprise/network_header_injection/core/http_header_injection_service.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "net/http/http_request_headers.h"
+#include "net/ssl/ssl_info.h"
+
+namespace enterprise_custom_headers {
+
+// static
+void HttpHeaderInjectionClient::Create(
+    base::WeakPtr<HttpHeaderInjectionService> service,
+    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver,
+    mojo::PendingRemote<network::mojom::TrustedHeaderClient> target_client) {
+  mojo::MakeSelfOwnedReceiver(
+      base::WrapUnique(new HttpHeaderInjectionClient(std::move(service),
+                                                     std::move(target_client))),
+      std::move(receiver));
+}
+
+HttpHeaderInjectionClient::HttpHeaderInjectionClient(
+    base::WeakPtr<HttpHeaderInjectionService> service,
+    mojo::PendingRemote<network::mojom::TrustedHeaderClient> target_client)
+    : service_(std::move(service)) {
+  if (target_client) {
+    target_client_.Bind(std::move(target_client));
+    target_client_.set_disconnect_handler(
+        base::BindOnce(&HttpHeaderInjectionClient::OnTargetDisconnect,
+                       base::Unretained(this)));
+  }
+}
+
+HttpHeaderInjectionClient::~HttpHeaderInjectionClient() = default;
+
+void HttpHeaderInjectionClient::OnBeforeSendHeaders(
+    const GURL& request_url,
+    const net::HttpRequestHeaders& headers,
+    OnBeforeSendHeadersCallback callback) {
+  if (target_client_.is_bound()) {
+    target_client_->OnBeforeSendHeaders(
+        request_url, headers,
+        mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+            base::BindOnce(
+                &HttpHeaderInjectionClient::OnTargetBeforeSendHeadersComplete,
+                weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                request_url, headers),
+            net::ERR_FAILED, std::nullopt));
+  } else {
+    OnTargetBeforeSendHeadersComplete(std::move(callback), request_url, headers,
+                                      net::OK, std::nullopt);
+  }
+}
+
+void HttpHeaderInjectionClient::OnHeadersReceived(
+    const std::string& headers,
+    const net::IPEndPoint& remote_endpoint,
+    const std::optional<net::SSLInfo>& ssl_info,
+    OnHeadersReceivedCallback callback) {
+  if (target_client_.is_bound()) {
+    target_client_->OnHeadersReceived(
+        headers, remote_endpoint, ssl_info,
+        mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+            std::move(callback), net::ERR_FAILED, std::nullopt, std::nullopt));
+  } else {
+    std::move(callback).Run(net::OK, std::nullopt, std::nullopt);
+  }
+}
+
+void HttpHeaderInjectionClient::OnTargetDisconnect() {
+  target_client_.reset();
+}
+
+void HttpHeaderInjectionClient::OnTargetBeforeSendHeadersComplete(
+    OnBeforeSendHeadersCallback callback,
+    const GURL& request_url,
+    const net::HttpRequestHeaders& original_headers,
+    int32_t result,
+    const std::optional<net::HttpRequestHeaders>& headers) {
+  if (result != net::OK) {
+    std::move(callback).Run(result, std::nullopt);
+    return;
+  }
+
+  std::optional<net::HttpRequestHeaders> final_headers = headers;
+
+  if (!service_) {
+    std::move(callback).Run(net::OK, final_headers);
+    return;
+  }
+
+  net::HttpRequestHeaders headers_to_inject =
+      service_->GetHeadersForUrl(request_url);
+  if (!headers_to_inject.IsEmpty()) {
+    if (!final_headers) {
+      final_headers = original_headers;
+    }
+    final_headers->MergeFrom(headers_to_inject);
+  }
+
+  std::move(callback).Run(net::OK, final_headers);
+}
+
+}  // namespace enterprise_custom_headers

@@ -12,7 +12,7 @@ const uid = params.get('uid');
 async function listSubApps() {
   const bc = new PrerenderChannel('prerender-channel', uid);
   try {
-    const _ = await navigator.subApps.list();
+    const _ = await window.subApps.list();
     bc.postMessage('unexpected success');
   } catch (err){
     bc.postMessage(err.name);

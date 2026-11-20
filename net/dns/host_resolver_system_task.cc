@@ -35,6 +35,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_anonymization_key.h"
+#include "net/base/network_handle.h"
 #include "net/base/network_interfaces.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/trace_constants.h"
@@ -240,9 +241,11 @@ HostResolverSystemTask::Params::~Params() = default;
 
 HostResolverSystemTask::CacheParams::CacheParams(
     HostResolverCache& cache,
-    NetworkAnonymizationKey network_anonymization_key)
+    NetworkAnonymizationKey network_anonymization_key,
+    handles::NetworkHandle network)
     : cache(base::raw_ref(cache)),
-      network_anonymization_key(std::move(network_anonymization_key)) {}
+      network_anonymization_key(std::move(network_anonymization_key)),
+      target_network(network) {}
 
 HostResolverSystemTask::CacheParams::CacheParams(const CacheParams&) = default;
 
@@ -521,7 +524,8 @@ void HostResolverSystemTask::CacheResult(
     std::unique_ptr<HostResolverInternalResult> result) {
   cache_params_.value().cache->Set(
       std::move(result), cache_params_.value().network_anonymization_key,
-      HostResolverSource::SYSTEM, /*secure=*/false);
+      cache_params_.value().target_network, HostResolverSource::SYSTEM,
+      /*secure=*/false);
 }
 
 void EnsureSystemHostResolverCallReady() {

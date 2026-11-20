@@ -245,9 +245,6 @@ class VIZ_COMMON_EXPORT BeginFrameSource {
   virtual void UpdateVSyncDisplay(int64_t display_id,
                                   bool is_browser_vsync_supported) {}
 
-  // Notifies the source that new CALayerParams have been received from the GPU,
-  // indicating that a new frame has been swapped.
-  virtual void DidReceiveNewCALayerParams() {}
 #endif
 
   virtual void SetUpdateVSyncParametersCallback(

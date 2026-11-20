@@ -41,11 +41,13 @@ std::unique_ptr<ProfileManagementStepController> CreateDefaultBrowserStep(
 std::unique_ptr<ProfileManagementStepController> CreateFeatureShowcaseStep(
     ProfilePickerWebContentsHost* host,
     Profile* profile,
-    base::OnceClosure step_completed_callback);
+    base::OnceClosure step_completed_callback,
+    base::OnceCallback<void(bool)> eligibility_callback);
 
 std::unique_ptr<ProfileManagementStepController> CreateFinishOrContinueStep(
     ProfilePickerWebContentsHost* host,
     base::OnceCallback<bool()> eligibility_callback,
+    base::RepeatingCallback<bool()> query_effects_callback,
     base::OnceClosure step_completed_callback);
 
 class FirstRunFlowController : public ProfileManagementFlowControllerImpl {
@@ -99,8 +101,18 @@ class FirstRunFlowController : public ProfileManagementFlowControllerImpl {
 
   void PlaySignInCelebrationSound();
 
+  void StartBrowsing();
+
   // Run the `finish_flow_callback_` if it's not empty.
   void RunFinishFlowCallback();
+
+  bool is_feature_showcase_eligible() const {
+    return is_feature_showcase_eligible_;
+  }
+
+  void SetFeatureShowcaseEligibility(bool is_eligible) {
+    is_feature_showcase_eligible_ = is_eligible;
+  }
 
   std::string GetHatsSurveyTrigger() const;
 
@@ -117,6 +129,8 @@ class FirstRunFlowController : public ProfileManagementFlowControllerImpl {
   base::OnceClosure finish_flow_callback_;
 
   std::unique_ptr<audio::SoundsManager> sounds_manager_;
+
+  bool is_feature_showcase_eligible_ = false;
 
   base::WeakPtrFactory<FirstRunFlowController> weak_ptr_factory_{this};
 };

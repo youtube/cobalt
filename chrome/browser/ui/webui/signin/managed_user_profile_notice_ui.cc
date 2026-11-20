@@ -270,18 +270,59 @@ ManagedUserProfileNoticeUI::ManagedUserProfileNoticeUI(content::WebUI* web_ui)
     source->AddBoolean("disableAnimations", false);
   }
 
+  Profile* profile = Profile::FromWebUI(web_ui);
+
   bool is_in_search_engine_choice_region =
       CHECK_DEREF(regional_capabilities::RegionalCapabilitiesServiceFactory::
-                      GetForProfile(Profile::FromWebUI(web_ui)))
+                      GetForProfile(profile))
           .IsInSearchEngineChoiceScreenRegion();
 
   bool is_first_run_desktop_refresh_enabled =
       switches::IsFirstRunDesktopRefreshEnabled(
           is_in_search_engine_choice_region);
+  // TODO(crbug.com/526570381): Unify WebUI data source initialization.
+  // Currently, there are multiple ways data is initialized: default values
+  // in the constructor, the `kFirstRun` workaround below, and the `Initialize`
+  // call triggered after navigation commits.
+  //
+  // The workaround below is necessary because the WebUI page reads from
+  // `loadTimeData` synchronously on page load, which races with the
+  // asynchronous `Initialize` call that updates the data source.
+  //
+  // To clean this up, we should pass initialization parameters synchronously
+  // before navigation for each screen type.
   if (is_first_run_desktop_refresh_enabled) {
-    source->AddInteger("screenType",
-                       static_cast<int>(GetScreenTypeFromURL(
-                           web_ui->GetWebContents()->GetVisibleURL())));
+    const ScreenType screen_type =
+        GetScreenTypeFromURL(web_ui->GetWebContents()->GetVisibleURL());
+
+    source->AddInteger("screenType", static_cast<int>(screen_type));
+
+    if (screen_type == ScreenType::kFirstRun) {
+      const signin::IdentityManager& identity_manager =
+          CHECK_DEREF(IdentityManagerFactory::GetForProfile(profile));
+      CoreAccountInfo account_info =
+          identity_manager.GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+      AccountInfo extended_info =
+          identity_manager.FindExtendedAccountInfo(account_info);
+      const std::string given_name =
+          !extended_info.IsEmpty()
+              ? std::string(
+                    extended_info.GetGivenName().value_or(extended_info.email))
+              : account_info.email;
+
+      if (!given_name.empty()) {
+        source->AddString("profileDisclosureTitle",
+                          l10n_util::GetStringFUTF16(
+                              IDS_FRE_SIGN_IN_CELEBRATION_WELCOME_TITLE,
+                              base::UTF8ToUTF16(given_name)));
+        source->AddString(
+            "profileDisclosureSubtitle",
+            l10n_util::GetStringFUTF16(
+                IDS_ENTERPRISE_WELCOME_PROFILE_DISCLOSURE_KNOWN_DOMAIN_SUBTITLE,
+                base::UTF8ToUTF16(
+                    enterprise_util::GetDomainFromEmail(account_info.email))));
+      }
+    }
   }
 
   bool is_first_run_desktop_revamp_enabled =
@@ -457,27 +498,6 @@ void ManagedUserProfileNoticeUI::Initialize(
         "separateBrowsingDataChoiceTitle",
         l10n_util::GetStringUTF16(
             IDS_ENTERPRISE_WELCOME_SEPARATE_BROWSING_DATA_SCHOOL_CHOICE));
-  }
-  if (type == ManagedUserProfileNoticeUI::ScreenType::kFirstRun) {
-    const bool is_in_search_engine_choice_region =
-        CHECK_DEREF(regional_capabilities::RegionalCapabilitiesServiceFactory::
-                        GetForProfile(profile))
-            .IsInSearchEngineChoiceScreenRegion();
-    if (switches::IsFirstRunDesktopRefreshEnabled(
-            is_in_search_engine_choice_region)) {
-      update_data.Set(
-          "profileDisclosureTitle",
-          l10n_util::GetStringFUTF16(
-              IDS_FRE_SIGN_IN_CELEBRATION_WELCOME_TITLE,
-              base::UTF8ToUTF16(
-                  create_param->account_info.GetGivenName().value_or(
-                      create_param->account_info.email))));
-      update_data.Set(
-          "profileDisclosureSubtitle",
-          l10n_util::GetStringFUTF16(
-              IDS_ENTERPRISE_WELCOME_PROFILE_DISCLOSURE_KNOWN_DOMAIN_SUBTITLE,
-              base::UTF8ToUTF16(domain)));
-    }
   }
 
   if (type ==

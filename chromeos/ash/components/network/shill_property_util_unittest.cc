@@ -48,6 +48,28 @@ TEST_F(ShillPropertyUtilTest, MACRandomizationOff) {
             shill::kWifiRandomMacPolicyHardware);
 }
 
+TEST_F(ShillPropertyUtilTest, IsLoggableShillProperty) {
+  EXPECT_TRUE(shill_property_util::IsLoggableShillProperty(
+      shill::kProviderHostProperty));
+  EXPECT_TRUE(
+      shill_property_util::IsLoggableShillProperty(shill::kTypeProperty));
+
+  EXPECT_FALSE(shill_property_util::IsLoggableShillProperty(
+      shill::kEapPasswordProperty));
+  EXPECT_FALSE(shill_property_util::IsLoggableShillProperty(
+      shill::kL2TPIPsecPskProperty));
+  EXPECT_FALSE(shill_property_util::IsLoggableShillProperty(
+      shill::kOpenVPNPasswordProperty));
+  EXPECT_FALSE(
+      shill_property_util::IsLoggableShillProperty(shill::kIKEv2PskProperty));
+  EXPECT_FALSE(shill_property_util::IsLoggableShillProperty(
+      shill::kIKEv2CaCertPemProperty));
+  EXPECT_FALSE(shill_property_util::IsLoggableShillProperty(
+      shill::kWireGuardPrivateKey));
+  EXPECT_FALSE(
+      shill_property_util::IsLoggableShillProperty(shill::kWireGuardPeers));
+}
+
 TEST_F(ShillPropertyUtilTest, MACRandomizationOn) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(

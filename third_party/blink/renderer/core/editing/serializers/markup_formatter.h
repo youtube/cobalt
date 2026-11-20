@@ -52,30 +52,30 @@ enum EntityMask {
   // reasons. See http://trac.webkit.org/changeset/32879. However, we cannot do
   // this in an XML document because it does not have the entity reference
   // defined (see bug 19215).
-  kEntityMaskInCDATA = 0,
-  kEntityMaskInPCDATA = kEntityAmp | kEntityLt | kEntityGt,
-  kEntityMaskInHTMLPCDATA = kEntityMaskInPCDATA | kEntityNbsp,
+  kEntityMaskInCdata = 0,
+  kEntityMaskInPcdata = kEntityAmp | kEntityLt | kEntityGt,
+  kEntityMaskInHtmlPcdata = kEntityMaskInPcdata | kEntityNbsp,
   kEntityMaskInAttributeValue = kEntityAmp | kEntityQuot | kEntityLt |
                                 kEntityGt | kEntityTab | kEntityLineFeed |
                                 kEntityCarriageReturn,
   // Note: historically, "<" and ">" were not escaped in HTML attribute values.
   // This was changed in the HTML spec on May 20, 2025, see:
   // https://github.com/whatwg/html/pull/6362.
-  kEntityMaskInHTMLAttributeValue =
+  kEntityMaskInHtmlAttributeValue =
       kEntityAmp | kEntityQuot | kEntityLt | kEntityGt | kEntityNbsp,
 };
 
-enum class SerializationType { kHTML, kXML };
+enum class SerializationType { kHtml, kXml };
 
 class MarkupFormatter final {
   STACK_ALLOCATED();
 
  public:
   static void AppendAttributeValue(StringBuilder&, const String&, bool);
-  static void AppendAttributeAsHTML(StringBuilder& result,
+  static void AppendAttributeAsHtml(StringBuilder& result,
                                     const Attribute& attribute,
                                     const String& value);
-  static void AppendAttributeAsXMLWithoutNamespace(StringBuilder& result,
+  static void AppendAttributeAsXmlWithoutNamespace(StringBuilder& result,
                                                    const Attribute& attribute,
                                                    const String& value);
   static void AppendAttribute(StringBuilder& result,
@@ -83,7 +83,7 @@ class MarkupFormatter final {
                               const AtomicString& local_name,
                               const String& value,
                               bool document_is_html);
-  static void AppendCDATASection(StringBuilder&, const String&);
+  static void AppendCdataSection(StringBuilder&, const String&);
   static void AppendCharactersReplacingEntities(StringBuilder& result,
                                                 const StringView& source,
                                                 EntityMask entity_mask);
@@ -92,9 +92,9 @@ class MarkupFormatter final {
   static void AppendProcessingInstruction(StringBuilder&,
                                           const String& target,
                                           const String& data);
-  static void AppendXMLDeclaration(StringBuilder&, const Document&);
+  static void AppendXmlDeclaration(StringBuilder&, const Document&);
 
-  MarkupFormatter(AbsoluteURLs, SerializationType);
+  MarkupFormatter(ResolveUrls, SerializationType);
   MarkupFormatter(const MarkupFormatter&) = delete;
   MarkupFormatter& operator=(const MarkupFormatter&) = delete;
 
@@ -105,7 +105,7 @@ class MarkupFormatter final {
                        const AtomicString& prefix,
                        const AtomicString& local_name);
 
-  bool SerializeAsHTML() const;
+  bool SerializeAsHtml() const;
 
   void AppendText(StringBuilder&, const Text&);
   // Serialize '<' and the element name.
@@ -118,10 +118,10 @@ class MarkupFormatter final {
 
   EntityMask EntityMaskForText(const Text&) const;
   bool ShouldSelfClose(const Element&) const;
-  String ResolveURLIfNeeded(const Element&, const Attribute& attribute) const;
+  String ResolveUrlIfNeeded(const Element&, const Attribute& attribute) const;
 
  private:
-  const AbsoluteURLs resolve_urls_method_;
+  const ResolveUrls resolve_urls_method_;
   SerializationType serialization_type_;
 };
 

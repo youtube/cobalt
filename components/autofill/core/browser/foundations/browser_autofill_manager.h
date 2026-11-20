@@ -197,13 +197,13 @@ class BrowserAutofillManager : public AutofillManager {
 
   // Defers the suggestion selection to the password manager.
   void DelegateSelectToPasswordManager(const Suggestion& suggestion,
-                                       const FormFieldData& trigger_field);
+                                       const FieldGlobalId& trigger_field_id);
 
   // Defers the suggestion selection to the password manager.
   void DelegateAcceptToPasswordManager(
       const Suggestion& suggestion,
       const AutofillSuggestionDelegate::SuggestionMetadata& metadata,
-      const FormFieldData& trigger_field);
+      const FieldGlobalId& trigger_field_id);
 
   void DidShowSuggestions(base::span<const Suggestion> suggestions,
                           const FormGlobalId& form_id,
@@ -315,9 +315,6 @@ class BrowserAutofillManager : public AutofillManager {
   virtual void LogAndRecordLoyaltyCardFill(const LoyaltyCard& loyalty_card,
                                            const FormGlobalId& form_id,
                                            const FieldGlobalId& field_id);
-
-  // Returns the last form the autofill manager considered in this frame.
-  virtual const FormData& last_query_form() const;
 
   // Reports whether a document collects phone numbers, uses one time code, uses
   // WebOTP. There are cases that the reporting is not expected:
@@ -571,7 +568,7 @@ class BrowserAutofillManager : public AutofillManager {
   // user and whether the suggestion is shown.
   void OnGenerateSuggestionsComplete(
       const FormGlobalId& form_id,
-      const FieldGlobalId& field_id,
+      const FormFieldData& trigger_field,
       AutofillSuggestionTriggerSource trigger_source,
       const SuggestionsContext& context,
       base::TimeTicks suggestion_generation_start_time,

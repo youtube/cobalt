@@ -45,25 +45,6 @@ using namespace bssl;
 static int load_iv(const char **fromp, unsigned char *to, size_t num);
 static bool check_pem(std::string_view name, std::string_view expected);
 
-// PEM_proc_type appends a Proc-Type header to `buf`, determined by `type`.
-static void PEM_proc_type(char buf[PEM_BUFSIZE], int type) {
-  const char *str;
-
-  if (type == PEM_TYPE_ENCRYPTED) {
-    str = "ENCRYPTED";
-  } else if (type == PEM_TYPE_MIC_CLEAR) {
-    str = "MIC-CLEAR";
-  } else if (type == PEM_TYPE_MIC_ONLY) {
-    str = "MIC-ONLY";
-  } else {
-    str = "BAD-TYPE";
-  }
-
-  OPENSSL_strlcat(buf, "Proc-Type: 4,", PEM_BUFSIZE);
-  OPENSSL_strlcat(buf, str, PEM_BUFSIZE);
-  OPENSSL_strlcat(buf, "\n", PEM_BUFSIZE);
-}
-
 // PEM_dek_info appends a DEK-Info header to `buf`, with an algorithm of `type`
 // and a single parameter, specified by hex-encoding `len` bytes from `str`.
 static void PEM_dek_info(char buf[PEM_BUFSIZE], const char *type, size_t len,
@@ -289,10 +270,8 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
 
     assert(strlen(objstr) + 23 + 2 * iv_len + 13 <= sizeof(buf));
 
-    buf[0] = '\0';
-    PEM_proc_type(buf, PEM_TYPE_ENCRYPTED);
+    OPENSSL_strlcpy(buf, "Proc-Type: 4,ENCRYPTED\n", sizeof(buf));
     PEM_dek_info(buf, objstr, iv_len, (char *)iv);
-    // k=strlen(buf);
 
     ret = 1;
     if (!EVP_EncryptInit_ex(ctx.get(), enc, nullptr, key, iv) ||

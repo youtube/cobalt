@@ -186,10 +186,12 @@ void CrossProcessFrameConnector::SendIntrinsicSizingInfoToParent(
     blink::mojom::IntrinsicSizingInfoPtr sizing_info) {
   // The width/height should not be negative since gfx::SizeF will clamp
   // negative values to zero.
-  DCHECK((sizing_info->size.width() >= 0.f) &&
-         (sizing_info->size.height() >= 0.f));
-  DCHECK((sizing_info->aspect_ratio.width() >= 0.f) &&
-         (sizing_info->aspect_ratio.height() >= 0.f));
+  CHECK(
+      (sizing_info->size.width() >= 0.f) && (sizing_info->size.height() >= 0.f),
+      base::NotFatalUntil::M152);
+  CHECK((sizing_info->aspect_ratio.width() >= 0.f) &&
+            (sizing_info->aspect_ratio.height() >= 0.f),
+        base::NotFatalUntil::M152);
   if (!frame_proxy_in_parent_renderer_->is_render_frame_proxy_live())
     return;
   frame_proxy_in_parent_renderer_->GetAssociatedRemoteFrame()
@@ -214,7 +216,7 @@ void CrossProcessFrameConnector::SynchronizeVisualProperties(
   view_->UpdateScreenInfo();
 
   RenderWidgetHostImpl* render_widget_host = view_->host();
-  DCHECK(render_widget_host);
+  CHECK(render_widget_host, base::NotFatalUntil::M152);
 
   render_widget_host->SetAutoResize(visual_properties.auto_resize_enabled,
                                     visual_properties.min_size_for_auto_resize,

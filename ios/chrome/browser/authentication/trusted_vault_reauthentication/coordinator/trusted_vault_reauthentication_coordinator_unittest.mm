@@ -6,6 +6,7 @@
 
 #import "base/test/ios/wait_util.h"
 #import "components/sync/service/sync_service_utils.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/trusted_vault/trusted_vault_server_constants.h"
 #import "ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator/trusted_vault_reauthentication_coordinator_delegate.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -17,6 +18,8 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/model/trusted_vault/trusted_vault_client_backend_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/chrome/test/providers/signin/fake_trusted_vault_client_backend.h"
 #import "ios/chrome/test/scoped_key_window.h"
@@ -43,6 +46,8 @@ class TrustedVaultReauthenticationCoordinatorTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     profile_ = std::move(builder).Build();
     id<SystemIdentity> identity = [FakeSystemIdentity fakeIdentity1];
     FakeSystemIdentityManager* system_identity_manager =

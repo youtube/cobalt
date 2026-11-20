@@ -203,11 +203,6 @@ class ManualFillingCoordinator implements ManualFillingComponent {
     }
 
     @Override
-    public void setAtMemoryCallback(Runnable callback) {
-        mMediator.setAtMemoryCallback(callback);
-    }
-
-    @Override
     public void onResume() {
         mMediator.resume();
     }

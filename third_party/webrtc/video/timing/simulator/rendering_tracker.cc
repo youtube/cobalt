@@ -142,12 +142,12 @@ void RenderingTracker::OnEncodedFrame(
   decoded_frame_id_cb_->OnDecodedFrameId(encoded_frame->Id());
   encoded_frame.reset();  // Just to be explicit.
 
-  // We need to "stop the decode timer", in order for `video_timing_` to know
+  // We need to "update the decode time", in order for `video_timing_` to know
   // that a frame was "decoded".
   // TODO: b/423646186 - Consider introducing a decode time delay model.
   // See `SimulateDecode()` below.
-  video_timing_->StopDecodeTimer(/*decode_time=*/TimeDelta::Zero(),
-                                 env_.clock().CurrentTime());
+  video_timing_->UpdateDecodeTimeEstimate(/*decode_time=*/TimeDelta::Zero(),
+                                          env_.clock().CurrentTime());
 
   // Send the "decoded" video frame for "rendering".
   // TODO: b/423646186 - Consider making this step configurable, since Chromium

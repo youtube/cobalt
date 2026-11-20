@@ -95,7 +95,13 @@ void TransportClientSocketTest::SetUp() {
   AddressList addr = AddressList::CreateFromIPAddress(
       IPAddress::IPv4Localhost(), listen_port_);
   sock_ = socket_factory_->CreateTransportClientSocket(
-      addr, nullptr, nullptr, NetLog::Get(), NetLogSource());
+      addr,
+      // Currently no tests that rely on this test multi-network scenarios.
+      // This makes it safe to always target the default network. Consider
+      // exposing a `target_network` parameter to this method if
+      // this changes.
+      handles::kInvalidNetworkHandle, nullptr, nullptr, NetLog::Get(),
+      NetLogSource());
 }
 
 void TransportClientSocketTest::EstablishConnection(

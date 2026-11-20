@@ -6,15 +6,12 @@
 #define CONTENT_BROWSER_RENDERER_HOST_NAVIGATION_STATE_KEEP_ALIVE_H_
 
 #include "base/memory/safe_ref.h"
-#include "base/memory/scoped_refptr.h"
-#include "third_party/blink/public/common/tokens/tokens.h"
+#include "content/public/browser/initiator_navigation_state.h"
 #include "third_party/blink/public/mojom/frame/remote_frame.mojom.h"
 
 namespace content {
 
-class PolicyContainerHost;
 class RenderFrameHostImpl;
-class SiteInstanceImpl;
 class StoragePartitionImpl;
 
 // A keepalive handle for state that may be referenced during a navigation,
@@ -33,14 +30,8 @@ class NavigationStateKeepAlive
 
   ~NavigationStateKeepAlive() override;
 
-  blink::LocalFrameToken frame_token() { return frame_token_; }
-
-  PolicyContainerHost* policy_container_host() {
-    return policy_container_host_.get();
-  }
-
-  SiteInstanceImpl* source_site_instance() {
-    return source_site_instance_.get();
+  scoped_refptr<InitiatorNavigationState> initiator_navigation_state() const {
+    return initiator_navigation_state_;
   }
 
  private:
@@ -50,12 +41,8 @@ class NavigationStateKeepAlive
   // RenderFrameHostImpl::IssueKeepAliveHandle is called. The Mojo pending
   // receiver is bound to `this`, and stored on StoragePartition.
   NavigationStateKeepAlive(
-      const blink::LocalFrameToken& token,
-      scoped_refptr<PolicyContainerHost> policy_container_host,
-      scoped_refptr<SiteInstanceImpl> source_site_instance);
-
-  // The frame token for the RenderFrameHost this state is associated with.
-  const blink::LocalFrameToken frame_token_;
+      scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
+      StoragePartitionImpl* storage_partition);
 
   // The StoragePartition `this` belongs to. This pointer is stored so that
   // `this` can remove itself from its StoragePartition's frame token map upon
@@ -69,13 +56,7 @@ class NavigationStateKeepAlive
   // Navigation objects kept alive by `this`. All are parts of navigation state
   // from a RenderFrameHost that is potentially needed after the RenderFrameHost
   // goes away.
-  //
-  // A newly created document may inherit the PolicyContainerHost of the
-  // previous document.
-  scoped_refptr<PolicyContainerHost> policy_container_host_;
-
-  // The source SiteInstance is passed in to RenderFrameProxyHost::OpenURL.
-  scoped_refptr<SiteInstanceImpl> source_site_instance_;
+  scoped_refptr<InitiatorNavigationState> initiator_navigation_state_;
 };
 
 }  // namespace content

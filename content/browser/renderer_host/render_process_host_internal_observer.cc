@@ -10,7 +10,7 @@
 namespace content {
 
 RenderProcessHostInternalObserver::~RenderProcessHostInternalObserver() {
-  DCHECK(!IsInObserverList());
+  CHECK(!IsInObserverList(), base::NotFatalUntil::M152);
 }
 
 }  // namespace content

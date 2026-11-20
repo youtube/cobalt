@@ -394,9 +394,13 @@ TEST_F(PageNodeImplTest, ObserverWorks) {
   page_node->OnTitleUpdated();
   EXPECT_EQ(raw_page_node, obs.TakeNotifiedPageNode());
 
-  EXPECT_CALL(obs, OnFaviconUpdated(_))
-      .WillOnce(Invoke(&obs, &MockObserver::SetNotifiedPageNode));
-  page_node->OnFaviconUpdated();
+  EXPECT_CALL(obs, OnFaviconUpdated(_, _))
+      .WillOnce(
+          [&obs](const PageNode* node, blink::mojom::FaviconUpdateReason) {
+            obs.SetNotifiedPageNode(node);
+          });
+  page_node->OnFaviconUpdated(
+      blink::mojom::FaviconUpdateReason::kLinkElementChange);
   EXPECT_EQ(raw_page_node, obs.TakeNotifiedPageNode());
 
   // Re-entrant iteration should work.

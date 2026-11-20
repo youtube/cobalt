@@ -195,6 +195,7 @@ base::DictValue GetPdfViewerStrings() {
       {"ink2Color", IDS_PDF_INK2_ANNOTATION_COLOR},
       {"ink2Draw", IDS_PDF_INK2_DRAW},
       {"ink2Size", IDS_PDF_INK2_ANNOTATION_SIZE},
+      {"ink2TextAnnotationsAxLabel", IDS_PDF_INK2_TEXT_ANNOTATIONS_AX_LABEL},
       {"ink2TextAlignCenter", IDS_PDF_INK2_TEXT_ALIGN_CENTER},
       {"ink2TextAlignLeft", IDS_PDF_INK2_TEXT_ALIGN_LEFT},
       {"ink2TextAlignRight", IDS_PDF_INK2_TEXT_ALIGN_RIGHT},

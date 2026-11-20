@@ -73,9 +73,9 @@ class PaintOpPerfTest : public testing::Test {
           serialized_data_.as_span().first(bytes_written);
 
       while (true) {
-        PaintOp* deserialized_op = PaintOp::Deserialize(
-            remaining, deserialized_data_, kLargestPaintOpAlignedSize,
-            &bytes_read, test_options_provider.deserialize_options());
+        PaintOp* deserialized_op =
+            PaintOp::Deserialize(remaining, deserialized_data_, &bytes_read,
+                                 test_options_provider.deserialize_options());
         CHECK(deserialized_op);
         deserialized_op->DestroyThis();
 

@@ -161,7 +161,8 @@ found in the LICENSE file.
                 android:layout_width="1dp"
                 android:layout_height="24dp"
                 android:background="@color/divider_color"
-                android:layout_marginStart="12dp" />
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp" />
 
             <org.chromium.ui.widget.ChromeImageButton
                 android:id="@+id/edit_button"
@@ -173,7 +174,8 @@ found in the LICENSE file.
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
                 android:src="@drawable/ic_edit_24dp"
-                app:tint="@color/default_icon_color_tint_list" />
+                android:background="@drawable/pdf_edit_button_background"
+                app:tint="@color/pdf_edit_button_tint" />
 
         </LinearLayout>
 

@@ -96,14 +96,13 @@ class VCMTiming {
   void UpdateRtt(TimeDelta rtt);
 
   // Increases or decreases the current delay to get closer to the target delay.
-  // Given the actual decode time in ms and the render time in ms for a frame,
-  // this function calculates how late the frame is and increases the delay
-  // accordingly.
+  // Given the actual decode time and the render time for a frame, this function
+  // calculates how late the frame is and increases the delay accordingly.
   void UpdateCurrentDelay(Timestamp render_time, Timestamp actual_decode_time);
 
-  // Stops the decoder timer, should be called when the decoder returns a frame
-  // or when the decoded frame callback is called.
-  void StopDecodeTimer(TimeDelta decode_time, Timestamp now);
+  // Updates the decode time estimate with the given `decode_time` for a frame.
+  // Should be called when a frame has been decoded.
+  void UpdateDecodeTimeEstimate(TimeDelta decode_time, Timestamp now);
 
   // Returns the receiver system time when the frame with `rtp_timestamp`
   // should be rendered, assuming that the system time currently is `now`.

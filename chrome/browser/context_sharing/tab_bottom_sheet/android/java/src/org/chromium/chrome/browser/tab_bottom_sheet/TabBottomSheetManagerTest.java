@@ -141,7 +141,7 @@ public class TabBottomSheetManagerTest {
     public void tearDown() {
         if (mManager != null) {
             ThreadUtils.runOnUiThreadBlocking(
-                    () -> mManager.tryToCloseBottomSheet(/* animate= */ false));
+                    () -> mManager.tryToCloseBottomSheet(/* animate= */ true));
         }
     }
 
@@ -265,7 +265,6 @@ public class TabBottomSheetManagerTest {
         ThreadUtils.runOnUiThread(
                 () -> {
                     coBrowseViews.destroy();
-                    webContents.destroy();
                 });
     }
 
@@ -328,7 +327,6 @@ public class TabBottomSheetManagerTest {
         ThreadUtils.runOnUiThread(
                 () -> {
                     coBrowseViews.destroy();
-                    webContents.destroy();
                 });
     }
 

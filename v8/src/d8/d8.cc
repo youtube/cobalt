@@ -1766,15 +1766,28 @@ MaybeLocal<Promise> Shell::HostImportModuleWithPhaseDynamically(
         ->Reject(context, v8::Exception::TypeError(String::NewFromUtf8Literal(
                               isolate, "Invalid host defined options")))
         .ToChecked();
-  } else {
-    DynamicImportData* data =
-        new DynamicImportData(isolate, context, resource_name, specifier, phase,
-                              import_attributes, resolver);
-    PerIsolateData::Get(isolate)->AddDynamicImportData(data);
-    context->GetMicrotaskQueue()->EnqueueMicrotask(
-        isolate, Shell::DoHostImportModuleDynamically,
-        External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
+    return resolver->GetPromise();
   }
+
+  v8::MicrotaskQueue* microtask_queue = context->GetMicrotaskQueue();
+  if (!microtask_queue) {
+    // The context is detached, so we reject the import.
+    resolver
+        ->Reject(context,
+                 v8::Exception::Error(String::NewFromUtf8Literal(
+                     isolate, "Cannot import module from an inactive context")))
+        .ToChecked();
+    return resolver->GetPromise();
+  }
+
+  DynamicImportData* data =
+      new DynamicImportData(isolate, context, resource_name, specifier, phase,
+                            import_attributes, resolver);
+  PerIsolateData::Get(isolate)->AddDynamicImportData(data);
+  microtask_queue->EnqueueMicrotask(
+      isolate, Shell::DoHostImportModuleDynamically,
+      External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
+
   return resolver->GetPromise();
 }
 
@@ -2320,6 +2333,10 @@ void PerIsolateData::UnregisterWorker(const std::shared_ptr<Worker>& worker) {
 PerIsolateData::RealmScope::RealmScope(Isolate* isolate,
                                        const Global<Context>& context)
     : data_(PerIsolateData::Get(isolate)) {
+  // Verify that we start with a clean microtask queue.
+  CHECK_EQ(0, reinterpret_cast<i::Isolate*>(isolate)
+                  ->default_microtask_queue()
+                  ->size());
   data_->realm_count_ = 1;
   data_->realm_current_ = 0;
   data_->realm_switch_ = 0;
@@ -2328,6 +2345,11 @@ PerIsolateData::RealmScope::RealmScope(Isolate* isolate,
 }
 
 PerIsolateData::RealmScope::~RealmScope() {
+  // Discard all pending microtasks to prevent them from leaking outside this
+  // realm scope.
+  reinterpret_cast<i::Isolate*>(data_->isolate_)
+      ->default_microtask_queue()
+      ->ClearMicrotasks();
   // Drop realms to avoid keeping them alive.
   data_->realm_count_ = 0;
   delete[] data_->realms_;
@@ -4328,6 +4350,8 @@ void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
     }
   }
 
+  if (isolate->IsExecutionTerminating()) return;
+
   // Converts a V8 value to a C string.
   auto ToCString = [](const v8::String::Utf8Value& value) {
     return *value ? *value : "<string conversion failed>";
@@ -4935,13 +4959,6 @@ static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
 
 void Shell::PromiseRejectCallback(v8::PromiseRejectMessage data) {
   if (options.ignore_unhandled_promises) return;
-  START_ALLOW_USE_DEPRECATED();
-  if (data.GetEvent() == v8::kPromiseRejectAfterResolved ||
-      data.GetEvent() == v8::kPromiseResolveAfterResolved) {
-    // Ignore reject/resolve after resolved.
-    return;
-  }
-  END_ALLOW_USE_DEPRECATED();
   v8::Local<v8::Promise> promise = data.GetPromise();
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   PerIsolateData* isolate_data = PerIsolateData::Get(isolate);

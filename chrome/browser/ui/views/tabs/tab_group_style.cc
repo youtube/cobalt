@@ -17,7 +17,6 @@
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/views/background.h"
-#include "ui/views/controls/label.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
 

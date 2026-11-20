@@ -67,7 +67,7 @@ EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bp, EVP_PKEY **x, pem_password_cb *cb,
     if (!cb) {
       cb = PEM_def_callback;
     }
-    pass_len = cb(psbuf, PEM_BUFSIZE, 0, u);
+    pass_len = cb(psbuf, PEM_BUFSIZE, /*enc=*/0, u);
     if (pass_len < 0) {
       OPENSSL_PUT_ERROR(PEM, PEM_R_BAD_PASSWORD_READ);
       X509_SIG_free(p8);
@@ -82,7 +82,7 @@ EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bp, EVP_PKEY **x, pem_password_cb *cb,
     ret = EVP_PKCS82PKEY(p8inf);
     if (x) {
       if (*x) {
-        EVP_PKEY_free((EVP_PKEY *)*x);
+        EVP_PKEY_free(*x);
       }
       *x = ret;
     }

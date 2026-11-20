@@ -35,15 +35,25 @@ export interface ExperimentalFeaturesData {
   needsRestart: boolean;
   showBetaChannelPromotion: boolean;
   showDevChannelPromotion: boolean;
+  importExportEnabled?: boolean;
   // <if expr="is_chromeos">
   showOwnerWarning: boolean;
   // </if>
 }
 
+// <if expr="not is_ios">
+export interface FlagsExportData {
+  enabled_flags: string[];
+  customized_flags: Record<string, string>;
+}
+// </if>
+
 export interface FlagsBrowserProxy {
   // <if expr="not is_ios">
   restartBrowser(): void;
   requestDeprecatedFeatures(): Promise<ExperimentalFeaturesData>;
+  exportFlags(): Promise<FlagsExportData>;
+  importFlags(data: FlagsExportData): Promise<boolean>;
   // </if>
   resetAllFlags(): void;
   requestExperimentalFeatures(): Promise<ExperimentalFeaturesData>;
@@ -62,6 +72,14 @@ export class FlagsBrowserProxyImpl implements FlagsBrowserProxy {
   requestDeprecatedFeatures() {
     return sendWithPromise<ExperimentalFeaturesData>(
         'requestDeprecatedFeatures');
+  }
+
+  exportFlags() {
+    return sendWithPromise<FlagsExportData>('exportFlags');
+  }
+
+  importFlags(data: FlagsExportData) {
+    return sendWithPromise<boolean>('importFlags', data);
   }
   // </if>
 

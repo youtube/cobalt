@@ -44,12 +44,14 @@ selection_test(
       '</div>',
     ],
     'Outdent',
+    // TODO(crbug.com/525409698): Update test expectation to correct once
+    // apply block and outdent completes.
     [
       '<div contenteditable="true" id="test2">',
-        '^hello world<br>ciao<br>',
-        'how are you?<br>good|<br>',
+        'hello world<br>ciao<br>',
+        'how are you?<br>good<br>',
         '<ul>',
-          '<div><br></div>',
+          '<div>|<br></div>',
         '</ul>',
       '</div>',
     ],

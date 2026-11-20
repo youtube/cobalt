@@ -10,6 +10,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
 #import "ios/chrome/browser/shared/coordinator/root_coordinator/root_coordinator.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_coordinator_delegate.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_paging.h"
@@ -60,7 +61,8 @@ enum class WarningType;
 
 // Coordinator for the scene, managing the top-level UI.
 @interface SceneCoordinator
-    : RootCoordinator <SceneCommands,
+    : RootCoordinator <GeminiCommands,
+                       SceneCommands,
                        SettingsCommands,
                        SettingsNavigationControllerDelegate>
 

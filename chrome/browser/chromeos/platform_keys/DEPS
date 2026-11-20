@@ -4,7 +4,6 @@ include_rules = [
   # b/332804822. Whenever possible, avoid adding new //chrome dependencies to
   # this list.
   "+chrome/browser/ash/platform_keys",
-  "+chrome/browser/ash/profiles",
   "+chrome/browser/policy/profile_policy_connector.h",
   "+chrome/browser/profiles",
   "+chrome/browser/ui/platform_keys_certificate_selector_chromeos.h",

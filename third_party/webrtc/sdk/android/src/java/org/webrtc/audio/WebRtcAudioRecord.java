@@ -283,7 +283,12 @@ class WebRtcAudioRecord {
     }
     final int bytesPerFrame = channels * getBytesPerSample(audioFormat);
     final int framesPerBuffer = sampleRate / BUFFERS_PER_SECOND;
-    byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * framesPerBuffer);
+    try {
+      byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * framesPerBuffer);
+    } catch (OutOfMemoryError | RuntimeException e) {
+      reportWebRtcAudioRecordInitError("allocateDirect failed: " + e.getMessage());
+      return -1;
+    }
     if (!byteBuffer.hasArray()) {
       reportWebRtcAudioRecordInitError("ByteBuffer does not have backing array.");
       return -1;
@@ -331,6 +336,11 @@ class WebRtcAudioRecord {
     } catch (IllegalArgumentException | UnsupportedOperationException e) {
       // Report of exception message is sufficient. Example: "Cannot create AudioRecord".
       reportWebRtcAudioRecordInitError(e.getMessage());
+      releaseAudioResources();
+      return -1;
+    } catch (Throwable t) {
+      reportWebRtcAudioRecordInitError("InitRecording error: " +
+                                       t.getClass().getSimpleName() + ": " + t.getMessage());
       releaseAudioResources();
       return -1;
     }

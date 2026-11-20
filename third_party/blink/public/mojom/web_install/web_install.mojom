@@ -15,10 +15,17 @@ enum WebInstallServiceResult {
   kDataError,
 };
 
+// TODO(crbug.com/520025525): Cleanup install_url code.
 // Parameters passed into calls to Install.
 // `manifest_id` is optional to support the 1-parameter JS install API.
 struct InstallOptions {
   url.mojom.Url install_url;
+  url.mojom.Url? manifest_id;
+};
+
+// Mirrors install_params.idl.
+struct ManifestInstallOptions {
+  url.mojom.Url manifest_url;
   url.mojom.Url? manifest_id;
 };
 
@@ -44,9 +51,14 @@ interface WebInstallService {
   Install(InstallOptions? options)
       => (WebInstallServiceResult result, url.mojom.Url manifest_id);
 
-  // TODO(crbug.com/467713999): Support installing by manifest url.
   // Installs a site as a web app when triggered from an <install> element.
   // Accepts the same InstallOptions as Install().
   InstallFromElement(InstallOptions? options)
       => (WebInstallServiceResult result, url.mojom.Url manifest_id);
+
+  // Installs a web app from its manifest URL directly. The browser initiates
+  // fetching and parsing the JSON from `manifest_url` and presents the install
+  // for user review.
+  InstallFromManifest(ManifestInstallOptions options)
+      => (WebInstallServiceResult result);
 };

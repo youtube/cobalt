@@ -51,8 +51,7 @@ gfx::NativeView ZoomBubbleManagerViews::GetNativeView() {
 }
 
 void ZoomBubbleManagerViews::UpdateLegacyPageActionIcon() {
-  browser_view_->browser()->window()->UpdatePageActionIcon(
-      PageActionIconType::kZoom);
+  browser_view_->UpdatePageActionIcon(PageActionIconType::kZoom);
 }
 
 std::u16string ZoomBubbleManagerViews::GetZoomActionAccessibleName() {

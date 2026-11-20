@@ -67,7 +67,6 @@ public class LocationPrecisionChooserController {
 
         mRichRadioButtonList.initialize(
                 mOptionsToDisplay,
-                RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN,
                 (selectedId) -> {
                     if (mSelectionListener != null) {
                         @LocationAccuracy Integer accuracy = mIdToAccuracyMap.get(selectedId);

@@ -109,6 +109,7 @@ class VerticalTabStripRegionView final
   void SetToolbarHeightForLayout(int toolbar_height);
   void SetCaptionButtonWidthForLayout(int caption_button_width);
   void SetIsExitingExpandOnHoverForLayout(bool is_exiting_expand_on_hover);
+  void SetTransitionButtonOpacity(float opacity);
   bool WillWrapDueToOverflow(int available_width) const;
 
   TabDragTarget* GetTabDragTarget(const gfx::Point& point_in_screen);

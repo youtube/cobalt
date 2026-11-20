@@ -74,7 +74,8 @@ void IconHelper::DownloadFaviconCallback(
 
 void IconHelper::DidUpdateFaviconURL(
     content::RenderFrameHost* render_frame_host,
-    const std::vector<blink::mojom::FaviconURLPtr>& candidates) {
+    const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+    blink::mojom::FaviconUpdateReason reason) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   for (const auto& candidate : candidates) {
     if (!candidate->icon_url.is_valid())

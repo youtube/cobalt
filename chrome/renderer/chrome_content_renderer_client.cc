@@ -1444,6 +1444,12 @@ void ChromeContentRendererClient::
   if (base::FeatureList::IsEnabled(subresource_filter::kAdTagging))
     blink::WebRuntimeFeatures::EnableAdTagging(true);
 
+  auto state = base::FeatureList::GetStateIfOverridden(
+      features::kIncomingCallNotifications);
+  if (state.has_value()) {
+    blink::WebRuntimeFeatures::EnableIncomingCallNotifications(state.value());
+  }
+
   if (IsStandaloneContentExtensionProcess()) {
     // These Web API features are exposed in extensions.
     blink::WebRuntimeFeatures::EnableWebUSBOnServiceWorkers(true);

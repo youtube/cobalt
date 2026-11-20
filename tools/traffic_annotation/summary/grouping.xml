@@ -14,7 +14,7 @@ after discussions on the right group.
 -->
 
 <groups>
-  <group name="Mobile" hidden="true">
+  <group name="Mobile">
     <sender name="Android Unsorted">
       <annotation id="android_device_manager_socket"/>
       <annotation id="android_web_socket"/>
@@ -58,10 +58,8 @@ after discussions on the right group.
       <annotation id="help_content_provider"/>
       <annotation id="ime_url_downloader"/>
       <annotation id="kiosk_app_icon"/>
-      <annotation id="launcher_item_suggest"/>
       <annotation id="management_ui_customer_logo"/>
       <annotation id="nearby_connections_wifi_lan"/>
-      <annotation id="network_traversal_ice_config_fetcher"/>
       <annotation id="quick_answers_spellchecker"/>
       <annotation id="remote_apps_image_downloader"/>
       <annotation id="remote_command_screenshot"/>
@@ -411,7 +409,7 @@ after discussions on the right group.
       <annotation id="contextual_search_fpop_service"/>
     </sender>
   </group>
-  <group name="Admin Features" hidden="true">
+  <group name="Admin Features">
     <sender name="Cloud Policy">
       <annotation id="external_policy_fetcher"/>
       <annotation id="user_info_fetcher"/>
@@ -425,7 +423,7 @@ after discussions on the right group.
       <annotation id="devtools_http_handler"/>
     </sender>
   </group>
-  <group name="Apps and Content" hidden="true">
+  <group name="Apps and Content">
     <sender name="Chrome Cleanup"/>
     <sender name="Extension and App Management">
       <annotation id="chrome_apps_socket_api"/>
@@ -446,7 +444,7 @@ after discussions on the right group.
       <annotation id="per_user_topic_registration_request"/>
     </sender>
   </group>
-  <group name="Child-protection and Safe Browsing Features" hidden="true">
+  <group name="Child-protection and Safe Browsing Features">
     <sender name="Safe Browsing">
       <annotation id="client_download_request"/>
       <annotation id="supervised_user_classify_url"/>
@@ -471,14 +469,14 @@ after discussions on the right group.
       <annotation id="tailored_security_service"/>
     </sender>
   </group>
-  <group name="Chrome Commerce" hidden="true">
+  <group name="Chrome Commerce">
     <sender name="Subscription">
       <annotation id="chrome_commerce_subscriptions_create"/>
       <annotation id="chrome_commerce_subscriptions_delete"/>
       <annotation id="chrome_commerce_subscriptions_get"/>
     </sender>
   </group>
-  <group name="Cookieless Ads" hidden="true">
+  <group name="Cookieless Ads">
     <sender name="Conversion Measurements">
       <annotation id="conversion_measurement_report"/>
     </sender>
@@ -494,7 +492,7 @@ after discussions on the right group.
       <annotation id="interest_group_well_known_fetcher"/>
     </sender>
   </group>
-  <group name="Identity and Security" hidden="true">
+  <group name="Identity and Security">
     <sender name="Accounts, Identity, and Authentication">
       <annotation id="accounts_image_fetcher"/>
       <annotation id="affiliation_lookup_by_hash"/>
@@ -528,7 +526,7 @@ after discussions on the right group.
       <annotation id="payments_autofill"/>
     </sender>
   </group>
-  <group name="Location" hidden="true">
+  <group name="Location">
     <sender name="Location">
       <annotation id="geo_language_provider"/>
       <annotation id="lib_address_input"/>
@@ -538,12 +536,12 @@ after discussions on the right group.
       <annotation id="rlz_ping"/>
     </sender>
   </group>
-  <group name="Media" hidden="true">
+  <group name="Media">
     <sender name="Media Router">
       <annotation id="chrome_cast_discovery_api"/>
     </sender>
   </group>
-  <group name="Networking" hidden="true">
+  <group name="Networking">
     <sender name="Brandcode Configuration">
       <annotation id="brandcode_config"/>
     </sender>
@@ -565,7 +563,7 @@ after discussions on the right group.
       <annotation id="network_time_component"/>
     </sender>
   </group>
-  <group name="Search" hidden="true">
+  <group name="Search">
     <sender name="Web History">
       <annotation id="web_history_counter"/>
       <annotation id="web_history_expire"/>
@@ -592,7 +590,7 @@ after discussions on the right group.
       <annotation id="speculation_rules_prefetch_probe"/>
     </sender>
   </group>
-  <group name="Updates, Recovery, and Crash Reports" hidden="true">
+  <group name="Updates, Recovery, and Crash Reports">
     <sender name="Chrome Variations Service">
       <annotation id="chrome_variations_service"/>
     </sender>
@@ -613,7 +611,7 @@ after discussions on the right group.
       <annotation id="webrtc_log_upload"/>
     </sender>
   </group>
-  <group name="User Experience" hidden="true">
+  <group name="User Experience">
     <sender name="Autofill">
       <annotation id="autofill_image_fetcher"/>
       <annotation id="autofill_query"/>
@@ -667,7 +665,7 @@ after discussions on the right group.
       <annotation id="whats_new_fetcher"/>
     </sender>
   </group>
-  <group name="PlusAddresses" hidden="true">
+  <group name="PlusAddresses">
     <sender name="PlusAddresses">
       <annotation id="plus_address_reservation"/>
       <annotation id="plus_address_confirmation"/>

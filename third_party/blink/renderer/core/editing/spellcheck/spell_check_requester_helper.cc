@@ -49,7 +49,8 @@ DocumentMarkerVector GetSpellingMarkersFromRange(const Document& document,
 
   // Compute the start index of the beginning of the range with respect to the
   // container.
-  size_t range_start_offset = PlainTextRange::Create(*container, range).Start();
+  wtf_size_t range_start_offset =
+      PlainTextRange::Create(*container, range).Start();
   EphemeralRangeInFlatTree range_in_flat_tree =
       ToEphemeralRangeInFlatTree(range);
 
@@ -63,16 +64,17 @@ DocumentMarkerVector GetSpellingMarkersFromRange(const Document& document,
         *container, EphemeralRange(Position(pair.first, marker->StartOffset()),
                                    Position(pair.first, marker->EndOffset())));
 
-    size_t marker_in_container_start_offset = marker_in_container.Start();
-    size_t marker_in_container_end_offset = marker_in_container.End();
+    wtf_size_t marker_in_container_start_offset = marker_in_container.Start();
+    wtf_size_t marker_in_container_end_offset = marker_in_container.End();
 
     if (marker_in_container_start_offset < range_start_offset ||
         marker_in_container_end_offset < range_start_offset) {
       continue;
     }
 
-    size_t start_offset = marker_in_container_start_offset - range_start_offset;
-    size_t end_offset = marker_in_container_end_offset - range_start_offset;
+    wtf_size_t start_offset =
+        marker_in_container_start_offset - range_start_offset;
+    wtf_size_t end_offset = marker_in_container_end_offset - range_start_offset;
 
     if (marker->GetType() == DocumentMarker::MarkerType::kSpelling ||
         (IsA<SuggestionMarker>(marker) &&

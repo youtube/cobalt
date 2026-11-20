@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/check_deref.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
@@ -21,7 +22,6 @@
 #include "build/util/LASTCHANGE_commit_position.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/grit/branded_strings.h"
-#include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/system/statistics_provider.h"

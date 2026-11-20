@@ -6,7 +6,7 @@
 
 namespace accessibility_annotator {
 
-EntryMetadata::EntryMetadata(EntryType type,
+EntryMetadata::EntryMetadata(MemoryDataType type,
                              std::u16string type_name,
                              std::u16string value)
     : type(type), type_name(std::move(type_name)), value(std::move(value)) {}
@@ -26,7 +26,7 @@ MemoryEntrySource::MemoryEntrySource(MemoryEntrySource&&) = default;
 MemoryEntrySource& MemoryEntrySource::operator=(MemoryEntrySource&&) = default;
 MemoryEntrySource::~MemoryEntrySource() = default;
 
-MemorySearchResult::MemorySearchResult(EntryType type,
+MemorySearchResult::MemorySearchResult(MemoryDataType type,
                                        std::u16string type_name,
                                        std::u16string value,
                                        double confidence_score)

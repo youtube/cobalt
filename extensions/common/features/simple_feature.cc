@@ -247,6 +247,12 @@ Feature::Availability SimpleFeature::IsAvailableToManifest(
   if (!manifest_availability.is_available())
     return manifest_availability;
 
+  // Avoid allocating the dependency-check callback in the common
+  // (no-dependency) case.
+  if (dependencies_.empty()) {
+    return CreateAvailability(AvailabilityResult::kIsAvailable);
+  }
+
   return CheckDependencies(
       base::BindRepeating(&IsAvailableToManifestForBind, hashed_id, type,
                           location, manifest_version, platform, context_id));
@@ -315,6 +321,12 @@ Feature::Availability SimpleFeature::IsAvailableToContextImpl(
   // TODO(kalman): Assert that if the context was a webpage or WebUI context
   // then at some point a "matches" restriction was checked.
 
+  // Avoid allocating the dependency-check callback in the common
+  // (no-dependency) case.
+  if (dependencies_.empty()) {
+    return CreateAvailability(AvailabilityResult::kIsAvailable);
+  }
+
   return CheckDependencies(base::BindRepeating(
       &IsAvailableToContextForBind, base::RetainedRef(extension), context, url,
       platform, context_id, base::Unretained(&context_data)));
@@ -327,6 +339,13 @@ Feature::Availability SimpleFeature::IsAvailableToEnvironment(
       context_id, true);
   if (!environment_availability.is_available())
     return environment_availability;
+
+  // Avoid allocating the dependency-check callback in the common
+  // (no-dependency) case.
+  if (dependencies_.empty()) {
+    return CreateAvailability(AvailabilityResult::kIsAvailable);
+  }
+
   return CheckDependencies(
       base::BindRepeating(&IsAvailableToEnvironmentForBind, context_id));
 }

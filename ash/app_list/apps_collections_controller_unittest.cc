@@ -177,7 +177,7 @@ TEST_F(AppsCollectionsControllerTest,
 
   // Cache the current context menu view.
   views::MenuItemView* reorder_submenu =
-      context_menu->root_for_testing()->GetSubmenu()->GetMenuItemAt(2);
+      context_menu->root_for_testing()->GetSubmenu()->GetMenuItemAt(3);
   ASSERT_EQ(reorder_submenu->title(), u"Sort by");
   GetEventGenerator()->GestureTapAt(
       reorder_submenu->GetBoundsInScreen().CenterPoint());

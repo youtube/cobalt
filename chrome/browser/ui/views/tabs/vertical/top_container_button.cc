@@ -8,6 +8,7 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/compositor/layer.h"
 #include "ui/views/actions/action_view_interface.h"
 #include "ui/views/widget/widget.h"
 
@@ -42,10 +43,19 @@ class TopContainerButtonActionViewInterface
 TopContainerButton::TopContainerButton() {
   views::FocusRing::Get(this)->SetColorId(kColorNewTabButtonFocusRing);
   ConfigureInkDrop(this);
+  SetPaintToLayer();
+  layer()->SetFillsBoundsOpaquely(false);
 }
+
+TopContainerButton::~TopContainerButton() = default;
 
 void TopContainerButton::UpdateIcon(const ui::ImageModel& icon_image) {
   CHECK(icon_image.IsVectorIcon());
+
+  if (delay_icon_updates_) {
+    pending_icon_image_ = icon_image;
+    return;
+  }
 
   const ui::ImageModel image_model = ui::ImageModel::FromVectorIcon(
       *icon_image.GetVectorIcon().vector_icon(), GetForegroundColor(),
@@ -55,6 +65,20 @@ void TopContainerButton::UpdateIcon(const ui::ImageModel& icon_image) {
   SetImageModel(views::Button::STATE_HOVERED, image_model);
   SetImageModel(views::Button::STATE_PRESSED, image_model);
   SetImageModel(views::Button::STATE_DISABLED, image_model);
+}
+
+void TopContainerButton::SetDelayIconUpdates(bool delay) {
+  delay_icon_updates_ = delay;
+}
+
+void TopContainerButton::ApplyPendingIcon() {
+  if (pending_icon_image_) {
+    bool old_delay = delay_icon_updates_;
+    delay_icon_updates_ = false;
+    UpdateIcon(*pending_icon_image_);
+    delay_icon_updates_ = old_delay;
+    pending_icon_image_.reset();
+  }
 }
 
 void TopContainerButton::AddedToWidget() {

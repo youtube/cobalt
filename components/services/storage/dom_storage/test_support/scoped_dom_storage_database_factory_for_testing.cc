@@ -16,6 +16,7 @@ namespace {
 
 void DefaultDestroyCallback(
     const base::FilePath&,
+    bool /*is_sqlite*/,
     DomStorageDatabaseFactory::StatusCallback callback) {
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), DbStatus::OK()));
@@ -24,26 +25,26 @@ void DefaultDestroyCallback(
 }  // namespace
 
 ScopedDomStorageDatabaseFactoryForTesting::
-    ScopedDomStorageDatabaseFactoryForTesting(CreateCallback create_callback)
+    ScopedDomStorageDatabaseFactoryForTesting(OpenCallback open_callback)
     : ScopedDomStorageDatabaseFactoryForTesting(
-          std::move(create_callback),
+          std::move(open_callback),
           base::BindRepeating(&DefaultDestroyCallback)) {}
 
 ScopedDomStorageDatabaseFactoryForTesting::
-    ScopedDomStorageDatabaseFactoryForTesting(CreateCallback create_callback,
+    ScopedDomStorageDatabaseFactoryForTesting(OpenCallback open_callback,
                                               DestroyCallback destroy_callback)
-    : default_create_callback_(
-          std::move(DomStorageDatabaseFactory::GetCreateCallback())),
+    : default_open_callback_(
+          std::move(DomStorageDatabaseFactory::GetOpenCallback())),
       default_destroy_callback_(
           std::move(DomStorageDatabaseFactory::GetDestroyCallback())) {
-  DomStorageDatabaseFactory::GetCreateCallback() = std::move(create_callback);
+  DomStorageDatabaseFactory::GetOpenCallback() = std::move(open_callback);
   DomStorageDatabaseFactory::GetDestroyCallback() = std::move(destroy_callback);
 }
 
 ScopedDomStorageDatabaseFactoryForTesting::
     ~ScopedDomStorageDatabaseFactoryForTesting() {
-  DomStorageDatabaseFactory::GetCreateCallback() =
-      std::move(default_create_callback_);
+  DomStorageDatabaseFactory::GetOpenCallback() =
+      std::move(default_open_callback_);
   DomStorageDatabaseFactory::GetDestroyCallback() =
       std::move(default_destroy_callback_);
 }

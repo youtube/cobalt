@@ -1267,7 +1267,14 @@ TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
 }
 
 TEST_F(RTCStatsIntegrationTest, ExperimentalTransportCcfbStats) {
-  StartCall("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
+  // CCFB negotiation is asymmetric: the generator sets the flag but doesn't
+  // add it to codecs' feedback_params, while the parser adds it to codecs'
+  // feedback_params. This causes false positive munging detection (71, 86)
+  // during the internal SetLocalDescription roundtrip in
+  // PeerConnectionTestWrapper.
+  StartCall(
+      "WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/"
+      "WebRTC-NoSdpMangleAllowForTesting/Enabled,71,86/");
 
   // This assumes all other stats are ok and tests the stats which should be
   // different under the field trial.

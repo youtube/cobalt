@@ -74,6 +74,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="1820835682567584003">Chromium po përpiqet <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Herën tjetër që të hapësh Chromium në <ph name="DEVICE_TYPE" />, do të shikosh një kërkesë për të përdorur "Menaxherin e fjalëkalimeve të Google".</translation>
 <translation id="1838374766361614909">Fshi kërkimin</translation>
+<translation id="1846849503013521481">Për të siguruar punën tënde në Chromium, organizata jote do të mund të shikojë ose të menaxhojë informacione të caktuara</translation>
 <translation id="18552579716432081">Për t'i fshirë të dhënat e shfletimit vetëm nga kjo pajisje, ndërkohë që i mban ato në "Llogarinë tënde të Google", <ph name="BEGIN_LINK" />dil nga llogaria në Chromium<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Shkarko Chromium në telefon për të hapur ose krijuar grupe të reja skedash kur je në lëvizje.</translation>
 <translation id="185970820835152459">Mund t'i menaxhosh "Llogaritë e Google" ku je identifikuar. "Llogaritë e tua të Google" përdoren për shfletuesin Chromium, Play Store, Gmail etj. Nëse do të shtosh një llogari për dikë tjetër, si p.sh. anëtar të familjes, shto më mirë një person të ri te <ph name="DEVICE_TYPE" /> yt. <ph name="LINK_BEGIN" />Mëso më shumë<ph name="LINK_END" /></translation>
@@ -436,6 +437,7 @@ Nëse kjo faqe nuk funksionon siç pritet, provo të lejosh optimizimin.</transl
 <translation id="5953657885167112863">Personalizo Chromium sipas dëshirës</translation>
 <translation id="5960071705175224773">Cilësimet e tua u ndryshuan nga një aplikacion i panjohur</translation>
 <translation id="5968400720580217226">Modaliteti i IA-së</translation>
+<translation id="5977420883993828287">Gozhduar! Përdor përsëri "Detyrat kontekstuale" nga shiriti i veglave</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Organizata jote e mbyll automatikisht Chromium kur ai nuk përdoret për 1 minutë.}other{Organizata jote e mbyll automatikisht Chromium kur ai nuk përdoret për # minuta.}}</translation>
 <translation id="5987687638152509985">Përditëso Chromium për të nisur sinkronizimin</translation>
 <translation id="6003112304606738118">Po shkarkohet... Kanë mbetur edhe <ph name="HOURS" /> orë</translation>
@@ -540,6 +542,17 @@ Disa funksione mund të mos ofrohen. Specifiko një direktori tjetër profili os
 <translation id="6896758677409633944">Kopjo</translation>
 <translation id="6901631050894301805">Cakto Chromium si shfletuesin tënd të parazgjedhur dhe gozhdoje te shiriti i detyrave</translation>
 <translation id="6909503629704372277">&amp;Menaxho profilet e Chromium</translation>
+<translation id="6919942714452658456">Ky veprim:
+          <ph name="LINE_BREAKS" />
+            • Do të rivendosë faqen e parë, faqen e skedës së re, motorin e kërkimit dhe skedat e gozhduara
+            <ph name="LINE_BREAK" />
+            • Do të çaktivizojë shtesat
+            <ph name="LINE_BREAK" />
+            • Do të fshijë kukit dhe të dhënat e tjera të përkohshme të sajtit
+            <ph name="LINE_BREAK" />
+            • Do të rivendosë shkurtoret e Chromium
+            <ph name="LINE_BREAKS" />
+            Faqeshënuesit, historiku dhe fjalëkalimet e ruajtura nuk do të preken.</translation>
 <translation id="6934579572334859869">Pyet "Kërkimin e imazheve" për këtë imazh</translation>
 <translation id="6948031725951063910">Ke arritur kufirin e Chromium prej <ph name="BOOKMARK_LIMIT" /> faqeshënuesish, prandaj disa nga faqeshënuesit e tu nuk janë ruajtur ende në "Llogarinë tënde të Google".
 
@@ -607,6 +620,7 @@ Chromium nuk është në gjendje të rikuperojë cilësimet e tua.</translation>
 <translation id="7686590090926151193">Chromium nuk është shfletuesi i parazgjedhur</translation>
 <translation id="7689606757190482937">Sinkronizo dhe personalizo Chromium nëpër pajisjet e tua</translation>
 <translation id="7699779824407626136">Përditësimi i Chromium</translation>
+<translation id="7700735928747402058">Puna jote e sigurt në Chromium</translation>
 <translation id="7716950018788545737">Detyrat u përfunduan.</translation>
 <translation id="77283119132245232">Ofron shërbime të gjurmimit të sistemit për <ph name="BROWSER_NAME" />. Nëse ky shërbim është i çaktivizuar, gjurmët e performancës të krijuara nga shfletuesi nuk do të përfshijnë ngjarjet e të gjithë sistemit, si p.sh. ngjarjet e ndryshimit të kontekstit dhe të nënprocesit të gatshëm.</translation>
 <translation id="7745317241717453663">Kjo do të fshijë të dhënat e shfletimit nga kjo pajisje. Për t'i marrë më vonë të dhënat, identifikohu te Chromium si <ph name="USER_EMAIL" />.</translation>
@@ -638,6 +652,7 @@ Chromium nuk është në gjendje të rikuperojë cilësimet e tua.</translation>
 <translation id="8031714377769448844">Gozhdo Chromium te shiriti i veglave për të shkuar tek ai me shpejtësi në çdo kohë</translation>
 <translation id="80471789339884597">Faleminderit që e instalove. Duhet të rinisësh të gjithë shfletuesit e tu përpara se të përdorësh <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Shfaq gjithmonë shkurtoren e "Kërkimit nëpërmjet imazheve"</translation>
+<translation id="8069447462453318634">Zgjidh "Gozhdo te shiriti i veglave"</translation>
 <translation id="8077498902115777962">Çaktivizo ekzekutimin e Chromium në sfond për aplikacionet</translation>
 <translation id="80790299200510644">Kërkimi nëpërmjet imazheve</translation>
 <translation id="8086881907087796310">Instalimi dështoi sepse kompjuteri yt nuk i përmbush kërkesat minimale për harduerin.</translation>
@@ -719,6 +734,15 @@ Chromium nuk është në gjendje të rikuperojë cilësimet e tua.</translation>
 <translation id="8907580949721785412">Chromium po përpiqet të shfaqë fjalëkalime. Shkruaj fjalëkalimin tënd të Windows për ta lejuar këtë.</translation>
 <translation id="8932992523185907506">Chromium nuk është më shfletuesi yt i parazgjedhur. Të bëhet Chromium shfletuesi yt i parazgjedhur?</translation>
 <translation id="8941642502866065432">Chromium nuk mund të përditësohet</translation>
+<translation id="8944232836376404813">Ky veprim:
+          <ph name="LINE_BREAKS" />
+            • Do të rivendosë faqen e parë, faqen e skedës së re, motorin e kërkimit dhe skedat e gozhduara
+            <ph name="LINE_BREAK" />
+            • Do të çaktivizojë shtesat
+            <ph name="LINE_BREAK" />
+            • Do të fshijë kukit dhe të dhënat e tjera të përkohshme të sajtit
+            <ph name="LINE_BREAKS" />
+            Faqeshënuesit, historiku dhe fjalëkalimet e ruajtura nuk do të preken.</translation>
 <translation id="897581876605952338">Logoja e Chromium Enterprise</translation>
 <translation id="8981150672034878610">Chromium nuk mund të niset sepse ka ndodhur një gabim gjatë hapjes së profilit tënd. Provo të rinisësh Chromium.</translation>
 <translation id="8988036198400390003">Menaxho profilet e Chromium</translation>

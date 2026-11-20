@@ -144,9 +144,14 @@ void WebappsIconUtils::FinalizeLauncherIconInBackground(
           env, java_url, SkColorGetR(mean_color), SkColorGetG(mean_color),
           SkColorGetB(mean_color));
 
-  SkBitmap result_bitmap =
-      result.obj() ? gfx::CreateSkBitmapFromJavaBitmap(gfx::JavaBitmap(result))
-                   : SkBitmap();
+  SkBitmap result_bitmap;
+  if (result.obj()) {
+    result_bitmap = gfx::CreateSkBitmapFromJavaBitmap(gfx::JavaBitmap(result));
+  } else {
+    int size = GetIdealHomescreenIconSizeInPx();
+    result_bitmap.allocN32Pixels(size, size);
+    result_bitmap.eraseColor(mean_color);
+  }
   ui_thread_task_runner->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), result_bitmap, true));
 }

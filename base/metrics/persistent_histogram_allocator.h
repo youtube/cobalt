@@ -17,6 +17,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
+#include "base/metrics/histogram_samples.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/metrics/ranges_manager.h"
 #include "base/process/process_handle.h"
@@ -179,6 +180,9 @@ class BASE_EXPORT PersistentHistogramAllocator {
   // a Reference matching the class it is for and not mix the two.
   using Reference = PersistentMemoryAllocator::Reference;
 
+  // The structure used to hold histogram data in persistent memory.
+  struct PersistentHistogramData;
+
   // Iterator used for fetching persistent histograms from an allocator.
   // It is lock-free and thread-safe.
   // See PersistentMemoryAllocator::Iterator for more information.
@@ -329,10 +333,6 @@ class BASE_EXPORT PersistentHistogramAllocator {
   void ClearLastCreatedReferenceForTesting();
 
  protected:
-  // The structure used to hold histogram data in persistent memory. It is
-  // defined and used entirely within the .cc file.
-  struct PersistentHistogramData;
-
   // Gets the reference of the last histogram created, used to avoid
   // trying to import what was just created.
   Reference last_created() {
@@ -550,6 +550,33 @@ class BASE_EXPORT GlobalHistogramAllocator
 
   // The location to which the data should be persisted.
   FilePath persistent_location_;
+};
+
+// This data will be held in persistent memory in order for processes to
+// locate and use histograms created elsewhere.
+struct PersistentHistogramAllocator::PersistentHistogramData {
+  // SHA1(Histogram): Increment this if structure changes!
+  static constexpr uint32_t kPersistentTypeId = 0xF1645910 + 3;
+
+  // Expected size for 32/64-bit check.
+  static constexpr size_t kExpectedInstanceSize =
+      40 + 2 * HistogramSamples::Metadata::kExpectedInstanceSize;
+
+  int32_t histogram_type;
+  int32_t flags;
+  int32_t minimum;
+  int32_t maximum;
+  uint32_t bucket_count;
+  PersistentMemoryAllocator::Reference ranges_ref;
+  uint32_t ranges_checksum;
+  std::atomic<PersistentMemoryAllocator::Reference> counts_ref;
+  HistogramSamples::Metadata samples_metadata;
+  HistogramSamples::Metadata logged_metadata;
+
+  // Space for the histogram name will be added during the actual allocation
+  // request. This must be the last field of the structure. A zero-size array
+  // or a "flexible" array would be preferred but is not (yet) valid C++.
+  char name[sizeof(uint64_t)];  // Force 64-bit alignment on 32-bit builds.
 };
 
 }  // namespace base

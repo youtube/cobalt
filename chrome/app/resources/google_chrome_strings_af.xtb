@@ -62,6 +62,17 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="1587223624401073077">Google Chrome gebruik tans jou kamera.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> is gevaarlik en daarom het Chrome dit geblokkeer.</translation>
 <translation id="1597911401261118146"><ph name="BEGIN_LINK" />Meld by Chrome aan<ph name="END_LINK" /> om te kyk of jou wagwoorde teen dataskendings en ander sekuriteitkwessies beveilig word.</translation>
+<translation id="1619639070275605589">Hierdie handeling sal:
+          <ph name="LINE_BREAKS" />
+            • Jou afskopbladsy, Nuwe Oortjie-bladsy, soekenjin en vasgespelde oortjies terugstel
+            <ph name="LINE_BREAK" />
+            • Uitbreidings deaktiveer
+            <ph name="LINE_BREAK" />
+            • Webkoekies en ander tydelike werfdata uitvee
+            <ph name="LINE_BREAK" />
+            • Chrome-kortpaaie terugstel
+            <ph name="LINE_BREAKS" />
+            Boekmerke, geskiedenis en gestoorde wagwoorde sal nie geraak word nie.</translation>
 <translation id="1619887657840448962">Om Chrome veiliger te maak, het ons die volgende uitbreiding, wat nie in die <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> gelys word nie en wat dalk sonder jou medewete bygevoeg is, gedeaktiveer.</translation>
 <translation id="1628000112320670027">Kry hulp met Chrome</translation>
 <translation id="1640672724030957280">Laai tans af …</translation>
@@ -140,6 +151,7 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="2472092250898121027">Hierdie uitbreiding bevat wanware en is onveilig. Verwyder dit uit Chrome sodat dit nie meer jou data, insluitend jou persoonlike inligting, op werwe wat jy besoek kan sien en verander nie.</translation>
 <translation id="2485422356828889247">Deïnstalleer</translation>
 <translation id="2513154137948333830">Herselflaai word vereis: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Jou werk is veilig op Chrome</translation>
 <translation id="2534365042754120737">Laat Chrome toestemmings van werwe verwyder wat jy nie onlangs besoek het nie om jou data te beskerm. Stop nie kennisgewings nie.</translation>
 <translation id="2556847002339236023">Jou organisasie maak Chrome toe wanneer dit <ph name="TIMEOUT_DURATION" /> lank nie gebruik is nie. Blaaierdata is uitgevee. Dit kan geskiedenis, outovul en aflaaie insluit.</translation>
 <translation id="2563121210305478421">Herbegin Chrome?</translation>
@@ -244,6 +256,7 @@ Probeer om optimering toe te laat as hierdie bladsy nie werk soos verwag nie.</t
 <translation id="345171907106878721">Voeg jouself by Chrome</translation>
 <translation id="3453763134178591239">Chrome-bedryfstelsel se bepalings</translation>
 <translation id="3503306920980160878">Chrome het toegang tot jou ligging nodig om jou ligging met hierdie werf te deel</translation>
+<translation id="3512495006767217696">Ingebou in Chrome om jou te help om sterk wagwoorde te skep, te stoor en te outovul. Voeg die kortpad by vir maklike toegang</translation>
 <translation id="3539955434060988644">Maak skakel in Chrome Inco&amp;gnito-venster oop</translation>
 <translation id="3576528680708590453">Jou stelseladministrateur het Google Chrome opgestel om 'n alternatiewe blaaier oop te maak om na <ph name="TARGET_URL_HOSTNAME" /> toe te gaan.</translation>
 <translation id="3582972582564653026">Sinkroniseer en personaliseer Chrome op al jou toestelle</translation>
@@ -306,6 +319,7 @@ Probeer om optimering toe te laat as hierdie bladsy nie werk soos verwag nie.</t
 <translation id="4149882025268051530">Die installeerder kon nie die argief se saampersing omkeer nie. Laai Google Chrome asseblief weer af.</translation>
 <translation id="415112847282352845">Meld aan by Chrome om jou adresse en meer op al jou toestelle te kry. Hierdie adres sal in jou Google-rekening gestoor word nadat jy aangemeld het.</translation>
 <translation id="4153934450158521343">Chrome gaan binnekort toemaak en data uitvee</translation>
+<translation id="4159985264221160808">Jou organisasie sal sekere inligting kan bekyk of bestuur om jou werk op Chrome te beveilig</translation>
 <translation id="4173512894976930765">Werwe sal waarskynlik werk soos verwag. Jy sal by die meeste werwe afgemeld word wanneer jy alle Chrome-vensters toemaak, behalwe jou Google-rekening as jy by Chrome aangemeld is.</translation>
 <translation id="4175922240926474352">Chrome het hierdie aflaai geblokkeer omdat die werf nie ’n veilige verbinding gebruik nie en daar moontlik met die lêer gepeuter is</translation>
 <translation id="4191857738314598978">{0,plural, =1{Herbegin Chrome binne 'n dag}other{Herbegin Chrome binne # dae}}</translation>
@@ -337,6 +351,7 @@ Probeer om optimering toe te laat as hierdie bladsy nie werk soos verwag nie.</t
 <translation id="4493028449971051158">Aanskakelingfout: laat loop die installeerder as administrateur.</translation>
 <translation id="4501471624619070934">Installasie het misluk omdat toegang in hierdie land beperk is.</translation>
 <translation id="4571503333518166079">Gaan na Chrome-kennisgewinginstellings</translation>
+<translation id="4580939929828762295">Bly veilig met Google Wagwoordbestuurder</translation>
 <translation id="4592634244097223647">Vra Google oor hierdie prent</translation>
 <translation id="459622048091363950">Sodra Chrome toegang het, sal webwerwe jou kan vra vir toegang.</translation>
 <translation id="4598116752460667024">Soek enige proses op die lys.</translation>
@@ -525,6 +540,7 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="6438015621983209660">Verleng Verbeterde Veiligblaai met Chrome op jou foon</translation>
 <translation id="6442774133615368941">Koop, vertaal en identifiseer wat jy sien met jou kamera in die Chrome iOS-app</translation>
 <translation id="6448835208126432197">Gebruik kortpadsleutel om ’n deel van die skerm in Gemini in Chrome te kies.</translation>
+<translation id="6473659734176498825">’n Vereenvoudigde prent wat die Google Wagwoordbestuurder se toegangspunt in Chrome wys</translation>
 <translation id="6473905796280459355">Gaan na die Meer oor Chrome-bladsy</translation>
 <translation id="6481963882741794338">Koppel Chrome en ander Google-dienste vir personalisering en ander doeleindes</translation>
 <translation id="648319183876919572">Verbeterde Veiligblaai doen meer om jou teen gevaarlike webwerwe en aflaaie te beskerm</translation>
@@ -696,6 +712,7 @@ Google Chrome kan nie jou instellings terugstel nie.</translation>
 <translation id="8064965390968184078">1. Klik <ph name="BUTTON_LABEL" /> hier onder
 2. Klik <ph name="BUTTON_2" /> in jou Windows-instellings
 3. Klik <ph name="BUTTON_3" /> in die Windows-kennisgewing om Chrome vir kitstoegang op jou taakbalk vas te speld</translation>
+<translation id="8069447462453318634">Kies “Speld aan nutsbalk vas”</translation>
 <translation id="8074398340364918139">Om ’n spesifieke Chrome-kenmerk of -uitbreiding te soek, moet jy sy kortpad in die adresbalk tik, gevolg deur jou gekose sleutelbordsleutel</translation>
 <translation id="8077579734294125741">Ander Chrome-profiele</translation>
 <translation id="8086881907087796310">Installering het misluk omdat jou rekenaar nie aan die minimum hardewarevereistes voldoen nie.</translation>
@@ -781,6 +798,15 @@ Nuwe boekmerke kan nie in jou rekening gestoor word totdat jy sommige uitvee nie
 <translation id="8922998289262614701">Verwyder hierdie app se data uit Chrome</translation>
 <translation id="8925636929359899517">Ons gebruik inligting om hierdie diens te verbeter. Sien <ph name="BEGIN_LINK1" />privaatheidsbeleid<ph name="END_LINK1" /> en <ph name="BEGIN_LINK2" />diensbepalings<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Wissel Gemini in Chrome</translation>
+<translation id="8944232836376404813">Hierdie handeling sal:
+          <ph name="LINE_BREAKS" />
+            • Jou afskopbladsy, Nuwe Oortjie-bladsy, soekenjin en vasgespelde oortjies terugstel
+            <ph name="LINE_BREAK" />
+            • Uitbreidings deaktiveer
+            <ph name="LINE_BREAK" />
+            • Webkoekies en ander tydelike werfdata uitvee
+            <ph name="LINE_BREAKS" />
+            Boekmerke, geskiedenis en gestoorde wagwoorde sal nie geraak word nie.</translation>
 <translation id="8948460679427074738">Hierdie uitbreiding het nie privaatheidpraktyke gepubliseer nie, soos hoe dit data insamel en gebruik. Chrome beveel aan dat jy dit verwyder.</translation>
 <translation id="8958307504142971576">Jy het nou meer kenmerke beskikbaar in Chrome</translation>
 <translation id="8991530961471831170">Maak Gemini in Chrome oop</translation>

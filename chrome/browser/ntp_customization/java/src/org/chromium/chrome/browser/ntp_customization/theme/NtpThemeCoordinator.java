@@ -145,6 +145,10 @@ public class NtpThemeCoordinator {
     public void onImageSelectedForPreview(@Nullable Bitmap bitmap, String fileIdHash) {
         if (bitmap == null) return;
 
+        // A non-null file ID is used when NTP theme sync is enabled. This is because we only keep
+        // at most one image file for upload image theme if sync is disabled.
+        String fileIdHashToUse = mIsNtpThemeSyncEnabled ? fileIdHash : null;
+
         // Tablets bypass the preview dialog and apply the selection directly.
         if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)) {
             // Applies the background immediately for instant visual feedback.
@@ -155,11 +159,10 @@ public class NtpThemeCoordinator {
             NtpBackgroundDataUploadImage uploadImageData =
                     new NtpBackgroundDataUploadImage(
                             PlatformType.ANDROID_LOCAL,
-                            NtpCustomizationUtils.createBackgroundImageFile().getAbsolutePath(),
                             info,
                             bitmap,
                             /* primaryColor= */ null,
-                            mIsNtpThemeSyncEnabled ? fileIdHash : null);
+                            fileIdHashToUse);
             NtpCustomizationConfigManager.getInstance()
                     .onBackgroundDataChanged(mContext, uploadImageData);
             onPreviewClosed(/* isImageSelected= */ true);
@@ -168,7 +171,11 @@ public class NtpThemeCoordinator {
 
         mUploadPreviewCoordinator =
                 new UploadImagePreviewCoordinator(
-                        (Activity) mContext, mProfile, bitmap, fileIdHash, this::onPreviewClosed);
+                        (Activity) mContext,
+                        mProfile,
+                        bitmap,
+                        fileIdHashToUse,
+                        this::onPreviewClosed);
     }
 
     /**

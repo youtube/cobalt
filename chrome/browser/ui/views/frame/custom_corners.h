@@ -32,15 +32,29 @@ class CustomCorners : public views::ViewObserver {
   // Specifies which color to be used for the background.
   using ColorChoice = std::variant<FrameTheme, ToolbarTheme, ui::ColorId>;
 
-  // Background to be overlaid on the corner's original background.
-  struct FadeBackground {
-    // Specifies which color to be used for the fade background.
-    ColorChoice color;
-    // Specifies the opacity to be used for the fade background, with 0.0 being
-    // fully transparent and 1.0 being fully opaque.
-    float opacity;
+  // Represents a color choice with optional alpha. Special-case logic will be
+  // used to optimize fully opaque and fully transparent surfaces.
+  struct ColorChoiceWithAlpha {
+    ColorChoiceWithAlpha() = default;
+    inline explicit ColorChoiceWithAlpha(ColorChoice color_,
+                                         float opacity_ = 1.0f)
+        : color(color_), opacity(opacity_) {}
+    ColorChoiceWithAlpha(const ColorChoiceWithAlpha& other) = default;
+    ColorChoiceWithAlpha& operator=(const ColorChoiceWithAlpha& other) =
+        default;
 
-    bool operator==(const FadeBackground& other) const = default;
+    friend bool operator==(const ColorChoiceWithAlpha& left,
+                           const ColorChoiceWithAlpha& right) = default;
+
+    // Specifies the color or theme to be used to render the surface.
+    ColorChoice color;
+
+    // Specifies the opacity to be used for the surface, from 0 (fully
+    // transparent) to 1 (fully opaque).
+    float opacity = 1.0f;
+
+    inline bool is_opaque() const { return opacity == 1.0; }
+    inline bool is_visible() const { return opacity > 0.0; }
   };
 
   CustomCorners(const CustomCorners&) = delete;
@@ -49,7 +63,7 @@ class CustomCorners : public views::ViewObserver {
 
   // Fades the background of the region to `fade_background`. If
   // `fade_background` is nullopt, then the fade is removed.
-  void SetFadeBackground(std::optional<FadeBackground> fade_background);
+  void SetFadeBackground(std::optional<ColorChoiceWithAlpha> fade_background);
 
  protected:
   explicit CustomCorners(BrowserView&);
@@ -68,7 +82,7 @@ class CustomCorners : public views::ViewObserver {
   // Paints the given `path` on `canvas` using `color_choice`.
   void PaintPath(gfx::Canvas* canvas,
                  const SkPath& path,
-                 ColorChoice color_choice,
+                 ColorChoiceWithAlpha color_choice,
                  bool anti_alias) const;
 
  private:
@@ -81,7 +95,7 @@ class CustomCorners : public views::ViewObserver {
   base::CallbackListSubscription browser_paint_as_active_subscription_;
 
   // Background to be overlaid on the corner's original background.
-  std::optional<FadeBackground> fade_background_;
+  std::optional<ColorChoiceWithAlpha> fade_background_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_CUSTOM_CORNERS_H_

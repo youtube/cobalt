@@ -26,6 +26,7 @@
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-inlining.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/access-builder.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -139,6 +140,10 @@ class BlockOriginTrackingReducer : public Next {
   const maglev::BasicBlock* GetMaglevOrigin(const Block* block) {
     DCHECK_NOT_NULL(turboshaft_block_origins_[block->index()]);
     return turboshaft_block_origins_[block->index()];
+  }
+
+  SourcePosition GetSourcePositionFor(OpIndex index) {
+    return SourcePosition::Unknown();
   }
 
  private:
@@ -4276,6 +4281,14 @@ class GraphBuildingNodeProcessor {
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::BranchIfTypedArrayBounds* node,
+                                const maglev::ProcessingState& state) {
+    V<WordPtr> index = __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput()));
+    V<WordPtr> length = Map<WordPtr>(node->LengthInput());
+    V<Word32> condition = __ UintPtrLessThan(index, length);
+    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::BranchIfRootConstant* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition = RootEqual(node->ConditionInput(), node->root_index());
@@ -7188,7 +7201,9 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
                     std::optional<BailoutReason>* bailout)
       : GraphBuildingNodeProcessor(data, graph, temp_zone,
                                    maglev_compilation_unit, bailout),
-        graph_(graph) {}
+        graph_(graph),
+        data_(data),
+        maglev_compilation_unit_(maglev_compilation_unit) {}
 
   template <typename NodeT>
   maglev::ProcessResult Process(NodeT* node,
@@ -7203,6 +7218,14 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
       // just return kContinue for simplicity.
       TRACE("skipped (unreachable)");
       return maglev::ProcessResult::kContinue;
+    }
+
+    if (data_->node_origins() &&
+        maglev_compilation_unit_->has_graph_labeller()) {
+      int maglev_id = maglev_compilation_unit_->graph_labeller()->NodeId(node);
+      DCHECK_GE(maglev_id, 0);
+      GraphBuildingNodeProcessor::Asm().SetCurrentOrigin(
+          OpIndex::EncodeExternalId(maglev_id));
     }
 
     OpIndex end_index_before = graph_.EndIndex();
@@ -7227,6 +7250,8 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
 
  private:
   Graph& graph_;
+  PipelineData* data_;
+  maglev::MaglevCompilationUnit* maglev_compilation_unit_;
 };
 
 void PrintBytecode(PipelineData& data,
@@ -7252,9 +7277,6 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(
   JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
 
-  // TODO(nicohartmann): Should we have source positions here?
-  data->InitializeGraphComponent(nullptr, Graph::Origin::kCreatedFromMaglev);
-
   std::optional<BailoutReason> bailout;
   maglev::GraphProcessor<NodeProcessorBase> builder(
       data, data->graph(), temp_zone,
@@ -7265,6 +7287,18 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(
   for (OptimizedCompilationInfo::InlinedFunctionHolder holder :
        maglev_graph->inlined_functions()) {
     data->info()->inlined_functions().push_back(holder);
+  }
+
+  if (data->node_origins()) {
+    // Decode and record Maglev node origins for Turboshaft operations.
+    for (OpIndex index : data->graph().AllOperationIndices()) {
+      OpIndex origin = data->graph().operation_origins()[index];
+      if (origin.valid() && origin.IsExternalId()) {
+        data->node_origins()->SetNodeOrigin(
+            index.id(), origin.DecodeExternalId(),
+            data->node_origins()->previous_phase_name());
+      }
+    }
   }
 
   if (V8_UNLIKELY(bailout.has_value() &&

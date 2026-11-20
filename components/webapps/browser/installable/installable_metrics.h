@@ -291,6 +291,10 @@ class InstallableMetrics {
   // TrackInstallEvent.
   static bool IsReportableInstallSource(WebappInstallSource source);
 
+  // Returns whether |source| is considered a trusted install surface for
+  // setting trusted icons.
+  static bool IsInstallSurfaceConsideredTrusted(WebappInstallSource source);
+
   // Returns the appropriate WebappInstallSource for |web_contents| when the
   // install originates from |trigger|.
   static WebappInstallSource GetInstallSource(

@@ -116,15 +116,42 @@ BASE_DECLARE_FEATURE(kAimTriggeredThreadLinks);
 // Enables window tracking for Contextual Tasks.
 BASE_DECLARE_FEATURE(kContextualTasksWindowTracking);
 
-// When enabled, provides a list of query parameters that are required
-// for AI URLs being loaded from the contextual tasks extension API.
-BASE_DECLARE_FEATURE(kContextualTasksAiUrlAllowedParamsFilter);
+// Enables upload chunking for Contextual Tasks.
+BASE_DECLARE_FEATURE(kContextualTasksUploadChunking);
+
+// Enables sticky conversation UI that follows the user around.
+BASE_DECLARE_FEATURE(kContextualTasksEnableStickyConversation);
+
+BASE_DECLARE_FEATURE(kContextualTasksEnableSpatialModelToolbarLayout);
+
+enum class OverflowMenuItems {
+  kAllItems,
+  kAllWithoutNewThread,
+};
+
+extern const base::FeatureParam<OverflowMenuItems>
+    kContextualTasksSpatialModelToolbarLayoutOverflowItems;
 
 bool GetIsContextualTasksPdfCitationsEnabled();
 
 bool GetIsContextualTasksLazyFetchClusterInfoEnabled();
 
 bool GetIsContextualTasksWindowTrackingEnabled();
+
+bool GetIsContextualTasksUploadChunkingEnabled();
+
+bool GetContextualTasksSpatialModelToolbarLayoutEnabled();
+
+bool GetContextualTasksSpatialModelToolbarLayoutNewThreadInOverflow();
+
+bool IsStickyConversationEnabled();
+
+// Test utility for overriding conditions for sticky conversation.
+class ScopedStickyConversationEnabledForTesting {
+ public:
+  explicit ScopedStickyConversationEnabledForTesting(bool enabled);
+  ~ScopedStickyConversationEnabledForTesting();
+};
 
 // Enum denoting which entry point can show when enabled.
 enum class EntryPointOption {
@@ -327,9 +354,6 @@ extern bool ShouldForceCountryCodeUS();
 // Returns the user agent suffix to use for requests.
 extern std::string GetContextualTasksUserAgentSuffix();
 
-// Returns the allowed query parameters for AI URLs.
-extern std::vector<std::string> GetContextualTasksAiUrlAllowedParams();
-
 // Returns the URL parameter name to check for NLM mode.
 extern std::string GetContextualTasksNlmUrlParam();
 extern bool IsCustomNlmUiEnabled();
@@ -412,6 +436,8 @@ extern const char kEnableContextualTasksPinButtonInToolbarName[];
 extern const char kEnableContextualTasksPinButtonInToolbarDescription[];
 extern const char kContextualTasksHideMenuOnAiPageName[];
 extern const char kContextualTasksHideMenuOnAiPageDescription[];
+extern const char kContextualTasksEnableSpatialModelToolbarLayoutName[];
+extern const char kContextualTasksEnableSpatialModelToolbarLayoutDescription[];
 
 }  // namespace flag_descriptions
 

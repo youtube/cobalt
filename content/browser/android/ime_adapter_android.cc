@@ -7,8 +7,6 @@
 #include <android/input.h>
 
 #include <algorithm>
-#include <optional>
-#include <string_view>
 #include <vector>
 
 #include "base/android/jni_android.h"
@@ -50,20 +48,6 @@ using base::android::ToJavaArrayOfStrings;
 
 namespace content {
 namespace {
-
-constexpr size_t kMaxMetadataLength = 256;
-constexpr size_t kMaxPlaceholderLength = 1024;
-
-ScopedJavaLocalRef<jstring> ConvertOptionalString(
-    JNIEnv* env,
-    const std::optional<std::u16string>& opt_str,
-    size_t max_len) {
-  if (!opt_str.has_value()) {
-    return ScopedJavaLocalRef<jstring>();
-  }
-  std::u16string_view str_view = *opt_str;
-  return ConvertUTF16ToJavaString(env, str_view.substr(0, max_len));
-}
 
 // Maps a java KeyEvent into a NativeWebKeyboardEvent.
 // |java_key_event| is used to maintain a globalref for KeyEvent.
@@ -240,23 +224,11 @@ void ImeAdapterAndroid::UpdateState(const ui::mojom::TextInputState& state) {
 
   ScopedJavaLocalRef<jstring> jstring_text =
       ConvertUTF16ToJavaString(env, state.value.value_or(std::u16string()));
-
-  std::optional<std::u16string> html_field_name =
-      state.html_name ? state.html_name : state.html_id;
-
-  ScopedJavaLocalRef<jstring> jstring_html_label =
-      ConvertOptionalString(env, state.html_label, kMaxMetadataLength);
-  ScopedJavaLocalRef<jstring> jstring_html_field_name =
-      ConvertOptionalString(env, html_field_name, kMaxMetadataLength);
-  ScopedJavaLocalRef<jstring> jstring_html_placeholder =
-      ConvertOptionalString(env, state.html_placeholder, kMaxPlaceholderLength);
-
   Java_ImeAdapterImpl_updateState(
       env, obj, static_cast<int>(state.type), state.flags, state.mode,
       static_cast<int>(state.action), state.show_ime_if_needed,
-      state.always_hide_ime, jstring_text, jstring_html_label,
-      jstring_html_field_name, jstring_html_placeholder,
-      state.selection.start(), state.selection.end(),
+      state.always_hide_ime, jstring_text, state.selection.start(),
+      state.selection.end(),
       state.composition ? state.composition.value().start() : -1,
       state.composition ? state.composition.value().end() : -1,
       state.reply_to_request,

@@ -289,9 +289,7 @@ void MandatoryReauthBubbleControllerImpl::DoShowBubble() {
       GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
           web_contents());
   AutofillBubbleHandler* autofill_bubble_handler =
-      browser->GetBrowserForMigrationOnly()
-          ->window()
-          ->GetAutofillBubbleHandler();
+      BrowserWindow::FromBrowser(browser)->GetAutofillBubbleHandler();
   SetBubbleView(*autofill_bubble_handler->ShowMandatoryReauthBubble(
       web_contents(), this, /*is_user_gesture=*/false, current_bubble_type_));
 #endif  // BUILDFLAG(IS_ANDROID)

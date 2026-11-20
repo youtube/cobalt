@@ -13,7 +13,9 @@ import android.media.AudioManager;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -27,6 +29,8 @@ import org.chromium.build.annotations.Nullable;
  */
 @NullMarked
 public class AudioBecomingNoisyReceiver extends BroadcastReceiver {
+    private static final String TAG = "AudioNoisyReceiver";
+
     /** A listener for audio becoming noisy broadcasts. */
     public interface AudioBecomingNoisyObserver {
         void onAudioBecomingNoisy();
@@ -83,6 +87,9 @@ public class AudioBecomingNoisyReceiver extends BroadcastReceiver {
         ThreadUtils.assertOnUiThread();
         if (sInstance == null) {
             sInstance = new AudioBecomingNoisyReceiver();
+            // Register a resetter to prevent this singleton from leaking the Android context
+            // and registered observers between JUnit tests in the same JVM.
+            ResettersForTesting.register(AudioBecomingNoisyReceiver::resetForTesting);
         }
         return sInstance;
     }
@@ -100,15 +107,16 @@ public class AudioBecomingNoisyReceiver extends BroadcastReceiver {
         ThreadUtils.assertOnUiThread();
         if (!mIsRegistered) return;
         mIsRegistered = false;
-        ContextUtils.getApplicationContext().unregisterReceiver(AudioBecomingNoisyReceiver.this);
+        try {
+            ContextUtils.getApplicationContext()
+                    .unregisterReceiver(AudioBecomingNoisyReceiver.this);
+        } catch (IllegalArgumentException e) {
+            Log.w(TAG, "Failed to unregister receiver, it might not be registered", e);
+        }
     }
 
     public boolean isRegisteredForTesting() {
         return mIsRegistered;
-    }
-
-    public static void setInstanceForTesting(@Nullable AudioBecomingNoisyReceiver receiver) {
-        sInstance = receiver;
     }
 
     public static void resetForTesting() {

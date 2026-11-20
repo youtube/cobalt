@@ -15,6 +15,13 @@ public interface SidePanelCoordinatorAndroid extends ChromeAndroidTaskFeature {
     void init();
 
     /**
+     * Returns whether the side panel has content to show.
+     *
+     * @see org.chromium.chrome.browser.ui.side_ui.SideUiContainer#hasContentToShow
+     */
+    boolean hasContentToShow();
+
+    /**
      * Called when a window size change affects the side panel's visibility.
      *
      * <p>For example, when the window becomes too small, we may need to hide the side panel. When

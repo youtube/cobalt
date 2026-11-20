@@ -72,8 +72,6 @@ INSTANTIATE_TEST_SUITE_P(
 // Tests reading/writing name, email, company, address and phone number
 // information.
 TEST_P(AddressAutofillTableProfileTest, AutofillProfile) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures({features::kAutofillSupportPhoneticNameForJP}, {});
   AutofillProfile home_profile = CreateAutofillProfile();
 
   home_profile.SetRawInfoWithVerificationStatus(NAME_FIRST, u"John",
@@ -273,8 +271,6 @@ TEST_P(AddressAutofillTableProfileTest, ProfileTokenQuality) {
 }
 
 TEST_P(AddressAutofillTableProfileTest, UpdateAutofillProfile) {
-  base::test::ScopedFeatureList features;
-  features.InitWithFeatures({features::kAutofillSupportPhoneticNameForJP}, {});
   // Add a profile to the db.
   AutofillProfile profile = CreateAutofillProfile();
   profile.SetRawInfo(NAME_FIRST, u"John");
@@ -318,8 +314,6 @@ TEST_P(AddressAutofillTableProfileTest, UpdateAutofillProfile) {
 
 TEST_P(AddressAutofillTableProfileTest,
        AutofillJpProfileWithAlternativeNameConversion) {
-  base::test::ScopedFeatureList features{
-      features::kAutofillSupportPhoneticNameForJP};
   AutofillProfile profile = CreateAutofillProfile(AddressCountryCode("JP"));
 
   // Phonetic names in Katakana. They should be saved and later returned in

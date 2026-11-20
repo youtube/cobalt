@@ -93,8 +93,7 @@ class PasswordsPrivateDelegate
                            const std::u16string& username,
                            const std::u16string& password,
                            const std::u16string& note,
-                           bool use_account_store,
-                           content::WebContents* web_contents) = 0;
+                           bool use_account_store) = 0;
 
   // Updates a credential. Not all attributes can be updated.
   // |credential|: The credential to be updated. Matched to an existing
@@ -128,24 +127,18 @@ class PasswordsPrivateDelegate
   // |reason| The reason why the plaintext password is requested.
   // |callback| The callback that gets invoked with the saved password if it
   // could be obtained successfully, or std::nullopt otherwise.
-  // |web_contents| The web content object used as the UI; will be used to show
-  //     an OS-level authentication dialog if necessary.
   virtual void RequestPlaintextPassword(
       int id,
       api::passwords_private::PlaintextReason reason,
-      PlaintextPasswordCallback callback,
-      content::WebContents* web_contents) = 0;
+      PlaintextPasswordCallback callback) = 0;
 
   // Copies the plain text backup password for entry corresponding to the |id|
   // generated for each entry of the password list.
   // |id| the id created when going over the list of saved passwords.
   // |callback| The callback that gets invoked with true if the copy was
   // successful, or false otherwise.
-  // |web_contents| The web content object used as the UI; will be used to show
-  //     an OS-level authentication dialog if necessary.
   virtual void CopyPlaintextBackupPassword(
       int id,
-      content::WebContents* web_contents,
       base::OnceCallback<void(bool)> callback) = 0;
 
   // Requests the full PasswordUiEntry (with filled password) with the given id.
@@ -167,8 +160,7 @@ class PasswordsPrivateDelegate
   // no-op if any of these is true: |id| is invalid; |id| corresponds to a
   // password already stored in the account; or the user is not using the
   // account-scoped password storage.
-  virtual void MovePasswordsToAccount(const std::vector<int>& ids,
-                                      content::WebContents* web_contents) = 0;
+  virtual void MovePasswordsToAccount(const std::vector<int>& ids) = 0;
 
   // Fetches family members of the current user for the password sharing flow.
   // |callback|: Used to communicate the status of a request to fetch family
@@ -195,8 +187,7 @@ class PasswordsPrivateDelegate
   // |results_callback|: Used to communicate the status and summary of the
   // import process.
   virtual void ContinueImport(const std::vector<int>& selected_ids,
-                              ImportResultsCallback results_callback,
-                              content::WebContents* web_contents) = 0;
+                              ImportResultsCallback results_callback) = 0;
 
   // Resets the PasswordImporter if it is in the CONFLICTS/FINISHED state and
   // the user closes the dialog. Only when the PasswordImporter is in FINISHED
@@ -221,8 +212,7 @@ class PasswordsPrivateDelegate
   virtual bool IsAccountStorageActive() = 0;
 
   // Enables/disables use of the Google account storage for passwords
-  virtual void SetAccountStorageEnabled(bool enabled,
-                                        content::WebContents* web_contents) = 0;
+  virtual void SetAccountStorageEnabled(bool enabled) = 0;
 
   // Whether the account-storage in settings should be shown.
   virtual bool ShouldShowAccountStorageSettingToggle() = 0;
@@ -274,7 +264,6 @@ class PasswordsPrivateDelegate
   // successful authentication.  Invokes `callback` with true if the
   // authentication was successful, with false otherwise.
   virtual void SwitchBiometricAuthBeforeFillingState(
-      content::WebContents* web_contents,
       AuthenticationCallback callback) = 0;
 
   // Triggers a dialog for installing the shortcut for PasswordManager page.
@@ -298,17 +287,14 @@ class PasswordsPrivateDelegate
   // Starts the flow for disconnecting a Desktop Chrome client from the cloud
   // authenticator.
   virtual void DisconnectCloudAuthenticator(
-      content::WebContents* web_contents,
       base::OnceCallback<void(bool)> success_callback) = 0;
 
-  virtual bool IsConnectedToCloudAuthenticator(
-      content::WebContents* web_contents) = 0;
+  virtual bool IsConnectedToCloudAuthenticator() = 0;
 
   // Returns the current actionable error.
   virtual password_manager::ActionableError GetActionableError() = 0;
 
   virtual void DeleteAllPasswordManagerData(
-      content::WebContents* web_contents,
       base::OnceCallback<void(bool)> success_callback) = 0;
 
   virtual base::WeakPtr<PasswordsPrivateDelegate> AsWeakPtr() = 0;

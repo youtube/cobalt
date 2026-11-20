@@ -863,8 +863,8 @@ input[type="range" i]::-webkit-media-slider-container {
 
 input[type="range" i]:-internal-has-datalist::-webkit-slider-container {
     /*
-     * See LayoutThemeDefault. "22px" is
-     * 2 * (SliderTickOffsetFromTrackCenter() + SliderTickSize().Height()).
+     * See ThemePainter::PaintSliderTicks.
+     * "22px" == "2 * (kSliderTickOffset + kSliderTickBlockSize)
      */
     min-block-size: 22px;
 }
@@ -2495,25 +2495,22 @@ select optgroup optgroup {
 [overscrollcontainer="overlay"] {
   -internal-overscroll-area: overlay;
 }
-[overscrollarea],
-:-internal-overscroll-target {
+[overscrollcontainer] > [overscrollarea] {
   -internal-overscroll-position: auto;
 }
 
-:-internal-overscroll-target:not(:overscroll-open) {
+[overscrollcontainer] > [overscrollarea]:not(:overscroll-open) {
   interactivity: inert;
 }
 
-[overscrollarea]::backdrop,
-:-internal-overscroll-target::backdrop {
+[overscrollcontainer] > [overscrollarea]::backdrop {
   display: none;
   position: absolute;
   inset: 0;
   background-color: rgba(0,0,0,0.1);
 }
 
-[overscrollarea]:overscroll-open::backdrop,
-:-internal-overscroll-target:overscroll-open::backdrop {
+[overscrollcontainer] > [overscrollarea]:overscroll-open::backdrop {
   display: block;
 }
 
@@ -2592,7 +2589,12 @@ select optgroup optgroup {
   option:active-option {
     outline: black auto 1px;
   }
-  option:filtered {
+  /* The additional selectors here are just for higher specificity than the
+   * rule which sets display:flex for
+   * `select:not(:-internal-list-box)[multiple] option`. */
+  option:filtered,
+  select:not(:-internal-list-box):not([multiple]) option:filtered,
+  select:not(:-internal-list-box)[multiple] option:filtered {
     display: none;
   }
 }

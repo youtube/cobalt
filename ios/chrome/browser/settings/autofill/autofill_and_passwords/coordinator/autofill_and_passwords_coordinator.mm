@@ -42,6 +42,21 @@
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 
+namespace {
+// Values correspond to YourSavedInfoDataCategory in enums.xml.
+// LINT.IfChange(YourSavedInfoDataCategory)
+enum class YourSavedInfoDataCategory {
+  kPasswordManager = 0,
+  kPayments = 1,
+  kContactInfo = 2,
+  kIdentityDocs = 3,
+  kTravel = 4,
+  kShopping = 5,
+  kMaxValue = kShopping,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:YourSavedInfoDataCategory)
+}  // namespace
+
 @interface AutofillAndPasswordsCoordinator () <
     AutofillAndPasswordsTableViewControllerDelegate,
     AutofillSettingsCoordinatorDelegate,
@@ -112,6 +127,7 @@
 
   [self.baseNavigationController pushViewController:_viewController
                                            animated:YES];
+  base::RecordAction(base::UserMetricsAction("AutofillYourSavedInfoViewed"));
 }
 
 - (void)stop {
@@ -174,9 +190,12 @@
   }
 
   base::RecordAction(base::UserMetricsAction("Options_ShowPasswordManager"));
+  base::UmaHistogramEnumeration("PasswordManager.ManagePasswordsReferrer",
+                                password_manager::ManagePasswordsReferrer::
+                                    kChromeSettingsAutofillAndPasswords);
   base::UmaHistogramEnumeration(
-      "PasswordManager.ManagePasswordsReferrer",
-      password_manager::ManagePasswordsReferrer::kChromeSettings);
+      "Autofill.YourSavedInfoSettingsPage.CategoryLinkClick",
+      YourSavedInfoDataCategory::kPasswordManager);
 
   _passwordsCoordinator = [[PasswordsCoordinator alloc]
       initWithBaseNavigationController:self.baseNavigationController
@@ -192,6 +211,9 @@
   }
 
   base::RecordAction(base::UserMetricsAction("AutofillCreditCardsViewed"));
+  base::UmaHistogramEnumeration(
+      "Autofill.YourSavedInfoSettingsPage.CategoryLinkClick",
+      YourSavedInfoDataCategory::kPayments);
   AutofillCreditCardTableViewController* creditCardController =
       [[AutofillCreditCardTableViewController alloc]
           initWithBrowser:self.browser];
@@ -217,6 +239,9 @@
   }
 
   base::RecordAction(base::UserMetricsAction("AutofillAddressesViewed"));
+  base::UmaHistogramEnumeration(
+      "Autofill.YourSavedInfoSettingsPage.CategoryLinkClick",
+      YourSavedInfoDataCategory::kContactInfo);
   AutofillProfileTableViewController* profileController =
       [[AutofillProfileTableViewController alloc] initWithBrowser:self.browser];
 
@@ -240,7 +265,9 @@
     return;
   }
 
-  // TODO(crbug.com/500341282): Add missing metric.
+  base::UmaHistogramEnumeration(
+      "Autofill.YourSavedInfoSettingsPage.CategoryLinkClick",
+      YourSavedInfoDataCategory::kIdentityDocs);
 
   _identityDocsCoordinator = [[IdentityDocsCoordinator alloc]
       initWithBaseNavigationController:self.baseNavigationController
@@ -255,7 +282,9 @@
     return;
   }
 
-  // TODO(crbug.com/500341282): Add missing metric.
+  base::UmaHistogramEnumeration(
+      "Autofill.YourSavedInfoSettingsPage.CategoryLinkClick",
+      YourSavedInfoDataCategory::kTravel);
 
   _travelInfoCoordinator = [[TravelInfoCoordinator alloc]
       initWithBaseNavigationController:self.baseNavigationController
@@ -270,7 +299,8 @@
     return;
   }
 
-  // TODO(crbug.com/500341282): Add missing metric.
+  base::UmaHistogramBoolean(
+      "Autofill.YourSavedInfoSettingsPage.AutofillSettingsCategoryClick", true);
 
   _autofillSettingsCoordinator = [[AutofillSettingsCoordinator alloc]
       initWithBaseNavigationController:self.baseNavigationController

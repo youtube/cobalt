@@ -230,9 +230,6 @@ BASE_FEATURE_PARAM(int,
 // Blocks local network requests without user permission to prevent exploitation
 // of vulnerable local devices.
 //
-// This feature is being built as a replacement for Private Network Access
-// (PNA), and if this is on PNA features may stop working.
-//
 // Spec: https://wicg.github.io/local-network-access/
 BASE_FEATURE(kLocalNetworkAccessChecks, base::FEATURE_ENABLED_BY_DEFAULT);
 

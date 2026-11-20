@@ -524,7 +524,8 @@ class ExceptionHandlerInfo;
   V(BranchIfFloat64Compare)                  \
   V(BranchIfUndefinedOrNull)                 \
   V(BranchIfUndetectable)                    \
-  V(BranchIfJSReceiver)
+  V(BranchIfJSReceiver)                      \
+  V(BranchIfTypedArrayBounds)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
   V(Switch)                              \
@@ -2297,6 +2298,10 @@ class NodeBase : public ZoneObject {
     DCHECK(properties().has_eager_deopt_info());
     return reinterpret_cast<EagerDeoptInfo*>(deopt_info_address());
   }
+  const EagerDeoptInfo* eager_deopt_info() const {
+    DCHECK(properties().has_eager_deopt_info());
+    return reinterpret_cast<const EagerDeoptInfo*>(deopt_info_address());
+  }
 
   LazyDeoptInfo* lazy_deopt_info() {
     DCHECK(properties().can_lazy_deopt());
@@ -2304,6 +2309,14 @@ class NodeBase : public ZoneObject {
                         ? EagerDeoptInfoSize(properties())
                         : 0;
     return reinterpret_cast<LazyDeoptInfo*>(deopt_info_address() + offset);
+  }
+  const LazyDeoptInfo* lazy_deopt_info() const {
+    DCHECK(properties().can_lazy_deopt());
+    size_t offset = properties().has_eager_deopt_info()
+                        ? EagerDeoptInfoSize(properties())
+                        : 0;
+    return reinterpret_cast<const LazyDeoptInfo*>(deopt_info_address() +
+                                                  offset);
   }
 
   const RegisterSnapshot& register_snapshot() const {
@@ -2314,6 +2327,11 @@ class NodeBase : public ZoneObject {
   ExceptionHandlerInfo* exception_handler_info() {
     DCHECK(properties().can_throw());
     return reinterpret_cast<ExceptionHandlerInfo*>(exception_handler_address());
+  }
+  const ExceptionHandlerInfo* exception_handler_info() const {
+    DCHECK(properties().can_throw());
+    return reinterpret_cast<const ExceptionHandlerInfo*>(
+        exception_handler_address());
   }
 
   void set_register_snapshot(RegisterSnapshot snapshot) {
@@ -2786,6 +2804,12 @@ class ValueNode : public Node {
 
   ValueNode* UnwrapIdentities();
   const ValueNode* UnwrapIdentities() const;
+
+  // Like UnwrapIdentities, but also unwraps phis with a single input (which are
+  // not exception phis or resumable loop phis), since the optimizer replaces
+  // those with their input.
+  // TODO(dmercadier): Remove this if https://crrev.com/c/7117478 ever lands.
+  ValueNode* UnwrapIdentitiesAndPhis();
 
   // Unwrap identities and conversions.
   ValueNode* Unwrap();
@@ -11857,6 +11881,21 @@ class BranchIfReferenceEqual
     // Don't need to decompress values to reference compare.
   }
 #endif
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class BranchIfTypedArrayBounds
+    : public BranchControlNodeT<2, BranchIfTypedArrayBounds> {
+ public:
+  explicit BranchIfTypedArrayBounds(uint64_t bitfield,
+                                    BasicBlockRef* if_true_refs,
+                                    BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  DECLARE_INPUTS(Index, Length)
+  DECLARE_INPUT_TYPES(Int32, IntPtr)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

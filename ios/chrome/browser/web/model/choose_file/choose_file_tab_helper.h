@@ -93,6 +93,8 @@ class ChooseFileTabHelper : public web::WebStateUserData<ChooseFileTabHelper>,
   // web::WebStateObserver implementation.
   void DidStartNavigation(web::WebState* web_state,
                           web::NavigationContext* navigation_context) override;
+  void DidFinishNavigation(web::WebState* web_state,
+                           web::NavigationContext* navigation_context) override;
   void WasHidden(web::WebState* web_state) override;
   void WebStateDestroyed(web::WebState* web_state) override;
 
@@ -128,6 +130,9 @@ class ChooseFileTabHelper : public web::WebStateUserData<ChooseFileTabHelper>,
 
   // Latest `ChooseFileEvent` received from JavaScript.
   std::optional<ChooseFileEvent> last_choose_file_event_;
+
+  // Whether a cross-document navigation is currently pending.
+  bool is_pending_navigation_ = false;
 
   // Handler to show/hide the file upload panel UI.
   __weak id<FileUploadPanelCommands> file_upload_panel_handler_ = nil;

@@ -415,7 +415,8 @@ TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionData) {
   NetworkAnonymizationKey anonymization_key;
 
   HostCache::Key key("example.com", DnsQueryType::UNSPECIFIED, 0,
-                     HostResolverSource::ANY, anonymization_key);
+                     HostResolverSource::ANY, anonymization_key,
+                     handles::kInvalidNetworkHandle);
   context.host_cache()->Set(
       key,
       HostCache::Entry(OK, /*ip_endpoints=*/{}, /*aliases=*/{},
@@ -429,9 +430,10 @@ TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionData) {
           tick_clock.NowTicks() + base::Seconds(10),
           clock.Now() + base::Seconds(10),
           HostResolverInternalResult::Source::kDns, ERR_NAME_NOT_RESOLVED),
-      anonymization_key, HostResolverSource::DNS, /*secure=*/false);
-  ASSERT_TRUE(
-      context.host_resolver_cache()->Lookup("domain.test", anonymization_key));
+      anonymization_key, handles::kInvalidNetworkHandle,
+      HostResolverSource::DNS, /*secure=*/false);
+  ASSERT_TRUE(context.host_resolver_cache()->Lookup(
+      "domain.test", anonymization_key, handles::kInvalidNetworkHandle));
 
   DnsConfig config = CreateDnsConfig(/*num_servers=*/2, /*num_doh_servers=*/2);
   scoped_refptr<DnsSession> session = CreateDnsSession(config);
@@ -439,8 +441,8 @@ TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionData) {
                                             /*network_change=*/false);
 
   EXPECT_FALSE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
-  EXPECT_FALSE(
-      context.host_resolver_cache()->Lookup("domain.test", anonymization_key));
+  EXPECT_FALSE(context.host_resolver_cache()->Lookup(
+      "domain.test", anonymization_key, handles::kInvalidNetworkHandle));
 
   // Re-add to the caches and now add some DoH server status.
   context.host_cache()->Set(
@@ -454,12 +456,13 @@ TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionData) {
           tick_clock.NowTicks() + base::Seconds(10),
           clock.Now() + base::Seconds(10),
           HostResolverInternalResult::Source::kDns, ERR_NAME_NOT_RESOLVED),
-      anonymization_key, HostResolverSource::DNS, /*secure=*/false);
+      anonymization_key, handles::kInvalidNetworkHandle,
+      HostResolverSource::DNS, /*secure=*/false);
   context.RecordServerSuccess(/*server_index=*/0u, /*is_doh_server=*/true,
                               session.get());
   ASSERT_TRUE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
-  ASSERT_TRUE(
-      context.host_resolver_cache()->Lookup("domain2.test", anonymization_key));
+  ASSERT_TRUE(context.host_resolver_cache()->Lookup(
+      "domain2.test", anonymization_key, handles::kInvalidNetworkHandle));
   ASSERT_TRUE(context.GetDohServerAvailability(0u, session.get()));
 
   // Invalidate again.
@@ -469,8 +472,8 @@ TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionData) {
                                             /*network_change=*/true);
 
   EXPECT_FALSE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
-  EXPECT_FALSE(
-      context.host_resolver_cache()->Lookup("domain2.test", anonymization_key));
+  EXPECT_FALSE(context.host_resolver_cache()->Lookup(
+      "domain2.test", anonymization_key, handles::kInvalidNetworkHandle));
   EXPECT_FALSE(context.GetDohServerAvailability(0u, session.get()));
   EXPECT_FALSE(context.GetDohServerAvailability(0u, session2.get()));
 }
@@ -490,7 +493,8 @@ TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionDataSameSession) {
   // Add to the caches and add some DoH server status.
   NetworkAnonymizationKey anonymization_key;
   HostCache::Key key("example.com", DnsQueryType::UNSPECIFIED, 0,
-                     HostResolverSource::ANY, anonymization_key);
+                     HostResolverSource::ANY, anonymization_key,
+                     handles::kInvalidNetworkHandle);
   context.host_cache()->Set(
       key,
       HostCache::Entry(OK, /*ip_endpoints=*/{}, /*aliases=*/{"example.com"},
@@ -502,12 +506,13 @@ TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionDataSameSession) {
           tick_clock.NowTicks() + base::Seconds(10),
           clock.Now() + base::Seconds(10),
           HostResolverInternalResult::Source::kDns, ERR_NAME_NOT_RESOLVED),
-      anonymization_key, HostResolverSource::DNS, /*secure=*/false);
+      anonymization_key, handles::kInvalidNetworkHandle,
+      HostResolverSource::DNS, /*secure=*/false);
   context.RecordServerSuccess(/*server_index=*/0u, /*is_doh_server=*/true,
                               session.get());
   ASSERT_TRUE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
-  ASSERT_TRUE(
-      context.host_resolver_cache()->Lookup("domain.test", anonymization_key));
+  ASSERT_TRUE(context.host_resolver_cache()->Lookup(
+      "domain.test", anonymization_key, handles::kInvalidNetworkHandle));
   ASSERT_TRUE(context.GetDohServerAvailability(0u, session.get()));
 
   // Invalidate again with the same session.
@@ -516,8 +521,8 @@ TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionDataSameSession) {
 
   // Expect host cache to be invalidated but not the per-session data.
   EXPECT_FALSE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
-  EXPECT_FALSE(
-      context.host_resolver_cache()->Lookup("domain.test", anonymization_key));
+  EXPECT_FALSE(context.host_resolver_cache()->Lookup(
+      "domain.test", anonymization_key, handles::kInvalidNetworkHandle));
   EXPECT_TRUE(context.GetDohServerAvailability(0u, session.get()));
 }
 

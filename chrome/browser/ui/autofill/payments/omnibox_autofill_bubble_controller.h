@@ -5,8 +5,11 @@
 #ifndef CHROME_BROWSER_UI_AUTOFILL_PAYMENTS_OMNIBOX_AUTOFILL_BUBBLE_CONTROLLER_H_
 #define CHROME_BROWSER_UI_AUTOFILL_PAYMENTS_OMNIBOX_AUTOFILL_BUBBLE_CONTROLLER_H_
 
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_controller_base.h"
+#include "components/autofill/core/browser/suggestions/suggestion.h"
+#include "components/autofill/core/browser/ui/autofill_suggestion_delegate.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 namespace content {
@@ -18,6 +21,9 @@ class TabInterface;
 }
 
 namespace autofill {
+
+class AutofillBubbleBase;
+enum class PaymentsUiClosedReason;
 
 // Controller class that exposes functionality to omnibox autofill bubbles.
 // Owned by TabFeatures.
@@ -41,12 +47,39 @@ class OmniboxAutofillBubbleController : public AutofillBubbleControllerBase {
   BubbleType GetBubbleType() const override;
   base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
+  // Initializes the controller with suggestions and callbacks.
+  void Initialize(
+      std::vector<Suggestion> suggestions,
+      base::RepeatingCallback<void(base::span<const Suggestion>)>
+          on_suggestions_shown,
+      base::RepeatingCallback<void(const Suggestion&)> did_select_suggestion,
+      base::RepeatingCallback<
+          void(const Suggestion&,
+               const AutofillSuggestionDelegate::SuggestionMetadata&)>
+          did_accept_suggestion);
+
+  AutofillBubbleBase* GetBubbleView() const { return bubble_view(); }
+
+  void OnBubbleClosed(PaymentsUiClosedReason reason);
+
+  base::WeakPtr<OmniboxAutofillBubbleController> GetWeakPtr();
+
  protected:
   void DoShowBubble() override;
 
  private:
   ui::ScopedUnownedUserData<OmniboxAutofillBubbleController>
       scoped_unowned_user_data_;
+
+  std::vector<Suggestion> suggestions_;
+  base::RepeatingCallback<void(base::span<const Suggestion>)>
+      on_suggestions_shown_callback_;
+  base::RepeatingCallback<void(const Suggestion&)>
+      did_select_suggestion_callback_;
+  base::RepeatingCallback<void(
+      const Suggestion&,
+      const AutofillSuggestionDelegate::SuggestionMetadata&)>
+      did_accept_suggestion_callback_;
 
   base::WeakPtrFactory<OmniboxAutofillBubbleController> weak_ptr_factory_{this};
 };

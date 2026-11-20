@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/views/animations/side_panel_animations.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
+#include "chrome/browser/ui/views/frame/custom_corners.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
@@ -1194,8 +1195,35 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
     views().vertical_tab_strip_region_view->SetIsExitingExpandOnHoverForLayout(
         vertical_tab_strip_animation.current_motion &&
         vertical_tab_strip_animation.expand_on_hover > 0.0 &&
-        vertical_tab_strip_animation.top_offset > 0 &&
-        will_wrap_at_destination);
+        vertical_tab_strip_animation.top_offset > 0);
+
+    float transition_button_opacity = 1.0f;
+    if (toolbar_height > 0) {
+      if (!will_wrap_at_destination &&
+          (vertical_tab_strip_animation.current_motion ==
+               TabStripAnimations::kExpand ||
+           vertical_tab_strip_animation.current_motion ==
+               TabStripAnimations::kCollapse)) {
+        constexpr float kOpacityTransitionStart = 0.2f;
+        constexpr float kOpacityTransitionEnd = 0.8f;
+        if (vertical_tab_strip_animation.tab_strip_width <
+            kOpacityTransitionStart) {
+          transition_button_opacity =
+              1.0f - (vertical_tab_strip_animation.tab_strip_width /
+                      kOpacityTransitionStart);
+        } else if (vertical_tab_strip_animation.tab_strip_width >
+                   kOpacityTransitionEnd) {
+          transition_button_opacity =
+              (vertical_tab_strip_animation.tab_strip_width -
+               kOpacityTransitionEnd) /
+              (1.0f - kOpacityTransitionEnd);
+        } else {
+          transition_button_opacity = 0.0f;
+        }
+      }
+    }
+    views().vertical_tab_strip_region_view->SetTransitionButtonOpacity(
+        transition_button_opacity);
   }
 
   return layout;
@@ -1355,15 +1383,17 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
     CHECK(vertical_tabs_background)
         << "Expected vertical tab strip to have a CustomCornersBackground.";
 
-    if (features::IsGlassFrameEnabled()) {
-      float background_alpha = 0.0f;
+    float glass_alpha = 1.0f;
+    if (features::IsGlassFrameEnabled() &&
+        !is_fullscreen(layout_data_->window_state)) {
       if (animation.tab_strip_width != 0.0) {
-        background_alpha = 1.0f - animation.tab_strip_width;
+        glass_alpha = 1.0f - animation.tab_strip_width;
       } else {
-        background_alpha =
-            delegate().IsVerticalTabStripCollapsed() ? 1.0f : 0.0f;
+        glass_alpha = delegate().IsVerticalTabStripCollapsed() ? 1.0f : 0.0f;
       }
-      vertical_tabs_background->SetAlpha(background_alpha);
+      vertical_tabs_background->SetPrimaryColor(
+          CustomCorners::ColorChoiceWithAlpha(CustomCorners::FrameTheme(),
+                                              glass_alpha));
     }
 
     // Ensure that corners of the window remain rounded.
@@ -1416,9 +1446,9 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
       if (!views().projects_panel_container->is_elevated()) {
         auto projects_panel_reveal_amount =
             views().projects_panel_container->GetResizeAnimationValue();
-        CustomCorners::FadeBackground const fade_background{
-            .color = projects_panel::kProjectsPanelBackgroundColor,
-            .opacity = static_cast<float>(projects_panel_reveal_amount)};
+        CustomCorners::ColorChoiceWithAlpha const fade_background{
+            projects_panel::kProjectsPanelBackgroundColor,
+            static_cast<float>(projects_panel_reveal_amount)};
         vertical_tabs_background->SetFadeBackground(fade_background);
         vertical_tabs_top_corner->SetFadeBackground(fade_background);
         vertical_tabs_bottom_corner->SetFadeBackground(fade_background);
@@ -1443,10 +1473,11 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
     CustomCornersBackground::Outline vertical_tabs_outline;
     vertical_tabs_outline.color = kColorVerticalTabStripShadow;
     // Vertical tabs outline fades partially during expand-on-hover to be
-    // replaced with shadow.
+    // replaced with shadow. Note that the glass alpha will affect the entire
+    // paint operation, so no need to re-multiply it in here.
     vertical_tabs_outline.opacity =
         1.0 - kVerticalTabStripOutlineFadeOnHover *
-                  vertical_tabs_bottom_corner_amount;
+                  vertical_tabs_bottom_corner_amount * glass_alpha;
     // Vertical tabs outline always draws trailing edge.
     vertical_tabs_outline.trailing = true;
     // Top edge is drawn when the tabstrip is not flush with the edge of the

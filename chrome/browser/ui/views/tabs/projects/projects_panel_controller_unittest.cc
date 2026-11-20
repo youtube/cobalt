@@ -10,7 +10,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
-#include "chrome/browser/contextual_tasks/mock_contextual_tasks_ui_service.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"

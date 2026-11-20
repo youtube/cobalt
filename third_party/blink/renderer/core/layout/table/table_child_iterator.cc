@@ -55,7 +55,7 @@ TableChildIterator::Entry TableChildIterator::NextChild() {
     if (child_token_idx_ < child_break_tokens.size()) {
       current_child_break_token =
           To<BlockBreakToken>(child_break_tokens[child_token_idx_++].Get());
-      current_child = To<BlockNode>(current_child_break_token->InputNode());
+      current_child = current_child_break_token->InputNode();
 
       // Normally (for non-tables), when we're out of break tokens, we can
       // just proceed to the next sibling node, but we can't do this for

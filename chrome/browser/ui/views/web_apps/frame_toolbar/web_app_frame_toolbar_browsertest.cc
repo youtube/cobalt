@@ -44,6 +44,7 @@
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/download/download_display.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/page_action/page_action_properties_provider.h"
@@ -2059,7 +2060,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   WebAppToolbarButtonContainer* toolbar_button_container =
       helper()->web_app_frame_toolbar()->get_right_container_for_testing();
   EXPECT_EQ(toolbar_button_container->GetDownloadButton(), nullptr);
-  EXPECT_FALSE(non_app_browser->window()
+  EXPECT_FALSE(BrowserWindow::FromBrowser(non_app_browser)
                    ->GetDownloadBubbleUIController()
                    ->GetDownloadDisplayController()
                    ->download_display_for_testing()
@@ -2083,7 +2084,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   EXPECT_TRUE(toolbar_button_container->GetDownloadButton()->GetVisible());
 
   // The download button is not visible in the non-app browser.
-  EXPECT_FALSE(non_app_browser->window()
+  EXPECT_FALSE(BrowserWindow::FromBrowser(non_app_browser)
                    ->GetDownloadBubbleUIController()
                    ->GetDownloadDisplayController()
                    ->download_display_for_testing()
@@ -2104,7 +2105,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   WebAppToolbarButtonContainer* toolbar_button_container =
       helper()->web_app_frame_toolbar()->get_right_container_for_testing();
   EXPECT_EQ(toolbar_button_container->GetDownloadButton(), nullptr);
-  EXPECT_FALSE(non_app_browser->window()
+  EXPECT_FALSE(BrowserWindow::FromBrowser(non_app_browser)
                    ->GetDownloadBubbleUIController()
                    ->GetDownloadDisplayController()
                    ->download_display_for_testing()
@@ -2120,7 +2121,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   EXPECT_EQ(toolbar_button_container->GetDownloadButton(), nullptr);
 
   // The download button is visible in the non-app browser.
-  EXPECT_TRUE(non_app_browser->window()
+  EXPECT_TRUE(BrowserWindow::FromBrowser(non_app_browser)
                   ->GetDownloadBubbleUIController()
                   ->GetDownloadDisplayController()
                   ->download_display_for_testing()

@@ -63,6 +63,12 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
   void SetNeedsRedraw(const gfx::Rect& damage_rect) override;
   void SetTargetLocalSurfaceId(
       const viz::LocalSurfaceId& target_local_surface_id) override;
+  void SetUnboundedFrameSink(
+      std::unique_ptr<LayerTreeFrameSink> unbounded_frame_sink,
+      const viz::LocalSurfaceId& local_surface_id) override;
+  void DismissUnboundedFrameSink() override;
+  void SetUnboundedLocalSurfaceId(
+      const viz::LocalSurfaceId& local_surface_id) override;
   void DetachInputDelegateAndRenderFrameObserver() override;
   bool RequestedAnimatePending() override;
   void SetDeferMainFrameUpdate(bool defer_main_frame_update) override;

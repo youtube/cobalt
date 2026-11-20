@@ -33,8 +33,6 @@ public class ScrollCaptureCallbackImpl implements ScrollCaptureCallback {
     }
 
     @Override
-    // TODO(crbug.com/40779510): work out why this is causing a lint error
-    @SuppressWarnings("Override")
     public void onScrollCaptureSearch(
             CancellationSignal cancellationSignal, Consumer<Rect> onReady) {
         Rect r = mDelegate.onScrollCaptureSearch(cancellationSignal);
@@ -42,33 +40,22 @@ public class ScrollCaptureCallbackImpl implements ScrollCaptureCallback {
     }
 
     @Override
-    // TODO(crbug.com/40779510): work out why this is causing a lint error
-    @SuppressWarnings("Override")
     public void onScrollCaptureStart(
             ScrollCaptureSession session, CancellationSignal signal, Runnable onReady) {
         mDelegate.onScrollCaptureStart(signal, onReady);
     }
 
     @Override
-    // TODO(crbug.com/40779510): work out why this is causing a lint error
-    @SuppressWarnings("Override")
     public void onScrollCaptureImageRequest(
             ScrollCaptureSession session,
             CancellationSignal signal,
             Rect captureArea,
             Consumer<Rect> onComplete) {
         mDelegate.onScrollCaptureImageRequest(
-                session.getSurface(),
-                signal,
-                captureArea,
-                (r) -> {
-                    onComplete.accept(r);
-                });
+                session.getSurface(), signal, captureArea, onComplete::accept);
     }
 
     @Override
-    // TODO(crbug.com/40779510): work out why this is causing a lint error
-    @SuppressWarnings("Override")
     public void onScrollCaptureEnd(Runnable onReady) {
         mDelegate.onScrollCaptureEnd(onReady);
     }

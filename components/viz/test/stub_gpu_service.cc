@@ -4,6 +4,8 @@
 
 #include "components/viz/test/stub_gpu_service.h"
 
+#include <utility>
+
 #include "components/persistent_cache/pending_backend.h"
 
 namespace viz {
@@ -119,6 +121,9 @@ void StubGpuService::Crash() {}
 void StubGpuService::Hang() {}
 
 void StubGpuService::ThrowJavaException() {}
+
+void StubGpuService::InduceMemoryInvalidAccess(
+    mojom::MemoryInvalidAccessType action) {}
 
 #if BUILDFLAG(ENABLE_VRP_FLAGS)
 void StubGpuService::GetVrpFlags(GetVrpFlagsCallback callback) {

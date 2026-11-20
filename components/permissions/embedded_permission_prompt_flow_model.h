@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/permission_prompt.h"
@@ -98,7 +99,7 @@ class EmbeddedPermissionPromptFlowModel {
     return prompt_types_;
   }
 
-  const std::vector<base::WeakPtr<permissions::PermissionRequest>>& requests()
+  const std::vector<base::SafeRef<permissions::PermissionRequest>>& requests()
       const {
     return requests_;
   }
@@ -132,7 +133,7 @@ class EmbeddedPermissionPromptFlowModel {
   raw_ptr<PermissionPrompt::Delegate> delegate_;
 
   std::set<ContentSettingsType> prompt_types_;
-  std::vector<base::WeakPtr<permissions::PermissionRequest>> requests_;
+  std::vector<base::SafeRef<permissions::PermissionRequest>> requests_;
 
   raw_ptr<content::WebContents> web_contents_;
 

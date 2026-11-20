@@ -12,6 +12,7 @@
 
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "components/content_settings/core/common/content_settings.h"
@@ -121,8 +122,8 @@ class PermissionRequest {
       bool format_origin_bold);
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
-  // Returns a weak pointer to this instance.
-  base::WeakPtr<PermissionRequest> GetWeakPtr();
+  // Returns a safe reference to this instance.
+  base::SafeRef<PermissionRequest> GetSafeRef();
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   // Returns whether displaying a confirmation chip for the request is

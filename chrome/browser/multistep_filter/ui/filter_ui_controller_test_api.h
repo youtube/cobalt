@@ -20,6 +20,8 @@ namespace favicon {
 class FaviconService;
 }  // namespace favicon
 
+class PrefService;
+
 namespace multistep_filter {
 
 class MultistepFilterService;
@@ -48,6 +50,10 @@ class FilterUiControllerTestApi {
 
   void set_favicon_service(favicon::FaviconService* service) {
     controller_->favicon_service_ = service;
+  }
+
+  void set_pref_service(PrefService* service) {
+    controller_->pref_service_ = service;
   }
 
   // Exposes the private OnFaviconAvailable method to simulate asynchronous

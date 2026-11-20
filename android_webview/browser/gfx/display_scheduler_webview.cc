@@ -73,7 +73,8 @@ bool DisplaySchedulerWebView::IsFrameSinkOverlayed(
          overlays_info_provider_->IsFrameSinkOverlayed(frame_sink_id);
 }
 
-void DisplaySchedulerWebView::OnDisplayDamaged(viz::SurfaceId surface_id) {
+void DisplaySchedulerWebView::OnDisplayDamaged(viz::SurfaceId surface_id,
+                                               viz::BeginFrameId frame_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Code below is part of old invalidation heuristic.

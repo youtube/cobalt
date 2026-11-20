@@ -232,6 +232,10 @@ class MHTMLGenerationManager::Job {
   // begins page serialization to created file.
   void initializeJob(WebContents* web_contents);
 
+  perfetto::NamedTrack GetTracingTrack() {
+    return perfetto::NamedTrack::FromPointer("content::MhtmlJob", this);
+  }
+
   // Writes the MHTML footer to the file and closes it. It also receives the
   // SimpleWatcher instance used to watch the data pipe and the current hash
   // state for safe destruction on the IO thread.
@@ -383,8 +387,8 @@ MHTMLGenerationManager::Job::~Job() {
 void MHTMLGenerationManager::Job::initializeJob(WebContents* web_contents) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  TRACE_EVENT_BEGIN("page-serialization", "SavingMhtmlJob",
-                    perfetto::Track::FromPointer(this), "url",
+  TRACE_EVENT_BEGIN("page-serialization", "SavingMhtmlJob", GetTracingTrack(),
+                    "url",
                     web_contents->GetLastCommittedURL().possibly_invalid_spec(),
                     "file", params_.file_path.AsUTF8Unsafe());
 
@@ -492,7 +496,7 @@ mojom::MhtmlSaveStatus MHTMLGenerationManager::Job::SendToNextRenderFrame() {
   writer_->SerializeAsMHTML(std::move(params), std::move(response_callback));
 
   TRACE_EVENT_BEGIN("page-serialization", "WaitingOnRenderer",
-                    perfetto::Track::FromPointer(this), "frame tree node id",
+                    GetTracingTrack(), "frame tree node id",
                     frame_tree_node_id_of_busy_frame_);
   return mojom::MhtmlSaveStatus::kSuccess;
 }
@@ -544,8 +548,8 @@ void MHTMLGenerationManager::Job::OnFinished(
   int64_t file_size = close_file_result.file_size;
 
   // Corresponds to the TRACE_EVENT_BEGIN in initializeJob.
-  TRACE_EVENT_END("page-serialization", perfetto::Track::FromPointer(this),
-                  "job save status", save_status, "file size", file_size);
+  TRACE_EVENT_END("page-serialization", GetTracingTrack(), "job save status",
+                  save_status, "file size", file_size);
 
   std::move(callback_).Run(close_file_result.file_size);
 
@@ -572,8 +576,7 @@ void MHTMLGenerationManager::Job::MarkAsFinished() {
   // DoneWritingToDisk() if |is_finished_| is true.
 
   TRACE_EVENT_INSTANT("page-serialization",
-                      perfetto::StaticString("JobFinished"),
-                      perfetto::Track::FromPointer(this));
+                      perfetto::StaticString("JobFinished"), GetTracingTrack());
 }
 
 void MHTMLGenerationManager::Job::CloseFile(
@@ -601,7 +604,7 @@ void MHTMLGenerationManager::Job::SerializeAsMHTMLResponse(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   // Corresponds to the TRACE_EVENT_BEGIN in SendToNextRenderFrame.
-  TRACE_EVENT_END("page-serialization", perfetto::Track::FromPointer(this));
+  TRACE_EVENT_END("page-serialization", GetTracingTrack());
 
   frame_tree_node_id_of_busy_frame_ = FrameTreeNodeId();
 

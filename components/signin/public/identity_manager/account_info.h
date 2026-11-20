@@ -223,13 +223,12 @@ struct AccountInfo : public CoreAccountInfo {
   // The value is set consistently only on DICE platforms.
   std::optional<signin_metrics::AccessPoint> access_point;
 
-  // Deprecated: Use GetAccountCapabilities() instead.
-  AccountCapabilities capabilities;
   // Deprecated: Use GetLocale() instead.
   std::string locale;
 
  private:
   friend class Builder;
+  friend class AccountCapabilitiesTestMutator;
 
   // Mandatory fields for `IsValid()` to return true:
   std::string full_name_;
@@ -239,6 +238,7 @@ struct AccountInfo : public CoreAccountInfo {
 
   std::string last_downloaded_image_url_with_size_;
   signin::Tribool is_child_account_ = signin::Tribool::kUnknown;
+  AccountCapabilities capabilities_;
 };
 
 // Builder class for constructing AccountInfo objects.

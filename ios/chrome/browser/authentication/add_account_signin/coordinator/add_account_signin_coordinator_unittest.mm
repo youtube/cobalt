@@ -6,6 +6,7 @@
 
 #import <UIKit/UIKit.h>
 
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/browser/authentication/add_account_signin/coordinator/add_account_signin_manager.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
@@ -14,6 +15,8 @@
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/fakes/fake_ui_view_controller.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -36,6 +39,8 @@ class AddAccountSigninCoordinatorTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     profile_ = std::move(builder).Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get(), scene_state_);
     base_view_controller_ = [[FakeUIViewController alloc] init];
@@ -90,7 +95,7 @@ class AddAccountSigninCoordinatorTest : public PlatformTest {
 // Tests that AddAccountSigninCoordinator doesn't call its signinCompletion
 // block when being stopped while showing an alert dialog.
 TEST_F(AddAccountSigninCoordinatorTest, StopCoordinatorWhileShowingErrorAlert) {
-  // Open the coordiantor.
+  // Open the coordinator.
   OCMExpect([add_account_signin_manager_mock_
       showSigninWithIntent:AddAccountSigninIntent::kAddAccount]);
   __block BOOL signinCompletionCalled = NO;

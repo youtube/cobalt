@@ -8,9 +8,6 @@
 # expectations instead of the typical TestExpectations file, in order to test
 # Built-In AI APIs in Branded Chrome builds with side-loaded models & configs.
 
-# Temporarily disable classifier classify test until a model is available to download.
-crbug.com/502312847 external/wpt/ai/classifier/classifier-classify.tentative.https.window.html [ Skip ]
-
 # These tests fail a 'downloadable' availability precondition, per sideloading.
 # NOTE: They unexpectedly pass on retry; perhaps due to crbug.com/429183223.
 crbug.com/390246212 external/wpt/ai/language_detection/detector.https.window.html [ Skip ]
@@ -20,16 +17,47 @@ crbug.com/390246212 external/wpt/ai/summarizer/summarizer-create-user-activation
 crbug.com/390246212 external/wpt/ai/writer/writer-create-user-activation.tentative.https.window.html [ Skip ]
 
 # These tests fail flakily with `Unhandled rejection with value: object "Error: element click intercepted error"`.
-crbug.com/407988949 external/wpt/ai/language_detection/detector-iframe.https.html [ Failure Pass ]
+crbug.com/517535239 external/wpt/ai/language_detection/detector-iframe.https.html [ Failure Pass ]
+crbug.com/517535239 external/wpt/ai/language-model/language-model-iframe.tentative.https.html [ Failure Pass ]
+crbug.com/517535239 external/wpt/ai/rewriter/rewriter-iframe.tentative.https.html [ Failure Pass ]
+crbug.com/517535239 external/wpt/ai/summarizer/summarizer-iframe.tentative.https.html [ Failure Pass ]
+crbug.com/517535239 external/wpt/ai/writer/writer-iframe.tentative.https.html [ Failure Pass ]
 
 # Temporarily skip these tests while the underlying model is in migration.
-crbug.com/446717936 external/wpt/ai/proofreader/proofreader-abort.tentative.https.window.html [ Skip ]
-crbug.com/446717936 external/wpt/ai/proofreader/proofreader-proofread.tentative.https.window.html [ Skip ]
+crbug.com/446717936 external/wpt/ai/proofreader/* [ Skip ]
 
 # The overflow test times out because filling the context window takes too long.
 external/wpt/ai/language-model/prompt/context/overflow.tentative.https.window.html [ Timeout ]
 
-# The legacy CPU engine is fundamentally broken on Mac (both ARM64 and x86_64).
-# It natively crashes during XNNPACK initialization or decoding, causing massive timeouts and widespread failures.
-crbug.com/514458853 [ mac arm64 ] external/wpt/ai/* [ Skip ]
+# These tests produce minor token count variations, missing capability failures, or timing flakiness on legacy CPU.
+crbug.com/513585708 external/wpt/ai/language-model/language-model-append.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/language-model-clone.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/prompt/context/usage-initial-prompt.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/prompt/empty-inputs/null-input.tentative.https.window.html [ Failure Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/prompt/empty-inputs/undefined-input.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/prompt/prompt-simple-question.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/prompt/streaming/empty-object-input.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/prompt/streaming/empty-sequence-input.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/prompt/streaming/garbage-collection.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/prompt/streaming/prompt-streaming.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/response-constraint/json-schema/response-schema-omitted-from-input.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/response-constraint/json-schema/valid-schema-success.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/language-model/response-constraint/json-schema/valid-schema-with-prefix-success.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/rewriter/rewriter-abort.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/rewriter/rewriter-rewrite-streaming.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/rewriter/rewriter-rewrite.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/summarizer/summarizer-summarize-streaming.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/summarizer/summarizer-summarize.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/writer/writer-write-streaming.tentative.https.window.html [ Failure Timeout Pass ]
+crbug.com/513585708 external/wpt/ai/writer/writer-write.tentative.https.window.html [ Failure Timeout Pass ]
 
+# Audio inputs are currently disabled by default for the CPU model via feature flags; image and video should be re-assessed.
+crbug.com/514431981 external/wpt/ai/language-model/prompt/multimodal/audio/* [ Failure Pass ]
+crbug.com/514431981 external/wpt/ai/language-model/prompt/multimodal/availability.tentative.https.window.html [ Failure Pass ]
+crbug.com/514431981 external/wpt/ai/language-model/prompt/multimodal/create.tentative.https.window.html [ Failure Pass ]
+crbug.com/514431981 external/wpt/ai/language-model/prompt/multimodal/image/* [ Failure Pass ]
+crbug.com/514431981 external/wpt/ai/language-model/prompt/multimodal/mix-post-abort.tentative.https.window.html [ Failure Pass ]
+crbug.com/514431981 external/wpt/ai/language-model/prompt/multimodal/video/* [ Failure Pass ]
+
+# Temporarily skip semantic embedder WPTs
+crbug.com/428233906 external/wpt/ai/semantic_embedder/* [ Skip ]

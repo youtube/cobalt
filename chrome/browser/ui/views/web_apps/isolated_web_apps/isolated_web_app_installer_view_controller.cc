@@ -464,7 +464,8 @@ void IsolatedWebAppInstallerViewController::LoadChannelsAndShowMetadata() {
   update_manifest_fetcher_ = std::make_unique<UpdateManifestFetcher>(
       update_manifest_url.value(), kUpdateManifestFetchTrafficAnnotation,
       profile_->GetDefaultStoragePartition()
-          ->GetURLLoaderFactoryForBrowserProcess());
+          ->GetURLLoaderFactoryForBrowserProcess(),
+      profile_->GetDefaultStoragePartition()->GetNetworkContext());
 
   update_manifest_fetcher_->FetchUpdateManifest(base::BindOnce(
       &IsolatedWebAppInstallerViewController::OnUpdateManifestFetched,

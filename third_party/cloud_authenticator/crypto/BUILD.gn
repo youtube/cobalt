@@ -8,7 +8,10 @@ rust_static_library("crypto") {
   crate_name = "crypto"
   edition = "2021"
   sources = [ "src/lib.rs" ]
-  deps = [ "//third_party/boringssl:bssl_crypto" ]
+  deps = [
+    "//third_party/boringssl:bssl_crypto",
+    "//third_party/cloud_authenticator/cbor",
+  ]
   features = [ "bssl" ]
   no_chromium_prelude = true
   testonly = true

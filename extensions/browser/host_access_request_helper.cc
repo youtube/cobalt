@@ -6,6 +6,7 @@
 
 #include <sys/types.h>
 
+#include "base/auto_reset.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_registry.h"
@@ -18,8 +19,9 @@ namespace extensions {
 base::TimeDelta HostAccessRequestsHelper::cooldown_duration_ = base::Seconds(1);
 
 // static
-void HostAccessRequestsHelper::SetCooldownForTesting(base::TimeDelta cooldown) {
-  cooldown_duration_ = cooldown;
+base::AutoReset<base::TimeDelta>
+HostAccessRequestsHelper::SetCooldownForTesting(base::TimeDelta cooldown) {
+  return base::AutoReset<base::TimeDelta>(&cooldown_duration_, cooldown);
 }
 
 HostAccessRequestsHelper::HostAccessRequestsHelper(
@@ -49,19 +51,17 @@ HostAccessRequestsHelper::AddRequestResult HostAccessRequestsHelper::AddRequest(
     return AddRequestResult::kDuplicate;
   }
 
-  base::TimeTicks now = base::TimeTicks::Now();
-  auto time_iter = last_request_times_.find(extension.id());
-  if (time_iter != last_request_times_.end() &&
-      now - time_iter->second < cooldown_duration_) {
+  if (IsThrottled(extension.id())) {
     return AddRequestResult::kThrottled;
   }
-  last_request_times_[extension.id()] = now;
+  RecordRequest(extension.id());
 
   extensions_with_requests_.insert({extension.id(), filter});
   return AddRequestResult::kSuccess;
 }
 
-void HostAccessRequestsHelper::UpdateRequest(
+HostAccessRequestsHelper::AddRequestResult
+HostAccessRequestsHelper::UpdateRequest(
     const Extension& extension,
     const std::optional<URLPattern>& filter) {
   // We can only update a request if there is an existent one.
@@ -72,7 +72,13 @@ void HostAccessRequestsHelper::UpdateRequest(
       extension, web_contents_->GetLastCommittedURL());
   CHECK(!site_access.has_site_access && !site_access.has_all_sites_access);
 
+  if (IsThrottled(extension.id())) {
+    return AddRequestResult::kThrottled;
+  }
+  RecordRequest(extension.id());
+
   extensions_with_requests_.at(extension.id()) = filter;
+  return AddRequestResult::kSuccess;
 }
 
 HostAccessRequestsHelper::RemoveRequestResult
@@ -87,14 +93,11 @@ HostAccessRequestsHelper::RemoveRequest(const ExtensionId& extension_id,
   // Remove request iff it matches the parameter when given. Otherwise, always
   // remove the request.
   if (!filter || requests_iter->second == filter) {
-    base::TimeTicks now = base::TimeTicks::Now();
-    auto time_iter = last_request_times_.find(extension_id);
-    if (!bypass_cooldown && time_iter != last_request_times_.end() &&
-        now - time_iter->second < cooldown_duration_) {
+    if (!bypass_cooldown && IsThrottled(extension_id)) {
       return RemoveRequestResult::kThrottled;
     }
     if (!bypass_cooldown) {
-      last_request_times_[extension_id] = now;
+      RecordRequest(extension_id);
     }
 
     extensions_with_requests_.erase(extension_id);
@@ -135,7 +138,7 @@ void HostAccessRequestsHelper::UserDismissedRequest(
   // Manually update the timestamp since RemoveRequest with bypass_cooldown=true
   // skips it. This prevents the extension from immediately re-adding the
   // request right after the user's dismissal.
-  last_request_times_[extension_id] = base::TimeTicks::Now();
+  RecordRequest(extension_id);
 }
 
 bool HostAccessRequestsHelper::HasRequest(
@@ -200,6 +203,18 @@ void HostAccessRequestsHelper::DidFinishNavigation(
   permissions_manager_->NotifyHostAccessRequestsCleared(tab_id_);
   permissions_manager_->DeleteHostAccessRequestHelperFor(tab_id_);
   // IMPORTANT: This object is now deleted and is unsafe to use.
+}
+
+bool HostAccessRequestsHelper::IsThrottled(
+    const ExtensionId& extension_id) const {
+  base::TimeTicks now = base::TimeTicks::Now();
+  auto time_iter = last_request_times_.find(extension_id);
+  return time_iter != last_request_times_.end() &&
+         now - time_iter->second < cooldown_duration_;
+}
+
+void HostAccessRequestsHelper::RecordRequest(const ExtensionId& extension_id) {
+  last_request_times_[extension_id] = base::TimeTicks::Now();
 }
 
 void HostAccessRequestsHelper::WebContentsDestroyed() {

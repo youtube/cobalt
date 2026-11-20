@@ -185,18 +185,30 @@ class EmailVerifierDelegateTestBase
     return form;
   }
 
+  content::webid::EmailVerifier::Result CreateVerifiableResult(
+      const std::string& email = "johndoe@hades.com") {
+    content::webid::EmailVerifier::Result result;
+    result.email = email;
+    result.issuer_site = net::SchemefulSite(GURL("https://example.com"));
+    return result;
+  }
+
+  void TriggerDefaultFormFill(const FormStructure& form) {
+    AutofillProfile profile = test::GetFullProfile();
+    base::flat_set<FieldGlobalId> filled_field_ids = {
+        form.field(0)->global_id()};
+    delegate().OnFillOrPreviewForm(
+        manager(), form.global_id(), form.field(0)->global_id(),
+        mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  }
+
   void SetUpVerificationExpectations(
       const FormStructure& form,
       const std::string& email = "johndoe@hades.com",
       AutofillClient::EmailVerificationPermissionUiResult popup_result =
           AutofillClient::EmailVerificationPermissionUiResult::kAccepted) {
-    EmailVerifier::Result verifiable_result;
-    verifiable_result.email = email;
-    verifiable_result.issuer_site =
-        net::SchemefulSite(GURL("https://example.com"));
-
     EXPECT_CALL(email_verifier(), CheckIfVerifiable(email, _))
-        .WillOnce(RunOnceCallback<1>(verifiable_result));
+        .WillOnce(RunOnceCallback<1>(CreateVerifiableResult(email)));
 
     if (popup_result ==
         AutofillClient::EmailVerificationPermissionUiResult::kAccepted) {
@@ -258,13 +270,7 @@ TEST_F(EmailVerifierDelegateTest, VerificationTriggered) {
 
   SetUpVerificationExpectations(*form);
 
-  AutofillProfile profile = test::GetFullProfile();
-
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 
   popup_shown_run_loop_.Run();
 
@@ -292,13 +298,7 @@ TEST_F(EmailVerifierDelegateTest, TokenSharedSuccess) {
 
   SetUpVerificationExpectations(*form);
 
-  AutofillProfile profile = test::GetFullProfile();
-
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 
   popup_shown_run_loop_.Run();
 
@@ -329,12 +329,7 @@ TEST_F(EmailVerifierDelegateTest, ObserverNotified) {
   EXPECT_CALL(observer,
               OnFlowCompleted(EvpAutofillFlowResult::kTokenSentToRenderer));
 
-  AutofillProfile profile = test::GetFullProfile();
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 
   popup_shown_run_loop_.Run();
 
@@ -429,12 +424,7 @@ TEST_F(EmailVerifierDelegateTest,
   EXPECT_CALL(email_verifier(), Verify).Times(0);
   EXPECT_CALL(driver(), SendEmailVerificationToken).Times(0);
   EXPECT_CALL(client(), ShowEmailVerifiedToast).Times(0);
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-  AutofillProfile profile = test::GetFullProfile();
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 
   bool feature_observed = false;
   for (const blink::UseCounterFeature& feature :
@@ -494,12 +484,7 @@ TEST_F(EmailVerifierDelegateTest, NoNonce) {
   EXPECT_CALL(driver(), SendEmailVerificationToken).Times(0);
   EXPECT_CALL(client(), ShowEmailVerifiedToast).Times(0);
 
-  AutofillProfile profile = test::GetFullProfile();
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 }
 
 // Verifies that if the filled field is not an email field, no verification is
@@ -526,12 +511,7 @@ TEST_F(EmailVerifierDelegateTest, NotEmailField) {
   EXPECT_CALL(driver(), SendEmailVerificationToken).Times(0);
   EXPECT_CALL(client(), ShowEmailVerifiedToast).Times(0);
 
-  AutofillProfile profile = test::GetFullProfile();
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 }
 
 // Verifies that if the verification fails, no event is dispatched to the
@@ -543,13 +523,8 @@ TEST_F(EmailVerifierDelegateTest, VerificationFails) {
 
   FormStructure* form = SetUpValidForm();
 
-  EmailVerifier::Result verifiable_result;
-  verifiable_result.email = "test@example.com";
-  verifiable_result.issuer_site =
-      net::SchemefulSite(GURL("https://example.com"));
-
   EXPECT_CALL(email_verifier(), CheckIfVerifiable("test@example.com", _))
-      .WillOnce(RunOnceCallback<1>(verifiable_result));
+      .WillOnce(RunOnceCallback<1>(CreateVerifiableResult("test@example.com")));
 
   base::RunLoop verify_called_run_loop;
   EXPECT_CALL(email_verifier(), Verify)
@@ -726,13 +701,7 @@ TEST_F(EmailVerifierDelegateTest, ClearsStrikesOnAccept) {
 
   SetUpVerificationExpectations(*form);
 
-  AutofillProfile profile = test::GetFullProfile();
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 
   popup_shown_run_loop_.Run();
 
@@ -764,13 +733,8 @@ TEST_F(EmailVerifierDelegateTest, OnFillOrPreviewFieldVerificationTriggered) {
 TEST_F(EmailVerifierDelegateTest, Regression_ShowPopupReceivesValidIssuerSite) {
   FormStructure* form = SetUpValidForm();
 
-  EmailVerifier::Result verifiable_result;
-  verifiable_result.email = "johndoe@hades.com";
-  verifiable_result.issuer_site =
-      net::SchemefulSite(GURL("https://example.com"));
-
   EXPECT_CALL(email_verifier(), CheckIfVerifiable("johndoe@hades.com", _))
-      .WillOnce(RunOnceCallback<1>(verifiable_result));
+      .WillOnce(RunOnceCallback<1>(CreateVerifiableResult()));
 
   base::RunLoop run_loop;
   EXPECT_CALL(client(), ShowEmailVerificationPopup)
@@ -786,13 +750,7 @@ TEST_F(EmailVerifierDelegateTest, Regression_ShowPopupReceivesValidIssuerSite) {
         run_loop.Quit();
       });
 
-  AutofillProfile profile = test::GetFullProfile();
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 
   run_loop.Run();
 }
@@ -826,13 +784,7 @@ TEST_F(EmailVerifierDelegateTest, TokenFieldHasNoNonce) {
   EXPECT_CALL(client(), ShowEmailVerificationPopup).Times(0);
   EXPECT_CALL(driver(), SendEmailVerificationToken).Times(0);
 
-  AutofillProfile profile = test::GetFullProfile();
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 
   histogram_tester.ExpectUniqueSample(
       "Blink.Evp.Autofill.FlowResult",
@@ -851,16 +803,125 @@ TEST_F(EmailVerifierDelegateTest, UserPrefDisabled) {
   EXPECT_CALL(client(), ShowEmailVerificationPopup).Times(0);
   EXPECT_CALL(driver(), SendEmailVerificationToken).Times(0);
 
-  AutofillProfile profile = test::GetFullProfile();
-  base::flat_set<FieldGlobalId> filled_field_ids = {
-      form->field(0)->global_id()};
-
-  delegate().OnFillOrPreviewForm(
-      manager(), form->global_id(), form->field(0)->global_id(),
-      mojom::ActionPersistence::kFill, filled_field_ids, &profile);
+  TriggerDefaultFormFill(*form);
 
   histogram_tester.ExpectUniqueSample("Blink.Evp.Autofill.FlowResult",
                                       EvpAutofillFlowResult::kUserPrefDisabled,
+                                      1);
+}
+
+// Verifies that if the driver becomes inactive before OnIsVerifiable is called,
+// the flow is aborted and no popup is shown.
+TEST_F(EmailVerifierDelegateTest, DriverInactiveBeforeIsVerifiable) {
+  base::HistogramTester histogram_tester;
+  FormStructure* form = SetUpValidForm();
+
+  // Capture the callback to run it asynchronously.
+  EmailVerifier::IsVerifiableCallback saved_callback;
+  EXPECT_CALL(email_verifier(), CheckIfVerifiable("johndoe@hades.com", _))
+      .WillOnce([&](const std::string&,
+                    EmailVerifier::IsVerifiableCallback callback) {
+        saved_callback = std::move(callback);
+      });
+
+  // Ensure no popup is shown and no token is sent.
+  EXPECT_CALL(client(), ShowEmailVerificationPopup).Times(0);
+  EXPECT_CALL(driver(), SendEmailVerificationToken).Times(0);
+
+  TriggerDefaultFormFill(*form);
+
+  ASSERT_TRUE(saved_callback);
+
+  // Simulate the driver becoming inactive (e.g., page enters BFCache).
+  test_api(driver()).SetLifecycleState(
+      AutofillDriver::LifecycleState::kInactive);
+
+  // Run the callback.
+  std::move(saved_callback).Run(CreateVerifiableResult());
+
+  histogram_tester.ExpectUniqueSample("Blink.Evp.Autofill.FlowResult",
+                                      EvpAutofillFlowResult::kDriverInactive,
+                                      1);
+}
+
+// Verifies that if the driver becomes inactive after the popup is shown but
+// before the user makes a decision, the decision callback is dropped.
+TEST_F(EmailVerifierDelegateTest, DriverInactiveBeforeDecision) {
+  base::HistogramTester histogram_tester;
+  FormStructure* form = SetUpValidForm();
+
+  EXPECT_CALL(email_verifier(), CheckIfVerifiable("johndoe@hades.com", _))
+      .WillOnce(RunOnceCallback<1>(CreateVerifiableResult()));
+
+  // Capture the popup decision callback.
+  base::OnceCallback<void(AutofillClient::EmailVerificationPermissionUiResult)>
+      saved_decision_callback;
+  EXPECT_CALL(client(), ShowEmailVerificationPopup)
+      .WillOnce(
+          [&](const gfx::RectF&, const net::SchemefulSite&,
+              const std::u16string&,
+              base::OnceCallback<void(
+                  AutofillClient::EmailVerificationPermissionUiResult)>
+                  callback) { saved_decision_callback = std::move(callback); });
+
+  // Ensure verification is not triggered.
+  EXPECT_CALL(email_verifier(), Verify).Times(0);
+
+  TriggerDefaultFormFill(*form);
+
+  ASSERT_TRUE(saved_decision_callback);
+
+  // Simulate the driver becoming inactive.
+  test_api(driver()).SetLifecycleState(
+      AutofillDriver::LifecycleState::kInactive);
+
+  // Run the decision callback.
+  std::move(saved_decision_callback)
+      .Run(AutofillClient::EmailVerificationPermissionUiResult::kAccepted);
+
+  histogram_tester.ExpectUniqueSample("Blink.Evp.Autofill.FlowResult",
+                                      EvpAutofillFlowResult::kDriverInactive,
+                                      1);
+}
+
+// Verifies that if the driver becomes inactive after the decision is made but
+// before the verification response is received, the response is dropped.
+TEST_F(EmailVerifierDelegateTest, DriverInactiveBeforeResponse) {
+  base::HistogramTester histogram_tester;
+  FormStructure* form = SetUpValidForm();
+
+  EXPECT_CALL(email_verifier(), CheckIfVerifiable("johndoe@hades.com", _))
+      .WillOnce(RunOnceCallback<1>(CreateVerifiableResult()));
+
+  EXPECT_CALL(client(), ShowEmailVerificationPopup)
+      .WillOnce(RunOnceCallback<3>(
+          AutofillClient::EmailVerificationPermissionUiResult::kAccepted));
+
+  // Capture the verification response callback.
+  EmailVerifier::OnEmailVerifiedCallback saved_response_callback;
+  EXPECT_CALL(email_verifier(), Verify(_, "test_nonce", _))
+      .WillOnce([&](const EmailVerifier::Result&, const std::string&,
+                    EmailVerifier::OnEmailVerifiedCallback callback) {
+        saved_response_callback = std::move(callback);
+      });
+
+  // Ensure token is not sent to renderer.
+  EXPECT_CALL(driver(), SendEmailVerificationToken).Times(0);
+
+  TriggerDefaultFormFill(*form);
+
+  ASSERT_TRUE(saved_response_callback);
+
+  // Simulate the driver becoming inactive.
+  test_api(driver()).SetLifecycleState(
+      AutofillDriver::LifecycleState::kInactive);
+
+  // Run the response callback.
+  std::move(saved_response_callback)
+      .Run(std::optional<std::string>("test_token"));
+
+  histogram_tester.ExpectUniqueSample("Blink.Evp.Autofill.FlowResult",
+                                      EvpAutofillFlowResult::kDriverInactive,
                                       1);
 }
 

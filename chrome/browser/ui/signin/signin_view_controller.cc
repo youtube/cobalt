@@ -648,15 +648,28 @@ void SigninViewController::ShowDiceSigninTab(
       DiceTabHelper::GetShowSigninErrorCallbackForBrowser());
 
   if (base::FeatureList::IsEnabled(switches::kMagiChromeSignInBanner)) {
-    infobars::InfoBarManager* infobar_manager =
-        infobars::ContentInfoBarManager::FromWebContents(active_contents);
-    if (infobar_manager) {
-      auto delegate =
-          std::make_unique<SigninQRCodeInfoBarDelegate>(active_contents);
-      Profile* profile = delegate->profile();
-      infobar_manager->AddInfoBar(
-          std::make_unique<SigninQRCodeInfoBar>(profile, std::move(delegate)));
-    }
+    signin::IsHybridTransportSupportedForQrCodeSignin(base::BindOnce(
+        [](base::WeakPtr<content::WebContents> web_contents, bool can_start) {
+          if (!can_start || !web_contents) {
+            return;
+          }
+          DiceTabHelper* tab_helper =
+              DiceTabHelper::FromWebContents(web_contents.get());
+          if (!tab_helper || !tab_helper->IsChromeSigninPage()) {
+            return;
+          }
+          infobars::InfoBarManager* infobar_manager =
+              infobars::ContentInfoBarManager::FromWebContents(
+                  web_contents.get());
+          if (infobar_manager) {
+            auto delegate = std::make_unique<SigninQRCodeInfoBarDelegate>(
+                web_contents.get());
+            Profile* profile = delegate->profile();
+            infobar_manager->AddInfoBar(std::make_unique<SigninQRCodeInfoBar>(
+                profile, std::move(delegate)));
+          }
+        },
+        active_contents->GetWeakPtr()));
   }
 }
 

@@ -136,6 +136,12 @@ void ShelfContextMenuModel::ExecuteCommand(int command_id, int event_flags) {
     case MENU_SHOW_DESK_NAME:
       SetShowDeskButtonInShelfPref(prefs, true);
       break;
+    case MENU_TASK_MANAGER:
+      base::RecordAction(
+          base::UserMetricsAction("Shelf_ContextMenu_Task_Manager"));
+      NewWindowDelegate::GetInstance()->ShowTaskManager(
+          /*from_context_menu=*/true);
+      break;
     // Using reorder CommandId in ash/public/cpp/app_menu_constants.h
     case REORDER_BY_NAME_ALPHABETICAL:
       AppListModelProvider::Get()->model()->delegate()->RequestAppListSort(
@@ -228,6 +234,9 @@ void ShelfContextMenuModel::AddShelfAndWallpaperItems() {
                                          ui::kColorAshSystemUIMenuIcon));
     }
   }
+
+  AddItemWithStringId(MENU_TASK_MANAGER,
+                      IDS_ASH_SHELF_CONTEXT_MENU_TASK_MANAGER);
 }
 
 }  // namespace ash

@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/i18n/case_conversion.h"
 #include "base/i18n/char_iterator.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
@@ -20,6 +21,7 @@
 #include "components/autofill/core/browser/data_manager/addresses/address_data_cleaner.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile_comparator.h"
+#include "components/autofill/core/browser/data_model/transliterator.h"
 #include "components/autofill/core/browser/data_quality/addresses/profile_requirement_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_import/addresses/autofill_profile_import_process.h"
@@ -146,6 +148,29 @@ std::string_view GetImportTypeEditedMetricsString(
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/histograms.xml:Autofill.ProfileImport.EditedType.ImportTypes)
 
+// Calculates a bitmask representing the categories of silent updates that
+// occurred.
+// The bitmask is constructed by or'ing the `FieldMergeCategory`s enums values
+// corresponding to the diffs provided as arguments to this method.
+int CalculateSilentUpdateMergeCategoryBitmask(
+    bool has_empty_to_non_empty_diff,
+    bool has_capitalization_only_diff,
+    bool has_diacritic_and_capitalization_only_diff) {
+  int silent_update_merge_category_bitmask = 0;
+  if (has_empty_to_non_empty_diff) {
+    silent_update_merge_category_bitmask |=
+        std::to_underlying(FieldMergeCategory::kEmptyToNonEmpty);
+  }
+  if (has_capitalization_only_diff) {
+    silent_update_merge_category_bitmask |=
+        std::to_underlying(FieldMergeCategory::kCapitalizationUpdate);
+  }
+  if (has_diacritic_and_capitalization_only_diff) {
+    silent_update_merge_category_bitmask |= std::to_underlying(
+        FieldMergeCategory::kDiacriticAndCapitalizationUpdate);
+  }
+  return silent_update_merge_category_bitmask;
+}
 }  // namespace
 
 void LogAddressProfileImportUkm(
@@ -214,6 +239,43 @@ void LogAddressFormImportRequirementMetric(const AutofillProfile& profile) {
 
 void LogAddressFormImportStatusMetric(AddressProfileImportStatusMetric metric) {
   base::UmaHistogramEnumeration("Autofill.AddressProfileImportStatus", metric);
+}
+
+void LogSilentUpdateMergeCategory(const AutofillProfile& old_profile,
+                                  const AutofillProfile& new_profile) {
+  bool has_capitalization_only_diff = false;
+  bool has_diacritic_and_capitalization_only_diff = false;
+  bool has_empty_to_non_empty_diff = false;
+  bool has_diff = false;
+  for (FieldType type : AutofillProfile::kDatabaseStoredTypes) {
+    const std::u16string& old_value = old_profile.GetRawInfo(type);
+    const std::u16string& new_value = new_profile.GetRawInfo(type);
+    if (old_value == new_value) {
+      continue;
+    }
+    has_diff = true;
+    if (old_value.empty() && !new_value.empty()) {
+      has_empty_to_non_empty_diff = true;
+    }
+    if (base::i18n::ToLower(old_value) == base::i18n::ToLower(new_value)) {
+      has_capitalization_only_diff = true;
+    } else if (RemoveDiacriticsAndConvertToLowerCase(
+                   old_value, old_profile.GetAddressCountryCode()) ==
+               RemoveDiacriticsAndConvertToLowerCase(
+                   new_value, new_profile.GetAddressCountryCode())) {
+      has_diacritic_and_capitalization_only_diff = true;
+    }
+  }
+  // Do not record metrics when there are no differences in the database-stored
+  // values (e.g., if only metadata or verification statuses changed).
+  if (!has_diff) {
+    return;
+  }
+  base::UmaHistogramSparse(
+      "Autofill.ProfileImport.SilentUpdateFieldMergeCategoryBitmask",
+      CalculateSilentUpdateMergeCategoryBitmask(
+          has_empty_to_non_empty_diff, has_capitalization_only_diff,
+          has_diacritic_and_capitalization_only_diff));
 }
 
 void LogProfileImportType(AutofillProfileImportType import_type) {

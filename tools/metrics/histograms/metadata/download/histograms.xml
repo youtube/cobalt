@@ -230,8 +230,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.Bubble.ProcessedCommand2" enum="DownloadCommand"
-    expires_after="2026-08-01">
-  <owner>liu@chromium.org</owner>
+    expires_after="2027-02-01">
+  <owner>yawfrempong@google.com</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records each time a download command is executed on download bubble. It is
@@ -1134,14 +1134,17 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.ShowedDownloadWarning.DownloadsPage"
-    enum="DownloadItem.DangerType" expires_after="2026-08-01">
-  <owner>liu@chromium.org</owner>
+    enum="DownloadItem.DangerType" expires_after="2027-02-01">
+  <owner>yawfrempong@google.com</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     A download warning was shown on the chrome://downloads page. This is logged
     once per dangerous or suspicious download, when it is shown for the first
     time on chrome://downloads, once per Chrome session (i.e. may be logged
     again after Chrome restarts). Value logs the type of danger.
+
+    Note: This histogram is recorded each time a warning is shown for a
+    download, even when attempting to download the same file.
 
     Warning: this histogram was expired from 2025-09-08 to 2026-01-27; data may
     be missing.

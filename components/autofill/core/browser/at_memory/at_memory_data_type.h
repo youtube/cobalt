@@ -8,7 +8,7 @@
 #include <optional>
 #include <variant>
 
-#include "components/accessibility_annotator/core/annotation_reducer/entry_type.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/field_types.h"
 
@@ -22,7 +22,7 @@ using AtMemoryDataType = std::variant<FieldType, EntityType, AttributeType>;
 // Translates an entry type from the accessibility annotator to an
 // Autofill-specific data type.
 std::optional<AtMemoryDataType> ToAtMemoryDataType(
-    accessibility_annotator::EntryType entry_type);
+    accessibility_annotator::MemoryDataType memory_data_type);
 
 }  // namespace autofill
 

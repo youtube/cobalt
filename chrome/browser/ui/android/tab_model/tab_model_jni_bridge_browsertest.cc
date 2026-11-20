@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/tab_list/tab_list_interface_observer.h"
 #include "chrome/test/base/android/android_browser_test.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -118,6 +119,36 @@ IN_PROC_BROWSER_TEST_F(TabModelJniBridgeTest, ChangeActivationAndSelection) {
   ASSERT_EQ(tab_b, tab_list->GetActiveTab());
   ASSERT_THAT(tab_model->GetOrderedMultiSelectedTabs(),
               testing::ElementsAre(tab_a->GetHandle(), tab_b->GetHandle()));
+}
+
+class MockTabListInterfaceObserver : public TabListInterfaceObserver {
+ public:
+  MOCK_METHOD(void,
+              OnTabAdded,
+              (TabListInterface & tab_list, tabs::TabInterface* tab, int index),
+              (override));
+};
+
+IN_PROC_BROWSER_TEST_F(TabModelJniBridgeTest, ObserverOnTabAddedIndex) {
+  TabListInterface* tab_list = GetTabListInterface();
+  ASSERT_TRUE(tab_list);
+
+  MockTabListInterfaceObserver observer;
+  tab_list->AddTabListInterfaceObserver(&observer);
+
+  int expected_index = tab_list->GetTabCount();
+
+  tabs::TabInterface* new_tab = nullptr;
+  EXPECT_CALL(observer,
+              OnTabAdded(testing::Ref(*tab_list), testing::_, expected_index))
+      .WillOnce(testing::SaveArg<1>(&new_tab));
+
+  tabs::TabInterface* opened_tab =
+      tab_list->OpenTab(GURL("about:blank"), /*index=*/-1);
+  ASSERT_TRUE(opened_tab);
+  EXPECT_EQ(opened_tab, new_tab);
+
+  tab_list->RemoveTabListInterfaceObserver(&observer);
 }
 
 }  // namespace

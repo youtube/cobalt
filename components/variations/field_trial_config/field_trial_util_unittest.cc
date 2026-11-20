@@ -22,6 +22,7 @@
 #include "components/variations/service/variations_service_client.h"
 #include "components/variations/variations_associated_data.h"
 #include "components/variations/variations_seed_processor.h"
+#include "components/variations/variations_switches.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -814,6 +815,82 @@ TEST_F(
 
   // The 'disable_benchmarking' field should prevent this trial from being
   // added.
+  base::FeatureList feature_list;
+  AssociateParamsFromFieldTrialConfig(
+      kConfig, platform, variation_service_client_.GetCurrentFormFactor(),
+      &feature_list);
+
+  std::map<std::string, std::string> params;
+  EXPECT_TRUE(base::GetFieldTrialParams("TestTrial", &params));
+  EXPECT_EQ(2U, params.size());
+  EXPECT_EQ("1", params["x"]);
+  EXPECT_EQ("2", params["y"]);
+
+  EXPECT_EQ("TestGroup", base::FieldTrialList::FindFullName("TestTrial"));
+}
+
+TEST_F(
+    FieldTrialUtilTest,
+    AssociateParamsFromFieldTrialConfigWithEnableFieldTrialConfigBenchmarkingAndDisableBenchmarking) {
+  const Study::Platform platform = Study::PLATFORM_WINDOWS;
+  const FieldTrialTestingExperimentParams array_kFieldTrialConfig_params[] = {
+      {"x", "1"}, {"y", "2"}};
+  ExperimentBuilder experiment_builder;
+  experiment_builder.name = "TestGroup";
+  experiment_builder.platforms = base::span_from_ref(platform);
+  experiment_builder.params = array_kFieldTrialConfig_params;
+
+  // When --enable-field-trial-config=benchmarking and 'disable_benchmarking'
+  // are set, the trial should not be added.
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+      switches::kEnableFieldTrialTestingConfig, "benchmarking");
+  experiment_builder.disable_benchmarking = true;
+
+  const FieldTrialTestingExperiment array_kFieldTrialConfig_experiments[] = {
+      experiment_builder.Build(),
+  };
+  const FieldTrialTestingStudy array_kFieldTrialConfig_studies[] = {
+      {"TestTrial", array_kFieldTrialConfig_experiments}};
+  const FieldTrialTestingConfig kConfig = {array_kFieldTrialConfig_studies};
+
+  base::FeatureList feature_list;
+  AssociateParamsFromFieldTrialConfig(
+      kConfig, platform, variation_service_client_.GetCurrentFormFactor(),
+      &feature_list);
+
+  EXPECT_EQ("", base::GetFieldTrialParamValue("TestTrial", "x"));
+  EXPECT_EQ("", base::GetFieldTrialParamValue("TestTrial", "y"));
+
+  std::map<std::string, std::string> params;
+  EXPECT_FALSE(base::GetFieldTrialParams("TestTrial", &params));
+
+  EXPECT_EQ("", base::FieldTrialList::FindFullName("TestTrial"));
+}
+
+TEST_F(
+    FieldTrialUtilTest,
+    AssociateParamsFromFieldTrialConfigWithEnableFieldTrialConfigBenchmarkingAndNoDisableBenchmarking) {
+  const Study::Platform platform = Study::PLATFORM_WINDOWS;
+  const FieldTrialTestingExperimentParams array_kFieldTrialConfig_params[] = {
+      {"x", "1"}, {"y", "2"}};
+  ExperimentBuilder experiment_builder;
+  experiment_builder.name = "TestGroup";
+  experiment_builder.platforms = base::span_from_ref(platform);
+  experiment_builder.params = array_kFieldTrialConfig_params;
+
+  // If --enable-field-trial-config=benchmarking is set, and the experiment
+  // doesn't set 'disable_benchmarking', the trial should be added.
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+      switches::kEnableFieldTrialTestingConfig, "benchmarking");
+  experiment_builder.disable_benchmarking = false;
+
+  const FieldTrialTestingExperiment array_kFieldTrialConfig_experiments[] = {
+      experiment_builder.Build(),
+  };
+  const FieldTrialTestingStudy array_kFieldTrialConfig_studies[] = {
+      {"TestTrial", array_kFieldTrialConfig_experiments}};
+  const FieldTrialTestingConfig kConfig = {array_kFieldTrialConfig_studies};
+
   base::FeatureList feature_list;
   AssociateParamsFromFieldTrialConfig(
       kConfig, platform, variation_service_client_.GetCurrentFormFactor(),

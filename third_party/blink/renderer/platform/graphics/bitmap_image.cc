@@ -138,6 +138,7 @@ PaintImage BitmapImage::PaintImageForTesting() {
   return CreatePaintImage(
       paint_image_id(), PaintImage::kInvalidId,
       PaintImage::AnimationSyncSequence::kShared,
+      reset_animation_own_timeline_sequence_id_,
       GetRepetitionCountWithPolicyOverride(RepetitionCount(), animation_policy_,
                                            ImageAnimationEnum::kNormal));
 }
@@ -146,6 +147,7 @@ PaintImage BitmapImage::CreatePaintImage(
     PaintImage::Id paint_id,
     PaintImage::Id sync_animation_id,
     PaintImage::AnimationSyncSequence sync_sequence,
+    PaintImage::AnimationSequenceId reset_animation_sequence_id,
     int image_animation_repetition_count) {
   sk_sp<PaintImageGenerator> generator =
       decoder_ ? decoder_->CreateGenerator() : nullptr;
@@ -162,7 +164,7 @@ PaintImage BitmapImage::CreatePaintImage(
           .set_repetition_count(image_animation_repetition_count)
           .set_is_high_bit_depth(decoder_->ImageIsHighBitDepth())
           .set_completion_state(completion_state)
-          .set_reset_animation_sequence_id(reset_animation_sequence_id_)
+          .set_reset_animation_sequence_id(reset_animation_sequence_id)
           .set_sync_animation_target_id(sync_animation_id)
           .set_sync_animation_sequence_id(
               static_cast<PaintImage::AnimationSequenceId>(sync_sequence));
@@ -417,10 +419,12 @@ PaintImage BitmapImage::PaintImageForCurrentFrameWithInfo(
   DOMNodeId id = kNormalCachedFrameId;
   PaintImage::Id paint_id = paint_image_id();
   PaintImage::Id sync_animation_target_id = PaintImage::kInvalidId;
+  PaintImage::AnimationSequenceId reset_animation_sequence_id =
+      reset_animation_own_timeline_sequence_id_;
   PaintImage::AnimationSyncSequence sync_sequence =
       PaintImage::AnimationSyncSequence::kShared;
 
-  bool has_image_animation_data = false;
+  std::optional<ImageAnimationData> image_animation_data;
 
   if (image_node_animation_info) {
     ElementImageAnimationData* animation_data =
@@ -428,10 +432,25 @@ PaintImage BitmapImage::PaintImageForCurrentFrameWithInfo(
     ImageResourceContent* image_key = image_node_animation_info->image;
     DCHECK(animation_data && image_key);
 
-    std::optional<ImageAnimationData> image_animation_data =
-        animation_data->GetImageAnimationData(image_key);
+    image_animation_data = animation_data->GetImageAnimationData(image_key);
 
-    has_image_animation_data = image_animation_data.has_value();
+    if (image_animation_data) {
+      const PaintImage::AnimationSequenceId reset_sequence =
+          (image_animation_data->sync_sequence ==
+           PaintImage::AnimationSyncSequence::kShared)
+              ? reset_animation_shared_timeline_sequence_id_
+              : reset_animation_own_timeline_sequence_id_;
+
+      if (image_animation_data->reset_sequence != reset_sequence) {
+        // Back to NoEntry state
+        cached_frames_.erase(image_animation_data->sync_sequence ==
+                                     PaintImage::AnimationSyncSequence::kShared
+                                 ? kNormalCachedFrameId
+                                 : image_node_animation_info->node_id);
+        animation_data->EraseImageAnimationData(image_key);
+        image_animation_data = std::nullopt;
+      }
+    }
 
     // State machine for CSS Image Animation
     //
@@ -469,7 +488,8 @@ PaintImage BitmapImage::PaintImageForCurrentFrameWithInfo(
           animation_data->SetImageAnimationData(
               image_key,
               {.paint_id = paint_id,
-               .sync_sequence = PaintImage::AnimationSyncSequence::kShared});
+               .sync_sequence = PaintImage::AnimationSyncSequence::kShared,
+               .reset_sequence = reset_animation_shared_timeline_sequence_id_});
         }
         break;
       }
@@ -487,7 +507,9 @@ PaintImage BitmapImage::PaintImageForCurrentFrameWithInfo(
           id = image_node_animation_info->node_id;
           animation_data->SetImageAnimationData(
               image_key,
-              {.paint_id = paint_id, .sync_sequence = sync_sequence});
+              {.paint_id = paint_id,
+               .sync_sequence = sync_sequence,
+               .reset_sequence = reset_animation_own_timeline_sequence_id_});
         }
         break;
       }
@@ -507,7 +529,9 @@ PaintImage BitmapImage::PaintImageForCurrentFrameWithInfo(
           id = image_node_animation_info->node_id;
           animation_data->SetImageAnimationData(
               image_key,
-              {.paint_id = paint_id, .sync_sequence = sync_sequence});
+              {.paint_id = paint_id,
+               .sync_sequence = sync_sequence,
+               .reset_sequence = reset_animation_own_timeline_sequence_id_});
         }
         break;
       }
@@ -526,6 +550,11 @@ PaintImage BitmapImage::PaintImageForCurrentFrameWithInfo(
     }
   }
 
+  reset_animation_sequence_id =
+      sync_sequence == PaintImage::AnimationSyncSequence::kShared
+          ? reset_animation_shared_timeline_sequence_id_
+          : reset_animation_own_timeline_sequence_id_;
+
   auto alpha_type = decoder_ ? decoder_->AlphaType() : kUnknown_SkAlphaType;
   const int expected_repetition_count = GetRepetitionCountWithPolicyOverride(
       RepetitionCount(), animation_policy_, image_animation);
@@ -534,7 +563,7 @@ PaintImage BitmapImage::PaintImageForCurrentFrameWithInfo(
     const PaintImage& cached_frame = it->value;
     if (cached_frame &&
         cached_frame.repetition_count() == expected_repetition_count &&
-        (!image_node_animation_info || has_image_animation_data) &&
+        (!image_node_animation_info || image_animation_data) &&
         cached_frame.GetAlphaType() == alpha_type) {
       return cached_frame;
     }
@@ -542,7 +571,7 @@ PaintImage BitmapImage::PaintImageForCurrentFrameWithInfo(
 
   PaintImage new_frame =
       CreatePaintImage(paint_id, sync_animation_target_id, sync_sequence,
-                       expected_repetition_count);
+                       reset_animation_sequence_id, expected_repetition_count);
 
   // BitmapImage should not be texture backed.
   DCHECK(!new_frame.IsTextureBacked());
@@ -634,7 +663,13 @@ void BitmapImage::ResetAnimation() {
   }
 
   cached_frames_.clear();
-  reset_animation_sequence_id_++;
+  reset_animation_own_timeline_sequence_id_++;
+  reset_animation_shared_timeline_sequence_id_++;
+}
+
+void BitmapImage::ResetAnimationSharedTimelineOnly() {
+  cached_frames_.erase(kNormalCachedFrameId);
+  reset_animation_shared_timeline_sequence_id_++;
 }
 
 bool BitmapImage::MaybeAnimated() {

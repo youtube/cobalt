@@ -16,19 +16,8 @@
 #include "audio/channel_receive_frame_transformer_delegate.h"
 #include "audio/channel_send_frame_transformer_delegate.h"
 #include "modules/rtp_rtcp/source/rtp_sender_video_frame_transformer_delegate.h"
-#include "rtc_base/checks.h"
 
 namespace webrtc {
-
-std::unique_ptr<TransformableVideoFrameInterface> CreateVideoSenderFrame() {
-  RTC_CHECK_NOTREACHED();
-  return nullptr;
-}
-
-std::unique_ptr<TransformableVideoFrameInterface> CreateVideoReceiverFrame() {
-  RTC_CHECK_NOTREACHED();
-  return nullptr;
-}
 
 std::unique_ptr<TransformableAudioFrameInterface> CloneAudioFrame(
     TransformableAudioFrameInterface* original) {

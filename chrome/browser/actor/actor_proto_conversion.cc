@@ -919,6 +919,10 @@ void FillInTabObservation(
     }
   }
 
+  if (fetch_result.screenshot_info.has_value()) {
+    *tab_observation.mutable_screenshot_info() = *fetch_result.screenshot_info;
+  }
+
   if (fetch_result.annotated_page_content_result.has_value()) {
     *tab_observation.mutable_annotated_page_content() =
         fetch_result.annotated_page_content_result->proto;

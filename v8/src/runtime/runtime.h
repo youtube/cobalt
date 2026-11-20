@@ -443,8 +443,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(PromiseRevokeReject, 1, 1)           \
   F(RejectPromise, 3, 1)                 \
   F(ResolvePromise, 2, 1)                \
-  F(PromiseRejectAfterResolved, 2, 1)    \
-  F(PromiseResolveAfterResolved, 2, 1)   \
   F(ConstructSuppressedError, 3, 1)      \
   F(ConstructAggregateErrorHelper, 4, 1) \
   F(ConstructInternalAggregateErrorHelper, -1 /* <= 5*/, 1)
@@ -555,7 +553,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BaselineOsr, -1, 1)                                                  \
   F(BenchMaglev, 2, 1)                                                   \
   F(BenchTurbofan, 2, 1)                                                 \
-  F(BlockAt, 1, 1)                                                       \
+  F(BlockAt, 2, 1)                                                       \
   F(VerifyGetJSBuiltinState, 1, 1)                                       \
   F(ClearFunctionFeedback, 1, 1)                                         \
   F(ClearMegamorphicStubCache, 0, 1)                                     \
@@ -688,7 +686,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(TurbofanStaticAssert, 1, 1)                                          \
   F(TypedArraySpeciesProtector, 0, 1)                                    \
   F(WaitForBackgroundOptimization, 0, 1)                                 \
-  F(WaitUntilBlocked, -1, 1)                                             \
+  F(WaitUntilBlocked, 2, 1)                                              \
   I(DeoptimizeNow, 0, 1)                                                 \
   F(LeakHole, 0, 1)                                                      \
   F(GetHoleNaNLower, 0, 1)                                               \

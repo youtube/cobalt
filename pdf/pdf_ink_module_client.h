@@ -70,6 +70,7 @@ class PdfInkModuleClient {
   virtual void DrawText(int page_index,
                         InkTextId id,
                         base::span<const InkTextInfo> text_info,
+                        float ascent,
                         double pdf_zoom,
                         const InkTextBoxAttributes& attributes) {}
 

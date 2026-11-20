@@ -5,10 +5,9 @@
 import 'chrome://history/strings.m.js';
 import 'chrome://resources/cr_components/history_clusters/cluster.js';
 
-import {BrowserProxyImpl} from 'chrome://resources/cr_components/history_clusters/browser_proxy.js';
 import type {ClusterElement} from 'chrome://resources/cr_components/history_clusters/cluster.js';
 import type {Cluster, RawVisitData, URLVisit} from 'chrome://resources/cr_components/history_clusters/history_cluster_types.mojom-webui.js';
-import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/history_clusters/history_clusters.mojom-webui.js';
+import {browserProxyFactory, PageHandlerRemote} from 'chrome://resources/cr_components/history_clusters/history_clusters.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
@@ -18,9 +17,8 @@ let handler: TestMock<PageHandlerRemote>&PageHandlerRemote;
 
 function createBrowserProxy() {
   handler = TestMock.fromClass(PageHandlerRemote);
-  const callbackRouter = new PageCallbackRouter();
-  BrowserProxyImpl.setInstance(new BrowserProxyImpl(handler, callbackRouter));
-  callbackRouter.$.bindNewPipeAndPassRemote();
+  const {instance} = browserProxyFactory.createForTest(handler);
+  browserProxyFactory.setInstance(instance);
 }
 
 function getTestCluster(): Cluster {

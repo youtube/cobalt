@@ -4,11 +4,13 @@
 
 #include "services/network/public/cpp/connection_allowlist.h"
 
+#include "base/strings/strcat.h"
 #include "net/http/http_response_headers.h"
 #include "services/network/public/cpp/connection_allowlist_parser.h"
 #include "services/network/public/mojom/connection_allowlist.mojom-shared.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 #include "url/gurl.h"
 
 namespace network {
@@ -364,4 +366,23 @@ TEST_F(ConnectionAllowlistParserTest, IsAllowlisted) {
       connection_allowlist, GURL("blob:https://example.site/")));
 }
 
+namespace {
+
+void FuzzConnectionAllowlistParser(const std::string& enforced,
+                                   const std::string& report_only) {
+  std::string raw_headers = base::StrCat(
+      {"HTTP/1.1 200 OK\n", "Connection-Allowlist: ", enforced, "\n",
+       "Connection-Allowlist-Report-Only: ", report_only, "\n\n"});
+  auto headers = net::HttpResponseHeaders::TryToCreate(raw_headers);
+  if (!headers) {
+    return;
+  }
+
+  std::ignore = network::ParseConnectionAllowlistsFromHeaders(
+      *headers, GURL("https://site.example/"));
+}
+
+FUZZ_TEST(ConnectionAllowlistFuzz, FuzzConnectionAllowlistParser);
+
+}  // namespace
 }  // namespace network

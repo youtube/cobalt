@@ -387,8 +387,6 @@ class Browser : public TabStripModelObserver,
   const CreateParams& create_params() const { return create_params_; }
   Type type() const { return type_; }
   const std::string& app_name() const { return app_name_; }
-  // Deprecated: Use WindowMetadataController::From()->user_title() instead.
-  const std::string& user_title() const;
   std::optional<bool> is_vertical_tabs_initially_collapsed() const {
     return initial_vertical_tab_strip_collapsed_;
   }
@@ -445,10 +443,6 @@ class Browser : public TabStripModelObserver,
     return should_trigger_session_restore_;
   }
 
-  // Remove these functions and migrate to using
-  // AppBrowserController::IsWebApp()` and `AppBrowserController::From()`.
-  const web_app::AppBrowserController* app_controller() const;
-  web_app::AppBrowserController* app_controller();
   BrowserWindowFeatures* browser_window_features() const {
     return features_.get();
   }
@@ -459,10 +453,6 @@ class Browser : public TabStripModelObserver,
   // State Storage and Retrieval for UI ///////////////////////////////////////
 
   GURL GetNewTabURL() const;
-
-  // Deprecated: Use
-  // WindowMetadataController::From()->GetWindowTitleForCurrentTab instead.
-  std::u16string GetWindowTitleForCurrentTab(bool include_app_name) const;
 
   // OnBeforeUnload handling //////////////////////////////////////////////////
 
@@ -668,11 +658,6 @@ class Browser : public TabStripModelObserver,
 
   // Called each time the browser window is shown.
   void OnWindowDidShow();
-
-  // Deprecated: Use
-  // WindowMetadataController::From()->SetWindowUserTitle instead.
-  // Sets the browser's user title. Setting it to an empty string clears it.
-  void SetWindowUserTitle(const std::string& user_title);
 
   // Gets the browser for opening chrome:// pages. This will return the opener
   // browser if the current browser is in picture-in-picture mode, otherwise

@@ -22,9 +22,8 @@
 
 #pragma mark - TableViewItem
 
-- (void)configureCell:(InlinePromoCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(InlinePromoCell*)cell {
+  [super configureCell:cell];
   cell.closeButton.hidden = !self.shouldShowCloseButton;
   cell.badgeView.hidden = !self.shouldDisplayBadge;
   cell.promoImageView.image = self.promoImage;

@@ -329,9 +329,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   button.toolbarConfiguration = self.toolbarConfiguration;
   button.exclusiveTouch = YES;
   button.pointerInteractionEnabled = YES;
-  if (IsGeminiCopresenceEnabled()) {
-    button.geminiHandler = self.geminiHandler;
-  }
+  button.geminiHandler = self.geminiHandler;
   if (ios::provider::IsRaccoonEnabled()) {
     button.hoverStyle = [UIHoverStyle
         styleWithShape:[UIShape rectShapeWithCornerRadius:width / 4]];

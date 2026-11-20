@@ -8,6 +8,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "base/unguessable_token.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_prefs.h"
@@ -369,6 +370,7 @@ class MockLoadingPredictor : public predictors::LoadingPredictor {
               (const GURL& url,
                bool allow_credentials,
                const net::NetworkAnonymizationKey& network_anonymization_key,
+               const base::UnguessableToken& network_restrictions_id,
                const net::NetworkTrafficAnnotationTag& traffic_annotation,
                const content::StoragePartitionConfig* storage_partition_config),
               (override));
@@ -581,7 +583,7 @@ TEST_F(ContextualCueingServiceTestZeroStateSuggestions,
 TEST_F(ContextualCueingServiceTestZeroStateSuggestions,
        PreconnectsWithContextEnabled) {
   EXPECT_CALL(*loading_predictor(),
-              PreconnectURLIfAllowed(GURL("https://mes.com/"), _, _, _, _));
+              PreconnectURLIfAllowed(GURL("https://mes.com/"), _, _, _, _, _));
 
   SetGlicTabContextEnabled(true);
   InitializeContextualCueingService();

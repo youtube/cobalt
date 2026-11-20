@@ -454,6 +454,10 @@ class EntityInstance final {
   // dates.
   EntityMergeability GetEntityMergeability(const EntityInstance& newer) const;
 
+  // Returns true if `this` and `other` represent the same entity
+  // based on their merge constraints.
+  bool MatchesMergeConstraintsOf(const EntityInstance& other) const;
+
   // Returns true if all attributes of `this` are present in `other` with the
   // same values or if `this` is a proper subset of `other`.
   // When a masked attribute is compared to an unmasked one, only their suffixes

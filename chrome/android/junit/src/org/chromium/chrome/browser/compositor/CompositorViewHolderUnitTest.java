@@ -272,7 +272,12 @@ public class CompositorViewHolderUnitTest {
         when(mCompositorView.getResourceManager()).thenReturn(mResourceManager);
         when(mResourceManager.getDynamicResourceLoader()).thenReturn(mDynamicResourceLoader);
 
-        mCompositorViewHolder = spy(new CompositorViewHolder(mContext, null));
+        mCompositorViewHolder =
+                org.mockito.Mockito.mock(
+                        CompositorViewHolder.class,
+                        org.mockito.Mockito.withSettings()
+                                .useConstructor(mContext, null)
+                                .defaultAnswer(org.mockito.Mockito.CALLS_REAL_METHODS));
 
         mCompositorViewHolder.setToolbarThemeColorProvider(mToolbarThemeColorProvider);
         mCompositorViewHolder.setLayoutManager(mLayoutManager);
@@ -1520,5 +1525,84 @@ public class CompositorViewHolderUnitTest {
         // Background non-captured tab is NOT updated
         verify(mCompositorView, never())
                 .onPhysicalBackingSizeChanged(eq(bgWebContents), anyInt(), anyInt());
+    }
+
+    @Test
+    public void testKeepScreenOnDeferred_TabSwitchResetsState() throws Exception {
+        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mActivity));
+        mCompositorViewHolder.onNativeLibraryReady(
+                mWindowAndroid, /* tabContentManager= */ null, mPrefService);
+        mCompositorViewHolder.onContentChanged();
+
+        // Capture the tab observer on the first tab
+        verify(mTab, atLeast(1)).addObserver(mTabObserverCaptor.capture());
+        TabObserver initialTabObserver = mTabObserverCaptor.getValue();
+
+        // Simulate scroll start on the first tab
+        initialTabObserver.onContentViewScrollingStateChanged(true);
+        assertTrue(mCompositorViewHolder.getInMotionSupplier().get());
+
+        // 2. Add a new tab and switch to it.
+        Tab newTab = mTabModelSelector.addMockTab();
+        ContentView newContentView = mock(ContentView.class);
+        WebContents newWebContents = mock(WebContents.class);
+        when(newTab.getWebContents()).thenReturn(newWebContents);
+        when(newTab.getContentView()).thenReturn(newContentView);
+        when(newTab.getView()).thenReturn(newContentView);
+
+        when(mCompositorViewHolder.getCurrentTab()).thenReturn(newTab);
+
+        // Reset the captor before trigger tab switch to capture the new observer
+        mTabObserverCaptor = ArgumentCaptor.forClass(TabObserver.class);
+
+        // Trigger tab switch in the model selector.
+        mTabModelSelector.getModel(false).setIndex(1, TabSelectionType.FROM_USER);
+        mCompositorViewHolder.onContentChanged();
+
+        // With our fix, the stale scroll state should be cleared immediately upon tab switch.
+        assertFalse(mCompositorViewHolder.getInMotionSupplier().get());
+
+        // Capture the observer on the new tab
+        verify(newTab, atLeast(1)).addObserver(mTabObserverCaptor.capture());
+        TabObserver newTabObserver = mTabObserverCaptor.getValue();
+
+        // Now, the new tab is active.
+        // 3. Simulate user interaction on the new tab (touch down).
+        newTabObserver.onTouchDown();
+
+        // It should call setDeferKeepScreenOnChanges(true) for the new touch sequence.
+        verify(newContentView).setDeferKeepScreenOnChanges(true);
+        reset(newContentView);
+
+        // 4. Simulate user interaction ending on the new tab (touch up).
+        newTabObserver.onTouchUp();
+
+        // It should correctly release the deferral now.
+        verify(newContentView).setDeferKeepScreenOnChanges(false);
+        assertFalse(mCompositorViewHolder.getInMotionSupplier().get());
+    }
+
+    @Test
+    public void testKeepScreenOnDeferred_TabHideResetsState() throws Exception {
+        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mActivity));
+        mCompositorViewHolder.onNativeLibraryReady(
+                mWindowAndroid, /* tabContentManager= */ null, mPrefService);
+        mCompositorViewHolder.onContentChanged();
+
+        // Capture the tab observer on the active tab
+        verify(mTab, atLeast(1)).addObserver(mTabObserverCaptor.capture());
+        TabObserver tabObserver = mTabObserverCaptor.getValue();
+
+        // 1. Simulate scroll and touch on the active tab
+        tabObserver.onContentViewScrollingStateChanged(true);
+        tabObserver.onTouchDown();
+
+        assertTrue(mCompositorViewHolder.getInMotionSupplier().get());
+
+        // 2. Call onHidden on the observer.
+        tabObserver.onHidden(mTab, org.chromium.chrome.browser.tab.TabHidingType.ACTIVITY_HIDDEN);
+
+        // 3. Verify that the compositor is no longer in motion.
+        assertFalse(mCompositorViewHolder.getInMotionSupplier().get());
     }
 }

@@ -17,6 +17,16 @@ enum FaviconIconType {
   kTouchPrecomposedIcon,
 };
 
+// The reason a favicon URL update was sent from the renderer to the browser.
+enum FaviconUpdateReason {
+  // Sent when the page finishes loading.
+  kPageLoad,
+  // A media feature change (e.g. prefers-color-scheme) triggered re-evaluation.
+  kMediaQueryChange,
+  // A <link> element was added, removed, or modified.
+  kLinkElementChange,
+};
+
 // The favicon url from the document.
 struct FaviconURL {
   // The url of the icon.

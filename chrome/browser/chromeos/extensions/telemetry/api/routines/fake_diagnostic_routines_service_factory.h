@@ -7,12 +7,15 @@
 
 #include <memory>
 
-#include "chrome/browser/chromeos/extensions/telemetry/api/routines/fake_diagnostic_routines_service.h"
 #include "chromeos/ash/components/telemetry_extension/routines/telemetry_diagnostic_routine_service_ash.h"
-#include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
+
+namespace crosapi::mojom {
+class TelemetryDiagnosticRoutinesService;
+}  // namespace crosapi::mojom
 
 namespace chromeos {
+
+class FakeDiagnosticRoutinesService;
 
 class FakeDiagnosticRoutinesServiceFactory
     : public ash::TelemetryDiagnosticsRoutineServiceAsh::Factory {
@@ -26,9 +29,7 @@ class FakeDiagnosticRoutinesServiceFactory
  protected:
   // TelemetryEventServiceAsh::Factory:
   std::unique_ptr<crosapi::mojom::TelemetryDiagnosticRoutinesService>
-  CreateInstance(
-      mojo::PendingReceiver<crosapi::mojom::TelemetryDiagnosticRoutinesService>
-          receiver) override;
+  CreateInstance() override;
 
  private:
   std::unique_ptr<FakeDiagnosticRoutinesService> fake_service_;

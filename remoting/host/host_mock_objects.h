@@ -315,8 +315,12 @@ class MockSecurityKeyAuthHandler : public SecurityKeyAuthHandler {
       const SecurityKeyAuthHandler::SendMessageCallback& callback) override;
   const SecurityKeyAuthHandler::SendMessageCallback& GetSendMessageCallback();
 
+  base::WeakPtr<MockSecurityKeyAuthHandler> GetWeakPtr();
+
  private:
   SecurityKeyAuthHandler::SendMessageCallback callback_;
+
+  base::WeakPtrFactory<MockSecurityKeyAuthHandler> weak_factory_{this};
 };
 
 class MockMouseCursorMonitor : public protocol::MouseCursorMonitor {

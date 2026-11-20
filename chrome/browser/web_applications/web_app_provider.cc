@@ -383,7 +383,8 @@ void WebAppProvider::StartImpl() {
 void WebAppProvider::CreateSubsystems(Profile* profile) {
   audio_focus_id_map_ = std::make_unique<WebAppAudioFocusIdMap>();
   ui_manager_ = WebAppUiManager::Create(profile);
-  install_manager_ = std::make_unique<WebAppInstallManager>(profile);
+  install_manager_ =
+      std::make_unique<WebAppInstallManager>(profile->GetPrefs());
   manifest_update_manager_ = std::make_unique<ManifestUpdateManager>();
   externally_managed_app_manager_ =
       std::make_unique<ExternallyManagedAppManager>(profile);

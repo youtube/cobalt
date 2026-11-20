@@ -36,7 +36,7 @@ enum class LocalNetworkAccessRequestContext {
 // access requests, not private network access requests, and having this be true
 // means that while we still allow the requests, they still need to pass
 // permissions checks.
-// `private_network_request_context` specifies what this
+// `local_network_request_context` specifies what this
 // request is about. For example, requests made from workers can have different
 // policies from normal subresource requests.
 network::mojom::LocalNetworkAccessRequestPolicy CONTENT_EXPORT
@@ -44,17 +44,17 @@ DeriveLocalNetworkAccessRequestPolicy(
     network::mojom::IPAddressSpace ip_address_space,
     bool is_web_secure_context,
     bool allow_on_non_secure_context,
-    LocalNetworkAccessRequestContext private_network_request_context);
+    LocalNetworkAccessRequestContext local_network_request_context);
 
 // Convenience overload to directly compute this from the client's `policies`.
 network::mojom::LocalNetworkAccessRequestPolicy CONTENT_EXPORT
 DeriveLocalNetworkAccessRequestPolicy(
     const PolicyContainerPolicies& policies,
-    LocalNetworkAccessRequestContext private_network_request_context);
+    LocalNetworkAccessRequestContext local_network_request_context);
 
 network::mojom::ClientSecurityStatePtr CONTENT_EXPORT DeriveClientSecurityState(
     const PolicyContainerPolicies& policies,
-    LocalNetworkAccessRequestContext private_network_request_context);
+    LocalNetworkAccessRequestContext local_network_request_context);
 
 // Determines the IP address space that should be associated to execution
 // contexts instantiated from a resource loaded from this `url` and the given

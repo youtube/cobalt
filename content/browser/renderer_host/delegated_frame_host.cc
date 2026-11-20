@@ -558,7 +558,8 @@ void DelegatedFrameHost::ContinueDelegatedFrameEviction(
   //
   // TODO(b/337467299): determine why we are evicting without finding valid
   // surfaces.
-  DCHECK(!local_surface_id_.is_valid() || !surface_ids.empty());
+  CHECK(!local_surface_id_.is_valid() || !surface_ids.empty(),
+        base::NotFatalUntil::M152);
   if (!surface_ids.empty()) {
     CHECK(host_frame_sink_manager_);
     host_frame_sink_manager_->EvictSurfaces(surface_ids);

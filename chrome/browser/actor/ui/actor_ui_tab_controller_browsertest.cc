@@ -71,7 +71,7 @@ class BaseActorUiTabControllerTest : public InProcessBrowserTest {
  protected:
   views::AnimatedImageView* GetSpinner() {
     TabStripRegionView* tab_strip_view =
-        browser()->window()->AsBrowserView()->tab_strip_view();
+        BrowserView::GetBrowserViewForBrowser(browser())->tab_strip_view();
     views::View* tab_specific = tab_strip_view->GetTabAnchorViewAt(
         browser()->tab_strip_model()->active_index());
     views::AnimatedImageView* spinner =

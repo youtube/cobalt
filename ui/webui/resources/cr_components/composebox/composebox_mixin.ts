@@ -163,7 +163,7 @@ export const ComposeboxEmbedderMixin =
             },
             hasVoiceSearchError: {type: Boolean},
             voiceSearchCoherenceEnabled: {type: Boolean},
-            isListening: {type: Boolean},
+            isListening: {type: Boolean, reflect: true},
             tabFaviconChipsToCoinsEnabled: {type: Boolean},
             energyEffectEnabled: {
               reflect: true,
@@ -194,7 +194,7 @@ export const ComposeboxEmbedderMixin =
         accessor smartTabSharingActive: boolean = false;
         accessor smartTabSharingVisible: boolean = false;
         contextMenuDescriptionEnabled: boolean =
-            loadTimeData.getBoolean('composeboxShowContextMenuDescription');
+            getLoadTimeBoolean('composeboxShowContextMenuDescription', false);
         accessor showContextMenuDescription: boolean =
             this.contextMenuDescriptionEnabled;
         accessor shouldShowGhostFiles: boolean = false;
@@ -558,9 +558,16 @@ export const ComposeboxEmbedderMixin =
             if (e.detail.height > 0 && e.detail.width > 0) {
               this.fire('embedded-voice-permission-prompt-changed', e.detail);
             }
+            // Not listening if no permission granted. Needed to turn off
+            // animation.
+            this.isListening = false;
           } else {
+            // Listening is set as `true` if permission is granted.
+            this.isListening =
+                this.inVoiceSearchMode && !this.hasVoiceSearchError;
             this.fire('embedded-voice-permission-prompt-changed', e.detail);
           }
+
           const audioAnimation =
               this.shadowRoot?.querySelector<SearchAnimatedGlowElement>(
                   '#animatedSearchElement');
@@ -2279,7 +2286,7 @@ export const ComposeboxEmbedderMixin =
 
         voiceSearchEndCleanup() {
           this.inVoiceSearchMode = false;
-          this.animationState = GlowAnimationState.NONE;
+          this.animationState = GlowAnimationState.VOICE_EXITED;
           this.transcript = '';
         }
 

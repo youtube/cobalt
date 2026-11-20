@@ -145,8 +145,8 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   Register result_string = ToRegister(result());
   if (Int32Constant* constant =
           CharCodeInput().node()->TryCast<Int32Constant>()) {
-    int32_t char_code = constant->value() & 0xFFFF;
-    if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
+    uint32_t char_code = constant->value() & 0xFFFF;
+    if (char_code <= String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       // Ensure that {result_string} never aliases {scratch}, otherwise the
@@ -160,8 +160,7 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
       __ Move(scratch, char_code);
       __ StoreU16(scratch,
                   FieldMemOperand(result_string,
-                                  OFFSET_OF_DATA_START(SeqTwoByteString)),
-                  r0);
+                                  OFFSET_OF_DATA_START(SeqTwoByteString)));
       if (reallocate_result) {
         __ Move(ToRegister(result()), result_string);
       }
@@ -952,7 +951,8 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
               SetRC);
     __ EmitEagerDeoptIf(lt, DeoptimizeReason::kOutOfBounds, this);
   }
-  __ CmpU32(index, limit);
+  __ SignExtend32To64Bits(index, index);
+  __ CmpU64(index, limit);
   __ EmitEagerDeoptIf(ge, DeoptimizeReason::kOutOfBounds, this);
 }
 
@@ -1087,15 +1087,13 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register budget = temps.AcquireScratch();
-  __ LoadU32(
-      budget,
-      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      r0);
+  __ LoadU32(budget,
+             FieldMemOperand(feedback_cell,
+                             offsetof(FeedbackCell, interrupt_budget_)));
   __ SubS32(budget, budget, Operand(amount), r0);
-  __ StoreU32(
-      budget,
-      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      r0);
+  __ StoreU32(budget,
+              FieldMemOperand(feedback_cell,
+                              offsetof(FeedbackCell, interrupt_budget_)));
   ZoneLabelRef done(masm);
   __ CmpS32(budget, Operand(0), r0);
   __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type, budget);

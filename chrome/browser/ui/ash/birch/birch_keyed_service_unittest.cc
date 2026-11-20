@@ -48,6 +48,7 @@
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/favicon/core/test/mock_favicon_service.h"
 #include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
@@ -398,10 +399,10 @@ class BirchKeyedServiceTest : public BrowserWithTestWindowTest {
     const GURL kUrl(kChromeSyncUrl);
     const std::string kTitle("Chrome Sync Title");
     const std::string kTargetDeviceSyncCacheGuid(kTargetDeviceCacheGuid);
-    send_tab_to_self_model_->SendEntry(kUrl, kTitle, kTargetDeviceSyncCacheGuid,
-                                       send_tab_to_self::PageContext(),
-                                       send_tab_to_self::NavigationHistory(),
-                                       base::DoNothing());
+    send_tab_to_self_model_->SendEntry(
+        kUrl, kTitle, kTargetDeviceSyncCacheGuid,
+        send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory(),
+        base::DoNothing(), send_tab_to_self::ShareEntryPoint::kShareSheet);
   }
 
   void SimulateMediaMetadataInit() {
@@ -528,9 +529,6 @@ class BirchKeyedServiceTest : public BrowserWithTestWindowTest {
             FileSuggestKeyedServiceFactory::GetInstance(),
             base::BindRepeating(
                 &MockFileSuggestKeyedService::BuildMockFileSuggestKeyedService,
-                TestingBrowserProcess::GetGlobal()
-                    ->GetFeatures()
-                    ->application_locale_storage(),
                 temp_dir_.GetPath())},
         TestingProfile::TestingFactory{
             SessionSyncServiceFactory::GetInstance(),

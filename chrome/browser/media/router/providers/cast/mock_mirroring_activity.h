@@ -21,19 +21,20 @@ class MockMirroringActivity : public MirroringActivity {
                         OnSourceChangedCallback on_source_changed);
   ~MockMirroringActivity() override;
 
-  MOCK_METHOD(void, BindChannelToServiceReceiver, ());
-  MOCK_METHOD(void, OnSessionSet, (const CastSession& session));
+  MOCK_METHOD(void, BindChannelToServiceReceiver, (), (override));
+  MOCK_METHOD(void, OnSessionSet, (const CastSession& session), (override));
   MOCK_METHOD(void,
               SendStopSessionMessageToClients,
-              (const std::string& hash_token));
+              (const std::string& hash_token),
+              (override));
 
-  MOCK_METHOD(void, Play, ());
-  MOCK_METHOD(void, Pause, ());
-  MOCK_METHOD(void, SetMute, (bool mute));
-  MOCK_METHOD(void, SetVolume, (float volume));
-  MOCK_METHOD(void, Seek, (base::TimeDelta time));
-  MOCK_METHOD(void, NextTrack, ());
-  MOCK_METHOD(void, PreviousTrack, ());
+  MOCK_METHOD(void, Play, (), (override));
+  MOCK_METHOD(void, Pause, (), (override));
+  MOCK_METHOD(void, SetMute, (bool mute), (override));
+  MOCK_METHOD(void, SetVolume, (float volume), (override));
+  MOCK_METHOD(void, Seek, (base::TimeDelta time), (override));
+  MOCK_METHOD(void, NextTrack, (), (override));
+  MOCK_METHOD(void, PreviousTrack, (), (override));
 
  private:
   mojo::Remote<mojom::Logger> logger_;

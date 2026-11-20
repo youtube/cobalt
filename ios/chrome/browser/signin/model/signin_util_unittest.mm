@@ -59,9 +59,9 @@ class SigninUtilTest : public PlatformTest {
 
  protected:
   web::WebTaskEnvironment task_environment_;
-  raw_ptr<PrefService, DanglingUntriaged> pref_service_;
   std::unique_ptr<TestProfileIOS> profile_;
-  raw_ptr<ChromeAccountManagerService> account_manager_service_;
+  raw_ptr<PrefService> pref_service_ = nullptr;
+  raw_ptr<ChromeAccountManagerService> account_manager_service_ = nullptr;
 };
 
 TEST_F(SigninUtilTest, StoreAndGetPreRestoreIdentityFull) {

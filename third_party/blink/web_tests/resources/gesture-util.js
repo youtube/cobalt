@@ -173,41 +173,6 @@ function waitForScrollendEvent(eventTarget, timeoutMs = 2000) {
   return waitForEvent(eventTarget, 'scrollend', timeoutMs);
 }
 
-// Event driven scroll promise. This method has the advantage over timing
-// methods, as it is more forgiving to delays in event dispatch or between
-// chained smooth scrolls. It has an additional advantage of completing sooner
-// once the end condition is reached.
-// The promise is resolved when the result of calling getValue matches the
-// target value. The timeout timer starts once the first event has been
-// received.
-function waitForScrollEnd(eventTarget, getValue, targetValue, errorMessage) {
-  // Give up if the animation still isn't done after this many milliseconds from
-  // the time of the first scroll event.
-  const TIMEOUT_MS = 1000;
-
-  return new Promise((resolve, reject) => {
-    let timeout = undefined;
-    const scrollListener = () => {
-      if (!timeout)
-        timeout = setTimeout(() => {
-          reject(errorMessage || 'Timeout waiting for scroll end');
-        }, TIMEOUT_MS);
-
-      if (getValue() == targetValue) {
-        clearTimeout(timeout);
-        eventTarget.removeEventListener('scroll', scrollListener);
-        // Wait for a commit to allow the scroll to propagate through the
-        // compositor before resolving.
-        return waitForCompositorCommit().then(() => { resolve(); });
-      }
-    };
-    if (getValue() == targetValue)
-      resolve();
-    else
-      eventTarget.addEventListener('scroll', scrollListener);
-  });
-}
-
 // Enums for gesture_source_type parameters in gpuBenchmarking synthetic
 // gesture methods. Must match C++ side enums in synthetic_gesture_params.h
 const GestureSourceType = (function() {
@@ -776,6 +741,19 @@ function raf() {
       resolve();
     });
   });
+}
+
+
+// If the condition doesn't hold, the tests should be skipped.
+// The test harness requires at least one subtest to be added, so
+// a placeholder test is added to report a [Pass] on the condition
+// check.
+function shouldSkipTests(condition, message) {
+  if (condition) {
+    test(() => {}, message);
+    return true;
+  }
+  return false;
 }
 
 // Resets the scroll position to (x,y). If a scroll is required, then the

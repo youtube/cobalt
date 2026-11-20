@@ -156,6 +156,19 @@ enum class TrustedVaultListSecurityDomainMembersPinStatus {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/trusted_vault/enums.xml:TrustedVaultListSecurityDomainMembersPinStatus)
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(TrustedVaultRecoveryFlowEndpoint)
+enum class TrustedVaultRecoveryFlowEndpoint {
+  kDesktop = 0,
+  kDesktopEmbedded = 1,
+  kMaxValue = kDesktopEmbedded,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/trusted_vault/enums.xml:TrustedVaultRecoveryFlowEndpoint)
+
+void RecordTrustedVaultRecoveryFlowTriggeredEndpoint(
+    TrustedVaultRecoveryFlowEndpoint endpoint);
+
 void RecordTrustedVaultHintDegradedRecoverabilityChangedReason(
     TrustedVaultHintDegradedRecoverabilityChangedReasonForUMA
         hint_degraded_recoverability_changed_reason);

@@ -31,6 +31,7 @@
 #include "content/public/common/content_features.h"
 #include "content/public/common/referrer.h"
 #include "content/public/common/resource_request_body_android.h"
+#include "printing/buildflags/buildflags.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom.h"
 #include "third_party/blink/public/mojom/frame/blocked_navigation_types.mojom.h"
@@ -43,6 +44,10 @@
 #include "ui/gfx/android/rect_jni_conversion.h"
 #include "url/android/gurl_android.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(ENABLE_PRINTING)
+#include "components/printing/browser/print_composite_client.h"  // nogncheck
+#endif
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "components/embedder_support/android/web_contents_delegate_jni/WebContentsDelegateAndroid_jni.h"
@@ -715,6 +720,19 @@ void WebContentsDelegateAndroid::SetContentsBounds(content::WebContents* source,
   ScopedJavaLocalRef<jobject> jsource = source->GetJavaWebContents();
 
   Java_WebContentsDelegateAndroid_setContentsBounds(env, obj, jsource, bounds);
+}
+
+void WebContentsDelegateAndroid::PrintCrossProcessSubframe(
+    content::WebContents* web_contents,
+    const gfx::Rect& rect,
+    int document_cookie,
+    content::RenderFrameHost* subframe_host) const {
+#if BUILDFLAG(ENABLE_PRINTING)
+  auto* client = printing::PrintCompositeClient::FromWebContents(web_contents);
+  if (client) {
+    client->PrintCrossProcessSubframe(rect, document_cookie, subframe_host);
+  }
+#endif
 }
 
 }  // namespace web_contents_delegate_android

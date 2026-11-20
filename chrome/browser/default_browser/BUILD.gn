@@ -116,10 +116,11 @@ source_set("browser_tests") {
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-  sources = [
-    "default_browser_manager_browsertest.cc",
-    "setters/default_browser_visual_guided_setter_browsertest.cc",
-  ]
+  sources = [ "default_browser_manager_browsertest.cc" ]
+
+  if (is_win) {
+    sources += [ "setters/default_browser_visual_guided_setter_browsertest.cc" ]
+  }
 
   deps = [
     ":default_browser",

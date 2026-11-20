@@ -141,7 +141,8 @@ void TabMenuModel::BuildForWebApp(int index) {
 void TabMenuModel::BuildSendTabToSelfSubmenu(int index) {
   send_tab_to_self_submenu_delegate_ =
       std::make_unique<send_tab_to_self::SendTabToSelfContextMenuDelegate>(
-          tab_strip_->GetWebContentsAt(index));
+          tab_strip_->GetWebContentsAt(index),
+          send_tab_to_self::ShareEntryPoint::kTabMenu);
   send_tab_to_self_submenu_ = std::make_unique<ui::SimpleMenuModel>(
       send_tab_to_self_submenu_delegate_.get());
 

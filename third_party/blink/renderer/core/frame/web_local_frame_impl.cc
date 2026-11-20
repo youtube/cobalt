@@ -116,6 +116,7 @@
 #include "third_party/blink/public/mojom/browser_interface_broker.mojom-blink.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
 #include "third_party/blink/public/mojom/fenced_frame/fenced_frame.mojom-blink.h"
+#include "third_party/blink/public/mojom/frame/frame_owner_properties.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame_replication_state.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/media_player_action.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/tree_scope_type.mojom-blink.h"
@@ -332,6 +333,9 @@ class DummyFrameOwner final : public GarbageCollected<DummyFrameOwner>,
   bool AllowFullscreen() const override { return false; }
   bool AllowPaymentRequest() const override { return false; }
   bool IsDisplayNone() const override { return false; }
+  mojom::blink::FrameResponsiveSizing GetResponsiveSizing() const override {
+    return mojom::blink::FrameResponsiveSizing::kNone;
+  }
   mojom::blink::ColorScheme GetColorScheme() const override {
     return mojom::blink::ColorScheme::kLight;
   }
@@ -2445,8 +2449,8 @@ LocalFrame* WebLocalFrameImpl::CreateChildFrame(
       owner_element->ScrollbarMode(), owner_element->MarginWidth(),
       owner_element->MarginHeight(), owner_element->AllowFullscreen(),
       owner_element->AllowPaymentRequest(), owner_element->IsDisplayNone(),
-      owner_element->GetColorScheme(),
-      owner_element->GetPreferredColorScheme());
+      owner_element->GetColorScheme(), owner_element->GetPreferredColorScheme(),
+      owner_element->GetResponsiveSizing());
 
   mojo::PendingAssociatedRemote<mojom::blink::PolicyContainerHost>
       policy_container_remote;

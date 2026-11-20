@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">Открывать PDF-файлы автоматически</translation>
 <translation id="1437543266176261764">Выполняется в <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Упорядочивайте отслеживаемые товары в закладках</translation>
+<translation id="1452651021404174820">Выберите устройство</translation>
 <translation id="1455845192930279203">Все равно скачать файл <ph name="FILE_NAME" /> (<ph name="FILE_SIZE" />) на странице <ph name="DOWNLOAD_DOMAIN" />?</translation>
 <translation id="1460751212339734034">Экономьте время</translation>
 <translation id="146522654774760805">Пароли и автозаполнение</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">Не удалось скачать файл <ph name="FILE_NAME" /> из-за неполадок на сервере.</translation>
 <translation id="147982357559798527">Изменено</translation>
 <translation id="1480287803138246127">Некоторые данные могут здесь не показываться. Чтобы увидеть их все, откройте историю Chrome.</translation>
+<translation id="1483493594462132177">Отправить</translation>
 <translation id="1495677929897281669">Вернуться на вкладку</translation>
 <translation id="1496514951988037011">имя пользователя</translation>
 <translation id="1501480321619201731">Удалить группу</translation>
@@ -1273,6 +1275,7 @@
 <translation id="634208815998129842">Диспетчер задач</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" /> и ещё <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> адрес доставки}one{<ph name="SHIPPING_ADDRESS_PREVIEW" /> и ещё <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> адрес доставки}few{<ph name="SHIPPING_ADDRESS_PREVIEW" /> и ещё <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> адреса доставки}many{<ph name="SHIPPING_ADDRESS_PREVIEW" /> и ещё <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> адресов доставки}other{<ph name="SHIPPING_ADDRESS_PREVIEW" /> и ещё <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> адреса доставки}}</translation>
 <translation id="6345878117466430440">Отметить как прочитанное</translation>
+<translation id="6350745006329795504">Управление устройствами</translation>
 <translation id="6356893102071098867">Убедитесь, что выбрали нужный аккаунт.</translation>
 <translation id="6364438453358674297">Удалить подсказку из истории?</translation>
 <translation id="6380100320871303656">Chrome чаще предзагружает страницы, которые вы с большой вероятностью посетите. Может увеличиться расход трафика.</translation>

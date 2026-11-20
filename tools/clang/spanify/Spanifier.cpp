@@ -694,6 +694,13 @@ clang::SourceRange GetExprRange(const clang::Expr& expr,
     return GetExprRange(*cast_expr->getSubExpr(), source_manager, lang_opts);
   }
 
+  if (const auto* paren_expr = clang::dyn_cast<clang::ParenExpr>(&expr)) {
+    // Prevent crashes on parenthesized expressions (e.g., (width - 1)) by
+    // returning the full range from the opening to the closing parenthesis.
+    return {ToSpellingLoc(paren_expr->getLParen()),
+            ToSpellingLoc(paren_expr->getRParen()).getLocWithOffset(1)};
+  }
+
   if (auto* binary_op = clang::dyn_cast<clang::BinaryOperator>(&expr)) {
     // Disclaimer: This doesn't support edge cases like following.
     //     #define MY_MACRO(arg) arg
@@ -702,6 +709,14 @@ clang::SourceRange GetExprRange(const clang::Expr& expr,
     return {
         ToSpellingLoc(expr.getBeginLoc()),
         GetExprRange(*binary_op->getRHS(), source_manager, lang_opts).getEnd()};
+  }
+
+  if (const auto* cast_expr = clang::dyn_cast<clang::ExplicitCastExpr>(&expr)) {
+    clang::SourceLocation end_loc = ToSpellingLoc(cast_expr->getEndLoc());
+    size_t token_length =
+        clang::Lexer::MeasureTokenLength(end_loc, source_manager, lang_opts);
+    return {ToSpellingLoc(cast_expr->getBeginLoc()),
+            end_loc.getLocWithOffset(token_length)};
   }
 
   if (auto* uett_expr =
@@ -747,6 +762,31 @@ std::string GetTypeAsString(const clang::QualType& qual_type,
   return qual_type.getAsString(printing_policy);
 }
 
+// Matchers running under `TK_IgnoreUnlessSpelledInSource` bypass `ParenExpr`
+// nodes and bind directly to the underlying expression (e.g., `DeclRefExpr`).
+// This function traverses up the AST parents of the given expression to find
+// the outermost `ParenExpr` wrapping it.
+//
+// This is necessary when we need the source range of the expression including
+// its parentheses, for example, to ensure that `.data()` is appended outside
+// the parentheses in pointer arithmetic:
+//     expected_data + (index) -> expected_data.subspan(...((index))...).data()
+// rather than inside:
+//     expected_data + (index) -> expected_data.subspan(...((index.data()))...)
+const clang::Expr* GetParenAwareExpr(const clang::Expr* expr,
+                                     clang::ASTContext& context) {
+  const clang::Expr* current = expr;
+  for (auto parents = context.getParents(*expr); !parents.empty();
+       parents = context.getParents(parents[0])) {
+    const auto* paren = parents[0].get<clang::ParenExpr>();
+    if (!paren) {
+      break;
+    }
+    current = paren;
+  }
+  return current;
+}
+
 // It is intentional that this function ignores cast expressions and applies
 // the `.data()` addition to the internal expression. if we have:
 // type* ptr = reinterpret_cast<type*>(buf);  where buf needs to be rewritten
@@ -774,6 +814,7 @@ clang::SourceRange getSourceRange(const MatchFinder::MatchResult& result) {
 
   if (auto* op = result.Nodes.getNodeAs<clang::Expr>("binaryOperator")) {
     auto* sub_expr = result.Nodes.getNodeAs<clang::Expr>("binary_op_rhs");
+    sub_expr = GetParenAwareExpr(sub_expr, *result.Context);
     auto end_loc = GetExprRange(*sub_expr, source_manager, lang_opts).getEnd();
     // Disclaimer: This doesn't support edge cases like following.
     //     #define MACRO(var) var
@@ -848,7 +889,7 @@ bool HasConstNode(const clang::TypeLoc* type_loc,
                   const clang::SourceManager& source_manager,
                   const clang::LangOptions& lang_opts) {
   clang::Token tok;
-  if (!clang::Lexer::getRawToken(type_loc->getBeginLoc(), &tok, source_manager,
+  if (!clang::Lexer::getRawToken(type_loc->getBeginLoc(), tok, source_manager,
                                  lang_opts, /*KeepWhitespace=*/false)) {
     if (isConstToken(tok)) {
       return true;
@@ -1174,17 +1215,6 @@ SubspanExprReplacement GetSubspanExprReplacement(
     const clang::Expr* expr,
     const MatchFinder::MatchResult& result,
     std::string_view key) {
-  clang::QualType type = expr->getType();
-  const clang::ASTContext& ast_context = *result.Context;
-
-  const uint64_t size_t_bits =
-      ast_context.getTypeSize(ast_context.getSizeType());
-  const bool is_unsigned_type =
-      type == ast_context.getCorrespondingUnsignedType(type);
-  if (is_unsigned_type && ast_context.getTypeSize(type) <= size_t_bits) {
-    return {};
-  }
-
   const clang::SourceManager& source_manager = *result.SourceManager;
   const clang::SourceRange range =
       GetExprRange(*expr, source_manager, result.Context->getLangOpts());
@@ -1192,7 +1222,30 @@ SubspanExprReplacement GetSubspanExprReplacement(
   if (const auto* integer_literal =
           clang::dyn_cast<clang::IntegerLiteral>(expr)) {
     assert(integer_literal->getValue().isNonNegative());
+    if (integer_literal->getType()->isUnsignedIntegerType()) {
+      return {};
+    }
     return RangedReplacement{.range = range.getEnd(), .text = "u"};
+  }
+
+  clang::QualType type = expr->getType();
+  const clang::ASTContext& ast_context = *result.Context;
+
+  // Floating point types cannot be used as array indices or for pointer
+  // arithmetic in C++. They must be explicitly cast to an integer type first,
+  // which means the index expression itself will have an integral type, not a
+  // floating point type.
+  assert(!type->isRealFloatingType());
+  const uint64_t size_t_bits =
+      ast_context.getTypeSize(ast_context.getSizeType());
+  clang::QualType underlying_type = type;
+  if (const auto* enum_type = type->getAs<clang::EnumType>()) {
+    underlying_type = enum_type->getDecl()->getIntegerType();
+  }
+  const bool is_unsigned_type = underlying_type->isUnsignedIntegerType();
+  if (is_unsigned_type && ast_context.getTypeSize(type) <= size_t_bits) {
+    // The type is already unsigned and fits in size_t. No cast needed.
+    return {};
   }
 
   EmitReplacement(
@@ -1338,6 +1391,8 @@ void AdaptBinaryOperation(const MatchFinder::MatchResult& result) {
   // a .subspan( b
   const auto* binary_op_RHS =
       GetNodeOrCrash<clang::Expr>(result, "binary_op_rhs", __FUNCTION__);
+  binary_op_RHS = GetParenAwareExpr(binary_op_RHS, *result.Context);
+
   const auto subspan_expr_replacement =
       GetSubspanExprReplacement(binary_op_RHS, result, key);
 
@@ -1385,6 +1440,7 @@ void AdaptBinaryPlusEqOperation(const MatchFinder::MatchResult& result) {
   // respectively.
   auto* lhs_expr = result.Nodes.getNodeAs<clang::Expr>("rhs_expr");
   auto* binary_op_RHS = result.Nodes.getNodeAs<clang::Expr>("binary_op_RHS");
+  binary_op_RHS = GetParenAwareExpr(binary_op_RHS, *result.Context);
   auto lhs_expr_range = GetExprRange(*lhs_expr, source_manager, lang_opts);
   auto binary_op_rhs_range =
       GetExprRange(*binary_op_RHS, source_manager, lang_opts);

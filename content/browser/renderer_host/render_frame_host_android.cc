@@ -181,7 +181,7 @@ void RenderFrameHostAndroid::GetInterfaceToRendererFrame(
     JNIEnv* env,
     const base::android::JavaRef<jstring>& interface_name,
     int64_t message_pipe_raw_handle) const {
-  // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
+  // TODO(https://crbug.com/526542746): CHECK-exclusion: Convert to CHECK once
   // we are sure this isn't hit.
   DCHECK(render_frame_host_->IsRenderFrameLive());
   render_frame_host_->GetRemoteInterfaces()->GetInterfaceByName(

@@ -84,11 +84,6 @@ void DelegatedIdpNetworkRequestManager::SendFailedTokenRequestMetrics(
                                            error_code);
 }
 
-void DelegatedIdpNetworkRequestManager::SendLogout(const GURL& logout_url,
-                                                   LogoutCallback callback) {
-  delegate_->SendLogout(logout_url, std::move(callback));
-}
-
 void DelegatedIdpNetworkRequestManager::SendDisconnectRequest(
     const GURL& disconnect_url,
     const std::string& account_hint,

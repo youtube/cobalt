@@ -29,6 +29,8 @@
 
 #include "third_party/blink/renderer/platform/fonts/font_metrics.h"
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/fonts/font_platform_data.h"
 #include "third_party/blink/renderer/platform/fonts/vdmx_parser.h"
@@ -82,12 +84,16 @@ void FontMetrics::AscentDescentWithHacks(
     if (vdmx_size && vdmx_size < kMaxVDMXTableSize) {
       uint8_t* vdmx_table = (uint8_t*)Partitions::FastMalloc(
           vdmx_size, WTF_HEAP_PROFILER_TYPE_NAME(FontMetrics));
-      if (vdmx_table &&
-          face->getTableData(kVdmxTag, 0, vdmx_size, vdmx_table) == vdmx_size &&
-          ParseVDMX(&vdmx_ascent, &vdmx_descent, vdmx_table, vdmx_size,
-                    pixel_size))
-        is_vdmx_valid = true;
-      Partitions::FastFree(vdmx_table);
+      if (vdmx_table) {
+        // SAFETY: FastMalloc allocated vdmx_size bytes for vdmx_table.
+        auto vdmx_span = UNSAFE_BUFFERS(base::span(vdmx_table, vdmx_size));
+        if (face->getTableData(kVdmxTag, 0, vdmx_size, vdmx_table) ==
+                vdmx_size &&
+            ParseVDMX(&vdmx_ascent, &vdmx_descent, vdmx_span, pixel_size)) {
+          is_vdmx_valid = true;
+        }
+        Partitions::FastFree(vdmx_table);
+      }
     }
   }
 #endif

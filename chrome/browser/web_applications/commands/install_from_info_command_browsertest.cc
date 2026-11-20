@@ -22,6 +22,7 @@
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_filter.h"
+#include "chrome/browser/web_applications/web_app_icon_generator.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_install_params.h"
@@ -137,6 +138,40 @@ IN_PROC_BROWSER_TEST_F(InstallFromInfoCommandTest, InstallWithParams) {
   EXPECT_TRUE(os_state->has_shortcut());
   EXPECT_EQ(os_state->run_on_os_login().run_on_os_login_mode(),
             proto::os_state::RunOnOsLogin::MODE_NOT_RUN);
+}
+
+IN_PROC_BROWSER_TEST_F(InstallFromInfoCommandTest,
+                       TrustedInstallPopulatesTrustedIcons) {
+  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(
+      GURL("http://test.com/path"));
+  info->title = u"Test name";
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(32, 32);
+  bitmap.eraseColor(SK_ColorRED);
+  info->icon_bitmaps.any[32] = bitmap;
+
+  base::RunLoop loop;
+  webapps::AppId result_app_id;
+  provider().scheduler().InstallFromInfoWithParams(
+      std::move(info),
+      /*overwrite_existing_manifest_fields=*/false,
+      webapps::WebappInstallSource::EXTERNAL_DEFAULT,
+      base::BindLambdaForTesting(
+          [&](const webapps::AppId& app_id, webapps::InstallResultCode code) {
+            EXPECT_EQ(code, webapps::InstallResultCode::kSuccessNewInstall);
+            result_app_id = app_id;
+            loop.Quit();
+          }),
+      WebAppInstallParams());
+  loop.Run();
+
+  const WebApp* web_app =
+      provider().registrar_unsafe().GetAppById(result_app_id);
+  ASSERT_TRUE(web_app);
+  // The exact number of icons that should exist in the web app system should
+  // be expected here.
+  EXPECT_EQ(web_app::SizesToGenerate().size(),
+            web_app->stored_trusted_icon_sizes(IconPurpose::ANY).size());
 }
 
 }  // namespace web_app

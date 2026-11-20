@@ -29,6 +29,7 @@
 #include <windows.h>
 #include <winternl.h>
 
+#include "base/byte_size.h"
 #include "base/win/windows_handle_util.h"
 
 namespace {
@@ -193,10 +194,9 @@ BrowserStartupMetricRecorder::GetHardFaultCountForCurrentProcess() {
   // processes on the entire system, and this can change between calls. Retry
   // a small handful of times growing the buffer along the way.
   // NOTE: The actual required size depends entirely on the number of
-  // processes
-  //       and threads running on the system. The initial guess suffices for
-  //       ~100s of processes and ~1000s of threads.
-  std::vector<uint8_t> buffer(32 * 1024);
+  // processes and threads running on the system. The initial guess suffices for
+  // ~100s of processes and ~1000s of threads.
+  std::vector<uint8_t> buffer(base::KiBU(32).InBytes());
   constexpr int kMaxNumBufferResize = 2;
   int num_buffer_resize = 0;
   for (;;) {
@@ -215,16 +215,23 @@ BrowserStartupMetricRecorder::GetHardFaultCountForCurrentProcess() {
     if (return_length > buffer.size()) {
       // Abort if a large size is required for the buffer. It is undesirable
       // to fill a large buffer just to record histograms.
-      constexpr ULONG kMaxLength = 512 * 1024;
+#if defined(_WIN64)
+      constexpr ULONG kMaxLength =
+          base::MiBU(2).InBytes();  // 2 MB for 64-bit systems
+#else
+      constexpr ULONG kMaxLength =
+          base::KiBU(512).InBytes();  // 512 KB for 32-bit systems
+#endif
       if (return_length >= kMaxLength) {
         return std::nullopt;
       }
 
       // Resize the buffer and retry, if the buffer hasn't already been
-      // resized too many times.
+      // resized too many times. Use double the return length to have padding
+      // for new threads spawned in the meantime.
       if (num_buffer_resize < kMaxNumBufferResize) {
         ++num_buffer_resize;
-        buffer.resize(return_length);
+        buffer.resize(std::min(return_length * 2, kMaxLength));
         continue;
       }
     }

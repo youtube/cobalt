@@ -15,6 +15,12 @@ found in the LICENSE file.
     android:paddingStart="@dimen/vertical_tabs_rail_horizontal_margin"
     android:paddingEnd="@dimen/vertical_tabs_rail_horizontal_margin">
 
+    <View
+        android:id="@+id/desktop_window_spacer"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/toolbar_height_no_shadow"
+        android:visibility="gone" />
+
     <!-- Header Container: Socket for future search/toolbar buttons -->
     <LinearLayout
         android:id="@+id/vertical_tab_header_container"

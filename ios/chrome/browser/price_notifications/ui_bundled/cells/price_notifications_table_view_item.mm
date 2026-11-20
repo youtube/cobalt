@@ -13,7 +13,6 @@
 #import "ios/chrome/browser/price_notifications/ui_bundled/cells/price_notifications_track_button.h"
 #import "ios/chrome/browser/price_notifications/ui_bundled/price_notifications_constants.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
@@ -163,9 +162,8 @@ UIStackView* CreateLoadingScreen(UIView* track_button, UIView* menu_button) {
   return self;
 }
 
-- (void)configureCell:(PriceNotificationsTableViewCell*)tableCell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:tableCell withStyler:styler];
+- (void)configureCell:(PriceNotificationsTableViewCell*)tableCell {
+  [super configureCell:tableCell];
 
   tableCell.titleLabel.text = self.title;
   tableCell.entryURL = self.entryURL;

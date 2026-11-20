@@ -2,24 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "extensions/renderer/bindings/argument_spec.h"
+
 #include <string_view>
 
-#include "extensions/renderer/bindings/argument_spec.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
+#include "extensions/grit/extensions_renderer_generated_resources.h"
 #include "extensions/renderer/bindings/api_binding_test_util.h"
 #include "extensions/renderer/bindings/api_invocation_errors.h"
 #include "extensions/renderer/bindings/api_type_reference_map.h"
 #include "extensions/renderer/bindings/argument_spec_builder.h"
+#include "extensions/renderer/module_system_test.h"
 #include "gin/converter.h"
 #include "gin/dictionary.h"
 #include "gin/public/isolate_holder.h"
 #include "gin/test/v8_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "v8/include/v8-context.h"
+#include "v8/include/v8-function.h"
+#include "v8/include/v8-object.h"
+#include "v8/include/v8-primitive.h"
 #include "v8/include/v8.h"
 
 namespace extensions {
@@ -1051,6 +1058,7 @@ TEST_F(ArgumentSpecUnitTest, TestV8ValuePassedThrough) {
             .Build();
     test_is_same_value(*instance_of_spec, "(new RegExp('hi'))");
   }
+
   {
     std::unique_ptr<ArgumentSpec> additional_properties_spec =
         ArgumentSpecBuilder(ArgumentType::OBJECT, "additional props")
@@ -1092,6 +1100,130 @@ TEST_F(ArgumentSpecUnitTest, SerializableFunctions) {
          g.toString = function() { return 'function() { return 3; }'; };
          g;)",
                 kExpectedSerialization);
+}
+
+class ArgumentSpecIntegrationTest : public ModuleSystemTest {
+ public:
+  // See UtilsUnittest::SetUp().
+  void SetUp() override {
+    ModuleSystemTest::SetUp();
+
+    env()->RegisterModule("utils", IDR_EXTENSIONS_RENDERER_GENERATED_UTILS_JS);
+    env()->OverrideNativeHandler("schema_registry",
+                                 "exports.$set('GetSchema', function() {});");
+    env()->OverrideNativeHandler("logging",
+                                 "exports.$set('CHECK', function() {});\n"
+                                 "exports.$set('DCHECK', function() {});\n"
+                                 "exports.$set('WARNING', function() {});");
+    env()->OverrideNativeHandler("v8_context", "");
+  }
+};
+
+TEST_F(ArgumentSpecIntegrationTest, ExposeIsInstanceOfIntegration) {
+  ExpectNoAssertionsMade();
+  ModuleSystem::NativesEnabledScope natives_enabled_scope(
+      env()->module_system());
+
+  constexpr char kModuleBody[] = R"(
+      var utils = require('utils');
+
+      // Base class.
+      function MyClassImpl() {}
+      function MyClass() {
+        privates(MyClass).constructPrivate(this, arguments);
+      }
+      utils.expose(MyClass, MyClassImpl, {});
+
+      // Subclass.
+      function MySubClassImpl() {}
+      function MySubClass() {
+        privates(MySubClass).constructPrivate(this, arguments);
+      }
+      utils.expose(MySubClass, MySubClassImpl, {
+        superclass: MyClass
+      });
+
+      exports.$set('MyClass', MyClass);
+      exports.$set('MySubClass', MySubClass);
+  )";
+
+  env()->RegisterModule("argument_spec_unittest", kModuleBody);
+
+  ASSERT_FALSE(env()
+                   ->module_system()
+                   ->Require("argument_spec_unittest")
+                   .ToLocalChecked()
+                   .IsEmpty());
+
+  // 1. Retrieve constructors from the module exports.
+  v8::Isolate* isolate = env()->isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = env()->context()->v8_context();
+
+  v8::Local<v8::Object> exports;
+  ASSERT_TRUE(env()
+                  ->module_system()
+                  ->Require("argument_spec_unittest")
+                  .ToLocal(&exports));
+
+  v8::Local<v8::Function> my_class;
+  {
+    v8::Local<v8::Value> my_class_val;
+    ASSERT_TRUE(exports->Get(context, gin::StringToSymbol(isolate, "MyClass"))
+                    .ToLocal(&my_class_val));
+    ASSERT_TRUE(my_class_val->IsFunction());
+    my_class = my_class_val.As<v8::Function>();
+  }
+
+  v8::Local<v8::Function> my_sub_class;
+  {
+    v8::Local<v8::Value> my_sub_class_val;
+    ASSERT_TRUE(
+        exports->Get(context, gin::StringToSymbol(isolate, "MySubClass"))
+            .ToLocal(&my_sub_class_val));
+    ASSERT_TRUE(my_sub_class_val->IsFunction());
+    my_sub_class = my_sub_class_val.As<v8::Function>();
+  }
+
+  // 2. Create class instances.
+  v8::Local<v8::Object> my_instance;
+  ASSERT_TRUE(my_class->NewInstance(context).ToLocal(&my_instance));
+
+  v8::Local<v8::Object> my_sub_instance;
+  ASSERT_TRUE(my_sub_class->NewInstance(context).ToLocal(&my_sub_instance));
+
+  // 3. Create an ArgumentSpec expecting "MyClass".
+  APITypeReferenceMap type_refs =
+      APITypeReferenceMap(APITypeReferenceMap::InitializeTypeCallback());
+  std::unique_ptr<ArgumentSpec> spec =
+      ArgumentSpecBuilder(ArgumentType::OBJECT, "instance_of")
+          .SetInstanceOf("MyClass")
+          .Build();
+
+  // 4. Validate the JS object (base class) using ArgumentSpec.
+  v8::Local<v8::Value> value_out;
+  std::string error;
+  EXPECT_TRUE(spec->ParseArgument(context, my_instance, type_refs, nullptr,
+                                  &value_out, &error))
+      << error;
+  EXPECT_FALSE(value_out.IsEmpty());
+
+  // 5. Validate the JS object (subclass class) using ArgumentSpec.
+  v8::Local<v8::Value> value_sub_out;
+  std::string error_sub;
+  EXPECT_TRUE(spec->ParseArgument(context, my_sub_instance, type_refs, nullptr,
+                                  &value_sub_out, &error_sub))
+      << error_sub;
+  EXPECT_FALSE(value_sub_out.IsEmpty());
+
+  // 6. Validate that an unrelated object (e.g. RegExp) fails this check.
+  v8::Local<v8::Value> regexp_instance =
+      V8ValueFromScriptSource(context, "(new RegExp('hi'))");
+  ASSERT_FALSE(regexp_instance.IsEmpty());
+  v8::Local<v8::Value> value_out_fail;
+  std::string error_fail;
+  EXPECT_FALSE(spec->ParseArgument(context, regexp_instance, type_refs, nullptr,
+                                   &value_out_fail, &error_fail));
 }
 
 }  // namespace extensions

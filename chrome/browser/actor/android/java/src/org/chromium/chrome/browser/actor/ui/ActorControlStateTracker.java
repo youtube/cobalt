@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.actor.ui;
 
-import android.text.TextUtils;
-
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
@@ -46,6 +44,7 @@ public class ActorControlStateTracker
 
     private @Nullable ActorKeyedService mActorKeyedService;
     private @Nullable GlicInstanceHelper mGlicInstanceHelper;
+    private @Nullable Integer mTrackedTaskId;
 
     private String mActiveTaskTitle = "";
 
@@ -56,15 +55,6 @@ public class ActorControlStateTracker
     // The ID of the tab that Actor was last acting on. This is used to switch to the actuating tab
     // when the user clicks the actor control button in the WAITING state.
     private int mActuatedTabId = Tab.INVALID_TAB_ID;
-
-    // The conversation ID that the active task is associated with. This is used to determine
-    // whether the active task is associated with the current conversation or not.
-    private String mTaskGlicConversationId = "";
-
-    // The ID of the currently active GLIC instance.
-    private String mActiveGlicConversationId = "";
-
-    private String mConversationTitle = "";
 
     /**
      * Constructs a new {@link ActorControlStateTracker}.
@@ -88,9 +78,9 @@ public class ActorControlStateTracker
                     protected void onObservingDifferentTab(@Nullable Tab tab) {
                         if (mGlicInstanceHelper != null) {
                             mGlicInstanceHelper.removeObserver(ActorControlStateTracker.this);
+                            mGlicInstanceHelper = null;
                         }
                         if (tab != null && tab.isOffTheRecord()) {
-                            resetGlicInstanceState();
                             resetTaskState();
                             updateState();
                             return;
@@ -124,7 +114,6 @@ public class ActorControlStateTracker
                 profile != null && profile.isNativeInitialized() && !profile.isOffTheRecord();
         if (!isProfileValid) {
             resetTaskState();
-            resetGlicInstanceState();
             updateState();
             return;
         }
@@ -133,13 +122,12 @@ public class ActorControlStateTracker
         if (mActorKeyedService != null) {
             mActorKeyedService.addObserver(this);
         }
-        ActorTask activeTask =
-                mActorKeyedService != null ? mActorKeyedService.getCurrentActiveTask() : null;
-        if (activeTask == null) {
-            mLatestTaskState = null;
+        resetTaskState();
+        ActorTask task = getActiveTaskAssociatedWithCurrentConversation();
+        if (task == null) {
             updateState();
         } else {
-            onTaskStateChanged(activeTask.getId(), activeTask.getState());
+            onTaskStateChanged(task.getId(), task.getState());
         }
     }
 
@@ -161,25 +149,33 @@ public class ActorControlStateTracker
             return;
         }
 
+        ActorTask task = mActorKeyedService.getTask(taskId);
+
+        // Determine if this event belongs to the active conversation
+        boolean isCurrentTask = (mTrackedTaskId != null && mTrackedTaskId == taskId);
+        boolean isNewAssociatedTask =
+                (mTrackedTaskId == null
+                        && mGlicInstanceHelper != null
+                        && taskId == mGlicInstanceHelper.getTaskId());
+
+        // Ignore background task events
+        if (!isCurrentTask && !isNewAssociatedTask) {
+            return;
+        }
+
         mLatestTaskState = newState;
 
-        ActorTask activeTask = mActorKeyedService.getCurrentActiveTask();
         // TODO(crbug.com/503370476): Use ActorUiStateManager to track when tasks are finished,
         // instead of checking activeTask and the newState.
-        if (activeTask != null) {
-            mActiveTaskTitle = activeTask.getTitle();
-            mTaskGlicConversationId =
-                    TextUtils.isEmpty(mTaskGlicConversationId)
-                            ? mActiveGlicConversationId
-                            : mTaskGlicConversationId;
-
-            Set<Integer> tabs = activeTask.getLastActedTabs();
+        if (task != null) {
+            mTrackedTaskId = taskId;
+            mActiveTaskTitle = task.getTitle();
+            Set<Integer> tabs = task.getLastActedTabs();
             mActuatedTabId = tabs.isEmpty() ? Tab.INVALID_TAB_ID : tabs.iterator().next();
         } else if (!ActorUtils.isCompletedState(newState)) {
             // If the active task is null but the task has not been completed, we are in an invalid
             // state. Clear PeekView content and reset task-related variables.
             mActiveTaskTitle = "";
-            mTaskGlicConversationId = "";
             mActuatedTabId = Tab.INVALID_TAB_ID;
             Log.w(
                     TAG,
@@ -192,7 +188,7 @@ public class ActorControlStateTracker
         // Clean up state only after the UI has been updated to reflect task completion.
         if (ActorUtils.isCompletedState(newState)) {
             mActiveTaskTitle = "";
-            mTaskGlicConversationId = "";
+            mTrackedTaskId = null;
         }
     }
 
@@ -200,14 +196,18 @@ public class ActorControlStateTracker
     @Override
     public void onInstanceChanged() {
         if (mGlicInstanceHelper == null) {
-            resetGlicInstanceState();
+            resetTaskState();
             updateState();
             return;
         }
 
-        mConversationTitle = mGlicInstanceHelper.getConversationTitle();
-        mActiveGlicConversationId = mGlicInstanceHelper.getConversationId();
-        updateState();
+        resetTaskState();
+        ActorTask task = getActiveTaskAssociatedWithCurrentConversation();
+        if (task == null) {
+            updateState();
+        } else {
+            onTaskStateChanged(task.getId(), task.getState());
+        }
     }
 
     /** Cleans up observers and suppliers. */
@@ -233,11 +233,6 @@ public class ActorControlStateTracker
         updateState();
     }
 
-    /** Returns the currently active task, or null. */
-    public @Nullable ActorTask getCurrentActiveTask() {
-        return mActorKeyedService != null ? mActorKeyedService.getCurrentActiveTask() : null;
-    }
-
     /** Returns the ID of the tab that Actor was last acting on. */
     public int getActuatedTabId() {
         return mActuatedTabId;
@@ -250,12 +245,16 @@ public class ActorControlStateTracker
 
     /** Returns the title of the current conversation. */
     public String getConversationTitle() {
-        return mConversationTitle;
+        return mGlicInstanceHelper != null ? mGlicInstanceHelper.getConversationTitle() : "";
     }
 
-    /** Returns whether the active task belongs to the currently active conversation. */
+    /**
+     * Returns whether there is an active task or a recently completed task associated with the
+     * current conversation.
+     */
     public boolean isActiveTaskAssociatedWithConversation() {
-        return mActiveGlicConversationId.equals(mTaskGlicConversationId);
+        return getActiveTaskAssociatedWithCurrentConversation() != null
+                || (mLatestTaskState != null && ActorUtils.isCompletedState(mLatestTaskState));
     }
 
     /** Returns the latest known state of the active task, or null if no task active. */
@@ -263,15 +262,22 @@ public class ActorControlStateTracker
         return mLatestTaskState;
     }
 
-    private void resetGlicInstanceState() {
-        mConversationTitle = "";
-        mActiveGlicConversationId = "";
+    /** Returns the active task associated with the current conversation, or null if none. */
+    public @Nullable ActorTask getActiveTaskAssociatedWithCurrentConversation() {
+        if (mActorKeyedService == null || mGlicInstanceHelper == null) {
+            return null;
+        }
+        int taskId = mGlicInstanceHelper.getTaskId();
+        if (taskId <= 0) {
+            return null;
+        }
+        return mActorKeyedService.getTask(taskId);
     }
 
     private void resetTaskState() {
+        mTrackedTaskId = null;
         mLatestTaskState = null;
         mActiveTaskTitle = "";
-        mTaskGlicConversationId = "";
         mActuatedTabId = Tab.INVALID_TAB_ID;
     }
 }

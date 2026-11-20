@@ -6,15 +6,20 @@
 
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/notreached.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/device/public/mojom/usb_device.mojom-blink.h"
 #include "services/device/public/mojom/usb_enumeration_options.mojom-blink.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker.mojom-blink.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/renderer/bindings/core/v8/local_window_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
+#include "third_party/blink/renderer/bindings/core/v8/worker_or_worklet_script_controller.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_usb_device_filter.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_usb_device_request_options.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -24,12 +29,15 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/workers/dedicated_worker_global_scope.h"
 #include "third_party/blink/renderer/core/workers/worker_global_scope.h"
+#include "third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/modules/service_worker/service_worker_global_scope.h"
 #include "third_party/blink/renderer/modules/webusb/usb_connection_event.h"
 #include "third_party/blink/renderer/modules/webusb/usb_device.h"
+#include "third_party/blink/renderer/platform/bindings/dom_wrapper_world.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
 using device::mojom::blink::UsbDevice;
@@ -278,6 +286,46 @@ void USB::ContextDestroyed() {
   get_permission_requests_.clear();
 }
 
+void USB::USBDeviceCache::Trace(Visitor* visitor) const {
+  visitor->Trace(device_cache_);
+}
+
+HeapHashMap<String, WeakMember<USBDevice>>& USB::GetOrCreateWorldDeviceCache(
+    DOMWrapperWorld& world) {
+  auto it = device_caches_.find(&world);
+  if (it != device_caches_.end()) {
+    return it->value->DeviceCache();
+  }
+  auto* cache = MakeGarbageCollected<USBDeviceCache>();
+  device_caches_.insert(&world, cache);
+  return cache->DeviceCache();
+}
+
+USBDevice* USB::GetOrCreateDevice(DOMWrapperWorld& world,
+                                  UsbDeviceInfoPtr device_info) {
+  auto& device_cache = GetOrCreateWorldDeviceCache(world);
+  auto it = device_cache.find(device_info->guid);
+  if (it != device_cache.end()) {
+    return it->value.Get();
+  }
+
+  String guid = device_info->guid;
+  mojo::PendingRemote<UsbDevice> pipe;
+  service_->GetDevice(guid, pipe.InitWithNewPipeAndPassReceiver());
+  USBDevice* device = MakeGarbageCollected<USBDevice>(
+      this, std::move(device_info), std::move(pipe), GetExecutionContext());
+  device_cache.insert(guid, device);
+  return device;
+}
+
+USBDevice* USB::GetOrCreateDevice(ScriptState* script_state,
+                                  UsbDeviceInfoPtr device_info) {
+  if (base::FeatureList::IsEnabled(features::kWebUSBWorldIsolatedCache)) {
+    return GetOrCreateDevice(script_state->World(), std::move(device_info));
+  }
+  return GetOrCreateDevice(std::move(device_info));
+}
+
 USBDevice* USB::GetOrCreateDevice(UsbDeviceInfoPtr device_info) {
   auto it = device_cache_.find(device_info->guid);
   if (it != device_cache_.end()) {
@@ -304,9 +352,15 @@ void USB::OnGetDevices(ScriptPromiseResolver<IDLSequence<USBDevice>>* resolver,
                        Vector<UsbDeviceInfoPtr> device_infos) {
   DCHECK(get_devices_requests_.Contains(resolver));
 
+  ScriptState* script_state = resolver->GetScriptState();
+  if (!IsInParallelAlgorithmRunnable(resolver->GetExecutionContext(),
+                                     script_state)) {
+    return;
+  }
+
   HeapVector<Member<USBDevice>> devices;
   for (auto& device_info : device_infos)
-    devices.push_back(GetOrCreateDevice(std::move(device_info)));
+    devices.push_back(GetOrCreateDevice(script_state, std::move(device_info)));
   resolver->Resolve(devices);
   get_devices_requests_.erase(resolver);
 }
@@ -315,10 +369,16 @@ void USB::OnGetPermission(ScriptPromiseResolver<USBDevice>* resolver,
                           UsbDeviceInfoPtr device_info) {
   DCHECK(get_permission_requests_.Contains(resolver));
 
+  ScriptState* script_state = resolver->GetScriptState();
+  if (!IsInParallelAlgorithmRunnable(resolver->GetExecutionContext(),
+                                     script_state)) {
+    return;
+  }
+
   EnsureServiceConnection();
 
   if (service_.is_bound() && device_info) {
-    resolver->Resolve(GetOrCreateDevice(std::move(device_info)));
+    resolver->Resolve(GetOrCreateDevice(script_state, std::move(device_info)));
   } else {
     resolver->RejectWithDOMException(DOMExceptionCode::kNotFoundError,
                                      kNoDeviceSelected);
@@ -326,28 +386,86 @@ void USB::OnGetPermission(ScriptPromiseResolver<USBDevice>* resolver,
   get_permission_requests_.erase(resolver);
 }
 
+void USB::ForEachWorld(base::FunctionRef<void(DOMWrapperWorld*)> action) {
+  if (base::FeatureList::IsEnabled(features::kWebUSBWorldIsolatedCache)) {
+    ExecutionContext* context = GetExecutionContext();
+    if (!context) {
+      return;
+    }
+
+    if (context->IsWindow()) {
+      LocalDOMWindow* window = To<LocalDOMWindow>(context);
+      LocalFrame* frame = window->GetFrame();
+      if (!frame) {
+        return;
+      }
+
+      v8::Isolate* isolate = context->GetIsolate();
+      v8::HandleScope handle_scope(isolate);
+      HeapVector<Member<DOMWrapperWorld>> worlds;
+      DOMWrapperWorld::AllWorldsInIsolate(isolate, worlds);
+
+      for (DOMWrapperWorld* world : worlds) {
+        LocalWindowProxy* window_proxy =
+            frame->WindowProxyMaybeUninitialized(*world);
+        if (window_proxy && !window_proxy->ContextIfInitialized().IsEmpty()) {
+          action(world);
+        }
+      }
+    } else {
+      DCHECK(context->IsWorkerOrWorkletGlobalScope());
+      auto* global_scope = To<WorkerOrWorkletGlobalScope>(context);
+      ScriptState* script_state =
+          global_scope->ScriptController()->GetScriptState();
+      if (!script_state) {
+        return;
+      }
+      action(&script_state->World());
+    }
+  } else {
+    action(nullptr);
+  }
+}
+
 void USB::OnDeviceAdded(UsbDeviceInfoPtr device_info) {
   if (!service_.is_bound())
     return;
 
-  DispatchEvent(*USBConnectionEvent::Create(
-      event_type_names::kConnect, GetOrCreateDevice(std::move(device_info))));
+  ForEachWorld([this, &device_info](DOMWrapperWorld* world) {
+    USBDevice* device;
+    if (world) {
+      device = GetOrCreateDevice(*world, device_info->Clone());
+    } else {
+      // `world` is nullptr when `kWebUSBWorldIsolatedCache` is disabled. In
+      // that case, we use the shared `device_cache_` (via `GetOrCreateDevice`
+      // legacy fallback).
+      device = GetOrCreateDevice(std::move(device_info));
+    }
+    DispatchEvent(
+        *USBConnectionEvent::Create(event_type_names::kConnect, device, world));
+  });
 }
 
 void USB::OnDeviceRemoved(UsbDeviceInfoPtr device_info) {
   String guid = device_info->guid;
-  USBDevice* device = nullptr;
-  const auto it = device_cache_.find(guid);
-  if (it != device_cache_.end()) {
-    device = it->value;
-  } else {
-    device = MakeGarbageCollected<USBDevice>(this, std::move(device_info),
-                                             mojo::NullRemote(),
-                                             GetExecutionContext());
-  }
-  DispatchEvent(
-      *USBConnectionEvent::Create(event_type_names::kDisconnect, device));
-  device_cache_.erase(guid);
+  ForEachWorld([this, &device_info, &guid](DOMWrapperWorld* world) {
+    USBDevice* device = nullptr;
+    // `world` is nullptr when `kWebUSBWorldIsolatedCache` is disabled. In that
+    // case, we use the shared `device_cache_`.
+    auto& device_cache =
+        world ? GetOrCreateWorldDeviceCache(*world) : device_cache_;
+    const auto it = device_cache.find(guid);
+    if (it != device_cache.end()) {
+      device = it->value;
+    } else {
+      device = MakeGarbageCollected<USBDevice>(
+          this, world ? device_info->Clone() : std::move(device_info),
+          mojo::NullRemote(), GetExecutionContext());
+    }
+    DispatchEvent(*USBConnectionEvent::Create(event_type_names::kDisconnect,
+                                              device, world));
+    device_cache.erase(guid);
+  });
 }
 
 void USB::OnServiceConnectionError() {
@@ -438,6 +556,7 @@ void USB::Trace(Visitor* visitor) const {
   visitor->Trace(get_devices_requests_);
   visitor->Trace(get_permission_requests_);
   visitor->Trace(client_receiver_);
+  visitor->Trace(device_caches_);
   visitor->Trace(device_cache_);
   EventTarget::Trace(visitor);
   Supplement<NavigatorBase>::Trace(visitor);

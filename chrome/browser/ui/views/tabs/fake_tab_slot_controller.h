@@ -59,7 +59,6 @@ class FakeTabSlotController : public TabSlotController {
   bool IsActiveTab(const TabSlotView* tab) const override;
   bool IsTabSelected(const TabSlotView* tab) const override;
   bool IsFocusInTabStrip() const override;
-  bool ShouldCompactLeadingEdge() const override;
   void MaybeStartDrag(TabSlotView* source,
                       const ui::LocatedEvent& event,
                       ui::ListSelectionModel original_selection) override {}

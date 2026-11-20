@@ -1373,7 +1373,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorAndroidBrowserTest,
   WaitUntilOpened(coordinator_);
   EXPECT_TRUE(
       coordinator_->SidePanelUIBase::IsSidePanelEntryShowing(entry_key));
-  EXPECT_FALSE(coordinator_->IsClosing());
+  EXPECT_NE(coordinator_->GetStateForTesting(), SidePanelState::kClosing);
 
   // Act: Close the side panel (suppressing animations).
   coordinator_->Close(SidePanelEntryHideReason::kSidePanelClosed,
@@ -1382,7 +1382,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorAndroidBrowserTest,
   // Verify it is closed. We must wait for the asynchronous layout pass to
   // complete for the JNI callbacks to finish and update the C++ state.
   WaitUntilClosed(coordinator_);
-  EXPECT_FALSE(coordinator_->IsClosing());
+  EXPECT_NE(coordinator_->GetStateForTesting(), SidePanelState::kClosing);
   EXPECT_FALSE(
       coordinator_->SidePanelUIBase::IsSidePanelEntryShowing(entry_key));
 
@@ -1392,7 +1392,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorAndroidBrowserTest,
                                       /*suppress_animations=*/true);
 
   WaitUntilOpened(coordinator_);
-  EXPECT_FALSE(coordinator_->IsClosing());
+  EXPECT_NE(coordinator_->GetStateForTesting(), SidePanelState::kClosing);
   EXPECT_TRUE(
       coordinator_->SidePanelUIBase::IsSidePanelEntryShowing(entry_key));
 }
@@ -2260,4 +2260,67 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorAndroidBrowserTest,
   // correct entry.
   EXPECT_TRUE(coordinator_->IsSidePanelShowing());
   EXPECT_TRUE(coordinator_->IsSidePanelEntryShowing(entry_key));
+}
+
+IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorAndroidBrowserTest,
+                       HasContentToShow_InitialState_ReturnsFalse) {
+  EXPECT_FALSE(coordinator_->HasContentToShow(/*env=*/nullptr));
+}
+
+IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorAndroidBrowserTest,
+                       HasContentToShow_AfterSidePanelIsShown_ReturnsTrue) {
+  // Arrange:
+  auto entry_key = SidePanelEntryKey(SidePanelEntryId::kAboutThisSite);
+  auto* registry = SidePanelRegistry::From(browser_);
+  registry->Register(CreateSidePanelEntry(entry_key, browser_));
+
+  coordinator_->SidePanelUIBase::Show(entry_key,
+                                      SidePanelOpenTrigger::kToolbarButton,
+                                      /*suppress_animations=*/true);
+  WaitUntilOpened(coordinator_);
+
+  // Assert:
+  EXPECT_TRUE(coordinator_->HasContentToShow(/*env=*/nullptr));
+}
+
+IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorAndroidBrowserTest,
+                       HasContentToShow_AfterSidePanelIsClosed_ReturnsFalse) {
+  // Arrange:
+  auto entry_key = SidePanelEntryKey(SidePanelEntryId::kAboutThisSite);
+  auto* registry = SidePanelRegistry::From(browser_);
+  registry->Register(CreateSidePanelEntry(entry_key, browser_));
+
+  coordinator_->SidePanelUIBase::Show(entry_key,
+                                      SidePanelOpenTrigger::kToolbarButton,
+                                      /*suppress_animations=*/true);
+  WaitUntilOpened(coordinator_);
+
+  coordinator_->Close(SidePanelEntryHideReason::kSidePanelClosed,
+                      /*suppress_animations=*/true);
+  WaitUntilClosed(coordinator_);
+
+  // Assert:
+  EXPECT_FALSE(coordinator_->HasContentToShow(/*env=*/nullptr));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    SidePanelCoordinatorAndroidBrowserTest,
+    HasContentToShow_AfterSidePanelIsClosedWithDeferredEntry_ReturnsTrue) {
+  // Arrange: Show a side panel entry.
+  auto entry_key = SidePanelEntryKey(SidePanelEntryId::kAboutThisSite);
+  auto* registry = SidePanelRegistry::From(browser_);
+  registry->Register(CreateSidePanelEntry(entry_key, browser_));
+
+  coordinator_->SidePanelUIBase::Show(entry_key,
+                                      SidePanelOpenTrigger::kToolbarButton,
+                                      /*suppress_animations=*/true);
+  WaitUntilOpened(coordinator_);
+
+  // Arrange: Make window too small, which will create a deferred entry and
+  // close the side panel.
+  coordinator_->OnWindowResized(/*env=*/nullptr, /*can_show_side_panel=*/false);
+  WaitUntilClosed(coordinator_);
+
+  // Assert:
+  EXPECT_TRUE(coordinator_->HasContentToShow(/*env=*/nullptr));
 }

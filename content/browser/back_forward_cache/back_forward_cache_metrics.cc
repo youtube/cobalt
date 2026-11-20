@@ -11,6 +11,7 @@
 #include "base/metrics/metrics_hashes.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/strings/stringprintf.h"
+#include "base/trace_event/named_trigger.h"
 #include "components/back_forward_cache/disabled_reason_id.h"
 #include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
@@ -208,6 +209,7 @@ void BackForwardCacheMetrics::DidCommitNavigation(
 
     // TODO(crbug.com/40229455): Remove this.
     if (served_from_bfcache_not_match) {
+      base::trace_event::EmitNamedTrigger("bfcache-mismatch-detected");
       SCOPED_CRASH_KEY_BOOL("BFCacheMismatch", "did_store", did_store);
       SCOPED_CRASH_KEY_BOOL("BFCacheMismatch", "can_restore", can_restore);
       SCOPED_CRASH_KEY_NUMBER("BFCacheMismatch", "not_restored",

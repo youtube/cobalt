@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string>
 
+#include "base/functional/callback_helpers.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/origin_trials/scoped_test_origin_trial_policy.h"
@@ -493,6 +494,9 @@ TEST_F(WebDocumentFirstPartyTest,
   SetIsBeforeThreadCreatedForTest();
 #endif
   SchemeRegistry::RegisterURLSchemeAsFirstPartyWhenTopLevel("http");
+  base::ScopedClosureRunner cleanup(base::BindOnce([]() {
+    SchemeRegistry::RemoveURLSchemeAsFirstPartyWhenTopLevelForTest("http");
+  }));
 
   ASSERT_TRUE(SiteForCookiesEqual(g_nested_origin_a_in_origin_b,
                                   TopDocument()->SiteForCookies()));

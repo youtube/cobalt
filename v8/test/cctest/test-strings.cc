@@ -348,7 +348,7 @@ void AccumulateStats(DirectHandle<String> cons_string, ConsStringStats* stats) {
 void AccumulateStatsWithOperator(Tagged<ConsString> cons_string,
                                  ConsStringStats* stats) {
   ConsStringIterator iter(cons_string);
-  int offset;
+  uint32_t offset;
   for (Tagged<String> string = iter.Next(&offset); !string.is_null();
        string = iter.Next(&offset)) {
     // Accumulate stats.
@@ -1588,6 +1588,7 @@ TEST(CountBreakIterator) {
   // Make sure GC cleans up the break iterator, so we don't get a memory leak
   // reported by ASAN.
   CcTest::isolate()->LowMemoryNotification();
+  global_use_counts = nullptr;
 }
 
 TEST(StringReplaceAtomTwoByteResult) {

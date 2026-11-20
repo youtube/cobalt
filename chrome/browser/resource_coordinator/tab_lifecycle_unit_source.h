@@ -115,10 +115,6 @@ class TabLifecycleUnitSource : public BrowserCollectionObserver,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
 
-  void OnTabChangedAt(tabs::TabInterface* tab,
-                      int index,
-                      TabChangeType change_type) override;
-
   // BrowserCollectionObserver:
   void OnBrowserClosed(BrowserWindowInterface* browser) override;
   void OnBrowserActivated(BrowserWindowInterface* browser) override;

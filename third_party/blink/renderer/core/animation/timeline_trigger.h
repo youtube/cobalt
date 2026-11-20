@@ -29,8 +29,7 @@ class CORE_EXPORT TimelineTrigger : public AnimationTrigger {
   using TriggerBoundaries = TimelineTriggerRange::TriggerBoundaries;
   using CcBoundaries = cc::TimelineTrigger::Boundaries;
 
-  TimelineTrigger(TimelineTriggerRangeList* ranges,
-                  Element* owning_element = nullptr);
+  explicit TimelineTrigger(TimelineTriggerRangeList* ranges);
   static TimelineTrigger* Create(
       ExecutionContext* execution_context,
       const HeapVector<Member<TimelineTriggerOptions>>& options,

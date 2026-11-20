@@ -31,29 +31,27 @@ NSString* const kNSHTTPCookieSameSiteNone = @"none";
 // Converts NSHTTPCookie to net::CanonicalCookie.
 std::unique_ptr<net::CanonicalCookie> CanonicalCookieFromSystemCookie(
     NSHTTPCookie* cookie,
-    const base::Time& ceation_time) {
-  net::CookieSameSite same_site = net::CookieSameSite::NO_RESTRICTION;
-  if (@available(iOS 13, *)) {
-    same_site = net::CookieSameSite::UNSPECIFIED;
-    if ([cookie.sameSitePolicy isEqual:NSHTTPCookieSameSiteLax]) {
-      same_site = net::CookieSameSite::LAX_MODE;
-    }
+    const base::Time& creation_time) {
+  net::CookieSameSite same_site = net::CookieSameSite::UNSPECIFIED;
+  if ([cookie.sameSitePolicy isEqual:NSHTTPCookieSameSiteLax]) {
+    same_site = net::CookieSameSite::LAX_MODE;
+  }
 
-    if ([cookie.sameSitePolicy isEqual:NSHTTPCookieSameSiteStrict]) {
-      same_site = net::CookieSameSite::STRICT_MODE;
-    }
+  if ([cookie.sameSitePolicy isEqual:NSHTTPCookieSameSiteStrict]) {
+    same_site = net::CookieSameSite::STRICT_MODE;
+  }
 
-    if ([[cookie.sameSitePolicy lowercaseString]
-            isEqual:kNSHTTPCookieSameSiteNone]) {
-      same_site = net::CookieSameSite::NO_RESTRICTION;
-    }
+  if ([[cookie.sameSitePolicy lowercaseString]
+          isEqual:kNSHTTPCookieSameSiteNone] &&
+      cookie.isSecure) {
+    same_site = net::CookieSameSite::NO_RESTRICTION;
   }
 
   return net::CanonicalCookie::FromStorage(
       base::SysNSStringToUTF8([cookie name]),
       base::SysNSStringToUTF8([cookie value]),
       base::SysNSStringToUTF8([cookie domain]),
-      base::SysNSStringToUTF8([cookie path]), ceation_time,
+      base::SysNSStringToUTF8([cookie path]), creation_time,
       base::Time::FromSecondsSinceUnixEpoch(
           [[cookie expiresDate] timeIntervalSince1970]),
       base::Time(), base::Time(), [cookie isSecure], [cookie isHTTPOnly],
@@ -91,26 +89,24 @@ NSHTTPCookie* SystemCookieFromCanonicalCookie(
     [properties setObject:expiry forKey:NSHTTPCookieExpires];
   }
 
-  if (@available(iOS 13, *)) {
-    // In iOS 13 sameSite property in NSHTTPCookie is used to specify the
-    // samesite policy.
-    NSString* same_site = @"";
-    switch (cookie.SameSite()) {
-      case net::CookieSameSite::LAX_MODE:
-        same_site = NSHTTPCookieSameSiteLax;
-        break;
-      case net::CookieSameSite::STRICT_MODE:
-        same_site = NSHTTPCookieSameSiteStrict;
-        break;
-      case net::CookieSameSite::NO_RESTRICTION:
-        same_site = kNSHTTPCookieSameSiteNone;
-        break;
-      case net::CookieSameSite::UNSPECIFIED:
-        // All other values of same site policy will be treated as no value .
-        break;
-    }
-    properties[NSHTTPCookieSameSitePolicy] = same_site;
+  // The sameSitePolicy property in NSHTTPCookie is used to specify the
+  // samesite policy.
+  NSString* same_site = @"";
+  switch (cookie.SameSite()) {
+    case net::CookieSameSite::LAX_MODE:
+      same_site = NSHTTPCookieSameSiteLax;
+      break;
+    case net::CookieSameSite::STRICT_MODE:
+      same_site = NSHTTPCookieSameSiteStrict;
+      break;
+    case net::CookieSameSite::NO_RESTRICTION:
+      same_site = kNSHTTPCookieSameSiteNone;
+      break;
+    case net::CookieSameSite::UNSPECIFIED:
+      // All other values of same site policy will be treated as no value .
+      break;
   }
+  properties[NSHTTPCookieSameSitePolicy] = same_site;
 
   if (cookie.SecureAttribute()) {
     [properties setObject:@"Y" forKey:NSHTTPCookieSecure];

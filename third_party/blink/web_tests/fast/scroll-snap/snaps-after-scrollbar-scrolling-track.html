@@ -18,34 +18,37 @@
   if (window.internals)
     internals.settings.setScrollAnimatorEnabled(false);
 
-  window.onload = () => {
+  window.onload = async () => {
+    // Skip test if there is no visible scrollbar track to click on.
+    if (shouldSkipTests(
+            !internals || internals.overlayScrollbarsEnabled,
+            'Scrollbar is not visible')) {
+      return;
+    }
+
+    await waitForCompositorCommit();
+
     const scroller = document.getElementById("scroller");
     const snapPoint = 400;
     const trackPos = 350;
     const clickDuration = 100;
 
-    function scrollTop() {
-      return scroller.scrollTop;
-    }
-
-    function scrollLeft() {
-      return scroller.scrollLeft;
-    }
-
     promise_test (async () => {
-      await waitForCompositorCommit();
       await waitForScrollReset(scroller);
       const thumb = horizontalThumb(scroller);
+      const scrollend = waitForScrollendEvent(scroller);
       await mousePressOn(trackPos, thumb.y, clickDuration);
-      await waitForScrollEnd(scroller, scrollLeft, snapPoint);
+      await scrollend;
+      assert_approx_equals(scroller.scrollLeft, snapPoint, 1);
     }, "Snaps after clicking the forward track on the horizontal scrollbar.");
 
     promise_test (async () => {
-      await waitForCompositorCommit();
       await waitForScrollReset(scroller);
       const thumb = verticalThumb(scroller);
+      const scrollend = waitForScrollendEvent(scroller);
       await mousePressOn(thumb.x, trackPos, clickDuration);
-      await waitForScrollEnd(scroller, scrollTop, snapPoint);
+      await scrollend;
+      assert_approx_equals(scroller.scrollTop, snapPoint, 1);
     }, "Snaps after clicking on the forward track on the vertical scrollbar.");
   };
 </script>

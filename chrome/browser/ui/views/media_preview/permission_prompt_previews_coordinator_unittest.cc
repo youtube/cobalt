@@ -44,7 +44,7 @@ class PermissionPromptPreviewsCoordinatorTest : public TestWithBrowserView {
   void InitializeCoordinator(
       std::vector<std::string> requested_audio_capture_device_ids,
       std::vector<std::string> requested_video_capture_device_ids) {
-    coordinator_.emplace(browser(), &parent_view_, /*index=*/0,
+    coordinator_.emplace(browser()->GetProfile(), &parent_view_, /*index=*/0,
                          requested_audio_capture_device_ids,
                          requested_video_capture_device_ids);
   }

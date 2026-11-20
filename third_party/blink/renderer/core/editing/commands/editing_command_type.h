@@ -156,7 +156,7 @@ enum class EditingCommandType {
   // This command is for internal use only; the current use case is pasting GIF
   // images selected from emoji picker on ChromeOS (the GIF URLs are from
   // tenor.com).
-  kPasteFromImageURL = 140,
+  kPasteFromImageUrl = 140,
 
   // Add new commands immediately above this line.
   kNumberOfCommandTypes,

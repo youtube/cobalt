@@ -131,8 +131,8 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   Register result_string = ToRegister(result());
   if (Int32Constant* constant =
           CharCodeInput().node()->TryCast<Int32Constant>()) {
-    int32_t char_code = constant->value() & 0xFFFF;
-    if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
+    uint32_t char_code = constant->value() & 0xFFFF;
+    if (char_code <= String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       // Ensure that {result_string} never aliases {scratch}, otherwise the
@@ -922,7 +922,8 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ SubS64(limit, byte_length, Operand(element_size - 1));
     __ EmitEagerDeoptIf(lt, DeoptimizeReason::kOutOfBounds, this);
   }
-  __ CmpU32(index, limit);
+  __ SignExtend32To64Bits(index, index);
+  __ CmpU64(index, limit);
   __ EmitEagerDeoptIf(ge, DeoptimizeReason::kOutOfBounds, this);
 }
 

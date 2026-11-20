@@ -243,6 +243,8 @@ std::optional<VideoFrameLayout> V4L2FormatToVideoFrameLayout(
 #if BUILDFLAG(IS_LINUX)
   if (video_fourcc == Fourcc(Fourcc::MM21)) {
     modifiers = DRM_FORMAT_MOD_MTK_16L_32S_TILE;
+  } else {
+    modifiers = DRM_FORMAT_MOD_LINEAR;
   }
 #endif
   const size_t num_buffers = pix_mp.num_planes;

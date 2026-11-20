@@ -538,9 +538,6 @@ const Flag<TestConfig> *FindFlag(const char *name) {
         IntFlag("-install-one-cert-compression-alg",
                 &TestConfig::install_one_cert_compression_alg),
         BoolFlag("-reverify-on-resume", &TestConfig::reverify_on_resume),
-        BoolFlag("-ignore-rsa-key-usage", &TestConfig::ignore_rsa_key_usage),
-        BoolFlag("-expect-key-usage-invalid",
-                 &TestConfig::expect_key_usage_invalid),
         BoolFlag("-is-handshaker-supported",
                  &TestConfig::is_handshaker_supported),
         BoolFlag("-handshaker-resume", &TestConfig::handshaker_resume),
@@ -2427,9 +2424,6 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
   }
   if (reverify_on_resume) {
     SSL_CTX_set_reverify_on_resume(ssl_ctx, 1);
-  }
-  if (ignore_rsa_key_usage) {
-    SSL_set_enforce_rsa_key_usage(ssl.get(), 0);
   }
   if (no_tls13) {
     SSL_set_options(ssl.get(), SSL_OP_NO_TLSv1_3);

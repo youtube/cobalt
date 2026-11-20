@@ -14,4 +14,7 @@ BASE_FEATURE(kFilterNavigationsBySyncSessionsClient,
 
 BASE_FEATURE(kSyncTabScreenshots, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSyncSessionsUsePreferredDisplayName,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace sync_sessions

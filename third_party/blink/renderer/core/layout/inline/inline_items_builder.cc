@@ -642,7 +642,9 @@ void InlineItemsBuilderTemplate<MappingBuilder>::AppendText(
   }
 
   const wtf_size_t estimated_length = text_.length() + string.length();
-  if (estimated_length > text_.Capacity()) {
+  // Don't reserve on the first append, as it will reallocate the string buffer
+  // causing duplication.
+  if (!text_.empty() && estimated_length > text_.Capacity()) {
     // The reallocations may occur very frequently for large text such as log
     // files. We use a more aggressive expansion strategy, the same as
     // |Vector::ExpandCapacity| does for |Vector|s with inline storage.

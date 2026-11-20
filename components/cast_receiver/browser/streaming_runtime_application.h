@@ -8,6 +8,7 @@
 #include "base/sequence_checker.h"
 #include "components/cast_receiver/browser/public/application_config.h"
 #include "components/cast_receiver/browser/runtime_application_base.h"
+#include "components/cast_receiver/browser/streaming_input_capabilities_observer.h"
 #include "components/cast_receiver/browser/streaming_receiver_session_client.h"
 #include "net/base/net_errors.h"
 #include "services/network/public/cpp/network_context_getter.h"
@@ -51,6 +52,9 @@ class StreamingRuntimeApplication final
 
   // Object responsible for maintaining the lifetime of the streaming session.
   std::unique_ptr<StreamingReceiverSessionClient> receiver_session_client_;
+
+  std::unique_ptr<StreamingInputCapabilitiesObserver>
+      streaming_input_capabilities_observer_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<StreamingRuntimeApplication> weak_factory_{this};

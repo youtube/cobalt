@@ -6,12 +6,14 @@
 #include <optional>
 #include <string>
 
+#include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
+#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -38,6 +40,7 @@
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
+#include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
@@ -55,6 +58,7 @@
 #include "ui/gfx/native_ui_types.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/interaction/element_tracker_views.h"
+#include "ui/views/test/dialog_test.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
@@ -186,14 +190,10 @@ class WebAppUninstallDialogViewIwaBrowserTest
     observer.SetWebAppInstalledWithOsHooksDelegate(
         test_future.GetRepeatingCallback<const webapps::AppId&>());
 
-    EXPECT_TRUE(content::ExecJs(iwa_contents,
-                                base::ReplaceStringPlaceholders(
-                                    R"(
-              navigator.subApps.add({
-                "$1": {"installURL": "$1"}
-              })
-            )",
-                                    {std::string(install_url)}, nullptr)));
+    EXPECT_TRUE(content::ExecJs(
+        iwa_contents,
+        base::ReplaceStringPlaceholders(R"(window.subApps.add(["$1"]))",
+                                        {std::string(install_url)}, nullptr)));
 
     webapps::AppId sub_app_id = web_app::GenerateAppId(
         /*manifest_id_path=*/std::nullopt, expected_sub_app_url);
@@ -349,4 +349,42 @@ IN_PROC_BROWSER_TEST_F(WebAppUninstallDialogViewIwaBrowserTest,
       testing::HasSubstr("Parent IWA"));
 
   uninstall_widget->CloseNow();
+}
+
+// Regression test for crbug.com/502899740, where the uninstall dialog does not
+// crash even if some of the icons (or all of them) are nuked from the disk.
+class WebAppUninstallDialogViewHighDpiTest
+    : public WebAppUninstallDialogViewBrowserTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    WebAppUninstallDialogViewBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII("force-device-scale-factor", "1.25");
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(WebAppUninstallDialogViewHighDpiTest,
+                       IconsDeletedStillWorks) {
+  // Required so that file deletion (blocking) operations below work.
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  webapps::AppId app_id = InstallTestWebApp(browser()->profile());
+
+  base::FilePath app_dir = web_app::GetManifestResourcesDirectoryForApp(
+      web_app::GetWebAppsRootDirectory(browser()->profile()), app_id);
+  ASSERT_TRUE(base::DeletePathRecursively(app_dir));
+
+  base::test::TestFuture<webapps::UninstallResultCode> test_future;
+  provider()->ui_manager().PresentUserUninstallDialog(
+      app_id, webapps::WebappUninstallSource::kAppMenu,
+      browser()->GetWindow()->GetNativeWindow(), test_future.GetCallback());
+
+  views::NamedWidgetShownWaiter uninstall_dialog_waiter(
+      views::test::AnyWidgetTestPasskey{}, "WebAppUninstallDialogDelegateView");
+  auto* uninstall_widget = uninstall_dialog_waiter.WaitIfNeededAndGet();
+  ASSERT_NE(uninstall_widget, nullptr);
+  views::test::AcceptDialog(uninstall_widget);
+  EXPECT_TRUE(test_future.Wait());
+
+  EXPECT_EQ(webapps::UninstallResultCode::kAppRemoved, test_future.Get());
+  EXPECT_EQ(std::nullopt,
+            provider()->registrar_unsafe().GetInstallState(app_id));
 }

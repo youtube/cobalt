@@ -42,6 +42,7 @@
 #include "ui/gfx/test/sk_color_eq.h"
 #include "ui/gl/dc_layer_overlay_params.h"
 #include "ui/gl/dc_layer_tree.h"
+#include "ui/gl/dc_surface_solid_color_pool.h"
 #include "ui/gl/dcomp_surface_proxy.h"
 #include "ui/gl/direct_composition_support.h"
 #include "ui/gl/gl_angle_util_win.h"
@@ -370,8 +371,10 @@ class DCompPresenterTestBase
     // All bots run on non-blocklisted hardware that supports DComp (>Win7)
     Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device =
         QueryD3D11DeviceObjectFromANGLE();
-    InitializeDirectComposition(d3d11_device.Get(),
-                                /*d3d12_command_queue=*/nullptr);
+    InitializeDirectComposition(
+        d3d11_device,
+        /*d3d12_command_queue=*/nullptr,
+        CreateDCSurfaceSolidColorPoolFactory(d3d11_device));
     ASSERT_TRUE(DirectCompositionSupported());
 
     presenter_ = CreateDCompPresenter();
@@ -780,7 +783,7 @@ TEST_P(DCompPresenterTest, NoBackgroundColorSurfaceForNonColorOverlays) {
 
   const DCLayerTree* layer_tree = presenter_->GetLayerTreeForTesting();
   EXPECT_EQ(1u, layer_tree->GetDcompLayerCountForTesting());
-  EXPECT_EQ(0u, layer_tree->GetNumSurfacesInPoolForTesting());
+  EXPECT_EQ(0u, layer_tree->GetNumEntriesInSolidColorPoolForTesting());
 }
 
 TEST_P(DCompPresenterTest, BackgroundColorSurfaceTrim) {
@@ -810,7 +813,8 @@ TEST_P(DCompPresenterTest, BackgroundColorSurfaceTrim) {
         ScheduleOverlay(std::move(params));
       }
       ASSERT_EQ(PresentAndGetSwapResult(), gfx::SwapResult::SWAP_ACK);
-      EXPECT_EQ(num_buffers, layer_tree->GetNumSurfacesInPoolForTesting());
+      EXPECT_EQ(num_buffers,
+                layer_tree->GetNumEntriesInSolidColorPoolForTesting());
     }
 
     // We expect retained surfaces even after we present a frame with no solid
@@ -818,7 +822,7 @@ TEST_P(DCompPresenterTest, BackgroundColorSurfaceTrim) {
     {
       ASSERT_EQ(PresentAndGetSwapResult(), gfx::SwapResult::SWAP_ACK);
       EXPECT_EQ(std::min(num_buffers, kMaxSolidColorBuffers),
-                layer_tree->GetNumSurfacesInPoolForTesting());
+                layer_tree->GetNumEntriesInSolidColorPoolForTesting());
     }
   }
 }
@@ -830,8 +834,8 @@ TEST_P(DCompPresenterTest, BackgroundColorSurfaceMultipleReused) {
   EXPECT_TRUE(presenter_->Resize(window_size, 1.0, gfx::ColorSpace(), true));
 
   std::vector<SkColor4f> colors = {SkColors::kRed, SkColors::kGreen};
-  std::vector<IDCompositionSurface*> surfaces_frame1(2, nullptr);
-  std::vector<IDCompositionSurface*> surfaces_frame2(2, nullptr);
+  std::vector<IUnknown*> contents_frame1(2, nullptr);
+  std::vector<IUnknown*> contents_frame2(2, nullptr);
 
   const DCLayerTree* layer_tree = presenter_->GetLayerTreeForTesting();
 
@@ -846,15 +850,15 @@ TEST_P(DCompPresenterTest, BackgroundColorSurfaceMultipleReused) {
     }
 
     ASSERT_EQ(PresentAndGetSwapResult(), gfx::SwapResult::SWAP_ACK);
-    EXPECT_EQ(2u, layer_tree->GetNumSurfacesInPoolForTesting());
+    EXPECT_EQ(2u, layer_tree->GetNumEntriesInSolidColorPoolForTesting());
 
-    surfaces_frame1[0] = layer_tree->GetBackgroundColorSurfaceForTesting(
+    contents_frame1[0] = layer_tree->GetBackgroundColorContentForTesting(
         gfx::OverlayLayerId::MakeForTesting(0));
-    surfaces_frame1[1] = layer_tree->GetBackgroundColorSurfaceForTesting(
+    contents_frame1[1] = layer_tree->GetBackgroundColorContentForTesting(
         gfx::OverlayLayerId::MakeForTesting(1));
     // The overlays should have different background color surfaces since they
     // have different background colors.
-    EXPECT_NE(surfaces_frame1[0], surfaces_frame1[1]);
+    EXPECT_NE(contents_frame1[0], contents_frame1[1]);
   }
 
   {
@@ -872,18 +876,18 @@ TEST_P(DCompPresenterTest, BackgroundColorSurfaceMultipleReused) {
     }
 
     ASSERT_EQ(PresentAndGetSwapResult(), gfx::SwapResult::SWAP_ACK);
-    EXPECT_EQ(2u, layer_tree->GetNumSurfacesInPoolForTesting());
+    EXPECT_EQ(2u, layer_tree->GetNumEntriesInSolidColorPoolForTesting());
 
-    surfaces_frame2[0] = layer_tree->GetBackgroundColorSurfaceForTesting(
+    contents_frame2[0] = layer_tree->GetBackgroundColorContentForTesting(
         gfx::OverlayLayerId::MakeForTesting(0));
-    surfaces_frame2[1] = layer_tree->GetBackgroundColorSurfaceForTesting(
+    contents_frame2[1] = layer_tree->GetBackgroundColorContentForTesting(
         gfx::OverlayLayerId::MakeForTesting(1));
-    EXPECT_NE(surfaces_frame2[0], surfaces_frame2[1]);
+    EXPECT_NE(contents_frame2[0], contents_frame2[1]);
 
     // We reversed the order of the color overlays. We expect the background
     // color surfaces to be reused, but reversed.
-    EXPECT_EQ(surfaces_frame1[0], surfaces_frame2[1]);
-    EXPECT_EQ(surfaces_frame1[1], surfaces_frame2[0]);
+    EXPECT_EQ(contents_frame1[0], contents_frame2[1]);
+    EXPECT_EQ(contents_frame1[1], contents_frame2[0]);
   }
 }
 
@@ -2307,7 +2311,7 @@ TEST_P(DCompPresenterPixelTest, BackgroundColorSurfaceReuse) {
       SkColors::kYellow, SkColors::kCyan,  SkColors::kMagenta,
   };
 
-  IDCompositionSurface* background_color_surface = nullptr;
+  IUnknown* background_color_content = nullptr;
 
   for (const SkColor4f& color : colors) {
     DCLayerOverlayParams params;
@@ -2325,16 +2329,16 @@ TEST_P(DCompPresenterPixelTest, BackgroundColorSurfaceReuse) {
     const DCLayerTree* layer_tree = presenter_->GetLayerTreeForTesting();
 
     EXPECT_EQ(1u, layer_tree->GetDcompLayerCountForTesting());
-    EXPECT_EQ(1u, layer_tree->GetNumSurfacesInPoolForTesting());
+    EXPECT_EQ(1u, layer_tree->GetNumEntriesInSolidColorPoolForTesting());
 
-    if (background_color_surface == nullptr) {
-      background_color_surface =
-          layer_tree->GetBackgroundColorSurfaceForTesting(
+    if (background_color_content == nullptr) {
+      background_color_content =
+          layer_tree->GetBackgroundColorContentForTesting(
               gfx::OverlayLayerId::MakeForTesting(0));
     }
-    EXPECT_NE(background_color_surface, nullptr);
-    EXPECT_EQ(background_color_surface,
-              layer_tree->GetBackgroundColorSurfaceForTesting(
+    EXPECT_NE(background_color_content, nullptr);
+    EXPECT_EQ(background_color_content,
+              layer_tree->GetBackgroundColorContentForTesting(
                   gfx::OverlayLayerId::MakeForTesting(0)))
         << "DComp content for solid color overlay expected to be reused across "
            "frames";

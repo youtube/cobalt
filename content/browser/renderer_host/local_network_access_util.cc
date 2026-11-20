@@ -190,8 +190,8 @@ Policy DeriveLocalNetworkAccessRequestPolicy(
     AddressSpace ip_address_space,
     bool is_web_secure_context,
     bool allow_on_non_secure_context,
-    RequestContext private_network_request_context) {
-  // Disable PNA checks entirely when running with `--disable-web-security`.
+    RequestContext local_network_request_context) {
+  // Disable LNA checks entirely when running with `--disable-web-security`.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableWebSecurity)) {
     return Policy::kAllow;
@@ -201,7 +201,7 @@ Policy DeriveLocalNetworkAccessRequestPolicy(
       network::features::kLocalNetworkAccessChecks);
 
   FeatureState feature_state =
-      FeatureStateForContext(private_network_request_context);
+      FeatureStateForContext(local_network_request_context);
 
   // For LNA, if allow_on_non_secure_context is true, derive the policy as if it
   // is a secure context.
@@ -219,21 +219,21 @@ Policy DeriveLocalNetworkAccessRequestPolicy(
 
 Policy DeriveLocalNetworkAccessRequestPolicy(
     const PolicyContainerPolicies& policies,
-    RequestContext private_network_request_context) {
+    RequestContext local_network_request_context) {
   return DeriveLocalNetworkAccessRequestPolicy(
       policies.ip_address_space, policies.is_web_secure_context,
       policies.allow_non_secure_local_network_access,
-      private_network_request_context);
+      local_network_request_context);
 }
 
 network::mojom::ClientSecurityStatePtr DeriveClientSecurityState(
     const PolicyContainerPolicies& policies,
-    LocalNetworkAccessRequestContext private_network_request_context) {
+    LocalNetworkAccessRequestContext local_network_request_context) {
   return network::mojom::ClientSecurityState::New(
       policies.cross_origin_embedder_policy, policies.is_web_secure_context,
       policies.ip_address_space,
       DeriveLocalNetworkAccessRequestPolicy(policies,
-                                            private_network_request_context),
+                                            local_network_request_context),
       policies.document_isolation_policy);
 }
 

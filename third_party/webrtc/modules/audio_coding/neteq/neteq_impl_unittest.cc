@@ -353,7 +353,7 @@ TEST_F(NetEqImplTest, InsertPacket) {
   EXPECT_CALL(*mock_packet_buffer_, Empty())
       .WillOnce(Return(false));  // Called once after first packet is inserted.
   EXPECT_CALL(*mock_packet_buffer_, Flush()).Times(1);
-  EXPECT_CALL(*mock_packet_buffer_, InsertPacket(_))
+  EXPECT_CALL(*mock_packet_buffer_, InsertPacket(_, _, _, _))
       .Times(2)
       .WillRepeatedly(Return(PacketBuffer::kOK));
   EXPECT_CALL(*mock_packet_buffer_, PeekNextPacket())

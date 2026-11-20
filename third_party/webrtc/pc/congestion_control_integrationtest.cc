@@ -356,7 +356,13 @@ TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsed) {
 }
 
 TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsedWithPrAnswer) {
-  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
+  // CCFB negotiation is asymmetric: the generator sets the flag but doesn't
+  // add it to codecs' feedback_params, while the parser adds it to codecs'
+  // feedback_params. This causes false positive munging detection (71, 86)
+  // when the prAnswer is re-parsed.
+  SetFieldTrials(
+      "WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/"
+      "WebRTC-NoSdpMangleAllowForTesting/Enabled,71,86/");
   metrics::Reset();
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();

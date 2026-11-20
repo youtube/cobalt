@@ -133,7 +133,7 @@ android_library("content_settings_enums_java") {
 
 java_cpp_enum("permission_uma_util_enums_javagen") {
   visibility = [ ":*" ]
-  sources = [ "../permission_uma_util.h" ]
+  sources = [ "../permission_uma_constants.h" ]
 }
 
 android_library("embedded_permission_prompt_enums_java") {

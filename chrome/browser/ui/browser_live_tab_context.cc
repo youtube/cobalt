@@ -269,7 +269,7 @@ ui::mojom::WindowShowState BrowserLiveTabContext::GetRestoredState() const {
 }
 
 std::string BrowserLiveTabContext::GetWorkspace() const {
-  return browser_->GetBrowserForMigrationOnly()->window()->GetWorkspace();
+  return BrowserWindow::FromBrowser(&browser_.get())->GetWorkspace();
 }
 
 sessions::LiveTab* BrowserLiveTabContext::AddRestoredTab(

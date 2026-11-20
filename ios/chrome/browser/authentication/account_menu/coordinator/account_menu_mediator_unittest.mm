@@ -566,7 +566,7 @@ TEST_F(AccountMenuMediatorTest, TestDidTapAddAccount) {
   OCMExpect([delegate_mock_ didTapAddAccount]);
   [mediator_ didTapAddAccount];
   // Simulate a double tap. The second tap should be transmitted because the add
-  // account view may have disapperead.
+  // account view may have disappeared.
   [mediator_ didTapAddAccount];
   OCMExpect([consumer_mock_ switchingStopped]);
   OCMExpect([consumer_mock_ setUserInteractionsEnabled:YES]);

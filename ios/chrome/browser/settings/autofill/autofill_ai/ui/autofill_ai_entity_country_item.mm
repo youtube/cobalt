@@ -30,9 +30,8 @@ constexpr NSInteger kTrailingSymbolImagePointSize = 18;
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)cell {
+  [super configureCell:cell];
 
   TableViewCellContentConfiguration* contentConfig =
       base::apple::ObjCCast<TableViewCellContentConfiguration>(

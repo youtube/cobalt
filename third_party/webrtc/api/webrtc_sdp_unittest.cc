@@ -62,6 +62,7 @@ namespace {
 
 using ::testing::ElementsAre;
 using ::testing::Field;
+using ::testing::HasSubstr;
 using ::testing::IsNull;
 using ::testing::NotNull;
 using ::testing::Property;
@@ -3367,6 +3368,51 @@ TEST_F(WebRtcSdpTest, DeserializeSerializeRtcpWithCcfb) {
   TestSerialize(jdesc_output);
 }
 
+TEST_F(WebRtcSdpTest, DeserializeSerializeRtcpXrRcvrRtt) {
+  const char kSdpWithRcvrRtt[] =
+      "v=0\r\n"
+      "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "m=audio 9 RTP/SAVPF 111\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-xr:rcvr-rtt=all\r\n";
+
+  // Deserialize: rcvr-rtt sets the single receive-non-sender-RTT flag.
+  std::unique_ptr<SessionDescriptionInterface> jdesc =
+      SdpDeserialize(kSdpWithRcvrRtt);
+  ASSERT_THAT(jdesc, NotNull());
+  const AudioContentDescription* acd =
+      GetFirstAudioContentDescription(jdesc->description());
+  ASSERT_THAT(acd, NotNull());
+  EXPECT_TRUE(acd->receive_non_sender_rtt());
+
+  // Serialize: the flag emits BOTH the standard rtcp-xr and the legacy
+  // rtcp-fb rrtr wire forms (interim backward-compat).
+  std::string reserialized = SdpSerialize(*jdesc);
+  EXPECT_THAT(reserialized, HasSubstr("a=rtcp-xr:rcvr-rtt=all"));
+  EXPECT_THAT(reserialized, HasSubstr("a=rtcp-fb:111 rrtr"));
+}
+
+// The legacy non-standard a=rtcp-fb:<pt> rrtr also sets the flag on parse.
+TEST_F(WebRtcSdpTest, DeserializeLegacyRtcpFbRrtr) {
+  const char kSdpWithFbRrtr[] =
+      "v=0\r\n"
+      "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "m=audio 9 RTP/SAVPF 111\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:111 rrtr\r\n";
+  std::unique_ptr<SessionDescriptionInterface> jdesc =
+      SdpDeserialize(kSdpWithFbRrtr);
+  ASSERT_THAT(jdesc, NotNull());
+  const AudioContentDescription* acd =
+      GetFirstAudioContentDescription(jdesc->description());
+  ASSERT_THAT(acd, NotNull());
+  EXPECT_TRUE(acd->receive_non_sender_rtt());
+}
+
 TEST_F(WebRtcSdpTest, DeserializeVideoFmtp) {
   const char kSdpWithFmtpString[] =
       "v=0\r\n"
@@ -5314,6 +5360,32 @@ TEST_F(WebRtcSdpTest, SframeAttributeRoundTrip) {
                   ->contents()[1]
                   .media_description()
                   ->sframe_enabled());
+}
+
+TEST_F(WebRtcSdpTest, DeserializeSdpWithZeroExtmapId) {
+  std::string sdp = kSdpString;
+  std::string invalid_extmap =
+      "a=extmap:0 http://example.com/082005/ext.htm#ttime\r\n";
+  InjectAfter("a=mid:audio_content_name\r\n", invalid_extmap, &sdp);
+  SdpParseError error;
+  std::unique_ptr<SessionDescriptionInterface> output =
+      SdpDeserialize(sdp, &error);
+
+  ASSERT_THAT(output, IsNull());
+  EXPECT_EQ(error.line, "a=extmap:0 http://example.com/082005/ext.htm#ttime");
+}
+
+TEST_F(WebRtcSdpTest, DeserializeSdpWithTooLargeExtmapId) {
+  std::string sdp = kSdpString;
+  std::string invalid_extmap =
+      "a=extmap:256 http://example.com/082005/ext.htm#ttime\r\n";
+  InjectAfter("a=mid:audio_content_name\r\n", invalid_extmap, &sdp);
+  SdpParseError error;
+  std::unique_ptr<SessionDescriptionInterface> output =
+      SdpDeserialize(sdp, &error);
+
+  ASSERT_THAT(output, IsNull());
+  EXPECT_EQ(error.line, "a=extmap:256 http://example.com/082005/ext.htm#ttime");
 }
 
 }  // namespace

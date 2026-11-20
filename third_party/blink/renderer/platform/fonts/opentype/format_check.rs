@@ -45,16 +45,10 @@ fn get_colr_version(font_ref: &FontRef) -> Option<u16> {
 }
 
 fn is_colrv1(format_info: &FontFormatInfo) -> bool {
-    matches!(
-        &format_info.format_flags,
-        Some(FontFormatFlags { color_version: Some(1), .. }),
-    )
+    matches!(&format_info.format_flags, Some(FontFormatFlags { color_version: Some(1), .. }),)
 }
 fn is_colrv0(format_info: &FontFormatInfo) -> bool {
-    matches!(
-        &format_info.format_flags,
-        Some(FontFormatFlags { color_version: Some(0), .. }),
-    )
+    matches!(&format_info.format_flags, Some(FontFormatFlags { color_version: Some(0), .. }),)
 }
 
 fn get_avar_version(font_ref: &FontRef) -> Option<(u16, u16)> {
@@ -63,10 +57,7 @@ fn get_avar_version(font_ref: &FontRef) -> Option<(u16, u16)> {
 }
 
 fn is_avar2(format_info: &FontFormatInfo) -> bool {
-    matches!(
-        &format_info.format_flags,
-        Some(FontFormatFlags { avar_version: Some((2, _)), .. }),
-    )
+    matches!(&format_info.format_flags, Some(FontFormatFlags { avar_version: Some((2, _)), .. }),)
 }
 
 fn has_tags(format_info: &FontFormatInfo, query: &[Tag]) -> bool {
@@ -90,6 +81,10 @@ fn is_cbdt_cblc(format_info: &FontFormatInfo) -> bool {
     has_tags(format_info, &[Tag::new(b"CBDT"), Tag::new(b"CBLC")])
 }
 
+fn is_ebdt_eblc(format_info: &FontFormatInfo) -> bool {
+    has_tags(format_info, &[Tag::new(b"EBDT"), Tag::new(b"EBLC")])
+}
+
 fn is_cff2(format_info: &FontFormatInfo) -> bool {
     has_tags(format_info, &[Tag::new(b"CFF2")])
 }
@@ -103,6 +98,7 @@ pub mod ffi {
         fn is_colrv1(format_info: &FontFormatInfo) -> bool;
         fn is_colrv0(format_info: &FontFormatInfo) -> bool;
         fn is_cbdt_cblc(format_info: &FontFormatInfo) -> bool;
+        fn is_ebdt_eblc(format_info: &FontFormatInfo) -> bool;
         fn is_variable(format_info: &FontFormatInfo) -> bool;
         fn is_sbix(format_info: &FontFormatInfo) -> bool;
         fn is_cff2(format_info: &FontFormatInfo) -> bool;

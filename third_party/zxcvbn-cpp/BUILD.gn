@@ -46,9 +46,10 @@ test("zxcvbn_unittests") {
 
   deps = [
     ":zxcvbn-cpp",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
-    "//testing/gtest:gtest_main",
   ]
 
   configs += [ ":zxcvbn_internal_config" ]

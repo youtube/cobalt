@@ -1236,7 +1236,8 @@ void ShowShortcutCustomizationApp() {
 }
 
 void ShowTaskManager() {
-  NewWindowDelegate::GetInstance()->ShowTaskManager();
+  NewWindowDelegate::GetInstance()->ShowTaskManager(
+      /*from_context_menu=*/false);
 }
 
 void StartSunfishSession() {

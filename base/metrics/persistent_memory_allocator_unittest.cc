@@ -823,7 +823,7 @@ TEST(FilePersistentMemoryAllocatorTest, CreationTest) {
   auto mmfile = std::make_unique<MemoryMappedFile>();
   ASSERT_TRUE(mmfile->Initialize(file_path));
   EXPECT_TRUE(mmfile->IsValid());
-  const size_t mmlength = mmfile->length();
+  const size_t mmlength = mmfile->bytes().size();
   EXPECT_GE(meminfo1.total, mmlength);
 
   FilePersistentMemoryAllocator file(std::move(mmfile), 0, 0, "",
@@ -946,7 +946,7 @@ TEST(FilePersistentMemoryAllocatorTest, AcceptableTest) {
 
     mmfile = std::make_unique<MemoryMappedFile>();
     ASSERT_TRUE(mmfile->Initialize(File(file_path, file_flags), map_access));
-    EXPECT_EQ(filesize, mmfile->length());
+    EXPECT_EQ(filesize, mmfile->bytes().size());
     if (FilePersistentMemoryAllocator::IsFileAcceptable(*mmfile, read_only)) {
       // Make sure construction doesn't crash. It will, however, cause
       // error messages warning about about a corrupted memory segment.

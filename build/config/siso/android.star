@@ -184,10 +184,6 @@ def __step_config(ctx, step_config):
             "name": "android/dex",
             "command_prefix": "python3 ../../build/android/gyp/dex.py",
             "handler": "android_dex",
-            # TODO(crbug.com/40270798): include only required jar, dex files in GN config.
-            "indirect_inputs": {
-                "includes": ["*.dex", "*.ijar.jar", "*.turbine.jar"],
-            },
             "exclude_input_patterns": [
                 "*.a",
                 "*.cc",
@@ -406,7 +402,7 @@ def __android_dex_handler(ctx, cmd):
     for i, arg in enumerate(cmd.args):
         if arg == "--desugar-dependencies":
             outputs.append(ctx.fs.canonpath(cmd.args[i + 1]))
-        for k in ["--class-inputs=", "--bootclasspath=", "--classpath=", "--class-inputs-filearg=", "--dex-inputs-filearg="]:
+        for k in ["--class-inputs=", "--bootclasspath=", "--classpath=", "--class-inputs-filearg=", "--dex-inputs-filearg=", "--dex-inputs="]:
             if arg.startswith(k):
                 arg = arg.removeprefix(k)
                 _, v = __filearg(ctx, arg)

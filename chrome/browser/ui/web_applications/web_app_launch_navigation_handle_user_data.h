@@ -11,6 +11,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/time/time.h"
 #include "chrome/browser/web_applications/web_app_launch_params_holder.h"
+#include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/webapps/browser/launch_queue/launch_params.h"
 #include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/navigation_handle_user_data.h"
@@ -52,11 +53,15 @@ class WebAppLaunchNavigationHandleUserData
   // Static helper for non-navigating launches (e.g., focus existing) to enqueue
   // launch params directly without waiting for navigation to commit.
   static void DispatchLaunchParams(content::WebContents* web_contents,
-                                   webapps::LaunchParams launch_params);
+                                   webapps::LaunchParams launch_params,
+                                   apps::LaunchContainer launch_container,
+                                   apps::LaunchSource launch_source);
 
   void SetLaunchParamsMetadata(webapps::AppId app_id,
                                GURL target_url,
                                base::TimeTicks time_navigation_started);
+
+  void SetLaunchSource(apps::LaunchSource launch_source);
 
   void set_is_navigation_capturing(bool is_navigation_capturing) {
     is_navigation_capturing_ = is_navigation_capturing;
@@ -84,6 +89,8 @@ class WebAppLaunchNavigationHandleUserData
   std::optional<webapps::LaunchParams> launch_params_;
   bool force_iph_off_;
   bool is_navigation_capturing_ = false;
+  apps::LaunchSource launch_source_ =
+      apps::LaunchSource::kFromNavigationCapturing;
 
   NAVIGATION_HANDLE_USER_DATA_KEY_DECL();
 

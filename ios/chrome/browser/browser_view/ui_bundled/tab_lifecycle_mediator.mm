@@ -269,10 +269,8 @@
         HandlerForProtocol(_commandDispatcher, GeminiCommands);
     geminiTabHelper->SetGeminiHandler(geminiHandler);
 
-    if (IsAskGeminiChipEnabled()) {
-      geminiTabHelper->SetLocationBarBadgeCommandsHandler(
-          id<LocationBarBadgeCommands>(_commandDispatcher));
-    }
+    geminiTabHelper->SetLocationBarBadgeCommandsHandler(
+        id<LocationBarBadgeCommands>(_commandDispatcher));
 
     if (IsGeminiImageRemixToolEnabled()) {
       id<HelpCommands> helpCommandsHandler =
@@ -423,9 +421,7 @@
   GeminiTabHelper* geminiTabHelper = GeminiTabHelper::FromWebState(webState);
   if (geminiTabHelper) {
     geminiTabHelper->SetGeminiHandler(nil);
-    if (IsAskGeminiChipEnabled()) {
-      geminiTabHelper->SetLocationBarBadgeCommandsHandler(nil);
-    }
+    geminiTabHelper->SetLocationBarBadgeCommandsHandler(nil);
     if (IsGeminiImageRemixToolEnabled()) {
       geminiTabHelper->SetHelpCommandsHandler(nil);
     }

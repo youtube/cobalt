@@ -21,6 +21,7 @@
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -1327,7 +1328,10 @@ class OmniboxPopupPermissionBrowserTest : public InProcessBrowserTest {
 // Open Large -> Shrink, Open Small -> Grow
 IN_PROC_BROWSER_TEST_F(OmniboxPopupPermissionBrowserTest,
                        DynamicWindowResizing) {
-  browser()->window()->GetLocationBar()->GetOmniboxView()->SetUserText(u"test");
+  BrowserWindow::FromBrowser(browser())
+      ->GetLocationBar()
+      ->GetOmniboxView()
+      ->SetUserText(u"test");
   views::Widget* popup_widget = GetPopupWidget();
   ASSERT_TRUE(popup_widget);
 
@@ -1357,7 +1361,10 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupPermissionBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(OmniboxPopupPermissionBrowserTest,
                        ResetsOnAllFrontendClosureActions) {
-  browser()->window()->GetLocationBar()->GetOmniboxView()->SetUserText(u"test");
+  BrowserWindow::FromBrowser(browser())
+      ->GetLocationBar()
+      ->GetOmniboxView()
+      ->SetUserText(u"test");
   views::Widget* popup_widget = GetPopupWidget();
 
   // Small browser width.

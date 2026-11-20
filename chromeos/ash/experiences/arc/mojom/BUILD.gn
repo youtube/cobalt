@@ -59,7 +59,6 @@ mojom("mojom") {
     "sharesheet.mojom",
     "system_state.mojom",
     "system_ui.mojom",
-    "timer.mojom",
     "tracing.mojom",
     "tts.mojom",
     "usb_host.mojom",
@@ -221,18 +220,6 @@ mojom("mojom") {
       traits_private_headers = [ "print_mojom_traits.h" ]
       traits_sources = [ "print_mojom_traits.cc" ]
       traits_public_deps = [ "//printing" ]
-    },
-    {
-      types = [
-        {
-          mojom = "arc.mojom.ClockId"
-          cpp = "::clockid_t"
-        },
-      ]
-      traits_headers =
-          [ "//chromeos/ash/experiences/arc/timer/arc_timer_mojom_traits.h" ]
-      traits_sources =
-          [ "//chromeos/ash/experiences/arc/timer/arc_timer_mojom_traits.cc" ]
     },
     {
       types = [

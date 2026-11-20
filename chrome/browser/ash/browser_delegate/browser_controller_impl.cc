@@ -63,10 +63,8 @@ BrowserWindowInterface* FindTabbedBrowserOnCurrentWorkspace(Profile* profile) {
             browser->IsDeleteScheduled()) {
           return true;
         }
-        if (!browser->GetBrowserForMigrationOnly()->window() ||
-            !browser->GetBrowserForMigrationOnly()
-                 ->window()
-                 ->IsOnCurrentWorkspace()) {
+        BrowserWindow* browser_window = BrowserWindow::FromBrowser(browser);
+        if (!browser_window || !browser_window->IsOnCurrentWorkspace()) {
           return true;
         }
         match = browser;

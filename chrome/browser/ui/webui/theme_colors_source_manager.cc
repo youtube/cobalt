@@ -25,6 +25,8 @@
 #include "third_party/blink/public/mojom/loader/local_resource_loader_config.mojom.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/color/color_provider.h"
+#include "ui/color/color_provider_manager.h"
+#include "ui/native_theme/native_theme.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -44,10 +46,7 @@ void ThemeColorsSourceManager::PopulateLocalResourceLoaderConfig(
     blink::mojom::LocalResourceLoaderConfig* config,
     const url::Origin& requesting_origin,
     content::WebContents* web_contents) {
-  CHECK(web_contents);
   const ui::ColorProvider* color_provider = nullptr;
-  // TODO(crbug.com/457618790): Ensure we have ColorProviders available early in
-  // View init separately.
   if (color_provider_for_testing_) {
     CHECK_IS_TEST();
     color_provider = color_provider_for_testing_.get();
@@ -60,6 +59,7 @@ void ThemeColorsSourceManager::PopulateLocalResourceLoaderConfig(
     if (browser_window) {
       color_provider = browser_window->GetColorProvider();
     }
+
     // Fallback to ThemeService if we couldn't get the ColorProvider from the
     // BrowserWindow or prewarming sequence. We prioritize the BrowserWindow's
     // ColorProvider to ensure consistency with the native window's theme, but
@@ -67,20 +67,11 @@ void ThemeColorsSourceManager::PopulateLocalResourceLoaderConfig(
     // fully attached, it might not be available yet.
     if (!color_provider) {
       auto* theme_service = ThemeServiceFactory::GetForProfile(profile_);
-      if (theme_service) {
-        color_provider = theme_service->GetColorProvider();
-        // When `WebUIToolbarProcessOverheadExperiment` or
-        // `WebUIReloadButtonPrewarmWebUI` is enabled, the
-        // `ThemeColorsSourceManager` needs to be set up before the WebContents
-        // is added to the Widget. In this case, it's expected that we will
-        // fetch the theme service using the `profile_` instead.
-        if (!(base::FeatureList::IsEnabled(
-                  features::kWebUIToolbarProcessOverheadExperiment) ||
-              (features::IsWebUIToolbarEnabled() &&
-               features::kWebUIReloadButtonPrewarmWebUI.Get()))) {
-          base::debug::DumpWithoutCrashing();
-        }
-      }
+      ui::ColorProviderKey key = theme_service->GetColorProviderKey(
+          ui::NativeTheme::GetInstanceForNativeUi()->GetColorProviderKey(
+              nullptr),
+          profile_);
+      color_provider = ui::ColorProviderManager::Get().GetColorProviderFor(key);
     }
   }
   CHECK(color_provider);

@@ -16,8 +16,14 @@ NetworkBindingClientSocketFactory::NetworkBindingClientSocketFactory(
 std::unique_ptr<DatagramClientSocket>
 NetworkBindingClientSocketFactory::CreateDatagramClientSocket(
     DatagramSocket::BindType bind_type,
+    handles::NetworkHandle target_network,
     NetLog* net_log,
     const NetLogSource& source) {
+  // NetworkBindingClientSocketFactory was used by the old way of doing
+  // multi-networking in Cronet and CCT. `target_network` represents the new
+  // way of doing multi-networking. The two should never be used at the same
+  // time.
+  CHECK_EQ(target_network, handles::kInvalidNetworkHandle);
   return std::make_unique<UDPClientSocket>(bind_type, net_log, source,
                                            network_);
 }
@@ -25,10 +31,16 @@ NetworkBindingClientSocketFactory::CreateDatagramClientSocket(
 std::unique_ptr<TransportClientSocket>
 NetworkBindingClientSocketFactory::CreateTransportClientSocket(
     const AddressList& addresses,
+    handles::NetworkHandle target_network,
     std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
     NetworkQualityEstimator* network_quality_estimator,
     NetLog* net_log,
     const NetLogSource& source) {
+  // NetworkBindingClientSocketFactory was used by the old way of doing
+  // multi-networking in Cronet and CCT. `target_network` represents the new
+  // way of doing multi-networking. The two should never be used at the same
+  // time.
+  CHECK_EQ(target_network, handles::kInvalidNetworkHandle);
   return std::make_unique<TCPClientSocket>(
       addresses, std::move(socket_performance_watcher),
       network_quality_estimator, net_log, source, network_);

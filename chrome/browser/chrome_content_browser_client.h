@@ -1084,6 +1084,9 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const std::optional<blink::LocalFrameToken>& source_frame_token,
       const url::Origin& source_origin,
       const std::optional<url::Origin>& target_origin) override;
+  bool IsSecureContextRoot(content::RenderFrameHost* parent_frame,
+                           content::FrameTreeNodeId frame_tree_node_id,
+                           const GURL& url) override;
   bool IsCrossOriginSubframeAllowedToShowFilePicker(
       content::RenderFrameHost* render_frame_host,
       const url::Origin& requesting_origin) override;

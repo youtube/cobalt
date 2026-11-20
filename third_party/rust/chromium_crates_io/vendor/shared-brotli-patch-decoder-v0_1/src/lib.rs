@@ -15,17 +15,15 @@ use decode_error::DecodeError;
 /// A Shared Brotli Decoder.
 ///
 /// Shared brotli (<https://datatracker.ietf.org/doc/draft-vandevenne-shared-brotli-format/>) is an
-/// extension of brotli to allow the decompression to include a shared
-/// dictionary.
+/// extension of brotli to allow the decompression to include a shared dictionary.
 pub trait SharedBrotliDecoder {
     /// Decodes shared brotli encoded data using the optional shared dictionary.
     ///
     /// The shared dictionary is a raw LZ77 style dictionary, see:
     /// <https://datatracker.ietf.org/doc/html/draft-vandevenne-shared-brotli-format#section-3.2>
     ///
-    /// Will fail if the decoded result will be greater than
-    /// max_uncompressed_length. Any excess data in encoded after the
-    /// encoded stream finishes is also considered an error.
+    /// Will fail if the decoded result will be greater than max_uncompressed_length. Any excess data
+    /// in encoded after the encoded stream finishes is also considered an error.
     fn decode(
         &self,
         encoded: &[u8],
@@ -36,8 +34,7 @@ pub trait SharedBrotliDecoder {
 
 /// The brotli decoder provided by this crate.
 ///
-/// By default a rust wrapper around the c brotli decoder implementation is
-/// used.
+/// By default a rust wrapper around the c brotli decoder implementation is used.
 pub struct BuiltInBrotliDecoder;
 
 /// An implementation that just passes through the input data.
@@ -52,7 +49,8 @@ impl SharedBrotliDecoder for Box<dyn SharedBrotliDecoder> {
         shared_dictionary: Option<&[u8]>,
         max_uncompressed_length: usize,
     ) -> Result<Vec<u8>, decode_error::DecodeError> {
-        self.as_ref().decode(encoded, shared_dictionary, max_uncompressed_length)
+        self.as_ref()
+            .decode(encoded, shared_dictionary, max_uncompressed_length)
     }
 }
 
@@ -164,17 +162,19 @@ mod tests {
 
     #[test]
     fn brotli_decode_without_shared_dict() {
-        let base = "".as_bytes();
-
         assert_eq!(
             Ok(TARGET.to_vec()),
             BuiltInBrotliDecoder.decode(&NO_DICT_PATCH, None, TARGET.len())
         );
+    }
 
-        // Check that empty base is handled the same as no base.
+    #[test]
+    fn brotli_decode_with_empty_shared_dict() {
+        // An empty shared dictionary used to behave similarly to a `None`, but it is now invalid as
+        // of https://github.com/google/brotli/pull/1479
         assert_eq!(
-            Ok(TARGET.to_vec()),
-            BuiltInBrotliDecoder.decode(&NO_DICT_PATCH, Some(base), TARGET.len())
+            Err(DecodeError::InvalidDictionary),
+            BuiltInBrotliDecoder.decode(&NO_DICT_PATCH, Some(b""), TARGET.len())
         );
     }
 
@@ -202,10 +202,9 @@ mod tests {
         );
     }
 
-    // TODO(garretrieger): there doesn't seem to be an easy way to detect this
-    // condition with the rust brotli implementation. So disable for now.
-    // However, we need to make this behaviour consistent between the two
-    // possible implementations. Either don't check for this in the c
+    // TODO(garretrieger): there doesn't seem to be an easy way to detect this condition with
+    // the rust brotli implementation. So disable for now. However, we need to make this behaviour
+    // consistent between the two possible implementations. Either don't check for this in the c
     // version, or figure out how to have a similar check in rust.
     #[cfg(feature = "c-brotli")]
     #[test]

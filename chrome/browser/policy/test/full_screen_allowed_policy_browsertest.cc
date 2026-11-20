@@ -82,7 +82,7 @@ IN_PROC_BROWSER_TEST_F(FullscreenPolicyTest, FullscreenAllowedBrowser) {
                nullptr);
   UpdateProviderPolicy(policies);
 
-  BrowserWindow* browser_window = browser()->window();
+  BrowserWindow* browser_window = BrowserWindow::FromBrowser(browser());
   ASSERT_TRUE(browser_window);
 
   EXPECT_FALSE(browser_window->IsFullscreen());

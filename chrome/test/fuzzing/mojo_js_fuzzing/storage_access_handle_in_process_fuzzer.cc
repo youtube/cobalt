@@ -11,6 +11,7 @@
 #include "chrome/test/fuzzing/mojo_js_fuzzing/storage_access_handle_fuzzer_grammar.h"
 #include "chrome/test/fuzzing/mojo_js_fuzzing/storage_access_handle_fuzzer_grammar.pb.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/permission_request_manager.h"

@@ -50,7 +50,7 @@ const LayoutResult* TableSectionLayoutAlgorithm::Layout() {
   BlockChildIterator child_iterator(Node().FirstChild(), GetBreakToken(),
                                     /* calculate_child_idx */ true);
   for (auto entry = child_iterator.NextChild();
-       BlockNode row = To<BlockNode>(entry.node);
+       BlockNode row = To<BlockNode>(entry.block_node);
        entry = child_iterator.NextChild()) {
     const auto* row_break_token = To<BlockBreakToken>(entry.token);
     wtf_size_t row_index = start_row_index + *entry.index;
@@ -134,8 +134,9 @@ const LayoutResult* TableSectionLayoutAlgorithm::Layout() {
     }
   }
 
-  if (!child_iterator.NextChild().node)
+  if (!child_iterator.NextChild().block_node) {
     container_builder_.SetHasSeenAllChildren();
+  }
 
   LayoutUnit block_size;
   if (constraint_space.IsFixedBlockSize()) {

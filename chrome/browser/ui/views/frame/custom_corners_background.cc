@@ -17,7 +17,6 @@
 #include "chrome/browser/ui/views/frame/themed_background.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkPathBuilder.h"
-#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_variant.h"
 #include "ui/compositor/layer.h"
@@ -53,8 +52,8 @@ DEFINE_SAFE_CAST_TARGET(CustomCornersBackground)
 CustomCornersBackground::CustomCornersBackground(
     views::View& view,
     BrowserView& browser_view,
-    ColorChoice primary_color,
-    ColorChoice corner_color,
+    ColorChoiceWithAlpha primary_color,
+    ColorChoiceWithAlpha corner_color,
     std::optional<int> default_radius)
     : CustomCorners(browser_view),
       primary_color_(primary_color),
@@ -62,6 +61,18 @@ CustomCornersBackground::CustomCornersBackground(
       default_radius_(default_radius.value_or(
           GetLayoutConstant(LayoutConstant::kToolbarCornerRadius))),
       view_(view) {}
+
+CustomCornersBackground::CustomCornersBackground(
+    views::View& view,
+    BrowserView& browser_view,
+    ColorChoice primary_color,
+    ColorChoice corner_color,
+    std::optional<int> default_radius)
+    : CustomCornersBackground(view,
+                              browser_view,
+                              ColorChoiceWithAlpha(primary_color),
+                              ColorChoiceWithAlpha(corner_color),
+                              default_radius) {}
 
 CustomCornersBackground::~CustomCornersBackground() = default;
 
@@ -74,7 +85,8 @@ void CustomCornersBackground::SetVisible(bool visible) {
   view_->SchedulePaint();
 }
 
-void CustomCornersBackground::SetPrimaryColor(ColorChoice primary_color) {
+void CustomCornersBackground::SetPrimaryColor(
+    ColorChoiceWithAlpha primary_color) {
   if (primary_color_ == primary_color) {
     return;
   }
@@ -83,7 +95,8 @@ void CustomCornersBackground::SetPrimaryColor(ColorChoice primary_color) {
   view_->SchedulePaint();
 }
 
-void CustomCornersBackground::SetCornerColor(ColorChoice corner_color) {
+void CustomCornersBackground::SetCornerColor(
+    ColorChoiceWithAlpha corner_color) {
   if (corner_color == corner_color_) {
     return;
   }
@@ -143,9 +156,8 @@ void CustomCornersBackground::SetCutoutFrom(
     const std::vector<const views::View*>& views) {
   cutout_paths_.clear();
   for (const auto* view : views) {
-    gfx::Rect bounds = view->GetLocalBounds();
-    views::View::ConvertRectToScreen(&*view, &bounds);
-    bounds = views::View::ConvertRectFromScreen(&*view_, bounds);
+    const gfx::Rect bounds =
+        views::View::ConvertRectFromScreen(&*view_, view->GetBoundsInScreen());
     SkPath cutout_path;
     if (auto* const corner = views::AsViewClass<CustomFloatingCorner>(view)) {
       cutout_path = corner->GetBackgroundPath(bounds);
@@ -172,10 +184,6 @@ void CustomCornersBackground::Paint(gfx::Canvas* canvas,
   }
 
   gfx::ScopedCanvas scoped_canvas(canvas);
-
-  if (alpha_ < 1.0f) {
-    canvas->SaveLayerAlpha(static_cast<uint8_t>(255 * alpha_));
-  }
 
   for (auto& cutout_path : cutout_paths_) {
     canvas->ClipPath(cutout_path, true, SkClipOp::kDifference);
@@ -229,22 +237,8 @@ void CustomCornersBackground::Paint(gfx::Canvas* canvas,
     cc::PaintFlags stroke_flags;
     stroke_flags.setStrokeWidth(views::Separator::kThickness);
     SkColor color = GetView().GetColorProvider()->GetColor(outline.color);
-    if (features::IsGlassFrameEnabled() &&
-        std::holds_alternative<FrameTheme>(primary_color_)) {
-      const SkAlpha frame_alpha =
-          color_utils::IsDark(
-              GetView().GetColorProvider()->GetColor(ui::kColorFrameActive))
-              ? kBrowserFrameAlphaDark
-              : kBrowserFrameAlphaLight;
-      color = SkColorSetA(
-          color,
-          std::clamp(static_cast<int>(SkColorGetA(color) * outline.opacity *
-                                      (frame_alpha / 255.0f)),
-                     0, 255));
-    } else {
-      color = SkColorSetA(
-          color, base::ClampRound(SkColorGetA(color) * outline.opacity));
-    }
+    color = SkColorSetA(color,
+                        base::ClampRound(SkColorGetA(color) * outline.opacity));
     stroke_flags.setColor(color);
     stroke_flags.setStyle(cc::PaintFlags::kStroke_Style);
     stroke_flags.setAntiAlias(true);
@@ -336,10 +330,6 @@ void CustomCornersBackground::Paint(gfx::Canvas* canvas,
       canvas->DrawPath(stroke_path.detach(), stroke_flags);
     }
   }
-
-  if (alpha_ < 1.0f) {
-    canvas->Restore();
-  }
 }
 
 void CustomCornersBackground::OnViewThemeChanged(views::View* view) {
@@ -363,8 +353,8 @@ const views::View& CustomCornersBackground::GetView() const {
 }
 
 void CustomCornersBackground::OnBrowserPaintAsActiveChanged() {
-  if (std::holds_alternative<FrameTheme>(primary_color_) ||
-      std::holds_alternative<FrameTheme>(corner_color_)) {
+  if (std::holds_alternative<FrameTheme>(primary_color_.color) ||
+      std::holds_alternative<FrameTheme>(corner_color_.color)) {
     view_->SchedulePaint();
   }
 }

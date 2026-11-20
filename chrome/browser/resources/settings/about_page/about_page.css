@@ -1,0 +1,56 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=../settings_shared_lit.css.js
+ * #import=chrome://resources/cr_elements/cr_shared_style_lit.css.js
+ * #include=cr-shared-style-lit settings-shared-lit
+ * #css_wrapper_metadata_end */
+
+:host {
+  --about-page-image-space: 10px;
+}
+
+.info-sections {
+  padding: var(--cr-section-vertical-padding) var(--cr-section-padding);
+}
+
+.info-section {
+  margin-bottom: 12px;
+}
+
+.product-title {
+  font-size: 153.85%;  /* 20px / 13px */
+  font-weight: 400;
+  margin-bottom: auto;
+  margin-top: auto;
+}
+
+#productLogo {
+  margin-inline-end: var(--about-page-image-space);
+}
+
+.icon-container {
+  margin-inline-end: var(--about-page-image-space);
+  min-width: 32px;  /* The width of the product-logo img. */
+  text-align: center;
+}
+
+cr-icon[icon='cr:check-circle'] {
+  fill: var(--cr-checked-color);
+}
+
+cr-icon[icon='cr:error'] {
+  fill: var(--settings-error-color);
+}
+
+#throbber {
+  height: var(--cr-icon-size);
+  vertical-align: middle;
+}
+
+cr-button {
+  white-space: nowrap;
+}

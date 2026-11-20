@@ -15,6 +15,7 @@
 #include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -69,17 +70,33 @@ const char* kLoginId = "hans";
 const char* kLoginEmail = "hans@my.domain.com";
 const char* kDeviceSerialNumber = "ABC123DEF456";
 
-const std::vector<std::string> kValidApnTypes = {
-    ::onc::cellular_apn::kIpTypeAutomatic,
-    ::onc::cellular_apn::kIpTypeIpv4,
-    ::onc::cellular_apn::kIpTypeIpv4Ipv6,
-    ::onc::cellular_apn::kIpTypeIpv6,
-};
+const std::vector<std::string>& GetValidApnTypes() {
+  static const base::NoDestructor<std::vector<std::string>> val({
+      ::onc::cellular_apn::kIpTypeAutomatic,
+      ::onc::cellular_apn::kIpTypeIpv4,
+      ::onc::cellular_apn::kIpTypeIpv4Ipv6,
+      ::onc::cellular_apn::kIpTypeIpv6,
+  });
+  return *val;
+}
 
-const std::vector<std::string>& kTestAdminApnListAllIds = {"id-1", "id-2",
-                                                           "id-3"};
-const std::vector<std::string>& kTestAdminApnListSubsetIds = {"id-1", "id-3"};
-const std::vector<std::string>& kTestNonAdminApnListIds = {"id-x", "id-y"};
+const std::vector<std::string>& GetTestAdminApnListAllIds() {
+  static const base::NoDestructor<std::vector<std::string>> val(
+      {"id-1", "id-2", "id-3"});
+  return *val;
+}
+
+const std::vector<std::string>& GetTestAdminApnListSubsetIds() {
+  static const base::NoDestructor<std::vector<std::string>> val(
+      {"id-1", "id-3"});
+  return *val;
+}
+
+const std::vector<std::string>& GetTestNonAdminApnListIds() {
+  static const base::NoDestructor<std::vector<std::string>> val(
+      {"id-x", "id-y"});
+  return *val;
+}
 
 base::flat_map<std::string, std::string> GetTestStringSubstitutions() {
   base::flat_map<std::string, std::string> substitutions;
@@ -387,7 +404,7 @@ TEST(ONCUtils, ParseAndValidateOncForImport_APNIpType) {
       &global_network_config, &certificates));
 
   // Test valid IpTypes
-  for (const std::string& ip_type : kValidApnTypes) {
+  for (const std::string& ip_type : GetValidApnTypes()) {
     apn_data.ip_type = ip_type;
     onc_blob = test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
 
@@ -409,16 +426,16 @@ TEST(ONCUtils, ParseAndValidateOncForImport_AdminAPNsExistForAdminAPNIds) {
   base::DictValue global_network_config;
   base::ListValue certificates;
   test_utils::TestToplevelApnData apn_data;
-  apn_data.admin_apn_list_ids = kTestAdminApnListAllIds;
+  apn_data.admin_apn_list_ids = GetTestAdminApnListAllIds();
 
-  apn_data.psim_admin_assigned_apn_ids = kTestAdminApnListSubsetIds;
+  apn_data.psim_admin_assigned_apn_ids = GetTestAdminApnListSubsetIds();
   std::string onc_blob =
       test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
   ASSERT_TRUE(ParseAndValidateOncForImport(
       onc_blob, ::onc::ONCSource::ONC_SOURCE_DEVICE_POLICY, &network_configs,
       &global_network_config, &certificates));
 
-  apn_data.psim_admin_assigned_apn_ids = kTestAdminApnListSubsetIds;
+  apn_data.psim_admin_assigned_apn_ids = GetTestAdminApnListSubsetIds();
   apn_data.admin_assigned_apn_ids = std::vector<std::string>();
   onc_blob = test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
   ASSERT_TRUE(ParseAndValidateOncForImport(
@@ -426,14 +443,14 @@ TEST(ONCUtils, ParseAndValidateOncForImport_AdminAPNsExistForAdminAPNIds) {
       &global_network_config, &certificates));
 
   apn_data.psim_admin_assigned_apn_ids = std::vector<std::string>();
-  apn_data.admin_assigned_apn_ids = kTestAdminApnListSubsetIds;
+  apn_data.admin_assigned_apn_ids = GetTestAdminApnListSubsetIds();
   onc_blob = test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
   ASSERT_TRUE(ParseAndValidateOncForImport(
       onc_blob, ::onc::ONCSource::ONC_SOURCE_DEVICE_POLICY, &network_configs,
       &global_network_config, &certificates));
 
-  apn_data.psim_admin_assigned_apn_ids = kTestAdminApnListSubsetIds;
-  apn_data.admin_assigned_apn_ids = kTestAdminApnListSubsetIds;
+  apn_data.psim_admin_assigned_apn_ids = GetTestAdminApnListSubsetIds();
+  apn_data.admin_assigned_apn_ids = GetTestAdminApnListSubsetIds();
   onc_blob = test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
   ASSERT_TRUE(ParseAndValidateOncForImport(
       onc_blob, ::onc::ONCSource::ONC_SOURCE_DEVICE_POLICY, &network_configs,
@@ -445,9 +462,9 @@ TEST(ONCUtils, ParseAndValidateOncForImport_AdminAPNsDoNotExistForAdminAPNIds) {
   base::DictValue global_network_config;
   base::ListValue certificates;
   test_utils::TestToplevelApnData apn_data;
-  apn_data.admin_apn_list_ids = kTestAdminApnListAllIds;
+  apn_data.admin_apn_list_ids = GetTestAdminApnListAllIds();
 
-  apn_data.psim_admin_assigned_apn_ids = kTestNonAdminApnListIds;
+  apn_data.psim_admin_assigned_apn_ids = GetTestNonAdminApnListIds();
   apn_data.admin_assigned_apn_ids = std::nullopt;
   std::string onc_blob =
       test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
@@ -456,13 +473,13 @@ TEST(ONCUtils, ParseAndValidateOncForImport_AdminAPNsDoNotExistForAdminAPNIds) {
       &global_network_config, &certificates));
 
   apn_data.psim_admin_assigned_apn_ids = std::nullopt;
-  apn_data.admin_assigned_apn_ids = kTestNonAdminApnListIds;
+  apn_data.admin_assigned_apn_ids = GetTestNonAdminApnListIds();
   onc_blob = test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
   ASSERT_FALSE(ParseAndValidateOncForImport(
       onc_blob, ::onc::ONCSource::ONC_SOURCE_DEVICE_POLICY, &network_configs,
       &global_network_config, &certificates));
 
-  apn_data.psim_admin_assigned_apn_ids = kTestNonAdminApnListIds;
+  apn_data.psim_admin_assigned_apn_ids = GetTestNonAdminApnListIds();
   apn_data.admin_assigned_apn_ids = std::vector<std::string>();
   onc_blob = test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
   ASSERT_FALSE(ParseAndValidateOncForImport(
@@ -470,21 +487,21 @@ TEST(ONCUtils, ParseAndValidateOncForImport_AdminAPNsDoNotExistForAdminAPNIds) {
       &global_network_config, &certificates));
 
   apn_data.psim_admin_assigned_apn_ids = std::vector<std::string>();
-  apn_data.admin_assigned_apn_ids = kTestNonAdminApnListIds;
+  apn_data.admin_assigned_apn_ids = GetTestNonAdminApnListIds();
   onc_blob = test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
   ASSERT_FALSE(ParseAndValidateOncForImport(
       onc_blob, ::onc::ONCSource::ONC_SOURCE_DEVICE_POLICY, &network_configs,
       &global_network_config, &certificates));
 
-  apn_data.psim_admin_assigned_apn_ids = kTestAdminApnListAllIds;
-  apn_data.admin_assigned_apn_ids = kTestNonAdminApnListIds;
+  apn_data.psim_admin_assigned_apn_ids = GetTestAdminApnListAllIds();
+  apn_data.admin_assigned_apn_ids = GetTestNonAdminApnListIds();
   onc_blob = test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
   ASSERT_FALSE(ParseAndValidateOncForImport(
       onc_blob, ::onc::ONCSource::ONC_SOURCE_DEVICE_POLICY, &network_configs,
       &global_network_config, &certificates));
 
-  apn_data.psim_admin_assigned_apn_ids = kTestNonAdminApnListIds;
-  apn_data.admin_assigned_apn_ids = kTestAdminApnListAllIds;
+  apn_data.psim_admin_assigned_apn_ids = GetTestNonAdminApnListIds();
+  apn_data.admin_assigned_apn_ids = GetTestAdminApnListAllIds();
   onc_blob = test_utils::GenerateTopLevelWithCellularWithAPNAsJSON(apn_data);
   ASSERT_FALSE(ParseAndValidateOncForImport(
       onc_blob, ::onc::ONCSource::ONC_SOURCE_DEVICE_POLICY, &network_configs,

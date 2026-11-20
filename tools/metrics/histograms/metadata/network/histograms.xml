@@ -5124,7 +5124,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.ConnectionAllowlist.Type"
-    enum="ConnectionAllowlistType" expires_after="2026-10-10">
+    enum="ConnectionAllowlistType" expires_after="2026-12-16">
   <owner>averge@chromium.org</owner>
   <owner>mkwst@chromium.org</owner>
   <owner>shivanisha@chromium.org</owner>
@@ -5270,7 +5270,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.ParsedHeaders.IPCHandleTime"
-    units="microseconds" expires_after="2026-10-11">
+    units="microseconds" expires_after="2026-12-16">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -5432,7 +5432,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.TimeToFirstCreateNetworkContext" units="ms"
-    expires_after="2026-09-04">
+    expires_after="2026-12-20">
   <owner>horo@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>

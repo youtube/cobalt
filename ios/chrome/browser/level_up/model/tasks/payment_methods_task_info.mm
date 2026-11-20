@@ -29,7 +29,7 @@ class PaymentMethodsTaskInfo : public TaskInfo {
   std::string GetTriggerUserAction() const override {
     return "AutofillCreditCardsViewed";
   }
-  base::RepeatingClosure GetNavigationAction() const override {
+  TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }
 };

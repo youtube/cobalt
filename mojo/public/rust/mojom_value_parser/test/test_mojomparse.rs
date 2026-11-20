@@ -27,8 +27,9 @@ chromium::import! {
 
 use rust_gtest_interop::prelude::*;
 
-use bindings::receiver::PendingReceiver;
-use bindings::remote::PendingRemote;
+use bindings::for_testing::DummyRegistrarForTesting;
+use bindings::receiver::{PendingAssociatedReceiver, PendingReceiver};
+use bindings::remote::{PendingAssociatedRemote, PendingRemote};
 use mojom_value_parser_core::*;
 use ordered_float::OrderedFloat;
 use parser_unittests_rust::parser_unittests::*;
@@ -171,6 +172,9 @@ impl TestType {
     /// Similar to `validate_mojomparse`, but for types which contain handles.
     /// Since no two different handle values will ever be equal, it uses a
     /// special comparison operator that ignores handles.
+    ///
+    /// Note: This will panic if you pass in types which contain associated
+    /// endpoints, use `validate_mojomparse_associated` for those.
     fn validate_mojomparse_handles<T: MojomParse<()> + std::fmt::Debug + PartialEq>(
         &self,
         rust_val: T,
@@ -199,6 +203,45 @@ impl TestType {
             // The function we really want to test here is T::try_from_mojom_value
             &into_mojom_value(try_from_mojom_value::<T>(get_mojom_val()).unwrap())
         ));
+    }
+
+    /// Similar to `validate_mojomparse`, but for types which contain associated
+    /// endpoints. It requires the user to specify the comparison operator used
+    /// after deparsing; typically, this should be a closure that compares the
+    /// associated endpoints to their paired counterparts using
+    /// `same_interface_for_testing`.
+    fn validate_mojomparse_associated<
+        T: MojomParse<DummyRegistrarForTesting> + std::fmt::Debug + PartialEq,
+    >(
+        &self,
+        rust_val: T,
+        mojom_val: MojomValue,
+        has_expected_value: impl Fn(&T) -> bool,
+    ) {
+        let parsing_registrar = DummyRegistrarForTesting::new(false);
+        let deparsing_registrar = DummyRegistrarForTesting::new(false);
+
+        expect_eq!(
+            T::mojom_type(),
+            self.base_type,
+            "Type {} had the wrong associated MojomType!",
+            self.type_name
+        );
+
+        expect_eq!(
+            *T::wire_type(),
+            self.packed_type,
+            "Type {} failed to pack correctly!",
+            self.type_name
+        );
+
+        expect_true!(equivalent_value(
+            &mojom_val,
+            &rust_val.into_mojom_value(&deparsing_registrar)
+        ));
+
+        let parsed_val = T::try_from_mojom_value(mojom_val, &parsing_registrar).unwrap();
+        expect_true!(has_expected_value(&parsed_val));
     }
 }
 
@@ -2654,5 +2697,109 @@ fn test_pending_types() {
             rem2: PendingRemote::new(dummy_handle().into()),
         },
         || with_pending_types_mojom(dummy_handle(), dummy_handle(), dummy_handle(), dummy_handle()),
+    );
+}
+
+static WITH_PENDING_ASSOCIATED_TYPES_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
+    type_name: "WithPendingAssociatedTypes",
+    base_type: wrap_struct_fields_type(vec![
+        ("rec".to_string(), nullable_ty!(MojomType::PendingAssociatedReceiver)),
+        ("rem".to_string(), nullable_ty!(MojomType::PendingAssociatedRemote)),
+        ("rec2".to_string(), nullable_ty!(MojomType::PendingAssociatedReceiver)),
+        ("rem2".to_string(), nullable_ty!(MojomType::PendingAssociatedRemote)),
+    ]),
+    packed_type: wrap_packed_struct_fields(
+        vec![
+            ("rec".to_string(), struct_leaf!(0, PackedLeafType::PendingAssociatedReceiver, true)),
+            ("rem".to_string(), struct_leaf!(1, PackedLeafType::PendingAssociatedRemote, true)),
+            ("rec2".to_string(), struct_leaf!(2, PackedLeafType::PendingAssociatedReceiver, true)),
+            ("rem2".to_string(), struct_leaf!(3, PackedLeafType::PendingAssociatedRemote, true)),
+        ],
+        4,
+    ),
+});
+
+fn with_pending_associated_types_mojom(rec: u32, rem: u32, rec2: u32, rem2: u32) -> MojomValue {
+    wrap_struct_fields_value(vec![
+        (
+            "rec".to_string(),
+            nullable_val!(Some(MojomValue::PendingAssociatedReceiver(rec.try_into().unwrap()))),
+        ),
+        (
+            "rem".to_string(),
+            nullable_val!(Some(MojomValue::PendingAssociatedRemote(rem.try_into().unwrap()))),
+        ),
+        (
+            "rec2".to_string(),
+            nullable_val!(Some(MojomValue::PendingAssociatedReceiver(rec2.try_into().unwrap()))),
+        ),
+        (
+            "rem2".to_string(),
+            nullable_val!(Some(MojomValue::PendingAssociatedRemote(rem2.try_into().unwrap()))),
+        ),
+    ])
+}
+
+#[gtest(RustTestMojomParsingAttr, TestPendingAssociatedTypes)]
+fn test_pending_associated_types() {
+    let (rem_a, rec_a) = PendingAssociatedRemote::new_pair();
+    let (rem_b, rec_b) = PendingAssociatedReceiver::new_pair();
+    let (rem_c, rec_c) = PendingAssociatedRemote::new_pair();
+    let (rem_d, rec_d) = PendingAssociatedReceiver::new_pair();
+
+    WITH_PENDING_ASSOCIATED_TYPES_TY.validate_mojomparse_associated(
+        WithPendingAssociatedTypes {
+            rec: Some(rec_a),
+            rem: Some(rem_b),
+            rec2: Some(rec_c),
+            rem2: Some(rem_d),
+        },
+        with_pending_associated_types_mojom(1, 2, 3, 4),
+        |parsed| {
+            parsed.rec.as_ref().unwrap().same_interface_for_testing(&rem_a)
+                && parsed.rem.as_ref().unwrap().same_interface_for_testing(&rec_b)
+                && parsed.rec2.as_ref().unwrap().same_interface_for_testing(&rem_c)
+                && parsed.rem2.as_ref().unwrap().same_interface_for_testing(&rec_d)
+        },
+    );
+
+    WITH_PENDING_ASSOCIATED_TYPES_TY.validate_mojomparse_associated(
+        WithPendingAssociatedTypes { rec: None, rem: None, rec2: None, rem2: None },
+        wrap_struct_fields_value(vec![
+            ("rec".to_string(), MojomValue::Nullable(None)),
+            ("rem".to_string(), MojomValue::Nullable(None)),
+            ("rec2".to_string(), MojomValue::Nullable(None)),
+            ("rem2".to_string(), MojomValue::Nullable(None)),
+        ]),
+        |parsed| {
+            parsed.rec.is_none()
+                && parsed.rem.is_none()
+                && parsed.rec2.is_none()
+                && parsed.rem2.is_none()
+        },
+    );
+
+    let (rem_e, rec_e) = PendingAssociatedRemote::new_pair();
+    let (rem_f, rec_f) = PendingAssociatedReceiver::new_pair();
+    WITH_PENDING_ASSOCIATED_TYPES_TY.validate_mojomparse_associated(
+        WithPendingAssociatedTypes { rec: Some(rec_e), rem: None, rec2: None, rem2: Some(rem_f) },
+        wrap_struct_fields_value(vec![
+            (
+                "rec".to_string(),
+                nullable_val!(Some(MojomValue::PendingAssociatedReceiver(1.try_into().unwrap()))),
+            ),
+            ("rem".to_string(), MojomValue::Nullable(None)),
+            ("rec2".to_string(), MojomValue::Nullable(None)),
+            (
+                "rem2".to_string(),
+                nullable_val!(Some(MojomValue::PendingAssociatedRemote(2.try_into().unwrap()))),
+            ),
+        ]),
+        |parsed| {
+            parsed.rec.as_ref().unwrap().same_interface_for_testing(&rem_e)
+                && parsed.rem.is_none()
+                && parsed.rec2.is_none()
+                && parsed.rem2.as_ref().unwrap().same_interface_for_testing(&rec_f)
+        },
     );
 }

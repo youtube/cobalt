@@ -160,7 +160,8 @@ class MLInstallabilityPromoter
                                const GURL& manifest_url) override;
   void DidUpdateFaviconURL(
       content::RenderFrameHost* render_frame_host,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) override;
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) override;
 
   // content::ServiceWorkerContextObserver overrides
   void OnRegistrationStored(int64_t registration_id,

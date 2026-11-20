@@ -30,7 +30,8 @@ class AttemptFormFillingTool : public Tool,
       TaskId task_id,
       ToolDelegate& tool_delegate,
       tabs::TabInterface& tab,
-      std::vector<AttemptFormFillingToolRequest::FormFillingRequest> requests);
+      std::vector<AttemptFormFillingToolRequest::FormFillingRequest> requests,
+      bool enqueued_click);
   ~AttemptFormFillingTool() override;
 
   void Invoke(ToolCallback callback) override;
@@ -77,6 +78,10 @@ class AttemptFormFillingTool : public Tool,
   tabs::TabHandle tab_handle_;
   std::vector<AttemptFormFillingToolRequest::FormFillingRequest>
       tool_fill_requests_;
+  // Set to true if a click has already been enqueued for the target field of
+  // this request. This is propagated from the request to prevent infinite loops
+  // of click delegation.
+  bool enqueued_click_ = false;
   // Fill requests as determined by the ActorFormFillingService. Initially
   // populated in TimeOfUseValidation and then updated in OnSuggestionsRetrieved
   // to reflect the actual requests returned by the service, which may have

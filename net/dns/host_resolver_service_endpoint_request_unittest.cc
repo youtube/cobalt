@@ -69,7 +69,10 @@ class FakeAddressSorter : public AddressSorter {
  public:
   void Sort(const std::vector<IPEndPoint>& endpoints,
             const NetworkAnonymizationKey& anonymization_key,
+            handles::NetworkHandle target_network,
             CallbackType callback) const override {
+    // This is used only for testing in scenarios that do not involve multiple
+    // networks. With that in mind, it's safe to ignore `target_network`.
     std::vector<IPEndPoint> sorted = endpoints;
     std::sort(sorted.begin(), sorted.end(),
               [](const IPEndPoint& a, const IPEndPoint& b) {
@@ -363,10 +366,10 @@ class HostResolverServiceEndpointRequestTest
   void PopulateCacheForUrl(std::string_view host,
                            std::vector<IPEndPoint> endpoints,
                            bool secure = false) {
-    HostCache::Key key =
-        HostCache::Key(url::SchemeHostPort(GURL(host)),
-                       DnsQueryType::UNSPECIFIED, /*host_resolver_flags=*/0,
-                       HostResolverSource::ANY, NetworkAnonymizationKey());
+    HostCache::Key key = HostCache::Key(
+        url::SchemeHostPort(GURL(host)), DnsQueryType::UNSPECIFIED,
+        /*host_resolver_flags=*/0, HostResolverSource::ANY,
+        NetworkAnonymizationKey(), handles::kInvalidNetworkHandle);
     key.secure = secure;
     PopulateCache(key, std::move(endpoints));
   }

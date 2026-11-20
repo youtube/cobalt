@@ -110,6 +110,7 @@ class MockContextualTasksService : public ContextualTasksService {
               GetTabsAssociatedWithTask,
               (const base::Uuid&),
               (const, override));
+  MOCK_METHOD(void, SetLastActiveTask, (const base::Uuid&), (override));
   MOCK_METHOD(base::WeakPtr<syncer::DataTypeControllerDelegate>,
               GetAiThreadControllerDelegate,
               (),

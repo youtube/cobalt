@@ -27,9 +27,8 @@ const CGFloat kSafeBrowsingHeaderIconImageSize = 24;
 
 #pragma mark CollectionViewItem
 
-- (void)configureHeaderFooterView:(SafeBrowsingHeaderView*)header
-                       withStyler:(ChromeTableViewStyler*)styler {
-  [super configureHeaderFooterView:header withStyler:styler];
+- (void)configureHeaderFooterView:(SafeBrowsingHeaderView*)header {
+  [super configureHeaderFooterView:header];
   header.textLabel.text = self.text;
   header.textLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
   header.image = self.image;

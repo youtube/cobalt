@@ -33,7 +33,6 @@
 #include "chrome/browser/ui/views/page_action/zoom_view.h"
 #include "chrome/browser/ui/views/sharing/sharing_dialog_view.h"
 #include "chrome/browser/ui/views/sharing/sharing_icon_view.h"
-#include "chrome/browser/ui/views/sharing_hub/sharing_hub_icon_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h"
 #include "chrome/common/chrome_features.h"
 #include "components/content_settings/core/common/features.h"
@@ -132,12 +131,6 @@ void PageActionIconController::Init(const PageActionIconParams& params,
             std::make_unique<autofill::SavePaymentIconView>(
                 params.command_updater, params.icon_label_bubble_delegate,
                 params.page_action_icon_delegate, IDC_SAVE_IBAN_FOR_PAGE));
-        break;
-      case PageActionIconType::kSharingHub:
-        add_page_action_icon(
-            type, std::make_unique<sharing_hub::SharingHubIconView>(
-                      params.command_updater, params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate));
         break;
       case PageActionIconType::kVirtualCardEnroll:
         add_page_action_icon(

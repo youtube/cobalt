@@ -63,11 +63,11 @@ public class LevelDBPersistedDataStorageTest {
     public void tearDown() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    // Both PersistedDataStorage are associated with the same BrowserContext so
-                    // calling destroy() on the first one will free the same SessionProtoDB for
-                    // all of them.
-                    // Calling on both would cause call destroy() on a freed SessionProtoDB.
-                    mPersistedDataStorage[0].destroy();
+                    for (LevelDBPersistedDataStorage storage : mPersistedDataStorage) {
+                        if (storage != null) {
+                            storage.destroy();
+                        }
+                    }
                 });
     }
 

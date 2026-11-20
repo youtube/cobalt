@@ -1238,7 +1238,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.InstalledCount.ByUser" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1287,7 +1287,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.InstalledCount.HasNoTrustedIcons" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1938,7 +1938,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.LaunchSource" enum="LaunchSource"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>phillis@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2092,7 +2092,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Migrations.PendingInfoWasIgnoredMigrated" units="count"
-    expires_after="2026-10-10">
+    expires_after="2026-12-16">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -3119,7 +3119,7 @@ chromium-metrics-reviews@google.com.
 <!-- TODO(crbug.com/477993292): Reevaluate/clean up web install telemetry after Origin Trials -->
 
 <histogram name="WebApp.WebInstallApi.InstallType" enum="WebInstallServiceType"
-    expires_after="2026-09-22">
+    expires_after="2026-12-16">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <owner>liahiscock@microsoft.com</owner>
@@ -3133,7 +3133,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.WebInstallApi.Result" enum="WebInstallServiceResult"
-    expires_after="2026-09-22">
+    expires_after="2026-12-16">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <owner>liahiscock@microsoft.com</owner>

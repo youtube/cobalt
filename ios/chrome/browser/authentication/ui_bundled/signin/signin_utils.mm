@@ -68,12 +68,9 @@
 
 namespace {
 
-// The duration between two signin fullscreen sign-in promo trigger is randomly
-// chosen between [53..68) days.
-base::TimeDelta DurationBetweenPromoTriggers() {
-  using signin::kPromoTriggerRange;
-  return base::RandTimeDelta(kPromoTriggerRange.first,
-                             kPromoTriggerRange.second);
+// Returns a random time offset in the past between [0..14) days.
+base::Time GetCurrentTimeWithRandomOffset() {
+  return base::Time::Now() - base::Days(base::RandIntInclusive(0, 13));
 }
 
 // Initiate synchronously the change to `profile`, then run `continuation`
@@ -261,19 +258,31 @@ bool ShouldPresentUserSigninUpgrade(ProfileIOS* profile,
   }
 
   PrefService* local_state = GetApplicationContext()->GetLocalState();
-  base::Time next_show_time = local_state->GetTime(prefs::kNextSSORecallTime);
+  base::Time last_show_time_with_random_offset = local_state->GetTime(
+      prefs::kSigninStartupPromoLastShownTimeWithRandomOffset);
   bool use_date =
       base::FeatureList::IsEnabled(switches::kFullscreenSignInPromoUseDate);
-  if (next_show_time.is_null()) {
-    local_state->SetTime(prefs::kNextSSORecallTime,
-                         base::Time::Now() + DurationBetweenPromoTriggers());
-    // Don't show if `kNextSSORecallTime` was never recorded.
+  // Set the last shown time if it was never set before or if it's in the future
+  // (in the case of device time change).
+  if (last_show_time_with_random_offset.is_null() ||
+      last_show_time_with_random_offset > base::Time::Now()) {
+    local_state->SetTime(
+        prefs::kSigninStartupPromoLastShownTimeWithRandomOffset,
+        GetCurrentTimeWithRandomOffset());
+    // Don't show if `kLastSSORecallTimeWithRandomOffset` was never recorded.
     if (use_date) {
       return false;
     }
   }
-  if (use_date && next_show_time > base::Time::Now()) {
-    return false;
+
+  if (use_date) {
+    int interval = switches::kFullscreenSignInPromoUseDateInterval.Get();
+    DCHECK(interval != -1);
+    base::Time next_show_time =
+        last_show_time_with_random_offset + base::Days(interval);
+    if (next_show_time > base::Time::Now()) {
+      return false;
+    }
   }
 
   NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
@@ -371,8 +380,8 @@ void RecordFullscreenSigninPromoStarted(
 
   NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
   PrefService* local_state = GetApplicationContext()->GetLocalState();
-  local_state->SetTime(prefs::kNextSSORecallTime,
-                       base::Time::Now() + DurationBetweenPromoTriggers());
+  local_state->SetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset,
+                       GetCurrentTimeWithRandomOffset());
   // TODO(crbug.com/408962000): Remove this key and all code related after
   // `kFullscreenSignInPromoUseDate` is launched.
   [defaults setObject:base::SysUTF8ToNSString(current_version.GetString())

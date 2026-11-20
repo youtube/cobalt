@@ -2,8 +2,8 @@
 # This can be removed if the "reassemble small messages" feature is removed. See
 # https://crbug.com/1086273.
 
-from mod_pywebsocket import common
-from mod_pywebsocket import msgutil
+from pywebsocket3 import common
+from pywebsocket3 import msgutil
 
 NUMBER_OF_MESSAGES = 32
 

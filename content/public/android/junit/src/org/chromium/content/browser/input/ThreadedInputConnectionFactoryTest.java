@@ -38,7 +38,6 @@ import org.robolectric.shadows.ShadowLooper;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
-import org.chromium.content_public.browser.HtmlMetadata;
 import org.chromium.content_public.browser.InputMethodManagerWrapper;
 
 import java.util.concurrent.Callable;
@@ -147,17 +146,7 @@ public class ThreadedInputConnectionFactoryTest {
                     @Override
                     public InputConnection call() {
                         return mFactory.initializeAndGet(
-                                mContainerView,
-                                mImeAdapter,
-                                1,
-                                0,
-                                0,
-                                0,
-                                0,
-                                0,
-                                "",
-                                HtmlMetadata.EMPTY,
-                                mEditorInfo);
+                                mContainerView, mImeAdapter, 1, 0, 0, 0, 0, 0, "", mEditorInfo);
                     }
                 };
         when(mProxyView.onCreateInputConnection(any(EditorInfo.class)))
@@ -218,7 +207,6 @@ public class ThreadedInputConnectionFactoryTest {
                                         0,
                                         0,
                                         "",
-                                        HtmlMetadata.EMPTY,
                                         mEditorInfo));
                     }
                 });

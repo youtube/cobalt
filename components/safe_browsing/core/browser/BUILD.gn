@@ -28,6 +28,9 @@ source_set("browser") {
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   public_deps = [
+    # TODO(crbug.com/502615476): Remove this once all downstream targets depend
+    # on these directly.
+    ":client_side_detection_service_base",
     "//components/safe_browsing/core/browser/db:v4_protocol_config",
     "//google_apis",
   ]
@@ -58,6 +61,48 @@ source_set("browser") {
     "//net:extras",
     "//services/network/public/cpp",
     "//services/network/public/mojom",
+  ]
+}
+
+source_set("client_side_detection_service_base") {
+  sources = [
+    "client_side_detection_feature_cache_base.cc",
+    "client_side_detection_feature_cache_base.h",
+    "client_side_detection_service_base.cc",
+    "client_side_detection_service_base.h",
+    "csd_model_type.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  deps = [
+    "//base",
+    "//components/keyed_service/core",
+    "//components/prefs",
+    "//components/safe_browsing/core/common",
+    "//components/safe_browsing/core/common:features",
+    "//components/safe_browsing/core/common:safe_browsing_prefs",
+    "//components/safe_browsing/core/common/proto:csd_proto",
+    "//net",
+    "//url",
+  ]
+}
+
+source_set("client_side_detection_service_base_unittest") {
+  testonly = true
+  sources = [
+    "client_side_detection_feature_cache_base_unittest.cc",
+    "client_side_detection_service_base_unittest.cc",
+  ]
+  deps = [
+    ":browser",
+    ":client_side_detection_service_base",
+    "//base/test:test_support",
+    "//components/prefs:test_support",
+    "//components/safe_browsing/core/common",
+    "//components/safe_browsing/core/common:safe_browsing_prefs",
+    "//components/safe_browsing/core/common/proto:csd_proto",
+    "//testing/gtest",
   ]
 }
 

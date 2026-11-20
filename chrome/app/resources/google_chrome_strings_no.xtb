@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome bruker kameraet ditt.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> er farlig, så Chrome har blokkert den.</translation>
 <translation id="1597911401261118146">For å sjekke om passordene dine er trygge mot databrudd og andre sikkerhetsproblemer, <ph name="BEGIN_LINK" />logg på Chrome<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Denne handlingen vil:
+          <ph name="LINE_BREAKS" />
+            • tilbakestille oppstartssiden, Ny fane-siden, søkemotoren og festede faner
+            <ph name="LINE_BREAK" />
+            • slå av utvidelser
+            <ph name="LINE_BREAK" />
+            • slette informasjonskapsler og andre midlertidige nettstedsdata
+            <ph name="LINE_BREAK" />
+            • tilbakestille Chrome-snarveier
+            <ph name="LINE_BREAKS" />
+            Bokmerker, loggen og lagrede passord vil ikke bli påvirket.</translation>
 <translation id="1619887657840448962">For å gjøre Chrome tryggere har vi slått av følgende utvidelse som ikke finnes i <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />, og som kan ha blitt lagt til uten at du vet det.</translation>
 <translation id="1628000112320670027">Få hjelp med Chrome</translation>
 <translation id="1640672724030957280">Laster ned …</translation>
@@ -136,6 +147,7 @@
 <translation id="2472092250898121027">Denne utvidelsen inneholder skadelig programvare og er utrygg. Fjern den fra Chrome, slik at den ikke lenger kan se og endre dataene dine på nettsteder du besøker, inkludert personopplysningene dine.</translation>
 <translation id="2485422356828889247">Avinstaller</translation>
 <translation id="2513154137948333830">Enheten må startes på nytt: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">Arbeidet ditt er sikret i Chrome</translation>
 <translation id="2534365042754120737">Du kan beskytte dataene dine ved å la Chrome fjerne tillatelser fra nettsteder du ikke har besøkt nylig. Dette stopper ikke varsler.</translation>
 <translation id="2556847002339236023">Organisasjonen din lukker Chrome når den ikke har vært i bruk på <ph name="TIMEOUT_DURATION" />. Nettlesingsdataene ble slettet. Dette kan omfatte loggen, autofyll og nedlastinger.</translation>
 <translation id="2563121210305478421">Vil du starte Chrome på nytt?</translation>
@@ -240,6 +252,7 @@ Hvis denne siden ikke fungerer som forventet, kan du prøve å tillate optimalis
 <translation id="345171907106878721">Legg til deg selv i Chrome</translation>
 <translation id="3453763134178591239">Vilkår for ChromeOS</translation>
 <translation id="3503306920980160878">Chrome trenger tilgang til posisjonen din for å kunne dele den med dette nettstedet</translation>
+<translation id="3512495006767217696">Integrert i Chrome for å hjelpe deg med å opprette, lagre og autofylle sterke passord. Legg til snarveien for å få enkel tilgang</translation>
 <translation id="3539955434060988644">Åpne linken i et inkognitovindu i Chrome</translation>
 <translation id="3576528680708590453">Systemadministratoren din har konfigurert at Google Chrome skal åpne <ph name="TARGET_URL_HOSTNAME" /> i en annen nettleser.</translation>
 <translation id="3582972582564653026">Synkroniser og gi Chrome et personlig preg på alle enhetene dine</translation>
@@ -302,6 +315,7 @@ Hvis denne siden ikke fungerer som forventet, kan du prøve å tillate optimalis
 <translation id="4149882025268051530">Installasjonsprogrammet fikk ikke dekomprimert arkivet. Last ned Google Chrome på nytt.</translation>
 <translation id="415112847282352845">For å få adressene dine med mer på alle enhetene dine, logg på Chrome. Denne adressen blir lagret i Google-kontoen din når du logger på.</translation>
 <translation id="4153934450158521343">Chrome lukkes snart og sletter data</translation>
+<translation id="4159985264221160808">For å sikre arbeidet ditt i Chrome kan organisasjonen din se eller administrere bestemt informasjon</translation>
 <translation id="4173512894976930765">Nettsteder fungerer sannsynligvis som forventet. Du blir logget av de fleste nettsteder når du lukker alle Chrome-vinduer, unntatt Google-kontoen din hvis du er logget på Chrome.</translation>
 <translation id="4175922240926474352">Chrome har blokkert denne nedlastingen fordi nettstedet ikke bruker en sikker tilkobling, så filen kan ha blitt tuklet med</translation>
 <translation id="4191857738314598978">{0,plural, =1{Start Chrome på nytt innen en dag}other{Start Chrome på nytt innen # dager}}</translation>
@@ -333,6 +347,7 @@ Hvis denne siden ikke fungerer som forventet, kan du prøve å tillate optimalis
 <translation id="4493028449971051158">Oppstartsfeil: Kjør installasjonsprogrammet som administrator.</translation>
 <translation id="4501471624619070934">Installasjonen mislyktes fordi tilgangen er begrenset i dette landet.</translation>
 <translation id="4571503333518166079">Gå til innstillingene for Chrome-varsler</translation>
+<translation id="4580939929828762295">Hold deg trygg med Google Passordlagring</translation>
 <translation id="4592634244097223647">Spør Google om dette bildet</translation>
 <translation id="459622048091363950">Når Chrome har fått tilgang, kan nettsteder spørre deg om tilgang.</translation>
 <translation id="4598116752460667024">Søk etter en prosess på listen.</translation>
@@ -517,6 +532,7 @@ Hvis denne siden ikke fungerer som forventet, kan du prøve å tillate optimalis
 <translation id="6438015621983209660">Utvid Safe Browsing med økt beskyttelse med Chrome på telefonen</translation>
 <translation id="6442774133615368941">Handle, oversett og identifiser det du ser, med kameraet i Chrome-iOS-appen</translation>
 <translation id="6448835208126432197">Bruk hurtigtasten for å velge en del av skjermen i Gemini i Chrome.</translation>
+<translation id="6473659734176498825">Et forenklet bilde som viser inngangspunktet for Google Passordlagring i Chrome</translation>
 <translation id="6473905796280459355">Gå til Om Chrome-siden</translation>
 <translation id="6481963882741794338">Knytt sammen Chrome og andre Google-tjenester for personlig tilpasning og andre formål</translation>
 <translation id="648319183876919572">Safe Browsing med økt beskyttelse gjør mer for å beskytte deg mot farlige nettsteder og nedlastinger</translation>
@@ -688,6 +704,7 @@ Hvis denne siden ikke fungerer som forventet, kan du prøve å tillate optimalis
 <translation id="8064965390968184078">1. Klikk på <ph name="BUTTON_LABEL" /> nedenfor
 2. Klikk på <ph name="BUTTON_2" /> i Windows-innstillingene
 3. Klikk på <ph name="BUTTON_3" /> i Windows-varselet for å feste Chrome til oppgavelinjen for rask tilgang</translation>
+<translation id="8069447462453318634">Velg «Fest til verktøylinjen»</translation>
 <translation id="8074398340364918139">For å søke etter en bestemt Chrome-funksjon eller -utvidelse, skriv inn snarveien til den i adressefeltet, etterfulgt av tasten du har valgt på tastaturet</translation>
 <translation id="8077579734294125741">Andre Chrome-profiler</translation>
 <translation id="8086881907087796310">Installasjonen mislyktes fordi datamaskinen ikke oppfyller minimumskravene til maskinvare.</translation>
@@ -773,6 +790,15 @@ Du kan ikke lagre nye bokmerker i kontoen din før du sletter noen. Hvis du logg
 <translation id="8922998289262614701">Fjern data for disse appene fra Chrome</translation>
 <translation id="8925636929359899517">Vi bruker informasjon til å forbedre denne tjenesten. Se <ph name="BEGIN_LINK1" />personvernreglene<ph name="END_LINK1" /> og <ph name="BEGIN_LINK2" />vilkårene for bruk<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Slå av/på Gemini i Chrome</translation>
+<translation id="8944232836376404813">Denne handlingen vil:
+          <ph name="LINE_BREAKS" />
+            • tilbakestille oppstartssiden, Ny fane-siden, søkemotoren og festede faner
+            <ph name="LINE_BREAK" />
+            • slå av utvidelser
+            <ph name="LINE_BREAK" />
+            • slette informasjonskapsler og andre midlertidige nettstedsdata
+            <ph name="LINE_BREAKS" />
+            Bokmerker, loggen og lagrede passord vil ikke bli påvirket.</translation>
 <translation id="8948460679427074738">Denne utvidelsen har ikke publisert retningslinjer for personvern, for eksempel hvordan den samler inn og bruker data. Chrome anbefaler at du fjerner den.</translation>
 <translation id="8958307504142971576">Nå har du flere funksjoner tilgjengelig i Chrome</translation>
 <translation id="8991530961471831170">Åpne Gemini i Chrome</translation>

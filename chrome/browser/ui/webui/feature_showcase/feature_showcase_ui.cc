@@ -56,13 +56,13 @@ void AddDefaultBrowserStepResources(content::WebUIDataSource* source) {
 
 void AddGoogleLensStepResources(content::WebUIDataSource* source) {
   source->AddLocalizedStrings({
-      {"lensTitle", IDS_FEATURE_SHOWCASE_GOOGLE_LENS_TITLE},
-      {"lensSubtitle", IDS_FEATURE_SHOWCASE_GOOGLE_LENS_SUBTITLE},
-      {"lensDisclosure", IDS_FEATURE_SHOWCASE_GOOGLE_LENS_DISCLOSURE},
-      {"lensYesImIn", IDS_FEATURE_SHOWCASE_GOOGLE_LENS_YES_IM_IN},
-      {"lensNotNow", IDS_FEATURE_SHOWCASE_GOOGLE_LENS_NOT_NOW},
+      {"lensTitle", IDS_FEATURE_SHOWCASE_LENS_OVERLAY_TITLE},
+      {"lensSubtitle", IDS_FEATURE_SHOWCASE_LENS_OVERLAY_SUBTITLE},
+      {"lensDisclosure", IDS_FEATURE_SHOWCASE_LENS_OVERLAY_DISCLOSURE},
+      {"lensYesImIn", IDS_FEATURE_SHOWCASE_LENS_OVERLAY_YES_IM_IN},
+      {"lensNotNow", IDS_FEATURE_SHOWCASE_LENS_OVERLAY_NOT_NOW},
       {"lensIllustrationA11yLabel",
-       IDS_FEATURE_SHOWCASE_GOOGLE_LENS_ILLUSTRATION_A11Y_LABEL},
+       IDS_FEATURE_SHOWCASE_LENS_OVERLAY_ILLUSTRATION_A11Y_LABEL},
   });
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)

@@ -23,6 +23,7 @@
 #include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
+#include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -46,6 +47,7 @@
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/actions/actions_util.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/actions/chrome_action_properties.h"
 #include "chrome/browser/ui/actions/chrome_actions.h"
 #include "chrome/browser/ui/ai_overlay_dialog/ai_overlay_dialog_controller.h"
 #include "chrome/browser/ui/autofill/address_bubbles_icon_controller.h"
@@ -91,6 +93,7 @@
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/toolbar/cast/cast_toolbar_button_util.h"
@@ -145,6 +148,7 @@
 #include "components/saved_tab_groups/public/features.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/split_tabs/split_tab_visual_data.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/user_prefs/user_prefs.h"
@@ -258,6 +262,8 @@ void BrowserActions::InitializeBrowserActions() {
   InitializeChromeMenuActions();
 
   InitializeToolbarAndMiscActions();
+
+  InitializeNavigationActions();
 
   AddListeners();
 }
@@ -499,6 +505,9 @@ void BrowserActions::InitializeSidePanelActions() {
                 static_cast<
                     std::underlying_type_t<actions::ActionPinnableState>>(
                     actions::ActionPinnableState::kPinnable))
+            .SetVisible(
+                contextual_tasks::EntryPointEligibilityManager::IsEligible(
+                    profile))
             .Build());
   }
 
@@ -1054,7 +1063,8 @@ void BrowserActions::InitializeChromeMenuActions() {
                     bubble_controller->HideBubble();
                   } else {
                     send_tab_to_self::ShowBubble(
-                        tab_strip_model->GetActiveWebContents());
+                        tab_strip_model->GetActiveWebContents(),
+                        send_tab_to_self::ShareEntryPoint::kToolbarIcon);
                   }
                 },
                 bwi, tab_strip_model),
@@ -1657,14 +1667,15 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
   root_action_item_->AddChild(
       actions::ActionItem::Builder(
           base::BindRepeating(
-              [](chrome::BrowserCommandController* browser_command_controller,
-                 actions::ActionItem* item,
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
                  actions::ActionInvocationContext context) {
-                browser_command_controller->ShowCustomizeChromeSidePanel(
-                    SidePanelOpenTrigger::kNewTabFooter,
-                    CustomizeChromeSection::kFooter);
+                bwi->GetFeatures()
+                    .browser_command_controller()
+                    ->ShowCustomizeChromeSidePanel(
+                        SidePanelOpenTrigger::kNewTabFooter,
+                        CustomizeChromeSection::kFooter);
               },
-              bwi->GetFeatures().browser_command_controller()))
+              bwi))
           .SetActionId(kActionSidePanelShowCustomizeChromeFooter)
           .Build());
 
@@ -1887,9 +1898,87 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
             .SetText(l10n_util::GetStringUTF16(IDS_AUTOFILL_PAYMENT_TEXT))
             .Build());
   }
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                if (!bwi->GetTabStripModel()->GetActiveTab()->IsSplit()) {
+                  chrome::NewSplitTab(
+                      bwi, split_tabs::SplitTabLayout::kSideBySide,
+                      split_tabs::SplitTabCreatedSource::kKeyboardShortcut);
+                }
+              },
+              bwi))
+          .SetActionId(kActionSplitTab)
+          .Build());
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                chrome::ManagePasswordsForPage(bwi);
+              },
+              bwi))
+          .SetActionId(kActionManagePasswordsForPage)
+          .Build());
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                chrome::SaveCreditCard(bwi);
+              },
+              bwi))
+          .SetActionId(kActionSaveCreditCardForPage)
+          .Build());
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                chrome::SaveIban(bwi);
+              },
+              bwi))
+          .SetActionId(kActionSaveIbanForPage)
+          .Build());
 }
 
 void BrowserActions::AddListeners() {
   browser_action_prefs_listener_ = std::make_unique<BrowserActionPrefsListener>(
       base::to_address(profile_), this);
+}
+
+void BrowserActions::InitializeNavigationActions() {
+  BrowserWindowInterface* const bwi = base::to_address(bwi_);
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                WindowOpenDisposition disposition =
+                    context.GetProperty(chrome::kDispositionKey);
+                chrome::GoBack(bwi, disposition);
+              },
+              bwi))
+          .SetActionId(kActionBack)
+          .Build());
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                WindowOpenDisposition disposition =
+                    context.GetProperty(chrome::kDispositionKey);
+                chrome::Reload(bwi, disposition);
+              },
+              bwi))
+          .SetActionId(kActionReload)
+          .Build());
 }

@@ -83,6 +83,7 @@ source_set("unit_tests") {
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/autofill/autofill_ai/public",
     "//ios/chrome/browser/net/model:crurl",
+    "//ios/chrome/browser/settings/autofill/autofill_ai/utils",
     "//ios/chrome/browser/settings/autofill/ui",
     "//ios/chrome/browser/shared/ui/list_model",
     "//ios/chrome/browser/shared/ui/table_view:test_support",

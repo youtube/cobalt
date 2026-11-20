@@ -593,9 +593,6 @@ enum class TipsNotificationType;
 // Returns YES if DemographicMetricsReporting feature is enabled.
 + (BOOL)isDemographicMetricsReportingEnabled [[nodiscard]];
 
-// Returns YES if AskGeminiChip is enabled.
-+ (BOOL)isAskGeminiChipEnabled [[nodiscard]];
-
 // Returns YES if ProactiveSuggestionsFramework is enabled.
 + (BOOL)isProactiveSuggestionsFrameworkEnabled [[nodiscard]];
 

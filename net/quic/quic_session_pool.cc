@@ -1383,10 +1383,11 @@ handles::NetworkHandle QuicSessionPool::FindAlternateNetwork(
 }
 
 std::unique_ptr<DatagramClientSocket> QuicSessionPool::CreateSocket(
+    handles::NetworkHandle target_network,
     NetLog* net_log,
     const NetLogSource& source) {
   auto socket = client_socket_factory_->CreateDatagramClientSocket(
-      DatagramSocket::DEFAULT_BIND, net_log, source);
+      DatagramSocket::DEFAULT_BIND, target_network, net_log, source);
   if (params_.enable_socket_recv_optimization) {
     socket->EnableRecvOptimization();
   }
@@ -1836,24 +1837,32 @@ int QuicSessionPool::CreateSessionSync(
   *session = nullptr;
   // TODO(crbug.com/40256842): This logic only knows how to try one IP
   // endpoint.
-  std::unique_ptr<DatagramClientSocket> socket(
-      CreateSocket(net_log.net_log(), net_log.source()));
+  std::unique_ptr<DatagramClientSocket> socket(CreateSocket(
+      key.session_key().target_network(), net_log.net_log(), net_log.source()));
 
   // If migrate_sessions_on_network_change_v2 is on, passing in
   // handles::kInvalidNetworkHandle will bind the socket to the default network.
-  int rv = ConfigureSocket(socket.get(), peer_address, *network,
-                           key.session_key().socket_tag());
+  int rv = ConfigureSocket(
+      socket.get(), peer_address,
+      // TODO(crbug.com/518753285): Stop setting the network that should be used
+      // due to connection migration via ConfigureSocket. Instead, rely on the
+      // new parameter in `CreateSocket`.
+      *network, key.session_key().socket_tag());
   if (rv != OK) {
     return rv;
   }
+
   base::expected<QuicSessionAttempt::CreateSessionResult, int> result =
       CreateSessionHelper(
           std::move(key), quic_version, cert_verify_flags, require_confirmation,
           std::move(peer_address), std::move(metadata),
           dns_resolution_start_time, dns_resolution_end_time,
           std::move(resolution_details),
-          /*session_max_packet_length=*/0, net_log, *network, std::move(socket),
-          session_creation_initiator, connection_management_config);
+          /*session_max_packet_length=*/0, net_log,
+          // TODO(crbug.com/518753285): Stop passing the network explicitly,
+          // instead rely on socket being already bound to the correct network.
+          *network, std::move(socket), session_creation_initiator,
+          connection_management_config);
   if (!result.has_value()) {
     return result.error();
   }
@@ -1880,8 +1889,8 @@ int QuicSessionPool::CreateSessionAsync(
     std::optional<ConnectionManagementConfig> connection_management_config) {
   // TODO(crbug.com/40256842): This logic only knows how to try one IP
   // endpoint.
-  std::unique_ptr<DatagramClientSocket> socket(
-      CreateSocket(net_log.net_log(), net_log.source()));
+  std::unique_ptr<DatagramClientSocket> socket(CreateSocket(
+      key.session_key().target_network(), net_log.net_log(), net_log.source()));
   DatagramClientSocket* socket_ptr = socket.get();
   CompletionOnceCallback connect_and_configure_callback = base::BindOnce(
       &QuicSessionPool::FinishCreateSession, weak_factory_.GetWeakPtr(),
@@ -1889,14 +1898,22 @@ int QuicSessionPool::CreateSessionAsync(
       require_confirmation, peer_address, std::move(metadata),
       dns_resolution_start_time, dns_resolution_end_time,
       std::move(resolution_details),
-      /*session_max_packet_length=*/0, net_log, network, std::move(socket),
-      session_creation_initiator, connection_management_config);
+      /*session_max_packet_length=*/0, net_log,
+      // TODO(crbug.com/518753285): Stop setting the network that should be used
+      // due to connection migration via ConnectAndConfigureSocket. Instead,
+      // rely on the new parameter in `CreateSocket`.
+      network, std::move(socket), session_creation_initiator,
+      connection_management_config);
 
   // If migrate_sessions_on_network_change_v2 is on, passing in
   // handles::kInvalidNetworkHandle will bind the socket to the default network.
   ConnectAndConfigureSocket(std::move(connect_and_configure_callback),
-                            socket_ptr, std::move(peer_address), network,
-                            key.session_key().socket_tag());
+                            socket_ptr, std::move(peer_address),
+                            // TODO(crbug.com/518753285): Stop setting the
+                            // network that should be used due to connection
+                            // migration via ConnectAndConfigureSocket. Instead,
+                            // rely on the new parameter in `CreateSocket`.
+                            network, key.session_key().socket_tag());
   return ERR_IO_PENDING;
 }
 
@@ -1961,7 +1978,12 @@ int QuicSessionPool::CreateSessionOnProxyStream(
           std::move(callback), std::move(key), quic_version, cert_verify_flags,
           require_confirmation, proxy_peer_address, std::move(metadata),
           dns_resolution_time, dns_resolution_time, std::nullopt,
-          session_max_packet_length, net_log, network, std::move(socket),
+          session_max_packet_length, net_log,
+          // TODO(crbug.com/518753285): Stop setting the
+          // network that should be used due to connection
+          // migration via ConnectViaStream. Instead,
+          // rely on the new parameter in `CreateSocket`.
+          network, std::move(socket),
           MultiplexedSessionCreationInitiator::kUnknown,
           /*connection_management_config=*/std::nullopt));
 
@@ -2007,6 +2029,8 @@ void QuicSessionPool::FinishCreateSession(
           std::move(peer_address), std::move(metadata),
           dns_resolution_start_time, dns_resolution_end_time,
           std::move(resolution_details), session_max_packet_length, net_log,
+          // TODO(crbug.com/518753285): Stop passing the network explicitly,
+          // instead rely on socket being already bound to the correct network.
           network, std::move(socket), session_creation_initiator,
           connection_management_config);
   std::move(callback).Run(std::move(result));

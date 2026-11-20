@@ -93,7 +93,9 @@ class SimpleWebViewDialog : public views::View,
   content::WebContents* GetActiveWebContents() const override;
 
   // Implements CommandUpdaterDelegate:
-  void ExecuteCommandWithDisposition(int id, WindowOpenDisposition) override;
+  void HandleCommandWithDisposition(int id,
+                                    WindowOpenDisposition,
+                                    base::TimeTicks) override;
 
  private:
   void LoadImages();

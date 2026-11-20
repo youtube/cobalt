@@ -27,7 +27,7 @@ class CameraSearchTaskInfo : public TaskInfo {
     return LevelUpTaskCategory::kSearch;
   }
   std::string GetTriggerUserAction() const override { return ""; }
-  base::RepeatingClosure GetNavigationAction() const override {
+  TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }
 };

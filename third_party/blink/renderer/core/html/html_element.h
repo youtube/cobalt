@@ -150,6 +150,9 @@ class CORE_EXPORT HTMLElement : public Element {
   virtual const AtomicString& autocapitalize() const;
   void setAutocapitalize(const AtomicString&);
 
+  virtual bool autocorrect() const;
+  void setAutocorrect(bool);
+
   virtual bool draggable() const;
   void setDraggable(bool);
 
@@ -465,6 +468,8 @@ class CORE_EXPORT HTMLElement : public Element {
   void FinishParsingChildren() override;
 
  private:
+  bool IsAutocapitalizeOrAutocorrectInheriting() const;
+
   String nodeName() const final;
 
   bool IsHTMLElement() const =

@@ -140,9 +140,7 @@ AddressDataManager::AddressDataManager(
         *this, sync_service, *pref_service_,
         alternative_state_name_map_updater_.get());
 
-    if (identity_manager && sync_service &&
-        base::FeatureList::IsEnabled(
-            features::kAutofillEnableSupportForNameAndEmail)) {
+    if (identity_manager && sync_service) {
       account_name_email_store_ = std::make_unique<AccountNameEmailStore>(
           *this, *identity_manager, *sync_service, *pref_service_);
     }
@@ -210,15 +208,6 @@ void AddressDataManager::OnWebDataServiceRequestDone(
     // call here is necessary to apply these updates.
     if (account_name_email_store_) {
       account_name_email_store_->MaybeUpdateOrCreateAccountNameEmail();
-    } else {
-      // In case the feature got disabled the profile should be cleaned up.
-      if (!GetProfilesByRecordType(
-               AutofillProfile::RecordType::kAccountNameEmail)
-               .empty()) {
-        RemoveProfile(GetProfilesByRecordType(
-                          AutofillProfile::RecordType::kAccountNameEmail)[0]
-                          ->guid());
-      }
     }
     LogStoredDataMetrics();
   }
@@ -262,11 +251,6 @@ std::vector<const AutofillProfile*> AddressDataManager::GetProfilesToSuggest()
   // prefs shouldn't run.
   if (!pref_service_) {
     CHECK_IS_TEST();
-    return profiles;
-  }
-
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillEnableSupportForNameAndEmail)) {
     return profiles;
   }
 
@@ -715,9 +699,7 @@ std::optional<CoreAccountInfo> AddressDataManager::GetPrimaryAccountInfo()
 void AddressDataManager::MaybeCreateAccountNameEmailProfile(
     std::string account_name,
     std::string email) {
-  if (account_name_email_store_ &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillEnableSupportForNameAndEmail)) {
+  if (account_name_email_store_) {
     account_name_email_store_->MaybeUpdateOrCreateAccountNameEmail(account_name,
                                                                    email);
   }

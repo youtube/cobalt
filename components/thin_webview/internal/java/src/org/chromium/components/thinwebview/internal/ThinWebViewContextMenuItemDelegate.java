@@ -13,10 +13,13 @@ import android.provider.ContactsContract;
 import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.chromium.base.IntentUtils;
+import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuItemDelegate;
 import org.chromium.components.embedder_support.util.UrlUtilities;
+import org.chromium.components.thinwebview.ThinWebViewPrintingController;
+import org.chromium.content_public.browser.AdditionalNavigationParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.Referrer;
 import org.chromium.ui.base.Clipboard;
@@ -28,13 +31,33 @@ import java.util.function.BiConsumer;
 /** Handles the context menu item functionality in WebView. */
 @NullMarked
 public class ThinWebViewContextMenuItemDelegate implements ContextMenuItemDelegate {
+    public interface LinkOpener {
+        void openInNewTab(GURL url);
+
+        void openInNewTabInGroup(GURL url);
+
+        void openInNewIncognitoTab(GURL url);
+
+        void openInNewWindow(GURL url);
+
+        void openInIncognitoWindow(GURL url);
+
+        boolean isIncognitoSupported();
+    }
+
     private final WebContents mWebContents;
     private final @Nullable String mIntentTargetClassName;
     private final @Nullable BiConsumer<GURL, String> mEphemeralTabOpener;
+    private final @Nullable ThinWebViewPrintingController mPrintingController;
+    private final @Nullable LinkOpener mLinkOpener;
 
     /** Builds a {@link ThinWebViewContextMenuItemDelegate} instance. */
     public ThinWebViewContextMenuItemDelegate(WebContents webContents) {
-        this(webContents, /* intentTargetClassName= */ null, /* ephemeralTabOpener= */ null);
+        this(
+                webContents,
+                /* intentTargetClassName= */ null,
+                /* ephemeralTabOpener= */ null,
+                /* linkOpener= */ null);
     }
 
     /**
@@ -50,9 +73,29 @@ public class ThinWebViewContextMenuItemDelegate implements ContextMenuItemDelega
             WebContents webContents,
             @Nullable String intentTargetClassName,
             @Nullable BiConsumer<GURL, String> ephemeralTabOpener) {
+        this(webContents, intentTargetClassName, ephemeralTabOpener, null);
+    }
+
+    /**
+     * Builds a {@link ThinWebViewContextMenuItemDelegate} instance.
+     *
+     * @param webContents The WebContents for the ThinWebView.
+     * @param intentTargetClassName The fully qualified class name used as the explicit component
+     *     for Intents fired by this delegate. Required for environments where the window's activity
+     *     context might be null.
+     * @param ephemeralTabOpener A callback to open a URL in an ephemeral tab, if supported.
+     * @param linkOpener A delegate to handle link opening actions.
+     */
+    public ThinWebViewContextMenuItemDelegate(
+            WebContents webContents,
+            @Nullable String intentTargetClassName,
+            @Nullable BiConsumer<GURL, String> ephemeralTabOpener,
+            @Nullable LinkOpener linkOpener) {
         mWebContents = webContents;
         mIntentTargetClassName = intentTargetClassName;
         mEphemeralTabOpener = ephemeralTabOpener;
+        mPrintingController = ServiceLoaderUtil.maybeCreate(ThinWebViewPrintingController.class);
+        mLinkOpener = linkOpener;
     }
 
     @Override
@@ -194,6 +237,18 @@ public class ThinWebViewContextMenuItemDelegate implements ContextMenuItemDelega
         }
     }
 
+    @Override
+    public boolean isPrintSupported() {
+        return mPrintingController != null && mPrintingController.isPrintSupported(mWebContents);
+    }
+
+    @Override
+    public void startPrint() {
+        if (mPrintingController != null) {
+            mPrintingController.startPrint(mWebContents);
+        }
+    }
+
     private void safeStartActivity(Intent intent) {
         WindowAndroid window = mWebContents.getTopLevelNativeWindow();
         if (window != null) {
@@ -216,12 +271,91 @@ public class ThinWebViewContextMenuItemDelegate implements ContextMenuItemDelega
     }
 
     @Override
+    public boolean supportsOpenInNewTab() {
+        return mIntentTargetClassName != null && mLinkOpener != null;
+    }
+
+    @Override
+    public boolean supportsOpenInNewTabInGroup() {
+        return mIntentTargetClassName != null && mLinkOpener != null;
+    }
+
+    @Override
+    public boolean supportsOpenInNewIncognitoTab() {
+        return mIntentTargetClassName != null && mLinkOpener != null;
+    }
+
+    @Override
+    public boolean supportsOpenInNewWindow() {
+        return mIntentTargetClassName != null && mLinkOpener != null;
+    }
+
+    @Override
+    public boolean supportsOpenInIncognitoWindow() {
+        return mIntentTargetClassName != null && mLinkOpener != null;
+    }
+
+    @Override
+    public boolean isIncognitoSupported() {
+        return mLinkOpener != null && mLinkOpener.isIncognitoSupported();
+    }
+
+    @Override
+    public void onOpenInNewTab(
+            GURL url,
+            @Nullable Referrer referrer,
+            boolean navigateToTab,
+            @Nullable AdditionalNavigationParams additionalNavigationParams) {
+        if (mLinkOpener != null) {
+            mLinkOpener.openInNewTab(url);
+        }
+    }
+
+    @Override
+    public void onOpenInNewTabInGroup(GURL url, @Nullable Referrer referrer) {
+        if (mLinkOpener != null) {
+            mLinkOpener.openInNewTabInGroup(url);
+        }
+    }
+
+    @Override
+    public void onOpenInNewIncognitoTab(GURL url) {
+        if (mLinkOpener != null) {
+            mLinkOpener.openInNewIncognitoTab(url);
+        }
+    }
+
+    @Override
+    public void openInOtherWindow(
+            GURL url, @Nullable Referrer referrer, boolean isIncognito, boolean preferNew) {
+        if (mLinkOpener != null) {
+            if (isIncognito) {
+                mLinkOpener.openInIncognitoWindow(url);
+            } else {
+                mLinkOpener.openInNewWindow(url);
+            }
+        }
+    }
+
+    @Override
+    public void openInIncognitoWindow(GURL url) {
+        if (mLinkOpener != null) {
+            mLinkOpener.openInIncognitoWindow(url);
+        }
+    }
+
+    @Override
     public boolean supportsOpenInEphemeralTab() {
         return mIntentTargetClassName != null;
     }
 
     @Override
     public boolean supportsSaveImage() {
+        return mIntentTargetClassName != null;
+    }
+
+    @Override
+    public boolean supportsSaveLinkAs() {
         return mIntentTargetClassName != null;
     }
 

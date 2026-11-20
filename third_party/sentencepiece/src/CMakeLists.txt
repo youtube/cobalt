@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.!
 
-cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 file(STRINGS "VERSION.txt" SPM_VERSION)
 message(STATUS "VERSION: ${SPM_VERSION}")
 
@@ -30,14 +30,15 @@ option(SPM_TCMALLOC_STATIC "Link static library of TCMALLOC." OFF)
 option(SPM_ENABLE_MSVC_MT_BUILD, "Use /MT flag in MSVC build" OFF)
 option(SPM_CROSS_SYSTEM_PROCESSOR, "Override system processor" "")
 option(SPM_DISABLE_EMBEDDED_DATA, "Disable to embed pre-compiled data." OFF)
+option(SPM_ENABLE_BENCHMARK "Build benchmark programs" OFF)
 option(SPM_NLCODEC_BPE
        "Build the NLCodec fast BPE trainer from contrib/nlcodec (adds --nlcodec_bpe flag)."
        OFF)
 
 set(SPM_PROTOBUF_PROVIDER "internal" CACHE STRING "Provider of protobuf library")
 set_property(CACHE SPM_PROTOBUF_PROVIDER PROPERTY STRINGS "internal" "package")
-set(SPM_ABSL_PROVIDER "internal" CACHE STRING "Provider of absl library")
-set_property(CACHE SPM_ABSL_PROVIDER PROPERTY STRINGS "internal" "module" "package")
+set(SPM_ABSL_PROVIDER "module" CACHE STRING "Provider of absl library")
+set_property(CACHE SPM_ABSL_PROVIDER PROPERTY STRINGS "module" "package")
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -45,9 +46,9 @@ endif()
 
 add_compile_definitions($<$<CONFIG:Release>:NDEBUG>)
 
-if (SPM_ENABLE_SHARED)
+if (SPM_ENABLE_SHARED AND NOT WIN32)
  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-endif() 
+endif()
 
 # Includes processor name to avoid conflicts.
 set(CPACK_PACKAGE_FILE_NAME
@@ -184,31 +185,48 @@ if (SPM_DISABLE_EMBEDDED_DATA)
  install(FILES ${EMBEDDED_DATA_FILES} DESTINATION ${INSTALL_DATADIR})
 endif()
 
-if (SPM_ABSL_PROVIDER STREQUAL "internal")
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl)
-elseif (SPM_ABSL_PROVIDER STREQUAL "module")
+if (SPM_ABSL_PROVIDER STREQUAL "module")
   include(FetchContent)
   FetchContent_Populate(abseil-cpp
         GIT_REPOSITORY  https://github.com/abseil/abseil-cpp.git
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/abseil-cpp
         GIT_PROGRESS TRUE
-        GIT_TAG 20250814.1)
+        GIT_TAG 20260526.0)
   add_subdirectory(third_party/abseil-cpp)
-  if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl.org)
-    file(RENAME ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl.org)
-    execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
-      ${CMAKE_CURRENT_SOURCE_DIR}/third_party/abseil-cpp/absl
-      ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl)
+  if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl)
+    file(CREATE_LINK
+         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/abseil-cpp/absl
+         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl
+         SYMBOLIC)
   endif()
 elseif (SPM_ABSL_PROVIDER STREQUAL "package")
   find_package(absl REQUIRED)
   get_target_property(ABSL_INCLUDE_DIRS absl::base INTERFACE_INCLUDE_DIRECTORIES)
-  if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl.org)
-    file(RENAME ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl.org)
-    execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
-        ${ABSL_INCLUDE_DIRS}/absl ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl)
+  if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl)
+    file(CREATE_LINK
+         ${ABSL_INCLUDE_DIRS}/absl
+         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/absl
+         SYMBOLIC)
   endif()
   include_directories(${ABSL_INCLUDE_DIRS})
+endif()
+
+if(SPM_ENABLE_BENCHMARK)
+  include(FetchContent)
+  FetchContent_Populate(
+      google_benchmark
+      GIT_REPOSITORY https://github.com/google/benchmark.git
+      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/benchmark
+      GIT_PROGRESS TRUE
+      GIT_TAG v1.9.5
+   )
+
+  set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "Disable benchmark gtest" FORCE)
+  set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark testing" FORCE)
+
+  add_subdirectory(third_party/benchmark)
+  
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/benchmark/include)
 endif()
 
 add_subdirectory(src)

@@ -183,17 +183,8 @@ TEST_F(InstallerDownloaderInfoBarDelegateTest,
       static_cast<ConfirmInfoBar*>(added_infobar_ptr);
   ASSERT_TRUE(confirm_infobar_view);
 
-  views::View* dismiss_button_view = nullptr;
-  for (views::View* child : confirm_infobar_view->children()) {
-    if (child->GetProperty(views::kElementIdentifierKey) ==
-        InfoBarView::kDismissButtonElementId) {
-      dismiss_button_view = child;
-      break;
-    }
-  }
-  ASSERT_TRUE(dismiss_button_view);
-
-  views::Button* dismiss_button = views::Button::AsButton(dismiss_button_view);
+  views::Button* dismiss_button =
+      views::Button::AsButton(confirm_infobar_view->close_button());
   ASSERT_TRUE(dismiss_button);
   ASSERT_TRUE(dismiss_button->GetVisible());
   ASSERT_TRUE(dismiss_button->GetEnabled());

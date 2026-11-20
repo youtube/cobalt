@@ -9,7 +9,6 @@
 
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/webrtc/webrtc_internals.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"

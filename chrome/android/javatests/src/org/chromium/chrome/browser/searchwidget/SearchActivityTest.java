@@ -349,6 +349,7 @@ public class SearchActivityTest {
 
     @Test
     @MediumTest
+    @DisabledTest(message = "crbug.com/525742395")
     public void testSetUrl_urlBarTextEmpty() throws Exception {
         final SearchActivity searchActivity = startSearchActivity();
         mTestDelegate.shouldDelayNativeInitializationCallback.waitForCallback(0);

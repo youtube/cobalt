@@ -914,6 +914,45 @@ class FaviconTest extends ApiTests {
     await faviconColors.waitFor((colors) => colors !== '#00ff');
   }
 
+  async testTabFaviconObserverLifecycleAndCleanup() {
+    assertDefined(this.host.getPinnedTabs);
+    const tabs = await observeSequence(this.host.getPinnedTabs!())
+                     .waitFor((tabs) => tabs.length === 1);
+    const tab = tabs[0]!;
+
+    assertDefined(this.host.getTabFaviconById);
+    const subscription =
+        this.host.getTabFaviconById(tab.tabId).subscribe(() => {});
+
+    await this.advanceToNextStep();
+
+    subscription.unsubscribe();
+  }
+
+  async testTabFaviconObserverTabWillClose() {
+    assertDefined(this.host.getPinnedTabs);
+    const tabs = await observeSequence(this.host.getPinnedTabs!())
+                     .waitFor((tabs) => tabs.length === 1);
+    const tab = tabs[0]!;
+
+    assertDefined(this.host.getTabFaviconById);
+    this.host.getTabFaviconById(tab.tabId).subscribe(() => {});
+  }
+
+  async testAndroidFaviconUpdatedViaObserver() {
+    assertDefined(this.host.getPinnedTabs);
+    const tabs = await observeSequence(this.host.getPinnedTabs!())
+                     .waitFor((tabs) => tabs.length === 1);
+    const tab = tabs[0]!;
+    const faviconColors =
+        observeSequence(this.observeFaviconColorsForTab(tab.tabId));
+    await faviconColors.waitFor((colors) => colors === '#00ff');
+
+    await this.advanceToNextStep();
+
+    await faviconColors.waitFor((colors) => colors === '#f00f');
+  }
+
   async testWebClientReadyOnFullLoad() {}
 }
 

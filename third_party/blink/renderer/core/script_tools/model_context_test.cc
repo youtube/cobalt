@@ -212,7 +212,6 @@ TEST_F(ModelContextTest, ExecuteTool) {
   )");
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   String result;
@@ -286,7 +285,6 @@ TEST_F(ModelContextTest, ExecuteToolReturnsObject) {
   )");
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   String result;
@@ -319,7 +317,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_Navigation) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   model_context->ExecuteTool(
@@ -347,7 +344,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_InvalidInput) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   // Test with a field that doesn't exist in the form
@@ -381,7 +377,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_InvalidSelectValue) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   model_context->ExecuteTool(
@@ -421,7 +416,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_result = false;
@@ -465,7 +459,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_Reject) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_result = false;
@@ -508,7 +501,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoRespondWith) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_result = false;
@@ -548,7 +540,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_ValidationFailure) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_result = false;
@@ -638,7 +629,6 @@ TEST_F(ModelContextValidationTest,
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_result = false;
@@ -688,7 +678,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoPreventDefault) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_result = false;
@@ -764,7 +753,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_LateRespondWithThrows) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   model_context->ExecuteTool(
@@ -825,7 +813,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_PseudoClasses) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   model_context->ExecuteTool(
@@ -886,7 +873,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoAutoSubmit) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_result = false;
@@ -955,7 +941,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_FormPopulatedAtEvent) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   model_context->ExecuteTool(
@@ -994,7 +979,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_PauseExecution) {
                                                base::Unretained(&mock_host)));
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   mock_host.set_run_loop(&run_loop);
@@ -1051,7 +1035,6 @@ TEST_F(ModelContextTest, CancelTool) {
 )");
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
 
@@ -1098,7 +1081,6 @@ TEST_F(ModelContextTest, ToolEventsDispatched) {
 )");
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
 
@@ -1138,7 +1120,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_Reset_Cancels) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_error = false;
@@ -1201,7 +1182,6 @@ TEST_F(ModelContextTest, ToolSignalAborted) {
 )");
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
 
@@ -1251,7 +1231,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_FlexibleTypes) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   String json_string = R"JSON(
@@ -1349,7 +1328,6 @@ TEST_F(ModelContextTest, CancelToolReentrancy) {
 )");
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   Window().addEventListener(
       event_type_names::kToolcancel,
@@ -1399,7 +1377,6 @@ TEST_F(ModelContextTest, ForEachScriptToolGC) {
   main_resource.Complete("<body></body>");
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   {
     auto* mock_tool = MakeGarbageCollected<MockDeclarativeTool>();
@@ -1458,7 +1435,6 @@ TEST_F(ModelContextTest, ListTools) {
   )");
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   HeapVector<Member<const ToolData>> tools = model_context->ListTools();
   ASSERT_EQ(3u, tools.size());
@@ -1488,7 +1464,6 @@ TEST_F(ModelContextTest, SourceLocation) {
   )");
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   HeapVector<Member<const ToolData>> tools = model_context->ListTools();
   ASSERT_EQ(2u, tools.size());
@@ -1521,7 +1496,6 @@ TEST_F(ModelContextTest, BackingFormElement) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   HeapVector<Member<const ToolData>> tools = model_context->ListTools();
   ASSERT_EQ(2u, tools.size());
@@ -1804,7 +1778,6 @@ TEST_F(ModelContextTest, ExecuteTool_RespondWith_And_RemoveForm) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_result = false;
@@ -1849,7 +1822,6 @@ TEST_F(ModelContextTest, ExecuteTool_RespondWith_And_Navigate) {
   test::RunPendingTasks();
 
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
 
   base::RunLoop run_loop;
   bool got_result = false;
@@ -1899,7 +1871,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_UnrelatedSubmitAndRemove) {
   )HTML");
   test::RunPendingTasks();
   auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-  ASSERT_TRUE(model_context);
   base::RunLoop run_loop;
   bool got_callback = false;
   model_context->ExecuteTool(
@@ -1963,9 +1934,7 @@ TEST_F(ModelContextTest, fileURLAllowedForDeclarativeTool) {
   LoadURL("file:///tmp/test.html");
   main_resource.Complete("<body></body>");
 
-  auto* model_context =
-      ModelContextSupplement::modelContext(*Window().navigator());
-  ASSERT_TRUE(model_context);
+  auto* model_context = ModelContextSupplement::modelContext(GetDocument());
 
   auto* mock_tool = MakeGarbageCollected<MockDeclarativeTool>();
   model_context->RegisterDeclarativeTool(mock_tool);

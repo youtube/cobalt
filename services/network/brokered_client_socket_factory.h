@@ -8,6 +8,7 @@
 #include "base/component_export.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "net/base/network_handle.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/datagram_socket.h"
 #include "net/socket/socket_performance_watcher.h"
@@ -52,10 +53,12 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) BrokeredClientSocketFactory
   // ClientSocketFactory:
   std::unique_ptr<net::DatagramClientSocket> CreateDatagramClientSocket(
       net::DatagramSocket::BindType bind_type,
+      net::handles::NetworkHandle target_network,
       net::NetLog* net_log,
       const net::NetLogSource& source) override;
   std::unique_ptr<net::TransportClientSocket> CreateTransportClientSocket(
       const net::AddressList& addresses,
+      net::handles::NetworkHandle target_network,
       std::unique_ptr<net::SocketPerformanceWatcher> socket_performance_watcher,
       net::NetworkQualityEstimator* network_quality_estimator,
       net::NetLog* net_log,

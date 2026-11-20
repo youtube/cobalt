@@ -5,6 +5,11 @@
 #ifndef CHROME_BROWSER_ACTOR_ACTOR_UTIL_H_
 #define CHROME_BROWSER_ACTOR_ACTOR_UTIL_H_
 
+#include <optional>
+#include <string_view>
+#include <vector>
+
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/render_frame_host.h"
 
 namespace content {
@@ -29,6 +34,15 @@ bool IsRunningBackgroundActorTask(content::WebContents& source_contents);
 // contents.
 // TODO(b/420669167): Remove this.
 bool HasActorTaskPreventingNewWebContents(content::RenderFrameHost* rfh);
+
+// Returns an encoded screenshot, which is a copy of `screenshot_data` with
+// bounding boxes drawn around iframes, as specified in `screenshot_info`.
+// Returns std::nullopt if `screenshot_data` cannot be decoded, or if the
+// resulting image cannot be encoded.
+std::optional<std::vector<uint8_t>> GetScreenshotWithIframeBoundingBoxes(
+    const std::vector<uint8_t>& screenshot_data,
+    std::string_view mime_type,
+    const optimization_guide::proto::ScreenshotInfo& screenshot_info);
 
 }  // namespace actor
 

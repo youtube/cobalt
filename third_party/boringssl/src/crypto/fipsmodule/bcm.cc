@@ -87,6 +87,7 @@ OPENSSL_CLANG_PRAGMA("clang diagnostic ignored \"-Wheader-hygiene\"")
 #include "ec/ec_montgomery.cc.inc"
 #include "ec/felem.cc.inc"
 #include "ec/oct.cc.inc"
+#include "ec/p256-nistz.cc.inc"
 #include "ec/p256.cc.inc"
 #include "ec/scalar.cc.inc"
 #include "ec/simple.cc.inc"

@@ -372,6 +372,16 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/infobars/core/infobar_delegate.h:InfoBarIdentifier) -->
 
+<enum name="MappedChromeCommandId">
+  <summary>
+    Under-specified enum for browser command IDs recorded by
+    Browser.Shortcuts.TriggeredCommandId. Command IDs correspond to values in
+    chrome/app/chrome_command_ids.h. Unmapped entries will automatically display
+    as raw integers on UMA dashboards.
+  </summary>
+  <int value="0" label="Default"/>
+</enum>
+
 <!-- LINT.IfChange(NoSpareRendererReason) -->
 
 <enum name="NoSpareRendererReason">

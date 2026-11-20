@@ -10,7 +10,6 @@
 #include "base/check.h"
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/fake_diagnostic_routines_service.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
 
 namespace chromeos {
 
@@ -29,11 +28,8 @@ void FakeDiagnosticRoutinesServiceFactory::SetCreateInstanceResponse(
 }
 
 std::unique_ptr<crosapi::TelemetryDiagnosticRoutinesService>
-FakeDiagnosticRoutinesServiceFactory::CreateInstance(
-    mojo::PendingReceiver<crosapi::TelemetryDiagnosticRoutinesService>
-        receiver) {
+FakeDiagnosticRoutinesServiceFactory::CreateInstance() {
   CHECK(fake_service_);
-  fake_service_->receiver().Bind(std::move(receiver));
   return std::move(fake_service_);
 }
 

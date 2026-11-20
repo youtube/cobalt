@@ -91,7 +91,7 @@ class GFX_RANGE_EXPORT RangeF {
   // Computes the intersection of this range with the given |range|.
   // If they don't intersect, it returns an InvalidRange().
   // The returned range is always empty or forward (never reversed).
-  constexpr RangeF Intersect(const RangeF& range) const {
+  [[nodiscard]] constexpr RangeF Intersect(const RangeF& range) const {
     const float min = std::max(GetMin(), range.GetMin());
     const float max = std::min(GetMax(), range.GetMax());
 
@@ -100,7 +100,7 @@ class GFX_RANGE_EXPORT RangeF {
                : InvalidRange();
   }
 
-  RangeF Intersect(const Range& range) const;
+  [[nodiscard]] RangeF Intersect(const Range& range) const;
 
   // Floor/Ceil/Round the start and end values of the given RangeF.
   Range Floor() const;

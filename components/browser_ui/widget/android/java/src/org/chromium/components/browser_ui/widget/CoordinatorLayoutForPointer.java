@@ -46,13 +46,11 @@ public class CoordinatorLayoutForPointer extends CoordinatorLayout implements To
             View child = getChildAt(i);
             if (child.getVisibility() != VISIBLE) continue;
             if (isWithinBoundOfView(x, y, child)) {
-                MotionEvent offsetEvent = MotionEvent.obtain(event);
-
                 // The child view will receive the event with coordinates relative to its own
                 // top-left corner similarly to how android implements internally.
-                offsetEvent.offsetLocation(-child.getLeft(), -child.getTop());
-                PointerIcon icon = child.onResolvePointerIcon(offsetEvent, pointerIndex);
-                offsetEvent.recycle();
+                event.offsetLocation(-child.getLeft(), -child.getTop());
+                PointerIcon icon = child.onResolvePointerIcon(event, pointerIndex);
+                event.offsetLocation(child.getLeft(), child.getTop());
                 if (icon != null) {
                     return icon;
                 }

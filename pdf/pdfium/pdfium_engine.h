@@ -376,6 +376,13 @@ class PDFiumEngine : public DocumentLoader::Client,
   // elements, e.g. headings and table cells.
   virtual bool IsPDFDocTagged() const;
 
+  // Returns true if the PDF has meaningful text (at least 100 characters).
+  // This is a heuristic that checks all pages until the total character count
+  // exceeds a threshold. This method should be called after making sure the
+  // document is loaded to ensure the pages are available for checking;
+  // otherwise, it may return false if pages are not yet available.
+  virtual bool HasMeaningfulText() const;
+
   // Returns a copy of the structure tree which describes the logical
   // organization of the PDF, if present.
   std::unique_ptr<AccessibilityStructureElement> GetStructureTree() const;
@@ -417,6 +424,7 @@ class PDFiumEngine : public DocumentLoader::Client,
   virtual void DrawText(int page_index,
                         InkTextId id,
                         base::span<const InkTextInfo> text_info,
+                        float ascent,
                         double pdf_zoom,
                         const InkTextBoxAttributes& attributes);
 
@@ -1159,9 +1167,6 @@ class PDFiumEngine : public DocumentLoader::Client,
     // stale.
     std::vector<FPDF_PAGEOBJECT> page_objects;
   };
-
-  std::vector<FPDF_PAGEOBJECT> GetActiveInkPageObjectsForPage(
-      int page_index) const;
 
   // Returns the next available textbox ID, avoiding collisions with
   // `existing_textbox_ids_` and handling integer overflow. Adds the returned

@@ -17,6 +17,8 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "base/win/security_descriptor.h"
+#include "base/win/sid.h"
 #include "chrome/updater/app/server/win/updater_idl.h"
 #include "chrome/updater/app/server/win/updater_internal_idl.h"
 #include "chrome/updater/constants.h"
@@ -59,6 +61,27 @@ Microsoft::WRL::ComPtr<IUnknown> DialUpdateService(UpdaterScope scope,
   return server;
 }
 
+bool IsServerElevated(HANDLE pipe_handle) {
+  std::optional<base::win::SecurityDescriptor> sd =
+      base::win::SecurityDescriptor::FromHandle(
+          pipe_handle, base::win::SecurityObjectType::kFile,
+          OWNER_SECURITY_INFORMATION);
+  if (!sd) {
+    PLOG(ERROR) << "Failed to get security descriptor for pipe";
+    return false;
+  }
+
+  const std::optional<base::win::Sid>& owner = sd->owner();
+  if (!owner) {
+    LOG(ERROR) << "Pipe owner is missing";
+    return false;
+  }
+
+  return *owner == base::win::Sid(base::win::WellKnownSid::kLocalSystem) ||
+         *owner ==
+             base::win::Sid(base::win::WellKnownSid::kBuiltinAdministrators);
+}
+
 void ConnectMojoImpl(
     UpdaterScope scope,
     bool is_internal_service,
@@ -90,7 +113,14 @@ void ConnectMojoImpl(
                               : GetUpdateServiceServerName(scope);
     options.allow_impersonation = true;
     options.verify_server_privilege = true;
-    return named_mojo_ipc_server::ConnectToServer(options);
+    mojo::PlatformChannelEndpoint connected_endpoint =
+        named_mojo_ipc_server::ConnectToServer(options);
+    if (IsSystemInstall(scope) && connected_endpoint.is_valid() &&
+        !IsServerElevated(
+            connected_endpoint.platform_handle().GetHandle().get())) {
+      return std::nullopt;
+    }
+    return connected_endpoint;
   }();
 
   if (tries >= 1 && !endpoint) {

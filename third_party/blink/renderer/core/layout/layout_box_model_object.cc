@@ -109,11 +109,6 @@ LayoutBoxModelObject::~LayoutBoxModelObject() = default;
 void LayoutBoxModelObject::WillBeDestroyed() {
   NOT_DESTROYED();
 
-  GetDocument()
-      .GetFrame()
-      ->GetInputMethodController()
-      .LayoutObjectWillBeDestroyed(*this);
-
   LayoutObject::WillBeDestroyed();
 
   if (HasLayer())

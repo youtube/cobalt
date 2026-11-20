@@ -145,7 +145,8 @@ class WebContentsObserverAdapter : public content::WebContentsObserver {
 
   void DidUpdateFaviconURL(
       content::RenderFrameHost* render_frame_host,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) override {
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) override {
     favicon_run_loop_.Quit();
   }
 

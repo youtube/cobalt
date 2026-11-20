@@ -54,12 +54,18 @@ enum class FloatyUpdateSource;
 - (void)startGeminiFirstRunWithCompletion:(void (^)(BOOL success))completion
                            fromEntryPoint:(gemini::EntryPoint)entryPoint;
 
-// Starts the Gemini Live First Run Experience (FRE) flow.
-- (void)startGeminiLiveFREWithCompletion:(void (^)(BOOL success))completion;
+// Starts the Gemini Live First Run Experience flow.
+- (void)startGeminiLiveFirstRunWithBaseViewController:
+            (UIViewController*)baseViewController
+                                           completion:(void (^)(BOOL success))
+                                                          completion;
 
 // Presents a Gemini Live microphone authorization alert or Settings prompt.
-- (void)showGeminiLiveMicrophoneAlertWithCompletion:
-    (void (^)(BOOL granted))completion;
+- (void)showGeminiLiveMicrophoneAlertWithBaseViewController:
+            (UIViewController*)baseViewController
+                                                 completion:
+                                                     (void (^)(BOOL granted))
+                                                         completion;
 
 // Starts the full Gemini entry flow and checks sign-in state, handles
 // eligibility, and starts a Gemini session.

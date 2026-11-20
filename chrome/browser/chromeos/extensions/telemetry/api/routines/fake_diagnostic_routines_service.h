@@ -11,7 +11,6 @@
 #include "chromeos/crosapi/mojom/telemetry_extension_exception.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 
 namespace chromeos {
 
@@ -32,8 +31,6 @@ class FakeDiagnosticRoutinesService
   FakeDiagnosticRoutineControl* GetCreatedRoutineControlForRoutineType(
       crosapi::mojom::TelemetryDiagnosticRoutineArgument::Tag tag);
 
-  void FlushForTesting();
-
   // `TelemetryDiagnosticRoutinesService`:
   void CreateRoutine(
       crosapi::mojom::TelemetryDiagnosticRoutineArgumentPtr routine_argument,
@@ -47,15 +44,7 @@ class FakeDiagnosticRoutinesService
   // as soon as an observation is registered or removed.
   void SetOnCreateRoutineCalled(base::RepeatingClosure callback);
 
-  mojo::Receiver<crosapi::mojom::TelemetryDiagnosticRoutinesService>&
-  receiver() {
-    return receiver_;
-  }
-
  private:
-  mojo::Receiver<crosapi::mojom::TelemetryDiagnosticRoutinesService> receiver_{
-      this};
-
   base::RepeatingClosure on_routine_created_;
   std::map<crosapi::mojom::TelemetryDiagnosticRoutineArgument::Tag,
            FakeDiagnosticRoutineControl>

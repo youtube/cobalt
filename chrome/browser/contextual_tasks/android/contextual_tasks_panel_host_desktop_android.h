@@ -64,6 +64,8 @@ class ContextualTasksPanelHostDesktopAndroid
       const content::OpenURLParams& params,
       base::OnceCallback<void(content::NavigationHandle&)>
           navigation_handle_callback) override;
+  bool HandleKeyboardEvent(content::WebContents* source,
+                           const input::NativeWebKeyboardEvent& event) override;
 
  private:
   void MaybeRegisterEntry();

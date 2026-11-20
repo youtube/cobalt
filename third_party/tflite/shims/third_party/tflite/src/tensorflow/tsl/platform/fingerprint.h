@@ -9,7 +9,7 @@
 #include "third_party/tflite/buildflags.h"
 
 #if BUILDFLAG(USE_LITERT_TFLITE)
-#include "third_party/litert/src/tflite/platform/fingerprint.h"
+#include "tsl/platform/fingerprint.h"
 #else
 #include_next "tensorflow/tsl/platform/fingerprint.h"
 #endif

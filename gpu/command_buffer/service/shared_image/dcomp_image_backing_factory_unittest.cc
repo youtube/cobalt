@@ -4,6 +4,7 @@
 
 #include "gpu/command_buffer/service/shared_image/dcomp_image_backing_factory.h"
 
+#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
@@ -30,6 +31,7 @@
 #include "ui/gfx/image/image_unittest_util.h"
 #include "ui/gfx/test/sk_color_eq.h"
 #include "ui/gl/child_window_win.h"
+#include "ui/gl/dc_surface_solid_color_pool.h"
 #include "ui/gl/direct_composition_support.h"
 #include "ui/gl/gl_angle_util_win.h"
 #include "ui/gl/gl_context.h"
@@ -79,8 +81,10 @@ class DCompImageBackingFactoryTest : public testing::Test {
                                  GpuFeatureInfo());
 
     d3d11_device_ = gl::QueryD3D11DeviceObjectFromANGLE();
-    gl::InitializeDirectComposition(d3d11_device_,
-                                    /*d3d12_command_queue=*/nullptr);
+    gl::InitializeDirectComposition(
+        d3d11_device_,
+        /*d3d12_command_queue=*/nullptr,
+        gl::CreateDCSurfaceSolidColorPoolFactory(d3d11_device_));
 
     memory_type_tracker_ = std::make_unique<MemoryTypeTracker>(nullptr);
     shared_image_representation_factory_ =

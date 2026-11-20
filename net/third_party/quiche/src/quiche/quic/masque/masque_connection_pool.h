@@ -32,6 +32,7 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   struct Message {
     quiche::HttpHeaderBlock headers;
     std::string body;
+    bool draining = false;  // Sent on responses received after low GOAWAY.
   };
 
   // Returns the HTTP status code from the message, or 0 if not available.
@@ -201,7 +202,7 @@ absl::StatusOr<MasqueConnectionPool::Message> MasqueSimpleFetch(
     const MasqueConnectionPool::Message& request, absl::string_view info_string,
     const MasqueConnectionPool::DnsConfig& dns_config =
         MasqueConnectionPool::DnsConfig(),
-    bool disable_certificate_verification = false);
+    bool disable_certificate_verification = false, SSL_CTX* ssl_ctx = nullptr);
 
 // Synchronously performs an HTTP GET using a single-use MasqueConnectionPool.
 // Returns the HTTP response message or an error. `info_string` is used to
@@ -210,7 +211,7 @@ absl::StatusOr<MasqueConnectionPool::Message> MasqueSimpleGet(
     absl::string_view url_string, absl::string_view info_string,
     const MasqueConnectionPool::DnsConfig& dns_config =
         MasqueConnectionPool::DnsConfig(),
-    bool disable_certificate_verification = false);
+    bool disable_certificate_verification = false, SSL_CTX* ssl_ctx = nullptr);
 
 }  // namespace quic
 

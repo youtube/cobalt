@@ -31,10 +31,6 @@ struct COMPONENT_EXPORT(SQLITE_VFS_MOJOM_TRAITS)
 
   static base::File journal_file(sqlite_vfs::PendingFileSet& pending_file_set) {
     CHECK_EQ(pending_file_set.read_write, false);
-    // `PendingReadOnlyFileSet::journal_file` is not nullable, so it is not
-    // permissible to serialize `pending_file_set` if it does not have a valid
-    // journal file handle.
-    CHECK(pending_file_set.journal_file.IsValid());
     return std::move(pending_file_set.journal_file);
   }
 
@@ -83,10 +79,6 @@ struct COMPONENT_EXPORT(SQLITE_VFS_MOJOM_TRAITS)
 
   static base::File journal_file(sqlite_vfs::PendingFileSet& pending_file_set) {
     CHECK_EQ(pending_file_set.read_write, true);
-    // `PendingReadWriteFileSet::journal_file` is not nullable, so it is not
-    // permissible to serialize `pending_file_set` if it does not have a valid
-    // journal file handle.
-    CHECK(pending_file_set.journal_file.IsValid());
     return std::move(pending_file_set.journal_file);
   }
 

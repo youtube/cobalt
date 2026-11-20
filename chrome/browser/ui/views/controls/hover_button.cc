@@ -13,7 +13,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
-#include "chrome/browser/ui/views/hover_button_controller.h"
+#include "chrome/browser/ui/views/controls/hover_button_controller.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"

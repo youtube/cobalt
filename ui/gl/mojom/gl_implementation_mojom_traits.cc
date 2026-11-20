@@ -56,8 +56,6 @@ EnumTraits<gl::mojom::ANGLEImplementation, gl::ANGLEImplementation>::ToMojom(
   switch (impl) {
     case gl::ANGLEImplementation::kNone:
       return gl::mojom::ANGLEImplementation::kNone;
-    case gl::ANGLEImplementation::kD3D9:
-      return gl::mojom::ANGLEImplementation::kD3D9;
     case gl::ANGLEImplementation::kD3D11:
       return gl::mojom::ANGLEImplementation::kD3D11;
     case gl::ANGLEImplementation::kOpenGL:
@@ -87,8 +85,6 @@ EnumTraits<gl::mojom::ANGLEImplementation, gl::ANGLEImplementation>::FromMojom(
   switch (input) {
     case gl::mojom::ANGLEImplementation::kNone:
       return gl::ANGLEImplementation::kNone;
-    case gl::mojom::ANGLEImplementation::kD3D9:
-      return gl::ANGLEImplementation::kD3D9;
     case gl::mojom::ANGLEImplementation::kD3D11:
       return gl::ANGLEImplementation::kD3D11;
     case gl::mojom::ANGLEImplementation::kOpenGL:

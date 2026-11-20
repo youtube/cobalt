@@ -26,6 +26,7 @@ proto_library("proto") {
     "mux.proto",
     "remote_open_url.proto",
     "remote_webauthn.proto",
+    "security_key.proto",
     "test_data_channel_manager.proto",
     "url_forwarder_control.proto",
     "video.proto",

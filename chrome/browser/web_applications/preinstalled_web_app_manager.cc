@@ -47,6 +47,7 @@
 #include "chrome/browser/web_applications/preinstalled_app_install_features.h"
 #include "chrome/browser/web_applications/preinstalled_web_app_config_utils.h"
 #include "chrome/browser/web_applications/preinstalled_web_app_utils.h"
+#include "chrome/browser/web_applications/preinstalled_web_apps/extension_ids_to_replace.h"
 #include "chrome/browser/web_applications/preinstalled_web_apps/preinstalled_web_apps.h"
 #include "chrome/browser/web_applications/user_uninstalled_preinstalled_web_app_prefs.h"
 #include "chrome/browser/web_applications/web_app.h"
@@ -68,7 +69,6 @@
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/common/constants.h"
 #include "content/public/browser/browser_thread.h"
-#include "extensions/common/constants.h"
 #include "ui/events/devices/device_data_manager.h"
 #include "ui/events/devices/input_device_event_observer.h"
 #include "ui/events/devices/touchscreen_device.h"
@@ -524,7 +524,7 @@ void MaybeForceInstallForRemigration(
   bool calculator_web_app_installed = registrar.AppMatches(
       ash::kCalculatorAppId, WebAppFilter::InstalledByDefaultManagement());
   bool calculator_chrome_app_installed =
-      extensions_manager.IsExtensionInstalled(extension_misc::kCalculatorAppId);
+      extensions_manager.IsExtensionInstalled(kCalculatorExtensionId);
   base::UmaHistogramBoolean(
       "WebApp.Preinstalled.CalculatorForceMigration.WebAppInstalled",
       calculator_web_app_installed);
@@ -550,7 +550,7 @@ void MaybeForceInstallForRemigration(
     for (const std::string& app_id : options.uninstall_and_replace) {
       bool migration_needed = false;
       if (extensions_manager.IsExtensionInstalled(app_id)) {
-        if (app_id == extension_misc::kCalculatorAppId) {
+        if (app_id == kCalculatorExtensionId) {
           calculator_migration_needed = true;
           migration_needed = true;
         }

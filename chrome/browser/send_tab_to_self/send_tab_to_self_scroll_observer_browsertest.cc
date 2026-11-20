@@ -27,6 +27,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 #include "components/send_tab_to_self/features.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
@@ -77,9 +78,9 @@ class SendTabToSelfScrollObserverBrowserTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    model_fake_ = SendTabToSelfSyncServiceFactory::GetForProfile(
-                      browser()->profile())
-                      ->GetSendTabToSelfModel();
+    model_fake_ =
+        SendTabToSelfSyncServiceFactory::GetForProfile(browser()->profile())
+            ->GetSendTabToSelfModel();
     ASSERT_TRUE(embedded_test_server()->Start());
   }
 
@@ -103,9 +104,9 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfScrollObserverBrowserTest,
   page_context.scroll_position.text_fragment =
       TextFragmentData("Some text", "", "", "");
 
-  const SendTabToSelfEntry* entry =
-      model_fake_->SendEntry(test_url, "title", "device", page_context,
-                             NavigationHistory(), base::DoNothing());
+  const SendTabToSelfEntry* entry = model_fake_->SendEntry(
+      test_url, "title", "device", page_context, NavigationHistory(),
+      base::DoNothing(), ShareEntryPoint::kShareSheet);
 
   content::TestNavigationObserver navigation_observer{test_url};
   navigation_observer.StartWatchingNewWebContents();
@@ -146,9 +147,9 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfScrollObserverBrowserTest,
   // No scroll position in PageContext.
   PageContext page_context;
 
-  const SendTabToSelfEntry* entry =
-      model_fake_->SendEntry(test_url, "title", "device", page_context,
-                             NavigationHistory(), base::DoNothing());
+  const SendTabToSelfEntry* entry = model_fake_->SendEntry(
+      test_url, "title", "device", page_context, NavigationHistory(),
+      base::DoNothing(), ShareEntryPoint::kShareSheet);
 
   content::TestNavigationObserver navigation_observer{test_url};
   navigation_observer.StartWatchingNewWebContents();

@@ -3876,6 +3876,8 @@ data/accessibility/html/custom-element-empty-slot.html
 data/accessibility/html/custom-element-expected-blink.txt
 data/accessibility/html/custom-element-hidden-expected-blink.txt
 data/accessibility/html/custom-element-hidden.html
+data/accessibility/html/custom-element-nested-slots-aria-expected-blink.txt
+data/accessibility/html/custom-element-nested-slots-aria.html
 data/accessibility/html/custom-element-nested-slots-expected-auralinux.txt
 data/accessibility/html/custom-element-nested-slots-expected-blink.txt
 data/accessibility/html/custom-element-nested-slots.html
@@ -6532,8 +6534,10 @@ data/accessibility/mathml/annotation-xml-node-expected-auralinux.txt
 data/accessibility/mathml/annotation-xml-node-expected-mac.txt
 data/accessibility/mathml/annotation-xml.html
 data/accessibility/mathml/annotation.html
-data/accessibility/mathml/intent-expected-blink.txt
 data/accessibility/mathml/intent.html
+data/accessibility/mathml/intent-expected-android.txt
+data/accessibility/mathml/intent-expected-android-external.txt
+data/accessibility/mathml/intent-expected-blink.txt
 data/accessibility/mathml/maction-expected-blink.txt
 data/accessibility/mathml/maction-expected-uia-win.txt
 data/accessibility/mathml/maction-node-expected-auralinux.txt

@@ -313,7 +313,7 @@ class TRACING_EXPORT EtwConsumer
   InterningIndex<TypeList<uint64_t>, SizeList<1024>> interned_frames_;
 
   // If true, interned data will be reset before the next event is processed.
-  std::atomic<bool> reset_emitted_state_{false};
+  std::atomic<bool> reset_emitted_state_{true};
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

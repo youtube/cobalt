@@ -47,6 +47,9 @@ static_library("process_state") {
 }
 
 static_library("renderer") {
+  _configs = configs
+  configs = []
+  configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
     "benchmarking_extension.cc",
     "benchmarking_extension.h",

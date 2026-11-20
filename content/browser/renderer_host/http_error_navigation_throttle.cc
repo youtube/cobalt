@@ -44,7 +44,7 @@ HttpErrorNavigationThrottle::WillProcessResponse() {
   // has a custom error page for it).
   const network::mojom::URLResponseHead* response =
       NavigationRequest::From(navigation_handle())->response();
-  DCHECK(response);
+  CHECK(response, base::NotFatalUntil::M152);
   if (!response->headers) {
     return PROCEED;
   }
@@ -80,7 +80,7 @@ void HttpErrorNavigationThrottle::OnBodyReadable(MojoResult) {
     case MOJO_RESULT_FAILED_PRECONDITION:
       // Failed reading the result, can be due to the connection being closed.
       // We should treat this as a signal that the body is empty.
-      DCHECK_EQ(num_bytes, 0u);
+      CHECK_EQ(num_bytes, 0u, base::NotFatalUntil::M152);
       break;
     case MOJO_RESULT_SHOULD_WAIT:
       // Wait for the next signal to try and read the body again.

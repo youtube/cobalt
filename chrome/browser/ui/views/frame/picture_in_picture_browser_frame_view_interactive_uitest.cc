@@ -488,7 +488,7 @@ IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
   // the pip window) should deactivate the title.
   gfx::Point outside = gfx::Point();
   views::View::ConvertPointToScreen(
-      static_cast<BrowserView*>(browser()->window()), &outside);
+      BrowserView::GetBrowserViewForBrowser(browser()), &outside);
   ASSERT_FALSE(IsPointInPIPFrameView(outside));
   ASSERT_TRUE(ui_test_utils::SendMouseMoveSync(outside));
   WaitForTopBarAnimations(
@@ -1313,7 +1313,7 @@ IN_PROC_BROWSER_TEST_P(PictureInPictureBrowserFrameViewTest,
   gfx::Point outside = gfx::Point();
   if (PlatformSupportsScreenCoordinates()) {
     views::View::ConvertPointToScreen(
-        static_cast<BrowserView*>(browser()->window()), &outside);
+        BrowserView::GetBrowserViewForBrowser(browser()), &outside);
     // This check only makes sense in platforms that support global screen
     // coordinates.
     ASSERT_FALSE(IsPointInPIPFrameView(outside));

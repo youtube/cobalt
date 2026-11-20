@@ -111,6 +111,10 @@ class PredictionModelStore {
 
  private:
   friend class PredictionModelStoreBrowserTestBase;
+  // Declared as friend only to access `LoadAndVerifyModelOffThread`.
+  // TODO: b/515762868 - refactor `LoadAndVerifyModelOffThread` out of
+  //       `PredictionModelStore` and remove this friend declaration.
+  friend class PredictionModelComponentUpdateListener;
 
   // Loads the model and verifies if the model files exist and returns the
   // model. Otherwise nullptr is returned on any failures.

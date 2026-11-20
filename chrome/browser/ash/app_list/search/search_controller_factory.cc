@@ -33,13 +33,10 @@
 #include "chrome/browser/ash/app_list/search/search_features.h"
 #include "chrome/browser/ash/app_list/search/system_info/system_info_card_provider.h"
 #include "chrome/browser/ash/arc/arc_util.h"
-#include "chrome/browser/ash/drive/drive_integration_service.h"
-#include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/system_web_apps/apps/personalization_app/personalization_app_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
-#include "components/session_manager/core/session_manager.h"
 
 namespace app_list {
 
@@ -95,10 +92,7 @@ std::unique_ptr<SearchController> CreateSearchController(
   if (ash::features::IsLauncherContinueSectionWithRecentsEnabled()) {
     controller->AddProvider(std::make_unique<ZeroStateFileProvider>(profile));
 
-    controller->AddProvider(std::make_unique<ZeroStateDriveProvider>(
-        profile, controller.get(),
-        drive::DriveIntegrationServiceFactory::GetForProfile(profile),
-        session_manager::SessionManager::Get()));
+    controller->AddProvider(std::make_unique<ZeroStateDriveProvider>(profile));
   }
 
   controller->AddProvider(std::make_unique<OsSettingsProvider>(profile));
@@ -113,10 +107,8 @@ std::unique_ptr<SearchController> CreateSearchController(
   controller->AddProvider(
       std::make_unique<DesksAdminTemplateProvider>(profile, list_controller));
 
-  if (search_features::IsLauncherGameSearchEnabled()) {
-    controller->AddProvider(
-        std::make_unique<GameProvider>(profile, list_controller));
-  }
+  controller->AddProvider(
+      std::make_unique<GameProvider>(profile, list_controller));
 
   if (ash::personalization_app::CanSeeWallpaperOrPersonalizationApp(profile)) {
     controller->AddProvider(std::make_unique<PersonalizationProvider>(profile));

@@ -82,7 +82,6 @@ def __input_deps(ctx):
     libcxx_inputs = [
         "buildtools/third_party/libc++/__assertion_handler",
         "buildtools/third_party/libc++/__config_site",
-        "third_party/libc++/src/include:headers",
     ]
 
     return {

@@ -489,6 +489,7 @@ bool IsValidAccessPointForHistoryOptinScreen(
     case signin_metrics::AccessPoint::kIosAppBar:
     case signin_metrics::AccessPoint::kIosGeminiButtonToolbar:
     case signin_metrics::AccessPoint::kIndigo:
+    case signin_metrics::AccessPoint::kLevelUp:
       return false;
     case signin_metrics::AccessPoint::kStartPage:
     case signin_metrics::AccessPoint::kMenu:

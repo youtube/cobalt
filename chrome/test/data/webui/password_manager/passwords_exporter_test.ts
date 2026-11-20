@@ -9,6 +9,7 @@ import {PasswordManagerImpl} from 'chrome://password-manager/password_manager.js
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
+import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 
 import {TestPasswordManagerProxy} from './test_password_manager_proxy.js';
@@ -144,5 +145,20 @@ suite('PasswordExporterTest', function() {
     flush();
 
     await passwordManager.whenCalled('requestExportProgressStatus');
+    mockTimer.uninstall();
+  });
+
+  test('exportFlowErrorInProgress', async function() {
+    // Rejects with an Error object whose message is 'in-progress'.
+    passwordManager.setExportPasswordsError(new Error('in-progress'));
+
+    clickExportPasswordsButton(passwordsExporter);
+    await passwordManager.whenCalled('exportPasswords');
+
+    // Wait for the catch block to execute.
+    await flushTasks();
+
+    assertTrue(
+        isVisible(passwordsExporter.shadowRoot!.querySelector('.spinner')));
   });
 });

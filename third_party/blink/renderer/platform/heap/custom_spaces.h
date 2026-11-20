@@ -49,6 +49,15 @@ class PLATFORM_EXPORT LayoutObjectSpace
   static constexpr cppgc::CustomSpaceIndex kSpaceIndex = 4;
 };
 
+// Element-derived classes get their own space so that pages backing DOM
+// traversal (which walks only Elements, skipping Text/Comment nodes) hold
+// pure Element payload. This keeps the per-element cache footprint of hot
+// loops like ContainerNode::RecalcDescendantStyles dense.
+class PLATFORM_EXPORT ElementSpace : public cppgc::CustomSpace<ElementSpace> {
+ public:
+  static constexpr cppgc::CustomSpaceIndex kSpaceIndex = 5;
+};
+
 struct PLATFORM_EXPORT CustomSpaces final {
   static std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>
   CreateCustomSpaces();

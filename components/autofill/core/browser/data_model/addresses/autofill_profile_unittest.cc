@@ -1081,8 +1081,6 @@ TEST_F(AutofillProfileTest, IsSubsetOfForFieldSet_DifferentNonStreetAddresses) {
 }
 
 TEST_F(AutofillProfileTest, SetInfo_DynamicallyCreatingAlternativeNameTree) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   // Initially the profile's country does not support alternative names, so
   // setting it should do nothing.
   AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
@@ -1100,8 +1098,6 @@ TEST_F(AutofillProfileTest, SetInfo_DynamicallyCreatingAlternativeNameTree) {
 }
 
 TEST_F(AutofillProfileTest, SetInfo_DynamicallyDeletingAlternativeNameTree) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   // Initially the profile's country supports alternative names, so setting it
   // should store the value as usual.
   AutofillProfile profile(AddressCountryCode("JP"));
@@ -1121,8 +1117,6 @@ TEST_F(AutofillProfileTest, SetInfo_DynamicallyDeletingAlternativeNameTree) {
 
 TEST_F(AutofillProfileTest,
        SetInfo_AlternativeNameTreeNotRecratedIfCountryDoesNotChange) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   // Initially the profile's country supports alternative names, so setting it
   // should store the value as usual.
   AutofillProfile profile(AddressCountryCode("JP"));
@@ -1138,8 +1132,6 @@ TEST_F(AutofillProfileTest,
 }
 
 TEST_F(AutofillProfileTest, SetRawInfo_DynamicallyCreatingAlternativeNameTree) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   // Initially the profile's country does not support alternative names, so
   // setting it should do nothing.
   AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
@@ -1157,8 +1149,6 @@ TEST_F(AutofillProfileTest, SetRawInfo_DynamicallyCreatingAlternativeNameTree) {
 }
 
 TEST_F(AutofillProfileTest, SetRawInfo_DynamicallyDeletingAlternativeNameTree) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   // Initially the profile's country supports alternative names, so setting it
   // should store the value as usual.
   AutofillProfile profile(AddressCountryCode("JP"));
@@ -1427,8 +1417,6 @@ TEST_F(AutofillProfileTest, TestFinalizeAfterImportUserVerified) {
 // Tests whether calling `FinalizeAfterImport` where a root node is user
 // verified to be empty, wipes the data from subcomponents.
 TEST_F(AutofillProfileTest, TestFinalizeAfterImportUserVerifiedEmpty) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   AutofillProfile profile(AddressCountryCode("JP"));
   profile.SetRawInfoWithVerificationStatus(ALTERNATIVE_FULL_NAME, u"",
                                            VerificationStatus::kUserVerified);
@@ -2063,8 +2051,6 @@ class GetUserVisibleTypesTest
       public testing::WithParamInterface<GetUserVisibleTypesTestCase> {};
 
 TEST_P(GetUserVisibleTypesTest, GetUserVisibleTypes) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
   const GetUserVisibleTypesTestCase& test = GetParam();
 
   AutofillProfile profile(test.country_code);

@@ -16,7 +16,7 @@ namespace contextual_tasks {
 
 ContextualTasksUiServiceDelegateDesktop::
     ContextualTasksUiServiceDelegateDesktop(Profile* profile)
-    : ContextualTasksUiServiceDelegate() {}
+    : ContextualTasksUiServiceDelegate(), profile_(profile) {}
 
 ContextualTasksUiServiceDelegateDesktop::
     ~ContextualTasksUiServiceDelegateDesktop() = default;

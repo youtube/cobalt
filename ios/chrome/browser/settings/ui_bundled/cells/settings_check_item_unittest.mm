@@ -9,7 +9,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/activity_indicator_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/info_button_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -38,7 +37,7 @@ TEST_F(SettingsCheckItemTest, ConfigureCell) {
       base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
   EXPECT_FALSE(checkCell.contentConfiguration);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
 
   TableViewCellContentConfiguration* contentConfiguration =
       base::apple::ObjCCastStrict<TableViewCellContentConfiguration>(
@@ -63,7 +62,7 @@ TEST_F(SettingsCheckItemTest, InfoButtonVisibility) {
   LegacyTableViewCell* checkCell =
       base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
 
   TableViewCellContentConfiguration* contentConfiguration =
       base::apple::ObjCCastStrict<TableViewCellContentConfiguration>(
@@ -72,7 +71,7 @@ TEST_F(SettingsCheckItemTest, InfoButtonVisibility) {
       isKindOfClass:[InfoButtonContentConfiguration class]]);
 
   item.infoButtonHidden = YES;
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
 
   contentConfiguration =
       base::apple::ObjCCastStrict<TableViewCellContentConfiguration>(
@@ -96,7 +95,7 @@ TEST_F(SettingsCheckItemTest, InfoButtonVisibilityDuringConflict) {
   LegacyTableViewCell* checkCell =
       base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
 
   TableViewCellContentConfiguration* contentConfiguration =
       base::apple::ObjCCastStrict<TableViewCellContentConfiguration>(
@@ -120,7 +119,7 @@ TEST_F(SettingsCheckItemTest, InfoButtonVisibilityWhenDisabled) {
   LegacyTableViewCell* checkCell =
       base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
 
   TableViewCellContentConfiguration* contentConfiguration =
       base::apple::ObjCCastStrict<TableViewCellContentConfiguration>(

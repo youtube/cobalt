@@ -141,7 +141,7 @@ message GetHintsResponse {
 // OptimizationType enum at http://shortn/_t8G1sv8yAS (Google-internal link).
 // Additionally, these values must be synchronized with the OptimizationType
 // enum in enums.xml and optimization/histograms.xml for metric recording.
-// Next ID: 127
+// Next ID: 130
 enum OptimizationType {
   // Values for obsolete optimizations.
   reserved 11, 12, 16, 29, 32, 66, 68, 72, 73, 89, 94, 95, 96, 101;
@@ -410,6 +410,11 @@ enum OptimizationType {
   // This optimization helps determine if this merchant page should be blocked
   // for the buy now pay later flow with Klarna on Chrome Android.
   BUY_NOW_PAY_LATER_BLOCKLIST_KLARNA_ANDROID = 126;
+  // The below optimizations provide information about merchant URLs that only
+  // Curinos supports for credit card category benefits.
+  CURINOS_CREDIT_CARD_FLIGHT_BENEFITS = 127;
+  CURINOS_CREDIT_CARD_HOTEL_BENEFITS = 128;
+  CURINOS_CREDIT_CARD_CAR_RENTAL_BENEFITS = 129;
 }
 
 // Presents semantics for how page load URLs should be matched.

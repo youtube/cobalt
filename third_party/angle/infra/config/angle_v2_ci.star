@@ -79,6 +79,11 @@ angle_linux_parent_builder(
             target_platform = builder_config.target_platform.ANDROID,
         ),
     ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
+    ),
     gn_args = gn_args.config(
         configs = [
             "android_clang",
@@ -110,6 +115,11 @@ angle_linux_parent_builder(
             target_bits = 32,
             target_platform = builder_config.target_platform.ANDROID,
         ),
+    ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
     ),
     gn_args = gn_args.config(
         configs = [
@@ -143,6 +153,11 @@ angle_linux_parent_builder(
             target_bits = 64,
             target_platform = builder_config.target_platform.ANDROID,
         ),
+    ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
     ),
     gn_args = gn_args.config(
         configs = [
@@ -277,6 +292,11 @@ angle_linux_parent_builder(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+    ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
     ),
     gn_args = gn_args.config(
         configs = [
@@ -436,6 +456,11 @@ angle_mac_parent_builder(
             target_platform = builder_config.target_platform.MAC,
         ),
     ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
+    ),
     gn_args = gn_args.config(
         configs = [
             "component",
@@ -529,6 +554,11 @@ angle_win_parent_builder(
             target_platform = builder_config.target_platform.WIN,
         ),
     ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
+    ),
     gn_args = gn_args.config(
         configs = [
             "component",
@@ -560,6 +590,11 @@ angle_win_msvc_parent_builder(
             target_platform = builder_config.target_platform.WIN,
         ),
     ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
+    ),
     gn_args = gn_args.config(
         configs = [
             "component",
@@ -589,6 +624,11 @@ angle_win_msvc_parent_builder(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
+    ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
     ),
     gn_args = gn_args.config(
         configs = [
@@ -684,6 +724,11 @@ angle_win_msvc_parent_builder(
             target_platform = builder_config.target_platform.WIN,
         ),
     ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
+    ),
     gn_args = gn_args.config(
         configs = [
             "component",
@@ -714,6 +759,11 @@ angle_win_msvc_parent_builder(
             target_platform = builder_config.target_platform.WIN,
         ),
     ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
+    ),
     gn_args = gn_args.config(
         configs = [
             "component",
@@ -743,6 +793,11 @@ angle_win_parent_builder(
             target_bits = 32,
             target_platform = builder_config.target_platform.WIN,
         ),
+    ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
     ),
     gn_args = gn_args.config(
         configs = [
@@ -775,6 +830,11 @@ angle_win_msvc_parent_builder(
             target_platform = builder_config.target_platform.WIN,
         ),
     ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
+    ),
     gn_args = gn_args.config(
         configs = [
             "component",
@@ -804,6 +864,11 @@ angle_win_msvc_parent_builder(
             target_bits = 32,
             target_platform = builder_config.target_platform.WIN,
         ),
+    ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "all",
+        ],
     ),
     gn_args = gn_args.config(
         configs = [
@@ -872,6 +937,29 @@ ci.thin_tester(
         ),
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "perf_no_trace_isolated_scripts",
+        ],
+        mixins = [
+            "gpu_pixel_4_stable",
+            "temp_band_below_30C",
+            "timeout_120m",
+        ],
+        per_test_modifications = {
+            "angle_perftests": targets.mixin(
+                args = [
+                    # Remove Vulkan tests.
+                    "-f",
+                    "*-*vulkan*:*Vulkan*",
+                ],
+            ),
+        },
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.ANDROID,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "perf|android|arm64",
         short_name = "p4",
@@ -894,7 +982,22 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.ANDROID,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "android_gl_and_gles_gtests",
+            "android_no_vulkan_gtests",
+            "android_p4_isolated_scripts",
+        ],
+        mixins = [
+            "gpu_pixel_4_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.ANDROID,
     ),
     console_view_entry = consoles.console_view_entry(
         category = "test|android|arm64|rel",
@@ -918,7 +1021,23 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.ANDROID,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "android_common_gtests",
+            "android_vulkan_specific_gtests",
+            "android_p6_isolated_scripts",
+        ],
+        mixins = [
+            "gpu_pixel_6_experimental",
+            "limited_capacity_bot",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.ANDROID,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
     console_view_entry = consoles.console_view_entry(
@@ -946,6 +1065,43 @@ ci.thin_tester(
         ),
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "perf_isolated_scripts",
+        ],
+        mixins = [
+            "gpu_pixel_6_stable",
+            "temp_band_below_30C",
+            "timeout_120m",
+        ],
+        per_test_modifications = {
+            "angle_perftests": targets.mixin(
+                args = [
+                    # Custom temp throttling for perf tests on pixel6
+                    # b/345514719.
+                    "--custom-throttling-temp=38",
+                ],
+            ),
+            "angle_trace_perf_native_tests": targets.mixin(
+                args = [
+                    # Custom temp throttling for perf tests on pixel6
+                    # b/345514719.
+                    "--custom-throttling-temp=38",
+                ],
+            ),
+            "angle_trace_perf_vulkan_tests": targets.mixin(
+                args = [
+                    # Custom temp throttling for perf tests on pixel6
+                    # b/345514719.
+                    "--custom-throttling-temp=38",
+                ],
+            ),
+        },
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.ANDROID,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "perf|android|arm64",
         short_name = "p6",
@@ -968,7 +1124,22 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.ANDROID,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "android_common_gtests",
+            "android_vulkan_specific_gtests",
+            "android_p6_isolated_scripts",
+        ],
+        mixins = [
+            "gpu_pixel_6_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.ANDROID,
     ),
     console_view_entry = consoles.console_view_entry(
         category = "test|android|arm64|rel",
@@ -992,7 +1163,23 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.ANDROID,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "android_common_gtests",
+            "android_gl_and_gles_gtests",
+            "android_p10_gtests",
+            "android_p10_isolated_scripts",
+        ],
+        mixins = [
+            "gpu_pixel_10_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.ANDROID,
     ),
     console_view_entry = consoles.console_view_entry(
         category = "test|android|arm64|rel",
@@ -1016,7 +1203,24 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.ANDROID,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "android_common_gtests",
+            "android_vulkan_specific_gtests",
+            "android_s24_isolated_scripts",
+        ],
+        mixins = [
+            # crbug.com/419062315
+            "no_tombstones",
+            "samsung_s24_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.ANDROID,
     ),
     console_view_entry = consoles.console_view_entry(
         category = "test|android|arm64|rel",
@@ -1040,6 +1244,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1074,6 +1279,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1110,7 +1316,21 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "perf_isolated_scripts",
+        ],
+        mixins = [
+            "linux_intel_uhd_630_stable",
+            "timeout_120m",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.LINUX,
     ),
     console_view_entry = consoles.console_view_entry(
         category = "perf|linux|x64",
@@ -1134,6 +1354,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1182,6 +1403,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1218,7 +1440,21 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "perf_isolated_scripts",
+        ],
+        mixins = [
+            "linux_nvidia_gtx_1660_stable",
+            "timeout_120m",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.LINUX,
     ),
     console_view_entry = consoles.console_view_entry(
         category = "perf|linux|x64",
@@ -1242,6 +1478,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1288,6 +1525,19 @@ ci.thin_tester(
         ),
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "swangle_linux_asan_gtests",
+        ],
+        mixins = [
+            "gpu_linux_gce_stable",
+            "timeout_15m",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.LINUX,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|linux|x64|asan",
         short_name = "sws",
@@ -1310,6 +1560,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1359,6 +1610,19 @@ ci.thin_tester(
         ),
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "swangle_linux_tsan_gtests",
+        ],
+        mixins = [
+            "gpu_linux_gce_stable",
+            "timeout_15m",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.LINUX,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|linux|x64|tsan",
         short_name = "sws",
@@ -1384,6 +1648,18 @@ ci.thin_tester(
         use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "mac_arm64_gtests",
+        ],
+        mixins = [
+            "mac_arm64_apple_m2_retina_gpu_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.MAC,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|mac|arm64|rel",
         short_name = "m2",
@@ -1406,6 +1682,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.MAC,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1442,6 +1719,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.MAC,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1478,6 +1756,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.MAC,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1514,6 +1793,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.MAC,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1552,6 +1832,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.MAC,
         ),
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1588,7 +1869,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
-        no_history = True,
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1627,6 +1908,19 @@ ci.thin_tester(
         ),
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "perf_isolated_scripts",
+        ],
+        mixins = [
+            "timeout_120m",
+            "win10_intel_uhd_630_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.WINDOWS,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "perf|win|x64",
         short_name = "630",
@@ -1649,7 +1943,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
-        no_history = True,
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1729,7 +2023,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
-        no_history = True,
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1796,7 +2090,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
-        no_history = True,
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1835,6 +2129,19 @@ ci.thin_tester(
         ),
         run_tests_serially = True,
     ),
+    targets = targets.bundle(
+        targets = [
+            "perf_isolated_scripts",
+        ],
+        mixins = [
+            "timeout_120m",
+            "win10_nvidia_gtx_1660_stable",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.WINDOWS,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "perf|win|x64",
         short_name = "1660",
@@ -1857,7 +2164,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
-        no_history = True,
+        use_test_trigger_cas = True,
         run_tests_serially = True,
     ),
     targets = targets.bundle(
@@ -1897,6 +2204,19 @@ ci.thin_tester(
             target_platform = builder_config.target_platform.WIN,
         ),
     ),
+    targets = targets.bundle(
+        targets = [
+            "swangle_win_asan_gtests",
+        ],
+        mixins = [
+            "win10_gce_gpu_pool",
+            "timeout_15m",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.WINDOWS,
+    ),
     console_view_entry = consoles.console_view_entry(
         category = "test|win|x64|asan",
         short_name = "sws",
@@ -1920,6 +2240,19 @@ ci.thin_tester(
             target_platform = builder_config.target_platform.WIN,
         ),
         run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "swangle_gtests",
+        ],
+        mixins = [
+            "win10_gce_gpu_pool",
+            "timeout_15m",
+        ],
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.WINDOWS,
     ),
     console_view_entry = consoles.console_view_entry(
         category = "test|win|x86|rel",
@@ -1949,6 +2282,11 @@ angle_linux_parent_builder(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
+    ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "noop_target",
+        ],
     ),
     # These GN args are not actually used since the trace tests do compilation
     # as part of running, but the recipe may try to "compile" as a side effect
@@ -1983,6 +2321,11 @@ angle_win_parent_builder(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
+    ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "noop_target",
+        ],
     ),
     # These GN args are not actually used since the trace tests do compilation
     # as part of running, but the recipe may try to "compile" as a side effect

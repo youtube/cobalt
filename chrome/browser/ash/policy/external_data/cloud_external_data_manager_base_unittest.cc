@@ -56,13 +56,13 @@ const char k10ByteData[] = "10 bytes..";
 const char k20ByteData[] = "20 bytes............";
 
 const PolicyDetails kPolicyDetails[] = {
-    // deprecated  future, scope, source_restriction, id, max_external_data_size
-    {false, false, kProfile, kSourceRestrictionNone, 1, 0},
-    {false, false, kProfile, kSourceRestrictionNone, 2, 10},
-    {false, false, kProfile, kSourceRestrictionNone, 3, 20},
-    {false, false, kProfile, kSourceRestrictionNone, 4, 20},
+    // is_deprecated, is_future, supports_dynamic_refresh, id
+    // max_external_data_size, risk tags
+    {false, false, false, kProfile, kSourceRestrictionNone, 1, 0},
+    {false, false, false, kProfile, kSourceRestrictionNone, 2, 10},
+    {false, false, false, kProfile, kSourceRestrictionNone, 3, 20},
+    {false, false, false, kProfile, kSourceRestrictionNone, 4, 20},
 };
-
 const char kCacheKey[] = "data";
 
 const char k10ByteAppURL[] = "http://localhost/app_10_bytes";

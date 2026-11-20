@@ -17,17 +17,21 @@ class ProfileIOS;
 
 namespace actor {
 
+class ToolDelegate;
+
 // Factory for creating ActorTool objects from raw action data.
 class ActorToolFactory {
  public:
   explicit ActorToolFactory(ProfileIOS* profile);
   virtual ~ActorToolFactory();
 
-  // Creates an ActorTool based on the provided action proto.
+  // Creates an ActorTool based on the provided action proto if it's not
+  // disabled by feature flag.
   //
   // This is virtual for testing.
   virtual base::expected<std::unique_ptr<ActorTool>, ToolExecutionResult>
-  CreateTool(const optimization_guide::proto::Action& action);
+  CreateTool(const optimization_guide::proto::Action& action,
+             ToolDelegate* tool_delegate);
 
   // Returns the list of supported capabilities by this tool factory.
   virtual std::vector<optimization_guide::proto::Action::ActionCase>

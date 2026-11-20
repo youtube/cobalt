@@ -11,7 +11,7 @@ namespace {
 
 InSessionAuth* GetInSessionAuthService() {
   // The global singleton.
-  static raw_ptr<InSessionAuth> in_session_auth_service_;
+  static InSessionAuth* in_session_auth_service_ = nullptr;
 
   if (in_session_auth_service_ == nullptr) {
     in_session_auth_service_ = new InSessionAuth();

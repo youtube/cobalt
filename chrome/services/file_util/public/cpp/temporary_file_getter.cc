@@ -31,7 +31,12 @@ base::File TemporaryFileGetterHelper(int num_files_requested) {
     return base::File();
   }
 
-
+#if !BUILDFLAG(IS_WIN)
+  // CreateAndOpenTemporaryFileInDir delegates deletion to the caller on POSIX.
+  // We unlink the file immediately after creation to ensure it is deleted even
+  // if the process crashes, while keeping the file descriptor open for use.
+  base::DeleteFile(temp_path);
+#endif
 
   return temp_file;
 }

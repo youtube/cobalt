@@ -7,10 +7,10 @@
 #include "base/allocator/partition_alloc_support.h"
 #include "base/profiler/thread_group_profiler.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
-#include "base/time/default_clock.h"
 #include "chrome/browser/metrics/chrome_feature_list_creator.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/profiler/chrome_thread_group_profiler_client.h"
+#include "components/variations/service/variations_network_clock.h"
 #include "components/variations/variations_ids_provider.h"
 #include "content/public/browser/startup_helper.h"
 
@@ -38,12 +38,12 @@ static void JNI_InitializeFeatureList_InitializeFeatureList(JNIEnv* env) {
   // and binds the MessageLoopForUI on the main thread (but it's only labeled
   // as BrowserThread::UI in BrowserMainLoop::CreateMainMessageLoop).
   content::CreateBrowserTaskExecutor();
-  variations::VariationsIdsProvider::CreateInstance(
-      variations::VariationsIdsProvider::Mode::kUseSignedInState,
-      std::make_unique<base::DefaultClock>());
-
   ChromeFeatureListCreator* chrome_feature_list_creator =
       ChromeFeatureListCreator::GetInstance();
+  variations::VariationsIdsProvider::CreateInstance(
+      variations::VariationsIdsProvider::Mode::kUseSignedInState,
+      std::make_unique<variations::VariationsNetworkClock>(
+          chrome_feature_list_creator->network_time_tracker()));
   chrome_feature_list_creator->CreateFeatureList();
 
   // The FeatureList needs to be created before starting the ThreadPool.

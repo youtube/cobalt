@@ -75,7 +75,8 @@ class FaviconWatcher final : public content::WebContentsObserver {
   // WebContentsObserver
   void DidUpdateFaviconURL(
       content::RenderFrameHost* render_frame_host,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) final {
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) final {
     run_loop_.Quit();
   }
 

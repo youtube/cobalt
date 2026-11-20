@@ -9,12 +9,13 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/android/permission_prompt/permission_dialog_delegate.h"
 #include "components/permissions/embedded_permission_prompt_flow_model.h"
 #include "components/permissions/permission_prompt.h"
-#include "components/permissions/permission_uma_util.h"
+#include "components/permissions/permission_uma_constants.h"
 #include "components/permissions/permissions_client.h"
 #include "components/permissions/resolvers/permission_prompt_options.h"
 #include "ui/gfx/geometry/rect.h"
@@ -82,7 +83,7 @@ class PermissionPromptAndroid : public PermissionPrompt {
   virtual PermissionRequest::AnnotatedMessageText GetAnnotatedMessageText()
       const;
   virtual bool ShouldUseRequestingOriginFavicon() const;
-  virtual const std::vector<base::WeakPtr<permissions::PermissionRequest>>&
+  virtual const std::vector<base::SafeRef<permissions::PermissionRequest>>&
   Requests() const;
   GURL GetRequestingOrigin() const;
   content::WebContents* web_contents() const { return web_contents_; }
@@ -112,7 +113,7 @@ class PermissionPromptAndroid : public PermissionPrompt {
 
   // Check if grouped permission requests can only be Mic+Camera, Camera+Mic.
   void CheckValidRequestGroup(
-      const std::vector<base::WeakPtr<PermissionRequest>>& requests) const;
+      const std::vector<base::SafeRef<PermissionRequest>>& requests) const;
 
  private:
   // PermissionPromptAndroid is owned by PermissionRequestManager, so it should
@@ -123,7 +124,7 @@ class PermissionPromptAndroid : public PermissionPrompt {
   // |delegate_| is the PermissionRequestManager, which owns this object.
   const raw_ptr<Delegate> delegate_;
 
-  std::vector<base::WeakPtr<PermissionRequest>> requests_;
+  std::vector<base::SafeRef<PermissionRequest>> requests_;
 
   // Owns a `PermissionDialogDelegate` object.
   std::unique_ptr<PermissionDialogDelegate> permission_dialog_delegate_;

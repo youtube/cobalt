@@ -80,6 +80,9 @@ bool SQLitePersistentStoreBackendBase::InitializeDatabase() {
   TRACE_EVENT("net",
               "SQLitePersistentCookieStoreBackendBase::InitializeDatabase");
   DCHECK(background_task_runner_->RunsTasksInCurrentSequence());
+  if (closed_) {
+    return false;
+  }
 
   if (initialized_ || corruption_detected_) {
     // Return false if we were previously initialized but the DB has since been
@@ -236,6 +239,7 @@ void SQLitePersistentStoreBackendBase::DoCloseInBackground() {
 
   meta_table_.Reset();
   db_.reset();
+  closed_ = true;
 }
 
 void SQLitePersistentStoreBackendBase::DatabaseErrorCallback(

@@ -9,7 +9,6 @@
 #include <string>
 #include <string_view>
 
-#include "base/i18n/break_iterator.h"
 #include "base/i18n/char_iterator.h"
 #include "base/strings/string_util.h"
 #include "ui/gfx/selection_model.h"

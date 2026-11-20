@@ -245,6 +245,7 @@ void WebSocketClient::OnConnectionEstablished(
   websocket_->StartReceiving();
 
   state_ = State::kOpen;
+  connection_open_time_ = base::TimeTicks::Now();
 
   while (!pending_write_data_.empty()) {
     InternalWrite(pending_write_data_.front());
@@ -301,6 +302,12 @@ void WebSocketClient::OnDropChannel(bool was_clean,
                                              ", reason:", reason, ")"}));
 
   base::UmaHistogramSparse("PrivateAi.Client.WebSocketCloseCode", code);
+
+  if (state_ == State::kOpen) {
+    base::UmaHistogramLongTimes(
+        "PrivateAi.Client.WebSocketSessionDuration.ClosedByServer",
+        base::TimeTicks::Now() - connection_open_time_);
+  }
 
   // If there is a reason, it indicates an error from the server.
   if (!reason.empty()) {

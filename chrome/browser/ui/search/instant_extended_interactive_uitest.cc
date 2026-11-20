@@ -47,12 +47,15 @@ class InstantExtendedTest : public InProcessBrowserTest,
   }
 
   OmniboxView* omnibox() {
-    return browser()->window()->GetLocationBar()->GetOmniboxView();
+    return BrowserWindow::FromBrowser(browser())
+        ->GetLocationBar()
+        ->GetOmniboxView();
   }
 
   void FocusOmnibox() {
     // If the omnibox already has focus, just notify OmniboxTabHelper.
-    LocationBar* location_bar = browser()->window()->GetLocationBar();
+    LocationBar* location_bar =
+        BrowserWindow::FromBrowser(browser())->GetLocationBar();
     if (location_bar->GetOmniboxController()->edit_model()->has_focus()) {
       content::WebContents* active_tab =
           browser()->tab_strip_model()->GetActiveWebContents();
@@ -73,8 +76,7 @@ class InstantExtendedTest : public InProcessBrowserTest,
   void PressEnterAndWaitForLoadStop() {
     content::TestNavigationObserver observer(
         browser()->tab_strip_model()->GetActiveWebContents());
-    browser()
-        ->window()
+    BrowserWindow::FromBrowser(browser())
         ->GetLocationBar()
         ->GetOmniboxController()
         ->edit_model()

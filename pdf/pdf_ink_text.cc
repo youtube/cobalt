@@ -15,6 +15,11 @@
 namespace chrome_pdf {
 namespace {
 
+struct ExtraGlyphInfo {
+  float offset;
+  uint32_t character_index;
+};
+
 // Makes a substring of `input` containing the characters in [start, end) with
 // the `location` rectangle cut so that the returned `location` covers only the
 // glyphs in the range.
@@ -23,6 +28,7 @@ namespace {
 // would need to be split on the y-axis instead of the x-axis.
 InkTextInfo MakeSubstrTextInfo(const InkTextInfo& input,
                                float y_offset,
+                               std::u16string substr,
                                size_t start,
                                size_t end) {
   CHECK_LT(start, input.glyphs.size());
@@ -46,7 +52,9 @@ InkTextInfo MakeSubstrTextInfo(const InkTextInfo& input,
                       /*width=*/right - left,
                       /*height=*/input.location.height());
   return InkTextInfo(input.font_id, std::move(glyphs),
-                     std::move(glyph_positions), location, input.is_horizontal);
+                     std::move(glyph_positions), location, input.is_horizontal,
+                     input.is_synthetic_bold, input.is_synthetic_italic,
+                     std::move(substr));
 }
 
 // Because PDF text objects only support 1D glyph positioning, it is necessary
@@ -54,31 +62,54 @@ InkTextInfo MakeSubstrTextInfo(const InkTextInfo& input,
 // PDF text object contains text all on the same y-axis position.
 //
 // So, take in an `input` InkTextInfo, which represents a run of text all on one
-// line with the same typeface, plus the y-axis `offsets` for each glyph in
-// that run. Then split the `input` into multiple InkTextInfo objects based on
-// the y-axis position and apply the relevant `location` rectangle adjustments
-// to incorporate the y-axis offsets.
+// line with the same typeface, plus the y-axis offsets in `glyph_info.offset`
+// for each glyph in that run. Then split the `input` into multiple InkTextInfo
+// objects based on the y-axis position and apply the relevant `location`
+// rectangle adjustments to incorporate the y-axis offsets.
 //
-// It's not necessary to call this if `offsets` is all zero, it will just push a
-// copy of `input` in that case.
+// Additionally handle taking a substring of the `input.text` using the glyph
+// character_index data in `glyph_info`.
 //
-// TODO(crbug.com/510015130): check `is_horizontal`: if false `offsets` would be
-// interpreted as x-axis offsets instead of y-axis. The documentation above
-// needs to be updated too because the axes will flip.
-std::vector<InkTextInfo> Split2DOffsets(const InkTextInfo& input,
-                                        const std::vector<float>& offsets) {
-  CHECK(!offsets.empty());
-  CHECK_EQ(offsets.size(), input.glyphs.size());
-  CHECK_EQ(offsets.size(), input.glyph_positions.size());
+// It's not necessary to call this if `glyph_info.offsets` is all zero, it will
+// just push a copy of `input` in that case.
+//
+// TODO(crbug.com/510015130): check `is_horizontal`: if false
+// `glyph_info.offsets` would be interpreted as x-axis offsets instead of
+// y-axis. The documentation above needs to be updated too because the axes will
+// flip.
+// TODO(crbug.com/507508097): This function can sometimes split strings smaller
+// than Harfbuzz glyph clusters and this leaves InkTextInfo objects with an
+// empty string which inserts /ActualText <FEFF> spans in the PDF. Ideally the
+// correct behavior should be to group multiple InkTextInfo objects into a
+// single Span mark so that the smallest ActualText string is a single complete
+// Harfbuzz glyph cluster.
+// TODO(crbug.com/507508097): Correctly handle RTL text.
+std::vector<InkTextInfo> Split2DOffsets(
+    const InkTextInfo& input,
+    const std::vector<ExtraGlyphInfo>& glyph_info) {
+  CHECK(!glyph_info.empty());
+  CHECK_EQ(glyph_info.size(), input.glyphs.size());
+  CHECK_EQ(glyph_info.size(), input.glyph_positions.size());
+
+  const bool is_rtl =
+      glyph_info.back().character_index < glyph_info.front().character_index;
 
   std::vector<InkTextInfo> results;
   size_t run_start = 0;
-  for (size_t i = 1; i <= offsets.size(); ++i) {
-    bool is_boundary = i == offsets.size() || offsets[i - 1] != offsets[i];
+  for (size_t i = 1; i <= glyph_info.size(); ++i) {
+    bool is_boundary = i == glyph_info.size() ||
+                       glyph_info[i - 1].offset != glyph_info[i].offset;
     if (!is_boundary) {
       continue;
     }
-    results.push_back(MakeSubstrTextInfo(input, offsets[i - 1], run_start, i));
+    uint32_t start_char = glyph_info[run_start].character_index;
+    size_t end_char = i == glyph_info.size() ? input.text.size()
+                                             : glyph_info[i].character_index;
+    size_t num_chars = end_char - start_char;
+    results.push_back(MakeSubstrTextInfo(
+        input, glyph_info[i - 1].offset,
+        !is_rtl ? input.text.substr(start_char, num_chars) : u"", run_start,
+        i));
     run_start = i;
   }
   return results;
@@ -171,12 +202,32 @@ InkTextInfo::InkTextInfo(FontId font_id,
                          std::vector<uint32_t> glyphs,
                          std::vector<float> glyph_positions,
                          gfx::RectF location,
-                         bool is_horizontal)
+                         bool is_horizontal,
+                         std::u16string text)
+    : InkTextInfo(font_id,
+                  std::move(glyphs),
+                  std::move(glyph_positions),
+                  location,
+                  is_horizontal,
+                  /*is_synthetic_bold=*/false,
+                  /*is_synthetic_italic=*/false,
+                  std::move(text)) {}
+InkTextInfo::InkTextInfo(FontId font_id,
+                         std::vector<uint32_t> glyphs,
+                         std::vector<float> glyph_positions,
+                         gfx::RectF location,
+                         bool is_horizontal,
+                         bool is_synthetic_bold,
+                         bool is_synthetic_italic,
+                         std::u16string text)
     : font_id(font_id),
-      glyphs(glyphs),
-      glyph_positions(glyph_positions),
+      glyphs(std::move(glyphs)),
+      glyph_positions(std::move(glyph_positions)),
       location(location),
-      is_horizontal(is_horizontal) {}
+      is_horizontal(is_horizontal),
+      is_synthetic_bold(is_synthetic_bold),
+      is_synthetic_italic(is_synthetic_italic),
+      text(std::move(text)) {}
 InkTextInfo::InkTextInfo(InkTextInfo&&) noexcept = default;
 InkTextInfo& InkTextInfo::operator=(InkTextInfo&&) noexcept = default;
 InkTextInfo::~InkTextInfo() = default;
@@ -188,17 +239,33 @@ std::vector<InkTextInfo> InkTextInfo::SplitTypefaceRuns(
   for (const pdf::mojom::InkTextRunPtr& text_run : text_runs) {
     float left_edge = text_run->location.x();
     float prev_right_edge_advance = 0;
-    for (size_t i = 0; i < text_run->typeface_runs.size(); ++i) {
-      const pdf::mojom::InkTypefaceRunPtr& typeface_run =
-          text_run->typeface_runs[i];
+    const std::vector<pdf::mojom::InkTypefaceRunPtr>& typeface_runs =
+        text_run->typeface_runs;
+    for (size_t i = 0; i < typeface_runs.size(); ++i) {
+      const pdf::mojom::InkTypefaceRunPtr& typeface_run = typeface_runs[i];
+      CHECK(!typeface_run->glyphs.empty());
       // TODO(crbug.com/510015130): handle vertical text.
       CHECK(typeface_run->is_horizontal);
 
+      // TODO(crbug.com/507508097): Correctly handle RTL text. The most
+      // immediate problem is that in RTL text the glyphs have been reversed in
+      // order by Blink so while `total_advance` is ascending `character_index`
+      // will be descending. Also PDFium will reverse the string in ActualText
+      // if it heuristically determines that the text is RTL. All of that is
+      // possible to handle correctly. The real problem is handling that with 2D
+      // glyph positioning at the same time. If the entire string is wrapped in
+      // a reverse ActualText it copies correctly but the highlight rect is the
+      // size of a single character. Reversing the order of the glyphs in the
+      // PDF stream and wrapping each individually with ActualText ends up not
+      // getting the right string and the 2D offsets end up inserting spaces and
+      // newlines in between the glyphs.
+      const bool is_rtl = typeface_run->glyphs.back()->character_index <
+                          typeface_run->glyphs.front()->character_index;
+
+      const bool has_next_run = i + 1 < typeface_runs.size();
       const float right_edge_advance =
-          i + 1 < text_run->typeface_runs.size() &&
-                  !text_run->typeface_runs[i + 1]->glyphs.empty()
-              ? text_run->typeface_runs[i + 1]->glyphs.front()->total_advance
-              : text_run->location.width();
+          has_next_run ? typeface_runs[i + 1]->glyphs.front()->total_advance
+                       : text_run->location.width();
       const float right_edge = right_edge_advance + text_run->location.x();
       gfx::RectF run_location(left_edge, text_run->location.y(),
                               right_edge - left_edge,
@@ -209,12 +276,18 @@ std::vector<InkTextInfo> InkTextInfo::SplitTypefaceRuns(
       std::vector<uint32_t> glyphs;
       // This is the total_advance + writing direction axis offsets
       std::vector<float> glyph_positions;
-      // This is the offsets for the non-writing direction axis.
-      std::vector<float> glyph_offsets;
+      // This is the offsets for the non-writing direction axis (plus the
+      // harfbuzz character index for the glyph)
+      std::vector<ExtraGlyphInfo> extra_glyph_info;
       const size_t num_glyphs = typeface_run->glyphs.size();
       glyphs.reserve(num_glyphs);
       glyph_positions.reserve(num_glyphs);
-      glyph_offsets.reserve(num_glyphs);
+      extra_glyph_info.reserve(num_glyphs);
+      const uint32_t first_index =
+          typeface_run->glyphs.front()->character_index;
+      const uint32_t last_index =
+          has_next_run ? typeface_runs[i + 1]->glyphs.front()->character_index
+                       : text_run->text.size();
       for (const pdf::mojom::InkGlyphInfoPtr& glyph_info :
            typeface_run->glyphs) {
         gfx::Vector2dF position(glyph_info->offset.x() +
@@ -224,27 +297,31 @@ std::vector<InkTextInfo> InkTextInfo::SplitTypefaceRuns(
         position.Scale(1.0 / effective_zoom);
 
         glyph_positions.push_back(position.x());
-        glyph_offsets.push_back(position.y());
+        extra_glyph_info.emplace_back(
+            position.y(), glyph_info->character_index - first_index);
         glyphs.push_back(glyph_info->glyph);
       }
       prev_right_edge_advance = right_edge_advance;
 
       CHECK_EQ(glyphs.size(), glyph_positions.size());
-      if (glyphs.empty()) {
-        continue;
-      }
-      InkTextInfo output_info(FontId(typeface_run->typeface_id),
-                              std::move(glyphs), std::move(glyph_positions),
-                              run_location, typeface_run->is_horizontal);
+      InkTextInfo output_info(
+          FontId(typeface_run->typeface_id), std::move(glyphs),
+          std::move(glyph_positions), run_location,
+          /*is_horizontal=*/typeface_run->is_horizontal,
+          /*is_synthetic_bold=*/typeface_run->is_synthetic_bold,
+          /*is_synthetic_italic=*/typeface_run->is_synthetic_italic,
+          !is_rtl ? text_run->text.substr(first_index, last_index - first_index)
+                  : u"");
       MaybeCorrectNonZeroFirstOffset(output_info);
 
-      const bool all_zero =
-          std::ranges::all_of(glyph_offsets, [](float v) { return v == 0; });
+      const bool all_zero = std::ranges::all_of(
+          extra_glyph_info,
+          [](const ExtraGlyphInfo& v) { return v.offset == 0; });
       if (all_zero) {
         results.push_back(std::move(output_info));
       } else {
         std::vector<InkTextInfo> split_infos =
-            Split2DOffsets(output_info, glyph_offsets);
+            Split2DOffsets(output_info, extra_glyph_info);
         results.insert(results.end(),
                        std::make_move_iterator(split_infos.begin()),
                        std::make_move_iterator(split_infos.end()));

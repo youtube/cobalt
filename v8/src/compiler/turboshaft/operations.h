@@ -242,7 +242,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(CheckHomomorphic)                           \
   V(CheckMaps)                                  \
   V(CompareMaps)                                \
-  V(Float64Is)                                  \
+  V(FloatIs)                                    \
   V(ObjectIs)                                   \
   V(ObjectIsNumericValue)                       \
   V(Float64SameValue)                           \
@@ -4163,14 +4163,27 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
 
 #if V8_ENABLE_WEBASSEMBLY
 
-struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
+// Supports fine-grained optional inputs/outputs.
+// If input_count > 0:
+// - input(0) is always trusted_instance_data
+// - input(1) is memory_start if has_memory_start
+// - input(1 + has_memory_start) is memory_size if has_memory_size
+struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
   using Kind = JSStackCheckOp::Kind;
   Kind kind;
+  bool has_memory_start;
+  bool has_memory_size;
 
   OpEffects Effects() const {
     switch (kind) {
       case Kind::kLoop:
-        return OpEffects().RequiredWhenUnused().CanReadMemory().CanAllocate();
+        // A loop stack check can have arbitrary side effects via debugger
+        // interrupt requests; in particular it can trigger memory growth.
+        return OpEffects()
+            .RequiredWhenUnused()
+            .CanReadMemory()
+            .CanWriteHeapMemory()
+            .CanAllocate();
       case Kind::kFunctionEntry:
         // For function entry stack checks, we could model their side effects
         // somewhat more accurately, but it probably doesn't matter.
@@ -4181,16 +4194,101 @@ struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
     UNREACHABLE();
   }
 
-  explicit WasmStackCheckOp(Kind kind) : Base(), kind(kind) {}
+  OptionalV<WasmTrustedInstanceData> trusted_instance_data() const {
+    return input_count > 0 ? input<WasmTrustedInstanceData>(0)
+                           : V<WasmTrustedInstanceData>::Invalid();
+  }
+  OptionalV<WordPtr> memory_start() const {
+    if (!has_memory_start) return V<WordPtr>::Invalid();
+    return input<WordPtr>(1);
+  }
+  OptionalV<WordPtr> memory_size() const {
+    if (!has_memory_size) return V<WordPtr>::Invalid();
+    return input<WordPtr>(1 + has_memory_start);
+  }
 
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+  WasmStackCheckOp(OptionalV<WasmTrustedInstanceData> trusted_instance_data,
+                   OptionalV<WordPtr> memory_start,
+                   OptionalV<WordPtr> memory_size, Kind kind)
+      : Base(trusted_instance_data.valid()
+                 ? 1 + memory_start.valid() + memory_size.valid()
+                 : 0),
+        kind(kind),
+        has_memory_start(trusted_instance_data.valid() && memory_start.valid()),
+        has_memory_size(trusted_instance_data.valid() && memory_size.valid()) {
+    if (trusted_instance_data.valid()) {
+      input(0) = trusted_instance_data.value();
+      int next_idx = 1;
+      if (memory_start.valid()) {
+        input(next_idx++) = memory_start.value();
+      }
+      if (memory_size.valid()) {
+        input(next_idx++) = memory_size.value();
+      }
+    }
+  }
+
+  static WasmStackCheckOp& New(
+      Graph* graph, OptionalV<WasmTrustedInstanceData> trusted_instance_data,
+      OptionalV<WordPtr> memory_start, OptionalV<WordPtr> memory_size,
+      Kind kind) {
+    size_t input_count = trusted_instance_data.valid()
+                             ? 1 + memory_start.valid() + memory_size.valid()
+                             : 0;
+    return Base::New(graph, input_count, trusted_instance_data, memory_start,
+                     memory_size, kind);
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(trusted_instance_data()), mapper.Map(memory_start()),
+              mapper.Map(memory_size()), kind);
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    if (input_count == 0) {
+      return {};
+    }
+    if (has_memory_start && has_memory_size) {
+      return RepVector<RegisterRepresentation::WordPtr(),
+                       RegisterRepresentation::WordPtr()>();
+    }
+    return RepVector<RegisterRepresentation::WordPtr()>();
+  }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return {};
+    if (input_count == 0) {
+      return {};
+    }
+    storage.resize(input_count);
+    storage[0] = MaybeRegisterRepresentation::Tagged();
+    for (int i = 1; i < input_count; ++i) {
+      storage[i] = MaybeRegisterRepresentation::WordPtr();
+    }
+    return base::VectorOf(storage);
   }
 
-  auto options() const { return std::tuple{kind}; }
+  void Validate(const Graph& graph) const {
+    if (kind == Kind::kFunctionEntry) {
+      DCHECK_EQ(input_count, 0);
+      DCHECK(!trusted_instance_data().valid());
+      DCHECK(!memory_start().valid());
+      DCHECK(!memory_size().valid());
+    } else if (kind == Kind::kLoop) {
+      DCHECK_LE(input_count, 3);
+      if (input_count > 0) {
+        DCHECK(trusted_instance_data().valid());
+        DCHECK_EQ(input_count, 1 + has_memory_start + has_memory_size);
+      }
+    } else {
+      UNREACHABLE();
+    }
+  }
+
+  auto options() const {
+    return std::tuple{kind, has_memory_start, has_memory_size};
+  }
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -5182,10 +5280,12 @@ enum class NumericKind : uint8_t {
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, NumericKind kind);
 
-struct Float64IsOp : FixedArityOperationT<1, Float64IsOp> {
+struct FloatIsOp : FixedArityOperationT<1, FloatIsOp> {
   NumericKind kind;
+  FloatRepresentation rep;
 
-  Float64IsOp(V<Float64> input, NumericKind kind) : Base(input), kind(kind) {}
+  FloatIsOp(V<Float> input, NumericKind kind, FloatRepresentation rep)
+      : Base(input), kind(kind), rep(rep) {}
 
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -5194,12 +5294,12 @@ struct Float64IsOp : FixedArityOperationT<1, Float64IsOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
+    return InputsRepFactory::SingleRep(rep);
   }
 
-  V<Float64> input() const { return Base::input<Float64>(0); }
+  V<Float> input() const { return Base::input<Float>(0); }
 
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{kind, rep}; }
 };
 
 struct ObjectIsNumericValueOp
@@ -7830,7 +7930,7 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 // This is a helper operation to propagate type information from the graph
 // builder to type-based optimizations and will then be removed.
 struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
-  static constexpr OpEffects effects = OpEffects();
+  static constexpr OpEffects effects = OpEffects().CanDependOnChecks();
   wasm::ValueType type;
 
   explicit WasmTypeAnnotationOp(V<Object> value, wasm::ValueType type)

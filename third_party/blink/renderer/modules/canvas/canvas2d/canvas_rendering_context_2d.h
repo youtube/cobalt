@@ -161,12 +161,15 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   // CanvasHibernationHandler::Delegate implementation
   Canvas2DResourceProviderSharedImage* GetSharedImageProvider() const override;
+  Canvas2DResourceProviderBitmap* GetBitmapProviderForTesting() const {
+    return bitmap_provider_.get();
+  }
   bool HasResourceProvider() const override;
   bool IsContextLost() const override { return isContextLost(); }
   bool IsPageVisible() const override {
     return canvas() && canvas()->IsPageVisible();
   }
-  void ResetResourceProvider() override { ReplaceResourceProvider(nullptr); }
+  void ResetResourceProvider() override;
   void SetNeedsCompositingUpdate() override {
     if (canvas()) {
       canvas()->SetNeedsCompositingUpdate();
@@ -180,9 +183,12 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   // CanvasRenderingContext implementation
   bool IsComposited() const override;
+  bool Is2DCanvasAccelerated() const override;
   scoped_refptr<CanvasResource> PaintRenderingResultsToResource(
       SourceDrawingBuffer source_buffer,
       FlushReason reason) override;
+  scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
+      SourceDrawingBuffer source_buffer) override;
   const std::optional<cc::PaintRecord>& GetLastRecording() override;
 
   int Width() const final;
@@ -231,20 +237,24 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   void SendContextLostEventIfNeeded() override;
 
-  CanvasResourceProvider* GetOrCreateResourceProvider() override;
+  bool InitializeResourceProvider() override;
   void SetCanvas2DResourceProviderForTesting(
-      std::unique_ptr<CanvasResourceProvider> provider,
+      std::unique_ptr<Canvas2DResourceProviderSharedImage> provider,
       const gfx::Size& size);
+  void SetCanvas2DResourceProviderForTesting(
+      std::unique_ptr<Canvas2DResourceProviderBitmap> provider,
+      const gfx::Size& size);
+  void SetCanvas2DResourceProviderForTesting(std::nullptr_t,
+                                             const gfx::Size& size);
 
   // TODO(crbug.com/352263194): Migrate canvas_rendering_context_2d_test.cc
   // callsites and make this method private.
   CanvasHibernationHandler* GetHibernationHandler() const;
 
-  CanvasResourceProvider* GetResourceProviderForTesting() const {
-    return GetResourceProvider();
-  }
-
   void EnableAccelerationIfPossible() override;
+  base::ByteSize AllocatedBufferSize() const override;
+
+  bool IsResourceProviderValid() const;
 
  protected:
   HTMLCanvasElement* HostAsHTMLCanvasElement() const final;
@@ -269,8 +279,6 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   void ResetInternal() override;
 
-  CanvasResourceProvider* GetResourceProvider() const override;
-  CanvasResourceProvider* resource_provider() const;
   void Dispose() override;
 
   void CreateCanvasResourceProvider();
@@ -294,9 +302,6 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   cc::Layer* CcLayer() const override;
 
   void ColorSchemeMayHaveChanged() override;
-
-  std::unique_ptr<CanvasResourceProvider> ReplaceResourceProvider(
-      std::unique_ptr<CanvasResourceProvider>) override;
 
   // If the ResourceProvider currently exists, replaces it with a newly-created
   // CanvasResourceProvider.

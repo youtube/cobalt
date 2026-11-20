@@ -74,6 +74,7 @@ export class LocationBarElement extends CrLitElement {
       permissionDashboard: null,
     },
     contentSettingImageStates: [],
+    pageActionStates: [],
   };
 
   private trackedElementManager_: TrackedElementManager;

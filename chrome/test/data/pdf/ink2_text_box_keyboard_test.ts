@@ -4,18 +4,18 @@
 
 import 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
 
-import type {Ink2Manager, InkTextBoxElement} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
+import type {InkTextBoxElement, Viewport} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
 import {isMac} from 'chrome://resources/js/platform.js';
 import {keyDownOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {assertPositionAndSize, dragHandleWithKeyboard, getTestAnnotation, initializeBox, setupTextBoxTest, verifyFinishTextAnnotationMessage} from './ink2_text_box_test_utils.js';
+import {assertPositionAndSize, dragHandleWithKeyboard, getTestAnnotation, initializeBox, reactivateBox, setupTextBoxTest, verifyFinishTextAnnotationMessage} from './ink2_text_box_test_utils.js';
 import {getRequiredElement} from './test_util.js';
 
 async function setUpExistingAnnotation(
-    manager: Ink2Manager, textbox: InkTextBoxElement) {
+    textbox: InkTextBoxElement, viewport: Viewport) {
   // Initialize and commit a new annotation to make it "existing".
-  initializeBox(manager, 100, 100, 55, 10);
+  initializeBox(100, 100, 55, 10);
   await microtasksFinished();
   const testAnnotation =
       getTestAnnotation({locationX: 0, locationY: 7, height: 100, width: 100});
@@ -26,10 +26,9 @@ async function setUpExistingAnnotation(
   await microtasksFinished();
   chrome.test.assertTrue(textbox.hidden);
 
-  // Re-initialize the box as an existing annotation by simulating a click on
-  // it.
-  const clicked = await manager.initializeTextAnnotation({x: 105, y: 60});
-  chrome.test.assertTrue(clicked, 'Failed to click existing annotation');
+  // Re-initialize the box as an existing annotation by setting properties
+  // directly.
+  reactivateBox(textbox, viewport, testAnnotation);
   await microtasksFinished();
   chrome.test.assertFalse(textbox.hidden);
   chrome.test.assertTrue(isVisible(textbox));
@@ -40,9 +39,9 @@ async function setUpExistingAnnotation(
 
 chrome.test.runTests([
   async function testResizeWithKeyboard() {
-    const {manager, textbox} = await setupTextBoxTest();
+    const {textbox} = await setupTextBoxTest();
     // Initialize to a 100x200 box at 400, 300.
-    initializeBox(manager, 100, 200, 400, 300);
+    initializeBox(100, 200, 400, 300);
     await microtasksFinished();
     chrome.test.assertFalse(textbox.hidden);
     chrome.test.assertTrue(isVisible(textbox));
@@ -115,7 +114,7 @@ chrome.test.runTests([
 
     // Reset the box to 300x400 at 400, 300 to test proportional resize
     // clamping.
-    initializeBox(manager, 300, 400, 400, 300);
+    initializeBox(300, 400, 400, 300);
     await microtasksFinished();
     assertPositionAndSize(textbox, '324px', '420px', '383px', '285px');
 
@@ -132,9 +131,9 @@ chrome.test.runTests([
   },
 
   async function testMoveWithKeyboard() {
-    const {manager, textbox} = await setupTextBoxTest();
+    const {textbox} = await setupTextBoxTest();
     // Initialize to a 100x100 box at 400, 300.
-    initializeBox(manager, 100, 100, 400, 300);
+    initializeBox(100, 100, 400, 300);
     await microtasksFinished();
     assertPositionAndSize(textbox, '124px', '120px', '383px', '285px');
     await dragHandleWithKeyboard(textbox, 'ArrowUp', 5);
@@ -156,12 +155,12 @@ chrome.test.runTests([
   },
 
   async function testEscape() {
-    const {manager, mockPlugin, textbox, viewport} = await setupTextBoxTest();
+    const {mockPlugin, textbox, viewport} = await setupTextBoxTest();
     viewport.setZoom(1.0);
 
     // Initialize to a 100x100 box at 55, 10. Place the box in the top corner
     // of the page, so that the viewport won't scroll when it is focused.
-    initializeBox(manager, 100, 100, 55, 10);
+    initializeBox(100, 100, 55, 10);
     // Wait for focus to happen so that we can correctly test focus changes
     // later.
     await eventToPromise('textbox-focused-for-test', textbox);
@@ -202,12 +201,12 @@ chrome.test.runTests([
   },
 
   async function testEscapeWhileDragging() {
-    const {manager, mockPlugin, textbox, viewport} = await setupTextBoxTest();
+    const {mockPlugin, textbox, viewport} = await setupTextBoxTest();
     viewport.setZoom(1.0);
 
     // If the user is dragging, escape commits the annotation at the start
     // location and hides the box.
-    initializeBox(manager, 100, 100, 55, 10);
+    initializeBox(100, 100, 55, 10);
     await microtasksFinished();
     chrome.test.assertTrue(isVisible(textbox));
     mockPlugin.clearMessages();
@@ -234,11 +233,11 @@ chrome.test.runTests([
   },
 
   async function testEscapeWithoutModifications() {
-    const {manager, mockPlugin, textbox} = await setupTextBoxTest();
+    const {mockPlugin, textbox} = await setupTextBoxTest();
     // Escape without any modification hides the box but doesn't send a message.
     // This should also work when the Escape key is on some other element in the
     // document, and not on the textbox itself.
-    initializeBox(manager, 100, 100, 55, 10);
+    initializeBox(100, 100, 55, 10);
     await microtasksFinished();
     chrome.test.assertTrue(isVisible(textbox));
     mockPlugin.clearMessages();
@@ -253,8 +252,8 @@ chrome.test.runTests([
   },
 
   async function testDeleteWithBackspaceKey() {
-    const {manager, mockPlugin, textbox} = await setupTextBoxTest();
-    const testAnnotation = await setUpExistingAnnotation(manager, textbox);
+    const {mockPlugin, textbox, viewport} = await setupTextBoxTest();
+    const testAnnotation = await setUpExistingAnnotation(textbox, viewport);
 
     mockPlugin.clearMessages();
     keyDownOn(textbox, 0, [], 'Backspace');
@@ -269,8 +268,8 @@ chrome.test.runTests([
   },
 
   async function testDeleteWithDeleteKey() {
-    const {manager, mockPlugin, textbox} = await setupTextBoxTest();
-    const testAnnotation = await setUpExistingAnnotation(manager, textbox);
+    const {mockPlugin, textbox, viewport} = await setupTextBoxTest();
+    const testAnnotation = await setUpExistingAnnotation(textbox, viewport);
 
     mockPlugin.clearMessages();
     keyDownOn(textbox, 0, [], 'Delete');
@@ -281,6 +280,54 @@ chrome.test.runTests([
     testAnnotation.text = '';
     verifyFinishTextAnnotationMessage(mockPlugin, testAnnotation, true);
 
+    chrome.test.succeed();
+  },
+
+  async function testArrowKeysPropagation() {
+    const {textbox} = await setupTextBoxTest();
+
+    // Initialize to a 100x100 box at 400, 300.
+    initializeBox(100, 100, 400, 300);
+    await microtasksFinished();
+
+    let keydownEvents: KeyboardEvent[] = [];
+    const listener = (e: KeyboardEvent) => {
+      keydownEvents.push(e);
+    };
+    window.addEventListener('keydown', listener);
+
+    // Case 1: Focused on the outer textbox (moving).
+    // Arrow keys should not propagate.
+    for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+      keydownEvents = [];
+      keyDownOn(textbox, 0, [], key);
+      await microtasksFinished();
+      chrome.test.assertEq(
+          0, keydownEvents.length,
+          `Key ${key} on textbox should not propagate`);
+    }
+
+    // Case 2: After Esc (committed and inactive).
+    // Arrow keys should propagate.
+    keyDownOn(textbox.$.textbox, 0, [], 'Escape');
+    await microtasksFinished();
+    // Escape on the outer box commits it.
+    keyDownOn(textbox, 0, [], 'Escape');
+    await microtasksFinished();
+    chrome.test.assertTrue(textbox.hidden);
+    chrome.test.assertFalse(isVisible(textbox));
+
+    // Now send arrows to document.body. They should propagate to window.
+    for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+      keydownEvents = [];
+      keyDownOn(document.body, 0, [], key);
+      await microtasksFinished();
+      chrome.test.assertEq(
+          1, keydownEvents.length, `Key ${key} after commit should propagate`);
+      chrome.test.assertEq(key, keydownEvents[0]!.key);
+    }
+
+    window.removeEventListener('keydown', listener);
     chrome.test.succeed();
   },
 ]);

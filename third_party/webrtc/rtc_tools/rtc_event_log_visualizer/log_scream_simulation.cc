@@ -205,6 +205,7 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
       .pacing_rate = scream_->pacing_rate(),
       .send_rate =
           send_rate_tracker_.Rate(msg.feedback_time).value_or(DataRate::Zero()),
+      .received_rate = scream_->received_rate(),
       .ref_window = scream_->ref_window(),
       .ref_window_i = scream_->ref_window_i(),
       .max_allowed_ref_window = scream_->max_allowed_ref_window(),

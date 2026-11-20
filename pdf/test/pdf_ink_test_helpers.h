@@ -115,6 +115,25 @@ MATCHER_P10(InkTextBoxAttributesEq,
          arg.text == text;
 }
 
+bool InkTextInfoEquals(const InkTextInfo& lhs, const InkTextInfo& rhs);
+
+MATCHER_P6(InkTextInfoWithTextEq,
+           font_id,
+           glyphs,
+           glyph_positions,
+           location,
+           is_horizontal,
+           text,
+           testing::PrintToString(InkTextInfo(font_id,
+                                              glyphs,
+                                              glyph_positions,
+                                              location,
+                                              is_horizontal,
+                                              text))) {
+  return InkTextInfoEquals(arg, InkTextInfo(font_id, glyphs, glyph_positions,
+                                            location, is_horizontal, text));
+}
+
 MATCHER_P5(InkTextInfoEq,
            font_id,
            glyphs,
@@ -125,10 +144,10 @@ MATCHER_P5(InkTextInfoEq,
                                               glyphs,
                                               glyph_positions,
                                               location,
-                                              is_horizontal))) {
-  return arg.font_id == font_id && arg.glyphs == glyphs &&
-         arg.glyph_positions == glyph_positions && arg.location == location &&
-         arg.is_horizontal == is_horizontal;
+                                              is_horizontal,
+                                              u""))) {
+  return InkTextInfoEquals(arg, InkTextInfo(font_id, glyphs, glyph_positions,
+                                            location, is_horizontal, u""));
 }
 
 void PrintTo(const InkTextInfo& info, std::ostream* os);

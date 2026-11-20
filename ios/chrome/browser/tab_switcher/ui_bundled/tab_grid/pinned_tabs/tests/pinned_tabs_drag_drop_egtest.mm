@@ -61,8 +61,8 @@ id<GREYMatcher> PinnedView() {
 XCUIElement* GetElementMatchingIdentifier(XCUIApplication* app,
                                           NSString* identifier,
                                           XCUIElementType type) {
-  XCUIElementQuery* query = [[app.windows.firstMatch
-      descendantsMatchingType:type] matchingIdentifier:identifier];
+  XCUIElementQuery* query = [[app.windows[@"0"] descendantsMatchingType:type]
+      matchingIdentifier:identifier];
   return [query elementBoundByIndex:0];
 }
 
@@ -76,8 +76,8 @@ XCUIElement* GetElementMatchingLabel(XCUIApplication* app,
         return [item.label isEqualToString:label];
       }];
 
-  XCUIElementQuery* query = [[app.windows.firstMatch
-      descendantsMatchingType:type] matchingPredicate:predicate];
+  XCUIElementQuery* query = [[app.windows[@"0"] descendantsMatchingType:type]
+      matchingPredicate:predicate];
   return [query elementBoundByIndex:0];
 }
 

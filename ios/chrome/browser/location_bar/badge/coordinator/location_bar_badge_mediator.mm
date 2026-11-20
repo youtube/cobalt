@@ -334,10 +334,6 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
   switch (badgeConfig.badgeType) {
     case LocationBarBadgeType::kGeminiContextualCueChip: {
       NSString* prompt = nil;
-      if (IsAskGeminiChipPrepopulateFloatyEnabled()) {
-        prompt = l10n_util::GetNSString(IDS_IOS_ASK_GEMINI_CHIP_PREFILL_PROMPT);
-      }
-
       GeminiStartupState* state = [[GeminiStartupState alloc]
           initWithEntryPoint:gemini::EntryPoint::OmniboxChip];
       state.prepopulatedPrompt = prompt;
@@ -396,7 +392,7 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
 // in-memory tracking states without side effects.
 - (void)ensureFETFeatureIsDismissed {
   if (_isFETPromoShowing) {
-    if (!IsAskGeminiChipIgnoreCriteria()) {
+    if (!IsAskGeminiChipIgnoreCriteriaEnabled()) {
       _tracker->Dismissed(feature_engagement::kIPHiOSGeminiContextualCueChip);
     }
     _isFETPromoShowing = NO;
@@ -700,9 +696,7 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
   BOOL isPageEligible =
       tabHelper && tabHelper->IsGeminiAvailableForWebState() &&
       _geminiService && _geminiService->IsProfileEligibleForGemini();
-  // TODO(crbug.com/465766925): Remove when feature is enabled by default.
-  BOOL isConsentEligible = IsAskGeminiChipAllowNonconsentedUsersEnabled() ||
-                           _prefService->GetBoolean(prefs::kIOSBwgConsent);
+  BOOL isConsentEligible = _prefService->GetBoolean(prefs::kIOSBwgConsent);
 
   // Checks if an eligible amount of time has passed since the last chip
   // display.
@@ -718,7 +712,7 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
     return NO;
   }
 
-  if (IsAskGeminiChipIgnoreCriteria()) {
+  if (IsAskGeminiChipIgnoreCriteriaEnabled()) {
     return YES;
   }
 

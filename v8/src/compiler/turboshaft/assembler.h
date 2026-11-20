@@ -66,6 +66,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
 #include "src/objects/turbofan-types.h"
+#include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -1220,8 +1221,8 @@ class GraphEmitter : public Next {
     }
 #ifdef DEBUG
     if (v8_flags.turboshaft_trace_intermediate_reductions) {
-      std::cout << std::setw(Asm().intermediate_tracing_depth()) << ' ' << "["
-                << ReducerName() << "]: emitted " << op << "\n";
+      StdoutStream{} << std::setw(Asm().intermediate_tracing_depth()) << ' '
+                     << "[" << ReducerName() << "]: emitted " << op << "\n";
     }
     op_to_block_[result] = Asm().current_block();
     DCHECK(ValidInputs(result));
@@ -2129,8 +2130,9 @@ class AssemblerOpInterface : public Next {
   DECL_TAGGED_BITCAST(WordPtr, HeapObject, kHeapObject)
   DECL_TAGGED_BITCAST(HeapObject, WordPtr, kHeapObject)
 #undef DECL_TAGGED_BITCAST
-  V<Object> BitcastWordPtrToTagged(ConstOrV<WordPtr> input) {
-    return TaggedBitcast(resolve(input), V<WordPtr>::rep, V<Object>::rep,
+  template <typename T = Object>
+  V<T> BitcastWordPtrToTagged(ConstOrV<WordPtr> input) {
+    return TaggedBitcast(resolve(input), V<WordPtr>::rep, V<T>::rep,
                          TaggedBitcastOp::Kind::kAny);
   }
 
@@ -2180,9 +2182,22 @@ class AssemblerOpInterface : public Next {
                     ObjectIsOp::InputAssumptions::kHeapObject);
   }
 
-  V<Word32> Float64Is(V<Float64> input, NumericKind kind) {
-    return ReduceIfReachableFloat64Is(input, kind);
+  V<Word32> FloatIs(V<Float> input, NumericKind kind, FloatRepresentation rep) {
+    return ReduceIfReachableFloatIs(input, kind, rep);
   }
+
+  V<Word32> Float32IsFinite(V<Float32> input) {
+    return FloatIs(input, NumericKind::kFinite, FloatRepresentation::Float32());
+  }
+
+  V<Word32> Float64Is(V<Float64> input, NumericKind kind) {
+    return FloatIs(input, kind, FloatRepresentation::Float64());
+  }
+
+  V<Word32> Float64IsFinite(V<Float64> input) {
+    return Float64Is(input, NumericKind::kFinite);
+  }
+
   V<Word32> Float64IsNaN(V<Float64> input) {
     return Float64Is(input, NumericKind::kNaN);
   }
@@ -3463,8 +3478,20 @@ class AssemblerOpInterface : public Next {
 #endif
 
 #if V8_ENABLE_WEBASSEMBLY
-  void WasmStackCheck(WasmStackCheckOp::Kind kind) {
-    ReduceIfReachableWasmStackCheck(kind);
+  // {trusted_instance_data} must be provided when at least one of
+  // {memory_start} or {memory_size} are provided.
+  // Returns V<None> when no input values are provided.
+  // Returns a V<WordPtr> when *either* {memory_start} or {memory_size} is
+  // provided; the return value is the potentially-updated value.
+  // Returns a V<Tuple<WordPtr, WordPtr>> when *both* {memory_start} and
+  // {memory_size} are provided.
+  V<Any> WasmStackCheck(
+      WasmStackCheckOp::Kind kind,
+      OptionalV<WasmTrustedInstanceData> trusted_instance_data = {},
+      OptionalV<WordPtr> memory_start = {},
+      OptionalV<WordPtr> memory_size = {}) {
+    return ReduceIfReachableWasmStackCheck(trusted_instance_data, memory_start,
+                                           memory_size, kind);
   }
 
   void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,

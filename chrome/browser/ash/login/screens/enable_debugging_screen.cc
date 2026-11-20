@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/login/screens/enable_debugging_screen.h"
 
 #include "ash/constants/ash_login_pref_names.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "base/check_op.h"
@@ -13,7 +14,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/ash/login/login_web_dialog.h"
-#include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
 #include "chromeos/dbus/power/power_manager_client.h"

@@ -9,7 +9,9 @@
 namespace network {
 
 SelfDeletingURLLoaderFactory::SelfDeletingURLLoaderFactory(
-    mojo::PendingReceiver<mojom::URLLoaderFactory> factory_receiver) {
+    mojo::PendingReceiver<mojom::URLLoaderFactory> factory_receiver,
+    base::SelfDeletingPassKey key)
+    : base::SelfDeleting(key) {
   receivers_.set_disconnect_handler(base::BindRepeating(
       &SelfDeletingURLLoaderFactory::OnDisconnect, base::Unretained(this)));
   receivers_.Add(this, std::move(factory_receiver));

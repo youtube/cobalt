@@ -568,6 +568,9 @@ if (use_litert_tflite) {
   }
 
   static_library("tflite_builtin_op_resolver_internals") {
+    _configs = configs
+    configs = []
+    configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
     sources = [
       "src/tflite/kernels/internal/mfcc.cc",
       "src/tflite/kernels/internal/mfcc_dct.cc",
@@ -685,6 +688,10 @@ if (use_litert_tflite) {
   }
 
   source_set("tflite_public_headers") {
+    _configs = configs
+    configs = []
+    configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
+    public_configs = [ "//third_party/tflite:tflite_shim_config" ]
     public = [
       "//third_party/tflite/shims/tensorflow/lite/types/fp16.h",
       "src/tflite/acceleration/configuration/flatbuffer_to_proto.h",
@@ -734,6 +741,9 @@ if (use_litert_tflite) {
   }
 
   source_set("tflite_kernel_common_headers") {
+    _configs = configs
+    configs = []
+    configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
     public = [
       "src/tflite/core/kernels/register.h",
       "src/tflite/experimental/resource/resource_base.h",
@@ -780,6 +790,8 @@ if (use_litert_tflite) {
       ":tflite_public_headers",
       "//third_party/flatbuffers",
     ]
+    public_deps = []
+    public_deps_for_standalone = [ "//third_party/gemmlowp" ]
 
     conditional_deps = [ ":tflite_logging" ]
 
@@ -796,6 +808,9 @@ if (use_litert_tflite) {
   }
 
   source_set("tflite_kernel_internals") {
+    _configs = configs
+    configs = []
+    configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
     sources = [
       "src/tflite/kernels/internal/common.cc",
       "src/tflite/kernels/internal/common.h",
@@ -908,6 +923,7 @@ if (use_litert_tflite) {
     ]
 
     public_deps = [
+      "//third_party/gemmlowp",
       "//third_party/neon_2_sse",
       "//third_party/ruy",
     ]
@@ -919,7 +935,6 @@ if (use_litert_tflite) {
       "//third_party/farmhash",
       "//third_party/flatbuffers",
       "//third_party/fp16",
-      "//third_party/gemmlowp",
       "//third_party/tflite:fft2d_deps",
     ]
 
@@ -1137,6 +1152,9 @@ if (use_litert_tflite) {
   # libraries.
   if (build_with_chromium) {
     source_set("tflite_logging") {
+      _configs = configs
+      configs = []
+      configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
       sources = [ "//third_party/tflite/shims/minimal_logging_chromium.cc" ]
       deps = [
         ":tflite_public_headers",
@@ -1158,6 +1176,9 @@ if (use_litert_tflite) {
   # This target is used in conditional_deps in the ":tflite" target, which
   # requires both a "target" and companion "target_standalone" source set.
   source_set("tflite_logging_standalone") {
+    _configs = configs
+    configs = []
+    configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
     if (is_ios) {
       sources = [ "src/tflite/minimal_logging_ios.cc" ]
     } else if (is_android) {
@@ -1179,6 +1200,9 @@ if (use_litert_tflite) {
   }
 
   source_set("tflite_compiler_utils") {
+    _configs = configs
+    configs = []
+    configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
     sources = [
       "src/tflite/converter/core/api/flatbuffer_conversions.cc",
       "src/tflite/converter/core/api/flatbuffer_conversions.h",
@@ -1399,7 +1423,7 @@ if (use_litert_tflite) {
       "//third_party/flatbuffers",
       "//third_party/ruy",
     ]
-    deps = [ "//third_party/gemmlowp" ]
+    deps += [ "//third_party/gemmlowp" ]
     configs_to_remove = [ "//build/config/compiler:chromium_code" ]
     configs_to_add = [
       "//build/config/compiler:no_chromium_code",
@@ -1429,6 +1453,9 @@ if (use_litert_tflite) {
 
   if (build_with_chromium) {
     executable("litert_benchmark") {
+      _configs = configs
+      configs = []
+      configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
       sources = [
         "src/tflite/tools/benchmark/benchmark_main.cc",
         "src/tflite/tools/benchmark/benchmark_model.cc",

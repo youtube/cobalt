@@ -2048,6 +2048,10 @@ bool CSSSelectorParser::ConsumePseudo(CSSParserTokenStream& stream,
         return false;
       }
       if (RouteLocation* location = NavigationParser::ParseLocation(stream)) {
+        stream.ConsumeWhitespace();
+        if (!stream.AtEnd()) {
+          return false;
+        }
         selector.SetRouteLocation(location);
         output_.push_back(std::move(selector));
         return true;

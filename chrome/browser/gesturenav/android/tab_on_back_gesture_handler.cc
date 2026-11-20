@@ -81,7 +81,7 @@ void TabOnBackGestureHandler::OnBackProgressed(JNIEnv* env,
   }
 
   content::WebContents* web_contents = tab_android_->web_contents();
-  AssertHasWindowAndCompositor(web_contents);
+  CHECK(web_contents);
 
   // The OS can give us incorrect progress values.
   progress = std::clamp(progress, 0.f, 1.f);
@@ -101,7 +101,7 @@ void TabOnBackGestureHandler::OnBackCancelled(JNIEnv* env,
   is_in_progress_ = false;
 
   content::WebContents* web_contents = tab_android_->web_contents();
-  AssertHasWindowAndCompositor(web_contents);
+  CHECK(web_contents);
 
   web_contents->GetBackForwardTransitionAnimationManager()
       ->OnGestureCancelled();
@@ -116,7 +116,7 @@ void TabOnBackGestureHandler::OnBackInvoked(JNIEnv* env, bool is_gesture_mode) {
   is_in_progress_ = false;
 
   content::WebContents* web_contents = tab_android_->web_contents();
-  AssertHasWindowAndCompositor(web_contents);
+  CHECK(web_contents);
 
   web_contents->GetBackForwardTransitionAnimationManager()->OnGestureInvoked();
 }

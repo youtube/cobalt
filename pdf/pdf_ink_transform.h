@@ -15,7 +15,6 @@
 static_assert(BUILDFLAG(ENABLE_PDF_INK2), "ENABLE_PDF_INK2 not set to true");
 
 namespace gfx {
-class Size;
 class SizeF;
 class Vector2dF;
 }  // namespace gfx
@@ -111,17 +110,6 @@ ink::AffineTransform GetInkRenderTransform(
     PageOrientation orientation,
     const gfx::Rect& page_content_rect,
     const gfx::SizeF& page_size_in_points);
-
-// Returns the transform used when rendering a thumbnail on a canvas of
-// `canvas_size`, given the other parameters. Compared to
-// GetInkRenderTransform(), the transformation is simpler because there is no
-// origin offset, and the thumbnail canvas is never rotated. Note that the
-// thumbnail content may be rotated.
-ink::AffineTransform GetInkThumbnailTransform(
-    const gfx::Size& canvas_size,
-    PageOrientation orientation,
-    const gfx::Rect& page_content_rect,
-    float scale_factor);
 
 // Converts `ink::Envelope` to screen coordinates as needed for invalidation
 // using `transform`.

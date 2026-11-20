@@ -116,6 +116,11 @@ PdfNavigationThrottle::WillStartRequest() {
   params.is_renderer_initiated = false;
   params.is_pdf = true;
 
+  // Mark that the initiator policies should not be inherited by the content.
+  // Otherwise the PDF blob might inherit the security policies of the initiator
+  // of the navigation such as CSP.
+  params.should_ignore_initiator_policies_for_inheritance = true;
+
   // The parent frame should always exist after main frame navigations are
   // filtered out at the beginning of this method, and it has the expected
   // embedder URL based on the checks in

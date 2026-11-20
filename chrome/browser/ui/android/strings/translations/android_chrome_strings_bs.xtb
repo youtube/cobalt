@@ -117,6 +117,7 @@ Za više postavki koje koriste podatke radi poboljšanja iskustva u Chromeu idit
 <translation id="1435593198351412143">Automatski otvaraj PDF-ove</translation>
 <translation id="1437543266176261764">Pokrenuto u aplikaciji <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organizirajte praćene proizvode u Oznakama</translation>
+<translation id="1452651021404174820">Odaberite uređaj</translation>
 <translation id="1455845192930279203">Želite li ipak preuzeti fajl "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) sa <ph name="DOWNLOAD_DOMAIN" />?</translation>
 <translation id="1460751212339734034">Uštedite vrijeme, pišite manje</translation>
 <translation id="146522654774760805">Lozinke i automatsko popunjavanje</translation>
@@ -124,6 +125,7 @@ Za više postavki koje koriste podatke radi poboljšanja iskustva u Chromeu idit
 <translation id="1477626028522505441">Preuzimanje fajla <ph name="FILE_NAME" /> nije uspjelo zbog problema sa serverom.</translation>
 <translation id="147982357559798527">Promijenjeno</translation>
 <translation id="1480287803138246127">Određeni dio historije se možda neće prikazivati ovdje. Da vidite svu historiju Chromea, otvorite cijelu historiju Chromea.</translation>
+<translation id="1483493594462132177">Pošalji</translation>
 <translation id="1495677929897281669">Nazad na karticu</translation>
 <translation id="1496514951988037011">korisničko ime</translation>
 <translation id="1501480321619201731">Izbriši grupu</translation>
@@ -1273,6 +1275,7 @@ Naprimjer, neke web lokacije mogu reagirati na ovaj zahtjev prikazivanjem oglasa
 <translation id="634208815998129842">Upravitelj zadataka</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 i još <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}one{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 i još <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}few{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 i još <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 i još <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}}</translation>
 <translation id="6345878117466430440">Označi kao pročitano</translation>
+<translation id="6350745006329795504">Upravljajte svojim uređajima</translation>
 <translation id="6356893102071098867">Provjerite jeste li odabrali pravi račun</translation>
 <translation id="6364438453358674297">Ukloniti prijedloge iz historije?</translation>
 <translation id="6380100320871303656">Češće predučitavanje stranica za koje Chrome smatra da ćete ih vjerovatno posjetiti. Ova postavka može dovesti do povećanog korištenja podataka.</translation>

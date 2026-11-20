@@ -170,7 +170,6 @@ const char* const kPersistentPrefNames[] = {
     // Default browser bar's status is aggregated between regular and incognito
     // modes.
     prefs::kBrowserSuppressDefaultBrowserPrompt,
-    prefs::kDefaultBrowserInfobarLastDeclined,
     prefs::kDefaultBrowserSettingEnabled,
 
     // Devtools preferences are stored cross profiles as they are not storing

@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test Stack Overflow in EnableOutputsIfNecessary</title>
+    <script>
+      function runTest() {
+        const nodeCount = parseInt(document.getElementById("nodeCount").value);
+        const context = new AudioContext();
+        const nodes = [];
+
+        console.log(`Creating ${nodeCount} GainNodes...`);
+        for (let i = 0; i < nodeCount; i++) {
+          nodes.push(context.createGain());
+        }
+
+        console.log("Connecting nodes in a chain...");
+        for (let i = 0; i < nodeCount - 1; i++) {
+          nodes[i].connect(nodes[i + 1]);
+        }
+        nodes[nodeCount - 1].connect(context.destination);
+
+        console.log(
+            "Disconnecting the first node to disable the chain...");
+        // This disables nodes[1] and propagates downstream.
+        nodes[0].disconnect(nodes[1]);
+
+        console.log(
+            "Reconnecting first node to trigger EnableOutputsIfNecessary...");
+        try {
+          // This should trigger EnableOutputsIfNecessary.
+          // If recursive, this will stack overflow (crash tab).
+          // If fixed (iterative), it should succeed.
+          nodes[0].connect(nodes[1]);
+          console.log("SUCCESS: Reconnected without stack overflow.");
+          document.getElementById("result").textContent =
+              "SUCCESS: Reconnected without stack overflow.";
+        } catch (e) {
+          console.error(e);
+          document.getElementById("result").textContent =
+              "FAILED: " + e.message;
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <p>
+      This test attempts to trigger a stack overflow in
+      <code>AudioHandler::EnableOutputsIfNecessary</code>.
+      We create a chain of GainNodes, disconnect the first connection to
+      disable the chain, and then reconnect it.
+      Reconnecting triggers the enabling of downstream nodes.
+      If the implementation is recursive, this will likely crash the tab due to
+      stack overflow.
+    </p>
+    <label for="nodeCount">Node Count: </label>
+    <select id="nodeCount">
+      <option value="1000">1,000</option>
+      <option value="5000">5,000</option>
+      <option value="10000">10,000</option>
+      <option value="50000" selected>50,000</option>
+      <option value="100000">100,000</option>
+      <option value="500000">500,000</option>
+    </select>
+    <br><br>
+    <button onclick="runTest()">Run Test</button>
+    <div id="result"></div>
+  </body>
+</html>

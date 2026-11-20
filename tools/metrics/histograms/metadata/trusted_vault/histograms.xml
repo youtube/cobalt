@@ -232,6 +232,18 @@ chromium-metrics-reviews@google.com.
   <token key="SecurityDomainId" variants="SecurityDomainId"/>
 </histogram>
 
+<histogram name="TrustedVault.RecoveryFlowTriggeredEndpoint"
+    enum="TrustedVaultRecoveryFlowEndpoint" expires_after="2027-06-08">
+  <owner>ammarmk@google.com</owner>
+  <owner>thomasth@google.com</owner>
+  <owner>markusheintz@google.com</owner>
+  <owner>ylahodiuk@google.com</owner>
+  <summary>
+    Recorded when the GPM keychain recovery flow is triggered in the browser.
+    Tracks which endpoint (Desktop or Desktop Embedded) is being targeted.
+  </summary>
+</histogram>
+
 <histogram name="TrustedVault.RecoveryKeyStoreCertificatesFetchStatus"
     enum="RecoveryKeyStoreCertificatesFetchStatus" expires_after="2026-06-03">
   <owner>nsatragno@chromium.org</owner>

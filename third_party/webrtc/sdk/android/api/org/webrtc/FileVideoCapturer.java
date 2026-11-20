@@ -141,6 +141,7 @@ public class FileVideoCapturer implements VideoCapturer {
   private final VideoReader videoReader;
   private CapturerObserver capturerObserver;
   private final Timer timer = new Timer();
+  private boolean isCapturing;
 
   private final TimerTask tickTask = new TimerTask() {
     @Override
@@ -173,16 +174,23 @@ public class FileVideoCapturer implements VideoCapturer {
   @Override
   public void startCapture(int width, int height, int framerate) {
     timer.schedule(tickTask, 0, 1000 / framerate);
+    isCapturing = true;
   }
 
   @Override
   public void stopCapture() throws InterruptedException {
     timer.cancel();
+    isCapturing = false;
   }
 
   @Override
   public void changeCaptureFormat(int width, int height, int framerate) {
     // Empty on purpose
+  }
+
+  @Override
+  public boolean isCapturing() {
+    return isCapturing;
   }
 
   @Override

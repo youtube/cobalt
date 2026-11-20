@@ -18,6 +18,7 @@ import org.junit.runner.RunWith;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.R;
@@ -29,6 +30,7 @@ import org.chromium.chrome.browser.ephemeraltab.EphemeralTabObserver;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabSheetContent;
 import org.chromium.chrome.browser.firstrun.DisableFirstRun;
 import org.chromium.chrome.browser.flags.ActivityType;
+import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabContextMenuItemDelegate;
 import org.chromium.chrome.browser.tabbed_mode.TabbedRootUiCoordinator;
@@ -58,6 +60,7 @@ import java.util.function.Supplier;
  * FocusedEditableTextFieldZoomTest and TabsTest.
  */
 @RunWith(ChromeJUnit4ClassRunner.class)
+@CommandLineFlags.Add(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
 public class PreviewTabTest {
     @Rule
     public FreshCtaTransitTestRule mActivityTestRule =
@@ -82,9 +85,11 @@ public class PreviewTabTest {
         public final CallbackHelper onToolbarCreatedCallback = new CallbackHelper();
         public final CallbackHelper onNavigationStartedCallback = new CallbackHelper();
         public final CallbackHelper onTitleSetCallback = new CallbackHelper();
+        public ViewGroup mToolbarView;
 
         @Override
         public void onToolbarCreated(ViewGroup toolbarView) {
+            mToolbarView = toolbarView;
             onToolbarCreatedCallback.notifyCalled();
         }
 
@@ -342,6 +347,62 @@ public class PreviewTabTest {
                 JavaScriptUtils.executeJavaScriptAndWaitForResult(
                         webContents, "document.body.textContent");
         Assert.assertFalse("SameSite=Strict cookie should not be sent", content.contains(cookie));
+        closePreviewTab();
+    }
+
+    /** Test that the drag handlebar is focusable, clickable, and expands/collapses the sheet. */
+    @Test
+    @MediumTest
+    @Feature({"PreviewTab"})
+    public void testDragHandlebarFocusAndClick() throws Throwable {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> mEphemeralTabCoordinator.addObserver(mEphemeralTabObserver));
+
+        // Open Preview Tab.
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mEphemeralTabCoordinator.requestOpenSheet(
+                                new GURL(mActivityTestRule.getTestServer().getURL(PREVIEW_TAB)),
+                                null,
+                                "PreviewTab",
+                                mActivityTestRule.getProfile(false),
+                                /* canPromoteToNewTab= */ true,
+                                /* shouldHaveContextMenu= */ true,
+                                /* initiatorOrigin= */ null,
+                                () -> {}));
+        endAnimations();
+        mEphemeralTabObserver.onToolbarCreatedCallback.waitForCallback(0, 1);
+
+        ViewGroup toolbar = mEphemeralTabObserver.mToolbarView;
+        Assert.assertNotNull("Toolbar should not be null", toolbar);
+
+        android.view.View dragHandlebar = toolbar.findViewById(R.id.drag_handlebar);
+        Assert.assertNotNull("Drag handlebar should not be null", dragHandlebar);
+
+        // Verify focusability and clickability for keyboard/accessibility users
+        Assert.assertTrue("Drag handlebar should be focusable", dragHandlebar.isFocusable());
+        Assert.assertTrue("Drag handlebar should be clickable", dragHandlebar.isClickable());
+
+        BottomSheetController controller =
+                mActivityTestRule
+                        .getActivity()
+                        .getRootUiCoordinatorForTesting()
+                        .getBottomSheetController();
+
+        // Ephemeral Tab opens directly in FULL state as it does not support PEEK/HALF
+        CriteriaHelper.pollUiThread(
+                () -> controller.getSheetState() == SheetState.FULL,
+                "Preview Tab did not reach FULL state");
+
+        // Perform click on drag handlebar on the UI thread.
+        // It should be actionable (no crash) and remain in FULL state since collapse is not
+        // supported.
+        ThreadUtils.runOnUiThreadBlocking(() -> dragHandlebar.performClick());
+        endAnimations();
+        CriteriaHelper.pollUiThread(
+                () -> controller.getSheetState() == SheetState.FULL,
+                "Preview Tab did not remain in FULL state after handlebar click");
+
         closePreviewTab();
     }
 }

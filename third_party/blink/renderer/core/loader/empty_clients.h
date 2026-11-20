@@ -99,6 +99,8 @@ class CORE_EXPORT EmptyChromeClient : public ChromeClient {
   WebViewImpl* GetWebView() const override { return nullptr; }
   void ChromeDestroyed() override {}
   void SetWindowRect(const gfx::Rect&, LocalFrame&) override {}
+  void MoveWindowTo(const gfx::Point&, LocalFrame&) override {}
+  void ResizeWindowTo(const gfx::Size&, LocalFrame&) override {}
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   void Minimize(LocalFrame&, WindowingControlsChangeCallback) override {}
   void Maximize(LocalFrame&, WindowingControlsChangeCallback) override {}

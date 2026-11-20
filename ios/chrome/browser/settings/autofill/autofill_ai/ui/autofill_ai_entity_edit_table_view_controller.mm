@@ -15,6 +15,7 @@
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_edit_item.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_edit_mutator.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_edit_table_view_controller_delegate.h"
+#import "ios/chrome/browser/settings/autofill/autofill_ai/utils/autofill_ai_date_util.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item.h"
@@ -22,7 +23,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/common/ui/util/chrome_button.h"
 #import "ios/chrome/grit/ios_strings.h"
-#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
 
@@ -432,7 +432,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
       if ([cell isKindOfClass:[TableViewTextEditCell class]]) {
         TableViewTextEditCell* textFieldCell =
             base::apple::ObjCCast<TableViewTextEditCell>(cell);
-        if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+        if (ShouldUsePopoverForDatePicker()) {
           AutofillAIEntityEditDateItem* dateItem =
               base::apple::ObjCCastStrict<AutofillAIEntityEditDateItem>(item);
           [self showDatePickerPopoverForItem:dateItem
@@ -537,7 +537,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
     if ([item isKindOfClass:[AutofillAIEntityEditDateItem class]]) {
       AutofillAIEntityEditDateItem* dateItem =
           base::apple::ObjCCastStrict<AutofillAIEntityEditDateItem>(item);
-      if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+      if (ShouldUsePopoverForDatePicker()) {
         [self showDatePickerPopoverForItem:dateItem sourceView:textField];
         return NO;
       }

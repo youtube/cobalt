@@ -898,8 +898,6 @@ class AlternativeNameFillingTest
 };
 
 TEST_P(AlternativeNameFillingTest, FillAlternativeName) {
-  base::test::ScopedFeatureList features{
-      features::kAutofillSupportPhoneticNameForJP};
   const FieldType& field_type = std::get<0>(GetParam());
   const AlternativeNameFillingTestCase& test_case = std::get<1>(GetParam());
 

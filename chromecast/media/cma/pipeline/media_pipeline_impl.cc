@@ -364,10 +364,12 @@ void MediaPipelineImpl::OnFlushDone(bool is_audio_stream) {
 
   if (pending_flush_task_->audio_flushed &&
       pending_flush_task_->video_flushed) {
-    // Stop the backend, so that the backend won't push their pending buffer,
-    // which may be invalidated later, to hardware. (b/25342604)
-    media_pipeline_backend_->Stop();
-    backend_state_ = BACKEND_STATE_INITIALIZED;
+    if (backend_state_ != BACKEND_STATE_UNINITIALIZED) {
+      // Stop the backend, so that the backend won't push their pending buffer,
+      // which may be invalidated later, to hardware. (b/25342604)
+      media_pipeline_backend_->Stop();
+      backend_state_ = BACKEND_STATE_INITIALIZED;
+    }
     metrics::CastMetricsHelper::GetInstance()->RecordApplicationEvent(
         "Cast.Platform.Ended");
 

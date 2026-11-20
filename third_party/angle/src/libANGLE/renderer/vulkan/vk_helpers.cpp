@@ -85,6 +85,26 @@ uint32_t GetImageLayerCountForView(const ImageHelper &image)
     return image.getExtents().depth > 1 ? image.getExtents().depth : image.getLayerCount();
 }
 
+bool IsClearValueEqual(VkImageAspectFlags aspect, const VkClearValue &a, const VkClearValue &b)
+{
+    if (aspect & VK_IMAGE_ASPECT_COLOR_BIT)
+    {
+        return memcmp(&a.color, &b.color, sizeof(VkClearColorValue)) == 0;
+    }
+
+    bool depthEqual   = true;
+    bool stencilEqual = true;
+    if (aspect & VK_IMAGE_ASPECT_DEPTH_BIT)
+    {
+        depthEqual = (a.depthStencil.depth == b.depthStencil.depth);
+    }
+    if (aspect & VK_IMAGE_ASPECT_STENCIL_BIT)
+    {
+        stencilEqual = (a.depthStencil.stencil == b.depthStencil.stencil);
+    }
+    return depthEqual && stencilEqual;
+}
+
 void ReleaseImageViews(ImageViewVector *imageViewVector, GarbageObjects *garbage)
 {
     for (ImageView &imageView : *imageViewVector)
@@ -736,6 +756,8 @@ void RenderPassAttachment::reset()
 
     mInvalidatedCmdCount = kInfiniteCmdCount;
     mDisabledCmdCount    = kInfiniteCmdCount;
+    mClearedCmdCount     = kInfiniteCmdCount;
+    mClearValue          = {};
     mInvalidateArea      = gl::Rectangle();
 }
 
@@ -743,6 +765,11 @@ void RenderPassAttachment::onAccess(ResourceAccess access, uint32_t currentCmdCo
 {
     // Update the access for optimizing this render pass's loadOp
     UpdateAccess(&mAccess, access);
+
+    if (HasResourceWriteAccess(access))
+    {
+        mClearedCmdCount = kInfiniteCmdCount;
+    }
 
     // Update the invalidate state for optimizing this render pass's storeOp
     if (onAccessImpl(access, currentCmdCount))
@@ -909,6 +936,19 @@ bool RenderPassAttachment::isInvalidated(uint32_t currentCmdCount) const
 {
     return mInvalidatedCmdCount != kInfiniteCmdCount &&
            std::min(mDisabledCmdCount, currentCmdCount) == mInvalidatedCmdCount;
+}
+
+bool RenderPassAttachment::isAttachmentCleared(uint32_t currentCmdCount) const
+{
+    return mClearedCmdCount != kInfiniteCmdCount &&
+           std::min(mDisabledCmdCount, currentCmdCount) == mClearedCmdCount;
+}
+
+bool RenderPassAttachment::isClearRedundant(uint32_t currentCmdCount,
+                                            const VkClearValue &clearValue) const
+{
+    return isAttachmentCleared(currentCmdCount) &&
+           IsClearValueEqual(mAspect, mClearValue, clearValue);
 }
 
 bool RenderPassAttachment::onAccessImpl(ResourceAccess access, uint32_t currentCmdCount)
@@ -2270,6 +2310,33 @@ angle::Result RenderPassCommandBufferHelper::beginRenderPass(
 
     mRenderPassStarted = true;
     mCounter++;
+
+    for (PackedAttachmentIndex index(0); index < colorAttachmentCount; ++index)
+    {
+        RenderPassLoadOp loadOp =
+            static_cast<RenderPassLoadOp>(renderPassAttachmentOps[index].loadOp);
+        if (loadOp == RenderPassLoadOp::Clear)
+        {
+            mColorAttachments[index].setCleared(0, clearValues[index]);
+        }
+    }
+
+    if (depthStencilAttachmentIndex != kAttachmentIndexInvalid)
+    {
+        RenderPassLoadOp depthLoadOp = static_cast<RenderPassLoadOp>(
+            renderPassAttachmentOps[depthStencilAttachmentIndex].loadOp);
+        if (depthLoadOp == RenderPassLoadOp::Clear)
+        {
+            mDepthAttachment.setCleared(0, clearValues[depthStencilAttachmentIndex]);
+        }
+
+        RenderPassLoadOp stencilLoadOp = static_cast<RenderPassLoadOp>(
+            renderPassAttachmentOps[depthStencilAttachmentIndex].stencilLoadOp);
+        if (stencilLoadOp == RenderPassLoadOp::Clear)
+        {
+            mStencilAttachment.setCleared(0, clearValues[depthStencilAttachmentIndex]);
+        }
+    }
 
     return beginRenderPassCommandBuffer(contextVk);
 }
@@ -6161,6 +6228,7 @@ void ImageHelper::releaseImage(Renderer *renderer)
     mUse.reset();
     mImageSerial          = kInvalidImageSerial;
     mMemoryAllocationType = MemoryAllocationType::InvalidEnum;
+    mCurrentSingleClearValue.reset();
     setEntireContentUndefined();
 }
 
@@ -8319,8 +8387,6 @@ void ImageHelper::removeSingleSubresourceStagedUpdates(ContextVk *contextVk,
                                                        uint32_t layerIndex,
                                                        uint32_t layerCount)
 {
-    mCurrentSingleClearValue.reset();
-
     // Find any staged updates for this index and remove them from the pending list.
     SubresourceUpdates *levelUpdates = getLevelUpdates(levelIndexGL);
     if (levelUpdates == nullptr)
@@ -8408,6 +8474,48 @@ void ImageHelper::removeStagedUpdates(ErrorContext *context,
     }
 
     assertSubresourceUpdateRefCountsConsistent();
+}
+
+void ImageHelper::redefineLevels(ErrorContext *context,
+                                 gl::LevelIndex levelGLStart,
+                                 gl::LevelIndex levelGLEnd)
+{
+    removeStagedUpdates(context, levelGLStart, levelGLEnd);
+    if (valid())
+    {
+        for (gl::LevelIndex level = levelGLStart; level <= levelGLEnd; ++level)
+        {
+            if (level >= getFirstAllocatedLevel() && level <= getLastAllocatedLevel())
+            {
+                invalidateEntireLevelContent(context, level);
+                if ((getAspectFlags() & VK_IMAGE_ASPECT_STENCIL_BIT) != 0)
+                {
+                    invalidateEntireLevelStencilContent(context, level);
+                }
+            }
+        }
+    }
+}
+
+void ImageHelper::redefineSingleSubresource(ContextVk *contextVk,
+                                            gl::LevelIndex levelIndexGL,
+                                            uint32_t layerIndex,
+                                            uint32_t layerCount)
+{
+    removeSingleSubresourceStagedUpdates(contextVk, levelIndexGL, layerIndex, layerCount);
+
+    if (valid())
+    {
+        if (levelIndexGL >= getFirstAllocatedLevel() && levelIndexGL <= getLastAllocatedLevel())
+        {
+            invalidateSubresourceContent(contextVk, levelIndexGL, layerIndex, layerCount, nullptr);
+            if ((getAspectFlags() & VK_IMAGE_ASPECT_STENCIL_BIT) != 0)
+            {
+                invalidateSubresourceStencilContent(contextVk, levelIndexGL, layerIndex, layerCount,
+                                                    nullptr);
+            }
+        }
+    }
 }
 
 angle::Result ImageHelper::stageSubresourceUpdate(ContextVk *contextVk,
@@ -8766,7 +8874,8 @@ angle::Result ImageHelper::updateSubresourceOnHost(ContextVk *contextVk,
     const uint32_t baseArrayLayer = isArray ? offset.z : layerIndex;
     const gl::Box updateBoundingBox =
         MakeUpdateBoundingBox(offset, glExtents, baseArrayLayer, layerCount);
-    pruneSupersededUpdatesForLevelImpl(contextVk, updateLevelGL, updateBoundingBox);
+    pruneSupersededUpdatesForLevelImpl(contextVk, updateLevelGL, updateBoundingBox,
+                                       PruneReason::MinimizeWorkBeforeFlush);
 
     // If there are still pending updates to this subresource, cannot overwrite it.
     if (hasStagedUpdatesForSubresource(updateLevelGL, baseArrayLayer, layerCount))
@@ -10710,12 +10819,13 @@ void ImageHelper::pruneSupersededUpdatesForLevel(ContextVk *contextVk,
         return;
     }
 
-    pruneSupersededUpdatesForLevelImpl(contextVk, level, {});
+    pruneSupersededUpdatesForLevelImpl(contextVk, level, {}, reason);
 }
 
 void ImageHelper::pruneSupersededUpdatesForLevelImpl(ContextVk *contextVk,
                                                      const gl::LevelIndex level,
-                                                     const gl::Box &upcomingUpdateBoundingBox)
+                                                     const gl::Box &upcomingUpdateBoundingBox,
+                                                     const PruneReason reason)
 {
     SubresourceUpdates *levelUpdates = getLevelUpdates(level);
     if (levelUpdates == nullptr || levelUpdates->size() == 0)
@@ -10739,8 +10849,12 @@ void ImageHelper::pruneSupersededUpdatesForLevelImpl(ContextVk *contextVk,
     VkDeviceSize supersededUpdateSize  = 0;
     std::array<gl::Box, 2> boundingBox = {upcomingUpdateBoundingBox, upcomingUpdateBoundingBox};
 
-    auto canDropUpdate = [this, contextVk, level, &supersededUpdateSize,
+    auto canDropUpdate = [this, contextVk, level, reason, &supersededUpdateSize,
                           &boundingBox](SubresourceUpdate &update) {
+        if (IsClear(update.updateSource) && reason == PruneReason::MemoryOptimization)
+        {
+            return false;
+        }
         VkDeviceSize updateSize       = 0;
         VkImageAspectFlags aspectMask = update.getDestAspectFlags();
 

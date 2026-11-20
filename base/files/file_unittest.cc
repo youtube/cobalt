@@ -987,7 +987,7 @@ TEST(FileTest, NoDeleteOnCloseWithMappedFile) {
   {
     MemoryMappedFile mapping;
     ASSERT_TRUE(mapping.Initialize(file.Duplicate()));
-    ASSERT_EQ(5U, mapping.length());
+    ASSERT_EQ(5U, mapping.bytes().size());
 
     EXPECT_FALSE(file.DeleteOnClose(true));
   }

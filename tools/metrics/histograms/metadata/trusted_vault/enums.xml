@@ -164,6 +164,15 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/components/trusted_vault/trusted_vault_histograms.h:TrustedVaultRecoveryFactorRegistrationState) -->
 
+<!-- LINT.IfChange(TrustedVaultRecoveryFlowEndpoint) -->
+
+<enum name="TrustedVaultRecoveryFlowEndpoint">
+  <int value="0" label="Desktop"/>
+  <int value="1" label="Desktop Embedded"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/trusted_vault/trusted_vault_histograms.h:TrustedVaultRecoveryFlowEndpoint) -->
+
 </enums>
 
 </histogram-configuration>

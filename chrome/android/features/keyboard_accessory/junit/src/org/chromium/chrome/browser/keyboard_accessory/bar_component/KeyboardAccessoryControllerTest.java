@@ -75,6 +75,7 @@ import org.chromium.chrome.browser.keyboard_accessory.utils.ManualFillingMetrics
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
+import org.chromium.components.autofill.AutofillAiPayload;
 import org.chromium.components.autofill.AutofillDelegate;
 import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.components.autofill.AutofillProfilePayload;
@@ -421,7 +422,7 @@ public class KeyboardAccessoryControllerTest {
                         .setSubLabel("")
                         .setSuggestionType(SuggestionType.AUTOCOMPLETE_ENTRY)
                         .setFeatureForIph("")
-                        .setShowLoadingOnAcceptance(true)
+                        .setPayload(new AutofillAiPayload("guid", /* requiresServerFetch= */ true))
                         .build();
 
         AutofillSuggestion suggestion2 =
@@ -430,7 +431,7 @@ public class KeyboardAccessoryControllerTest {
                         .setSubLabel("")
                         .setSuggestionType(SuggestionType.AUTOCOMPLETE_ENTRY)
                         .setFeatureForIph("")
-                        .setShowLoadingOnAcceptance(false)
+                        .setPayload(new AutofillAiPayload("guid", /* requiresServerFetch= */ false))
                         .build();
 
         mCoordinator.setSuggestions(List.of(suggestion1, suggestion2), mMockAutofillDelegate);
@@ -459,7 +460,7 @@ public class KeyboardAccessoryControllerTest {
                         .setSubLabel("")
                         .setSuggestionType(SuggestionType.AUTOCOMPLETE_ENTRY)
                         .setFeatureForIph("")
-                        .setShowLoadingOnAcceptance(false)
+                        .setPayload(new AutofillAiPayload("guid", /* requiresServerFetch= */ false))
                         .build();
 
         AutofillSuggestion suggestion2 =
@@ -468,7 +469,7 @@ public class KeyboardAccessoryControllerTest {
                         .setSubLabel("")
                         .setSuggestionType(SuggestionType.AUTOCOMPLETE_ENTRY)
                         .setFeatureForIph("")
-                        .setShowLoadingOnAcceptance(false)
+                        .setPayload(new AutofillAiPayload("guid", /* requiresServerFetch= */ false))
                         .build();
 
         mCoordinator.setSuggestions(List.of(suggestion1, suggestion2), mMockAutofillDelegate);
@@ -498,7 +499,7 @@ public class KeyboardAccessoryControllerTest {
                         .setSubLabel("")
                         .setSuggestionType(SuggestionType.AUTOCOMPLETE_ENTRY)
                         .setFeatureForIph("")
-                        .setShowLoadingOnAcceptance(true)
+                        .setPayload(new AutofillAiPayload("guid", true))
                         .build();
 
         mCoordinator.setSuggestions(List.of(suggestion1), mMockAutofillDelegate);

@@ -54,4 +54,6 @@ BASE_FEATURE(kEnableCancelUploadOnContentAnalysis,
 BASE_FEATURE(kEnableAuditOnlyNetworkRequestConnector,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kContentAnalysisClipboardCopy, base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace enterprise_connectors

@@ -175,7 +175,10 @@ class MockToolbarController : public ToolbarController {
                           overflow_button,
                           delegate,
                           PinnedToolbarActionsModel::Get(profile)) {}
-  MOCK_METHOD(bool, PopOut, (ui::ElementIdentifier identifier), (override));
+  MOCK_METHOD(bool,
+              PopOut,
+              (ui::ElementIdentifier identifier, bool show_synchronously),
+              (override));
   MOCK_METHOD(bool, EndPopOut, (ui::ElementIdentifier identifier), (override));
 };
 
@@ -280,7 +283,7 @@ TEST_F(PopOutHandlerTest, PopOutAndEndPopOut) {
   ToolbarController::PopOutHandler pop_out_controller(
       &toolbar_controller, context, kDummyButton, kDummyObservedView);
 
-  EXPECT_CALL(toolbar_controller, PopOut(kDummyButton));
+  EXPECT_CALL(toolbar_controller, PopOut(kDummyButton, testing::_));
   auto observed_view = std::make_unique<views::View>();
   observed_view->SetProperty(views::kElementIdentifierKey, kDummyObservedView);
   views::View* view = container_view()->AddChildView(std::move(observed_view));
@@ -814,14 +817,14 @@ TEST_F(ToolbarControllerUnitTest, PopOutButton) {
   EXPECT_FALSE(button3->GetVisible());
 
   // Pop out button3. Button2 is hidden.
-  EXPECT_TRUE(toolbar_controller()->PopOut(kDummyButton3));
+  EXPECT_TRUE(toolbar_controller()->PopOut(kDummyButton3, false));
   views::test::RunScheduledLayout(toolbar_container_view());
   EXPECT_TRUE(button1->GetVisible());
   EXPECT_FALSE(button2->GetVisible());
   EXPECT_TRUE(button3->GetVisible());
 
   // Button3 is already popped out.
-  EXPECT_FALSE(toolbar_controller()->PopOut(kDummyButton3));
+  EXPECT_FALSE(toolbar_controller()->PopOut(kDummyButton3, false));
 
   // End button3 pop out. Button3 is hidden again.
   EXPECT_TRUE(toolbar_controller()->EndPopOut(kDummyButton3));
@@ -834,7 +837,7 @@ TEST_F(ToolbarControllerUnitTest, PopOutButton) {
   EXPECT_FALSE(toolbar_controller()->EndPopOut(kDummyButton3));
 
   // kDummyButton4 does not exist.
-  EXPECT_FALSE(toolbar_controller()->PopOut(kDummyButton4));
+  EXPECT_FALSE(toolbar_controller()->PopOut(kDummyButton4, false));
 }
 
 // Buttons overflow in order: 3, 2, 1.

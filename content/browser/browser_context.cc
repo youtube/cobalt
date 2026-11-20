@@ -38,7 +38,6 @@
 #include "content/browser/browser_context_impl.h"
 #include "content/browser/browsing_data/browsing_data_remover_impl.h"
 #include "content/browser/child_process_host_impl.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)

@@ -2,16 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/js/action_link.js';
-import './policy_conflict.js';
 import '/strings.m.js';
+import 'chrome://resources/js/action_link.js';
+import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import 'chrome://resources/cr_elements/icons.html.js';
+import './policy_conflict.js';
 
-import {CustomElement} from 'chrome://resources/js/custom_element.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {Conflict} from './policy_conflict.js';
-import {copyValue, setCopyButtonAccessibilityAttributes, stringifyPolicyValue} from './policy_conflict.js';
-import {getTemplate} from './policy_row.html.js';
+import {copyValue, stringifyPolicyValue} from './policy_conflict.js';
+import {getCss} from './policy_row.css.js';
+import {getHtml} from './policy_row.html.js';
+
+export interface ConflictItem {
+  conflict: Conflict;
+  label: string;
+  className: string;
+}
 
 export interface Policy {
   ignored?: boolean;
@@ -24,6 +34,7 @@ export interface Policy {
   warning: string;
   info: string;
   value: unknown;
+  restartRequired?: boolean;
   deprecated?: boolean;
   future?: boolean;
   allSourcesMerged?: boolean;
@@ -34,256 +45,206 @@ export interface Policy {
   status: string;
 }
 
-
-export class PolicyRowElement extends CustomElement {
-  static override get template() {
-    return getTemplate();
+export class PolicyRowElement extends CrLitElement {
+  static get is() {
+    return 'policy-row';
   }
 
-  policy: Policy;
-  private unset_: boolean;
-  private hasErrors_: boolean;
-  private hasWarnings_: boolean;
-  private hasInfos_: boolean;
-  private hasConflicts_: boolean;
-  private hasSuperseded_: boolean;
-  private isMergedValue_: boolean;
-  private deprecated_: boolean;
-  private future_: boolean;
+  static override get styles() {
+    return getCss();
+  }
 
-  connectedCallback() {
-    const toggle = this.shadowRoot!.querySelector('.policy.row .toggle');
-    toggle!.addEventListener('click', () => this.toggleExpanded());
+  override render() {
+    return getHtml.bind(this)();
+  }
 
-    const copyButton = this.shadowRoot!.querySelector('.copy-value');
-    if (copyButton) {
-      copyButton.addEventListener('click', () => this.copyValue_());
-    }
+  static override get properties() {
+    return {
+      policy: {type: Object},
+      expanded: {
+        type: Boolean,
+        reflect: true,
+      },
+    };
+  }
 
+  accessor policy: Policy|null = null;
+  accessor expanded: boolean = false;
+
+  protected get unset(): boolean {
+    return !!(this.policy && this.policy.value === undefined);
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
     this.setAttribute('role', 'rowgroup');
     this.classList.add('policy-data');
+    this.expanded = false;
   }
 
-  initialize(policy: Policy) {
-    this.policy = policy;
-
-    this.unset_ = policy.value === undefined;
-
-    this.hasErrors_ = !!policy.error;
-
-    this.hasWarnings_ = !!policy.warning;
-
-    this.hasInfos_ = !!policy.info;
-
-    this.hasConflicts_ = !!policy.conflicts;
-
-    this.hasSuperseded_ = !!policy.superseded;
-
-    this.isMergedValue_ = !!policy.allSourcesMerged;
-
-    this.deprecated_ = !!policy.deprecated;
-
-    this.future_ = !!policy.future;
-
-    // Populate the name column.
-    const nameDisplay = this.shadowRoot!.querySelector('.name .link span');
-    nameDisplay!.textContent = policy.name;
-    if (policy.link) {
-      const link = this.getRequiredElement<HTMLAnchorElement>('.name .link');
-      link.href = policy.link;
-      link.title = loadTimeData.getStringF('policyLearnMore', policy.name);
-      this.toggleAttribute('no-help-link', false);
-    } else {
-      this.toggleAttribute('no-help-link', true);
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+    if (changedProperties.has('policy') && this.policy) {
+      this.policy.status = this.computeStatusText();
     }
+  }
 
-    // Populate the remaining columns with policy scope, level and value if a
-    // value has been set. Otherwise, leave them blank and fill only the status
-    // value with the "unset" notice.
-
-    if (this.unset_) {
-      const notice = loadTimeData.getString('unset');
-      const messagesDisplay = this.shadowRoot!.querySelector('.messages');
-      messagesDisplay!.textContent = notice;
-
-      // Remove the copy button since there is no value to copy.
-      const copyButton = this.shadowRoot!.querySelector('.copy .link');
-      if (copyButton) {
-        copyButton.remove();
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    if (changedProperties.has('policy')) {
+      if (this.policy && this.policy.link) {
+        this.removeAttribute('no-help-link');
+      } else {
+        this.setAttribute('no-help-link', '');
       }
-
-      // On space constraint devices, status is displayed as a row.
-      // <if expr="is_android or is_ios">
-      const messagesRowContentDisplay =
-          this.shadowRoot!.querySelector('.messages.row .value');
-      messagesRowContentDisplay!.textContent = notice;
-      // </if>
-      return;
     }
+  }
 
-    const scopeDisplay = this.shadowRoot!.querySelector('.scope');
-    let scope = 'scopeDevice';
-    if (policy.scope === 'user') {
-      scope = 'scopeUser';
-    } else if (policy.scope === 'allUsers') {
-      scope = 'scopeAllUsers';
+
+
+  protected getShowMoreLessLabel(): string {
+    return loadTimeData.getString(this.expanded ? 'showLess' : 'showMore');
+  }
+
+  protected getLearnMoreTooltip(): string {
+    return this.policy?.name ?
+        loadTimeData.getStringF('policyLearnMore', this.policy.name) :
+        '';
+  }
+
+  protected getCopyLabel(): string {
+    return this.policy?.name ?
+        loadTimeData.getStringF('policyCopyValue', this.policy.name) :
+        '';
+  }
+
+  protected getScopeText(): string {
+    if (!this.policy || this.unset) {
+      return '';
     }
-    scopeDisplay!.textContent = loadTimeData.getString(scope);
+    const scopeMap: Record<string, string> = {
+      'user': 'scopeUser',
+      'allUsers': 'scopeAllUsers',
+    };
+    return loadTimeData.getString(scopeMap[this.policy.scope] || 'scopeDevice');
+  }
 
-    const levelDisplay = this.shadowRoot!.querySelector('.level');
-    levelDisplay!.textContent = loadTimeData.getString(
-        policy.level === 'recommended' ? 'levelRecommended' : 'levelMandatory');
+  protected getLevelText(): string {
+    if (!this.policy || this.unset) {
+      return '';
+    }
+    return loadTimeData.getString(
+        this.policy.level === 'recommended' ? 'levelRecommended' :
+                                              'levelMandatory');
+  }
 
-    const sourceDisplay = this.shadowRoot!.querySelector('.source');
-    sourceDisplay!.textContent = loadTimeData.getString(policy.source);
+  protected getSourceText(): string {
+    if (!this.policy || this.unset) {
+      return '';
+    }
+    return loadTimeData.getString(this.policy.source);
+  }
 
-    // Reduces load on the DOM for long values;
-    // If value is longer than 256 characters, truncate and add ellipsis.
-    const policyValueStr = stringifyPolicyValue(policy.value);
-    const truncatedValue = policyValueStr.length > 256 ?
+  protected getTruncatedValue(): string {
+    if (!this.policy || this.unset) {
+      return '';
+    }
+    const policyValueStr = stringifyPolicyValue(this.policy.value);
+    return policyValueStr.length > 256 ?
         `${policyValueStr.substring(0, 256)}\u2026` :
         policyValueStr;
+  }
 
-    const valueDisplay = this.shadowRoot!.querySelector('.value');
-    valueDisplay!.textContent = truncatedValue;
+  protected getFormattedValue(): string {
+    if (!this.policy || this.unset) {
+      return '';
+    }
+    return stringifyPolicyValue(this.policy.value, /*format=*/ true);
+  }
 
-    // Set the label for the copy button.
-    const copyLink = this.shadowRoot!.querySelector('.copy .link');
-    if (copyLink) {
-      setCopyButtonAccessibilityAttributes(copyLink, policy.name);
+  protected getMessagesText(): string {
+    return this.policy?.status || '';
+  }
+
+  private computeStatusText(): string {
+    if (!this.policy) {
+      return '';
+    }
+    if (this.unset) {
+      return loadTimeData.getString('unset');
     }
 
-    const valueRowContentDisplay =
-        this.shadowRoot!.querySelector('.value.row .value');
-    // Expanded policy value is formatted.
-    valueRowContentDisplay!.textContent =
-        stringifyPolicyValue(policy.value, /*format=*/ true);
+    const {
+      error,
+      warning,
+      conflicts,
+      superseded,
+      allSourcesMerged,
+      ignored,
+      isExtension,
+      deprecated,
+      future,
+      restartRequired,
+    } = this.policy;
+    const isMergedValue = !!allSourcesMerged;
 
-    const errorRowContentDisplay =
-        this.shadowRoot!.querySelector('.errors.row .value');
-    errorRowContentDisplay!.textContent = policy.error;
-    const warningRowContentDisplay =
-        this.shadowRoot!.querySelector('.warnings.row .value');
-    warningRowContentDisplay!.textContent = policy.warning;
-    const infoRowContentDisplay =
-        this.shadowRoot!.querySelector('.infos.row .value');
-    infoRowContentDisplay!.textContent = policy.info;
+    const notices = [
+      error ? loadTimeData.getString('error') : '',
+      deprecated ? loadTimeData.getString('deprecated') : '',
+      future ? loadTimeData.getString('future') : '',
+      warning ? loadTimeData.getString('warning') : '',
+      restartRequired ? loadTimeData.getString('restartRequired') : '',
+      ignored ? loadTimeData.getString(
+                    isExtension ? 'ignoredByExtension' : 'ignored') :
+                '',
+      (conflicts?.length && !isMergedValue) ? loadTimeData.getString('conflict') : '',
+    ].filter(Boolean);
 
-    const messagesDisplay = this.shadowRoot!.querySelector('.messages');
-    const errorsNotice = this.hasErrors_ ? loadTimeData.getString('error') : '';
-    const deprecationNotice =
-        this.deprecated_ ? loadTimeData.getString('deprecated') : '';
-    const futureNotice = this.future_ ? loadTimeData.getString('future') : '';
-    const warningsNotice =
-        this.hasWarnings_ ? loadTimeData.getString('warning') : '';
-    const conflictsNotice = this.hasConflicts_ && !this.isMergedValue_ ?
-        loadTimeData.getString('conflict') :
-        '';
-    const ignoredNotice = this.policy.ignored ?
-        (this.policy.isExtension ?
-             loadTimeData.getString('ignoredByExtension') :
-             loadTimeData.getString('ignored')) :
-        '';
-    let notice =
-        [
-          errorsNotice,
-          deprecationNotice,
-          futureNotice,
-          warningsNotice,
-          ignoredNotice,
-          conflictsNotice,
-        ].filter(x => !!x)
-            .join(', ') ||
-        loadTimeData.getString('ok');
-    const supersededNotice = this.hasSuperseded_ && !this.isMergedValue_ ?
-        loadTimeData.getString('superseding') :
-        '';
-    if (supersededNotice) {
-      // Include superseded notice regardless of other notices
-      notice += `, ${supersededNotice}`;
+    let notice = notices.join(', ') || loadTimeData.getString('ok');
+
+    if (superseded?.length && !isMergedValue) {
+      notice += `, ${loadTimeData.getString('superseding')}`;
     }
-    messagesDisplay!.textContent = notice;
-    policy.status = notice;
 
-    // Display scope, level and status as rows instead of columns on space
-    // constraint devices.
-    // <if expr="is_android or is_ios">
-    const scopeRowContentDisplay =
-        this.shadowRoot!.querySelector('.scope.row .value');
-    scopeRowContentDisplay!.textContent = loadTimeData.getString(scope);
-    const levelRowContentDisplay =
-        this.shadowRoot!.querySelector('.level.row .value');
-    levelRowContentDisplay!.textContent = loadTimeData.getString(
-        policy.level === 'recommended' ? 'levelRecommended' : 'levelMandatory');
-    const messagesRowContentDisplay =
-        this.shadowRoot!.querySelector('.messages.row .value');
-    messagesRowContentDisplay!.textContent = notice;
-    // </if>
+    return notice;
+  }
 
-    if (policy.conflicts) {
-      policy.conflicts.forEach(conflict => {
-        const row = document.createElement('policy-conflict');
-        row.initialize(conflict, 'conflictValue', this.policy.name);
-        row.classList.add('policy-conflict-data');
-        this.shadowRoot!.appendChild(row);
-      });
-    }
-    if (policy.superseded) {
-      policy.superseded.forEach(superseded => {
-        const row = document.createElement('policy-conflict');
-        row.initialize(superseded, 'supersededValue', this.policy.name);
-        row.classList.add('policy-superseded-data');
-        this.shadowRoot!.appendChild(row);
-      });
-    }
+  protected get conflictItems(): ConflictItem[] {
+    return [
+      ...(this.policy?.conflicts || []).map(c => ({
+                                              conflict: c,
+                                              label: 'conflictValue',
+                                              className: 'policy-conflict-data',
+                                            })),
+      ...(this.policy?.superseded || []).map(c => ({
+                                               conflict: c,
+                                               label: 'supersededValue',
+                                               className:
+                                                   'policy-superseded-data',
+                                             })),
+    ];
   }
 
   // Copies the policy's value to the clipboard.
-  private copyValue_() {
-    const policyValueDisplay =
-        this.shadowRoot!.querySelector('.value.row .value');
+  protected onCopyClick(e: Event) {
+    const target = e.currentTarget as HTMLElement;
+    const row = target.closest('.row');
+    const policyValueDisplay = row?.querySelector('.value');
     if (policyValueDisplay) {
-      copyValue(policyValueDisplay as CustomElement);
+      copyValue(policyValueDisplay as HTMLElement);
     }
   }
 
   // Toggle the visibility of an additional row containing the complete text.
-  private toggleExpanded() {
-    const warningRowDisplay = this.getRequiredElement('.warnings.row');
-    const errorRowDisplay = this.getRequiredElement('.errors.row');
-    const infoRowDisplay = this.getRequiredElement('.infos.row');
-    const valueRowDisplay = this.getRequiredElement('.value.row');
-    // <if expr="is_android or is_ios">
-    const scopeRowDisplay = this.getRequiredElement('.scope.row');
-    scopeRowDisplay.hidden = !scopeRowDisplay.hidden;
-    const levelRowDisplay = this.getRequiredElement('.level.row');
-    levelRowDisplay.hidden = !levelRowDisplay.hidden;
-    const messagesRowDisplay = this.getRequiredElement('.messages.row');
-    messagesRowDisplay.hidden = !messagesRowDisplay.hidden;
-    // </if>
-    valueRowDisplay.hidden = !valueRowDisplay.hidden;
-    this.classList.toggle('expanded', !valueRowDisplay.hidden);
-
-    this.getRequiredElement('.show-more').hidden = !valueRowDisplay.hidden;
-    this.getRequiredElement('.show-less').hidden = valueRowDisplay.hidden;
-    if (this.hasWarnings_) {
-      warningRowDisplay.hidden = !warningRowDisplay.hidden;
-    }
-    if (this.hasErrors_) {
-      errorRowDisplay.hidden = !errorRowDisplay.hidden;
-    }
-    if (this.hasInfos_) {
-      infoRowDisplay.hidden = !infoRowDisplay.hidden;
-    }
-    this.shadowRoot!.querySelectorAll<HTMLElement>('.policy-conflict-data')
-        .forEach(row => row.hidden = !row.hidden);
-    this.shadowRoot!.querySelectorAll<HTMLElement>('.policy-superseded-data')
-        .forEach(row => row.hidden = !row.hidden);
+  protected onToggleExpandedClick() {
+    this.expanded = !this.expanded;
   }
 }
+
 declare global {
   interface HTMLElementTagNameMap {
     'policy-row': PolicyRowElement;
   }
 }
-customElements.define('policy-row', PolicyRowElement);
+
+customElements.define(PolicyRowElement.is, PolicyRowElement);

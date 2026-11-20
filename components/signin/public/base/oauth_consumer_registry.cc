@@ -228,7 +228,6 @@ constexpr char kProjectorTokenFetcherName[] = "projector_token_fetcher";
 constexpr char kAddSupervisionName[] = "add_supervision";
 constexpr char kParentAccessName[] = "parent_access";
 constexpr char kDataSharingName[] = "data_sharing";
-constexpr char kLauncherItemSuggestName[] = "launcher_item_suggest";
 constexpr char kMarketingBackendConnectorName[] = "marketing_backend_connector";
 constexpr char kPasswordSyncTokenFetcherName[] = "password_sync_token_fetcher";
 constexpr char kLocaleSwitchScreenName[] = "locale_switch_screen";
@@ -407,10 +406,6 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
           /*scopes=*/{kPeopleApiReadWriteOAuth2Scope,
                       kPeopleApiReadOnlyOAuth2Scope,
                       GaiaConstants::kClearCutOAuth2Scope});
-    case OAuthConsumerId::kLauncherItemSuggest:
-      return OAuthConsumer(
-          /*name=*/kLauncherItemSuggestName,
-          /*scopes=*/{kDriveReadOnlyOAuth2Scope});
     case OAuthConsumerId::kMarketingBackendConnector:
       return OAuthConsumer(
           /*name=*/kMarketingBackendConnectorName,

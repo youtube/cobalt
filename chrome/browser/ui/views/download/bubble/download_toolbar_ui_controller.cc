@@ -591,9 +591,9 @@ bool DownloadToolbarUIController::IsFullscreenWithParentViewHidden() const {
   }
 
   // Handle the remaining fullscreen case.
-  return browser_view_->browser()->window() &&
+  return browser_view_->browser()->GetWindow() &&
          browser_view_->browser()->GetWindow()->IsFullscreen() &&
-         !browser_view_->browser()->window()->IsToolbarVisible();
+         !browser_view_->IsToolbarVisible();
 }
 
 bool DownloadToolbarUIController::ShouldShowExclusiveAccessBubble() const {
@@ -1144,7 +1144,7 @@ bool DownloadToolbarUIController::ShouldShowBubbleAsInactive() const {
   // The bubble can either be shown as active or inactive. When the current
   // browser is inactive, make the bubble inactive to avoid stealing focus from
   // non-Chrome windows or showing on a different workspace.
-  if (!browser_view_->browser()->window() ||
+  if (!browser_view_->browser()->GetWindow() ||
       !browser_view_->browser()->GetWindow()->IsActive()) {
     return true;
   }

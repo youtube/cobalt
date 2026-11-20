@@ -327,9 +327,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, BorderResize) {
   // TODO(crbug.com/385828490): We should exercise the proper closing flow.
   // Currently the BookmarkModel has a dangling observer during destruction, if
   // the glic UI is toggled.
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -359,7 +357,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, BorderResize) {
   const int minimum_height =
       std::max(minimum_size.height() + widget_additional_height, 600);
   const gfx::Size new_size(minimum_width, minimum_height);
-  auto* const browser_window = browser()->window();
+  auto* const browser_window = browser()->GetWindow();
   const gfx::Rect new_bounds(browser_window->GetBounds().origin(), new_size);
   EXPECT_NE(browser_window->GetBounds(), new_bounds);
 
@@ -378,9 +376,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, BorderResize) {
 // visible before Show is called, and shouldn't be visible after
 // StopShowing is called.
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, Visibility) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -408,9 +404,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, Visibility) {
 // Exercise the default user journey: toggles the border animation and wait for
 // it to finish.
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, SmokeTest) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -471,9 +465,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, SmokeTest) {
 // Ensures that the border animation state is reset after canceling the
 // animation.
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, AnimationStateReset) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -507,9 +499,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
     // TODO(b/453696965): Broken in multi-instance.
     GTEST_SKIP() << "Skipping for kGlicMultiInstance";
   }
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -541,9 +531,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, FocusedTabChange) {
     // TODO(b/453696965): Broken in multi-instance.
     GTEST_SKIP() << "Skipping for kGlicMultiInstance";
   }
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -610,9 +598,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, FocusedTabDestroyed) {
   }
 #endif  // BUILDFLAG(IS_MAC)
 
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -677,19 +663,17 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
     // TODO(b/453696965): Broken in multi-instance.
     GTEST_SKIP() << "Skipping for kGlicMultiInstance";
   }
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
   TesterImpl* tester = static_cast<TesterImpl*>(border->tester());
 
   Browser* browser2 = CreateBrowser(browser()->GetProfile());
-  ContextSharingBorderView* border2 = browser2->window()
-                                          ->AsBrowserView()
-                                          ->GetActiveContentsContainerView()
-                                          ->glic_border_view();
+  ContextSharingBorderView* border2 =
+      BrowserView::GetBrowserViewForBrowser(browser2)
+          ->GetActiveContentsContainerView()
+          ->glic_border_view();
   auto* tester2 = static_cast<TesterImpl*>(border2->tester());
 
   // Start the animation in the first browser window.
@@ -749,9 +733,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
 // emphasis ramp up.
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
                        RampingDownDuringEmphasisRampUp) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -804,9 +786,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
 // ramp up.
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
                        RampingDownDuringOpacityRampUp) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -861,9 +841,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
 // state.
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
                        RampingDownDuringStableState) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -910,9 +888,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, EnsureTimeWraps) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -943,9 +919,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
     // TODO(b/453696965): Broken in multi-instance.
     GTEST_SKIP() << "Skipping for kGlicMultiInstance";
   }
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -981,9 +955,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
 
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
                        ActorGlowHidesBorderWhenIndicatorIsOff) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -1036,9 +1008,7 @@ class ContextSharingBorderViewFeatureDisabledBrowserTest
 // initialized if the feature is disabled.
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewFeatureDisabledBrowserTest,
                        NoBorder) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   EXPECT_FALSE(border);
@@ -1064,9 +1034,7 @@ class ContextSharingBorderViewPrefersReducedMotionUiTest
 IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewPrefersReducedMotionUiTest,
                        BasicRampingUpAndDown) {
   ASSERT_TRUE(gfx::Animation::PrefersReducedMotion());
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -1142,9 +1110,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewPrefersReducedMotionUiTest,
     GTEST_SKIP() << "Skipping for kGlicMultiInstance";
   }
   ASSERT_TRUE(gfx::Animation::PrefersReducedMotion());
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -1210,9 +1176,7 @@ class ContextSharingBorderViewWithoutHardwareAccelerationUiTest
 IN_PROC_BROWSER_TEST_F(
     ContextSharingBorderViewWithoutHardwareAccelerationUiTest,
     BasicRampingUpAndDown) {
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -1296,9 +1260,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, MinimizeRestore) {
     GTEST_SKIP() << "Skipping for kGlicMultiInstance";
   }
   WaitForUnminimize(browser());
-  auto* border = browser()
-                     ->window()
-                     ->AsBrowserView()
+  auto* border = BrowserView::GetBrowserViewForBrowser(browser())
                      ->GetActiveContentsContainerView()
                      ->glic_border_view();
   ASSERT_TRUE(border);
@@ -1340,8 +1302,8 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, BasicVisiblity) {
     GTEST_SKIP() << "Skipping for kGlicMultiInstance";
   }
   // Get the border views for each contents container in multi-content view
-  auto content_containers =
-      browser()->window()->AsBrowserView()->GetContentsContainerViews();
+  auto content_containers = BrowserView::GetBrowserViewForBrowser(browser())
+                                ->GetContentsContainerViews();
   ASSERT_EQ(2U, content_containers.size());
 
   auto* border1 = content_containers[0]->glic_border_view();
@@ -1356,7 +1318,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, BasicVisiblity) {
       {0}, split_tabs::SplitTabVisualData(),
       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
-  BrowserView* browser_view = static_cast<BrowserView*>(browser()->window());
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   ASSERT_TRUE(browser_view->IsInSplitView());
 
   TesterImpl* tester2 = static_cast<TesterImpl*>(border2->tester());

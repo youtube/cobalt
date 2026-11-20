@@ -115,10 +115,12 @@ bool ElementAnimations::HasCompositedPaintWorkletAnimation() {
 void ElementAnimations::RecalcCompositedStatusForKeyframeChange(
     Element& element,
     Animation::NativePaintWorkletReasons properties) {
-  if ((element.GetDocument().Lifecycle().GetState() !=
-       DocumentLifecycle::kInStyleRecalc) &&
-      (element.GetDocument().Lifecycle().GetState() !=
-       DocumentLifecycle::kInPerformLayout)) {
+  // Usually kInStyleRecalc or kInLayout, but sometimes SMIL can cause updates
+  // post-style/layout. See crbug.com/523313381.
+  if ((element.GetDocument().Lifecycle().GetState() <
+       DocumentLifecycle::kInStyleRecalc) ||
+      (element.GetDocument().Lifecycle().GetState() >
+       DocumentLifecycle::kLayoutClean)) {
     DCHECK(false) << "RecalcCompositedStatusForKeyframeChange must not be "
                   << "called outside of style/layout.";
     base::debug::DumpWithoutCrashing();

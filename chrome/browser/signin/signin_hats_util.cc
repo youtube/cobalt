@@ -174,15 +174,22 @@ bool IsSurveyEnabledForHatsTrigger(const std::string& trigger) {
            {kHatsSurveyTriggerIdentityFirstRunCompleted,
             &switches::kBeforeFirstRunDesktopRefreshSurvey},
            {kHatsSurveyTriggerIdentityRefreshedFirstRunCompleted,
-            &switches::kFirstRunDesktopRefreshSurvey}});
+            &switches::kFirstRunDesktopRefreshSurvey},
+           {kHatsSurveyTriggerFirstRunDesktopRevampCompleted,
+            &switches::kFirstRunDesktopRevampSurvey},
+           {kHatsSurveyTriggerFirstRunDesktopRevampNoFeatureShowcaseCompleted,
+            &switches::kFirstRunDesktopRevampNoFeatureShowcaseSurvey}});
   // Map of HaTS features that are conflicting with each other. Keys are
   // features that are suppressed if one of the corresponding value features is
   // enabled.
   static const base::NoDestructor<absl::flat_hash_map<
       const base::Feature*, std::vector<const base::Feature*>>>
-      kConflictingFeaturesMap({{&switches::kChromeIdentitySurveyFirstRunSignin,
-                                {&switches::kBeforeFirstRunDesktopRefreshSurvey,
-                                 &switches::kFirstRunDesktopRefreshSurvey}}});
+      kConflictingFeaturesMap(
+          {{&switches::kChromeIdentitySurveyFirstRunSignin,
+            {&switches::kBeforeFirstRunDesktopRefreshSurvey,
+             &switches::kFirstRunDesktopRefreshSurvey,
+             &switches::kFirstRunDesktopRevampSurvey,
+             &switches::kFirstRunDesktopRevampNoFeatureShowcaseSurvey}}});
 
   const auto* feature = base::FindPtrOrNull(*kHatsTriggerFeatureMap, trigger);
 

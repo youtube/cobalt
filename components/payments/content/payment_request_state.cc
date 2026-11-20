@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -40,9 +41,12 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
+#include "content/public/common/content_switches.h"
 
 namespace payments {
 namespace {
+
+constexpr char kWebDriver[] = "webdriver";
 
 // Invokes the |callback| with |status|.
 void CallStatusCallback(PaymentRequestState::StatusCallback callback,
@@ -718,9 +722,30 @@ bool PaymentRequestState::GetHasEnrolledInstrumentValue() const {
   return has_enrolled_instrument_ || can_make_payment_even_without_apps_;
 }
 
+bool PaymentRequestState::user_interaction_in_web_payment_app() const {
+  // Bypass user interaction check in Chrome/Web driver testing environment by
+  // always returning true. These flags are set by chrome driver launcher:
+  // chrome/test/chromedriver/chrome_launcher.cc
+  // TODO(b/525805587): Investigate if user activation can be blessed in the
+  // browser tests, instead of setting flags in the command line.
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kEnableAutomation) ||
+      command_line->GetSwitchValueASCII(switches::kTestType) == kWebDriver) {
+    return true;
+  }
+  return user_interaction_in_web_payment_app_;
+}
+
 void PaymentRequestState::set_user_interaction_in_web_payment_app(
     bool user_interaction) {
   user_interaction_in_web_payment_app_ = user_interaction;
+  if (user_interaction_in_web_payment_app_ && response_helper_) {
+    response_helper_->OnUserInteractionCaptured();
+  }
+}
+
+bool PaymentRequestState::WasPaymentHandlerWindowInteractedWith() const {
+  return user_interaction_in_web_payment_app();
 }
 
 }  // namespace payments

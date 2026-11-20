@@ -460,12 +460,12 @@ TEST_F(MirroringActivityTest, GetScrubbedLogMessage) {
       "offer": {
         "supportedStreams": [
           {
-            "aesIvMask": "AES_IV_MASK",
-            "aesKey": "AES_KEY"
+            "aesIvMask": "[REDACTED]",
+            "aesKey": "[REDACTED]"
           },
           {
-            "aesIvMask": "AES_IV_MASK",
-            "aesKey": "AES_KEY"
+            "aesIvMask": "[REDACTED]",
+            "aesKey": "[REDACTED]"
           }
         ]
       },

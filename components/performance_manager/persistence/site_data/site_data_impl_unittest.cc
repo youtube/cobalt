@@ -159,13 +159,12 @@ TEST_F(SiteDataImplTest, BasicTestEndToEnd) {
   // When a feature is in use it's expected that its recorded observation
   // timestamp is equal to the time delta since Unix Epoch when the observation
   // has been made.
-  EXPECT_EQ(
-      local_site_data
-          ->FeatureObservationTimestamp(
-              local_site_data->site_characteristics_for_testing()
-                  .uses_audio_in_background())
-          .InSeconds(),
-      (base::TimeTicks::Now() - base::TimeTicks::UnixEpoch()).InSeconds());
+  EXPECT_EQ(local_site_data
+                ->FeatureObservationTimestamp(
+                    local_site_data->site_characteristics_for_testing()
+                        .uses_audio_in_background())
+                .InSeconds(),
+            (base::Time::Now() - base::Time::UnixEpoch()).InSeconds());
   EXPECT_EQ(local_site_data->FeatureObservationDuration(
                 local_site_data->site_characteristics_for_testing()
                     .uses_audio_in_background()),
@@ -287,7 +286,7 @@ TEST_F(SiteDataImplTest, AllDurationGetSavedOnUnload) {
   EXPECT_EQ(0U, kZeroIntervalInternalRepresentation);
 
   const base::TimeDelta kInitialTimeSinceEpoch =
-      base::TimeTicks::Now() - base::TimeTicks::UnixEpoch();
+      base::Time::Now() - base::Time::UnixEpoch();
 
   local_site_data->NotifySiteLoaded();
   local_site_data->NotifyLoadedSiteBackgrounded();

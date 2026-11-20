@@ -22,7 +22,9 @@ source_set("unit_tests") {
   sources = [ "table_view_stacked_details_item_unittest.mm" ]
   deps = [
     ":cells",
-    "//ios/chrome/browser/shared/ui/table_view:styler",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/ui/util",
+    "//ios/chrome/common/ui/colors",
     "//testing/gtest",
   ]
 }

@@ -1,0 +1,5 @@
+This is a testharness.js-based test.
+[FAIL] Can set 'lighting-color' to the 'currentcolor' keyword: currentcolor
+  assert_equals: expected "CSSKeywordValue" but got "CSSStyleValue"
+Harness: the test ran to completion.
+

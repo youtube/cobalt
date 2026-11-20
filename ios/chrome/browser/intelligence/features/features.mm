@@ -125,55 +125,13 @@ bool IsProactiveSuggestionsFrameworkPopupBlockerEnabled() {
       kProactiveSuggestionsFrameworkPopupBlocker, false);
 }
 
-BASE_FEATURE(kAskGeminiChip, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAskGeminiChipIgnoreCriteria, base::FEATURE_DISABLED_BY_DEFAULT);
 
-const char kAskGeminiChipIgnoreCriteria[] = "AskGeminiChipIgnoreCriteria";
-
-const char kAskGeminiChipPrepopulateFloaty[] = "AskGeminiChipPrepopulateFloaty";
-
-const char kAskGeminiChipPrepopulateAndIgnoreCriteria[] =
-    "AskGeminiChipPrepopulateAndIgnoreCriteria";
-
-const char kAskGeminiChipAllowNonconsentedUsers[] =
-    "AskGeminiChipAllowNonconsentedUsers";
-
-bool IsAskGeminiChipEnabled() {
+bool IsAskGeminiChipIgnoreCriteriaEnabled() {
   if (!IsPageActionMenuEnabled()) {
     return false;
   }
-  return base::FeatureList::IsEnabled(kAskGeminiChip);
-}
-
-bool IsAskGeminiChipIgnoreCriteria() {
-  if (!IsAskGeminiChipEnabled()) {
-    return false;
-  }
-  if (base::GetFieldTrialParamByFeatureAsBool(
-          kAskGeminiChip, kAskGeminiChipPrepopulateAndIgnoreCriteria, false)) {
-    return true;
-  }
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kAskGeminiChip, kAskGeminiChipIgnoreCriteria, false);
-}
-
-bool IsAskGeminiChipPrepopulateFloatyEnabled() {
-  if (!IsAskGeminiChipEnabled()) {
-    return false;
-  }
-  if (base::GetFieldTrialParamByFeatureAsBool(
-          kAskGeminiChip, kAskGeminiChipPrepopulateAndIgnoreCriteria, false)) {
-    return true;
-  }
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kAskGeminiChip, kAskGeminiChipPrepopulateFloaty, false);
-}
-
-bool IsAskGeminiChipAllowNonconsentedUsersEnabled() {
-  if (!IsAskGeminiChipEnabled()) {
-    return false;
-  }
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kAskGeminiChip, kAskGeminiChipAllowNonconsentedUsers, false);
+  return base::FeatureList::IsEnabled(kAskGeminiChipIgnoreCriteria);
 }
 
 bool IsDirectBWGEntryPoint() {
@@ -182,18 +140,6 @@ bool IsDirectBWGEntryPoint() {
   }
   return base::GetFieldTrialParamByFeatureAsBool(
       kPageActionMenu, kPageActionMenuDirectEntryPointParam, false);
-}
-
-const char kBWGSessionValidityDurationParam[] = "BWGSessionValidityDuration";
-
-BASE_FEATURE_PARAM(int,
-                   kBWGSessionValidityDurationFeatureParam,
-                   &kPageActionMenu,
-                   kBWGSessionValidityDurationParam,
-                   30);
-
-const base::TimeDelta BWGSessionValidityDuration() {
-  return base::Minutes(kBWGSessionValidityDurationFeatureParam.Get());
 }
 
 const char kExplainGeminiEditMenuParams[] = "PositionForExplainGeminiEditMenu";
@@ -478,28 +424,6 @@ bool IsGeminiLiveDormantReasonsEnabled() {
   return base::FeatureList::IsEnabled(kGeminiLiveDormantReasons);
 }
 
-BASE_FEATURE(kGeminiCopresence, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsGeminiCopresenceEnabled() {
-  if (!IsPageActionMenuEnabled()) {
-    return false;
-  }
-  return base::FeatureList::IsEnabled(kGeminiCopresence);
-}
-
-// TODO(crbug.com/522712050): Remove once Gemini Config Params are merged.
-const char kGeminiCopresenceResponseReadyInterval[] =
-    "GeminiCopresenceResponseReadyInterval";
-
-// The response ready interval default.
-constexpr double kGeminiCopresenceResponseReadyIntervalDefault = 7.0;
-
-double GetGeminiCopresenceResponseReadyInterval() {
-  return base::GetFieldTrialParamByFeatureAsDouble(
-      kGeminiCopresence, kGeminiCopresenceResponseReadyInterval,
-      kGeminiCopresenceResponseReadyIntervalDefault);
-}
-
 BASE_FEATURE(kGeminiChatPersistence, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiChatPersistenceEnabled() {
@@ -507,29 +431,6 @@ bool IsGeminiChatPersistenceEnabled() {
     return false;
   }
   return base::FeatureList::IsEnabled(kGeminiChatPersistence);
-}
-
-const char kGeminiCopresenceWithFullscreenDisabler[] =
-    "GeminiCopresenceWithFullscreenDisabler";
-
-bool IsGeminiCopresenceWithFullscreenDisablerEnabled() {
-  if (!IsGeminiCopresenceEnabled()) {
-    return false;
-  }
-
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kGeminiCopresence, kGeminiCopresenceWithFullscreenDisabler, false);
-}
-
-const char kGeminiCopresenceTrackSources[] = "GeminiCopresenceTrackSources";
-
-bool IsGeminiCopresenceTrackSourcesEnabled() {
-  if (!IsGeminiCopresenceEnabled()) {
-    return false;
-  }
-
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kGeminiCopresence, kGeminiCopresenceTrackSources, false);
 }
 
 BASE_FEATURE(kGeminiConfigParams, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -541,6 +442,15 @@ double GetGeminiResponseReadyInterval() {
   return base::GetFieldTrialParamByFeatureAsDouble(
       kGeminiConfigParams, kGeminiResponseReadyInterval,
       kGeminiResponseReadyIntervalDefault);
+}
+
+const char kGeminiSessionValidityDuration[] = "GeminiSessionValidityDuration";
+constexpr int kGeminiSessionValidityDurationDefault = 30;
+
+base::TimeDelta GetGeminiSessionValidityDuration() {
+  return base::Minutes(base::GetFieldTrialParamByFeatureAsInt(
+      kGeminiConfigParams, kGeminiSessionValidityDuration,
+      kGeminiSessionValidityDurationDefault));
 }
 
 BASE_FEATURE(kPageStabilityMetrics, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -850,6 +760,16 @@ bool IsAppSwitcherAISummarizationEnabled() {
   return base::FeatureList::IsEnabled(kAppSwitcherAISummarization);
 }
 
+BASE_FEATURE(kGeminiContextualSuggestionsCues,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiContextualSuggestionsCuesEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kGeminiContextualSuggestionsCues);
+}
+
 #pragma mark - Debugging Features
 
 const char kBWGPromoConsentParams[] = "BWGPromoConsentVariations";
@@ -906,6 +826,6 @@ bool IsActorServiceLoggingEnabled() {
 BASE_FEATURE(kIOSGeminiBottomSheetMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsIOSGeminiBottomSheetMigrationEnabled() {
-  return IsGeminiCopresenceEnabled() && IsAssistantContainerEnabled() &&
+  return IsAssistantContainerEnabled() &&
          base::FeatureList::IsEnabled(kIOSGeminiBottomSheetMigration);
 }

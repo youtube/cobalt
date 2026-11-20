@@ -308,7 +308,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Lens.Overlay.ByInvocationSource.{InvocationSource}.SelectionState.CloseButtonEvent"
-    enum="LensOverlaySelectionCloseButtonEvent" expires_after="2026-07-26">
+    enum="LensOverlaySelectionCloseButtonEvent" expires_after="2026-12-22">
   <owner>juanmojica@google.com</owner>
   <owner>lens-chrome-eng@google.com</owner>
   <summary>
@@ -645,6 +645,34 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Lens.Overlay.ContextualTasks.QueryEligibility"
+    enum="LensContextualTasksQueryEligibility" expires_after="2026-10-25">
+  <owner>juanmojica@google.com</owner>
+  <owner>lens-chrome@google.com</owner>
+  <summary>
+    Recorded once per Lens session on the first query that is going to be
+    fulfilled by the Contextual Tasks panel rather than the Lens panel. Logs the
+    eligibility state (eligible, AIM ineligible, or Cobrowse ineligible) at the
+    moment of the query. Ineligible queries are only possible when the Lens side
+    panel unification feature is enabled.
+  </summary>
+</histogram>
+
+<histogram
+    name="Lens.Overlay.ContextualTasks.QueryEligibility.ByInvocationSource.{InvocationSource}"
+    enum="LensContextualTasksQueryEligibility" expires_after="2026-10-25">
+  <owner>juanmojica@google.com</owner>
+  <owner>lens-chrome@google.com</owner>
+  <summary>
+    Recorded once per Lens session on the first query that is going to be
+    fulfilled by the Contextual Tasks panel rather than the Lens panel, split by
+    the invocation source. Logs the eligibility state (eligible, AIM ineligible,
+    or Cobrowse ineligible) at the moment of the query. Ineligible queries are
+    only possible when the Lens side panel unification feature is enabled.
+  </summary>
+  <token key="InvocationSource" variants="InvocationSources"/>
+</histogram>
+
 <histogram name="Lens.Overlay.Dismissed" enum="LensOverlayDismissalSource"
     expires_after="2026-11-22">
   <owner>jdonnelly@chromium.org</owner>
@@ -866,7 +894,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Overlay.SelectionState.CloseButtonEvent"
-    enum="LensOverlaySelectionCloseButtonEvent" expires_after="2026-07-26">
+    enum="LensOverlaySelectionCloseButtonEvent" expires_after="2026-12-22">
   <owner>juanmojica@google.com</owner>
   <owner>lens-chrome-eng@google.com</owner>
   <summary>
@@ -929,7 +957,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Overlay.TextDirectiveResult"
-    enum="LensOverlayTextDirectiveResult" expires_after="2026-10-11">
+    enum="LensOverlayTextDirectiveResult" expires_after="2026-12-16">
   <owner>juanmojica@google.com</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>

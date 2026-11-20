@@ -30,7 +30,6 @@ build_webui("build") {
   ]
 
   ts_files = [
-    "browser_proxy.ts",
     "customize_color_scheme_mode.html.ts",
     "customize_color_scheme_mode.ts",
     "segmented_button.html.ts",

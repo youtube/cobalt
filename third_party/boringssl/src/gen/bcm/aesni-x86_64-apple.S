@@ -2096,6 +2096,7 @@ L$enc_key_ret:
 
 
 
+
 .p2align	4
 L$key_expansion_128:
 
@@ -2173,7 +2174,6 @@ L$key_expansion_256b:
 	shufps	$170,%xmm1,%xmm1
 	xorps	%xmm1,%xmm2
 	ret
-
 
 
 .globl	_aes_hw_set_encrypt_key_alt

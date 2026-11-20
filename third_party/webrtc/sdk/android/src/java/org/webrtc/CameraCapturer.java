@@ -313,6 +313,13 @@ abstract class CameraCapturer implements CameraVideoCapturer {
   }
 
   @Override
+  public boolean isCapturing() {
+    synchronized (stateLock) {
+      return sessionOpening || currentSession != null;
+    }
+  }
+
+  @Override
   public void changeCaptureFormat(int width, int height, int framerate) {
     Logging.d(TAG, "changeCaptureFormat: " + width + "x" + height + "@" + framerate);
     synchronized (stateLock) {

@@ -21,6 +21,7 @@ struct Url {
   mojo_base.mojom.Uuid? id;
   string title;
   url.mojom.Url url;
+  url.mojom.Url? favicon_url;
 };
 
 // Represents a folder node.
@@ -31,10 +32,53 @@ struct Folder {
   array<BookmarkNode> children;
 };
 
+struct BookmarksSnapshot {
+  BookmarkNode root;
+  // Updates to bookmarks would be sent through this update stream. Clients may
+  // subscribe to this stream to receive update events.
+  // The interface is associated with the interface used to retrieve this
+  // stream. This means that the ordering of the message between the remote
+  // and the observation stream is preserved.
+  pending_associated_receiver<BookmarksObserver> stream;
+};
+
+struct BookmarkNodeCreated {
+  mojo_base.mojom.Uuid parent_id;
+  int32 index;
+  BookmarkNode node;
+};
+
+struct BookmarkNodeRemoved {
+  mojo_base.mojom.Uuid id;
+};
+
+struct BookmarkNodeMoved {
+  mojo_base.mojom.Uuid old_parent_id;
+  int32 old_index;
+  mojo_base.mojom.Uuid new_parent_id;
+  int32 new_index;
+};
+
+struct BookmarkNodeChanged {
+  BookmarkNode node;
+};
+
+union BookmarksEvent {
+  BookmarkNodeCreated added;
+  BookmarkNodeRemoved removed;
+  BookmarkNodeMoved moved;
+  BookmarkNodeChanged changed;
+};
+
+interface BookmarksObserver {
+  OnBookmarksEvents(array<BookmarksEvent> events);
+};
+
 [GenerateDirectReturnStub]
 interface BookmarksService {
-  // Gets the root bookmark node (which contains all folders/bookmarks).
-  GetBookmarks() => result<BookmarkNode, mojo_base.mojom.Error>;
+  // Gets the root bookmark node (which contains all folders/bookmarks) and
+  // subscribes to future updates.
+  GetBookmarks() => result<BookmarksSnapshot, mojo_base.mojom.Error>;
 
   // Get a specific bookmark node by ID.
   GetBookmark(mojo_base.mojom.Uuid id)
@@ -57,7 +101,15 @@ interface BookmarksService {
   UpdateBookmarkNode(BookmarkNode node)
       => result<BookmarkNode, mojo_base.mojom.Error>;
 
+  // Moves a bookmark node to a new parent folder.
+  // If index is not provided, the node is appended to the end of the folder.
+  MoveBookmarkNode(mojo_base.mojom.Uuid id,
+                   mojo_base.mojom.Uuid new_parent_id,
+                   int32? index)
+      => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
+
   // Deletes a bookmark node.
+  // ID must not refer to a permanent node.
   DeleteBookmarkNode(mojo_base.mojom.Uuid id)
       => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 };

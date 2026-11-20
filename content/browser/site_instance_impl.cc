@@ -15,11 +15,11 @@
 #include "base/notreached.h"
 #include "base/trace_event/typed_macros.h"
 #include "content/browser/bad_message.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/isolated_origin_util.h"
 #include "content/browser/isolation_context.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/site_instance_group.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/common/content_navigation_policy.h"
@@ -1181,9 +1181,12 @@ bool SiteInstanceImpl::IsNavigationSameSite(
   if (!SandboxConfigurationsMatch(GetSiteInfo(), dest_url_info))
     return false;
 
-  // Similarly, do not consider PDF and non-PDF documents to be same-site; they
-  // should never share a SiteInstance. See https://crbug.com/359345045.
-  if (IsPdf() != dest_url_info.embedder_isolation_info.is_pdf()) {
+  // Documents with different embedder-imposed isolation (PDF vs non-PDF, see
+  // https://crbug.com/359345045; isolated-instance vs non-isolated; two
+  // isolated-instance navigations with different per-instance ids) must never
+  // be considered same-site.
+  if (GetSiteInfo().embedder_isolation_info() !=
+      dest_url_info.embedder_isolation_info) {
     return false;
   }
 

@@ -50,7 +50,7 @@ found in the LICENSE file.
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/gesture_user_education_arrow_margin_bottom"
             android:layout_gravity="start"
-            app:lottie_colorFilter="@macro/default_control_color_active" />
+            app:lottie_colorFilter="?attr/colorSecondaryFixed" />
     </LinearLayout>
 
     <TextView

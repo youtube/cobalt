@@ -1185,7 +1185,7 @@ TEST_P(DisplaySchedulerTest, MaxPendingSwapsForRefreshRate) {
         std::nullopt;  // Ensure we fall back to refresh rate logic
 
     damage_tracker_->ClearUndrawnSurfaces();
-    custom_scheduler->OnDisplayDamaged(root_surface_id);
+    custom_scheduler->OnDisplayDamaged(root_surface_id, BeginFrameId());
     custom_scheduler->OnBeginFrameForScheduling(args);
     custom_scheduler->BeginFrameDeadlineForTest();
   };
@@ -1201,6 +1201,299 @@ TEST_P(DisplaySchedulerTest, MaxPendingSwapsForRefreshRate) {
 
   trigger_frame(base::Milliseconds(8.333));  // 120Hz
   EXPECT_EQ(client_.last_params().max_pending_swaps, 5);
+}
+
+TEST_P(DisplaySchedulerTest, AllowMultipleSwapsPerVsync) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kAllowMultipleSwapsPerVsync);
+
+  scheduler_.reset();
+
+  PendingSwapParams params(2);
+  auto custom_scheduler = std::make_unique<TestDisplayScheduler>(
+      damage_tracker_.get(), &fake_begin_frame_source_, &surface_manager_,
+      task_runner_.get(), params, wait_for_all_surfaces_before_draw_);
+  custom_scheduler->SetClient(&client_);
+  custom_scheduler->SetVisible(true);
+
+  SurfaceId root_surface_id(
+      kArbitraryFrameSinkId,
+      LocalSurfaceId(1, base::UnguessableToken::Create()));
+  // Setup: Set root surface. Initial draw should NOT happen.
+  damage_tracker_->SetNewRootSurface(root_surface_id);
+  EXPECT_EQ(0, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  // --- VSYNC 1 ---
+  // Send BF1.
+  AdvanceTimeAndBeginFrameForTest({root_surface_id});
+  // Should NOT draw immediately since it is current frame.
+  EXPECT_TRUE(custom_scheduler->inside_begin_frame_deadline_interval());
+  EXPECT_EQ(0, client_.draw_and_swap_count());
+
+  // Damage for BF1 arrives ON TIME.
+  BeginFrameAck bf1_ack(last_begin_frame_args_, true);
+  damage_tracker_->SurfaceDamagedForTest(root_surface_id, bf1_ack, true);
+  // Should NOT draw immediately.
+  EXPECT_EQ(0, client_.draw_and_swap_count());
+
+  // Trigger deadline manually to draw BF1.
+  // Swap 1.
+  custom_scheduler->BeginFrameDeadlineForTest();
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  // Save BF1 args for later use.
+  BeginFrameArgs bf1_args = last_begin_frame_args_;
+
+  // Simulate client requesting next frame. This wakes up scheduler.
+  custom_scheduler->SetNeedsOneBeginFrame(bf1_args, false);
+
+  // --- VSYNC 2 ---
+  // Send BF2.
+  AdvanceTimeAndBeginFrameForTest({root_surface_id});
+  EXPECT_TRUE(custom_scheduler->inside_begin_frame_deadline_interval());
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+
+  // Trigger deadline for BF2 manually. No damage, so no draw.
+  custom_scheduler->BeginFrameDeadlineForTest();
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  BeginFrameArgs bf2_args = last_begin_frame_args_;
+
+  // Late damage for BF2 arrives (after deadline, while idle).
+  BeginFrameAck bf2_ack(bf2_args, true);
+  damage_tracker_->SurfaceDamagedForTest(root_surface_id, bf2_ack, true);
+  // Should draw synchronously because we are idle and damage is for current
+  // frame (BF2). Swap 2.
+  EXPECT_EQ(2, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+  EXPECT_EQ(bf2_args.frame_id, client_.last_params().begin_frame_args.frame_id);
+}
+
+TEST_P(DisplaySchedulerTest, AllowMultipleSwapsPerVsyncThreeVsyncs) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kAllowMultipleSwapsPerVsync);
+
+  scheduler_.reset();
+
+  PendingSwapParams params(2);
+  auto custom_scheduler = std::make_unique<TestDisplayScheduler>(
+      damage_tracker_.get(), &fake_begin_frame_source_, &surface_manager_,
+      task_runner_.get(), params, wait_for_all_surfaces_before_draw_);
+  custom_scheduler->SetClient(&client_);
+  custom_scheduler->SetVisible(true);
+
+  SurfaceId root_surface_id(
+      kArbitraryFrameSinkId,
+      LocalSurfaceId(1, base::UnguessableToken::Create()));
+
+  // Setup: Set root surface.
+  damage_tracker_->SetNewRootSurface(root_surface_id);
+  EXPECT_EQ(0, client_.draw_and_swap_count());
+
+  // --- VSYNC 1 ---
+  // Send BF1.
+  AdvanceTimeAndBeginFrameForTest({root_surface_id});
+  EXPECT_EQ(0, client_.draw_and_swap_count());
+  EXPECT_TRUE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  // Draw BF1 (Swap 1).
+  custom_scheduler->BeginFrameDeadlineForTest();
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  BeginFrameArgs bf1_args = last_begin_frame_args_;
+
+  // Client requests BF2.
+  // custom_scheduler->SetNeedsOneBeginFrame(bf1_args, false);
+
+  // --- VSYNC 2 (Idle VSync) ---
+  // Send BF2.
+  AdvanceTimeAndBeginFrameForTest({root_surface_id});
+  EXPECT_TRUE(custom_scheduler->inside_begin_frame_deadline_interval());
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+
+  // Trigger deadline for BF2. No damage, so no draw.
+  custom_scheduler->BeginFrameDeadlineForTest();
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  BeginFrameArgs bf2_args = last_begin_frame_args_;
+
+  // Client requests BF3.
+  // custom_scheduler->SetNeedsOneBeginFrame(bf2_args, false);
+
+  // --- VSYNC 3 ---
+  // Send BF3.
+  AdvanceTimeAndBeginFrameForTest({root_surface_id});
+  // Scheduler stopped observing begin frames after there was no damage in last
+  // vsync.
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+
+  BeginFrameArgs bf3_args = last_begin_frame_args_;
+
+  // Late damage for BF2 (Frame 2) arrives.
+  BeginFrameAck bf2_ack(bf2_args, true);
+  damage_tracker_->SurfaceDamagedForTest(root_surface_id, bf2_ack, true);
+
+  // Causes Frame2 to be synchronously drawn.
+  EXPECT_EQ(2, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  // Damage for BF3 (Frame 3) arrives.
+  BeginFrameAck bf3_ack(bf3_args, true);
+  damage_tracker_->SurfaceDamagedForTest(root_surface_id, bf3_ack, true);
+
+  // Should NOT draw synchronously (current frame).
+  EXPECT_EQ(2, client_.draw_and_swap_count());
+
+  // Trigger deadline for BF3 manually.
+  // This will draw Frame3.
+  custom_scheduler->BeginFrameDeadlineForTest();
+  EXPECT_EQ(3, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+}
+
+TEST_P(DisplaySchedulerTest, NoDoubleSyncDrawForSameFrameWhenIdle) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kAllowMultipleSwapsPerVsync);
+
+  scheduler_.reset();
+
+  PendingSwapParams params(2);
+  auto custom_scheduler = std::make_unique<TestDisplayScheduler>(
+      damage_tracker_.get(), &fake_begin_frame_source_, &surface_manager_,
+      task_runner_.get(), params, wait_for_all_surfaces_before_draw_);
+  custom_scheduler->SetClient(&client_);
+  custom_scheduler->SetVisible(true);
+
+  SurfaceId root_surface_id(
+      kArbitraryFrameSinkId,
+      LocalSurfaceId(1, base::UnguessableToken::Create()));
+  SurfaceId child1_sid(kArbitraryFrameSinkId,
+                       LocalSurfaceId(2, base::UnguessableToken::Create()));
+  SurfaceId child2_sid(kArbitraryFrameSinkId,
+                       LocalSurfaceId(3, base::UnguessableToken::Create()));
+
+  damage_tracker_->SetNewRootSurface(root_surface_id);
+  EXPECT_EQ(0, client_.draw_and_swap_count());
+
+  // --- VSYNC 1 ---
+  // Send BF1.
+  AdvanceTimeAndBeginFrameForTest({root_surface_id});
+  EXPECT_EQ(0, client_.draw_and_swap_count());
+
+  // Damage for BF1 (root) arrives on time.
+  BeginFrameAck bf1_ack(last_begin_frame_args_, true);
+  damage_tracker_->SurfaceDamagedForTest(root_surface_id, bf1_ack, true);
+
+  // Trigger deadline manually to draw BF1.
+  // Swap 1.
+  custom_scheduler->BeginFrameDeadlineForTest();
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+
+  BeginFrameArgs bf1_args = last_begin_frame_args_;
+  custom_scheduler->SetNeedsOneBeginFrame(bf1_args, false);
+
+  // --- VSYNC 2 ---
+  // Send BF2.
+  AdvanceTimeAndBeginFrameForTest({root_surface_id});
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+
+  // Trigger deadline for BF2 manually (no damage) -> goes idle.
+  custom_scheduler->BeginFrameDeadlineForTest();
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  BeginFrameArgs bf2_args = last_begin_frame_args_;
+
+  // Late damage for Child 1 (BF2) arrives.
+  BeginFrameAck bf2_ack_child1(bf2_args, true);
+  damage_tracker_->SurfaceDamagedForTest(child1_sid, bf2_ack_child1, true);
+  // Should draw synchronously because we are idle and damage is for current
+  // frame (BF2). Swap 2.
+  EXPECT_EQ(2, client_.draw_and_swap_count());
+  EXPECT_EQ(bf2_args.frame_id, client_.last_params().begin_frame_args.frame_id);
+
+  // Late damage for Child 2 (BF2) arrives.
+  BeginFrameAck bf2_ack_child2(bf2_args, true);
+  damage_tracker_->SurfaceDamagedForTest(child2_sid, bf2_ack_child2, true);
+  // Should NOT draw synchronously again because we already drew BF2.
+  EXPECT_EQ(2, client_.draw_and_swap_count());
+}
+
+TEST_P(DisplaySchedulerTest, NoSyncDrawForCurrentFrameWhenPendingSurfaces) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kAllowMultipleSwapsPerVsync);
+
+  scheduler_.reset();
+
+  PendingSwapParams params(2);
+  auto custom_scheduler = std::make_unique<TestDisplayScheduler>(
+      damage_tracker_.get(), &fake_begin_frame_source_, &surface_manager_,
+      task_runner_.get(), params, wait_for_all_surfaces_before_draw_);
+  custom_scheduler->SetClient(&client_);
+  custom_scheduler->SetVisible(true);
+
+  SurfaceId root_surface_id(
+      kArbitraryFrameSinkId,
+      LocalSurfaceId(1, base::UnguessableToken::Create()));
+  SurfaceId child_sid(kArbitraryFrameSinkId,
+                      LocalSurfaceId(2, base::UnguessableToken::Create()));
+
+  damage_tracker_->SetNewRootSurface(root_surface_id);
+  // Initial draw should NOT happen.
+  EXPECT_EQ(0, client_.draw_and_swap_count());
+
+  // 1. Send BF1 to clear initial damage.
+  AdvanceTimeAndBeginFrameForTest({root_surface_id});
+  // Should NOT draw immediately.
+  EXPECT_EQ(0, client_.draw_and_swap_count());
+  EXPECT_TRUE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  // Trigger deadline manually to draw BF1.
+  custom_scheduler->BeginFrameDeadlineForTest();
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  // Save BF1 args for later use.
+  BeginFrameArgs bf1_args = last_begin_frame_args_;
+
+  // Simulate client requesting next frame. This wakes up scheduler.
+  custom_scheduler->SetNeedsOneBeginFrame(bf1_args, false);
+
+  // 2. Send BF2, expecting damage from root and child.
+  AdvanceTimeAndBeginFrameForTest({root_surface_id, child_sid});
+  EXPECT_TRUE(custom_scheduler->inside_begin_frame_deadline_interval());
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+
+  // Damage for BF2 arrives ONLY for root surface.
+  BeginFrameAck bf2_ack(last_begin_frame_args_, true);
+  damage_tracker_->SurfaceDamagedForTest(root_surface_id, bf2_ack, true);
+
+  // Since child_sid is still pending, it should NOT draw immediately.
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+  EXPECT_TRUE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  // Now child_sid damage arrives.
+  damage_tracker_->SurfaceDamagedForTest(child_sid, bf2_ack, true);
+
+  // Since it is current frame, it should NOT draw immediately even when all
+  // ready.
+  EXPECT_EQ(1, client_.draw_and_swap_count());
+  EXPECT_TRUE(custom_scheduler->inside_begin_frame_deadline_interval());
+
+  // Trigger deadline manually to draw BF2.
+  custom_scheduler->BeginFrameDeadlineForTest();
+  EXPECT_EQ(2, client_.draw_and_swap_count());
+  EXPECT_FALSE(custom_scheduler->inside_begin_frame_deadline_interval());
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1240,7 +1533,7 @@ TEST_P(DisplaySchedulerTest, MaxPendingSwapsWithAndroidCustomDeadlines) {
     args.possible_deadlines = possible_deadlines;
 
     damage_tracker_->ClearUndrawnSurfaces();
-    custom_scheduler->OnDisplayDamaged(root_surface_id);
+    custom_scheduler->OnDisplayDamaged(root_surface_id, BeginFrameId());
     custom_scheduler->OnBeginFrameForScheduling(args);
     custom_scheduler->BeginFrameDeadlineForTest();
   };
@@ -1327,7 +1620,7 @@ TEST_P(DisplaySchedulerTest, MaxPendingSwapsTransition) {
     args.possible_deadlines = possible_deadlines;
 
     damage_tracker_->ClearUndrawnSurfaces();
-    custom_scheduler->OnDisplayDamaged(root_surface_id);
+    custom_scheduler->OnDisplayDamaged(root_surface_id, BeginFrameId());
     custom_scheduler->OnBeginFrameForScheduling(args);
     custom_scheduler->BeginFrameDeadlineForTest();
   };

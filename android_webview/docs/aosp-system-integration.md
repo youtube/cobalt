@@ -82,6 +82,14 @@ called `SystemWebView.apk`. The prebuilt APK provided in AOSP has been renamed
 to `AndroidWebview.apk` for historical reasons, and the filename used in AOSP is
 not significant; only the package name matters.
 
+If you want to build WebView optimized for speed for a device supporting both
+64-bit and 32-bit apps, you should choose the `system_webview_64_32_apk` build
+target, and the resulting output file is called `SystemWebView6432.apk`. For
+this target, the WebView renderer process runs in 64-bit mode, which is
+significantly faster than 32-bit renderer processes. This build optimized for
+speed is more suitable for devices with at least 4GB of RAM, since 64-bit renderer
+processes are expected to consume more memory.
+
 #### Trichrome
 
 **Note:** This variant is no longer recommended. You should use `system_webview_apk` instead.

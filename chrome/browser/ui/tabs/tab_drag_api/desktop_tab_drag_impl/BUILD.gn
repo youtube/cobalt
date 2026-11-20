@@ -14,6 +14,8 @@ source_set("desktop_tab_drag_impl") {
 
   deps = [
     "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/browser:global_features",
     "//chrome/browser/ui/browser_window",
     "//components/browser_apis/tab_drag",
     "//components/browser_apis/tab_drag/adapters",

@@ -66,7 +66,9 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
     bool bottom = false;
     bool trailing = false;
 
-    bool has_strokes() const { return top || leading || bottom || trailing; }
+    bool has_strokes() const {
+      return opacity > 0.0 && (top || leading || bottom || trailing);
+    }
 
     bool operator==(const Outline&) const = default;
   };
@@ -74,6 +76,11 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   // Struct to store corner radii.
   using CornerRadii = std::array<SkVector, 4>;
 
+  CustomCornersBackground(views::View& view,
+                          BrowserView& browser_view,
+                          ColorChoiceWithAlpha primary_color,
+                          ColorChoiceWithAlpha corner_color,
+                          std::optional<int> default_radius = std::nullopt);
   CustomCornersBackground(views::View& view,
                           BrowserView& browser_view,
                           ColorChoice primary_color,
@@ -85,22 +92,21 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   void SetVisible(bool visible);
 
   // Sets the color to paint the primary area of the view.
-  void SetPrimaryColor(ColorChoice primary_color);
-  ColorChoice primary_color() const { return primary_color_; }
+  void SetPrimaryColor(ColorChoiceWithAlpha primary_color);
+  void SetPrimaryColor(ColorChoice primary_color) {
+    SetPrimaryColor(ColorChoiceWithAlpha(primary_color));
+  }
+  ColorChoiceWithAlpha primary_color() const { return primary_color_; }
 
   // Sets the color to paint behind corners of type `kRoundedWithBackground`;
   // default is `FrameColor`.
-  void SetCornerColor(ColorChoice corner_color);
+  void SetCornerColor(ColorChoiceWithAlpha corner_color);
 
   // Sets the corners to use.
   void SetCorners(const Corners& corners);
 
   // Sets the outline strokes to use.
   void SetOutline(const Outline& outline);
-
-  // Value in [0,1] for saving an alpha layer on the canvas before paint.
-  void SetAlpha(float alpha) { alpha_ = alpha; }
-  float alpha() { return alpha_; }
 
   // Returns an appropriate window corner for the current platform.
   // Specify `upper` to switch between upper (true) and lower (false) corners,
@@ -141,9 +147,8 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   Outline GetMirroredOutline() const;
 
   bool visible_ = true;
-  float alpha_ = 1.0f;
-  ColorChoice primary_color_;
-  ColorChoice corner_color_;
+  ColorChoiceWithAlpha primary_color_;
+  ColorChoiceWithAlpha corner_color_;
   int default_radius_;
   Corners corners_;
   Outline outline_;

@@ -6,10 +6,8 @@
 
 #include <stddef.h>
 
-#include <memory>
 #include <string>
 
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -17,7 +15,6 @@
 #include "components/omnibox/browser/test_omnibox_client.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/testing_pref_service.h"
-#include "components/search_engines/template_url_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using LineState = OmniboxPopupSelection::LineState;
@@ -107,8 +104,6 @@ TEST_F(OmniboxPopupSelectionTest, SelectionWithKeywordMode) {
 }
 
 TEST_F(OmniboxPopupSelectionTest, SelectionWithAIMButton) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(omnibox::kAiModeOmniboxEntryPoint);
   bool aim_button_visible = true;
 
   AutocompleteInput input;
@@ -159,8 +154,6 @@ TEST_F(OmniboxPopupSelectionTest, SelectionWithAIMButton) {
 }
 
 TEST_F(OmniboxPopupSelectionTest, SelectionWithAIMButtonZeroInput) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(omnibox::kAiModeOmniboxEntryPoint);
   bool aim_button_visible = true;
 
   AutocompleteInput input;

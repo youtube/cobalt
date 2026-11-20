@@ -45,13 +45,13 @@ void GlicInstanceHelper::SetBoundInstance(Instance* instance) {
     metrics_->OnBoundToInstance(bound_instance_->id());
   }
 #if BUILDFLAG(IS_ANDROID)
-  NotifyJavaInstanceTitleChanged();
+  NotifyJavaInstanceChanged();
 #endif
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void GlicInstanceHelper::OnConversationTitleChanged() {
-  NotifyJavaInstanceTitleChanged();
+void GlicInstanceHelper::OnInstanceChanged() {
+  NotifyJavaInstanceChanged();
 }
 #endif
 
@@ -67,6 +67,13 @@ std::string GlicInstanceHelper::GetConversationTitle() const {
     return bound_instance_->conversation_title();
   }
   return "";
+}
+
+std::optional<int> GlicInstanceHelper::GetTaskId() const {
+  if (bound_instance_) {
+    return bound_instance_->task_id();
+  }
+  return std::nullopt;
 }
 
 void GlicInstanceHelper::OnPinnedByInstance(Instance* instance) {

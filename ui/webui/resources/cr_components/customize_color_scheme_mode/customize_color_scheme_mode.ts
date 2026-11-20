@@ -9,11 +9,10 @@ import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {CustomizeColorSchemeModeBrowserProxy} from './browser_proxy.js';
 import {getCss} from './customize_color_scheme_mode.css.js';
 import {getHtml} from './customize_color_scheme_mode.html.js';
-import type {CustomizeColorSchemeModeClientCallbackRouter, CustomizeColorSchemeModeHandlerInterface} from './customize_color_scheme_mode.mojom-webui.js';
-import {ColorSchemeMode} from './customize_color_scheme_mode.mojom-webui.js';
+import {browserProxyFactory, ColorSchemeMode} from './customize_color_scheme_mode.mojom-webui.js';
+import type {BrowserProxy} from './customize_color_scheme_mode.mojom-webui.js';
 
 export interface ColorSchemeModeOption {
   id: string;
@@ -63,28 +62,27 @@ export class CustomizeColorSchemeModeElement extends
   protected accessor colorSchemeModeOptions_: ColorSchemeModeOption[] =
       colorSchemeModeOptions;
 
-  private handler_: CustomizeColorSchemeModeHandlerInterface =
-      CustomizeColorSchemeModeBrowserProxy.getInstance().handler;
-  private callbackRouter_: CustomizeColorSchemeModeClientCallbackRouter =
-      CustomizeColorSchemeModeBrowserProxy.getInstance().callbackRouter;
+  private browserProxy_: BrowserProxy = browserProxyFactory.getInstance();
   private setColorSchemeModeListenerId_: number|null = null;
 
   override connectedCallback() {
     super.connectedCallback();
 
     this.setColorSchemeModeListenerId_ =
-        this.callbackRouter_.setColorSchemeMode.addListener(colorSchemeMode => {
-          const currentMode = colorSchemeModeOptions.find(
-              (mode) => colorSchemeMode === mode.value);
-          assert(!!currentMode);
-          this.currentMode_ = currentMode;
-        });
-    this.handler_.initializeColorSchemeMode();
+        this.browserProxy_.callbackRouter.setColorSchemeMode.addListener(
+            colorSchemeMode => {
+              const currentMode = colorSchemeModeOptions.find(
+                  (mode) => colorSchemeMode === mode.value);
+              assert(!!currentMode);
+              this.currentMode_ = currentMode;
+            });
+    this.browserProxy_.handler.initializeColorSchemeMode();
   }
 
   override disconnectedCallback() {
     assert(this.setColorSchemeModeListenerId_);
-    this.callbackRouter_.removeListener(this.setColorSchemeModeListenerId_);
+    this.browserProxy_.callbackRouter.removeListener(
+        this.setColorSchemeModeListenerId_);
     this.setColorSchemeModeListenerId_ = null;
     super.disconnectedCallback();
   }
@@ -96,7 +94,7 @@ export class CustomizeColorSchemeModeElement extends
     const selected = colorSchemeModeOptions.find((option) => {
       return option.id === e.detail.value;
     });
-    this.handler_.setColorSchemeMode(
+    this.browserProxy_.handler.setColorSchemeMode(
         selected ? selected.value : ColorSchemeMode.kSystem);
   }
 }

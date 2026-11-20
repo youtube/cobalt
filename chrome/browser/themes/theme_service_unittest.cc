@@ -17,6 +17,7 @@
 #include "base/scoped_observation.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -191,6 +192,8 @@ class ThemeServiceTest : public extensions::ExtensionServiceTestBase {
   }
 
  protected:
+  void InitThemeServiceFromPrefs() { theme_service_->InitFromPrefs(); }
+
   const extensions::ExtensionRegistry* registry() const { return registry_; }
   PrefService* pref_service() { return pref_service_; }
   ThemeService* theme_service() { return theme_service_; }
@@ -1163,6 +1166,38 @@ TEST_F(ThemeServiceTest, RemoveUnusedThemesExemptsSavedLocalTheme) {
 
   EXPECT_FALSE(registry()->GetInstalledExtension(scoper1.extension_id()));
   EXPECT_TRUE(registry()->GetInstalledExtension(scoper2.extension_id()));
+}
+
+TEST_F(ThemeServiceTest, RecordColorSchemeOnLoad) {
+  {
+    base::HistogramTester histogram_tester;
+    theme_service()->SetBrowserColorScheme(
+        ThemeService::BrowserColorScheme::kLight);
+    InitThemeServiceFromPrefs();
+    histogram_tester.ExpectUniqueSample(
+        "ChromeColors.ColorSchemeOnLoad",
+        ThemeService::BrowserColorScheme::kLight, 1);
+  }
+
+  {
+    base::HistogramTester histogram_tester;
+    theme_service()->SetBrowserColorScheme(
+        ThemeService::BrowserColorScheme::kDark);
+    InitThemeServiceFromPrefs();
+    histogram_tester.ExpectUniqueSample("ChromeColors.ColorSchemeOnLoad",
+                                        ThemeService::BrowserColorScheme::kDark,
+                                        1);
+  }
+
+  {
+    base::HistogramTester histogram_tester;
+    theme_service()->SetBrowserColorScheme(
+        ThemeService::BrowserColorScheme::kSystem);
+    InitThemeServiceFromPrefs();
+    histogram_tester.ExpectUniqueSample(
+        "ChromeColors.ColorSchemeOnLoad",
+        ThemeService::BrowserColorScheme::kSystem, 1);
+  }
 }
 
 #if BUILDFLAG(IS_LINUX)

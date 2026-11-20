@@ -48,6 +48,7 @@
 <translation id="1129383337808748948"><ph name="CONTENT_TITLE" /> রিফ্রেশ করুন</translation>
 <translation id="1142002900084379065">সাম্প্রতিক ফটো</translation>
 <translation id="114221662579355151">এর ফলে <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> এবং ক্যামেরা ও মাইক্রোফোন ব্যবহার করার অনুমতি আছে এমন সমস্ত অ্যাপ ও ওয়েবসাইটে ক্যামেরা অ্যাক্সেস করা যায়। আপনাকে ওয়েব পেজ রিফ্রেশ করতে বা অ্যাপটি রিস্টার্ট করতে হতে পারে।</translation>
+<translation id="1145593918056169051">প্রিন্টার বন্ধ হয়ে গেছে</translation>
 <translation id="1147991416141538220">অ্যাক্সেস করার অনুমতি চাইতে এই ডিভাইস অ্যাডমিনিস্ট্রেটরের সাথে যোগাযোগ করুন।</translation>
 <translation id="1148499908455722006"><ph name="USER_NAME" />-এর জন্য অ্যাকাউন্টের তথ্য সহ ডায়ালগ খুলুন</translation>
 <translation id="1150989369772528668">ক্যালেন্ডার</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">খুঁজুন</translation>
 <translation id="1388728792929436380">আপডেট সম্পূর্ণ হলে, <ph name="DEVICE_TYPE" /> রিস্টার্ট করা হবে।</translation>
 <translation id="1390113502208199250">Chrome Education আপগ্রেড করুন ফিচার ব্যবহার করতে, আপনাকে এই ডিভাইসটি ফ্যাক্টরি রিসেট করতে হবে।</translation>
+<translation id="1390907927270446471"><ph name="PROFILE_USERNAME" />-কে <ph name="PRINTER_NAME" />-এ প্রিন্ট করার অনুমতি দেওয়া নেই। অ্যাডমিনিস্ট্রেটরের সাথে যোগাযোগ করুন।</translation>
 <translation id="1391102559483454063">চালু করা আছে</translation>
 <translation id="1394698770495054737">পুরো অস্পষ্ট</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{১ দিন আগে}one{# দিন আগে}other{# দিন আগে}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">হ্যাঁ</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> ব্লক করা আছে</translation>
 <translation id="142765311413773645"><ph name="APP_NAME" />-এর লাইসেন্সের মেয়াদ শেষ হয়ে গেছে</translation>
+<translation id="1430915738399379752">প্রিন্ট</translation>
 <translation id="1435537621343861112">ডিকটেশন শুরু করা যায়নি। মাইক বন্ধ আছে।</translation>
 <translation id="1445031758921122223">ফেস কন্ট্রোল সংক্রান্ত ফাইল ডাউনলোড করা হয়েছে</translation>
 <translation id="1447907279406111651">এখন · <ph name="END_TIME" />-এ শেষ হবে</translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053"><ph name="TOTAL_STEPS" />টি ধাপের মধ্যে <ph name="STEP" /> নম্বর ধাপ। আপনার পিন করা ও খোলা অ্যাপ আপনার স্ক্রিনের নিচে থাকা শেল্ফে আছে। শেল্ফ আইটেমে ফোকাস করতে Alt + Shift + L কী-তে তারপর ট্যাবে প্রেস করুন।</translation>
 <translation id="1602085790802918092">ভার্চুয়াল মেশিন শুরু করা হচ্ছে</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + নিম্নমুখী তীরচিহ্ন</translation>
+<translation id="1604432177629086300">প্রিন্ট করা যায়নি। প্রিন্টার চেক করে নিয়ে আবার চেষ্টা করুন।</translation>
 <translation id="1604857178818051494">মিডিয়া পজ করুন</translation>
 <translation id="1607312127821884567">আপনার ফোনের অ্যাপ দেখা সংক্রান্ত সেট-আপের পদ্ধতি বাতিল করুন</translation>
 <translation id="1610778689852195798">"আগের অবস্থায় ফিরুন"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">নিষ্ক্রিয় অবস্থার ডেটা</translation>
 <translation id="2064048859448024834">ক্যামেরা প্রিভিউ চালু আছে</translation>
 <translation id="2067220651560163985">তাপমাত্রা সেলসিয়াসে দেখুন</translation>
+<translation id="206960706005837784"><ph name="PRINTER_NAME" /> থেকে <ph name="APP_NAME" />-এর মাধ্যমে প্রিন্ট করা হয়েছে</translation>
 <translation id="2075520525463668108"><ph name="CAPTURE_MEDIUM" /> টগল করুন। <ph name="CAPTURE_MEDIUM" /> <ph name="CAPTURE_STATE" /> হয়েছে।</translation>
 <translation id="2079545284768500474">আগের অবস্থায় ফিরুন</translation>
 <translation id="2086334242442703436">ইমোজি পিকার খুলুন</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498"><ph name="APP_NAME" /> চালু করার আগে আপনার ডিভাইস রিস্টার্ট করতে হবে।</translation>
 <translation id="2335091074961603075">আপনার Chromebook অথবা ব্লুটুথ ডিভাইস, ব্লুটুথের পুরনো কোনও ভার্সন ব্যবহার করছে। আরও ভাল অডিও কোয়ালিটির জন্য ইন্টার্নাল মাইক্রোফোন ব্যবহার করুন।</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{<ph name="MANAGER" />-এ কাজ করার জন্য, আপনাকে আজই ওয়াই-ফাই নেটওয়ার্কে কানেক্ট করে আপডেট ডাউনলোড করতে হবে। অথবা, মিটারড কানেকশন ব্যবহার করেও ডাউনলোড করতে পারবেন (এর জন্য চার্জ দিতে হতে পারে)।}one{<ph name="MANAGER" />-এ কাজ করার জন্য, আপনাকে, নির্ধারিত সময়সীমা শেষ হওয়ার আগেই, ওয়াই-ফাই নেটওয়ার্কে কানেক্ট করে আপডেট ডাউনলোড করতে হবে। অথবা, মিটারড কানেকশন ব্যবহার করেও ডাউনলোড করতে পারবেন (এর জন্য চার্জ দিতে হতে পারে)।}other{<ph name="MANAGER" />-এ কাজ করার জন্য, আপনাকে, নির্ধারিত সময়সীমা শেষ হওয়ার আগেই, ওয়াই-ফাই নেটওয়ার্কে কানেক্ট করে আপডেট ডাউনলোড করতে হবে। অথবা, মিটারড কানেকশন ব্যবহার করেও ডাউনলোড করতে পারবেন (এর জন্য চার্জ দিতে হতে পারে)।}}</translation>
+<translation id="2336258397628212480"><ph name="PRINTER_NAME" /> থেকে <ph name="APP_NAME" />-এর মাধ্যমে ১টি পৃষ্ঠা প্রিন্ট করা হচ্ছে</translation>
 <translation id="2336381494582898602">পাওয়ারওয়াশ</translation>
 <translation id="2339073806695260576">একটি নোট, স্ক্রিনশট নিতে, লেজার পয়েন্টার বা আতশ কাচ ব্যবহার করার জন্য শেল্ফের স্টাইলাস বোতামটি ট্যাপ করুন।</translation>
 <translation id="2341729377289034582">স্ক্রিনটি পোর্ট্রেট মোডে লক করা আছে</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">ক্যাপস লক চালু/বন্ধ করুন</translation>
 <translation id="3207953481422525583">ব্যবহারকারী সংক্রান্ত সেটিংস</translation>
 <translation id="3208321278970793882">অ্যাপ</translation>
+<translation id="32101887417650595">প্রিন্টারে কানেক্ট করা যাচ্ছে না</translation>
 <translation id="3212221635583599601">আরও অ্যাকশনের জন্য ইন্টারনেটের সাথে কানেক্ট করুন</translation>
 <translation id="3213571860604332401">বুকমার্ক হিসেবে লিঙ্ক সেভ করুন</translation>
 <translation id="3217205077783620295">ভলিউম চালু আছে, টগল করলে অডিও মিউট হয়ে যাবে।</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">ডেস্ক ১৪</translation>
 <translation id="3433507769937235446">স্ক্রিন বন্ধ করার সময় লক করা</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">কাগজ ফুরিয়ে গেছে</translation>
 <translation id="3435967511775410570">আঙুলের ছাপ শনাক্ত করা হয়েছে</translation>
 <translation id="3437677362970530951">Play Store ও অন্যান্য গেমিং প্ল্যাটফর্মের গেম</translation>
 <translation id="3439896670700055005">ক্যাশ করা কন্টেন্ট ব্যবহার না করেই আপনার বর্তমান পৃষ্ঠাটি আবার লোড করুন</translation>
@@ -999,6 +1007,7 @@
 <translation id="3848526302597027234">নিচে উল্লেখ করা অনুমতি অ্যাক্সেস করুন:</translation>
 <translation id="385051799172605136">ফিরুন</translation>
 <translation id="385300504083504382">শুরুর দিকে</translation>
+<translation id="3854976556788175030">আউটপুট ট্রেতে আর জায়গা নেই</translation>
 <translation id="3857807444929313943">আঙ্গুল লিফ্ট করে আবার টাচ করুন</translation>
 <translation id="3859364108019690">অ্যাপ স্ট্রিম করা যাবে না</translation>
 <translation id="3861638017150647085">"<ph name="USERNAME" />" ইউজারনেমটি পাওয়া যাচ্ছে না</translation>
@@ -1051,6 +1060,7 @@
 <translation id="401993194061514265">মার্কার উপলভ্য নেই। Screencast আবার খুলুন।</translation>
 <translation id="4021716437419160885">নিচের দিকে স্ক্রল করুন</translation>
 <translation id="4022497978915111141">ডিভাইসটি লক করুন</translation>
+<translation id="4023048917751563912"><ph name="PRINTER_NAME" /> থেকে <ph name="APP_NAME" />-এর মাধ্যমে <ph name="PAGE_NUMBER" />টি পৃষ্ঠা প্রিন্ট করা হচ্ছে</translation>
 <translation id="4024840464866786680">আপনি যদি আপনার পিন এবং পাসওয়ার্ড ভুলে গিয়ে থাকেন বা সম্প্রতি আপনার Google অ্যাকাউন্ট পাসওয়ার্ড পরিবর্তন করেন, তাহলে এই ব্যবহারকারীকে আগের অবস্থায় ফেরানোর চেষ্টা করুন।</translation>
 <translation id="4026843240379844265">ডিসপ্লের মধ্যে সক্রিয় উইন্ডোটি সরান</translation>
 <translation id="4028481283645788203">আরও নিরাপত্তার জন্য পাসওয়ার্ড দিতে হবে</translation>
@@ -1581,6 +1591,7 @@
 <translation id="5491186829646618080">ফার্মওয়্যারের আপডেট উপলভ্য আছে</translation>
 <translation id="5503884284981862082">Google Assistant খুলুন/বন্ধ করুন</translation>
 <translation id="550391772491508736">কাস্ট করা আবার চালু করুন</translation>
+<translation id="5505307013568720083">কালি ফুরিয়ে গেছে</translation>
 <translation id="5506975627792768506">ম্যাগনিফায়ার চালু বা বন্ধ করুন</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, Enter 'কী' প্রেস করলে অডিও মিউট হয়ে যাবে।</translation>
 <translation id="5512042095225963688">আগের শব্দ মুছে দিন</translation>
@@ -1692,12 +1703,14 @@
 <translation id="5791926618942305301">স্ক্রিন ক্যাপচারে, <ph name="SOURCE" /> <ph name="TYPE" />-এ সেট করুন। ক্যাপচারের ধরন বেছে নিতে Tab প্রেস করুন। ক্যাপচার করতে Enter প্রেস করুন। এরিয়া ক্যাপচার করার বিকল্প বেছে নিতে আংশিক স্ক্রিনশট হিসেবে সেট করুন। আগে থেকে চালু না থাকলে, অংশ বেছে নিতে Space প্রেস করুন।</translation>
 <translation id="579415080077680903">সাইলেন্স</translation>
 <translation id="5802516411616338943">'দ্রুত সেটিংস' মেনু খুলুন</translation>
+<translation id="5804241973901381774">অনুমতিগুলি</translation>
 <translation id="5804651031882187592">"সিম কার্ড লক করা" সেটিং বন্ধ করা</translation>
 <translation id="5805809050170488595"><ph name="NETWORK_NAME" /> চালু করতে ক্লিক করুন</translation>
 <translation id="5818796501620225415">আপনি আরও সময় যোগ করতে অথবা আপনার ফোকাস সেশন শেষ করতে পারবেন</translation>
 <translation id="5819918159912280082">আপনার Chromebook অপ্রত্যাশিতভাবে আবার চালু হয়েছে। আপনার আগের উইন্ডো ও অ্যাপ খুলুন।</translation>
 <translation id="5823239091726045201">ওয়েবে Google Tasks</translation>
 <translation id="5825969630400862129">কানেক্ট করা ডিভাইসের সেটিংস</translation>
+<translation id="5828633471261496623">মুদ্রন হচ্ছে...</translation>
 <translation id="5830180081891717894">আরও <ph name="WINDOWS" />টি</translation>
 <translation id="5830205393314753525"><ph name="APP_NAME" /> খোলা যাচ্ছে না</translation>
 <translation id="583281660410589416">অজানা</translation>
@@ -1722,6 +1735,7 @@
 <translation id="5892014525522223653">আপনি অফলাইন আছেন।</translation>
 <translation id="5895138241574237353">পুনর্সূচনা</translation>
 <translation id="589817443623831496">পয়েন্ট স্ক্যানিং</translation>
+<translation id="5901494423252125310">প্রিন্টারের ঢাকনা খোলা আছে</translation>
 <translation id="5901630391730855834">হলুদ</translation>
 <translation id="5904614460720589786">কনফিগার করার সময় সমস্যা হওয়ার জন্য <ph name="APP_NAME" /> সেট-আপ করা যায়নি। আপনার অ্যাডমিনের সাথে যোগাযোগ করুন। সমস্যার কোড: <ph name="ERROR_CODE" />।</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> এখন অফলাইন</translation>
@@ -1786,6 +1800,7 @@
         <ph name="BEGIN_PARAGRAPH2" />এই ফিচারটি বন্ধ করে দিলেও, এই ডিভাইসটি সিস্টেম আপডেট এবং নিরাপত্তার জন্য প্রয়োজনীয় পরিষেবা সম্পর্কিত তথ্য পাঠাতে পারবে।<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />'সেটিংস &gt; উন্নত &gt; নিজে থেকে Google-এ ডায়গনস্টিক ও ব্যবহারের ডেটা পাঠান' বিকল্পে গিয়ে মালিক এই ফিচারটি নিয়ন্ত্রণ করতে পারবেন।<ph name="END_PARAGRAPH3" />
     <ph name="BEGIN_PARAGRAPH4" />যদি আপনার সন্তানের অ্যাকাউন্টের ক্ষেত্রে অতিরিক্ত 'ওয়েব ও অ্যাপ অ্যাক্টিভিটি' সেটিং চালু করা থাকে তাহলে এই ডেটা তার Google অ্যাকাউন্টে সেভ করা হতে পারে। এইসব সেটিংস এবং families.google.com লিঙ্কে গিয়ে কীভাবে এগুলি অ্যাডজাস্ট করবেন সেই বিষয়ে আরও জানুন।<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="PRINTER_NAME" /> থেকে <ph name="APP_NAME" />-এর মাধ্যমে প্রিন্ট করার চেষ্টা করা হচ্ছে</translation>
 <translation id="6054305421211936131">স্মার্ট কার্ড দিয়ে সাইন-ইন করুন</translation>
 <translation id="6059276912018042191">Chrome-এ সম্প্রতি খোলা ট্যাবগুলি</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1890,6 +1905,7 @@
 <translation id="6337159624125741244">ফুল-স্ক্রিন ম্যাগনিফায়ার চালু করা আছে</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> এমন একটি ম্যানেজ করা সেশন যা <ph name="MANAGER" />-এর মাধ্যমে ম্যানেজ করা হয়</translation>
 <translation id="6340148837564298498">আপনি পিন ভুলে গেলে, এই ব্যবহারকারীকে আগের অবস্থায় ফেরানোর চেষ্টা করুন।</translation>
+<translation id="634208815998129842">কার্য পরিচালক</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> কানেক্ট করা হয়েছে</translation>
 <translation id="6345418402353744910">প্রক্সি <ph name="PROXY" />-এর সাথে কানেক্ট করার জন্য আপনার ইউজারনেম ও পাসওয়ার্ড দিতে হবে, যাতে অ্যাডমিন আপনার নেটওয়ার্ক কনফিগার করতে পারে</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" /> তারপর <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> বা <ph name="KEY_THREE" /></translation>
@@ -2095,6 +2111,7 @@
 <translation id="6921427376813842559">ডিভাইস আপডেট করুন</translation>
 <translation id="6929081673585394903">কন্ট্রোল দেখুন</translation>
 <translation id="6931576957638141829">এখানে সেভ করুন</translation>
+<translation id="6935286146439255109">একটি কাগজের ট্রে পাওয়া যাচ্ছে না</translation>
 <translation id="6935857786205183008">পোর্ট্রেট</translation>
 <translation id="6942518653766415536">রেকর্ডিং ফর্ম্যাট মেনু</translation>
 <translation id="6945221475159498467">নির্বাচন</translation>
@@ -2117,6 +2134,7 @@
 <translation id="6988094684494323731">Linux কন্টেনার শুরু করা হচ্ছে</translation>
 <translation id="7000027735917578303">উইন্ডো ও ডেস্ক সেটিংস</translation>
 <translation id="7001036685275644873">Linux অ্যাপ ও ফাইল ব্যাক-আপ নেওয়া হচ্ছে</translation>
+<translation id="7001066449188684145"><ph name="PRINTER_NAME" />-এ প্রিন্ট করতে পরিচয় যাচাই করতে হবে। অ্যাডমিনিস্ট্রেটরের সাথে যোগাযোগ করুন।</translation>
 <translation id="7004910047186208204">মোবাইল ডেটার সাথে কানেক্ট করুন</translation>
 <translation id="7005239792648594238">শুরু করার জন্য অ্যাপ খুলুন</translation>
 <translation id="7014684956566476813"><ph name="DEVICE_NAME" /> নামের ডিভাইসে কানেক্ট করা হয়েছে</translation>
@@ -2156,6 +2174,7 @@
 <translation id="7108254681523785542">পেস্ট করার জন্য একটি আইটেম বেছে নিন। আপনি <ph name="SHORTCUT_KEY_NAME" /> + v প্রেস করে ক্লিপবোর্ড দেখতে পারবেন।</translation>
 <translation id="7108338896283013870">লুকান</translation>
 <translation id="7108933416628942903">এখনই লক করুন</translation>
+<translation id="7116554090938189816">প্রিন্টারের SSL সার্টিফিকেটের মেয়াদ শেষ হয়ে গেছে। প্রিন্টার রিস্টার্ট করে আবার চেষ্টা করুন।</translation>
 <translation id="7116969082764510092">ডেস্ক ১১</translation>
 <translation id="7118268675952955085">স্ক্রিনশট</translation>
 <translation id="7118597077555700347"><ph name="SEARCH_RESULT_TEXT" /> খুলুন</translation>
@@ -2208,6 +2227,7 @@
 <translation id="7312210124139670355">আপনার অ্যাডমিনিস্ট্রেটর আপনার ই-সিম রিসেট করছেন। এতে কয়েক মিনিট সময় লাগতে পারে।</translation>
 <translation id="7312761820869643657">ডিভাইস আগের ভার্সনে আপডেট করুন</translation>
 <translation id="7313193732017069507">ক্যামেরা সামনে আনুন</translation>
+<translation id="7325209047678309347">প্রিন্টারে কাগজ আটকে গেছে</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> ADB ডিবাগিং বন্ধ করে দিয়েছে। আপনার <ph name="DEVICE_TYPE" /> রিস্টার্ট করার পরে, আর কোনও অ্যাপ সাইডলোড করতে পারবেন না।</translation>
 <translation id="73289266812733869">অনির্বাচিত</translation>
 <translation id="7330397557116570022">'ডিকটেশন' ব্যবহার করতে টেক্সট ফিল্ডে যান</translation>
@@ -2582,6 +2602,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">খারাপ আউটপুট</translation>
 <translation id="8345019317483336363"><ph name="WINDOW_TITLE" />টি উইন্ডো বেছে নেওয়া হয়েছে</translation>
+<translation id="8347227221149377169">প্রিন্ট করার কাজগুলি</translation>
 <translation id="8349826889576450703">লঞ্চার</translation>
 <translation id="8349964124165471584">নতুন উইন্ডোতে লিঙ্ক খুলুন</translation>
 <translation id="8351131234907093545">নোট তৈরি করুন</translation>
@@ -2620,6 +2641,7 @@
 <translation id="8458259704995116343">VM(ভার্চুয়াল মেশিন) চালু করা যায়নি।</translation>
 <translation id="84613761564611563">নেটওয়ার্ক কনফিগার UI এর অনুরোধ করা হয়েছে, দয়া করে অপেক্ষা করুন...</translation>
 <translation id="8462305545768648477">'বাছুন ও শুনুন' ফিচারটি বন্ধ করুন</translation>
+<translation id="8463001014623882202">অনুমোদন পাওয়া যায়নি</translation>
 <translation id="8466665972451889002"><ph name="GROUP_NAME" />-এ আইটেম দেখুন</translation>
 <translation id="8468806060683421065"><ph name="DUE_DATE_AND_TIME" /> তারিখের মধ্যে জমা দিতে হবে</translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" />-এর <ph name="FEATURE_NAME" /> <ph name="FEATURE_STATE" />।</translation>

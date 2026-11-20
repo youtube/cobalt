@@ -211,9 +211,11 @@ class MockImageReplacement : public blink::mojom::ImageReplacement {
 
     blink::mojom::ImageDataPtr image_data = blink::mojom::ImageData::New();
     image_data->webp_bytes = mojo_base::BigBuffer(kImageBytes);
+    blink::mojom::ReplacementDataPtr replacement_data =
+        blink::mojom::ReplacementData::New(
+            std::move(image_data), base::Token::CreateRandom(), object_fit_);
     host_remote_->ReplacementFrameAttached(raw_subframe->GetFrameToken(),
-                                           std::move(image_data),
-                                           base::Token::CreateRandom());
+                                           std::move(replacement_data));
 
     start_replacement_future_.SetValue();
   }
@@ -248,6 +250,10 @@ class MockImageReplacement : public blink::mojom::ImageReplacement {
     EXPECT_FALSE(start_replacement_future_.IsReady());
   }
 
+  void set_object_fit(blink::mojom::ObjectFit object_fit) {
+    object_fit_ = object_fit;
+  }
+
  private:
   raw_ptr<content::WebContents> web_contents_;
   const size_t frame_index_;
@@ -256,6 +262,7 @@ class MockImageReplacement : public blink::mojom::ImageReplacement {
   base::test::TestFuture<void> render_replacement_future_;
   base::test::TestFuture<void> disconnect_future_;
   content::FrameTreeNodeId frame_tree_node_id_;
+  blink::mojom::ObjectFit object_fit_ = blink::mojom::ObjectFit::kNone;
 };
 
 }  // namespace
@@ -1407,4 +1414,48 @@ INSTANTIATE_TEST_SUITE_P(All,
                          IndigoImageReplacementManagerBrowserTestWithParam,
                          ::testing::Values(gfx::Size(100, 100),
                                            gfx::Size(200, 0)));
+
+IN_PROC_BROWSER_TEST_F(IndigoImageReplacementManagerBrowserTest, ObjectFit) {
+  GURL test_url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::RenderFrameHostWrapper main_rfh(web_contents->GetPrimaryMainFrame());
+
+  IndigoImageReplacementManager* manager =
+      IndigoImageReplacementManager::GetOrCreateForPage(main_rfh->GetPage());
+  ASSERT_TRUE(manager);
+
+  MockImageReplacement mock_replacement(web_contents);
+  mock_replacement.set_object_fit(blink::mojom::ObjectFit::kFill);
+  mojo::Receiver<blink::mojom::ImageReplacement> receiver(&mock_replacement);
+
+  manager->RegisterImageReplacement(receiver.BindNewPipeAndPassRemote(),
+                                    /*is_primary=*/true);
+  mock_replacement.WaitForStartReplacement();
+
+  GURL expected_url = GetComponentExtensionUrl();
+  content::TestNavigationObserver navigation_observer(expected_url);
+  navigation_observer.WatchExistingWebContents();
+  navigation_observer.Wait();
+
+  content::RenderFrameHostWrapper subframe(
+      content::ChildFrameAt(main_rfh.get(), 0));
+  ASSERT_TRUE(subframe.get());
+  EXPECT_EQ(subframe->GetLastCommittedURL(), expected_url);
+
+  mock_replacement.WaitForRenderReplacement();
+
+  // Verify that the object-fit style is set correctly on the image.
+  EXPECT_EQ("fill", content::EvalJs(subframe.get(), R"js(
+        (() => {
+          const app =
+              document.body.querySelector('indigo-image-replacement-app');
+          const img = app.shadowRoot.getElementById('image');
+          return window.getComputedStyle(img).objectFit;
+        })()
+      )js"));
+}
+
 }  // namespace indigo

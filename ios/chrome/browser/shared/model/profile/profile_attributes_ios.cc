@@ -12,6 +12,7 @@
 namespace {
 
 using Dict = base::DictValue;
+using Path = std::initializer_list<std::string_view>;
 
 // Constants used as key in the dictionary.
 constexpr std::string_view kActiveTimeKey = "active_time";
@@ -23,102 +24,227 @@ constexpr std::string_view kNewProfile = "new_profile";
 constexpr std::string_view kIsFullyInitializedKey = "fully_initialized";
 constexpr std::string_view kIsDeletedProfile = "deleted_profile";
 constexpr std::string_view kDiscardedSessions = "discarded_sessions";
+constexpr std::string_view kSessionScopedPrefs = "session_scoped_prefs";
 constexpr std::string_view kNotificationPermissions =
     "notification_permissions";
 
-// Converts `value` to a base::Value.
-base::Value ToValue(const std::string& value) {
-  return base::Value(value);
-}
+// Helper class to convert a V into a base::Value using partial specialisation.
+template <typename T>
+struct From {};
 
-// Converts `value` to a base::Value.
-base::Value ToValue(const GaiaId& value) {
-  return base::Value(value.ToString());
-}
+// Partial specialisation of `From<>` for `std::nullopt_t`.
+template <>
+struct From<std::nullopt_t> {
+  static base::Value operator()(std::nullopt_t value) { return base::Value(); }
+};
 
-// Retrieves a bool value from the dictionary.
-bool GetBool(const Dict& dict, std::string_view key) {
-  return dict.FindBool(key).value_or(false);
-}
-
-// Stores a bool value in the dictionary.
-void SetBool(Dict& dict, std::string_view key, bool value) {
-  if (!value) {
-    dict.Remove(key);
-  } else {
-    dict.Set(key, value);
+// Partial specialisation of `From<>` for `bool`.
+template <>
+struct From<bool> {
+  static base::Value operator()(bool value) {
+    return value ? base::Value(true) : base::Value();
   }
-}
+};
 
-// Retrieves a Time value from the dictionary.
-base::Time GetTime(const Dict& dict, std::string_view key) {
-  return base::ValueToTime(dict.Find(key)).value_or(base::Time());
-}
-
-// Stores a Time value in the dictionary.
-void SetTime(Dict& dict, std::string_view key, base::Time value) {
-  if (value == base::Time()) {
-    dict.Remove(key);
-  } else {
-    dict.Set(key, base::TimeToValue(value));
+// Partial specialisation of `From<>` for `base::Time`.
+template <>
+struct From<base::Time> {
+  static base::Value operator()(base::Time value) {
+    return value != base::Time() ? base::TimeToValue(value) : base::Value();
   }
-}
+};
 
-// Retrieves a string value from the dictionary.
-const std::string& GetString(const Dict& dict, std::string_view key) {
-  const std::string* string = dict.FindString(key);
-  return string ? *string : base::EmptyString();
-}
-
-// Stores a string value in the dictionary.
-void SetString(Dict& dict, std::string_view key, std::string_view value) {
-  if (value.empty()) {
-    dict.Remove(key);
-  } else {
-    dict.Set(key, value);
+// Partial specialisation of `From<>` for `std::string`.
+template <>
+struct From<std::string> {
+  static base::Value operator()(const std::string& value) {
+    return !value.empty() ? base::Value(value) : base::Value();
   }
-}
+};
 
-// Retrieves a string set value from the dictionary.
-template <typename StringSet = std::set<std::string>>
-StringSet GetStringSet(const Dict& dict, std::string_view key) {
-  StringSet set;
-  if (const base::ListValue* list = dict.FindList(key)) {
-    for (const base::Value& value : *list) {
-      if (const std::string* string = value.GetIfString()) {
-        set.emplace(*string);
+// Partial specialisation of `From<>` for `std::string_view`.
+template <>
+struct From<std::string_view> {
+  static base::Value operator()(std::string_view value) {
+    return !value.empty() ? base::Value(value) : base::Value();
+  }
+};
+
+// Partial specialisation of `From<>` for `GaiaId`.
+template <>
+struct From<GaiaId> {
+  static base::Value operator()(const GaiaId& value) {
+    return !value.empty() ? base::Value(value.ToString()) : base::Value();
+  }
+};
+
+// Partial specialisation of `From<>` for `base::DictValue`.
+template <>
+struct From<base::DictValue> {
+  static base::Value operator()(base::DictValue value) {
+    return !value.empty() ? base::Value(std::move(value)) : base::Value();
+  }
+};
+
+// Partial specialisation of `From<>` for `base::ListValue`.
+template <>
+struct From<base::ListValue> {
+  static base::Value operator()(base::ListValue value) {
+    return !value.empty() ? base::Value(std::move(value)) : base::Value();
+  }
+};
+
+// Partial specialisation of `From<>` for `std::set<V, Less>`.
+template <typename V, typename Less>
+struct From<std::set<V, Less>> {
+  static base::Value operator()(const std::set<V, Less>& value) {
+    if (value.empty()) {
+      return base::Value();
+    }
+    base::ListValue list;
+    for (const auto& item : value) {
+      list.Append(From<V>{}(item));
+    }
+    return base::Value(std::move(list));
+  }
+};
+
+// Helper class to convert a base::Value* to V using partial specialisation.
+template <typename V>
+struct Into {};
+
+// Partial specialisation of `Into<>` for `bool`.
+template <>
+struct Into<bool> {
+  using output = bool;
+  static output operator()(const base::Value* value) {
+    return value ? value->GetIfBool().value_or(false) : false;
+  }
+};
+
+// Partial specialisation of `Into<>` for `base::Time`.
+template <>
+struct Into<base::Time> {
+  using output = base::Time;
+  static output operator()(const base::Value* value) {
+    return base::ValueToTime(value).value_or(base::Time());
+  }
+};
+
+// Partial specialisation of `Into<>` for `std::string`.
+template <>
+struct Into<std::string> {
+  using output = const std::string&;
+  static output operator()(const base::Value* value) {
+    if (value) {
+      if (const std::string* string = value->GetIfString()) {
+        return *string;
       }
     }
-  }
-  return set;
-}
 
-// Stores a string set value in the dictionary.
-template <typename StringSet = std::set<std::string>>
-void SetStringSet(Dict& dict, std::string_view key, const StringSet& set) {
-  if (set.empty()) {
-    dict.Remove(key);
-  } else {
-    base::ListValue list;
-    for (const auto& string : set) {
-      list.Append(ToValue(string));
+    return base::EmptyString();
+  }
+};
+
+// Partial specialisation of `Into<>` for `GaiaId`.
+template <>
+struct Into<GaiaId> {
+  using output = GaiaId;
+  static output operator()(const base::Value* value) {
+    return GaiaId(Into<std::string>{}(value));
+  }
+};
+
+// Partial specialisation of `Into<>` for `base::DictValue`.
+template <>
+struct Into<base::DictValue> {
+  using output = const base::DictValue*;
+  static output operator()(const base::Value* value) {
+    return value ? value->GetIfDict() : nullptr;
+  }
+};
+
+// Partial specialisation of `Into<>` for `base::ListValue`.
+template <>
+struct Into<base::ListValue> {
+  using output = const base::ListValue*;
+  static output operator()(const base::Value* value) {
+    return value ? value->GetIfList() : nullptr;
+  }
+};
+
+// Partial specialisation of `Into<>` for `std::set<V, Less>`.
+template <typename V, typename Less>
+struct Into<std::set<V, Less>> {
+  using output = std::set<V, Less>;
+  static output operator()(const base::Value* value) {
+    std::set<V, Less> set;
+    if (const auto* list = Into<base::ListValue>{}(value)) {
+      for (const base::Value& item : *list) {
+        set.emplace(Into<V>{}(&item));
+      }
     }
-    dict.Set(key, std::move(list));
+    return set;
+  }
+};
+
+// Retrieves a value from the dictionary.
+const base::Value* GetValue(const base::DictValue& dict, Path path) {
+  size_t index = 0;
+  const size_t count = path.size();
+  const base::DictValue* current_dict = &dict;
+  for (std::string_view key : path) {
+    if (++index == count) {
+      return current_dict->Find(key);
+    }
+
+    current_dict = current_dict->FindDict(key);
+    if (!current_dict) {
+      break;
+    }
+  }
+  return nullptr;
+}
+
+// Stores `value` in the dictionary or erase the key if value is `NONE`.
+void SetValue(base::DictValue& dict, Path path, base::Value value) {
+  size_t index = 0;
+  const size_t count = path.size();
+  base::DictValue* current_dict = &dict;
+  for (std::string_view key : path) {
+    if (++index == count) {
+      if (value.type() == base::Value::Type::NONE) {
+        current_dict->Remove(key);
+      } else {
+        current_dict->Set(key, std::move(value));
+      }
+      return;
+    }
+
+    base::Value* current_value = current_dict->Find(key);
+    if (current_value) {
+      current_dict = current_value->GetIfDict();
+      if (!current_dict) {
+        return;
+      }
+    } else {
+      current_value = current_dict->Set(key, base::Value(base::DictValue()));
+      current_dict = &(current_value->GetDict());
+    }
   }
 }
 
-// Retrieves a dictionary value from the storage dictionary.
-const Dict* GetDict(const Dict& dict, std::string_view key) {
-  return dict.FindDict(key);
+// Retrieves a value from the dictionary (as `Into<V>::output`).
+template <typename V>
+typename Into<V>::output Get(const base::DictValue& dict, Path path) {
+  return Into<V>{}(GetValue(dict, std::move(path)));
 }
 
-// Sets a dictionary value in the storage dictionary.
-void SetDict(Dict& dict, std::string_view key, Dict value) {
-  if (value.empty()) {
-    dict.Remove(key);
-  } else {
-    dict.Set(key, std::move(value));
-  }
+// Stores `value` into the dictionary.
+template <typename V>
+void Set(base::DictValue& dict, Path path, V&& value) {
+  return SetValue(dict, std::move(path),
+                  From<std::decay_t<V>>{}(std::forward<V>(value)));
 }
 
 }  // namespace
@@ -127,7 +253,7 @@ void SetDict(Dict& dict, std::string_view key, Dict value) {
 ProfileAttributesIOS ProfileAttributesIOS::CreateNew(
     std::string_view profile_name) {
   base::DictValue dict;
-  SetBool(dict, kNewProfile, true);
+  Set(dict, {kNewProfile}, true);
   return ProfileAttributesIOS(profile_name, std::move(dict));
 }
 
@@ -141,7 +267,7 @@ ProfileAttributesIOS ProfileAttributesIOS::WithAttrs(
 ProfileAttributesIOS ProfileAttributesIOS::DeletedProfile(
     std::string_view profile_name) {
   base::DictValue dict;
-  SetBool(dict, kIsDeletedProfile, true);
+  Set(dict, {kIsDeletedProfile}, true);
   return ProfileAttributesIOS(profile_name, std::move(dict));
 }
 
@@ -158,36 +284,36 @@ const std::string& ProfileAttributesIOS::ProfileAttributesIOS::GetProfileName()
 }
 
 bool ProfileAttributesIOS::IsNewProfile() const {
-  return GetBool(storage_, kNewProfile);
+  return Get<bool>(storage_, {kNewProfile});
 }
 
 bool ProfileAttributesIOS::IsFullyInitialized() const {
-  return GetBool(storage_, kIsFullyInitializedKey);
+  return Get<bool>(storage_, {kIsFullyInitializedKey});
 }
 
 bool ProfileAttributesIOS::IsDeletedProfile() const {
-  return GetBool(storage_, kIsDeletedProfile);
+  return Get<bool>(storage_, {kIsDeletedProfile});
 }
 
 GaiaId ProfileAttributesIOS::GetGaiaId() const {
-  return GaiaId(GetString(storage_, kGaiaIdKey));
+  return Get<GaiaId>(storage_, {kGaiaIdKey});
 }
 
 const std::string& ProfileAttributesIOS::GetUserName() const {
-  return GetString(storage_, kUserNameKey);
+  return Get<std::string>(storage_, {kUserNameKey});
 }
 
 bool ProfileAttributesIOS::HasAuthenticationError() const {
-  return GetBool(storage_, kIsAuthErrorKey);
+  return Get<bool>(storage_, {kIsAuthErrorKey});
 }
 
 ProfileAttributesIOS::GaiaIdSet ProfileAttributesIOS::GetAttachedGaiaIds()
     const {
-  return GetStringSet<GaiaIdSet>(storage_, kAttachedGaiaIdsKey);
+  return Get<GaiaIdSet>(storage_, {kAttachedGaiaIdsKey});
 }
 
 base::Time ProfileAttributesIOS::GetLastActiveTime() const {
-  return GetTime(storage_, kActiveTimeKey);
+  return Get<base::Time>(storage_, {kActiveTimeKey});
 }
 
 bool ProfileAttributesIOS::IsAuthenticated() const {
@@ -199,45 +325,80 @@ bool ProfileAttributesIOS::IsAuthenticated() const {
 
 ProfileAttributesIOS::SessionIds ProfileAttributesIOS::GetDiscardedSessions()
     const {
-  return GetStringSet<SessionIds>(storage_, kDiscardedSessions);
+  return Get<SessionIds>(storage_, {kDiscardedSessions});
 }
 
 const Dict* ProfileAttributesIOS::GetNotificationPermissions() const {
-  return GetDict(storage_, kNotificationPermissions);
+  return Get<Dict>(storage_, {kNotificationPermissions});
+}
+
+bool ProfileAttributesIOS::HasSessionScopedPrefs(
+    std::string_view session_id) const {
+  return Get<Dict>(storage_, {kSessionScopedPrefs, session_id}) != nullptr;
+}
+
+bool ProfileAttributesIOS::GetSessionScopedBoolPref(
+    std::string_view session_id,
+    std::string_view pref_name) const {
+  return Get<bool>(storage_, {kSessionScopedPrefs, session_id, pref_name});
+}
+
+base::Time ProfileAttributesIOS::GetSessionScopedTimePref(
+    std::string_view session_id,
+    std::string_view pref_name) const {
+  using Time = base::Time;
+  return Get<Time>(storage_, {kSessionScopedPrefs, session_id, pref_name});
 }
 
 void ProfileAttributesIOS::ClearIsNewProfile() {
-  SetBool(storage_, kNewProfile, false);
+  Set(storage_, {kNewProfile}, false);
 }
 
 void ProfileAttributesIOS::SetFullyInitialized() {
-  SetBool(storage_, kIsFullyInitializedKey, true);
+  Set(storage_, {kIsFullyInitializedKey}, true);
 }
 
 void ProfileAttributesIOS::SetAuthenticationInfo(const GaiaId& gaia_id,
                                                  std::string_view user_name) {
-  SetString(storage_, kGaiaIdKey, gaia_id.ToString());
-  SetString(storage_, kUserNameKey, user_name);
+  Set(storage_, {kGaiaIdKey}, gaia_id);
+  Set(storage_, {kUserNameKey}, user_name);
 }
 
 void ProfileAttributesIOS::SetHasAuthenticationError(bool value) {
-  SetBool(storage_, kIsAuthErrorKey, value);
+  Set(storage_, {kIsAuthErrorKey}, value);
 }
 
 void ProfileAttributesIOS::SetAttachedGaiaIds(const GaiaIdSet& gaia_ids) {
-  SetStringSet(storage_, kAttachedGaiaIdsKey, gaia_ids);
+  Set(storage_, {kAttachedGaiaIdsKey}, gaia_ids);
 }
 
 void ProfileAttributesIOS::SetLastActiveTime(base::Time time) {
-  SetTime(storage_, kActiveTimeKey, time);
+  Set(storage_, {kActiveTimeKey}, time);
 }
 
 void ProfileAttributesIOS::SetDiscardedSessions(const SessionIds& session_ids) {
-  SetStringSet(storage_, kDiscardedSessions, session_ids);
+  Set(storage_, {kDiscardedSessions}, session_ids);
 }
 
 void ProfileAttributesIOS::SetNotificationPermissions(Dict permissions) {
-  SetDict(storage_, kNotificationPermissions, std::move(permissions));
+  Set(storage_, {kNotificationPermissions}, std::move(permissions));
+}
+
+void ProfileAttributesIOS::ClearSessionScopedPrefs(
+    std::string_view session_id) {
+  Set(storage_, {kSessionScopedPrefs, session_id}, std::nullopt);
+}
+
+void ProfileAttributesIOS::SetSessionScopedBoolPref(std::string_view session_id,
+                                                    std::string_view pref_name,
+                                                    bool value) {
+  Set(storage_, {kSessionScopedPrefs, session_id, pref_name}, value);
+}
+
+void ProfileAttributesIOS::SetSessionScopedTimePref(std::string_view session_id,
+                                                    std::string_view pref_name,
+                                                    base::Time value) {
+  Set(storage_, {kSessionScopedPrefs, session_id, pref_name}, value);
 }
 
 base::DictValue ProfileAttributesIOS::GetStorage() && {

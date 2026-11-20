@@ -259,6 +259,7 @@ PrefixSize GetV5ListPrefixSize(const ListIdentifier& list_identifier) {
     case SBThreatType::SB_THREAT_TYPE_APK_DOWNLOAD:
     case SBThreatType::SB_THREAT_TYPE_MANAGED_POLICY_WARN:
     case SBThreatType::SB_THREAT_TYPE_MANAGED_POLICY_BLOCK:
+    case SBThreatType::SB_THREAT_TYPE_WARNABLE_SUSPICIOUS_SITE:
       NOTREACHED() << "GetV5ListPrefixSize not supported for SBThreatType: "
                    << static_cast<std::underlying_type<SBThreatType>::type>(
                           list_identifier.sb_threat_type());
@@ -307,6 +308,7 @@ std::string GetV5ListName(const ListIdentifier& list_identifier) {
     case SBThreatType::SB_THREAT_TYPE_APK_DOWNLOAD:
     case SBThreatType::SB_THREAT_TYPE_MANAGED_POLICY_WARN:
     case SBThreatType::SB_THREAT_TYPE_MANAGED_POLICY_BLOCK:
+    case SBThreatType::SB_THREAT_TYPE_WARNABLE_SUSPICIOUS_SITE:
       NOTREACHED() << "GetV5ListName not supported for SBThreatType: "
                    << static_cast<std::underlying_type<SBThreatType>::type>(
                           list_identifier.sb_threat_type());

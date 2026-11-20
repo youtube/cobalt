@@ -283,13 +283,13 @@ source_set("impl") {
 
     deps += [
       "//chrome/browser/apps/app_service",
-      "//chrome/browser/ash/profiles",
       "//chrome/browser/content_settings",
       "//chrome/browser/extensions",
       "//chrome/browser/extensions/api/notifications",
       "//chrome/browser/favicon",
       "//chrome/browser/nearby_sharing",
       "//chrome/browser/ui/ash/multi_user",
+      "//chromeos/ash/components/browser_context_helper",
       "//ui/message_center",
     ]
   }

@@ -15,6 +15,7 @@
 #include "base/functional/function_ref.h"
 #include "base/strings/string_util.h"
 #include "build/buildflag.h"
+#include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
@@ -27,6 +28,8 @@
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/grit/components_scaled_resources.h"
+#include "components/strings/grit/components_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 
 namespace autofill {
@@ -149,6 +152,13 @@ void IbanSuggestionGenerator::GenerateSuggestions(
     const AutofillField* trigger_autofill_field,
     AutofillClient& client,
     base::FunctionRef<void(ReturnedSuggestions)> callback) {
+  if (client.IsAutofillTypeBlockedByPolicy(
+          client.GetLastCommittedPrimaryMainFrameURL(),
+          AutofillClient::AutofillPolicyDataCategory::kPayments)) {
+    callback({SuggestionDataSource::kIban, {}});
+    return;
+  }
+
   // The field is eligible only if it's focused on an IBAN field.
   if (!trigger_autofill_field ||
       !trigger_autofill_field->Type().GetTypes().contains(IBAN_VALUE)) {
@@ -195,7 +205,20 @@ void IbanSuggestionGenerator::GenerateSuggestions(
   }
 
   FilterIbansToSuggest(trigger_autofill_field->value(), ibans);
-  callback({SuggestionDataSource::kIban, GetSuggestionsForIbans(ibans)});
+  std::vector<Suggestion> suggestions = GetSuggestionsForIbans(ibans);
+
+  // Don't provide IBAN suggestions for non-secure pages, but do provide them
+  // for secure pages with passive mixed content (see implementation of
+  // IsContextSecure).
+  if (!suggestions.empty() && !client.IsContextSecure()) {
+    // Replace the suggestion content with a warning message explaining why
+    // Autofill is disabled for a website.
+    suggestions = {Suggestion(
+        l10n_util::GetStringUTF16(IDS_AUTOFILL_WARNING_INSECURE_CONNECTION),
+        SuggestionType::kInsecureContextPaymentDisabledMessage)};
+  }
+
+  callback({SuggestionDataSource::kIban, std::move(suggestions)});
 }
 
 }  // namespace autofill

@@ -227,7 +227,7 @@ linux_memory_builder(
             ),
             "sync_integration_tests": targets.mixin(
                 swarming = targets.swarming(
-                    shards = 4,
+                    shards = 8,
                 ),
             ),
             "unit_tests": targets.mixin(
@@ -485,7 +485,7 @@ linux_memory_builder(
             ),
             "sync_integration_tests": targets.mixin(
                 swarming = targets.swarming(
-                    shards = 6,
+                    shards = 12,
                 ),
             ),
             "unit_tests": targets.mixin(
@@ -617,6 +617,11 @@ linux_memory_builder(
             "services_unittests": targets.remove(
                 reason = "https://crbug.com/831676",
             ),
+            "sync_integration_tests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 6,
+                ),
+            ),
             "unit_tests": targets.mixin(
                 # These are very slow on the Chrome OS MSAN trybot for some reason.
                 # crbug.com/865455
@@ -729,6 +734,11 @@ linux_memory_builder(
             ),
             "services_unittests": targets.remove(
                 reason = "https://crbug.com/831676",
+            ),
+            "sync_integration_tests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 6,
+                ),
             ),
         },
     ),
@@ -1043,7 +1053,7 @@ ci.builder(
             ),
             "sync_integration_tests": targets.mixin(
                 swarming = targets.swarming(
-                    shards = 4,
+                    shards = 8,
                 ),
             ),
             "unit_tests": targets.mixin(
@@ -1410,7 +1420,7 @@ ci.builder(
                     "--test-launcher-jobs=3",
                 ],
                 swarming = targets.swarming(
-                    shards = 3,
+                    shards = 6,
                 ),
             ),
             "unit_tests": targets.mixin(

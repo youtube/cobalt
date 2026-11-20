@@ -11,9 +11,11 @@ namespace send_tab_to_self {
 // These methods should only be thin wrappers around
 // SendTabToSelfBubbleController that can be called outside of /views/.
 
-void ShowBubble(content::WebContents* web_contents, bool show_back_button) {
+void ShowBubble(content::WebContents* web_contents,
+                ShareEntryPoint entry_point,
+                bool show_back_button) {
   return SendTabToSelfBubbleController::GetOrCreateForWebContents(web_contents)
-      ->ShowBubble(show_back_button);
+      ->ShowBubble(entry_point, show_back_button);
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* user_prefs) {

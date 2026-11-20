@@ -171,40 +171,90 @@ bool OnDeviceModelExecutionInitializeConfig(
 
 bool WebNNModelCompilationInitializeConfig(sandbox::TargetConfig* config) {
   DCHECK(!config->IsConfigured());
-  // Match the GPU process sandbox configuration so that the WebNN Compiler
-  // process has the same privileges. USER_LIMITED is the same token level
-  // used by the GPU process; stricter levels (USER_RESTRICTED, USER_LOCKDOWN)
-  // are known to break GPU/DirectX access and are also observed to break
-  // ORT and EP DLL loading from external paths.
-  // Note: AppContainer (LPAC) must NOT be enabled for this sandbox type
-  // because it breaks GPU/NPU driver access.
-  // TODO(crbug.com/500769395): Investigate tightening the sandbox, e.g. by
-  // preloading DLLs before lockdown or enabling AppContainer.
+
+  // Two-stage WebNN compiler sandbox (see crbug.com/500769395 and
+  // content/utility/webnn/webnn_sandbox_init.cc):
+  //
+  //   1. Process creation: this function. The process runs inside an LPAC
+  //      with the capability set configured by
+  //      sandbox::policy::SandboxWin::SetupAppContainerProfile() (chrome
+  //      install files, registry-read). Token is USER_RESTRICTED_SAME_ACCESS
+  //      (initial) / USER_LOCKDOWN (lockdown). Win32k is disabled as a startup
+  //      mitigation.
+  //   2. Pre-LowerToken: in the child, content/utility/utility_main.cc
+  //      calls webnn::PreSandboxInit() to invoke the helper functions
+  //      that load third-party execution providers (today the ONNX
+  //      Runtime; LiteRT and other backends may follow). LowerToken()
+  //      then drops the token to USER_LOCKDOWN and applies the delayed
+  //      mitigations (MITIGATION_DYNAMIC_CODE_DISABLE, plus
+  //      MITIGATION_FORCE_MS_SIGNED_BINS unless
+  //      --allow-third-party-modules is set). No delayed integrity
+  //      level is configured: under LPAC the integrity is governed by
+  //      the AppContainer token itself, so LowerToken's
+  //      SetProcessIntegrityLevel call is a no-op for this process.
+  //
+  // Pre-launch Code Integrity Guard (MITIGATION_FORCE_MS_SIGNED_BINS as a
+  // startup mitigation) is *not* applied here. Doing so would block the
+  // loader from mapping chrome.dll and chrome_elf.dll, since neither is
+  // Microsoft-signed. Startup CIG is instead wired through
+  // ChromeContentBrowserClient::PreSpawnChild(), which pairs it with
+  // AllowExtraDll() calls for those two DLLs and lets developers opt out
+  // via --allow-third-party-modules (the same switch that disables the
+  // delayed MITIGATION_FORCE_MS_SIGNED_BINS in
+  // sandbox::policy::SandboxWin).
+  //
+  // Because LPAC is enabled (see GetAppContainerId() below) the broker
+  // skips AddDefaultConfigForSandboxedProcess(), so this function is
+  // responsible for the entire per-process configuration. The LPAC
+  // capability SIDs and the LPAC's own integrity-level semantics provide
+  // access control instead of the default INTEGRITY_LEVEL_LOW /
+  // INTEGRITY_LEVEL_UNTRUSTED + kDeviceApi closure that non-LPAC utility
+  // processes inherit; the lockdown DACL is re-applied explicitly below.
+
+  // Rely on LPAC (not USER_LIMITED) to limit access to C:\Users\* during
+  // stage 2, while keeping USER_LOCKDOWN as the post-LowerToken token
+  // level for the tightest restriction (no new handles can be opened).
+  // These are also the same values AddDefaultConfigForSandboxedProcess()
+  // would have set; we set them explicitly here because the default
+  // config is skipped under LPAC.
   sandbox::ResultCode result = config->SetTokenLevel(
-      sandbox::USER_RESTRICTED_SAME_ACCESS, sandbox::USER_LIMITED);
+      sandbox::USER_RESTRICTED_SAME_ACCESS, sandbox::USER_LOCKDOWN);
   if (result != sandbox::SBOX_ALL_OK) {
     return false;
   }
 
+  // Add MITIGATION_WIN32K_DISABLE to the *startup* mitigation set
+  // (AddWin32kLockdownPolicy calls SetProcessMitigations, not
+  // SetDelayedProcessMitigations). The broker passes this through
+  // PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY to CreateProcess, so the kernel
+  // rejects every Win32k syscall from the child from its very first
+  // instruction of user code. This is safe because the third-party
+  // execution-provider preload helper invoked in stage 2 only needs
+  // D3D12 / DirectML / DXCore code paths, none of which require user32
+  // or gdi32.
+  result = sandbox::policy::SandboxWin::AddWin32kLockdownPolicy(config);
+  if (result != sandbox::SBOX_ALL_OK) {
+    return false;
+  }
+
+  // No UI work is permitted; once Win32k is disabled the per-UI job
+  // limits are redundant, so ask for the strictest job level with no UI
+  // flags. The broker's GenerateConfigForSandboxedProcess() already
+  // sets JobLevel::kLockdown for every sandbox; this is a defensive
+  // re-assertion so that any future change to that default does not
+  // silently weaken this profile.
   result = sandbox::policy::SandboxWin::SetJobLevel(
       sandbox::mojom::Sandbox::kWebNNModelCompilation,
-      sandbox::JobLevel::kLimitedUser,
-      JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS | JOB_OBJECT_UILIMIT_DESKTOP |
-          JOB_OBJECT_UILIMIT_EXITWINDOWS | JOB_OBJECT_UILIMIT_DISPLAYSETTINGS,
-      config);
+      sandbox::JobLevel::kLockdown, /*ui_exceptions=*/0, config);
   if (result != sandbox::SBOX_ALL_OK) {
     return false;
   }
 
-  result = config->SetIntegrityLevel(sandbox::INTEGRITY_LEVEL_LOW);
-  if (result != sandbox::SBOX_ALL_OK) {
-    return false;
-  }
-
-  // Match the GPU process: lock down the DACL and add a restricting random SID
-  // for additional token hardening.
+  // Restore the default-DACL hardening normally supplied by
+  // AddDefaultConfigForSandboxedProcess(), which is skipped under LPAC.
+  // This locks down the default DACL of kernel objects this process
+  // creates so that other processes can't open handles into them.
   config->SetLockdownDefaultDacl();
-  config->AddRestrictingRandomSid();
 
   return true;
 }
@@ -287,6 +337,7 @@ bool UtilitySandboxedProcessLauncherDelegate::GetAppContainerId(
     case sandbox::mojom::Sandbox::kNetwork:
     case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
     case sandbox::mojom::Sandbox::kProxyResolver:
+    case sandbox::mojom::Sandbox::kWebNNModelCompilation:
     case sandbox::mojom::Sandbox::kXrCompositing:
       *appcontainer_id = UtilityAppContainerId(cmd_line_);
       return true;
@@ -312,12 +363,6 @@ bool UtilitySandboxedProcessLauncherDelegate::DisableDefaultPolicy() {
     case sandbox::mojom::Sandbox::kAudio:
       // Default policy is disabled for audio process to allow audio drivers
       // to read device properties (https://crbug.com/883326).
-      return true;
-    case sandbox::mojom::Sandbox::kWebNNModelCompilation:
-      // Default policy is disabled to match the GPU process sandbox: avoids
-      // AddKernelObjectToClose(kDeviceApi) which breaks GPU/NPU driver access,
-      // and INTEGRITY_LEVEL_UNTRUSTED delayed integrity which is stricter than
-      // needed for model compilation.
       return true;
     default:
       return false;

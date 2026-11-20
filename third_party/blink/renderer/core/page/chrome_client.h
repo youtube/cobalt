@@ -69,7 +69,7 @@ struct ElementId;
 class Layer;
 struct OverscrollBehavior;
 class ScopedPauseRendering;
-}
+}  // namespace cc
 
 namespace display {
 struct ScreenInfo;
@@ -140,6 +140,8 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
   virtual void ChromeDestroyed() = 0;
 
   virtual void SetWindowRect(const gfx::Rect&, LocalFrame&) = 0;
+  virtual void MoveWindowTo(const gfx::Point&, LocalFrame&) = 0;
+  virtual void ResizeWindowTo(const gfx::Size&, LocalFrame&) = 0;
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   // Additional Windowing Controls API.

@@ -154,6 +154,7 @@ public class SendTabToSelfGestureDetector implements SensorEventListener {
         // `devices` is sorted based on the most recently used timestamp. Grab the device with the
         // freshest timestamp as the target.
         TargetDeviceInfo target = devices.get(0);
+        SendTabToSelfMetricsRecorder.recordEntryPointInvoked(ShareEntryPoint.GESTURE);
         SendTabToSelfAndroidBridge.sendTabToDevice(
                 profile,
                 tab.getWebContents(),
@@ -161,7 +162,8 @@ public class SendTabToSelfGestureDetector implements SensorEventListener {
                 target.deviceName,
                 tab.getUrl().getSpec(),
                 tab.getTitle(),
-                result -> Log.i(TAG, "Send tab result: %s", result));
+                result -> Log.i(TAG, "Send tab result: %s", result),
+                ShareEntryPoint.GESTURE);
     }
 
     private static float getAccelerationThreshold() {

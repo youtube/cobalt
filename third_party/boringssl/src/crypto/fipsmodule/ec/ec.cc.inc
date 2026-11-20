@@ -99,7 +99,13 @@ DEFINE_METHOD_FUNCTION(EC_GROUP, EC_group_p256) {
   ec_group_init_static_mont(&out->order, std::size(kP256Order), kP256Order,
                             kP256OrderRR, kP256OrderN0);
 
+#if !defined(OPENSSL_NO_ASM) &&                              \
+    (defined(OPENSSL_X86_64) || defined(OPENSSL_AARCH64)) && \
+    !defined(OPENSSL_SMALL)
+  out->meth = EC_GFp_nistz256_method();
+#else
   out->meth = EC_GFp_nistp256_method();
+#endif
   out->generator.group = out;
   OPENSSL_memcpy(out->generator.raw.X.words, kP256MontGX, sizeof(kP256MontGX));
   OPENSSL_memcpy(out->generator.raw.Y.words, kP256MontGY, sizeof(kP256MontGY));
@@ -762,7 +768,7 @@ int bssl::ec_point_mul_scalar(const EC_GROUP *group, EC_JACOBIAN *r,
 
   // Check the result is on the curve to defend against fault attacks or bugs.
   // This has negligible cost compared to the multiplication.
-  if (!constant_time_declassify_int(ec_GFp_simple_is_on_curve(group, r))) {
+  if (!ec_GFp_simple_is_on_curve(group, r)) {
     OPENSSL_PUT_ERROR(EC, ERR_R_INTERNAL_ERROR);
     return 0;
   }

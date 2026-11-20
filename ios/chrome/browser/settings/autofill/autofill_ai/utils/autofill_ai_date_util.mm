@@ -7,6 +7,7 @@
 #import "components/autofill/core/browser/autofill_format_string.h"
 #import "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #import "components/autofill/core/browser/proto/server.pb.h"
+#import "ui/base/device_form_factor.h"
 
 namespace {
 
@@ -63,4 +64,8 @@ std::u16string AttributeValueFromNSDate(NSDate* date) {
 autofill::AutofillFormatString GetAttributeFormatString() {
   return autofill::AutofillFormatString(kLibraryDateFormat,
                                         autofill::FormatString_Type_DATE);
+}
+
+bool ShouldUsePopoverForDatePicker() {
+  return ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
 }

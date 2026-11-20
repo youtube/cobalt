@@ -6,6 +6,7 @@
 
 #import "ios/chrome/browser/download/model/safari_download_tab_helper_delegate.h"
 #import "ios/web/public/download/download_task.h"
+#import "ios/web/public/navigation/navigation_context.h"
 #import "net/base/apple/url_conversions.h"
 
 #pragma mark - Initialization
@@ -66,6 +67,15 @@ void SafariDownloadTabHelper::WasShown(web::WebState* web_state) {
         [delegate_ presentAppleWalletOrderAlertFromURL:pending_download_->url];
         break;
     }
+    pending_download_.reset();
+  }
+}
+
+void SafariDownloadTabHelper::DidStartNavigation(
+    web::WebState* web_state,
+    web::NavigationContext* navigation_context) {
+  CHECK_EQ(web_state_, web_state);
+  if (!navigation_context->IsSameDocument()) {
     pending_download_.reset();
   }
 }

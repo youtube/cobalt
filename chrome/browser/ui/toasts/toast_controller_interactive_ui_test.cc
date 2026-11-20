@@ -123,10 +123,7 @@ class ToastControllerInteractiveTest : public InteractiveBrowserTest {
         {toast_features::kLinkCopiedToast, toast_features::kImageCopiedToast,
          toast_features::kReadingListToast,
          plus_addresses::features::kPlusAddressesEnabled},
-        // Disable `kAiModeOmniboxEntryPoint` as it changes the focus and popup
-        // opening order of the omnibox. If it launches, updates the tests to
-        // match the new expectations.
-        {omnibox::kAiModeOmniboxEntryPoint});
+        {});
     InteractiveBrowserTest::SetUp();
   }
 
@@ -402,11 +399,12 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
 
 IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
                        ToastReactToOmniboxFocus) {
-  LocationBar* const location_bar = browser()->window()->GetLocationBar();
+  LocationBar* const location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   ASSERT_TRUE(location_bar);
   OmniboxView* const omnibox_view = location_bar->GetOmniboxView();
   ASSERT_TRUE(omnibox_view);
-  browser()->window()->SetFocusToLocationBar(true);
+  BrowserWindow::FromBrowser(browser())->SetFocusToLocationBar(true);
   ASSERT_FALSE(location_bar->GetOmniboxController()->IsPopupOpen());
 
   // Even though the omnibox is focused, the toast should still show because
@@ -425,7 +423,7 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
 
   // Focus the omnibox again should cause the toast to no longer be visible
   // because we are focusing after the toast is already shown.
-  browser()->window()->SetFocusToLocationBar(true);
+  BrowserWindow::FromBrowser(browser())->SetFocusToLocationBar(true);
   EXPECT_TRUE(toast_controller->IsShowingToast());
   EXPECT_FALSE(toast_controller->GetToastWidgetForTesting()->IsVisible());
 }
@@ -442,7 +440,8 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
   EXPECT_TRUE(toast_controller->GetToastWidgetForTesting()->IsVisible());
 
   // Trigger the omnibox popup to show.
-  LocationBar* const location_bar = browser()->window()->GetLocationBar();
+  LocationBar* const location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   ASSERT_TRUE(location_bar);
   OmniboxView* const omnibox_view = location_bar->GetOmniboxView();
   ASSERT_TRUE(omnibox_view);
@@ -466,7 +465,7 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
 
 IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
                        HidesWhenTypingInOmnibox) {
-  browser()->window()->SetFocusToLocationBar(true);
+  BrowserWindow::FromBrowser(browser())->SetFocusToLocationBar(true);
 
   // Even though the omnibox is focused, the toast should still show because
   // the omnibox doesn't have a popup and the user isn't interacting with the

@@ -974,6 +974,7 @@
       // Animation properites are never incremental.
       supports_incremental_style: false,
       valid_for_keyframe: false,
+      keywords: ["auto"],
     },
     {
       name: "animation-fill-mode",
@@ -1157,6 +1158,7 @@
       valid_for_marker: true,
       runtime_flag: "TimelineTrigger",
       is_animation_affecting: true,
+      keywords: ["none"],
     },
     {
       name: "timeline-trigger-activation-range-start",
@@ -1876,6 +1878,7 @@
       style_builder_custom_functions: ["value"],
       priority: 1,
       stored_on_extra_field: ["font"],
+      keywords: ["auto"],
     },
     {
       name: "math-depth",
@@ -2209,7 +2212,7 @@
       name: "background-image",
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
       interpolable: true,
-      keywords: ["auto", "none"],
+      keywords: ["none"],
       typedom_types: ["Keyword", "Image"],
       separator: " ",
       style_builder_template: "background_layer",
@@ -3227,6 +3230,7 @@
       valid_for_marker: true,
       valid_for_page_context: true,
       supports_incremental_style: true,
+      keywords: ["none", "normal", "close-quote", "no-close-quote", "no-open-quote", "open-quote"],
     },
     {
       name: "corner-bottom-left-shape",
@@ -3843,7 +3847,8 @@
       converter: "ConvertGridTrackList",
       getter: "SpecifiedGridTemplateColumns",
       style_builder_custom_functions: ["inherit"],
-      keywords: ["none"],
+      typedom_keywords: ["none"],
+      keywords: ["auto", "none", "min-content", "max-content"],
       typedom_types: ["Keyword"],
       invalidate: ["layout", "paint"],
       percentages_depend_on_used_value: true,
@@ -3878,7 +3883,8 @@
       converter: "ConvertGridTrackList",
       getter: "SpecifiedGridTemplateRows",
       style_builder_custom_functions: ["inherit"],
-      keywords: ["none"],
+      typedom_keywords: ["none"],
+      keywords: ["auto", "none", "min-content", "max-content"],
       typedom_types: ["Keyword"],
       invalidate: ["layout", "paint"],
       percentages_depend_on_used_value: true,
@@ -4011,6 +4017,7 @@
         "third_party/blink/renderer/platform/graphics/image_orientation.h"
       ],
       invalidate: ["layout", "paint"],
+      keywords: ["none", "from-image"],
     },
     {
       name: "dynamic-range-limit",
@@ -5435,6 +5442,7 @@
       type_name: "ScrollMarkerGroup",
       converter: "ConvertScrollMarkerGroup",
       typedom_types: ["Keyword"],
+      keywords: ["none", "after", "before"],
     },
     {
       interpolable: true,
@@ -5796,6 +5804,7 @@
       converter: "ConvertViewTimelineName",
       separator: ",",
       is_animation_affecting: true,
+      keywords: ["none"],
     },
     {
       name: "shape-image-threshold",
@@ -5819,7 +5828,6 @@
       field_template: "<length>",
       default_value: "Length::Fixed(0)",
       converter: "ConvertLength",
-      keywords: ["none"],
       typedom_types: ["Length", "Percentage"],
       invalidate: ["layout", "paint"],
       percentages_depend_on_used_value: true,
@@ -5858,6 +5866,7 @@
       computable: false,
       valid_for_page_context: true,
       stored_on_extra_field: ["PageSize", "PageSizeType"],
+      keywords: ["auto", "portrait", "landscape"],
     },
     {
       name: "speak",
@@ -6138,6 +6147,7 @@
       type_name: "TextBoxEdge",
       converter: "ConvertTextBoxEdge",
       invalidate: ["layout"],
+      keywords: ["auto", "text", "cap", "ex"],
     },
     {
       name: "text-box-trim",
@@ -6457,6 +6467,7 @@
       converter: "ConvertTimelineScope",
       separator: ",",
       is_animation_affecting: true,
+      keywords: ["none", "all"],
     },
     {
       name: "top",
@@ -6673,6 +6684,7 @@
       separator: ",",
       is_animation_affecting: true,
       percentages_depend_on_used_value: true,
+      keywords: ["auto"],
     },
     {
       name: "view-timeline-name",
@@ -6684,6 +6696,7 @@
       converter: "ConvertViewTimelineName",
       separator: ",",
       is_animation_affecting: true,
+      keywords: ["none"],
     },
     {
       name: "view-transition-class",
@@ -7342,6 +7355,7 @@
       type_name: "AtomicString",
       converter: "ConvertString<CSSValueID::kAuto>",
       invalidate: ["layout", "paint"],
+      keywords: ["auto"],
     },
     {
       name: "-webkit-line-break",
@@ -7516,6 +7530,7 @@
       },
       stored_on_extra_field: ["MaskBoxImage"],
       percentages_depend_on_used_value: true,
+      keywords: ["auto"],
     },
     {
       name: "mask-mode",
@@ -8451,6 +8466,7 @@
       layout_dependent: true,
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
+      keywords: ["auto"],
     },
     {
       name: "inset-inline-end",
@@ -8464,6 +8480,7 @@
       layout_dependent: true,
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
+      keywords: ["auto"],
     },
     {
       name: "inset-block-start",
@@ -8477,6 +8494,7 @@
       layout_dependent: true,
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
+      keywords: ["auto"],
     },
     {
       name: "inset-block-end",
@@ -8491,6 +8509,7 @@
       valid_for_permission_element: true,
       valid_for_page_context: true,
       percentages_depend_on_used_value: true,
+      keywords: ["auto"],
     },
     {
       name: "border-start-start-radius",
@@ -8724,6 +8743,8 @@
       inherited: true,
       style_builder_template: "empty",
       stored_on_extra_field: ["crbug.com/40919412"],
+      keywords: ["none", "blink", "line-through", "overline", "underline",
+                "spelling-error", "grammar-error"],
     },
 
     // Descriptor only names

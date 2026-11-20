@@ -133,7 +133,8 @@ LocalStorageLevelDBTest::LocalStorageLevelDBTest()
 void LocalStorageLevelDBTest::OpenInMemory(
     std::unique_ptr<LocalStorageLevelDB>* result) {
   auto instance = std::make_unique<LocalStorageLevelDB>(
-      DomStorageDatabaseFactory::CreatePassKeyForTesting());
+      DomStorageDatabaseFactory::CreatePassKeyForTesting(),
+      /*write_exp_tag=*/false);
 
   DbStatus status = instance->Open(/*directory=*/base::FilePath(),
                                    /*memory_dump_id=*/std::nullopt);

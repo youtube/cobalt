@@ -407,7 +407,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.AutoDeletion.ServiceActions"
-    enum="AutoDeletionServiceActionsType" expires_after="2026-10-11">
+    enum="AutoDeletionServiceActionsType" expires_after="2026-12-16">
   <owner>danieltwhite@google.com</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -429,7 +429,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.BackgroundRefresh.BGTaskSchedulerError"
-    enum="BGTaskSchedulerErrorType" expires_after="2026-10-18">
+    enum="BGTaskSchedulerErrorType" expires_after="2026-12-20">
   <owner>fedegermi@google.com</owner>
   <owner>marq@chromium.org</owner>
   <summary>
@@ -449,7 +449,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.BackgroundRefresh.ExecutionDuration.Timeout" units="ms"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>fedegermi@google.com</owner>
   <owner>marq@chromium.org</owner>
   <summary>
@@ -459,7 +459,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.BackgroundRefresh.InitStage"
-    enum="InitStageDuringBackgroundRefreshType" expires_after="2026-10-18">
+    enum="InitStageDuringBackgroundRefreshType" expires_after="2026-12-20">
   <owner>fedegermi@google.com</owner>
   <owner>marq@chromium.org</owner>
   <summary>
@@ -492,7 +492,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.BackgroundRefresh.StartupWait.Completed" units="ms"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>fedegermi@google.com</owner>
   <owner>marq@chromium.org</owner>
   <summary>
@@ -1075,7 +1075,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.CredentialExtension.PasskeyUseCount" units="count"
-    expires_after="2026-09-27">
+    expires_after="2026-12-16">
   <owner>tmartino@chromium.org</owner>
   <owner>bling-transactions-eng@google.com</owner>
   <summary>
@@ -1346,7 +1346,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserBannerPromo.Shown" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>rkgibson@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -1358,7 +1358,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserBannerPromo.Tapped" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>rkgibson@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -1399,7 +1399,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.NonModal.OnScreenTime" units="ms"
-    expires_after="2026-10-16">
+    expires_after="2026-12-16">
   <owner>rkgibson@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -1408,7 +1408,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.NonModal.{Impression}"
-    enum="IOSDefaultBrowserPromoNonModalAction" expires_after="2026-10-16">
+    enum="IOSDefaultBrowserPromoNonModalAction" expires_after="2026-12-16">
   <owner>pabouchard@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -1430,7 +1430,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.NonModal.{PromoType}"
-    enum="IOSDefaultBrowserPromoNonModalAction" expires_after="2026-10-16">
+    enum="IOSDefaultBrowserPromoNonModalAction" expires_after="2026-12-16">
   <owner>sebsg@chromium.org</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -1445,7 +1445,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.SetUpList.Action"
-    enum="IOSDefaultBrowserFullscreenPromoAction" expires_after="2026-10-16">
+    enum="IOSDefaultBrowserFullscreenPromoAction" expires_after="2026-12-16">
   <owner>pabouchard@google.com</owner>
   <owner>scottyoder@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
@@ -1457,7 +1457,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.Shown"
-    enum="IOSDefaultBrowserPromoType" expires_after="2026-10-16">
+    enum="IOSDefaultBrowserPromoType" expires_after="2026-12-16">
   <owner>gujen@google.com</owner>
   <owner>rkgibson@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
@@ -1492,7 +1492,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserVideoPromo.Fullscreen"
-    enum="IOSDefaultBrowserVideoPromoAction" expires_after="2026-10-18">
+    enum="IOSDefaultBrowserVideoPromoAction" expires_after="2026-12-20">
   <owner>cheickcisse@google.com</owner>
   <owner>sebsg@chromium.org</owner>
   <owner>bling-mony-pod@google.com</owner>
@@ -1944,9 +1944,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.ExternalAction" enum="IOSExternalAction"
-    expires_after="2026-06-30">
-  <owner>nicolasmacbeth@google.com</owner>
-  <owner>bling-pandamonium@google.com</owner>
+    expires_after="2027-06-30">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
   <summary>
     Records the action passed to Chrome for iOS using an external action URL.
   </summary>
@@ -2311,7 +2311,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.FirstRun.BestFeatures.MainScreen.Action"
-    enum="IOSBestFeaturesMainScreenActionType" expires_after="2026-08-31">
+    enum="IOSBestFeaturesMainScreenActionType" expires_after="2026-12-16">
   <owner>hiramahmood@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -2343,7 +2343,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.Frame.FirstContentfulPaint.MainFrame" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>danieltwhite@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -2741,7 +2741,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.Gemini.FRE.EntryPoint" enum="IOSGeminiEntryPoint"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>sebsg@chromium.org</owner>
   <owner>bling-alchemy@google.com</owner>
   <improvement direction="HIGHER_IS_BETTER"/>
@@ -2911,7 +2911,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.Gemini.Prompt.SubmissionMethod"
-    enum="IOSGeminiFirstPromptSubmissionMethod" expires_after="2026-10-11">
+    enum="IOSGeminiFirstPromptSubmissionMethod" expires_after="2026-12-16">
   <owner>kanouche@google.com</owner>
   <owner>bling-alchemy-eng@google.com</owner>
   <improvement direction="HIGHER_IS_BETTER"/>
@@ -2985,7 +2985,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.Gemini.Session.FirstPrompt" enum="Boolean"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>kanouche@google.com</owner>
   <owner>bling-alchemy@google.com</owner>
   <improvement direction="HIGHER_IS_BETTER"/>
@@ -3117,7 +3117,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.GoogleOne.Outcome.{EntryPoint}" enum="GoogleOneOutcome"
-    expires_after="2026-05-24">
+    expires_after="2027-06-23">
   <owner>olivierrobin@chromium.org</owner>
   <owner>qpubert@chromium.org</owner>
   <summary>
@@ -3131,14 +3131,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.GuidedTour.DidFinishStep" enum="GuidedTourStep"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>thegreenfrog@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>Recorded when the user finishes a step in the Guided Tour.</summary>
 </histogram>
 
 <histogram name="IOS.GuidedTour.Promo.DidAccept" enum="Boolean"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>thegreenfrog@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -3394,7 +3394,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.HomeCustomization.Background.UserUploaded.Outcome"
-    enum="IOSBackgroundSelectionOutcome" expires_after="2026-10-11">
+    enum="IOSBackgroundSelectionOutcome" expires_after="2026-12-16">
   <owner>cheickcisse@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -4094,7 +4094,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.MagicStack.TabResumption.{Type}.Impression" units="index"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>davidjm@chromium.org</owner>
   <owner>thegreenfrog@google.com</owner>
   <owner>gloriafang@google.com</owner>
@@ -4718,7 +4718,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.Notifications.Tips.UserType"
-    enum="IOSTipsNotificationUserType" expires_after="2026-09-27">
+    enum="IOSTipsNotificationUserType" expires_after="2026-12-16">
   <owner>scottyoder@google.com</owner>
   <owner>hiramahmood@google.com</owner>
   <summary>
@@ -4808,7 +4808,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.NumberOfContextsToOpen" enum="ContextsToOpen"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>fedegermi@google.com</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -7904,8 +7904,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.ThemeSync.InitialSyncState"
-    enum="IOSThemeSyncInitialState" expires_after="2026-05-20">
-  <owner>bwwilliams@google.com</owner>
+    enum="IOSThemeSyncInitialState" expires_after="2027-06-18">
+  <owner>hiramahmood@google.com</owner>
   <owner>adamta@google.com</owner>
   <summary>
     Records the state of the Sync server during the initial Theme Sync flow.
@@ -7923,8 +7923,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.ThemeSync.StopAction" enum="IOSThemeSyncStopAction"
-    expires_after="2026-05-20">
-  <owner>bwwilliams@google.com</owner>
+    expires_after="2027-06-18">
+  <owner>hiramahmood@google.com</owner>
   <owner>adamta@google.com</owner>
   <summary>
     Records that the local pre-sync theme was successfully restored when sync
@@ -8263,7 +8263,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.WelcomeBack.DetailScreen.Impression"
-    enum="IOSBestFeaturesItemType" expires_after="2026-08-02">
+    enum="IOSBestFeaturesItemType" expires_after="2027-08-02">
   <owner>cheickcisse@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -8274,7 +8274,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.WelcomeBack.FeaturesClickedCount" units="count"
-    expires_after="2026-10-04">
+    expires_after="2027-08-02">
   <owner>cheickcisse@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>

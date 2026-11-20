@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"

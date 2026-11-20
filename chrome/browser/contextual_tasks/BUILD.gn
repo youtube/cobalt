@@ -38,9 +38,6 @@ source_set("contextual_tasks") {
     "smart_tab_sharing_settings_policy_handler.h",
     "task_info_delegate.h",
   ]
-  if (!is_android) {
-    sources += [ "smart_tab_sharing_settings_policy_handler.h" ]
-  }
 
   deps = [
     "//base",
@@ -171,7 +168,10 @@ source_set("impl") {
       "//ui/android",
     ]
   } else {
-    deps += [ "//components/policy/core/browser" ]
+    deps += [
+      "//chrome/browser/ui:browser_actions",
+      "//components/policy/core/browser",
+    ]
   }
 }
 
@@ -413,6 +413,7 @@ source_set("ui_impl") {
       "//chrome/browser/pdf",
       "//chrome/browser/resources/contextual_tasks:resources",
       "//chrome/browser/tab_list",
+      "//chrome/browser/ui:browser_actions",
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/omnibox",
       "//chrome/browser/ui/tabs:tab_strip",
@@ -644,6 +645,7 @@ source_set("unit_tests") {
 
   if (!is_android) {
     deps += [
+      "//chrome/browser/ui:browser_actions",
       "//chrome/browser/ui/actions",
       "//chrome/browser/ui/actions:actions_headers",
       "//chrome/browser/ui/contextual_search",

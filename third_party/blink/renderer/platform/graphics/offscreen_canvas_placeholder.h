@@ -14,6 +14,11 @@
 #include "third_party/blink/renderer/platform/graphics/dom_node_id.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+
+namespace gfx {
+class RectF;
+}
 
 namespace blink {
 
@@ -127,6 +132,12 @@ class PLATFORM_EXPORT OffscreenCanvasPlaceholder {
   }
 
   virtual bool HasCanvasCapture() const { return false; }
+
+  virtual void RecordRenderedText(const String& text,
+                                  const gfx::RectF& bounds,
+                                  float font_height) {}
+  virtual void ClearRenderedText(const gfx::RectF& rect) {}
+  virtual void ClearRenderedText() {}
 
   AnimationState GetAnimationStateForTesting() const {
     return current_animation_state_;

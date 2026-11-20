@@ -664,6 +664,13 @@
   'shared-memory/wasm/*': [SKIP],
 }],  # not has_wasm_interpreter and variant == jitless
 
+##############################################################################
+['not has_wasm_interpreter', {
+  # This sandbox regression test forces --wasm-jitless to exercise the DrumBrake
+  # interpreter's JS-to-Wasm wrapper.
+  'sandbox/regress-522294322': [SKIP],
+}],  # not has_wasm_interpreter
+
 ['has_wasm_interpreter and variant == jitless', {
   # Skip tests that require Wasm experimental features not supported by the
   # Wasm interpreter, or that explicitly require compilation.
@@ -879,6 +886,8 @@
   'regress/wasm/regress-499027764': [SKIP],
   'regress/wasm/regress-504612573': [SKIP],
   'wasm/fp16-load-mul': [SKIP],
+  'wasm/fp16-oob-trap': [SKIP],
+  'wasm/fp16-store': [SKIP],
   'wasm/simd-fp16': [SKIP],
 
   # --experimental-wasm-rab-integration
@@ -1242,6 +1251,7 @@
   'regress/wasm/regress-398439335': [SKIP],
   'turbolev/regress-488090094': [SKIP],
   'maglev/regress-498816446-3': [SKIP],
+  'maglev/regress-521604719': [SKIP],
 
   # Float parameters are not supported in the fast api on these platforms
   'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
@@ -1251,6 +1261,7 @@
   # Needs a huge Uint8Array.
   'regress/regress-1432470': [SKIP],
   'wasm/imported-dataview-bytelength': [SKIP],
+  'maglev/regress-525732296': [SKIP],
 
   # Needs 64-bit integer add.
   'additive-safe-int-feedback': [SKIP],
@@ -2734,6 +2745,7 @@
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.
   'regress/regress-461969023': [SKIP],
+  'turboshaft/regress-523436017': [SKIP],
   # We need this here because it needs --fuzzing, and in that case we do not
   # check for contradictory flags.
   'regress/wasm/regress-510448957': [SKIP],

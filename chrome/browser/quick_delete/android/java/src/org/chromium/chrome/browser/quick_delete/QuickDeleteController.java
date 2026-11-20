@@ -225,8 +225,9 @@ public class QuickDeleteController {
         triggerHapticFeedback();
         showSnackbar(timePeriod);
 
-        if (trackerLock == null) return;
-        trackerLock.release();
+        if (trackerLock != null) {
+            trackerLock.release();
+        }
 
         destroy();
     }

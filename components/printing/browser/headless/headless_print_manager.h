@@ -66,6 +66,8 @@ class HeadlessPrintManager
       const ui::AXTreeUpdate& accessibility_tree) override;
 #endif
 #if BUILDFLAG(IS_ANDROID)
+  void SetupScriptedPrintAndroid(
+      SetupScriptedPrintAndroidCallback callback) override;
   void PdfWritingDone(int page_count) override;
 #endif
 

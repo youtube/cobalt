@@ -19,6 +19,7 @@
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
 #include "components/optimization_guide/core/delivery/optimization_target_model_observer.h"
+#include "components/safe_browsing/core/browser/csd_model_type.h"
 #include "components/safe_browsing/core/common/fbs/client_model_generated.h"
 #include "components/safe_browsing/core/common/proto/client_model.pb.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
@@ -37,8 +38,6 @@ struct TargetEmbedding {
   tflite::task::vision::FeatureVector embedding;
   float threshold;
 };
-
-enum class CSDModelType { kNone = 0, kFlatbuffer = 1 };
 
 // This holds the currently active client side phishing detection model.
 //

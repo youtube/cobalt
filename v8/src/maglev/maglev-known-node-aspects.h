@@ -104,14 +104,37 @@ class NodeInfo {
 
       if (kind == Kind::kCheckedValue) {
         // For checked_value, we only allow:
-        // 1. Overwriting a non-internalized constant by
-        // CheckedInternalizedString.
-        // 2. Overwriting CheckedInternalizedString by an internalized string
-        // constant.
+        //     1. Overwriting a non-internalized constant by
+        //     CheckedInternalizedString(constant string input).
+        //
+        //     2. Overwriting CheckedInternalizedString(non-constant input) by a
+        //     string constant.
+        //
+        //     3. Overwriting CheckedInternalizedString(non-internalized
+        //     constant input) by an internalized string constant.
+        //
+        // The idea of those rules is to keep the strongest possible alternative
+        // in order to A) elide future CheckedInternalizedString operations, and
+        // B) constant-fold future loads from the string (in particular its
+        // length).
+        // In that regard, 2. doesn't do an amazing job to avoid duplicated
+        // CheckedInternalizedString, but it ensures that we duplicate it at
+        // most once: we could have the following transitions:
+        //
+        //      CheckedInternalizedString(non-constant)
+        //   -> string constant
+        //   -> CheckedInternalizedString(string constant)
+        //
+        // So we would have emitted 2 CheckedInternalizedString, but we won't
+        // emit a third one, and the only allowed transition from this point is
+        // to an internalized string constant (which will also prevent future
+        // CheckedInternalizedStrings from being emitted).
         if (IsNonInternalizedStringConstant(old_alt)) {
           DCHECK_EQ(new_alt->opcode(), Opcode::kCheckedInternalizedString);
         } else if (old_alt->opcode() == Opcode::kCheckedInternalizedString) {
-          DCHECK(IsInternalizedStringConstant(new_alt));
+          if (IsConstantNode(old_alt->input_node(0)->opcode())) {
+            DCHECK(IsInternalizedStringConstant(new_alt));
+          }
         } else {
           // Any other overwrite of checked_value is forbidden.
           DCHECK(false);
@@ -178,6 +201,14 @@ class NodeInfo {
       }
     }
 
+    // Fills in alternatives we don't have from `other`. Only valid when both
+    // alternative sets describe the same underlying value.
+    void FillMissingFrom(const AlternativeNodes& other) {
+      for (size_t i = 0; i < Kind::kNumberOfAlternatives; ++i) {
+        if (store_[i] == nullptr) store_[i] = other.store_[i];
+      }
+    }
+
    private:
     // TODO(leszeks): At least one of these is redundant for every node,
     // consider a more compressed form or even linked list.
@@ -234,6 +265,15 @@ class NodeInfo {
         (any_map_or_node_type_is_unstable_ && !maps_are_stale_)) {
       side_effects_require_invalidation = true;
     }
+  }
+
+  // Combines info from `other`, which (after key-normalization) describes the
+  // same underlying value as `this`. Every fact in either entry is valid, so we
+  // keep the most precise type and the union of conversion alternatives.
+  // TODO(victorgomes): also union possible_maps_ on collision (needs a zone).
+  void CombineSameValueFrom(const NodeInfo& other) {
+    IntersectType(other.type_);
+    alternative_.FillMissingFrom(other.alternative_);
   }
 
   bool possible_maps_are_unstable() const {
@@ -350,6 +390,13 @@ class KnownNodeAspects {
   KnownNodeAspects* Clone(Zone* zone) const {
     return zone->New<KnownNodeAspects>(*this);
   }
+
+  // Unwraps identities and single-input phis in the node-valued keys of the
+  // aspect maps (node_infos_ keys, loaded-property object keys and context-slot
+  // context keys), rebuilding them and combining node_infos entries whose keys
+  // collide afterwards. Used at loop headers to normalize the cached backedge
+  // KNA before merging it into the forward KNA.
+  void UnwrapIdentitiesAndPhisInKeys(Zone* zone);
 
   // Loop headers can safely clone the node types, since those won't be
   // invalidated in the loop body, and similarly stable maps will have

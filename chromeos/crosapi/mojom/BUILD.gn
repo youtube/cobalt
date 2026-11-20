@@ -9,7 +9,6 @@ mojom("mojom") {
   sources = [
     "account_manager.mojom",
     "crosapi.mojom",
-    "local_printer.mojom",
     "nullable_primitives.mojom",
     "probe_service.mojom",
     "telemetry_diagnostic_routine_service.mojom",

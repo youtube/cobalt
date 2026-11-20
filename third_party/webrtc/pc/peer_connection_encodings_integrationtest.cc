@@ -1875,8 +1875,10 @@ TEST_F(PeerConnectionEncodingsIntegrationTest,
 // still work.
 TEST_F(PeerConnectionEncodingsIntegrationTest,
        SetParametersAcceptsMungedCodecFromGetParameters) {
-  scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper = CreatePc();
-  scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper = CreatePc();
+  scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper =
+      CreatePc("WebRTC-NoSdpMangleAllowForTesting/Enabled,85/");
+  scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper =
+      CreatePc("WebRTC-NoSdpMangleAllowForTesting/Enabled,85/");
   ExchangeIceCandidates(local_pc_wrapper, remote_pc_wrapper);
 
   auto transceiver_or_error =

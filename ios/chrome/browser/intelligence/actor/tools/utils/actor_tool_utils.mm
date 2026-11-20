@@ -33,6 +33,8 @@ std::optional<std::string> ToolTypeToToolDisplayString(ToolType tool) {
       return "Waiting";
     case ToolType::kScrollTo:
       return "Scrolling";
+    case ToolType::kAttemptLogin:
+      return "Attempting login";
     case ToolType::kUnknown:
       return std::nullopt;
   }

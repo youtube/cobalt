@@ -1195,8 +1195,8 @@ FilePersistentMemoryAllocator::FilePersistentMemoryAllocator(
     std::string_view name,
     AccessMode access_mode)
     : PersistentMemoryAllocator(
-          Memory(const_cast<uint8_t*>(file->data()), MEM_FILE),
-          max_size != 0 ? max_size : file->length(),
+          Memory(file->mutable_bytes().data(), MEM_FILE),
+          max_size != 0 ? max_size : file->mutable_bytes().size(),
           0,
           id,
           name,
@@ -1209,7 +1209,8 @@ FilePersistentMemoryAllocator::~FilePersistentMemoryAllocator() = default;
 bool FilePersistentMemoryAllocator::IsFileAcceptable(
     const MemoryMappedFile& file,
     bool readonly) {
-  return IsMemoryAcceptable(file.data(), file.length(), 0, readonly);
+  const base::span<const uint8_t> bytes = file.bytes();
+  return IsMemoryAcceptable(bytes.data(), bytes.size(), 0, readonly);
 }
 
 void FilePersistentMemoryAllocator::Cache() {

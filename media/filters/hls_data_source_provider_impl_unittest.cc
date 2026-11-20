@@ -234,7 +234,7 @@ TEST_F(HlsDataSourceProviderImplUnittest, ReadSegmentWithRedirect) {
   factory_->AddReadExpectation(4096, 16384, 0);
 
   EXPECT_CALL(*factory_, MockCreate(GURL("http://evil.com"), _, _))
-      .WillOnce(testing::Return("http://innocent.com"));
+      .WillOnce(testing::Return(std::make_tuple("http://innocent.com", true)));
 
   std::unique_ptr<HlsDataSourceStream> first_read;
   impl_->ReadFromCombinedUrlQueue(

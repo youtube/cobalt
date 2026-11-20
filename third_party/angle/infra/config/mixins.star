@@ -74,6 +74,13 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "enable_trace_tests",
+    args = [
+        "--trace-tests",
+    ],
+)
+
+targets.mixin(
     name = "gtest_enable_flaky_retries",
     args = [
         # Meant for working around flaky crashes. http://anglebug.com/42265067
@@ -82,9 +89,30 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "gtest_filter_no_vulkan",
+    args = [
+        "--gtest_filter=-*Vulkan*",
+    ],
+)
+
+targets.mixin(
     name = "gtest_filter_no_vulkan_swiftshader",
     args = [
         "--gtest_filter=-*Vulkan_SwiftShader*",
+    ],
+)
+
+targets.mixin(
+    name = "gtest_filter_only_real_vulkan",
+    args = [
+        "--gtest_filter=*Vulkan*:-*Vulkan_SwiftShader*",
+    ],
+)
+
+targets.mixin(
+    name = "gtest_filter_only_vulkan",
+    args = [
+        "--gtest_filter=*Vulkan*",
     ],
 )
 
@@ -110,6 +138,13 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "perf_merge_script",
+    merge = targets.merge(
+        script = "//scripts/process_angle_perf_results.py",
+    ),
+)
+
+targets.mixin(
     name = "perf_merge_script_smoke_test_mode",
     merge = targets.merge(
         script = "//scripts/process_angle_perf_results.py",
@@ -120,11 +155,63 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "perf_tests_common_args",
+    android_args = [
+        "--trial-time=10",
+    ],
+    args = [
+        "--samples-per-test=3",
+        "--trials-per-sample=3",
+        "--show-test-stdout",
+    ],
+)
+
+targets.mixin(
+    name = "perf_tests_sharding",
+    android_swarming = targets.swarming(
+        shards = 30,
+    ),
+    swarming = targets.swarming(
+        shards = 10,
+    ),
+)
+
+targets.mixin(
     name = "perf_tests_smoke_test_mode",
     args = [
         "--smoke-test-mode",
         "--show-test-stdout",
     ],
+)
+
+targets.mixin(
+    name = "samsung_s24_stable",
+    swarming = targets.swarming(
+        dimensions = {
+            "device_os": "AP3A.240905.015.A2",
+            "device_os_type": "user",
+            "device_type": "s5e9945",
+            "os": "Android",
+            "pool": "chromium.tests.gpu",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "temp_band_below_30C",
+    swarming = targets.swarming(
+        dimensions = {
+            "temp_band": "<30",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "timeout_120m",
+    swarming = targets.swarming(
+        hard_timeout_sec = 7200,
+        io_timeout_sec = 300,
+    ),
 )
 
 targets.mixin(
@@ -138,6 +225,13 @@ targets.mixin(
     name = "use_angle_gl",
     args = [
         "--use-angle=gl",
+    ],
+)
+
+targets.mixin(
+    name = "use_angle_gles",
+    args = [
+        "--use-angle=gles",
     ],
 )
 
@@ -166,6 +260,13 @@ targets.mixin(
     name = "use_angle_webgpu",
     args = [
         "--use-angle=webgpu",
+    ],
+)
+
+targets.mixin(
+    name = "use_gl_native",
+    args = [
+        "--use-gl=native",
     ],
 )
 

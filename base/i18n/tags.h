@@ -25,6 +25,9 @@
 // `base/i18n/internal/canonical_language_tags.inc`.
 namespace base::language_tags {
 
+// Returns a undefined language tag.
+BASE_I18N_EXPORT const base::LanguageTag& UNDEFINED();
+
 #define IMPL_LANGUAGECODE_TAG_NAME(tag, name) \
   BASE_I18N_EXPORT const base::LanguageTag& name();
 

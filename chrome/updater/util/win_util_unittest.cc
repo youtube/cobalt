@@ -38,6 +38,7 @@
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
+#include "base/test/gtest_util.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/platform_thread.h"
@@ -60,9 +61,12 @@
 #include "chrome/updater/win/test/test_executables.h"
 #include "chrome/updater/win/test/test_strings.h"
 #include "chrome/updater/win/win_constants.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace updater::test {
+
+using ::testing::EndsWith;
 
 namespace {
 
@@ -860,6 +864,12 @@ TEST(WinUtil, AddCurrentUserAllowedAce_DenyBeforeAllow) {
   EXPECT_TRUE(::ConvertStringSecurityDescriptorToSecurityDescriptor(
       new_sddl->c_str(), SDDL_REVISION_1, &raw_sd, nullptr));
   base::win::ScopedLocalAlloc sd_holder(raw_sd);
+}
+
+TEST(WinUtil, RegistryKeyHelpersSanitizeInvalidAppIds) {
+  EXPECT_THAT(GetAppClientsKey(L"a\\b"), EndsWith(L"a_b"));
+  EXPECT_THAT(GetAppClientStateKey(L"a\\b"), EndsWith(L"a_b"));
+  EXPECT_THAT(GetAppClientStateMediumKey(L"a\\b"), EndsWith(L"a_b"));
 }
 
 }  // namespace updater::test

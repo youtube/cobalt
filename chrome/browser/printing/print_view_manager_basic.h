@@ -5,11 +5,16 @@
 #ifndef CHROME_BROWSER_PRINTING_PRINT_VIEW_MANAGER_BASIC_H_
 #define CHROME_BROWSER_PRINTING_PRINT_VIEW_MANAGER_BASIC_H_
 
+#include <memory>
+
+#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "chrome/browser/printing/print_view_manager_base.h"
 #include "content/public/browser/web_contents_user_data.h"
 
 namespace printing {
+
+class PrinterQuery;
 
 // Manages the print commands for a WebContents - basic version.
 class PrintViewManagerBasic
@@ -27,6 +32,8 @@ class PrintViewManagerBasic
 
 #if BUILDFLAG(IS_ANDROID)
   // printing::PrintManager:
+  void SetupScriptedPrintAndroid(
+      SetupScriptedPrintAndroidCallback callback) override;
   void PdfWritingDone(int page_count) override;
 #endif
 
@@ -34,7 +41,17 @@ class PrintViewManagerBasic
   explicit PrintViewManagerBasic(content::WebContents* web_contents);
   friend class content::WebContentsUserData<PrintViewManagerBasic>;
 
+#if BUILDFLAG(IS_ANDROID)
+  void OnSetupScriptedPrintAndroidDone(
+      SetupScriptedPrintAndroidCallback callback,
+      std::unique_ptr<PrinterQuery> printer_query);
+#endif
+
   WEB_CONTENTS_USER_DATA_KEY_DECL();
+
+#if BUILDFLAG(IS_ANDROID)
+  base::WeakPtrFactory<PrintViewManagerBasic> weak_ptr_factory_{this};
+#endif
 };
 
 }  // namespace printing

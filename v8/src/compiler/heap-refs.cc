@@ -25,7 +25,9 @@
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -318,14 +320,12 @@ class JSProxyData : public JSReceiverData {
 namespace {
 
 // Separate function for racy HeapNumber value read, so that we can explicitly
-// suppress it in TSAN (see tools/sanitizers/tsan_suppressions.txt).
-// We prevent inlining of this function in TSAN builds, so that TSAN does indeed
-// see that this is where the race is, and does indeed ignore it.
-#ifdef V8_IS_TSAN
-V8_NOINLINE
-#endif
+// suppress it in TSAN.
 uint64_t RacyReadHeapNumberBits(Tagged<HeapNumber> value) {
-  return value->value_as_bits();
+  TSAN_IGNORE_READS_BEGIN;
+  uint64_t result = value->value_as_bits();
+  TSAN_IGNORE_READS_END;
+  return result;
 }
 
 std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
@@ -429,21 +429,20 @@ OptionalObjectRef GetOwnDictionaryPropertyFromHeap(
 }
 
 // Separate function for racy JSTypedArray length read, so that we can
-// explicitly suppress it in TSAN (see tools/sanitizers/tsan_suppressions.txt).
-// We prevent inlining of this function in TSAN builds, so that TSAN does indeed
-// see that this is where the race is, and does indeed ignore it.
-#ifdef V8_IS_TSAN
-V8_NOINLINE
-#endif
+// explicitly suppress it in TSAN.
 size_t RacyReadJSTypedArrayLength(Tagged<JSTypedArray> object) {
+  TSAN_IGNORE_READS_BEGIN;
   Address field_address =
       object->address() + offsetof(JSArrayBufferView, raw_byte_length_);
+  size_t result;
 #ifdef V8_ENABLE_SANDBOX
   size_t raw_value = base::ReadUnalignedValue<size_t>(field_address);
-  return raw_value >> kBoundedSizeShift;
+  result = raw_value >> kBoundedSizeShift;
 #else
-  return ReadMaybeUnalignedValue<size_t>(field_address);
+  result = ReadMaybeUnalignedValue<size_t>(field_address);
 #endif
+  TSAN_IGNORE_READS_END;
+  return result;
 }
 
 }  // namespace
@@ -2726,6 +2725,35 @@ unsigned CodeRef::GetInlinedBytecodeSize() const {
     return 0;
   }
   return value;
+}
+
+int DataHandlerRef::data_field_count() const {
+  return object()->data_field_count();
+}
+
+OptionalObjectRef DataHandlerRef::data(JSHeapBroker* broker, int index) const {
+  DCHECK_GE(index, 1);
+  int array_index = index - 1;
+  DCHECK_LT(array_index, data_field_count());
+  Tagged<MaybeObject> data_val = object()->data()[array_index].Relaxed_Load();
+  if (data_val.IsSmi()) {
+    return MakeRefAssumeMemoryFence(broker, Cast<Smi>(data_val));
+  }
+  Tagged<HeapObject> heap_object;
+  if (data_val.GetHeapObject(&heap_object)) {
+    return TryMakeRef<Object>(broker, heap_object, kAssumeMemoryFence);
+  }
+  return std::nullopt;
+}
+
+bool DataHandlerRef::IsFastProxyHandler() const {
+  Tagged<UnionOf<Smi, Code>> smi_handler = object()->smi_handler();
+  if (!smi_handler.IsSmi()) return false;
+  if (LoadHandler::KindBits::decode(Cast<Smi>(smi_handler).value()) !=
+      LoadHandler::Kind::kProxy) {
+    return false;
+  }
+  return data_field_count() >= LoadHandler::kProxyTrapMethodDataIndex;
 }
 
 #undef BIMODAL_ACCESSOR

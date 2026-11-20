@@ -35,8 +35,11 @@ AttemptFormFillingToolRequest::FormFillingRequest::operator=(
 
 AttemptFormFillingToolRequest::AttemptFormFillingToolRequest(
     tabs::TabHandle tab_handle,
-    std::vector<FormFillingRequest> requests)
-    : TabToolRequest(tab_handle), requests_(std::move(requests)) {}
+    std::vector<FormFillingRequest> requests,
+    bool enqueued_click)
+    : TabToolRequest(tab_handle),
+      requests_(std::move(requests)),
+      enqueued_click_(enqueued_click) {}
 
 AttemptFormFillingToolRequest::AttemptFormFillingToolRequest(
     const AttemptFormFillingToolRequest&) = default;
@@ -55,9 +58,10 @@ ToolRequest::CreateToolResult AttemptFormFillingToolRequest::CreateTool(
                                          "The tab is no longer present.")};
   }
 
-  return {std::make_unique<AttemptFormFillingTool>(task_id, tool_delegate, *tab,
-                                                   std::move(requests_)),
-          MakeOkResult()};
+  return {
+      std::make_unique<AttemptFormFillingTool>(
+          task_id, tool_delegate, *tab, std::move(requests_), enqueued_click_),
+      MakeOkResult()};
 }
 
 std::string_view AttemptFormFillingToolRequest::Name() const {

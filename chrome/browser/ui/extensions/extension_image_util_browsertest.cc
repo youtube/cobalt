@@ -47,7 +47,8 @@ IN_PROC_BROWSER_TEST_F(ImageUtilTest, DISABLED_CheckDefaultToolbarColor) {
 #endif  // BUILDFLAG(IS_LINUX)
 
   EXPECT_EQ(extensions::image_util::kDefaultToolbarColor,
-            browser()->window()->GetColorProvider()->GetColor(kColorToolbar))
+            BrowserWindow::FromBrowser(browser())->GetColorProvider()->GetColor(
+                kColorToolbar))
       << "Please update image_util::kDefaultToolbarColor to the new value";
 }
 

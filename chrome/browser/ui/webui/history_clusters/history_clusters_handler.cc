@@ -215,24 +215,28 @@ mojom::QueryResultPtr QueryClustersResultToMojom(
 
 HistoryClustersHandler::HistoryClustersHandler(
     mojo::PendingReceiver<mojom::PageHandler> pending_page_handler,
+    mojo::PendingRemote<mojom::Page> pending_page,
     Profile* profile,
     content::WebContents* web_contents,
     BrowserWindowInterface* browser_window_interface)
     : profile_(profile),
       web_contents_(web_contents),
       interface_(browser_window_interface),
+      page_(std::move(pending_page)),
       page_handler_(this, std::move(pending_page_handler)) {
   CommonInit();
 }
 
 HistoryClustersHandler::HistoryClustersHandler(
     mojo::PendingReceiver<mojom::PageHandler> pending_page_handler,
+    mojo::PendingRemote<mojom::Page> pending_page,
     Profile* profile,
     content::WebContents* web_contents,
     tabs::TabInterface* tab_interface)
     : profile_(profile),
       web_contents_(web_contents),
       interface_(tab_interface),
+      page_(std::move(pending_page)),
       page_handler_(this, std::move(pending_page_handler)) {
   CommonInit();
 }
@@ -291,11 +295,6 @@ void HistoryClustersHandler::OpenHistoryUrl(
   GetBrowserWindowInterface(interface_)
       ->OpenURL(params,
                 /*navigation_handle_callback=*/{});
-}
-
-void HistoryClustersHandler::SetPage(
-    mojo::PendingRemote<mojom::Page> pending_page) {
-  page_.Bind(std::move(pending_page));
 }
 
 void HistoryClustersHandler::ShowSidePanelUI() {

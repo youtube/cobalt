@@ -2362,3 +2362,15 @@ targets.mixin(
         "--force-main-user",
     ],
 )
+
+# Enables parallel execution for slower x64 bots.
+# Running sequentially on these bots causes global suite timeouts,
+# while 3 processes avoids this without causing the individual test
+# starvation seen on ARM64 bots.
+# (Overrides the base '--child-processes=1'; argparse respects the last value).
+targets.mixin(
+    name = "mac_x64_wpt_child_processes",
+    args = [
+        "--child-processes=3",
+    ],
+)

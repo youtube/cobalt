@@ -69,7 +69,13 @@ public class EnhancedTargetDevicePickerMediatorTest {
 
     private void createMediator(List<TargetDeviceInfo> devices) {
         new EnhancedTargetDevicePickerMediator(
-                SHARING_URL, SHARING_TITLE, devices, mProfile, () -> mTab, mModel);
+                SHARING_URL,
+                SHARING_TITLE,
+                devices,
+                mProfile,
+                () -> mTab,
+                mModel,
+                ShareEntryPoint.SHARE_SHEET);
     }
 
     @Test
@@ -151,7 +157,8 @@ public class EnhancedTargetDevicePickerMediatorTest {
                         eq(mDevice1.cacheGuid),
                         eq(SHARING_URL),
                         eq(SHARING_TITLE),
-                        any());
+                        any(),
+                        eq(ShareEntryPoint.SHARE_SHEET));
         assertFalse(mModel.get(EnhancedTargetDevicePickerProperties.VISIBLE));
     }
 }

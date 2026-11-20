@@ -99,6 +99,7 @@ class WebNND3DTensorRepresentation : public WebNNTensorRepresentation {
   void EndAccess() override;
 
   Microsoft::WRL::ComPtr<ID3D12Resource> GetD3D12Buffer() const override;
+  base::win::ScopedHandle GetD3D12HeapHandle() const override;
   scoped_refptr<gfx::D3DSharedFence> GetAcquireFence() const override;
   void SetReleaseFence(
       scoped_refptr<gfx::D3DSharedFence> release_fence) override;

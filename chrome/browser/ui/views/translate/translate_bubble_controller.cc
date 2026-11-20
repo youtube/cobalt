@@ -168,14 +168,16 @@ void TranslateBubbleController::StartPartialTranslate(
   views::BubbleAnchor anchor;
   std::optional<ui::ElementIdentifier> highlighted_element;
 
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(browser_window_);
-  if (browser_view) {
-    anchor = browser_view->toolbar_button_provider()->GetBubbleAnchor(
-        kActionShowTranslate);
-    highlighted_element = kTranslatePageActionElementId;
-  } else if (anchor_view_for_testing_) {
+  if (anchor_view_for_testing_) {
     anchor = views::BubbleAnchor(anchor_view_for_testing_);
+  } else {
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser_window_);
+    if (browser_view) {
+      anchor = browser_view->toolbar_button_provider()->GetBubbleAnchor(
+          kActionShowTranslate);
+      highlighted_element = kTranslatePageActionElementId;
+    }
   }
 
   CreatePartialTranslateBubble(web_contents, anchor, highlighted_element,

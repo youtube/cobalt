@@ -21,15 +21,13 @@
 #include "base/values.h"
 #include "chrome/browser/ash/platform_keys/keystore_service.h"
 #include "chrome/browser/ash/platform_keys/keystore_service_factory.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/chromeos/platform_keys/extension_key_permissions_service.h"
 #include "chrome/browser/chromeos/platform_keys/extension_key_permissions_service_factory.h"
-#include "chrome/browser/profiles/profile.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
 #include "chromeos/ash/components/platform_keys/keystore_service_util.h"
 #include "chromeos/ash/components/platform_keys/keystore_types.h"
 #include "chromeos/ash/components/platform_keys/platform_keys.h"
 #include "chromeos/constants/chromeos_features.h"
-#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
@@ -1058,8 +1056,7 @@ void ExtensionPlatformKeysService::GenerateECKey(
 }
 
 bool ExtensionPlatformKeysService::IsUsingSigninProfile() {
-  return ash::ProfileHelper::IsSigninProfile(
-      Profile::FromBrowserContext(browser_context_));
+  return ash::IsSigninBrowserContext(browser_context_);
 }
 
 void ExtensionPlatformKeysService::SignDigest(

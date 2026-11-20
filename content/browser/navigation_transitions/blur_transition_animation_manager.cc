@@ -262,6 +262,9 @@ void BlurTransitionAnimationManager::RenderFrameHostStateChanged(
     RenderFrameHost* render_frame_host,
     RenderFrameHost::LifecycleState old_state,
     RenderFrameHost::LifecycleState new_state) {
+  // Wait for kActive since target frame activation marks the point where the
+  // outgoing page is no longer interactive, signaling the preferred moment to
+  // begin the blur transition animation.
   if (new_state != RenderFrameHost::LifecycleState::kActive ||
       !render_frame_host->IsInPrimaryMainFrame()) {
     return;
@@ -279,6 +282,11 @@ void BlurTransitionAnimationManager::RenderFrameHostStateChanged(
   }
 
   ShowBlurTransitionLayer();
+
+  // Suppress input events on the WebContents during the blur transition.
+  CHECK(!ignore_input_scope_);
+  ignore_input_scope_ =
+      web_contents()->IgnoreInputEvents(/*audit_callback=*/std::nullopt);
 
   SetAnimationState(AnimationState::kBlurShown);
   blur_hold_timer_.Start(
@@ -362,6 +370,8 @@ void BlurTransitionAnimationManager::OnBlurHoldTimerExpired() {
 
 void BlurTransitionAnimationManager::OnDetachCompositor() {
   window_observation_.Reset();
+  // Clean up animation layer and ensure input suppression is removed.
+  DestroyLayer();
 }
 
 void BlurTransitionAnimationManager::OnAnimate(
@@ -520,6 +530,7 @@ void BlurTransitionAnimationManager::HideBlurTransitionLayer() {
 }
 
 void BlurTransitionAnimationManager::DestroyLayer() {
+  ignore_input_scope_.reset();
   blur_hold_timer_.Stop();
   HideBlurTransitionLayer();
   // Releasing the layer here drops the reference to the viz::SurfaceId,

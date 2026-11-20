@@ -237,4 +237,23 @@ TEST_F(WindowVisibleAndFullyOpaqueTest, CloakedWindow) {
   EXPECT_FALSE(CheckWindowVisibleAndFullyOpaque(hwnd, &win_rect));
 }
 
+// Verifies that WindowImpl::WndProc forwards messages to DefWindowProc when
+// GWLP_USERDATA is null (for example after ClearUserData() runs before
+// DestroyWindow()).
+TEST(WindowImplTest, WndProcCallsDefWindowProcWhenUserDataIsNull) {
+  TestNativeWindow window;
+  window.Init(nullptr, Rect(0, 0, 100, 100));
+  ASSERT_TRUE(window.hwnd());
+
+  // Null out GWLP_USERDATA to simulate ClearUserData().
+  SetWindowLongPtr(window.hwnd(), GWLP_USERDATA, 0);
+
+  // DefWindowProc always returns TRUE for WM_QUERYOPEN; if WndProc swallows the
+  // message, this would be 0.
+  LRESULT result = SendMessage(window.hwnd(), WM_QUERYOPEN, 0, 0);
+  EXPECT_NE(result, 0)
+      << "WndProc should forward to DefWindowProc when GWLP_USERDATA is "
+         "null.";
+}
+
 }  // namespace gfx

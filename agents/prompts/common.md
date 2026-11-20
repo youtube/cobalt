@@ -58,7 +58,12 @@ the user about the reason to skip.
         the task prompted by the user.
       * **Include Hygiene & IWYU:**
           * **Cleanup Unused Includes:** Remove unused includes when refactoring.
-          * **No Transitive Includes:** If you use a symbol in a `.cc` file, explicitly include its defining header.
+          * **No Transitive Includes:** If you use a symbol in a `.cc` file,
+            explicitly include its defining header.
+          * **Put conditional includes after non-conditional includes:** Do not
+            put `#if` blocks in the middle of a section of non-conditional
+            includes. Add it as a separate section below the non-conditional
+            includes, and reuse an existing section when appropriate.
 3.  **Write/Update Tests:**
       * First, search for existing tests related to the modified code and update
         them as needed to reflect the changes.

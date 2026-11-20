@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">Ανανέωση <ph name="CONTENT_TITLE" /></translation>
 <translation id="1142002900084379065">Πρόσφατες φωτογραφίες</translation>
 <translation id="114221662579355151">Αυτό επιτρέπει την πρόσβαση στην κάμερα για τις εφαρμογές <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> και όλες τις εφαρμογές και τους ιστοτόπους με άδεια κάμερας. Ίσως χρειαστεί να ανανεώσετε την ιστοσελίδα ή να επανεκκινήσετε την εφαρμογή.</translation>
+<translation id="1145593918056169051">Ο εκτυπωτής σταμάτησε να λειτουργεί</translation>
 <translation id="1147991416141538220">Για να ζητήσετε πρόσβαση, επικοινωνήστε με τον διαχειριστή αυτής της συσκευής.</translation>
 <translation id="1148499908455722006">Άνοιγμα παραθύρου διαλόγου πληροφοριών για <ph name="USER_NAME" /></translation>
 <translation id="1150989369772528668">Ημερολόγιο</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Αναζήτηση</translation>
 <translation id="1388728792929436380">Όταν ολοκληρωθούν οι ενημερώσεις, θα γίνει επανεκκίνηση της συσκευής (<ph name="DEVICE_TYPE" />).</translation>
 <translation id="1390113502208199250">Θα πρέπει να επαναφέρετε τις εργοστασιακές ρυθμίσεις αυτής της συσκευής, για να χρησιμοποιήσετε τις λειτουργίες Αναβάθμισης του Chrome για εκπαιδευτικά ιδρύματα.</translation>
+<translation id="1390907927270446471">Το προφίλ <ph name="PROFILE_USERNAME" /> δεν έχει την εξουσιοδότηση για εκτύπωση στον εκτυπωτή <ph name="PRINTER_NAME" />. Επικοινωνήστε με τον διαχειριστή σας.</translation>
 <translation id="1391102559483454063">Ενεργό</translation>
 <translation id="1394698770495054737">Πλήρες θάμπωμα</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{Πριν από 1 ημέρα}other{πριν από # ημέρες}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Ναι</translation>
 <translation id="142655739075382478">Η εφαρμογή <ph name="APP_NAME" /> αποκλείστηκε</translation>
 <translation id="142765311413773645">Η άδεια της εφαρμογής <ph name="APP_NAME" /> έχει λήξει.</translation>
+<translation id="1430915738399379752">Εκτύπωση</translation>
 <translation id="1435537621343861112">Δεν είναι δυνατή η έναρξη της υπαγόρευσης. Το μικρόφωνό σας είναι απενεργοποιημένο.</translation>
 <translation id="1445031758921122223">Έγινε λήψη των αρχείων ελέγχου προσώπου</translation>
 <translation id="1447907279406111651">Τώρα · Τελειώνει: <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Βήμα περιήγησης <ph name="STEP" /> από <ph name="TOTAL_STEPS" />. Οι καρφιτσωμένες και ανοιχτές εφαρμογές σας βρίσκονται στο ράφι στο κάτω μέρος της οθόνης σας. Πατήστε Alt + Shift + L και έπειτα πατήστε Tab για να εστιάσετε στα στοιχεία του ραφιού.</translation>
 <translation id="1602085790802918092">Εκκίνηση της εικονικής μηχανής.</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + κάτω βέλος</translation>
+<translation id="1604432177629086300">Δεν ήταν δυνατή η εκτύπωση. Ελέγξτε τον εκτυπωτή και δοκιμάστε ξανά.</translation>
 <translation id="1604857178818051494">Παύση μέσων</translation>
 <translation id="1607312127821884567">Παράβλεψη ρύθμισης προβολής των εφαρμογών του τηλεφώνου σας</translation>
 <translation id="1610778689852195798">"Αναίρεση"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Δεδομένα κατάστασης αδράνειας</translation>
 <translation id="2064048859448024834">Η προεπισκόπηση κάμερας είναι ενεργή</translation>
 <translation id="2067220651560163985">Εμφάνιση θερμοκρασίας σε βαθμούς Κελσίου</translation>
+<translation id="206960706005837784">Η εφαρμογή <ph name="APP_NAME" /> έχει ολοκληρώσει την εκτύπωση στον εκτυπωτή <ph name="PRINTER_NAME" /></translation>
 <translation id="2075520525463668108">Εναλλαγή <ph name="CAPTURE_MEDIUM" />. Το κουμπί <ph name="CAPTURE_MEDIUM" /> είναι <ph name="CAPTURE_STATE" /></translation>
 <translation id="2079545284768500474">Αναίρεση</translation>
 <translation id="2086334242442703436">Άνοιγμα εργαλείου επιλογής emoji</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Για να χρησιμοποιήσετε την εφαρμογή <ph name="APP_NAME" />, επανεκκινήστε τη συσκευή σας.</translation>
 <translation id="2335091074961603075">Το Chromebook ή η συσκευή Bluetooth χρησιμοποιεί μια παλαιότερη έκδοση του Bluetooth. Χρησιμοποιήστε το εσωτερικό μικρόφωνο για καλύτερη ποιότητα ήχου.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{Ο τομέας <ph name="MANAGER" /> απαιτεί να συνδεθείτε σήμερα στο δίκτυο Wi-Fi και να κατεβάσετε μια ενημέρωση. Εναλλακτικά, μπορείτε να την κατεβάσετε από μια σύνδεση με ογκοχρέωση (ενδέχεται να ισχύουν χρεώσεις).}other{Ο τομέας <ph name="MANAGER" /> απαιτεί να συνδεθείτε στο δίκτυο Wi-Fi πριν από τη λήξη της προθεσμίας και να κατεβάσετε μια ενημέρωση. Εναλλακτικά, μπορείτε να την κατεβάσετε από μια σύνδεση με ογκοχρέωση (ενδέχεται να ισχύουν χρεώσεις).}}</translation>
+<translation id="2336258397628212480">Η εφαρμογή <ph name="APP_NAME" /> εκτυπώνει 1 σελίδα στον εκτυπωτή <ph name="PRINTER_NAME" /></translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">Πατήστε το κουμπί με τη γραφίδα στο ράφι, για να δημιουργήσετε μια σημείωση, ένα στιγμιότυπο οθόνης και να χρησιμοποιήσετε τον δείκτη λέιζερ ή τον μεγεθυντικό φακό.</translation>
 <translation id="2341729377289034582">Κλειδωμένη σε κάθετη</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">Ενεργοποίηση/απενεργοποίηση του πλήκτρου Caps Lock</translation>
 <translation id="3207953481422525583">Ρυθμίσεις χρήστη</translation>
 <translation id="3208321278970793882">Εφαρμογή</translation>
+<translation id="32101887417650595">Δεν είναι δυνατή η σύνδεση του εκτυπωτή</translation>
 <translation id="3212221635583599601">Συνδεθείτε στο διαδίκτυο για περισσότερα</translation>
 <translation id="3213571860604332401">Αποθήκευση συνδέσμου ως σελιδοδείκτη</translation>
 <translation id="3217205077783620295">Ο ήχος είναι ενεργοποιημένος, η εναλλαγή θα ενεργοποιήσει τη σίγαση ήχου.</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">Γραφείο 14</translation>
 <translation id="3433507769937235446">Κλείδωμα κατά την αποχώρηση</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">Τελείωσε το χαρτί</translation>
 <translation id="3435967511775410570">Το δακτυλικό αποτύπωμα αναγνωρίστηκε.</translation>
 <translation id="3437677362970530951">Παιχνίδια στο Play Store και σε άλλες πλατφόρμες gaming</translation>
 <translation id="3439896670700055005">Επανάληψη φόρτωσης της τρέχουσας σελίδας χωρίς τη χρήση περιεχομένου που έχει αποθηκευτεί στην κρυφή μνήμη</translation>
@@ -999,6 +1007,7 @@
 <translation id="3848526302597027234">Αποκτήστε πρόσβαση στις ακόλουθες άδειες:</translation>
 <translation id="385051799172605136">Πίσω</translation>
 <translation id="385300504083504382">Αρχή</translation>
+<translation id="3854976556788175030">Ο δίσκος εξόδου είναι πλήρης</translation>
 <translation id="3857807444929313943">Ανασηκώστε και αγγίξτε ξανά</translation>
 <translation id="3859364108019690">Δεν είναι δυνατή η ροή εφαρμογών</translation>
 <translation id="3861638017150647085">Δεν είναι διαθέσιμο το όνομα χρήστη "<ph name="USERNAME" />".</translation>
@@ -1051,6 +1060,7 @@
 <translation id="401993194061514265">Ο δείκτης δεν είναι διαθέσιμος. Ανοίξτε ξανά το Screencast.</translation>
 <translation id="4021716437419160885">Κύλιση προς τα κάτω</translation>
 <translation id="4022497978915111141">Κλείδωμα συσκευής</translation>
+<translation id="4023048917751563912">Η εφαρμογή <ph name="APP_NAME" /> εκτυπώνει <ph name="PAGE_NUMBER" /> σελίδες στον εκτυπωτή <ph name="PRINTER_NAME" /></translation>
 <translation id="4024840464866786680">Εάν ξεχάσατε το PIN και τον κωδικό πρόσβασης ή αλλάξατε πρόσφατα τον κωδικό πρόσβασης του Λογαριασμού σας Google, δοκιμάστε να ανακτήσετε αυτόν τον χρήστη.</translation>
 <translation id="4026843240379844265">Μετακίνηση ενεργού παραθύρου μεταξύ οθονών</translation>
 <translation id="4028481283645788203">Απαιτείται κωδικός πρόσβασης για περισσότερη ασφάλεια.</translation>
@@ -1580,6 +1590,7 @@
 <translation id="5491186829646618080">Διαθέσιμες ενημερώσεις υλικολογισμικού</translation>
 <translation id="5503884284981862082">Άνοιγμα/κλείσιμο Βοηθού Google</translation>
 <translation id="550391772491508736">Συνέχιση μετάδοσης</translation>
+<translation id="5505307013568720083">Τελείωσε το μελάνι</translation>
 <translation id="5506975627792768506">Ενεργοποίηση ή απενεργοποίηση μεγεθυντικού φακού</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, Με το πάτημα του πλήκτρου Enter θα γίνει σίγαση του ήχου.</translation>
 <translation id="5512042095225963688">Διαγραφή προηγούμενης λέξης</translation>
@@ -1691,12 +1702,14 @@
 <translation id="5791926618942305301">Στην καταγραφή οθόνης, ορίστε σε <ph name="SOURCE" /> <ph name="TYPE" />. Πατήστε Tab για να επιλέξετε τύπο λήψης. Πατήστε Enter για λήψη. Για να επιλέξετε περιοχή λήψης, ορίστε την ως μερικό στιγμιότυπο οθόνης. Αν δεν είναι ήδη ενεργή, πατήστε το πλήκτρο διαστήματος για να επιλέξετε περιοχή.</translation>
 <translation id="579415080077680903">Σίγαση</translation>
 <translation id="5802516411616338943">Άνοιγμα Γρήγορων ρυθμίσεων</translation>
+<translation id="5804241973901381774">Άδειες</translation>
 <translation id="5804651031882187592">Απενεργοποίηση ρύθμισης Κλείδωμα SIM</translation>
 <translation id="5805809050170488595">Κλικ για ενεργοποίηση <ph name="NETWORK_NAME" /></translation>
 <translation id="5818796501620225415">Προσθέστε χρόνο ή τερματίστε την περίοδο λειτουργίας εστίασης</translation>
 <translation id="5819918159912280082">Έγινε μη αναμενόμενη επανεκκίνηση του Chromebook. Ανοίξτε τα προηγούμενα παράθυρα και τις εφαρμογές σας.</translation>
 <translation id="5823239091726045201">Google Tasks στον ιστό</translation>
 <translation id="5825969630400862129">Ρυθμίσεις συνδεδεμένων συσκευών</translation>
+<translation id="5828633471261496623">Εκτύπωση...</translation>
 <translation id="5830180081891717894"><ph name="WINDOWS" /> ακόμη</translation>
 <translation id="5830205393314753525">Δεν είναι δυνατό το άνοιγμα της εφαρμογής <ph name="APP_NAME" /></translation>
 <translation id="583281660410589416">Άγνωστο</translation>
@@ -1721,6 +1734,7 @@
 <translation id="5892014525522223653">Είστε εκτός σύνδεσης.</translation>
 <translation id="5895138241574237353">Επανεκκίνηση</translation>
 <translation id="589817443623831496">Σάρωση σημείων</translation>
+<translation id="5901494423252125310">Η θύρα του εκτυπωτή είναι ανοικτή</translation>
 <translation id="5901630391730855834">Κίτρινο</translation>
 <translation id="5904614460720589786">Δεν ήταν δυνατή η ρύθμιση της εφαρμογής <ph name="APP_NAME" /> λόγω προβλήματος διαμόρφωσης. Επικοινωνήστε με τον διαχειριστή. Κωδικός σφάλματος: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579">Η συσκευή <ph name="DEVICE_TYPE" /> είναι εκτός σύνδεσης.</translation>
@@ -1785,6 +1799,7 @@
         <ph name="BEGIN_PARAGRAPH2" />Η απενεργοποίηση αυτής της λειτουργίας δεν επηρεάζει τη δυνατότητα αυτής της συσκευής να στέλνει τις πληροφορίες που απαιτούνται για βασικές υπηρεσίες, όπως είναι οι ενημερώσεις συστήματος και η ασφάλεια.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />Ο κάτοχος μπορεί να ελέγξει αυτή τη λειτουργία από την ενότητα Ρυθμίσεις &gt; Σύνθετες &gt; Αυτόματη αποστολή διαγνωστικών και δεδομένων χρήσης στην Google.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Εάν είναι ενεργή η ρύθμιση της πρόσθετης Δραστηριότητας ιστού και εφαρμογών για το παιδί σας, αυτά τα δεδομένα μπορεί να αποθηκευτούν στον Λογαριασμό του Google. Μάθετε περισσότερα σχετικά με αυτές τις ρυθμίσεις και τον τρόπο με τον οποίο μπορείτε να τις προσαρμόσετε, ανατρέχοντας στη διεύθυνση families.google.com.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955">Η εφαρμογή <ph name="APP_NAME" /> προσπαθεί να εκτυπώσει στον εκτυπωτή <ph name="PRINTER_NAME" /></translation>
 <translation id="6054305421211936131">Σύνδεση με έξυπνη κάρτα</translation>
 <translation id="6059276912018042191">Πρόσφατες καρτέλες Chrome</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1888,6 +1903,7 @@
 <translation id="6337159624125741244">Η μεγέθυνση πλήρους οθόνης είναι ενεργή</translation>
 <translation id="6338485349199627913">Το <ph name="DISPLAY_NAME" /> είναι μια διαχειριζόμενη περίοδος λειτουργίας την οποία διαχειρίζεται ο τομέας <ph name="MANAGER" />.</translation>
 <translation id="6340148837564298498">Εάν ξεχάσατε το PIN σας, δοκιμάστε να ανακτήσετε αυτόν τον χρήστη.</translation>
+<translation id="634208815998129842">Διαχείριση εργασιών</translation>
 <translation id="6344138931392227467">Η συσκευή <ph name="DEVICE_NAME" /> συνδέθηκε</translation>
 <translation id="6345418402353744910">Το όνομα χρήστη και ο κωδικός πρόσβασης απαιτούνται για τον διακομιστή μεσολάβησης <ph name="PROXY" />, έτσι ώστε ο διαχειριστής να μπορεί να διαμορφώσει το δίκτυό σας.</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" /> και έπειτα <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> ή <ph name="KEY_THREE" /></translation>
@@ -2093,6 +2109,7 @@
 <translation id="6921427376813842559">Ενημέρωση συσκευής</translation>
 <translation id="6929081673585394903">Εμφάνιση στοιχείων ελέγχου</translation>
 <translation id="6931576957638141829">Αποθήκευση σε</translation>
+<translation id="6935286146439255109">Ο δίσκος χαρτιού λείπει</translation>
 <translation id="6935857786205183008">Πορτρέτο</translation>
 <translation id="6942518653766415536">Μενού μορφής εγγραφής</translation>
 <translation id="6945221475159498467">Επιλογή</translation>
@@ -2115,6 +2132,7 @@
 <translation id="6988094684494323731">Εκκίνηση του κοντέινερ Linux</translation>
 <translation id="7000027735917578303">Ρυθμίσεις παραθύρων και γραφείων</translation>
 <translation id="7001036685275644873">Δημιουργία αντιγράφων ασφαλείας εφαρμογών και αρχείων Linux</translation>
+<translation id="7001066449188684145">Απαιτείται ταυτοποίηση για εκτύπωση στον εκτυπωτή <ph name="PRINTER_NAME" />. Επικοινωνήστε με τον διαχειριστή σας.</translation>
 <translation id="7004910047186208204">Σύνδεση σε δεδομένα κινητής τηλεφωνίας</translation>
 <translation id="7005239792648594238">Ανοίξτε μια εφαρμογή για να ξεκινήσετε</translation>
 <translation id="7014684956566476813">Πραγματοποιήθηκε σύνδεση σε συσκευή με όνομα <ph name="DEVICE_NAME" /></translation>
@@ -2154,6 +2172,7 @@
 <translation id="7108254681523785542">Επιλέξτε ένα στοιχείο για να το επικολλήσετε. Μπορείτε να δείτε το πρόχειρο πατώντας <ph name="SHORTCUT_KEY_NAME" /> + v.</translation>
 <translation id="7108338896283013870">Απόκρυψη</translation>
 <translation id="7108933416628942903">Κλείδωμα τώρα</translation>
+<translation id="7116554090938189816">Το πιστοποιητικό SSL του εκτυπωτή έχει λήξει. Επανεκκινήστε τον εκτυπωτή και δοκιμάστε ξανά.</translation>
 <translation id="7116969082764510092">Γραφείο 11</translation>
 <translation id="7118268675952955085">στιγμιότυπο οθόνης</translation>
 <translation id="7118597077555700347">Άνοιγμα του αποτελέσματος αναζήτησης <ph name="SEARCH_RESULT_TEXT" /></translation>
@@ -2205,6 +2224,7 @@
 <translation id="7312210124139670355">Ο διαχειριστής σας επαναφέρει την eSIM. Ενδέχεται να χρειαστούν μερικά λεπτά.</translation>
 <translation id="7312761820869643657">Επαναφορά έκδοσης συσκευής σε προηγούμενη</translation>
 <translation id="7313193732017069507">Επέκταση κάμερας</translation>
+<translation id="7325209047678309347">Το χαρτί έχει κολλήσει</translation>
 <translation id="7327989755579928735">Ο τομέας <ph name="MANAGER" /> απενεργοποίησε την αποσφαλμάτωση adb. Όταν επανεκκινήσετε τη συσκευή <ph name="DEVICE_TYPE" />, δεν θα επιτρέπεται η παράπλευρη φόρτωση εφαρμογών.</translation>
 <translation id="73289266812733869">Μη επιλεγμένο</translation>
 <translation id="7330397557116570022">Μεταβείτε σε ένα πεδίο κειμένου για να χρησιμοποιήσετε την Υπαγόρευση</translation>
@@ -2579,6 +2599,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Κακή απόδοση</translation>
 <translation id="8345019317483336363">Επιλέχτηκε το παράθυρο <ph name="WINDOW_TITLE" />.</translation>
+<translation id="8347227221149377169">Εργασίες εκτύπωσης</translation>
 <translation id="8349826889576450703">εφαρμογή εκκίνησης</translation>
 <translation id="8349964124165471584">Άνοιγμα συνδέσμου σε νέο παράθυρο</translation>
 <translation id="8351131234907093545">Δημιουργία σημείωσης</translation>
@@ -2617,6 +2638,7 @@
 <translation id="8458259704995116343">Η εκκίνηση VM απέτυχε.</translation>
 <translation id="84613761564611563">Ζητήθηκε διεπαφή χρήστη για διαμόρφωση δικτύου. Περιμένετε…</translation>
 <translation id="8462305545768648477">Κλείσιμο λειτουργίας Επιλέξτε για αυτόματη ανάγνωση</translation>
+<translation id="8463001014623882202">Η εξουσιοδότηση απέτυχε</translation>
 <translation id="8466665972451889002">Εμφάνιση στοιχείων στην ομάδα <ph name="GROUP_NAME" /></translation>
 <translation id="8468806060683421065">Προθεσμία <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> έχει <ph name="FEATURE_STATE" /> <ph name="FEATURE_NAME" />.</translation>

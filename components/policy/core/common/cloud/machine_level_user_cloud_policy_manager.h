@@ -57,6 +57,7 @@ class POLICY_EXPORT MachineLevelUserCloudPolicyManager
   // ConfigurationPolicyProvider:
   void Init(SchemaRegistry* registry) override;
   void Shutdown() override;
+  bool IsFirstPolicyLoadComplete(PolicyDomain domain) const override;
 
  private:
   // CloudPolicyStore::Observer:

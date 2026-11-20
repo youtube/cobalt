@@ -1060,7 +1060,8 @@ void AddSurfaceToRenderSurfaceList(
   const FilterOperations& filters = render_surface->Filters();
   bool is_occlusion_immune = render_surface->CopyOfOutputRequired() ||
                              filters.HasFilterThatMovesPixels() ||
-                             allow_skipping_render_pass;
+                             allow_skipping_render_pass ||
+                             render_surface->IsUnbounded();
 
   // Setting |is_occlusion_immune| leads to an empty
   // |occlusion_from_outside_target| for a non-root render_surface. It does not

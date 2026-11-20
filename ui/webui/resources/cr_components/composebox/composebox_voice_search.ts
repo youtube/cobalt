@@ -177,7 +177,10 @@ export class ComposeboxVoiceSearchElement extends
       detailsUrl_: {type: String},
       detailedError_: {type: Number},
       hasErrorTimer: {type: Boolean},
-      isPermissionPromptOpen_: {type: Boolean, reflect: true},
+      isPermissionPromptOpen: {
+        type: Boolean,
+        reflect: true,
+      },
       submitButtonIconType: {type: String},
       /**
        * Determines whether to automatically submit the query upon receiving a
@@ -194,8 +197,6 @@ export class ComposeboxVoiceSearchElement extends
       /**
        * Maximum number of characters recognized before force-submitting a
        * query. Includes characters of non-confident recognition transcripts.
-       * TODO(crbug.com/510393520): Enforce a 120-character limit for the
-       * Searchbox surface.
        */
       queryLengthLimit: {type: Number},
       /**
@@ -225,7 +226,7 @@ export class ComposeboxVoiceSearchElement extends
   protected accessor detailsUrl_: string =
       `https://support.google.com/chrome/?p=ui_voice_search&hl=${
           window.navigator.language}`;
-  protected accessor isPermissionPromptOpen_: boolean = false;
+  accessor isPermissionPromptOpen: boolean = false;
 
   private accessor state_: State = State.UNINITIALIZED;
   private metricSource_: string = '';
@@ -347,7 +348,7 @@ export class ComposeboxVoiceSearchElement extends
       // If permission prompt is open currently, ignore the blur event,
       // as the blur is from the permission prompt, and need voice search
       // to stay open during prompt.
-      if (this.isPermissionPromptOpen_) {
+      if (this.isPermissionPromptOpen) {
         return;
       }
 
@@ -356,7 +357,7 @@ export class ComposeboxVoiceSearchElement extends
       // (~15ms). This way, it is certain that this blur event is not due to
       // a permission prompt popping up.
       this.blurTimeoutId_ = WindowProxy.getInstance().setTimeout(() => {
-        if (!this.isPermissionPromptOpen_) {
+        if (!this.isPermissionPromptOpen) {
           this.onStopClick_();
         }
         this.blurTimeoutId_ = null;
@@ -399,7 +400,7 @@ export class ComposeboxVoiceSearchElement extends
   private onVoicePermissionPromptChanged(isOpened: boolean, promptSize: Size) {
     // Track the state for the blur event handler to ignore if
     // permission prompt open.
-    this.isPermissionPromptOpen_ = isOpened;
+    this.isPermissionPromptOpen = isOpened;
 
     // If the prompt just opened, cancel any pending closure triggered by a
     // premature blur event.
@@ -567,6 +568,10 @@ export class ComposeboxVoiceSearchElement extends
         // webkit is the source of truth for timing out and has
         // decided to time out.
         if (!this.dynamicTimeoutEnabled) {
+          this.onError_(VoiceSearchError.NO_MATCH);
+        } else if (this.transcript_) {
+          this.onFinalResult_(this.transcript_);
+        } else {
           this.onError_(VoiceSearchError.NO_MATCH);
         }
         return;

@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/settings/ui_bundled/cells/version_item.h"
 
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -19,8 +18,7 @@ TEST_F(VersionItemTest, TextLabelGetsText) {
   EXPECT_TRUE([cell isMemberOfClass:[VersionFooter class]]);
 
   item.text = @"Foo";
-  [item configureHeaderFooterView:cell
-                       withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureHeaderFooterView:cell];
   EXPECT_NSEQ(@"Foo", cell.textLabel.text);
 }
 

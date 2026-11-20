@@ -11,10 +11,8 @@
 #include <string>
 
 #include "base/component_export.h"
-#include "base/feature_list.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/metrics/field_trial_params.h"
 #include "base/values.h"
 #include "chromeos/ash/components/enhanced_network_tts/mojom/enhanced_network_tts.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -24,9 +22,6 @@
 #include "services/network/public/cpp/simple_url_loader.h"
 
 namespace ash::enhanced_network_tts {
-
-// Whether or not to override enhanced TTS params.
-BASE_DECLARE_FEATURE(kEnhancedNetworkTtsOverride);
 
 // The implementation of the enhanced network text-to-speech mojom receiver.
 // The remote of this mojom pipe will be invoked from the enhanced network tts
@@ -135,11 +130,6 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_ENHANCED_NETWORK_TTS)
 
   // Used for all callbacks.
   base::WeakPtrFactory<EnhancedNetworkTtsImpl> weak_factory_{this};
-
-  // An override Google API key. If empty, the API key with which the browser
-  // was built (if any) will be used instead.
-  static constexpr base::FeatureParam<std::string> kApiKey{
-      &kEnhancedNetworkTtsOverride, "api_key", ""};
 };
 
 }  // namespace ash::enhanced_network_tts

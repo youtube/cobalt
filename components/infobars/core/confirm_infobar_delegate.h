@@ -44,6 +44,11 @@ struct MessageSubstitution {
   std::optional<std::u16string> accessible_name;
 };
 
+// Note: Desktop InfoBars may not need to subclass ConfirmInfoBarDelegate.
+// Instead, consider using infobars::InfoBarSpec and
+// infobars::BrowserInfoBarManager. If BrowserInfoBarManager is missing a
+// feature required for your use case, please contact the infobar owners.
+//
 // An interface derived from InfoBarDelegate implemented by objects wishing to
 // control a ConfirmInfoBar.
 class ConfirmInfoBarDelegate : public infobars::InfoBarDelegate {

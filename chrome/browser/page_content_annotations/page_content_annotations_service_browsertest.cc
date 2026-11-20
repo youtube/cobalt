@@ -145,6 +145,9 @@ class HangingPdfListener : public pdf::mojom::PdfListener {
       GetMostVisiblePageIndexCallback callback) override {
     std::move(callback).Run(std::nullopt);
   }
+  void HasMeaningfulText(HasMeaningfulTextCallback callback) override {
+    std::move(callback).Run(true);
+  }
 #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
   void GetSaveDataBufferHandlerForDrive(
       pdf::mojom::SaveRequestType request_type,

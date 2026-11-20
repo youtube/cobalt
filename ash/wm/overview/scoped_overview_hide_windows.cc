@@ -8,6 +8,7 @@
 #include "base/containers/adapters.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/aura/window.h"
+#include "ui/aura/window_tracker.h"
 
 namespace ash {
 
@@ -15,8 +16,9 @@ ScopedOverviewHideWindows::ScopedOverviewHideWindows(
     const std::vector<raw_ptr<aura::Window, VectorExperimental>>& windows,
     bool force_hidden)
     : force_hidden_(force_hidden) {
-  for (aura::Window* window : windows) {
-    AddWindow(window);
+  aura::WindowTracker tracker(windows);
+  while (!tracker.windows().empty()) {
+    AddWindow(tracker.Pop());
   }
 }
 
@@ -93,8 +95,8 @@ void ScopedOverviewHideWindows::OnWindowVisibilityChanged(aura::Window* window,
   // Do not let |window| change to visible during the lifetime of |this|. Also
   // update |window_visibility_| so that we can restore the window visibility
   // correctly.
-  window->Hide();
   window_visibility_[window] = true;
+  window->Hide();
 }
 
 }  // namespace ash

@@ -14,10 +14,6 @@ namespace tabs_api {
 ToyDropTarget::ToyDropTarget() = default;
 ToyDropTarget::~ToyDropTarget() = default;
 
-void ToyDropTarget::GetBounds(GetBoundsCallback callback) {
-  std::move(callback).Run(base::unexpected(mojo_base::mojom::Error::New()));
-}
-
 void ToyDropTarget::OnDragEntered(
     const std::vector<tabs_api::NodeId>& source_tab_ids,
     const gfx::Point& local_point) {

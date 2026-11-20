@@ -6,7 +6,6 @@
 
 #import "base/apple/foundation_util.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -34,9 +33,7 @@ TEST_F(WhatsNewTableViewItemTest, ItemProperties) {
 
   WhatsNewTableViewCell* whats_new_cell =
       base::apple::ObjCCastStrict<WhatsNewTableViewCell>(cell);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   // Check text label (title).
   EXPECT_NSEQ(title, whats_new_cell.textLabel.text);
@@ -97,9 +94,7 @@ TEST_F(WhatsNewTableViewItemTest, ItemWithoutBackgroundImageView) {
 
   WhatsNewTableViewCell* whats_new_cell =
       base::apple::ObjCCastStrict<WhatsNewTableViewCell>(cell);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   // Check text label (title).
   EXPECT_NSEQ(title, whats_new_cell.textLabel.text);

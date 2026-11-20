@@ -4,18 +4,19 @@ Copyright 2026 The Chromium Authors
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
-<!-- TODO(crbug.com/513146609): Remove UnusedResources suppression once integrated in Part 2. -->
 <org.chromium.components.browser_ui.widget.chips.ChipView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    tools:ignore="UnusedResources"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:minHeight="36dp"
     app:textArrangement="vertical"
-    android:layout_margin="8dp"
     app:chipColor="@macro/default_bg_color"
     app:primaryTextAppearance="@style/TextAppearance.TextAccentMediumThick"
     app:secondaryTextAppearance="@style/TextAppearance.TextSmall"
+    app:chipStartPadding="@dimen/at_memory_flyout_default_margin"
+    app:chipEndPadding="@dimen/at_memory_flyout_default_margin"
+    app:chipTopPadding="6dp"
+    app:chipBottomPadding="6dp"
+    app:verticalInset="0dp"
     style="@style/SuggestionChip" />

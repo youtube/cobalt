@@ -37,6 +37,7 @@ import {castExists} from '../assert_extras.js';
 import {setGlobalScrollTarget} from '../common/global_scroll_target_mixin.js';
 import {RouteObserverMixin} from '../common/route_observer_mixin.js';
 import type {UserActionSettingPrefChangeEvent} from '../common/types.js';
+import {LockStateMixin} from '../lock_state_mixin.js';
 import {recordClick, recordNavigation, recordPageBlur, recordPageFocus, recordSettingChange, recordSettingChangeForUnmappedPref} from '../metrics_recorder.js';
 import {convertPrefToSettingMetric} from '../metrics_utils.js';
 import type {OsPageAvailability} from '../os_page_availability.js';
@@ -81,11 +82,24 @@ export interface OsSettingsUiElement {
 }
 
 const OsSettingsUiElementBase =
-    // RouteObserverMixin calls currentRouteChanged() in
-    // connectedCallback(), so ensure other mixins/behaviors run their
-    // connectedCallback() first.
-    RouteObserverMixin(
-        FindShortcutMixin(CrContainerShadowMixin(PolymerElement)));
+    // Mixins are applied from innermost to outermost. Methods from outer mixins
+    // override inner ones if they have the same name.
+
+    // RouteObserverMixin provides route observation capability (e.g.,
+    // currentRouteChanged). LockStateMixin provides methods for managing lock
+    // screen state.
+
+    // Elements extending this base can override currentRouteChanged() (from
+    // RouteObserverMixin) and call methods provided by LockStateMixin
+    // (e.g., this.initializeLockState()) within the override to react to
+    // route changes. There is no direct internal call from LockStateMixin to
+    // RouteObserverMixin.
+
+    // Lifecycle note: connectedCallback methods are called in the order of
+    // application: PolymerElement -> ... -> RouteObserverMixin ->
+    // LockStateMixin.
+    LockStateMixin(RouteObserverMixin(
+        FindShortcutMixin(CrContainerShadowMixin(PolymerElement))));
 
 export class OsSettingsUiElement extends OsSettingsUiElementBase {
   static get is() {
@@ -236,6 +250,8 @@ export class OsSettingsUiElement extends OsSettingsUiElementBase {
 
   override connectedCallback(): void {
     super.connectedCallback();
+
+    this.initializeLockState();
 
     document.documentElement.classList.remove('loading');
 

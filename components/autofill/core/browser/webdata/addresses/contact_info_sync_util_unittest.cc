@@ -720,7 +720,6 @@ class ContactInfoSyncUtilTest
  public:
   ContactInfoSyncUtilTest() {
     features_.InitWithFeatures({features::kAutofillUseINAddressModel,
-                                features::kAutofillSupportPhoneticNameForJP,
                                 features::kAutofillSupportSplitZipCode},
                                {});
   }

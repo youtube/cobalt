@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/extensions/extension_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model_factory.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_action_manager.h"
@@ -113,8 +114,14 @@ void ToolbarActionsModel::OnExtensionInstalled(
 
   auto* extension_management =
       extensions::ExtensionManagementFactory::GetForBrowserContext(profile_);
-  if (extension_management->GetToolbarPinMode(extension->id()) ==
-      extensions::ManagedToolbarPinMode::kDefaultPinned) {
+  extensions::ManagedToolbarPinMode pin_mode =
+      extension_management->GetToolbarPinMode(extension->id());
+  // Pin the extension if the policy enforces default pinning, OR if no policy
+  // is set and the feature flag for pinning new extensions by default is
+  // enabled.
+  if (pin_mode == extensions::ManagedToolbarPinMode::kDefaultPinned ||
+      (pin_mode == extensions::ManagedToolbarPinMode::kNotSet &&
+       base::FeatureList::IsEnabled(features::kExtensionsPinnedByDefault))) {
     SetActionVisibility(extension->id(), true);
   }
 }

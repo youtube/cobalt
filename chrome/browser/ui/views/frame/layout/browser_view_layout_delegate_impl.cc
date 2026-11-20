@@ -153,7 +153,9 @@ bool BrowserViewLayoutDelegateImpl::IsActiveTabSplit() const {
   // when the multi contents view hasn't been fully setup and this
   // inconsistency would cause unnecessary re-layout of content view during
   // tab switch.
-  return browser_view_->browser()->tab_strip_model()->IsActiveTabSplit();
+  auto* const active_tab =
+      browser_view_->browser()->tab_strip_model()->GetActiveTab();
+  return active_tab && active_tab->IsSplit();
 }
 
 bool BrowserViewLayoutDelegateImpl::IsActiveTabAtLeadingWindowEdge() const {

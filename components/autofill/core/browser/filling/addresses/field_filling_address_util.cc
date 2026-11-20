@@ -62,9 +62,7 @@ std::u16string GetAlternativeNameForInput(
     const std::u16string& value,
     const AddressCountryCode& country_code,
     const FormFieldData& field_data) {
-  if (country_code != AddressCountryCode("JP") ||
-      !base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
+  if (country_code != AddressCountryCode("JP")) {
     return value;
   }
   bool requires_conversion = data_util::HasKatakanaCharacter(field_data.label());

@@ -36,6 +36,7 @@
 #include "p2p/base/transport_info.h"
 #include "p2p/test/test_turn_server.h"
 #include "pc/media_session.h"
+#include "pc/sctp_transport.h"
 #include "pc/session_description.h"
 #include "pc/test/fake_rtc_certificate_generator.h"
 #include "pc/test/integration_test_helpers.h"
@@ -59,9 +60,12 @@ namespace webrtc {
 namespace {
 
 using ::testing::Eq;
+using ::testing::IsEmpty;
 using ::testing::IsTrue;
 using ::testing::Ne;
+using ::testing::Not;
 using ::testing::NotNull;
+using ::testing::SizeIs;
 using ::testing::ValuesIn;
 
 // All tests in this file require SCTP support.
@@ -879,6 +883,112 @@ TEST_P(DataChannelIntegrationTest, AddSctpDataChannelInSubsequentOffer) {
       WaitUntil([&] { return caller()->data_observer()->last_message(); },
                 Eq(data)),
       IsRtcOk());
+}
+
+// Fixture for tests of draft-hancke-tsvwg-snap, which carries the SCTP-init
+// cookie in the SDP (a=sctp-init) and is gated behind the WebRTC-Sctp-Snap
+// field trial.
+class DataChannelIntegrationTestWithSctpSnap
+    : public PeerConnectionIntegrationBaseTest {
+ protected:
+  DataChannelIntegrationTestWithSctpSnap()
+      : PeerConnectionIntegrationBaseTest(SdpSemantics::kUnifiedPlan) {
+    // Must be set before the PeerConnectionWrappers are created.
+    SetFieldTrials("WebRTC-Sctp-Snap/Enabled/");
+  }
+};
+
+TEST_F(DataChannelIntegrationTestWithSctpSnap,
+       EarlyDataChannelPacketsAreBufferedUntilAnswerApplied) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+
+  // Phase 1: establish an audio/video connection (no data channel yet).
+  caller()->AddAudioVideoTracks();
+  callee()->AddAudioVideoTracks();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  MediaExpectations media_expectations;
+  media_expectations.ExpectBidirectionalAudioAndVideo();
+  ASSERT_TRUE(ExpectNewFrames(media_expectations));
+
+  // Phase 2: add a data channel and send an offer with an sctp-init, but
+  // capture the answer and never apply it on the caller.
+  caller()->CreateDataChannel();
+  callee()->CreateDataChannel();
+  std::string captured_answer;
+  caller()->SetReceivedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        sdp->ToString(&captured_answer);
+        sdp = nullptr;
+      });
+  caller()->CreateAndSetAndSignalOffer();
+  EXPECT_EQ(caller()->pc()->signaling_state(),
+            PeerConnectionInterface::kHaveLocalOffer);
+  EXPECT_THAT(captured_answer, Not(IsEmpty()));
+
+  // Caller has no SCTP socket yet, callee has and is sending data
+  // which must be cached by the caller.
+  ASSERT_TRUE(WaitUntil([&] {
+    auto transport = callee()->pc()->GetSctpTransport();
+    return transport &&
+           transport->Information().state() == SctpTransportState::kConnected;
+  }));
+  EXPECT_FALSE(caller()->data_observer()->IsOpen());
+  EXPECT_TRUE(callee()->data_observer()->IsOpen());
+
+  auto caller_cached_packet_count = [&]() -> size_t {
+    return network_thread()->BlockingCall([&]() -> size_t {
+      auto* sctp_transport =
+          static_cast<SctpTransport*>(caller()->pc()->GetSctpTransport().get());
+      if (!sctp_transport) {
+        return 0;
+      }
+      return sctp_transport->internal()->EarlyReceivedPacketCountForTesting();
+    });
+  };
+
+  // Before any application data is sent, the caller has cached exactly one
+  // packet: the DCEP "open" message for the data channel.
+  EXPECT_TRUE(WaitUntil([&] { return caller_cached_packet_count() == 1u; }));
+
+  // Send many small numbered messages. The caller has no SCTP socket yet, so it
+  // never acknowledges them; the callee keeps retransmitting and the caller
+  // caches every (re)transmitted packet. The early-packet buffer therefore
+  // fills to its cap and is bounded there, never growing beyond it.
+  constexpr int kNumMessages = 64;
+  for (int i = 0; i < kNumMessages; ++i) {
+    callee()->data_channel()->Send(DataBuffer(std::to_string(i)));
+  }
+  EXPECT_TRUE(WaitUntil([&] { return caller_cached_packet_count() == 32u; }));
+
+  // Phase 3: apply the captured answer. We expect two open data channels
+  // on each side.
+  caller()->SetReceivedSdpMunger(nullptr);
+  caller()->ReceiveSdpMessage(SdpType::kAnswer, captured_answer);
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+
+  ASSERT_THAT(WaitUntil([&] { return caller()->data_channels(); }, SizeIs(2)),
+              IsRtcOk());
+  for (const auto& observer : caller()->data_observers()) {
+    EXPECT_TRUE(WaitUntil([&] { return observer->IsOpen(); }));
+  }
+  ASSERT_THAT(WaitUntil([&] { return callee()->data_channels(); }, SizeIs(2)),
+              IsRtcOk());
+  for (const auto& observer : callee()->data_observers()) {
+    EXPECT_TRUE(WaitUntil([&] { return observer->IsOpen(); }));
+  }
+
+  // The caller must receive all kNumMessages messages, in order, on the
+  // channel negotiated in-band from the callee. Some of them buffered,
+  // some as resends.
+  MockDataChannelObserver* receiver = caller()->data_observers().back().get();
+  ASSERT_TRUE(WaitUntil([&] {
+    return static_cast<int>(receiver->received_message_count()) == kNumMessages;
+  }));
+  for (int i = 0; i < kNumMessages; ++i) {
+    EXPECT_EQ(receiver->messages()[i].data, std::to_string(i));
+  }
 }
 
 // Set up a connection initially just using SCTP data channels, later

@@ -6,6 +6,17 @@ source_set("avatar") {
   sources = [
     "avatar_provider.h",
     "avatar_provider.mm",
+  ]
+  deps = [
+    ":avatar_internal",
+    "//base",
+    "//ios/chrome/browser/signin/model:constants",
+    "//ios/chrome/browser/signin/model:system_identity",
+  ]
+}
+
+source_set("avatar_internal") {
+  sources = [
     "resized_avatar_cache.h",
     "resized_avatar_cache.mm",
   ]
@@ -25,7 +36,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [ "resized_avatar_cache_unittest.mm" ]
   deps = [
-    ":avatar",
+    ":avatar_internal",
     "//base",
     "//base/test:test_support",
     "//ios/chrome/browser/shared/model/application_context",

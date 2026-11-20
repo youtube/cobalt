@@ -18,7 +18,7 @@
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/performance_manager/public/user_tuning/performance_detection_manager.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
 #include "chrome/browser/ui/performance_controls/performance_intervention_button_controller_delegate.h"
@@ -63,7 +63,7 @@ void TrimAcceptHistory(PrefService* pref_service) {
 PerformanceInterventionButtonController::
     PerformanceInterventionButtonController(
         PerformanceInterventionButtonControllerDelegate* delegate,
-        Browser* browser)
+        BrowserWindowInterface* browser)
     : delegate_(delegate), browser_(browser) {
   // The `PerformanceDetectionManager` is undefined in unit tests because it
   // is constructed in `ChromeContentBrowserClient::CreateBrowserMainParts`.
@@ -72,7 +72,7 @@ PerformanceInterventionButtonController::
         PerformanceDetectionManager::ResourceType::kCpu};
     PerformanceDetectionManager::GetInstance()->AddActionableTabsObserver(
         resource_types, this);
-    browser->tab_strip_model()->AddObserver(this);
+    browser->GetTabStripModel()->AddObserver(this);
   }
 
   if (base::FeatureList::IsEnabled(
@@ -88,7 +88,7 @@ PerformanceInterventionButtonController::
     PerformanceDetectionManager* const detection_manager =
         PerformanceDetectionManager::GetInstance();
     detection_manager->RemoveActionableTabsObserver(this);
-    browser_->tab_strip_model()->RemoveObserver(this);
+    browser_->GetTabStripModel()->RemoveObserver(this);
   }
 }
 
@@ -294,7 +294,7 @@ void PerformanceInterventionButtonController::MaybeShowUi(
     return;
   }
 
-  Profile* const profile = browser_->profile();
+  Profile* const profile = browser_->GetProfile();
   InterventionMessageTriggerResult trigger_result =
       InterventionMessageTriggerResult::kShown;
 

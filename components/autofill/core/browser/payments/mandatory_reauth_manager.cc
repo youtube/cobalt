@@ -34,11 +34,7 @@ using device_reauth::BiometricStatus;
 #endif
 
 MandatoryReauthManager::MandatoryReauthManager(AutofillClient* client)
-    : client_(client) {
-  if (client_) {
-    device_authenticator_ = client_->GetDeviceAuthenticator();
-  }
-}
+    : client_(client) {}
 
 MandatoryReauthManager::~MandatoryReauthManager() = default;
 
@@ -72,15 +68,25 @@ MandatoryReauthManager::GetNonInteractivePaymentMethodType(
 
 void MandatoryReauthManager::Authenticate(
     device_reauth::DeviceAuthenticator::AuthenticateCallback callback) {
-  CHECK(device_authenticator_);
-  device_authenticator_->AuthenticateWithMessage(u"", std::move(callback));
+  AuthenticateWithMessage(u"", std::move(callback));
 }
 
 void MandatoryReauthManager::AuthenticateWithMessage(
     const std::u16string& message,
     device_reauth::DeviceAuthenticator::AuthenticateCallback callback) {
-  CHECK(device_authenticator_);
-  device_authenticator_->AuthenticateWithMessage(message, std::move(callback));
+  std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator =
+      client_->GetDeviceAuthenticator();
+  CHECK(authenticator);
+
+  auto* authenticator_ptr = authenticator.get();
+  auto wrapped_callback = base::BindOnce(
+      [](std::unique_ptr<device_reauth::DeviceAuthenticator> auth,
+         device_reauth::DeviceAuthenticator::AuthenticateCallback cb,
+         bool success) { std::move(cb).Run(success); },
+      std::move(authenticator), std::move(callback));
+
+  authenticator_ptr->AuthenticateWithMessage(message,
+                                             std::move(wrapped_callback));
 }
 
 void MandatoryReauthManager::StartDeviceAuthentication(
@@ -144,13 +150,15 @@ bool MandatoryReauthManager::ShouldOfferOptin(
   // If the device authenticator is not present or we can not authenticate with
   // biometric or screen lock, there will be no way to re-auth if the user
   // enrolls, so return that we should not offer mandatory re-auth opt-in.
-  bool is_auth_available =
-      device_authenticator_ &&
+  std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator =
+      client_->GetDeviceAuthenticator();
+  bool is_auth_available = authenticator &&
 #if BUILDFLAG(IS_ANDROID)
-      device_authenticator_->GetBiometricAvailabilityStatus() !=
-          BiometricStatus::kUnavailable;
+                           authenticator->GetBiometricAvailabilityStatus() !=
+                               BiometricStatus::kUnavailable;
 #else
-      device_authenticator_->CanAuthenticateWithBiometricOrScreenLock();
+                           authenticator
+                               ->CanAuthenticateWithBiometricOrScreenLock();
 #endif  // BUILDFLAG(IS_ANDROID)
   if (!is_auth_available) {
     LogMandatoryReauthOfferOptInDecision(
@@ -275,11 +283,13 @@ void MandatoryReauthManager::OnUserClosedOptInPrompt() {
 
 MandatoryReauthAuthenticationMethod
 MandatoryReauthManager::GetAuthenticationMethod() {
-  if (!device_authenticator_) {
+  std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator =
+      client_->GetDeviceAuthenticator();
+  if (!authenticator) {
     return MandatoryReauthAuthenticationMethod::kUnknown;
   }
 #if BUILDFLAG(IS_ANDROID)
-  switch (device_authenticator_->GetBiometricAvailabilityStatus()) {
+  switch (authenticator->GetBiometricAvailabilityStatus()) {
     case BiometricStatus::kBiometricsAvailable:
       return MandatoryReauthAuthenticationMethod::kBiometric;
     case BiometricStatus::kOnlyLskfAvailable:
@@ -289,10 +299,10 @@ MandatoryReauthManager::GetAuthenticationMethod() {
   }
 #else
   // Order matters here.
-  if (device_authenticator_->CanAuthenticateWithBiometrics()) {
+  if (authenticator->CanAuthenticateWithBiometrics()) {
     return MandatoryReauthAuthenticationMethod::kBiometric;
   }
-  if (device_authenticator_->CanAuthenticateWithBiometricOrScreenLock()) {
+  if (authenticator->CanAuthenticateWithBiometricOrScreenLock()) {
     return MandatoryReauthAuthenticationMethod::kScreenLock;
   }
   return MandatoryReauthAuthenticationMethod::kUnsupportedMethod;

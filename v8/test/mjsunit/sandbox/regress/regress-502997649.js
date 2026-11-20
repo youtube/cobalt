@@ -26,11 +26,11 @@ let f = inst.exports.f;
 function g() { f(); }
 %PrepareFunctionForOptimization(g);
 
-%BlockAt('TurbofanEarlyGraphTrimming');
+%BlockAt('TurbofanEarlyGraphTrimming', 10000);
 %OptimizeFunctionOnNextCall(g, 'concurrent');
 g();
 
-%WaitUntilBlocked('TurbofanEarlyGraphTrimming');
+%WaitUntilBlocked('TurbofanEarlyGraphTrimming', 10000);
 
 const aMod = Sandbox.getAddressOf(mod);
 const aInst = Sandbox.getAddressOf(inst);

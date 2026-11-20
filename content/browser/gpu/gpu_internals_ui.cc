@@ -694,7 +694,7 @@ void GpuMessageHandler::HandleGetGpuInfo(const base::ListValue& args) {
 
   // Tell GpuDataManager it should have full GpuInfo. If the
   // Gpu process has not run yet, this will trigger its launch.
-  GpuDataManagerImpl::GetInstance()->RequestDx12VulkanVideoGpuInfoIfNeeded(
+  GpuDataManagerImpl::GetInstance()->RequestGpuInfoIfNeeded(
       GpuDataManagerImpl::kGpuInfoRequestAll,
       /*delayed=*/false);
 

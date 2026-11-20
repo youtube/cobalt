@@ -4,9 +4,11 @@
 
 #include "services/webnn/webnn_compiler_service_impl.h"
 
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "services/webnn/ort/compiler_context_impl_ort.h"
 #include "services/webnn/public/cpp/compiler_disconnect_reason.h"
+#include "services/webnn/public/cpp/ep_device_info.h"
 
 namespace webnn {
 
@@ -40,14 +42,15 @@ WebNNCompilerServiceImpl::~WebNNCompilerServiceImpl() = default;
 void WebNNCompilerServiceImpl::CreateCompilerContext(
     mojom::CreateContextOptionsPtr context_options,
     const ContextProperties& context_properties,
-    base::flat_map<std::string, mojom::EpPackageInfoPtr> ep_package_info,
+    const base::FilePath& ep_library_path,
+    const EpDeviceInfo& target_device,
     mojo::PendingRemote<mojom::WebNNModelLoader> model_loader,
     mojo::PendingReceiver<mojom::WebNNCompilerContext> receiver) {
   // WebNNCompilerContext instances should be created based on the context
   // options. Currently the compiler service is only used by the ORT backend, so
   // here create CompilerContextImplOrt directly.
   auto context = ort::CompilerContextImplOrt::Create(
-      std::move(ep_package_info), std::move(context_options),
+      ep_library_path, target_device, std::move(context_options),
       context_properties, std::move(model_loader));
   if (!context) {
     return;

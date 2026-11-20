@@ -30,6 +30,12 @@ SecKeyRef PrivateKey::GetSecKeyRef() const {
 }
 #endif  // BUILDFLAG(IS_IOS)
 
+#if BUILDFLAG(IS_CHROMEOS)
+scoped_refptr<net::X509Certificate> PrivateKey::GetBoundCert() const {
+  return nullptr;
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 base::DictValue PrivateKey::BuildSerializedPrivateKey(
     std::vector<uint8_t> key) const {
   base::DictValue key_dict;

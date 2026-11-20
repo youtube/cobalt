@@ -16,6 +16,7 @@
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
+#include "components/autofill/core/browser/metrics/profile_import_metrics.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/test_utils/test_profiles.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -88,8 +89,6 @@ class AutofillProfileImportProcessTest : public testing::Test {
   }
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      features::kAutofillSupportPhoneticNameForJP};
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   TestAddressDataManager address_data_manager_;
@@ -1259,6 +1258,297 @@ TEST_F(AutofillProfileImportProcessTest,
   histogram_tester.ExpectUniqueSample(
       "Autofill.ProfileImport.HomeWorkNameEmailMergeEditedType",
       SettingsVisibleFieldTypeForMetrics::kCity, 1);
+}
+
+// Tests that `SilentUpdateFieldMergeCategoryBitmask` metric logs
+// `kCapitalizationUpdate` for capitalization-only updates.
+TEST_F(
+    AutofillProfileImportProcessTest,
+    LogSilentUpdateFieldMergeCategoryBitmaskMetrics_CapitalizationUpdateOnly) {
+  AutofillProfile existing_profile(AddressCountryCode("DE"));
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"Rene Baryola", VerificationStatus::kUserVerified);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_FIRST, u"Rene", VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST, u"Baryola", VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST_FIRST, u"Baryola", VerificationStatus::kObserved);
+  address_data_manager().AddProfile(existing_profile);
+
+  AutofillProfile observed_profile(AddressCountryCode("DE"));
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_FIRST, u"RENE", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST, u"Baryola", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST_FIRST, u"Baryola", VerificationStatus::kObserved);
+  observed_profile.usage_history().set_use_date(base::Time::Now() +
+                                                base::Days(1));
+  observed_profile.FinalizeAfterImport();
+
+  ProfileImportProcess import_data = CreateProfileImportProcess(
+      observed_profile, /*allow_only_silent_updates=*/false);
+
+  EXPECT_EQ(import_data.import_type(),
+            AutofillProfileImportType::kSilentUpdate);
+  import_data.AcceptWithoutPrompt();
+
+  base::HistogramTester histogram_tester;
+  import_data.CollectMetrics(/*ukm_recorder=*/nullptr,
+                             address_data_manager().GetProfiles());
+
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.SilentUpdateFieldMergeCategoryBitmask",
+      autofill_metrics::FieldMergeCategory::kCapitalizationUpdate, 1);
+}
+
+// Tests that `SilentUpdateFieldMergeCategoryBitmask` metric logs
+// `kDiacriticAndCapitalizationUpdate` for diacritic/capitalization updates.
+TEST_F(
+    AutofillProfileImportProcessTest,
+    LogSilentUpdateFieldMergeCategoryBitmaskMetrics_DiacriticOrCapitalizationUpdateOnly) {
+  AutofillProfile existing_profile(AddressCountryCode("DE"));
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"Rene Baryola", VerificationStatus::kUserVerified);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_FIRST, u"Rene", VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST, u"Baryola", VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST_FIRST, u"Baryola", VerificationStatus::kObserved);
+  address_data_manager().AddProfile(existing_profile);
+
+  AutofillProfile observed_profile(AddressCountryCode("DE"));
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_FIRST, u"René", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST, u"Baryola", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST_FIRST, u"Baryola", VerificationStatus::kObserved);
+  observed_profile.usage_history().set_use_date(base::Time::Now() +
+                                                base::Days(1));
+  observed_profile.FinalizeAfterImport();
+
+  ProfileImportProcess import_data = CreateProfileImportProcess(
+      observed_profile, /*allow_only_silent_updates=*/false);
+
+  EXPECT_EQ(import_data.import_type(),
+            AutofillProfileImportType::kSilentUpdate);
+  import_data.AcceptWithoutPrompt();
+
+  base::HistogramTester histogram_tester;
+  import_data.CollectMetrics(/*ukm_recorder=*/nullptr,
+                             address_data_manager().GetProfiles());
+
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.SilentUpdateFieldMergeCategoryBitmask",
+      autofill_metrics::FieldMergeCategory::kDiacriticAndCapitalizationUpdate,
+      1);
+}
+// Tests that `SilentUpdateFieldMergeCategoryBitmask` metric logs
+// `kEmptyToNonEmpty` for silent updates where at
+// least one field changed from empty to non-empty.
+TEST_F(
+    AutofillProfileImportProcessTest,
+    LogSilentUpdateFieldMergeCategoryBitmaskMetrics_AtLeastOneFieldChangedFromEmptyToNonEmpty) {
+  AutofillProfile existing_profile(AddressCountryCode("PL"));
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"Jan Kowalski", VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_ADDRESS, u"Testowa 5/123",
+      VerificationStatus::kUserVerified);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_NAME, u"Testowa 5/123", VerificationStatus::kParsed);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_HOUSE_NUMBER_AND_APT, u"", VerificationStatus::kParsed);
+  existing_profile.FinalizeAfterImport();
+  address_data_manager().AddProfile(existing_profile);
+
+  AutofillProfile observed_profile(AddressCountryCode("PL"));
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"Jan Kowalski", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_ADDRESS, u"Testowa 5/123",
+      VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_NAME, u"Testowa", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_HOUSE_NUMBER_AND_APT, u"5/123",
+      VerificationStatus::kObserved);
+  observed_profile.usage_history().set_use_date(base::Time::Now() +
+                                                base::Days(1));
+  observed_profile.FinalizeAfterImport();
+
+  ProfileImportProcess import_data = CreateProfileImportProcess(
+      observed_profile, /*allow_only_silent_updates=*/false);
+
+  EXPECT_EQ(import_data.import_type(),
+            AutofillProfileImportType::kSilentUpdate);
+  import_data.AcceptWithoutPrompt();
+
+  base::HistogramTester histogram_tester;
+  import_data.CollectMetrics(/*ukm_recorder=*/nullptr,
+                             address_data_manager().GetProfiles());
+
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.SilentUpdateFieldMergeCategoryBitmask",
+      autofill_metrics::FieldMergeCategory::kEmptyToNonEmpty, 1);
+}
+
+// Tests that `SilentUpdateFieldMergeCategoryBitmask` metric logs `0` for other
+// silent updates where all changed fields were already non-empty.
+TEST_F(AutofillProfileImportProcessTest,
+       LogSilentUpdateFieldMergeCategoryBitmaskMetrics_Other) {
+  AutofillProfile existing_profile(AddressCountryCode("PL"));
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"Jan Kowalski", VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_ADDRESS, u"Testowa 5/123",
+      VerificationStatus::kUserVerified);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_NAME, u"Testowa 5/123", VerificationStatus::kParsed);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_HOUSE_NUMBER_AND_APT, u"5/12", VerificationStatus::kParsed);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_HOUSE_NUMBER, u"5", VerificationStatus::kParsed);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_APT_NUM, u"12", VerificationStatus::kParsed);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_APT, u"12", VerificationStatus::kParsed);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_LOCATION, u"Testowa 5/123",
+      VerificationStatus::kParsed);
+  existing_profile.FinalizeAfterImport();
+  address_data_manager().AddProfile(existing_profile);
+
+  AutofillProfile observed_profile(AddressCountryCode("PL"));
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"Jan Kowalski", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_ADDRESS, u"Testowa 5/123",
+      VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_NAME, u"Testowa", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_HOUSE_NUMBER_AND_APT, u"5/123",
+      VerificationStatus::kObserved);
+  observed_profile.usage_history().set_use_date(base::Time::Now() +
+                                                base::Days(1));
+  observed_profile.FinalizeAfterImport();
+
+  ProfileImportProcess import_data = CreateProfileImportProcess(
+      observed_profile, /*allow_only_silent_updates=*/false);
+
+  EXPECT_EQ(import_data.import_type(),
+            AutofillProfileImportType::kSilentUpdate);
+  import_data.AcceptWithoutPrompt();
+
+  base::HistogramTester histogram_tester;
+  import_data.CollectMetrics(/*ukm_recorder=*/nullptr,
+                             address_data_manager().GetProfiles());
+
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.SilentUpdateFieldMergeCategoryBitmask", 0, 1);
+}
+
+// Tests that `SilentUpdateFieldMergeCategoryBitmask` metric logs the combined
+// bitmask when multiple categories of updates occur in the same profile.
+TEST_F(AutofillProfileImportProcessTest,
+       LogSilentUpdateFieldMergeCategoryBitmaskMetrics_MultipleFieldsChanged) {
+  AutofillProfile existing_profile(AddressCountryCode("PL"));
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"Jan Kowalski", VerificationStatus::kUserVerified);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_FIRST, u"Jan", VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST, u"Kowalski", VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_ADDRESS, u"Testowa 5/123",
+      VerificationStatus::kUserVerified);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_NAME, u"Testowa 5/123", VerificationStatus::kParsed);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_HOUSE_NUMBER_AND_APT, u"", VerificationStatus::kParsed);
+  existing_profile.FinalizeAfterImport();
+  address_data_manager().AddProfile(existing_profile);
+
+  AutofillProfile observed_profile(AddressCountryCode("PL"));
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_FIRST, u"JAN", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_LAST, u"Kowalski", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_ADDRESS, u"Testowa 5/123",
+      VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_NAME, u"Testowa", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_HOUSE_NUMBER_AND_APT, u"5/123",
+      VerificationStatus::kObserved);
+  observed_profile.usage_history().set_use_date(base::Time::Now() +
+                                                base::Days(1));
+  observed_profile.FinalizeAfterImport();
+
+  ProfileImportProcess import_data = CreateProfileImportProcess(
+      observed_profile, /*allow_only_silent_updates=*/false);
+
+  EXPECT_EQ(import_data.import_type(),
+            AutofillProfileImportType::kSilentUpdate);
+  import_data.AcceptWithoutPrompt();
+
+  base::HistogramTester histogram_tester;
+  import_data.CollectMetrics(/*ukm_recorder=*/nullptr,
+                             address_data_manager().GetProfiles());
+
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.SilentUpdateFieldMergeCategoryBitmask",
+      static_cast<int>(
+          autofill_metrics::FieldMergeCategory::kCapitalizationUpdate) |
+          static_cast<int>(
+              autofill_metrics::FieldMergeCategory::kEmptyToNonEmpty),
+      1);
+}
+
+// Tests that `SilentUpdateFieldMergeCategoryBitmask` metric is not recorded
+// when existing and observed profiles are the same.
+TEST_F(AutofillProfileImportProcessTest,
+       DoNotLogSilentUpdateFieldMergeCategoryBitmaskMetricsWhenIdentical) {
+  AutofillProfile existing_profile(AddressCountryCode("MX"));
+  existing_profile.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"Juan Pérez", VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_ADDRESS, u"Av. Insurgentes 123",
+      VerificationStatus::kObserved);
+  existing_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_ZIP, u"06700", VerificationStatus::kParsed);
+  address_data_manager().AddProfile(existing_profile);
+
+  AutofillProfile observed_profile(AddressCountryCode("MX"));
+  observed_profile.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"Juan Pérez", VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_ADDRESS, u"Av. Insurgentes 123",
+      VerificationStatus::kObserved);
+  observed_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_ZIP, u"06700", VerificationStatus::kObserved);
+  observed_profile.usage_history().set_use_date(base::Time::Now() +
+                                                base::Days(1));
+  observed_profile.FinalizeAfterImport();
+
+  ProfileImportProcess import_data = CreateProfileImportProcess(
+      observed_profile, /*allow_only_silent_updates=*/false);
+
+  EXPECT_EQ(import_data.import_type(),
+            AutofillProfileImportType::kSilentUpdate);
+  import_data.AcceptWithoutPrompt();
+
+  base::HistogramTester histogram_tester;
+  import_data.CollectMetrics(/*ukm_recorder=*/nullptr,
+                             address_data_manager().GetProfiles());
+
+  histogram_tester.ExpectTotalCount(
+      "Autofill.ProfileImport.SilentUpdateFieldMergeCategoryBitmask", 0);
 }
 
 }  // namespace

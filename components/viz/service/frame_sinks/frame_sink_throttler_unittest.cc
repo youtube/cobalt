@@ -65,11 +65,6 @@ TEST_F(FrameSinkThrottlerTest, ThrottlingNotAllowed) {
   throttler_.SetLastKnownVsync(base::Hertz(144), base::Hertz(144));
   EXPECT_FALSE(IsThrottledBySimpleCadence());
   EXPECT_EQ(throttler_.begin_frame_interval(), base::TimeDelta());
-
-  // Interaction throttling
-  throttler_.SetThrottledDueToInteraction(true);
-  EXPECT_FALSE(IsThrottledBySimpleCadence());
-  EXPECT_EQ(throttler_.begin_frame_interval(), base::TimeDelta());
 }
 
 // If a cadence interval is set, throttling to said interval
@@ -130,55 +125,6 @@ TEST_F(FrameSinkThrottlerTest, ScreenCaptureUnthrottlesVideoCadence) {
   throttler_.SetAllowThrottling(true);
   EXPECT_EQ(throttler_.begin_frame_interval(), cadence_interval);
   EXPECT_TRUE(throttler_.throttling_allowed());
-}
-
-// SetThrottledDueToInteraction interval changes with to known vsync
-TEST_F(FrameSinkThrottlerTest, ThrottleInteractionsBasic) {
-  // Set throttle on interactions to true causes the throttling cadence
-  // to be half the dfault framerate.
-  throttler_.SetThrottledDueToInteraction(true);
-  EXPECT_EQ(throttler_.begin_frame_interval(),
-            BeginFrameArgs::DefaultInterval() * 2);
-
-  // Vsync interval is used if it is known.
-  throttler_.SetLastKnownVsync(base::Hertz(144), base::Hertz(144));
-  EXPECT_EQ(throttler_.begin_frame_interval(), base::Hertz(144) * 2);
-
-  // Setting an explicit smaller throttle interval does not change behaviour.
-  throttler_.SetThrottleInterval(base::Hertz(240));
-  EXPECT_EQ(throttler_.begin_frame_interval(), base::Hertz(144) * 2);
-
-  // Setting an explicit larger throttle interval overrides the behaviour of the
-  // throttle
-  throttler_.SetThrottleInterval(base::Hertz(20));
-  EXPECT_EQ(throttler_.begin_frame_interval(), base::Hertz(20));
-}
-
-// SetThrottledDueToInteraction interval ignored when simple cadence is set.
-TEST_F(FrameSinkThrottlerTest,
-       CadenceIntervalPriorityOverInteractionThrottling) {
-  base::TimeDelta cadence_interval = base::Hertz(30);
-  base::TimeDelta very_fast_interval = base::Hertz(240);
-  base::TimeDelta very_slow_interval = base::Hertz(20);
-  throttler_.SetThrottledDueToInteraction(true);
-  throttler_.SetCadenceThrottleInterval(cadence_interval);
-
-  // Cadence interval takes precedence over interaction throttle behaviour.
-  EXPECT_TRUE(IsThrottledBySimpleCadence());
-  EXPECT_EQ(throttler_.begin_frame_interval(), cadence_interval);
-
-  // Setting an explicit smaller throttle interval does not change behaviour.
-  throttler_.SetThrottleInterval(very_fast_interval);
-  EXPECT_EQ(throttler_.begin_frame_interval(), cadence_interval);
-
-  // Setting an explicit larger throttle interval does not change behaviour.
-  throttler_.SetThrottleInterval(very_slow_interval);
-  EXPECT_EQ(throttler_.begin_frame_interval(), cadence_interval);
-
-  // Disabling cadence by setting an incompatible last known vsync causes
-  // fallback to last known explicit throttle interval.
-  throttler_.SetLastKnownVsync(base::Hertz(144), base::Hertz(144));
-  EXPECT_EQ(throttler_.begin_frame_interval(), very_slow_interval);
 }
 
 }  // namespace viz

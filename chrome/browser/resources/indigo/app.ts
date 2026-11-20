@@ -9,6 +9,8 @@ import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 
+type ObjectFit = 'fill'|'contain'|'cover'|'none'|'scale-down';
+
 export interface IndigoImageReplacementAppElement {
   $: {
     image: HTMLImageElement,
@@ -40,7 +42,7 @@ export class IndigoImageReplacementAppElement extends CrLitElement {
   protected accessor showOverlay_: boolean = false;
   protected accessor overlayAnimationState_: 'entry'|'exit'|'none' = 'none';
   protected accessor imageSrc_: string = '';
-  protected accessor objectFit_: 'contain'|'cover' = 'contain';
+  protected accessor objectFit_: ObjectFit = 'contain';
   private invocationId_: number|undefined;
 
   override connectedCallback() {
@@ -64,9 +66,14 @@ export class IndigoImageReplacementAppElement extends CrLitElement {
   }
 
   private async loadOriginalImage_() {
-    const imageData = await chrome.indigoPrivate.getOriginalImage();
-    if (imageData.value instanceof ArrayBuffer) {
-      const blob = new Blob([imageData.value], {type: 'image/webp'});
+    const originalImage = await chrome.indigoPrivate.getOriginalImage();
+    if (originalImage.objectFit) {
+      this.objectFit_ = originalImage.objectFit === 'object-fit-none' ?
+          'none' :
+          originalImage.objectFit;
+    }
+    if (originalImage.value instanceof ArrayBuffer) {
+      const blob = new Blob([originalImage.value], {type: 'image/webp'});
       await this.updateAndDecodeImage_(URL.createObjectURL(blob));
     }
   }

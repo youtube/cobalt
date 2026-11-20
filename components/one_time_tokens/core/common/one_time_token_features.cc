@@ -18,4 +18,9 @@ const base::FeatureParam<std::string> kFetchEmailOneTimeTokenEndpointUrl{
     /*default_value=*/
     "https://onetimetoken.pa.googleapis.com/v1/onetimetokens:fetchEmail"};
 
+const base::FeatureParam<std::string> kMockGmailOtpValue{
+    &kGmailOtpRetrievalService,
+    /*name=*/"mock-gmail-otp-value",
+    /*default_value=*/""};
+
 }  // namespace one_time_tokens::features

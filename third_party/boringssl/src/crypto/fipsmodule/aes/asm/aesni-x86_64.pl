@@ -3387,7 +3387,8 @@ ${PREFIX}_set_encrypt_key_base:
 	ret
 .cfi_endproc
 .seh_endproc
-
+.size	${PREFIX}_set_encrypt_key_base,.-${PREFIX}_set_encrypt_key_base
+
 .align	16
 .Lkey_expansion_128:
 .cfi_startproc
@@ -3466,7 +3467,6 @@ ${PREFIX}_set_encrypt_key_base:
 	xorps	%xmm1,%xmm2
 	ret
 .cfi_endproc
-.size	${PREFIX}_set_encrypt_key_base,.-${PREFIX}_set_encrypt_key_base
 
 .globl	${PREFIX}_set_encrypt_key_alt
 .type	${PREFIX}_set_encrypt_key_alt,\@abi-omnipotent

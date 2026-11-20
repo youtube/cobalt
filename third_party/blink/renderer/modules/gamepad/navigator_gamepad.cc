@@ -208,7 +208,8 @@ void NavigatorGamepad::SetTouchEvents(
 
   uint32_t the_id = 0u;
   TouchIdMap the_id_map{};
-  for (size_t i = 0u; i < data.size(); ++i) {
+  const wtf_size_t data_size = base::checked_cast<wtf_size_t>(data.size());
+  for (wtf_size_t i = 0u; i < data_size; ++i) {
     if (auto search = id_map.find(data[i].touch_id); search != id_map.end()) {
       the_id = search->value;
     } else {

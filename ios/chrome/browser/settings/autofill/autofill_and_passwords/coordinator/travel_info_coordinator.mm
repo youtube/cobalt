@@ -55,8 +55,9 @@
   // present.
   CHECK(entityDataManager);
 
-  _mediator =
-      [[TravelInfoMediator alloc] initWithEntityDataManager:entityDataManager];
+  _mediator = [[TravelInfoMediator alloc]
+      initWithEntityDataManager:entityDataManager
+                    prefService:self.browser->GetProfile()->GetPrefs()];
   _mediator.consumer = _viewController;
   _mediator.delegate = self;
   _viewController.mutator = _mediator;

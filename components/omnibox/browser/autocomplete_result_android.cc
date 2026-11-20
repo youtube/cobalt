@@ -93,7 +93,8 @@ void ReportInvalidMatchData(std::string debug_info, int verification_point) {
 }  // namespace
 
 ScopedJavaLocalRef<jobject> AutocompleteResult::GetOrCreateJavaObject(
-    JNIEnv* env) const {
+    JNIEnv* env,
+    const TemplateURLService* template_url_service) const {
   // Short circuit if we already built the java object.
   if (java_result_)
     return ScopedJavaLocalRef<jobject>(java_result_);
@@ -115,7 +116,8 @@ ScopedJavaLocalRef<jobject> AutocompleteResult::GetOrCreateJavaObject(
   ScopedJavaLocalRef<jintArray> j_group_ids = ToJavaIntArray(env, group_ids);
 
   java_result_ = Java_AutocompleteResult_fromNative(
-      env, reinterpret_cast<intptr_t>(this), BuildJavaMatches(env),
+      env, reinterpret_cast<intptr_t>(this),
+      BuildJavaMatches(env, template_url_service),
       ToJavaByteArray(env, serialized_groups_info));
 
   return ScopedJavaLocalRef<jobject>(java_result_);
@@ -131,7 +133,8 @@ void AutocompleteResult::DestroyJavaObject() const {
 }
 
 ScopedJavaLocalRef<jobjectArray> AutocompleteResult::BuildJavaMatches(
-    JNIEnv* env) const {
+    JNIEnv* env,
+    const TemplateURLService* template_url_service) const {
   jclass clazz = AutocompleteMatch::GetClazz(env);
   auto j_matches = jni_zero::AdoptRef(
       env, env->NewObjectArray(matches_.size(), clazz, nullptr));
@@ -140,7 +143,7 @@ ScopedJavaLocalRef<jobjectArray> AutocompleteResult::BuildJavaMatches(
   for (size_t index = 0; index < matches_.size(); ++index) {
     env->SetObjectArrayElement(
         j_matches.obj(), index,
-        matches_[index].GetOrCreateJavaObject(env).obj());
+        matches_[index].GetOrCreateJavaObject(env, template_url_service).obj());
   }
 
   return j_matches;

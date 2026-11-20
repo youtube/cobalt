@@ -145,9 +145,6 @@ class PortInterface {
 
   // Signaled when this port decides to delete itself because it no longer has
   // any usefulness.
-  [[deprecated("Use SubscribePortDestroyed(const void* tag, ...)")]]
-  virtual void SubscribePortDestroyed(
-      std::function<void(PortInterface*)> callback) = 0;
   virtual void SubscribePortDestroyed(
       const void* tag,
       std::function<void(PortInterface*)> callback) = 0;

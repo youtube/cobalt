@@ -234,6 +234,9 @@ inline constexpr char kFirstPlusAddressCreationTime[] =
 inline constexpr char kLastPlusAddressFillingTime[] =
     "plus_addresses.last.filling.time";
 
+// Deprecated 05/2026.
+inline constexpr char kNextSSORecallTime[] = "ios.next_sso_recall_time";
+
 // Renames a boolean pref within a PrefService.
 void RenameBooleanPref(std::string_view target_pref_name,
                        std::string_view source_pref_name,
@@ -454,7 +457,10 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       prefs::kWaitingForMultiProfileForcedMigrationTimestamp, base::Time());
   registry->RegisterBooleanPref(prefs::kMultiProfileForcedMigrationDone, false);
 
-  registry->RegisterTimePref(prefs::kNextSSORecallTime, base::Time());
+  // Deprecated 05/2026.
+  registry->RegisterTimePref(kNextSSORecallTime, base::Time());
+  registry->RegisterTimePref(
+      prefs::kSigninStartupPromoLastShownTimeWithRandomOffset, base::Time());
 
   // Prefs for managing the logging of install attribution.
   registry->RegisterIntegerPref(prefs::kIOSGMOSKOLastAttributionPlacementID, 0);
@@ -983,6 +989,9 @@ void MigrateObsoleteLocalStatePrefs(PrefService* prefs) {
 
   // Added 02/2026.
   prefs->ClearPref(kIosParcelTrackingPolicyEnabled);
+
+  // Added 05/2026.
+  prefs->ClearPref(kNextSSORecallTime);
 }
 
 // This method should be periodically pruned of year+ old migrations.

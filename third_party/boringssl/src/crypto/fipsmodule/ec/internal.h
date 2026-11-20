@@ -666,6 +666,10 @@ void ec_GFp_nistp_recode_scalar_bits(crypto_word_t *sign, crypto_word_t *digit,
 
 const EC_METHOD *EC_GFp_nistp256_method();
 
+// EC_GFp_nistz256_method is a GFp method using montgomery multiplication, with
+// x86-64 optimized P256. See http://eprint.iacr.org/2013/816.
+const EC_METHOD *EC_GFp_nistz256_method();
+
 // An EC_WRAPPED_SCALAR is an `EC_SCALAR` with a parallel `BIGNUM`
 // representation. It exists to support the `EC_KEY_get0_private_key` API.
 typedef struct {

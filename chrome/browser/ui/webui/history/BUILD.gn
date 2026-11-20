@@ -1,0 +1,147 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("history") {
+  if (is_android) {
+    sources = [ "history_ui_android.cc" ]
+    public = [ "history_ui_android.h" ]
+    public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+    deps = [
+      "//base",
+      "//components/resources:components_scaled_resources",
+      "//ui/base",
+    ]
+  } else {
+    sources = [
+      "browsing_history_handler.cc",
+      "foreign_session_handler.cc",
+      "history_identity_state_watcher.cc",
+      "history_login_handler.cc",
+      "history_ui.cc",
+      "navigation_handler.cc",
+    ]
+    public = [
+      "browsing_history_handler.h",
+      "foreign_session_handler.h",
+      "history_identity_state_watcher.h",
+      "history_login_handler.h",
+      "history_ui.h",
+      "navigation_handler.h",
+    ]
+    public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+    deps = [
+      "//base",
+      "//chrome/app:generated_resources",
+      "//chrome/browser/bookmarks",
+      "//chrome/browser/content_settings:content_settings_factory",
+      "//chrome/browser/favicon",
+      "//chrome/browser/feature_engagement",
+      "//chrome/browser/glic",
+      "//chrome/browser/history",
+      "//chrome/browser/history_embeddings",
+      "//chrome/browser/page_image_service",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/resources/history:resources",
+      "//chrome/browser/sessions",
+      "//chrome/browser/signin",
+      "//chrome/browser/supervised_user",
+      "//chrome/browser/sync",
+      "//chrome/browser/ui:browser_element_identifiers",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui:url_identity",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/hats",
+      "//chrome/browser/ui/profiles",
+      "//chrome/browser/ui/views/side_panel",
+      "//chrome/browser/ui/webui:favicon_source",
+      "//chrome/browser/ui/webui:webui_util",
+      "//chrome/browser/ui/webui/cr_components/history",
+      "//chrome/browser/ui/webui/cr_components/history_clusters",
+      "//chrome/browser/ui/webui/cr_components/history_embeddings",
+      "//chrome/browser/ui/webui/history_clusters",
+      "//chrome/browser/ui/webui/ntp",
+      "//chrome/browser/ui/webui/page_not_available_for_guest",
+      "//chrome/browser/ui/webui/signin:signin_utils",
+      "//chrome/browser/ui/webui/top_chrome",
+      "//chrome/common",
+      "//components/favicon_base",
+      "//components/history/core/browser",
+      "//components/history_clusters/core",
+      "//components/history_embeddings/core",
+      "//components/page_image_service",
+      "//components/page_image_service/mojom:mojo_bindings",
+      "//components/pref_registry",
+      "//components/prefs",
+      "//components/query_parser",
+      "//components/sessions",
+      "//components/signin/public/base",
+      "//components/signin/public/identity_manager",
+      "//components/strings:components_strings",
+      "//components/supervised_user/core/browser",
+      "//components/sync/base",
+      "//components/sync/service",
+      "//components/sync_device_info",
+      "//components/sync_sessions",
+      "//components/user_education/webui",
+      "//content/public/browser",
+      "//mojo/public/cpp/bindings",
+      "//net",
+      "//ui/base",
+      "//ui/webui",
+      "//ui/webui/resources/cr_components/help_bubble:mojo_bindings",
+      "//ui/webui/resources/cr_components/history:mojo_bindings",
+      "//ui/webui/resources/cr_components/history_clusters:mojo_bindings",
+      "//ui/webui/resources/cr_components/history_embeddings:mojo_bindings",
+      "//ui/webui/tracked_element",
+      "//url",
+    ]
+  }
+}
+
+if (!is_android) {
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "browsing_history_handler_unittest.cc",
+      "foreign_session_handler_unittest.cc",
+      "history_identity_state_watcher_unittest.cc",
+    ]
+    deps = [
+      ":history",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/bookmarks",
+      "//chrome/browser/signin",
+      "//chrome/browser/sync",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui:test_support",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/hats",
+      "//chrome/browser/ui/hats:test_support",
+      "//chrome/browser/ui/tabs:test_support",
+      "//chrome/browser/ui/views/side_panel",
+      "//chrome/common",
+      "//chrome/test:test_support",
+      "//components/history/core/browser",
+      "//components/prefs",
+      "//components/sessions",
+      "//components/signin/public/identity_manager",
+      "//components/signin/public/identity_manager:test_support",
+      "//components/sync:test_support",
+      "//components/sync/base",
+      "//components/sync_device_info",
+      "//components/sync_device_info:test_support",
+      "//components/sync_sessions",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//mojo/public/cpp/bindings",
+      "//net",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//ui/base",
+      "//ui/webui/resources/cr_components/history:mojo_bindings",
+      "//url",
+    ]
+  }
+}

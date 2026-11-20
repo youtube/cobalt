@@ -118,7 +118,8 @@ int Me2MeNativeMessagingHostMain(int argc, char** argv) {
   io_thread.StartWithOptions(
       base::Thread::Options(base::MessagePumpType::IO, 0));
 
-  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI);
+  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI,
+                                                    /*is_main_thread=*/true);
   base::RunLoop run_loop;
 
   scoped_refptr<DaemonController> daemon_controller =

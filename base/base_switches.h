@@ -76,6 +76,11 @@ inline constexpr char kMetricsSharedMemoryHandle[] = "metrics-shmem-handle";
 // Suppresses all error dialogs when present.
 inline constexpr char kNoErrorDialogs[] = "noerrdialogs";
 
+// Specifies the JSON configuration for PartitionAlloc's scheduler loop
+// quarantine.
+inline constexpr char kPartitionAllocSchedulerLoopQuarantine[] =
+    "partition-alloc-scheduler-loop-quarantine";
+
 // Starts the sampling based profiler for the browser process at startup. This
 // will only work if chrome has been built with the gn arg enable_profiling =
 // true. The output will go to the value of kProfilingFile.

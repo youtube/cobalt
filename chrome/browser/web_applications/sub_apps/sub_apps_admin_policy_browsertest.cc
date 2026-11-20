@@ -102,14 +102,11 @@ class SubAppsAdminPolicyTest : public IsolatedWebAppBrowserTestHarness,
   std::string AddSubAppsScript(
       const std::vector<std::string>& sub_app_paths) const {
     std::vector<std::string> script_parts;
-    const std::string format = R"("$1": {"installURL": "$1"},)";
-
-    script_parts.push_back("navigator.subApps.add({");
+    script_parts.push_back("window.subApps.add([");
     for (const std::string& path : sub_app_paths) {
-      script_parts.push_back(
-          base::ReplaceStringPlaceholders(format, {path}, nullptr));
+      script_parts.push_back(base::StrCat({"\"", path, "\", "}));
     }
-    script_parts.push_back("})");
+    script_parts.push_back("])");
 
     return base::StrCat(script_parts);
   }

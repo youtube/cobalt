@@ -162,7 +162,7 @@ void VCMTiming::UpdateCurrentDelay(Timestamp render_time,
   }
 }
 
-void VCMTiming::StopDecodeTimer(TimeDelta decode_time, Timestamp now) {
+void VCMTiming::UpdateDecodeTimeEstimate(TimeDelta decode_time, Timestamp now) {
   MutexLock lock(&mutex_);
   RTC_DCHECK_GE(decode_time, TimeDelta::Zero());
   decode_time_filter_->AddSample(decode_time.ms(), now.ms());

@@ -2062,8 +2062,12 @@ void GridLayoutAlgorithm::PlaceGridItemsForFragmentation(
       auto& item_placement_data = *(placement_data_it++);
       const BlockBreakToken* break_token = nullptr;
       if (child_break_token_it != child_break_tokens.end()) {
-        if ((*child_break_token_it)->InputNode() == grid_item.node)
-          break_token = To<BlockBreakToken>((child_break_token_it++)->Get());
+        const auto* child_break_token =
+            To<BlockBreakToken>(child_break_token_it->Get());
+        if (child_break_token->InputNode() == grid_item.node) {
+          break_token = child_break_token;
+          ++child_break_token_it;
+        }
       }
 
       LayoutUnit child_block_offset;

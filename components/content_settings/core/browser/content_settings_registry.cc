@@ -843,6 +843,15 @@ void ContentSettingsRegistry::Init() {
            WebsiteSettingsRegistry::DESKTOP,
            ContentSettingsInfo::DONT_INHERIT_IN_INCOGNITO,
            PermissionSettingsInfo::EXCEPTIONS_ON_SECURE_ORIGINS_ONLY);
+
+  Register(ContentSettingsType::INLINE_CUE_MENU, "inline-cue-menu",
+           CONTENT_SETTING_ALLOW, WebsiteSettingsInfo::SYNCABLE,
+           /*allowlisted_primary_schemes=*/{},
+           /*valid_settings=*/{CONTENT_SETTING_ALLOW, CONTENT_SETTING_BLOCK},
+           WebsiteSettingsInfo::TOP_ORIGIN_ONLY_SCOPE,
+           WebsiteSettingsRegistry::DESKTOP,
+           ContentSettingsInfo::INHERIT_IN_INCOGNITO,
+           PermissionSettingsInfo::EXCEPTIONS_ON_SECURE_AND_INSECURE_ORIGINS);
 }
 
 void ContentSettingsRegistry::Register(

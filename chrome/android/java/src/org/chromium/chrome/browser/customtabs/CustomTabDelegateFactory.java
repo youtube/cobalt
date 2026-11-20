@@ -20,7 +20,6 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.Log;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.blink.mojom.DisplayMode.EnumType;
@@ -190,23 +189,6 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
             assert mIntentDataProvider != null;
             assert mIntentDataProvider.isAuthTab();
             mAuthTabVerifier.returnAsActivityResult(url);
-        }
-
-        @Override
-        public void maybeRecordExternalNavigationSchemeHistogram(GURL url) {
-            if (assumeNonNull(mIntentDataProvider).isAuthTab()) return;
-
-            // Only record for Custom Tabs that we think are launched for auth purposes.
-            GURL urlToLoad = new GURL(mIntentDataProvider.getUrlToLoad());
-            String redirectUri = UrlUtilities.getValueForKeyInQuery(urlToLoad, "redirect_uri");
-
-            if (TextUtils.isEmpty(redirectUri)) return;
-
-            int schemeEnum = CustomTabAuthUrlHeuristics.getAuthSchemeEnum(url.getScheme());
-            RecordHistogram.recordEnumeratedHistogram(
-                    "CustomTabs.AuthTab.ExternalNavigationScheme",
-                    schemeEnum,
-                    CustomTabAuthUrlHeuristics.AuthScheme.COUNT);
         }
 
         @Override

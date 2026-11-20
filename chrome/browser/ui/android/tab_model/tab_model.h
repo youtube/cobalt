@@ -330,8 +330,6 @@ class TabModel : public TabListInterface {
   TabModelType GetTabModelType() const { return tab_model_type_; }
   bool IsEmptyRegularModelForEphemeralOrIncognitoCct() const;
 
-  static bool EnableBrowserWindowInterfaceMobile();
-
  protected:
   TabModel(Profile* profile,
            chrome::android::ActivityType activity_type,

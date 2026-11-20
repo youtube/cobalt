@@ -8,7 +8,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import android.os.Build;
+
 import androidx.test.filters.MediumTest;
+import androidx.test.runner.lifecycle.Stage;
 
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -16,7 +19,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
@@ -25,19 +30,31 @@ import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.MinAndroidSdkLevel;
+import org.chromium.base.test.util.RequiresRestart;
+import org.chromium.base.test.util.UrlUtils;
+import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.app.tabmodel.ArchivedTabModelOrchestrator;
+import org.chromium.chrome.browser.app.tabmodel.TabModelOrchestrator;
+import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.crypto.CipherFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.multiwindow.MultiWindowTestHelper;
+import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabState;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore.TabPersistentStoreObserver;
 import org.chromium.chrome.browser.tabpersistence.TabStateFileManager;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.util.ChromeTabUtils;
+import org.chromium.components.embedder_support.util.UrlUtilities;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -96,6 +113,11 @@ public class TabPersistentStoreIntegrationTest {
     }
 
     private void observeOnMetadataSaved(final CallbackHelper callbackHelper) {
+        observeOnMetadataSaved(mTabPersistentStore, callbackHelper);
+    }
+
+    private void observeOnMetadataSaved(
+            final TabPersistentStore store, final CallbackHelper callbackHelper) {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     TabPersistentStoreObserver observer =
@@ -105,7 +127,7 @@ public class TabPersistentStoreIntegrationTest {
                                     callbackHelper.notifyCalled();
                                 }
                             };
-                    mTabPersistentStore.addObserver(observer);
+                    store.addObserver(observer);
                 });
     }
 
@@ -429,5 +451,252 @@ public class TabPersistentStoreIntegrationTest {
                 });
         assertEquals(
                 tabCount, (int) ThreadUtils.runOnUiThreadBlocking(() -> regularModel.getCount()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"TabPersistentStore"})
+    @RequiresRestart("Multiple activities make this complicated without a restart.")
+    public void testFallbackNtpRestorationOrder() throws Exception {
+        final ChromeTabbedActivity originalActivity =
+                mActivityTestRule.getActivity();
+        // 1. Start with 1 tab (blank). Load ok.txt in a new tab.
+        final Tab tab0 = mActivityTestRule.loadUrlInNewTab(mTestUrl, false);
+        // Now we have [Blank, tab0]. tab0 is active.
+
+        // Close the blank tab to simplify.
+        final TabModel normalModel = mTabModelSelector.getModel(false);
+        final Tab blankTab = ThreadUtils.runOnUiThreadBlocking(() -> normalModel.getTabAt(0));
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        normalModel
+                                .getTabRemover()
+                                .closeTabs(
+                                        TabClosureParams.closeTab(blankTab)
+                                                .allowUndo(false)
+                                                .build(),
+                                        /* allowDialog= */ false));
+        // Now we have only [tab0].
+
+        // 2. Open NTP.
+        final CallbackHelper onMetadataSaved = new CallbackHelper();
+        observeOnMetadataSaved(onMetadataSaved);
+        int saveCount = onMetadataSaved.getCallCount();
+
+        final Tab tab1 =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return mActivityTestRule
+                                    .getActivity()
+                                    .getTabCreator(false)
+                                    .launchUrl("chrome://newtab/", TabLaunchType.FROM_CHROME_UI);
+                        });
+        // Now we have [tab0, tab1]. tab1 (NTP) is active.
+        int count = ThreadUtils.runOnUiThreadBlocking(() -> normalModel.getCount());
+        Tab t0 = ThreadUtils.runOnUiThreadBlocking(() -> normalModel.getTabAt(0));
+        Tab t1 = ThreadUtils.runOnUiThreadBlocking(() -> normalModel.getTabAt(1));
+        Tab current =
+                ThreadUtils.runOnUiThreadBlocking(() -> TabModelUtils.getCurrentTab(normalModel));
+        assertEquals(2, count);
+        assertEquals(tab0, t0);
+        assertEquals(tab1, t1);
+        assertEquals(tab1, current);
+
+        // 3. Wait for metadata to save.
+        onMetadataSaved.waitForCallback(saveCount);
+
+        // Ensure TabState for tab0 is saved.
+        File tab0StateFile = mTabPersistentStore.getTabStateFileForTesting(tab0.getId(), false);
+        waitForFile(tab0StateFile, true);
+
+        // NTP (tab1) might have a state file if it was saved.
+        // We want to make sure it does NOT exist to force fallback.
+        File tab1StateFile = mTabPersistentStore.getTabStateFileForTesting(tab1.getId(), false);
+        if (tab1StateFile.exists()) {
+            tab1StateFile.delete();
+        }
+
+        // 4. Recreate the activity!
+        mActivityTestRule.recreateActivity();
+
+        // 5. Get the new activity and models.
+        org.chromium.chrome.browser.ChromeTabbedActivity newActivity =
+                mActivityTestRule.getActivity();
+        TabModelSelector newSelector = newActivity.getTabModelSelector();
+
+        // 6. Wait for restoration to complete.
+        CriteriaHelper.pollUiThread(newSelector::isTabStateInitialized);
+
+        // Retrieve the model AFTER initialization is complete to avoid getting EmptyTabModel.
+        final TabModel newNormalModel =
+                ThreadUtils.runOnUiThreadBlocking(() -> newSelector.getModel(false));
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(newNormalModel.getCount(), Matchers.is(2));
+                });
+
+        // 7. Verify!
+        Tab restoredTab0 = ThreadUtils.runOnUiThreadBlocking(() -> newNormalModel.getTabAt(0));
+        Tab restoredTab1 = ThreadUtils.runOnUiThreadBlocking(() -> newNormalModel.getTabAt(1));
+        org.chromium.url.GURL url0 = ThreadUtils.runOnUiThreadBlocking(() -> restoredTab0.getUrl());
+        org.chromium.url.GURL url1 = ThreadUtils.runOnUiThreadBlocking(() -> restoredTab1.getUrl());
+        Tab restoredCurrent =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> TabModelUtils.getCurrentTab(newNormalModel));
+
+        assertEquals(mTestUrl, url0.getSpec());
+        assertTrue(
+                url1.getSpec().startsWith("chrome://newtab")
+                        || url1.getSpec().startsWith("chrome-native://newtab"));
+
+        assertEquals(restoredTab1, restoredCurrent);
+
+        // Verify that NTP was restored from disk (gets a new ID) and not just reused in memory.
+        assertTrue(tab1.getId() != restoredTab1.getId());
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"TabPersistentStore"})
+    @MinAndroidSdkLevel(Build.VERSION_CODES.S)
+    @RequiresRestart("Multiple activities make this complicated without a restart.")
+    public void testMultiWindowFallbackNtpRestorationOrder() throws Exception {
+        final ChromeTabbedActivity activity1 = mActivityTestRule.getActivity();
+
+        ChromeTabbedActivity activity2 = null;
+        ChromeTabbedActivity recreatedActivity2 = null;
+        int windowId2 = TabWindowManager.INVALID_WINDOW_ID;
+        try {
+            // 1. Start second activity (Activity2).
+            if (MultiWindowUtils.isMultiInstanceApi31Enabled()) {
+                activity2 = MultiWindowTestHelper.createNewChromeTabbedActivity(activity1);
+            } else {
+                activity2 = MultiWindowTestHelper.createSecondChromeTabbedActivity(activity1, null);
+            }
+
+            final ChromeTabbedActivity finalActivity2 = activity2;
+            CriteriaHelper.pollUiThread(
+                    () -> {
+                        return finalActivity2.areTabModelsInitialized()
+                                && finalActivity2.getTabModelSelector().isTabStateInitialized();
+                    });
+
+            final TabModel model2 =
+                    ThreadUtils.runOnUiThreadBlocking(
+                            () -> finalActivity2.getTabModelSelector().getModel(false));
+            int count2 = ThreadUtils.runOnUiThreadBlocking(() -> model2.getCount());
+            assertEquals(1, count2);
+            final Tab tab0_w2 = ThreadUtils.runOnUiThreadBlocking(() -> model2.getTabAt(0));
+            String testUrl2 = UrlUtils.encodeHtmlDataUri("<html>test_url_2.</html>");
+            ChromeTabUtils.loadUrlOnUiThread(tab0_w2, testUrl2);
+            ChromeTabUtils.waitForTabPageLoaded(tab0_w2, testUrl2);
+
+            // 2. Open NTP in Activity2.
+            final TabModelOrchestrator orchestrator2 =
+                    ThreadUtils.runOnUiThreadBlocking(
+                            () -> finalActivity2.getTabModelOrchestratorSupplier().get());
+            final TabPersistentStoreImpl store2 =
+                    (TabPersistentStoreImpl) orchestrator2.getTabPersistentStore();
+            final CallbackHelper onMetadataSavedW2 = new CallbackHelper();
+            observeOnMetadataSaved(store2, onMetadataSavedW2);
+            int saveCount = onMetadataSavedW2.getCallCount();
+
+            final Tab tab1_w2 =
+                    ThreadUtils.runOnUiThreadBlocking(
+                            () -> {
+                                return finalActivity2
+                                        .getTabCreator(false)
+                                        .launchUrl(
+                                                "chrome://newtab/", TabLaunchType.FROM_CHROME_UI);
+                            });
+            // Now we have [tab0_w2, tab1_w2]. tab1_w2 (NTP) is active.
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        assertEquals(2, model2.getCount());
+                        assertEquals(tab0_w2, model2.getTabAt(0));
+                        assertEquals(tab1_w2, model2.getTabAt(1));
+                        assertEquals(tab1_w2, TabModelUtils.getCurrentTab(model2));
+                    });
+
+            // 3. Wait for metadata to save for Activity2.
+            onMetadataSavedW2.waitForCallback(saveCount);
+
+            // Ensure TabState for tab0_w2 is saved.
+            File tab0StateFile = store2.getTabStateFileForTesting(tab0_w2.getId(), false);
+            waitForFile(tab0StateFile, true);
+
+            // Ensure NTP (tab1_w2) does NOT have a state file.
+            File tab1StateFile = store2.getTabStateFileForTesting(tab1_w2.getId(), false);
+            if (tab1StateFile.exists()) {
+                tab1StateFile.delete();
+            }
+
+            // 4. Recreate or Relaunch Activity2!
+            if (MultiWindowUtils.isMultiInstanceApi31Enabled()) {
+                final int finalWindowId2 =
+                        ThreadUtils.runOnUiThreadBlocking(
+                                () ->
+                                        TabWindowManagerSingleton.getInstance()
+                                                .getIdForWindow(finalActivity2));
+                windowId2 = finalWindowId2;
+
+                // Finish the activity first.
+                ApplicationTestUtils.finishActivity(finalActivity2);
+
+                // Relaunch it (Cold Start).
+                recreatedActivity2 =
+                        ApplicationTestUtils.waitForActivityWithClass(
+                                ChromeTabbedActivity.class,
+                                Stage.RESUMED,
+                                () -> {
+                                    ThreadUtils.runOnUiThreadBlocking(
+                                            () -> {
+                                                MultiWindowUtils.relaunchChromeTabbedActivity2(
+                                                        ContextUtils.getApplicationContext(),
+                                                        finalWindowId2,
+                                                        null);
+                                            });
+                                });
+            } else {
+                recreatedActivity2 = ApplicationTestUtils.recreateActivity(activity2);
+            }
+
+            // 5. Wait for TabState to be initialized in recreated Activity2.
+            final ChromeTabbedActivity finalRecreatedActivity2 = recreatedActivity2;
+            if (MultiWindowUtils.isMultiInstanceApi31Enabled()) {
+                final int finalWindowId2 = windowId2;
+                final int newWindowId2 =
+                        ThreadUtils.runOnUiThreadBlocking(
+                                () ->
+                                        TabWindowManagerSingleton.getInstance()
+                                                .getIdForWindow(finalRecreatedActivity2));
+                assertEquals(finalWindowId2, newWindowId2);
+            }
+
+            final TabModelSelector newSelector2 = recreatedActivity2.getTabModelSelector();
+            CriteriaHelper.pollUiThread(() -> newSelector2.isTabStateInitialized(), 10000, 100);
+
+            final TabModel newNormalModel2 = newSelector2.getModel(false);
+            // We expect 2 tabs.
+            CriteriaHelper.pollUiThread(() -> newNormalModel2.getCount() == 2, 10000, 100);
+
+            // 6. Verify!
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        Tab r0 = newNormalModel2.getTabAt(0);
+                        Tab r1 = newNormalModel2.getTabAt(1);
+                        assertEquals(testUrl2, r0.getUrl().getSpec());
+                        assertTrue(UrlUtilities.isNtpUrl(r1.getUrl()));
+                        assertEquals(r1, TabModelUtils.getCurrentTab(newNormalModel2));
+                        assertTrue(tab1_w2.getId() != r1.getId());
+                    });
+        } finally {
+            if (recreatedActivity2 != null) {
+                ApplicationTestUtils.finishActivity(recreatedActivity2);
+            } else if (activity2 != null) {
+                ApplicationTestUtils.finishActivity(activity2);
+            }
+        }
     }
 }

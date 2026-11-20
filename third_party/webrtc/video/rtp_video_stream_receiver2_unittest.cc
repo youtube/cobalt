@@ -735,6 +735,70 @@ TEST_F(RtpVideoStreamReceiver2Test,
                                                     video_header, 0);
 }
 
+// Integration test (full receiver path): reproduces the post-congestion video
+// recovery freeze and verifies recovery. After prolonged subscriber-side loss
+// the publisher's RTP sequence number advances past the 16-bit half-range while
+// the receiver is stalled. When media resumes, the fresh keyframe lands at a
+// sequence number that appears "behind" the pre-stall GoP in modular
+// arithmetic; the stale GoP then shadows reference lookups and every
+// post-recovery delta frame is silently dropped ("has no GoP"), so video stays
+// frozen for 60-150s even though complete frames are arriving. This drives
+// packets through the whole receiver (packet buffer -> frame assembly ->
+// reference finder) and asserts frames keep flowing after the jump.
+// issues.webrtc.org/516639936.
+TEST_F(RtpVideoStreamReceiver2Test, RecoversAfterLargeSequenceNumberJump) {
+  const CopyOnWriteBuffer data("1234");
+  // Every frame carries the same payload so the mock's bitstream check passes
+  // for all of them and we can assert on the delivered-frame count.
+  mock_on_complete_frame_callback_.AppendExpectedBitstream(data.data(),
+                                                           data.size());
+
+  auto inject = [&](uint16_t seq, uint32_t rtp_timestamp, bool keyframe) {
+    RtpPacketReceived rtp_packet;
+    rtp_packet.SetPayloadType(kPayloadType);
+    rtp_packet.SetSequenceNumber(seq);
+    rtp_packet.SetTimestamp(rtp_timestamp);
+    rtp_packet.SetSsrc(kSsrc);
+    RTPVideoHeader video_header = GetGenericVideoHeader(
+        keyframe ? VideoFrameType::kVideoFrameKey
+                 : VideoFrameType::kVideoFrameDelta);
+    rtp_video_stream_receiver_->OnReceivedPayloadData(data, rtp_packet,
+                                                      video_header,
+                                                      /*times_nacked=*/0);
+  };
+
+  // 4 pre-stall frames (1 key + 3 delta) and 141 post-recovery frames
+  // (1 key + 140 delta) must all be delivered. The freeze needs >100
+  // post-recovery deltas to manifest: the finder's routine
+  // (last_seq_num - 100) cleanup eventually erases the new keyframe's GoP,
+  // leaving only the stale wrapped GoP, after which every further delta is
+  // dropped ("has no GoP"). Before the fix the delivered count was ~105.
+  EXPECT_CALL(mock_on_complete_frame_callback_, DoOnCompleteFrame).Times(145);
+
+  // Pre-stall stream: keyframe followed by a few deltas. Start high so the
+  // post-recovery sequence number wraps past 0. This reproduces the real-world
+  // condition: the stale pre-stall GoP then sorts numerically *after* the new
+  // keyframe and survives the reference finder's routine lower_bound cleanup,
+  // so only the stale-GoP removal can clear it.
+  uint16_t seq = 60'000;
+  uint32_t ts = 90'000;
+  inject(seq, ts, /*keyframe=*/true);
+  for (int i = 0; i < 3; ++i) {
+    inject(++seq, ts += 3'000, /*keyframe=*/false);
+  }
+
+  // Prolonged congestion: when media resumes the sequence number has advanced
+  // past the half-range (+40000, wrapping past 0 to ~34467) and the timestamp
+  // has advanced with it. A fresh (PLI-triggered) keyframe arrives, followed
+  // by delta frames.
+  seq += 40'000;
+  ts += 40'000u * 3'000u;
+  inject(seq, ts, /*keyframe=*/true);
+  for (int i = 0; i < 140; ++i) {
+    inject(++seq, ts += 3'000, /*keyframe=*/false);
+  }
+}
+
 TEST_F(RtpVideoStreamReceiver2Test,
        NoInfiniteRecursionOnEncapsulatedRedPacket) {
   const std::vector<uint8_t> data({

@@ -7,9 +7,8 @@ found in the LICENSE file.
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
-    android:layout_height="@dimen/toolbar_button_height"
+    android:layout_height="?attr/toolbarButtonHeight"
     android:visibility="gone"
-    android:paddingVertical="@dimen/location_bar_vertical_margin"
     android:paddingHorizontal="@dimen/incognito_indicator_lateral_margin"
     android:focusable="true">
   <LinearLayout

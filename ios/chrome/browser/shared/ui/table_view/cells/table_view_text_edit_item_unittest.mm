@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item.h"
 
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -32,7 +31,7 @@ TEST_F(TableViewTextEditItemTest, ConfigureCell) {
   EXPECT_EQ(0U, textEditCell.textField.text.length);
   EXPECT_TRUE(textEditCell.textField.enabled);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NSEQ(name, textEditCell.textLabel.text);
   EXPECT_NSEQ(value, textEditCell.textField.text);
   EXPECT_FALSE(textEditCell.textField.enabled);

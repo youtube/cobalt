@@ -1040,8 +1040,7 @@ BOOL IsAllSelected(NSUInteger selected_unread_count,
     }
 
     [[self.tableViewModel itemAtIndexPath:indexPath]
-        configureCell:[self.tableView cellForRowAtIndexPath:indexPath]
-           withStyler:self.styler];
+        configureCell:[self.tableView cellForRowAtIndexPath:indexPath]];
   }
 
   NSInteger sectionCreatedIndex = [self initializeTableViewSection:toSection];

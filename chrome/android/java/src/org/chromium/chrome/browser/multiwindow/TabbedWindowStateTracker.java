@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.multiwindow;
 
 import android.graphics.Rect;
-import android.view.Display;
 
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
@@ -42,7 +41,6 @@ public class TabbedWindowStateTracker implements ChromeAndroidTaskFeature {
     public void onAddedToTask(InitInfo initInfo) {
         // Save initial window state.
         ChromeMultiInstancePersistentStore.writeIsVisible(mWindowId, initInfo.isVisible);
-        saveWindowBounds(initInfo.displayId, initInfo.boundsInPx);
 
         // Record initial window width.
         recordWindowWidth(initInfo.boundsInDp.width());
@@ -53,7 +51,6 @@ public class TabbedWindowStateTracker implements ChromeAndroidTaskFeature {
 
     @Override
     public void onTaskBoundsChanged(int displayId, Rect newBoundsInDp, Rect newBoundsInPx) {
-        saveWindowBounds(displayId, newBoundsInPx);
         recordWindowWidth(newBoundsInDp.width());
     }
 
@@ -66,13 +63,5 @@ public class TabbedWindowStateTracker implements ChromeAndroidTaskFeature {
         if (widthDp == mLastRecordedWidthDp) return;
         mLastRecordedWidthDp = widthDp;
         RecordHistogram.recordCustomCountHistogram("Android.WindowWidth", widthDp, 1, 10000, 50);
-    }
-
-    private void saveWindowBounds(int displayId, Rect boundsInPx) {
-        // Only persist bounds if the task is on the primary display. This is to avoid the persisted
-        // bounds from being incorrectly used to start an activity in a different non-primary
-        // display than the display on which the bounds for the task were originally captured.
-        Rect bounds = displayId == Display.DEFAULT_DISPLAY ? boundsInPx : new Rect();
-        ChromeMultiInstancePersistentStore.writeBounds(mWindowId, bounds);
     }
 }

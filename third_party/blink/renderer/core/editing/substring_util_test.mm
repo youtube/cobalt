@@ -29,7 +29,7 @@ class SubStringUtilTest : public testing::Test {
   }
 
  protected:
-  std::string RegisterMockedHttpURLLoad(const std::string& file_name) {
+  std::string RegisterMockedHttpUrlLoad(const std::string& file_name) {
     // TODO(crbug.com/751425): We should use the mock functionality
     // via |web_view_helper_|.
     return url_test_helpers::RegisterMockedURLLoadFromBase(
@@ -46,7 +46,7 @@ class SubStringUtilTest : public testing::Test {
 };
 
 TEST_F(SubStringUtilTest, SubstringUtil) {
-  RegisterMockedHttpURLLoad("content_editable_populated.html");
+  RegisterMockedHttpUrlLoad("content_editable_populated.html");
   WebView* web_view = static_cast<WebView*>(web_view_helper_.InitializeAndLoad(
       base_url_ + "content_editable_populated.html"));
 
@@ -79,7 +79,7 @@ TEST_F(SubStringUtilTest, SubstringUtil) {
 }
 
 TEST_F(SubStringUtilTest, SubstringUtilBaselinePoint) {
-  RegisterMockedHttpURLLoad("content_editable_multiline.html");
+  RegisterMockedHttpUrlLoad("content_editable_multiline.html");
   WebView* web_view = static_cast<WebView*>(web_view_helper_.InitializeAndLoad(
       base_url_ + "content_editable_multiline.html"));
   web_view->GetSettings()->SetDefaultFontSize(12);
@@ -99,7 +99,7 @@ TEST_F(SubStringUtilTest, SubstringUtilBaselinePoint) {
 }
 
 TEST_F(SubStringUtilTest, SubstringUtilPinchZoom) {
-  RegisterMockedHttpURLLoad("content_editable_populated.html");
+  RegisterMockedHttpUrlLoad("content_editable_populated.html");
   WebView* web_view = static_cast<WebView*>(web_view_helper_.InitializeAndLoad(
       base_url_ + "content_editable_populated.html"));
   web_view->GetSettings()->SetDefaultFontSize(12);
@@ -127,8 +127,8 @@ TEST_F(SubStringUtilTest, SubstringUtilPinchZoom) {
 }
 
 TEST_F(SubStringUtilTest, SubstringUtilIframe) {
-  RegisterMockedHttpURLLoad("single_iframe.html");
-  RegisterMockedHttpURLLoad("visible_iframe.html");
+  RegisterMockedHttpUrlLoad("single_iframe.html");
+  RegisterMockedHttpUrlLoad("visible_iframe.html");
   WebView* web_view = static_cast<WebView*>(
       web_view_helper_.InitializeAndLoad(base_url_ + "single_iframe.html"));
   web_view->GetSettings()->SetDefaultFontSize(12);

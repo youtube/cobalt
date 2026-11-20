@@ -1038,6 +1038,40 @@ TEST_F(MediaSessionDescriptionFactoryTest, TestCreateAudioOffer) {
   EXPECT_EQ(acd->protocol(), kMediaProtocolDtlsSavpf);
 }
 
+// With the RRTR field trial enabled (default), an offer enables non-sender
+// RTT on the negotiated description. The wire-format translation (rtcp-xr and
+// the legacy rtcp-fb rrtr) is covered in webrtc_sdp_unittest.
+TEST_F(MediaSessionDescriptionFactoryTest,
+       CreateAudioOfferEnablesReceiveNonSenderRtt) {
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(CreateAudioMediaSession(), nullptr).MoveValue();
+  ASSERT_TRUE(offer.get());
+  const MediaContentDescription* acd =
+      GetFirstAudioContentDescription(offer.get());
+  ASSERT_TRUE(acd);
+  EXPECT_TRUE(acd->receive_non_sender_rtt());
+}
+
+class MediaSessionDescriptionFactoryRcvrRttDisabledTest
+    : public MediaSessionDescriptionFactoryTest {
+ protected:
+  MediaSessionDescriptionFactoryRcvrRttDisabledTest()
+      : MediaSessionDescriptionFactoryTest(
+            "WebRTC-RtcpXrReceiverReferenceTime/Disabled/") {}
+};
+
+// With the field trial disabled, the offer must not enable non-sender RTT.
+TEST_F(MediaSessionDescriptionFactoryRcvrRttDisabledTest,
+       CreateAudioOfferDoesNotEnableReceiveNonSenderRtt) {
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(CreateAudioMediaSession(), nullptr).MoveValue();
+  ASSERT_TRUE(offer.get());
+  const MediaContentDescription* acd =
+      GetFirstAudioContentDescription(offer.get());
+  ASSERT_TRUE(acd);
+  EXPECT_FALSE(acd->receive_non_sender_rtt());
+}
+
 // Create an offer with just Opus and RED.
 TEST_F(MediaSessionDescriptionFactoryTest,
        TestCreateAudioOfferWithJustOpusAndRed) {

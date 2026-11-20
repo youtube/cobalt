@@ -1209,7 +1209,6 @@ class GpuIntegrationTest(
 
     config = {
         'supports_dx12': True,
-        'supports_vulkan': True,
     }
 
     if os_version == 'win7':

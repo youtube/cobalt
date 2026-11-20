@@ -49,7 +49,6 @@
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
-#include "content/browser/child_process_security_policy_impl.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
 #endif
@@ -57,6 +56,7 @@
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/screen_orientation/screen_orientation_provider.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_termination_info.h"
@@ -1130,7 +1130,8 @@ void WebTestControlHost::WebContentsDestroyed() {
 
 void WebTestControlHost::DidUpdateFaviconURL(
     RenderFrameHost* render_frame_host,
-    const std::vector<blink::mojom::FaviconURLPtr>& candidates) {
+    const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+    blink::mojom::FaviconUpdateReason reason) {
   if (web_test_runtime_flags_.dump_icon_changes()) {
     std::string log = IsMainWindow(web_contents()) ? "main frame " : "frame ";
     printer_->AddMessageRaw(log + "- didChangeIcons\n");

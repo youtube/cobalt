@@ -19,6 +19,7 @@
 #include "components/performance_manager/public/mojom/lifecycle.mojom.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
+#include "third_party/blink/public/mojom/favicon/favicon_url.mojom-forward.h"
 
 class GURL;
 
@@ -367,7 +368,8 @@ class PageNodeObserver : public base::CheckedObserver {
 
   // Fired when the favicon associated with a page is updated. This property is
   // not directly reflected on the node.
-  virtual void OnFaviconUpdated(const PageNode* page_node) {}
+  virtual void OnFaviconUpdated(const PageNode* page_node,
+                                blink::mojom::FaviconUpdateReason reason) {}
 
   // Fired after `new_page_node` is created but before `page_node` is deleted
   // from being discarded. See the equivalent function on `WebContentsObserver`

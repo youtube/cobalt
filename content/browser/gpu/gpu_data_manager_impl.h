@@ -54,13 +54,10 @@ class CONTENT_EXPORT GpuDataManagerImpl : public GpuDataManager,
  public:
   enum GpuInfoRequest {
     kGpuInfoRequestDirectX = 1 << 0,
-    kGpuInfoRequestVulkan = 1 << 1,
-    kGpuInfoRequestDawnInfo = 1 << 2,
-    kGpuInfoRequestDirectXVulkan =
-        kGpuInfoRequestVulkan | kGpuInfoRequestDirectX,
-    kGpuInfoRequestVideo = 1 << 3,
-    kGpuInfoRequestAll = kGpuInfoRequestDirectX | kGpuInfoRequestVulkan |
-                         kGpuInfoRequestDawnInfo | kGpuInfoRequestVideo,
+    kGpuInfoRequestDawnInfo = 1 << 1,
+    kGpuInfoRequestVideo = 1 << 2,
+    kGpuInfoRequestAll =
+        kGpuInfoRequestDirectX | kGpuInfoRequestDawnInfo | kGpuInfoRequestVideo,
   };
 
   // Getter for the singleton. This will return NULL on failure.
@@ -102,9 +99,8 @@ class CONTENT_EXPORT GpuDataManagerImpl : public GpuDataManager,
   void StartUmaTimer();
 
   // Requests complete GPU info if it has not already been requested
-  void RequestDx12VulkanVideoGpuInfoIfNeeded(
-      GpuDataManagerImpl::GpuInfoRequest request,
-      bool delayed);
+  void RequestGpuInfoIfNeeded(GpuDataManagerImpl::GpuInfoRequest request,
+                              bool delayed);
 
   bool IsDx12VulkanVersionAvailable() const;
   bool IsGpuFeatureInfoAvailable() const;
@@ -115,14 +111,11 @@ class CONTENT_EXPORT GpuDataManagerImpl : public GpuDataManager,
 #if BUILDFLAG(IS_WIN)
   void UpdateDirectXInfo(uint32_t d3d12_feature_level,
                          uint32_t directml_feature_level);
-  void UpdateVulkanInfo(uint32_t vulkan_version);
   void UpdateDevicePerfInfo(const gpu::DevicePerfInfo& device_perf_info);
   void UpdateOverlayInfo(const gpu::OverlayInfo& overlay_info);
   void UpdateDXGIInfo(gfx::mojom::DXGIInfoPtr dxgi_info);
   void UpdateDirectXRequestStatus(bool request_continues);
-  void UpdateVulkanRequestStatus(bool request_continues);
   bool DirectXRequested() const;
-  bool VulkanRequested() const;
   void TerminateInfoCollectionGpuProcess();
 
   // Information to Get/Set the LUID that the GPU Process should be launched on.

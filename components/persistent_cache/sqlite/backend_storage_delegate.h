@@ -15,7 +15,7 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) BackendStorageDelegate
     : public BackendStorage::Delegate {
  public:
   // BackendStorage::Delegate:
-  std::optional<PendingBackend> MakePendingBackend(
+  base::expected<PendingBackend, TransactionError> MakePendingBackend(
       Client client,
       const base::FilePath& directory,
       const base::FilePath& base_name,

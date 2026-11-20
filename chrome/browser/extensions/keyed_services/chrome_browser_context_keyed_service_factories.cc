@@ -20,6 +20,7 @@
 #include "chrome/browser/extensions/extension_allowlist_factory.h"
 #include "chrome/browser/extensions/extension_error_controller_factory.h"
 #include "chrome/browser/extensions/extension_garbage_collector_factory.h"
+#include "chrome/browser/extensions/extension_keybinding_registry.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/extension_url_overrides_registrar.h"
 #include "chrome/browser/extensions/external_install_manager_factory.h"
@@ -67,6 +68,7 @@ void EnsureChromeBrowserContextKeyedServiceFactoriesBuilt() {
   extensions::ExtensionAllowlistFactory::GetInstance();
   extensions::ExtensionErrorControllerFactory::GetInstance();
   extensions::ExtensionGarbageCollectorFactory::GetInstance();
+  extensions::ExtensionKeybindingRegistry::EnsureAssociatedFactoryBuilt();
   extensions::ExtensionManagementFactory::GetInstance();
   extensions::ExtensionUpdaterFactory::GetInstance();
   extensions::ExtensionUrlOverridesRegistrar::GetFactoryInstance();

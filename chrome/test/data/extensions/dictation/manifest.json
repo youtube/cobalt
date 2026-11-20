@@ -1,0 +1,21 @@
+{
+  "name": "Dictation Test Extension",
+  "version": "0.1",
+  "manifest_version": 3,
+  "description": "Test extension acting as a dictation provider",
+  // Key set so we have a consistent id to allowlist.
+  // ID: dfihfgggpgemecjdjahibncmmjlfjggp
+  // Hash: 144BE52B8FBB487358253761072B0879DAA68CFB
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsEvvenePVvBSf/h5yFQIlrxCvDvBCDd4eCNHqLvCFBWBMCGyMJUBu+9eXuy5m7owLnQr4TgMlA+Xu3i2hg60IsrEeKGOYrBjw9aB8XBXYlwhwcnwij50MkzcI+LY2qBldrjuR3Cmhm2Yrt37bxd1Si9J4cQ5wiBzfD9y5JkCZRAzO+MQ6Nx/R2sy8vg5EDdPFkr3+q4w16fjhpIu0vl/7UoRYBLRfGo66OLG9o4YJFR3KxDeUjqrR4WxKcZqxLpHXf66UAWNSq7/IYXrQzwHWkG0ll0p/y3jyE0rwkA/p83Qt53nLvBC273y8EudNjzzBrDmDkEri6NV7zY2rkWRmQIDAQAB",
+  "permissions": [
+    "audioCapture",
+    "dictationPrivate",
+    "offscreen",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "incognito": "not_allowed"
+}

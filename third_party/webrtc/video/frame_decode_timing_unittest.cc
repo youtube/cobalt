@@ -44,7 +44,7 @@ void UpdateDecodeTimer(VCMTiming& timing,
                        TimeDelta decode_time) {
   for (int i = 0; i < k25Fps.hertz(); ++i) {
     clock.AdvanceTime(decode_time);
-    timing.StopDecodeTimer(decode_time, clock.CurrentTime());
+    timing.UpdateDecodeTimeEstimate(decode_time, clock.CurrentTime());
     clock.AdvanceTime(1 / k25Fps - decode_time);
   }
 }

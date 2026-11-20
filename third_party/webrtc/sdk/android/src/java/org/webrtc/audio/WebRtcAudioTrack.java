@@ -179,12 +179,24 @@ class WebRtcAudioTrack {
 
   @CalledByNative
   private int initPlayout(int sampleRate, int channels, double bufferSizeFactor) {
-    threadChecker.checkIsOnValidThread();
+    try {
+      threadChecker.checkIsOnValidThread();
+    } catch (IllegalStateException e) {
+      reportWebRtcAudioTrackInitError("threadChecker.checkIsOnValidThread failed: " +
+                                      e.getMessage());
+      return -1;
+    }
     Logging.d(TAG,
         "initPlayout(sampleRate=" + sampleRate + ", channels=" + channels
             + ", bufferSizeFactor=" + bufferSizeFactor + ")");
     final int bytesPerFrame = channels * (BITS_PER_SAMPLE / 8);
-    byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * (sampleRate / BUFFERS_PER_SECOND));
+    try {
+      byteBuffer =
+          ByteBuffer.allocateDirect(bytesPerFrame * (sampleRate / BUFFERS_PER_SECOND));
+    } catch (OutOfMemoryError | RuntimeException e) {
+      reportWebRtcAudioTrackInitError("allocateDirect failed: " + e.getMessage());
+      return -1;
+    }
     Logging.d(TAG, "byteBuffer.capacity: " + byteBuffer.capacity());
     emptyBytes = new byte[byteBuffer.capacity()];
     // Rather than passing the ByteBuffer with every callback (requiring
@@ -242,6 +254,11 @@ class WebRtcAudioTrack {
       }
     } catch (IllegalArgumentException e) {
       reportWebRtcAudioTrackInitError(e.getMessage());
+      releaseAudioResources();
+      return -1;
+    } catch (Throwable t) {
+      reportWebRtcAudioTrackInitError("InitPlayout error: " + t.getClass().getSimpleName() +
+                                      ": " + t.getMessage());
       releaseAudioResources();
       return -1;
     }

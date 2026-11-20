@@ -2031,7 +2031,7 @@ TEST_F(AutocompleteControllerTest, UpdateResult_ForceAllowedToBeDefault) {
     auto enabled_config = set_feature(true);
     EXPECT_THAT(controller_.SimulateCleanAutocompletePass({
                     CreateSearchMatch("search", true, 200),
-                    CreateKeywordHintMatch("keyword", 1000),
+                    CreateSearchMatch("keyword", false, 1000),
                 }),
                 testing::ElementsAreArray({
                     "search",

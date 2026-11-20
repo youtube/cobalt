@@ -59,6 +59,8 @@ bool ValidImageSizeParameters(const Context *context,
                               GLsizei height,
                               GLsizei depth,
                               bool isSubImage);
+bool ValidCompressedFormatForTexture2DArray(GLenum format, const Extensions &extensions);
+bool ValidCompressedFormatForTexture3D(GLenum format, const Extensions &extensions);
 bool ValidCompressedImageSize(const Context *context,
                               GLenum internalFormat,
                               GLint level,
@@ -956,6 +958,28 @@ ANGLE_INLINE bool ValidateDrawInstancedAttribs(const Context *context,
             RecordDrawAttribsError(context, entryPoint);
             return false;
         }
+    }
+
+    return true;
+}
+
+ANGLE_INLINE bool ValidateDrawInstancedCounts(const Context *context,
+                                              angle::EntryPoint entryPoint,
+                                              GLsizei primcount,
+                                              GLuint baseinstance)
+{
+    if (!context->getLimitations().instanceIdMayOverflow)
+    {
+        return true;
+    }
+
+    angle::CheckedNumeric<GLuint> checkedSum = baseinstance;
+    checkedSum += primcount - 1;
+
+    if (ANGLE_UNLIKELY(!checkedSum.IsValid()))
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, err::kInstanceIdOverflow);
+        return false;
     }
 
     return true;

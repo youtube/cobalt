@@ -17,7 +17,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -783,8 +782,14 @@ class KioskLaunchControllerWithExtensionTest
             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
             policy::POLICY_SOURCE_CLOUD, base::Value(std::move(list)), nullptr);
 
+    // Ensure our `policy_server()` is informed about policy updates.
+    policy_provider()->SetupPolicyServiceForPolicyUpdates(policy_service());
+
+    // Update the policy.
     policy_provider()->UpdateChromePolicy(map);
-    base::RunLoop().RunUntilIdle();
+
+    // Deregister our `policy_server()` so later updates don't use it.
+    policy_provider()->SetupPolicyServiceForPolicyUpdates(nullptr);
   }
 
   extensions::ForceInstalledTracker* force_installed_tracker() {

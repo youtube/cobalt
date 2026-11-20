@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_MASQUE_MASQUE_OHTTP_CLIENT_H_
 
 #include <functional>
+#include <list>
 #include <memory>
 #include <optional>
 #include <string>
@@ -191,6 +192,9 @@ class QUICHE_EXPORT MasqueOhttpClient
     void SetHandleGzipResponse(bool handle_gzip_response) {
       handle_gzip_response_ = handle_gzip_response;
     }
+    void SetSendRequestsInParallel(bool send_requests_in_parallel) {
+      send_requests_in_parallel_ = send_requests_in_parallel;
+    }
     absl::Status AddKeyFetchHeaders(
         const std::vector<std::string>& key_fetch_headers);
     void AddPerRequestConfig(const PerRequestConfig& per_request_config) {
@@ -215,6 +219,9 @@ class QUICHE_EXPORT MasqueOhttpClient
       return key_fetch_headers_;
     }
     bool handle_gzip_response() const { return handle_gzip_response_; }
+    bool send_requests_in_parallel() const {
+      return send_requests_in_parallel_;
+    }
     bool skip_ohttp() const;
 
    private:
@@ -227,6 +234,17 @@ class QUICHE_EXPORT MasqueOhttpClient
     std::vector<std::pair<std::string, std::string>> key_fetch_headers_;
     std::vector<PerRequestConfig> per_request_configs_;
     bool handle_gzip_response_ = false;
+    bool send_requests_in_parallel_ = false;
+  };
+
+  struct RunDetails {
+    absl::Status status = absl::OkStatus();
+    Message key_fetch_response;
+    struct OhttpResponse {
+      Message gateway_response;
+      Message encapsulated_response;
+    };
+    std::vector<OhttpResponse> ohttp_responses;
   };
 
   class ResponseVisitor {
@@ -247,7 +265,7 @@ class QUICHE_EXPORT MasqueOhttpClient
 
   // Starts by fetching the HPKE keys and then runs the client until all
   // requests are complete or aborted.
-  static absl::Status Run(Config config, absl::string_view info_string);
+  static RunDetails Run(Config config, absl::string_view info_string);
 
   // Sends a body chunk for a chunked OHTTP request.
   absl::Status SendBodyChunk(RequestId request_id, absl::string_view chunk,
@@ -267,7 +285,7 @@ class QUICHE_EXPORT MasqueOhttpClient
   absl::Status StartKeyFetch();
 
   // Handles the key response.
-  absl::Status HandleKeyResponse(const absl::StatusOr<Message>& response);
+  absl::Status HandleKeyResponse(absl::StatusOr<Message>&& response);
 
   // Handles the key data and starts the OHTTP request.
   absl::Status HandleKeyData(const std::string& key_data);
@@ -282,6 +300,11 @@ class QUICHE_EXPORT MasqueOhttpClient
 
   // Signals the client to abort.
   void Abort(absl::Status status);
+
+  static absl::StatusOr<RunDetails> RunInner(Config config,
+                                             absl::string_view info_string);
+
+  void MaybeStartNextRequest();
 
   class QUICHE_NO_EXPORT ChunkHandler
       : public quiche::ObliviousHttpChunkHandler,
@@ -376,7 +399,7 @@ class QUICHE_EXPORT MasqueOhttpClient
                              absl::string_view info_string);
 
   // Starts fetching for the key and sends the OHTTP request.
-  absl::Status Start();
+  void Start();
 
   // Returns true if the client has completed all requests.
   bool IsDone();
@@ -385,7 +408,7 @@ class QUICHE_EXPORT MasqueOhttpClient
       RequestId request_id, quiche::ObliviousHttpRequest::Context& context,
       const Message& response);
   absl::Status ProcessOhttpResponse(RequestId request_id,
-                                    absl::StatusOr<Message>& response,
+                                    absl::StatusOr<Message>&& response,
                                     bool end_stream);
   absl::Status ProcessEncapsulatedResponse(
       RequestId request_id, Message& response,
@@ -400,11 +423,12 @@ class QUICHE_EXPORT MasqueOhttpClient
   const std::string info_;
   quic::MasqueConnectionPool connection_pool_;
   std::optional<RequestId> key_fetch_request_id_;
-  absl::Status status_ = absl::OkStatus();
   std::optional<quiche::ObliviousHttpClient> ohttp_client_;
   quic::QuicUrl relay_url_;
   absl::flat_hash_map<RequestId, PendingRequest> pending_ohttp_requests_;
   ResponseVisitor* response_visitor_ = nullptr;
+  RunDetails run_details_;
+  std::list<size_t> unstarted_requests_;
 };
 }  // namespace quic
 

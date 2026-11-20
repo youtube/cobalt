@@ -332,6 +332,7 @@ enum class Feature
     Supports8BitPushConstant,
     Supports8BitStorageBuffer,
     Supports8BitUniformAndStorageBuffer,
+    SupportsAmdShaderCoreProperties,
     SupportsAndroidHardwareBuffer,
     SupportsAndroidNativeFenceSync,
     SupportsAngleRgbxInternalFormat,
@@ -519,7 +520,6 @@ enum class Feature
     WarmUpPipelineCacheAtLink,
     WrapSwitchInIfTrue,
     WriteHelperSampleMask,
-    ZeroMaxLodWorkaround,
 
     InvalidEnum,
     EnumCount = InvalidEnum,

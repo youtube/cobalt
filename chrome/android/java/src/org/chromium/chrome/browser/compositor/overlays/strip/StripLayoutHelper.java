@@ -2427,7 +2427,8 @@ public class StripLayoutHelper
                                         mStripTabs,
                                         findGroupTitle(groupId),
                                         toLeft);
-                            });
+                            },
+                            TabClosingSource.TABLET_TAB_STRIP);
         }
         StripLayoutUtils.performHapticFeedback(mControlContainer);
 
@@ -2508,7 +2509,8 @@ public class StripLayoutHelper
                             },
                             mSnackbarManager,
                             mActivityResultTracker,
-                            mWindowAndroid.getModalDialogManager());
+                            mWindowAndroid.getModalDialogManager(),
+                            TabClosingSource.TABLET_TAB_STRIP);
         }
         RectProvider anchorRectProvider = new RectProvider();
         anchorTab.getAnchorRect(anchorRectProvider.getRect());

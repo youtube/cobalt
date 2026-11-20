@@ -16,7 +16,7 @@
 #include "base/test/test_file_util.h"
 #include "base/types/fixed_array.h"
 #include "build/build_config.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/public/browser/network_context_client_base.h"
 #include "content/public/common/child_process_id.h"
 #include "content/public/common/child_process_id_util.h"

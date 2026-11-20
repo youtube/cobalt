@@ -52,7 +52,7 @@ class SessionStorageSqlite : public DomStorageDatabase,
   using PassKey = base::PassKey<DomStorageDatabaseFactory>;
 
  public:
-  // Use `DomStorageDatabaseFactory::Create()` to construct a
+  // Use `DomStorageDatabaseFactory::Open()` to construct a
   // base::SequenceBound<DomStorageDatabase>.
   explicit SessionStorageSqlite(PassKey);
   ~SessionStorageSqlite() override;

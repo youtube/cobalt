@@ -404,8 +404,6 @@ TEST_P(AddressDataCleanerTest, Deduplicate_kAccountMerge) {
 }
 
 TEST_P(AddressDataCleanerTest, Deduplicate_kAccountNameEmailSubset) {
-  base::test::ScopedFeatureList feature_list(
-      features::kAutofillEnableSupportForNameAndEmail);
   test_api(data_cleaner_).SetAreCleanupsPending(false);
 
   AutofillProfile account_name_email_profile(AddressCountryCode("XX"));
@@ -526,54 +524,6 @@ TEST_P(AddressDataCleanerTest, CalculateMinimalIncompatibleTypeSets) {
               &other_profile3, {PHONE_HOME_WHOLE_NUMBER}}));
 }
 
-// Checks that migration of phonetic names from regular name fields, does not
-// run if the feature is disabled.
-TEST_P(AddressDataCleanerTest, NoNameMigrationIfFlagDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      features::kAutofillSupportPhoneticNameForJP);
-  base::HistogramTester histogram_tester;
-
-  // Creating a profile.
-  AutofillProfile profile(AddressCountryCode("JP"));
-  profile.SetRawInfo(NAME_FULL, u"タ ワ");
-  profile.FinalizeAfterImport();
-  test_adm_.AddProfile(profile);
-
-  test_api(data_cleaner_).SetAreCleanupsPending(true);
-  MaybeCleanupAddressData();
-
-  histogram_tester.ExpectTotalCount(
-      "Autofill.NumberOfNamesMigratedToAlternativeNamesDuringCleanUp", 0);
-  EXPECT_THAT(test_adm_.GetProfiles(), UnorderedElementsAre(Pointee(profile)));
-}
-
-// Checks that migration of phonetic names from regular name fields,
-// records the metric and migrates the name.
-TEST_P(AddressDataCleanerTest, NameMigration) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillSupportPhoneticNameForJP};
-  base::HistogramTester histogram_tester;
-
-  AutofillProfile profile(AddressCountryCode("JP"));
-  profile.SetRawInfo(NAME_FULL, u"タ ワ");
-  profile.FinalizeAfterImport();
-  test_adm_.AddProfile(profile);
-
-  AutofillProfile expected(AddressCountryCode("JP"));
-  expected.set_guid(profile.guid());
-  expected.SetRawInfoWithVerificationStatus(ALTERNATIVE_FULL_NAME, u"タ ワ",
-                                            VerificationStatus::kNoStatus);
-  expected.SetRawInfoWithVerificationStatus(ALTERNATIVE_FAMILY_NAME, u"タ",
-                                            VerificationStatus::kNoStatus);
-  expected.SetRawInfoWithVerificationStatus(ALTERNATIVE_GIVEN_NAME, u"ワ",
-                                            VerificationStatus::kNoStatus);
-
-  MaybeCleanupAddressData();
-  histogram_tester.ExpectUniqueSample(
-      "Autofill.NumberOfNamesMigratedToAlternativeNamesDuringCleanUp", 1, 1);
-  EXPECT_THAT(test_adm_.GetProfiles(), UnorderedElementsAre(Pointee(expected)));
-}
 
 INSTANTIATE_TEST_SUITE_P(All, AddressDataCleanerTest, testing::Bool());
 

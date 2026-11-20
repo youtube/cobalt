@@ -29,6 +29,9 @@ bool IsProcessOverheadExperimentActive() {
 
 namespace features {
 
+// Enables the migration of browser commands to Action API.
+BASE_FEATURE(kUseActionsForBrowserCommands, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the use of WGC for the Eye Dropper screen capture.
 BASE_FEATURE(kAllowEyeDropperWGCScreenCapture,
 #if BUILDFLAG(IS_WIN)
@@ -87,11 +90,15 @@ BASE_FEATURE(kDseIntegrity, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kFewerUpdateConfirmations, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 BASE_FEATURE(kExtensionsCollapseMainMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+// When enabled, newly installed extensions are pinned to the toolbar by
+// default.
+BASE_FEATURE(kExtensionsPinnedByDefault, base::FEATURE_DISABLED_BY_DEFAULT);
+
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 // Shows an infobar on PDFs offering to become the default PDF viewer if Chrome
@@ -130,6 +137,10 @@ BASE_FEATURE_PARAM(int,
                    "message_version",
                    0);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+
+// Enables the AI subscription level decorative ring around the user's avatar.
+BASE_FEATURE(kEnableAiSubscriptionAvatarRing,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Preloads a WebContents with a Top Chrome WebUI on BrowserView initialization,
 // so that it can be shown instantly at a later time when necessary.
@@ -262,7 +273,12 @@ BASE_FEATURE_PARAM(int,
                    350);
 
 BASE_FEATURE(kUseDefaultDeadlineWhenAnimatingBounds,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_MAC) && defined(ARCH_CPU_ARM64)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 // Enables enterprise profile badging for managed profiles on the toolbar avatar
 // and in the profile menu. On managed profiles, a building icon will be used as
@@ -339,12 +355,6 @@ BASE_FEATURE_PARAM(bool,
                    false);
 
 BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationSharingHub,
-                   &kPageActionsMigration,
-                   "sharing_hub",
-                   false);
-
-BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationAiMode,
                    &kPageActionsMigration,
                    "ai_mode",
@@ -385,8 +395,6 @@ BASE_FEATURE_PARAM(bool,
                    false);
 
 BASE_FEATURE(kPageActionsPrioritySelector, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSavePasswordsContextualUi, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kByDateHistoryInSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 

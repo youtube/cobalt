@@ -1000,8 +1000,10 @@ class SessionRestoreImpl : public BrowserCollectionObserver {
     std::map<split_tabs::SplitTabId, std::vector<tabs::TabInterface*>>
         tabs_by_split_id;
 
-    const base::Time epoch_time = base::Time::UnixEpoch();
-    const base::TimeTicks epoch_time_ticks = base::TimeTicks::UnixEpoch();
+    // Anchor both clocks to the current instant so the last active time (a
+    // base::Time) can be mapped onto the TimeTicks timeline WebContents wants.
+    const base::Time now = base::Time::Now();
+    const base::TimeTicks now_ticks = base::TimeTicks::Now();
     for (int i = 0; i < static_cast<int>(window.tabs.size()); ++i) {
       const sessions::SessionTab& tab = *(window.tabs[i]);
 
@@ -1011,8 +1013,8 @@ class SessionRestoreImpl : public BrowserCollectionObserver {
           (initial_tab_count == 0) && (i == selected_tab_index);
 
       // Convert the last active time because WebContents needs a TimeTicks.
-      const base::TimeDelta delta = tab.last_active_time - epoch_time;
-      const base::TimeTicks last_active_time_ticks = epoch_time_ticks + delta;
+      const base::TimeTicks last_active_time_ticks =
+          now_ticks - (now - tab.last_active_time);
 
       // If the browser already has tabs, we want to restore the new ones after
       // the existing ones. E.g. this happens in Win8 Metro where we merge

@@ -579,6 +579,29 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     setter variant
 [Worker]     setter variationSettings
 [Worker]     setter weight
+[Worker] interface FontFaceSet : EventTarget
+[Worker]     attribute @@toStringTag
+[Worker]     getter onloading
+[Worker]     getter onloadingdone
+[Worker]     getter onloadingerror
+[Worker]     getter ready
+[Worker]     getter size
+[Worker]     getter status
+[Worker]     method @@iterator
+[Worker]     method add
+[Worker]     method check
+[Worker]     method clear
+[Worker]     method constructor
+[Worker]     method delete
+[Worker]     method entries
+[Worker]     method forEach
+[Worker]     method has
+[Worker]     method keys
+[Worker]     method load
+[Worker]     method values
+[Worker]     setter onloading
+[Worker]     setter onloadingdone
+[Worker]     setter onloadingerror
 [Worker] interface FormData
 [Worker]     attribute @@toStringTag
 [Worker]     method @@iterator
@@ -3425,6 +3448,8 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method constructor
 [Worker] interface WebTransport
 [Worker]     attribute @@toStringTag
+[Worker]     getter anticipatedConcurrentIncomingBidirectionalStreams
+[Worker]     getter anticipatedConcurrentIncomingUnidirectionalStreams
 [Worker]     getter closed
 [Worker]     getter congestionControl
 [Worker]     getter datagrams
@@ -3438,6 +3463,8 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method createSendGroup
 [Worker]     method createUnidirectionalStream
 [Worker]     method getStats
+[Worker]     setter anticipatedConcurrentIncomingBidirectionalStreams
+[Worker]     setter anticipatedConcurrentIncomingUnidirectionalStreams
 [Worker] interface WebTransportBidirectionalStream
 [Worker]     attribute @@toStringTag
 [Worker]     getter readable

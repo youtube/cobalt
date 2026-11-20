@@ -33,6 +33,8 @@ class PaymentResponseHelper final : public PaymentApp::Delegate {
 
     virtual void OnPaymentResponseError(mojom::PaymentEventResponseType error,
                                         const std::string& error_message) = 0;
+
+    virtual bool WasPaymentHandlerWindowInteractedWith() const = 0;
   };
 
   // The spec, selected_app and delegate cannot be null.
@@ -57,6 +59,9 @@ class PaymentResponseHelper final : public PaymentApp::Delegate {
   void OnInstrumentDetailsError(mojom::PaymentEventResponseType error,
                                 const std::string& error_message) override;
 
+  // Called when user interaction is captured on the payment handler window.
+  void OnUserInteractionCaptured();
+
   mojom::PayerDetailPtr GeneratePayerDetail(
       const autofill::AutofillProfile* selected_contact_profile) const;
 
@@ -68,9 +73,14 @@ class PaymentResponseHelper final : public PaymentApp::Delegate {
   void OnAddressNormalized(bool success,
                            const autofill::AutofillProfile& normalized_profile);
 
+  // Returns true if user interaction was captured on the payment handler
+  // window.
+  bool WasPaymentHandlerWindowInteractedWith();
+
   const std::string app_locale_;
   bool is_waiting_for_shipping_address_normalization_;
   bool is_waiting_for_instrument_details_;
+  bool is_waiting_for_user_gesture_ = false;
 
   base::WeakPtr<PaymentRequestSpec> spec_;
   base::WeakPtr<Delegate> delegate_;

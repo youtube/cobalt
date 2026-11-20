@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
@@ -16,6 +17,7 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "components/page_content_annotations/core/page_content_store.h"
@@ -63,6 +65,23 @@ void PageContentCache::GetPageContentForTab(int64_t tab_id,
         tab_id, std::move(callback)));
     return;
   }
+  static constexpr char kLatencyMetric[] =
+      "OptimizationGuide.PageContentCache.GetPageContentForTabLatency";
+  static constexpr char kCacheHitMetric[] =
+      "OptimizationGuide.PageContentCache.GetPageContentForTabCacheHit";
+
+  // Log metrics before invoking callback.
+  callback =
+      base::BindOnce(
+          [](base::ElapsedTimer read_timer,
+             std::optional<optimization_guide::proto::PageContext> result) {
+            base::UmaHistogramTimes(kLatencyMetric, read_timer.Elapsed());
+            base::UmaHistogramBoolean(kCacheHitMetric, result.has_value());
+            return result;
+          },
+          base::ElapsedTimer())
+          .Then(std::move(callback));
+
   store_.AsyncCall(&optimization_guide::PageContentStore::GetPageContentForTab)
       .WithArgs(tab_id)
       .Then(std::move(callback));
@@ -75,6 +94,17 @@ void PageContentCache::GetAllTabIds(GetAllTabIdsCallback callback) {
                                             std::move(callback)));
     return;
   }
+  callback =
+      base::BindOnce(
+          [](base::ElapsedTimer read_timer, std::vector<int64_t> result) {
+            base::UmaHistogramTimes(
+                "OptimizationGuide.PageContentCache.GetAllTabIdsLatency",
+                read_timer.Elapsed());
+            return result;
+          },
+          base::ElapsedTimer())
+          .Then(std::move(callback));
+
   store_.AsyncCall(&optimization_guide::PageContentStore::GetAllTabIds)
       .Then(std::move(callback));
 }
@@ -137,7 +167,10 @@ void PageContentCache::CachePageContent(
                 extraction_timestamp, std::make_optional(tab_id))
       .Then(base::BindOnce(
           [](base::WeakPtr<PageContentCache> cache, int64_t tab_id,
-             bool success) {
+             base::ElapsedTimer write_timer, bool success) {
+            base::UmaHistogramTimes(
+                "OptimizationGuide.PageContentCache.CachePageContentLatency",
+                write_timer.Elapsed());
             base::UmaHistogramBoolean(
                 "OptimizationGuide.PageContentCache.AddPageContentResult",
                 success);
@@ -145,7 +178,7 @@ void PageContentCache::CachePageContent(
               cache->observers_.Notify(&Observer::OnCachePopulated, tab_id);
             }
           },
-          weak_ptr_factory_.GetWeakPtr(), tab_id));
+          weak_ptr_factory_.GetWeakPtr(), tab_id, base::ElapsedTimer()));
 }
 
 void PageContentCache::RemovePageContentForTab(int64_t tab_id) {
@@ -154,7 +187,11 @@ void PageContentCache::RemovePageContentForTab(int64_t tab_id) {
       .WithArgs(tab_id)
       .Then(base::BindOnce(
           [](base::WeakPtr<PageContentCache> cache, int64_t tab_id,
-             bool success) {
+             base::ElapsedTimer delete_timer, bool success) {
+            base::UmaHistogramTimes(
+                "OptimizationGuide.PageContentCache."
+                "RemovePageContentForTabLatency",
+                delete_timer.Elapsed());
             base::UmaHistogramBoolean(
                 "OptimizationGuide.PageContentCache."
                 "RemovePageContentForTabResult",
@@ -163,7 +200,7 @@ void PageContentCache::RemovePageContentForTab(int64_t tab_id) {
               cache->observers_.Notify(&Observer::OnCacheRemoved, tab_id);
             }
           },
-          weak_ptr_factory_.GetWeakPtr(), tab_id));
+          weak_ptr_factory_.GetWeakPtr(), tab_id, base::ElapsedTimer()));
 }
 
 void PageContentCache::RunCleanUpTasksWithActiveTabs(
@@ -214,7 +251,18 @@ void PageContentCache::CleanUpAndRecordMetrics(
         .AsyncCall(
             &optimization_guide::PageContentStore::DeletePageContentForTabs)
         .WithArgs(stale_tab_ids)
-        .Then(base::BindOnce([](bool success) {}));
+        .Then(base::BindOnce(
+            [](base::ElapsedTimer timer, bool success) {
+              base::UmaHistogramTimes(
+                  "OptimizationGuide.PageContentCache."
+                  "DeletePageContentForTabsLatency",
+                  timer.Elapsed());
+              base::UmaHistogramBoolean(
+                  "OptimizationGuide.PageContentCache."
+                  "DeletePageContentForTabsResult",
+                  success);
+            },
+            base::ElapsedTimer()));
   }
 
   base::ThreadPool::PostTaskAndReplyWithResult(
@@ -244,6 +292,8 @@ void PageContentCache::RemoveObserver(Observer* observer) {
 void PageContentCache::OnStoreInitialized() {
   CHECK(!store_initialized_);
   store_initialized_ = true;
+  base::UmaHistogramTimes("OptimizationGuide.PageContentCache.InitTime",
+                          construction_timer_.Elapsed());
   for (auto& task : pending_tasks_) {
     std::move(task).Run();
   }
@@ -256,7 +306,18 @@ void PageContentCache::DeleteOldData() {
       .AsyncCall(
           &optimization_guide::PageContentStore::DeletePageContentOlderThan)
       .WithArgs(older_than)
-      .Then(base::BindOnce([](bool success) {}));
+      .Then(base::BindOnce(
+          [](base::ElapsedTimer timer, bool success) {
+            base::UmaHistogramTimes(
+                "OptimizationGuide.PageContentCache."
+                "DeletePageContentOlderThanLatency",
+                timer.Elapsed());
+            base::UmaHistogramBoolean(
+                "OptimizationGuide.PageContentCache."
+                "DeletePageContentOlderThanResult",
+                success);
+          },
+          base::ElapsedTimer()));
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,

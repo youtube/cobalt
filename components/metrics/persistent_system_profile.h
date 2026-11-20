@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
 #include "third_party/metrics_proto/system_profile.pb.h"
 
 namespace base {
@@ -146,7 +146,7 @@ class PersistentSystemProfile {
   // Indicates if a complete profile has been stored to all allocators.
   bool all_have_complete_profile_ = false;
 
-  THREAD_CHECKER(thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 // A singleton instance of the above.

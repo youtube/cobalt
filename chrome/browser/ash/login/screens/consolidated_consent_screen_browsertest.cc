@@ -808,34 +808,33 @@ class ConsolidatedConsentScreenManagedUserTest
 
   void CheckTogglesState(ArcManagedOptin backup_opt_in,
                          ArcManagedOptin location_opt_in) {
-    // Legacy handling.
-    // `IsPhEnabled() == true` is granularly tested below.
-    if (!IsPhEnabled()) {
-      test::OobeJS().ExpectVisiblePath(kBackup);
-      test::OobeJS().ExpectVisiblePath(kLocation);
+    // UI elements are hidden when *ALL* ARC-specific prefs are configured by
+    // the admin.
+    if (backup_opt_in != ArcManagedOptin::kNotManaged &&
+        location_opt_in != ArcManagedOptin::kNotManaged) {
+      if (!IsPhEnabled()) {
+        // Legacy handling: Both toggles are hidden.
+        test::OobeJS().ExpectHiddenPath(kBackup);
+        test::OobeJS().ExpectHiddenPath(kLocation);
+        return;
+      } else {
+        // Location toggle is always shown post Privacy Hub, only the Backup
+        // toggle is hidden. Check the toggle states below.
+        test::OobeJS().ExpectHiddenPath(kBackup);
+        test::OobeJS().ExpectVisiblePath(kLocation);
+      }
     }
 
     switch (backup_opt_in) {
       case ArcManagedOptin::kManagedDisabled:
-        if (IsPhEnabled()) {
-          test::OobeJS().ExpectHiddenPath(kBackup);
-        } else {
-          test::OobeJS().ExpectDisabledPath(kBackupToggle);
-          test::OobeJS().ExpectHasNoAttribute("checked", kBackupToggle);
-        }
+        test::OobeJS().ExpectDisabledPath(kBackupToggle);
+        test::OobeJS().ExpectHasNoAttribute("checked", kBackupToggle);
         break;
       case ArcManagedOptin::kManagedEnabled:
-        if (IsPhEnabled()) {
-          test::OobeJS().ExpectHiddenPath(kBackup);
-        } else {
-          test::OobeJS().ExpectDisabledPath(kBackupToggle);
-          test::OobeJS().ExpectHasAttribute("checked", kBackupToggle);
-        }
+        test::OobeJS().ExpectDisabledPath(kBackupToggle);
+        test::OobeJS().ExpectHasAttribute("checked", kBackupToggle);
         break;
       case ArcManagedOptin::kNotManaged:
-        if (IsPhEnabled()) {
-          test::OobeJS().ExpectVisiblePath(kBackup);
-        }
         test::OobeJS().ExpectEnabledPath(kBackupToggle);
         break;
     }
@@ -898,6 +897,16 @@ IN_PROC_BROWSER_TEST_P(ConsolidatedConsentScreenManagedUserTest,
   LoginManagedUser();
   CheckTogglesState(ArcManagedOptin::kNotManaged,
                     ArcManagedOptin::kManagedDisabled);
+}
+
+IN_PROC_BROWSER_TEST_P(ConsolidatedConsentScreenManagedUserTest,
+                       BothOptinsManaged) {
+  SetUpArcEnabledPolicy();
+  SetUpManagedArcOptIns(ArcManagedOptin::kManagedEnabled,
+                        ArcManagedOptin::kManagedEnabled);
+  LoginManagedUser();
+  CheckTogglesState(ArcManagedOptin::kManagedEnabled,
+                    ArcManagedOptin::kManagedEnabled);
 }
 
 INSTANTIATE_TEST_SUITE_P(EnableDisablePhLocation,

@@ -225,12 +225,14 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
                                              : 0;
   }
 
-  void Finalize() {
-    main_gap_running_index_ = 0;
-    while (main_gap_running_index_ < main_gaps_.size() &&
-           !main_gaps_[main_gap_running_index_].HasCrossGapsBefore()) {
-      ++main_gap_running_index_;
-    }
+  void Finalize() { InitMainGapRunningIndex(); }
+
+  // Resets transient per-paint cursor state. A cached `GapGeometry` can be reused
+  // across relayouts, so paint must not depend on cursor state left behind by a
+  // previous paint.
+  void InitPaintState() const {
+    InitMainGapRunningIndex();
+    multicol_spanner_adjacent_intersections_.clear();
   }
 
   void SetMainDirection(GridTrackSizingDirection direction) {
@@ -499,6 +501,16 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
                                      LayoutUnit cross_gap_width,
                                      LayoutUnit cross_decoration_width) const;
 
+  // Initializes the transient paint-time cursor `main_gap_running_index_` to
+  // the first main gap that has cross gaps before it.
+  void InitMainGapRunningIndex() const {
+    main_gap_running_index_ = 0;
+    while (main_gap_running_index_ < main_gaps_.size() &&
+           !main_gaps_[main_gap_running_index_].HasCrossGapsBefore()) {
+      ++main_gap_running_index_;
+    }
+  }
+
   // In flex it refers to the gap between flex items, and in grid it
   // refers to the column gutter size.
   LayoutUnit inline_gap_size_;
@@ -549,8 +561,12 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   // us to maintain necessary state without breaking const-correctness for the
   // overall GapGeometry object.
   //
-  // TODO(samomekarajr): Explore removing this in favour of having this state
+  // TODO(javiercon): Explore removing this in favour of having this state
   // live at the parent paint call and passing in as an input/output param.
+  // Paint resets it via `InitPaintState()` so it never inherits stale state
+  // across relayouts; another cleanup option is to remove it entirely
+  // (store the cross-gap->main-gap linkage on CrossGap at layout time, or
+  // thread a local running index through paint).
   mutable wtf_size_t main_gap_running_index_ = kNotFound;
 
   // For multicol containers, this set tracks which intersection indices are

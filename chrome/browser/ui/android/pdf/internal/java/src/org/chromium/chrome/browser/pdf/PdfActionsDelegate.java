@@ -45,4 +45,7 @@ public interface PdfActionsDelegate {
 
     /** Called when the PDF document fails to load. */
     void onDocumentLoadFailed();
+
+    /** Called when the edit mode changes. */
+    void onEditModeChanged(boolean editMode);
 }

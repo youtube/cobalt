@@ -369,6 +369,8 @@ EmailVerificationRequestResult VerificationResultToEvpRequestStatus(
     case EvtVerifier::Result::kSdJwtUnsupportedHeaderAlg:
       return EmailVerificationRequestResult::
           kTokenVerificationSdJwtUnsupportedHeaderAlg;
+    case EvtVerifier::Result::kSdJwtInvalidTyp:
+      return EmailVerificationRequestResult::kTokenVerificationSdJwtInvalidTyp;
     case EvtVerifier::Result::kSdJwtMissingIss:
       return EmailVerificationRequestResult::kTokenVerificationSdJwtMissingIss;
     case EvtVerifier::Result::kSdJwtMissingIat:

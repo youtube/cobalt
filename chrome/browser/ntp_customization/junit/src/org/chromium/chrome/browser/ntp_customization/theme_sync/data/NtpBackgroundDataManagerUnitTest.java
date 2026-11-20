@@ -5,11 +5,13 @@
 package org.chromium.chrome.browser.ntp_customization.theme_sync.data;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.view.ContextThemeWrapper;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -21,9 +23,13 @@ import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo.NtpThemeColorId;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
+
+import java.io.File;
 
 /** Tests for {@link NtpBackgroundDataManager}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -250,6 +256,57 @@ public class NtpBackgroundDataManagerUnitTest {
         assertEquals(2, group.size());
         assertEquals(localData1, group.get(0));
         assertEquals(localData2, group.get(1));
+    }
+
+    @Test
+    public void testSaveUserSelectedBackgroundType_EvictsUploadImage() {
+        @PlatformType int localPlatform = PlatformType.ANDROID_LOCAL;
+        Bitmap bitmap = Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888);
+        String fileHash = "evictedFileHash";
+
+        NtpBackgroundDataUploadImage uploadImage =
+                new NtpBackgroundDataUploadImage(
+                        localPlatform,
+                        /* backgroundImageInfo= */ null,
+                        bitmap,
+                        /* primaryColor= */ null,
+                        fileHash);
+
+        File savedFile = new File(uploadImage.getLastUploadImageFilePath());
+        NtpCustomizationUtils.saveBitmapImageToFile(bitmap, savedFile);
+        RobolectricUtil.runAllBackgroundAndUi();
+        assertTrue(savedFile.exists());
+
+        // Save local selection.
+        mManager.saveUserSelectedBackgroundTypeToSharedPreference(uploadImage);
+
+        // Fill up history to exceed MAXIMUM_LOCAL_HISTORY (which is 3).
+        for (int i = 0; i < 3; i++) {
+            NtpBackgroundDataColor colorData =
+                    new NtpBackgroundDataColor(
+                            mContext,
+                            localPlatform,
+                            NtpThemeColorId.NTP_COLORS_BLUE + i,
+                            /* isChromeColorDailyRefreshEnabled= */ true);
+            mManager.saveUserSelectedBackgroundTypeToSharedPreference(colorData);
+        }
+
+        // Verify that the uploadImage was evicted and its local file was deleted.
+        NtpBackgroundDataGroup group =
+                mManager.getBackgroundDataGroupFromSharedPreference(localPlatform);
+        assertEquals(3, group.size());
+        boolean containsUploadImage = false;
+        for (int j = 0; j < group.size(); j++) {
+            if (group.get(j).equals(uploadImage)) {
+                containsUploadImage = true;
+                break;
+            }
+        }
+        assertFalse(containsUploadImage);
+        assertFalse(savedFile.exists());
+
+        // Clean up
+        NtpCustomizationUtils.deleteUploadImageFileDir();
     }
 
     @Test

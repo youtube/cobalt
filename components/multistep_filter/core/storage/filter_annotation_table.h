@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 
@@ -31,7 +32,6 @@ struct FilterAnnotation;
 //                           primary key).
 //   task_type               An identifier classifying the purpose of the
 //                           annotation.
-//   source_domain           The eTLD+1 domain of the source URL.
 //   source_host             The host of the source URL.
 //   creation_timestamp      The timestamp when the annotation was generated in
 //                           base::Time format.
@@ -61,13 +61,13 @@ class FilterAnnotationTable {
   bool StoreAnnotation(const FilterAnnotation& annotation);
 
   // Retrieves up to `max_count` stored filter annotations for the given
-  // `task_type` created at or after `min_creation_time`.
+  // `task_types` created at or after `min_creation_time`.
   // The results are sorted by their creation timestamp in descending order,
   // allowing efficient access to the most recent annotation. This is used by
-  // `FilterSuggestionGenerator` to provide filter recommendations for a
-  // specific task type.
-  std::vector<FilterAnnotation> GetAnnotationsForTaskSortedByCreationTimestamp(
-      std::string_view task_type,
+  // `FilterSuggestionGenerator` to provide filter recommendations for
+  // specific task types.
+  std::vector<FilterAnnotation> GetAnnotationsForTasksSortedByCreationTimestamp(
+      base::span<const std::string> task_types,
       size_t max_count,
       base::Time min_creation_time);
 

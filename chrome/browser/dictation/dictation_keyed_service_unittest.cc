@@ -6,6 +6,7 @@
 
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/dictation/features.h"
+#include "chrome/browser/dictation/target.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

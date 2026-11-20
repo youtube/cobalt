@@ -12,13 +12,12 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
-#include "chromeos/crosapi/mojom/local_printer.mojom.h"
+#include "chrome/browser/printing/print_job.h"
 
 namespace printing {
 
 class MetafileSkia;
 class PrintedDocument;
-class PrintJob;
 class PrintSettings;
 
 struct PrintJobCreatedInfo {
@@ -54,7 +53,7 @@ class PrintJobController {
   virtual void CreatePrintJob(std::unique_ptr<MetafileSkia> pdf,
                               std::unique_ptr<PrintSettings> settings,
                               uint32_t page_count,
-                              crosapi::mojom::PrintJob::Source source,
+                              PrintJob::Source source,
                               const std::string& source_id,
                               PrintJobCreatedCallback callback);
 

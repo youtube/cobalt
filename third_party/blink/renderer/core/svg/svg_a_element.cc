@@ -162,23 +162,20 @@ void SVGAElement::DefaultEventHandler(Event& event) {
       const KURL& resolved_url = GetDocument().CompleteURL(url);
       ResourceRequest request(resolved_url);
 
-      if (RuntimeEnabledFeatures::SvgAnchorElementAttributesEnabled()) {
-        // Schedule the ping before the frame load. Prerender in Chrome may kill
-        // the renderer as soon as the navigation is sent out.
-        AnchorElementUtils::SendPings(resolved_url, GetDocument(),
-                                      FastGetAttribute(svg_names::kPingAttr));
+      // Schedule the ping before the frame load. Prerender in Chrome may kill
+      // the renderer as soon as the navigation is sent out.
+      AnchorElementUtils::SendPings(resolved_url, GetDocument(),
+                                    FastGetAttribute(svg_names::kPingAttr));
 
-        AnchorElementUtils::HandleReferrerPolicyAttribute(
-            request, FastGetAttribute(svg_names::kReferrerpolicyAttr),
-            link_relations_, GetDocument());
-      }
+      AnchorElementUtils::HandleReferrerPolicyAttribute(
+          request, FastGetAttribute(svg_names::kReferrerpolicyAttr),
+          link_relations_, GetDocument());
 
       request.SetHasUserGesture(LocalFrame::HasTransientUserActivation(frame));
 
       // Respect the download attribute only if we can read the content, and the
       // event is not an alt-click or similar.
-      if (RuntimeEnabledFeatures::SvgAnchorElementDownloadAttributeEnabled() &&
-          FastHasAttribute(svg_names::kDownloadAttr) &&
+      if (FastHasAttribute(svg_names::kDownloadAttr) &&
           navigation_policy != kNavigationPolicyDownload &&
           GetDocument().domWindow()->GetSecurityOrigin()->CanReadContent(
               resolved_url)) {

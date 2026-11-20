@@ -76,7 +76,8 @@ int TcpStreamAttempt::StartInternal() {
 
   std::unique_ptr<TransportClientSocket> stream_socket =
       params().client_socket_factory->CreateTransportClientSocket(
-          AddressList(ip_endpoint()), std::move(socket_performance_watcher),
+          AddressList(ip_endpoint()), target_network(),
+          std::move(socket_performance_watcher),
           params().network_quality_estimator, net_log().net_log(),
           net_log().source());
 

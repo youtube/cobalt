@@ -41,13 +41,6 @@ class CORE_EXPORT BreakToken : public GarbageCollected<BreakToken> {
   bool IsBlockType() const { return Type() == kBlockBreakToken; }
   bool IsInlineType() const { return Type() == kInlineBreakToken; }
 
-  // Returns the node associated with this break token. A break token cannot be
-  // used with any other node.
-  LayoutInputNode InputNode() const {
-    return LayoutInputNode::Create(
-        box_.Get(), static_cast<LayoutInputNode::LayoutInputNodeType>(type_));
-  }
-
   // Return true if this break token is for a node that's being resumed in a
   // parallel flow.
   bool IsInParallelFlow() const;
@@ -62,8 +55,7 @@ class CORE_EXPORT BreakToken : public GarbageCollected<BreakToken> {
 
  protected:
   BreakToken(BreakTokenType type, LayoutInputNode node, unsigned flags = 0)
-      : box_(node.GetLayoutBox()),
-        type_(type),
+      : type_(type),
         is_repeated_actual_break_(false),
         flags_(flags),
         is_break_before_(false),
@@ -76,10 +68,6 @@ class CORE_EXPORT BreakToken : public GarbageCollected<BreakToken> {
   }
 
  private:
-  // Because |LayoutInputNode| has a pointer and 1 bit flag, and it's fast to
-  // re-construct, keep |LayoutBox| to save the memory consumed by alignment.
-  Member<LayoutBox> box_;
-
   unsigned type_ : 1;
 
  protected:

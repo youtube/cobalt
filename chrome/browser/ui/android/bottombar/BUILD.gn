@@ -12,6 +12,7 @@ android_resources("java_resources") {
     "java/res/drawable-night/bottom_bar_promo_illustration.xml",
     "java/res/drawable/bottom_bar_new_tab_background.xml",
     "java/res/drawable/bottom_bar_promo_illustration.xml",
+    "java/res/layout/bottom_bar_app_menu_template.xml",
     "java/res/layout/bottom_bar_generic_template.xml",
     "java/res/layout/bottom_bar_layout.xml",
     "java/res/layout/bottom_bar_list_menu_template.xml",
@@ -38,9 +39,23 @@ android_library("config_java") {
   ]
 }
 
+android_library("metrics_java") {
+  sources = [
+    "java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarMetrics.java",
+  ]
+  deps = [
+    "//base:base_java",
+    "//build/android:build_java",
+    "//chrome/browser/glic/android:common_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+  ]
+}
+
 android_library("java") {
   sources = [
+    "java/src/org/chromium/chrome/browser/ui/bottombar/AppMenuActionButtonBinder.java",
     "java/src/org/chromium/chrome/browser/ui/bottombar/BottomBar.java",
+    "java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarAppMenu.java",
     "java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarButtonContainer.java",
     "java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarButtonManager.java",
     "java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarCoordinator.java",
@@ -60,6 +75,7 @@ android_library("java") {
     "//chrome/browser/feature_engagement:java",
     "//chrome/browser/flags:java",
     "//chrome/browser/glic:public_java",
+    "//chrome/browser/glic/android:common_java",
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/signin/services/android:java",
     "//chrome/browser/sync/android:java",
@@ -83,13 +99,17 @@ android_library("java") {
     "//ui/android:ui_no_recycler_view_java",
     "//url:url_java",
   ]
-  public_deps = [ ":config_java" ]
+  public_deps = [
+    ":config_java",
+    ":metrics_java",
+  ]
 
   resources_package = "org.chromium.chrome.browser.ui.bottombar"
 }
 
 robolectric_library("junit") {
   sources = [
+    "java/src/org/chromium/chrome/browser/ui/bottombar/AppMenuActionButtonBinderUnitTest.java",
     "java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarButtonContainerUnitTest.java",
     "java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarButtonManagerUnitTest.java",
     "java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarConfigUtilsUnitTest.java",

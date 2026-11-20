@@ -29,11 +29,14 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/callback_utils.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
 #include "chrome/browser/web_applications/isolated_web_apps/install/non_installed_bundle_inspection_context.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_features.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/jobs/prepare_install_info_job.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_rotation_util.h"
+#include "chrome/browser/web_applications/isolated_web_apps/storage_util.h"
+#include "chrome/browser/web_applications/isolated_web_apps/trust_and_signature_verifier.h"
+#include "chrome/browser/web_applications/isolated_web_apps/update/version_change_validator.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
@@ -44,6 +47,7 @@
 #include "chrome/browser/web_applications/web_contents/web_contents_manager.h"
 #include "components/webapps/browser/web_contents/web_app_url_loader.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 
 namespace web_app {
@@ -85,15 +89,13 @@ IsolatedWebAppUpdatePrepareAndStoreCommand::
         std::unique_ptr<ScopedKeepAlive> optional_keep_alive,
         std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive,
         base::OnceCallback<
-            void(IsolatedWebAppUpdatePrepareAndStoreCommandResult)> callback,
-        std::unique_ptr<IsolatedWebAppInstallCommandHelper> command_helper)
+            void(IsolatedWebAppUpdatePrepareAndStoreCommandResult)> callback)
     : WebAppCommand<AppLock, IsolatedWebAppUpdatePrepareAndStoreCommandResult>(
           "IsolatedWebAppUpdatePrepareAndStoreCommand",
           AppLockDescription(url_info.app_id()),
           std::move(callback), /*args_for_shutdown=*/
           base::unexpected(IsolatedWebAppUpdatePrepareAndStoreCommandError{
               .message = "System is shutting down."})),
-      command_helper_(std::move(command_helper)),
       url_info_(std::move(url_info)),
       expected_version_(update_info.expected_version()),
       allow_downgrades_(update_info.allow_downgrades()),
@@ -247,8 +249,9 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::OnCopiedToProfileDirectory(
 
 void IsolatedWebAppUpdatePrepareAndStoreCommand::CheckTrustAndSignatures(
     base::OnceClosure next_step_callback) {
-  command_helper_->CheckTrustAndSignatures(
-      *destination_location_, IwaUpdateOperation{}, &profile(),
+  web_app::CheckTrustAndSignatures(
+      url_info_.web_bundle_id(), *destination_location_, IwaUpdateOperation{},
+      &profile(),
       base::BindOnce(&IsolatedWebAppUpdatePrepareAndStoreCommand::
                          OnTrustAndSignaturesChecked,
                      weak_factory_.GetWeakPtr(),
@@ -274,7 +277,8 @@ void IsolatedWebAppUpdatePrepareAndStoreCommand::OnTrustAndSignaturesChecked(
 
 void IsolatedWebAppUpdatePrepareAndStoreCommand::CreateStoragePartition(
     base::OnceClosure next_step_callback) {
-  command_helper_->CreateStoragePartitionIfNotPresent(profile());
+  profile().GetStoragePartition(url_info_.storage_partition_config(&profile()),
+                                /*can_create=*/true);
   std::move(next_step_callback).Run();
 }
 

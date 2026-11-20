@@ -2185,6 +2185,7 @@ $L$enc_key_ret:
 
 $L$SEH_end_aes_hw_set_encrypt_key_base_4:
 
+
 ALIGN	16
 $L$key_expansion_128:
 
@@ -2262,7 +2263,6 @@ $L$key_expansion_256b:
 	shufps	xmm1,xmm1,170
 	xorps	xmm2,xmm1
 	ret
-
 
 
 global	aes_hw_set_encrypt_key_alt

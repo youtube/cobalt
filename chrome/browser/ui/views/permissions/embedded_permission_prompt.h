@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/permissions/system/system_permission_settings.h"
 #include "chrome/browser/ui/views/permissions/embedded_permission_prompt_base_view.h"
@@ -20,8 +21,6 @@
 #include "components/permissions/permission_request.h"
 #include "components/permissions/request_type.h"
 
-class Browser;
-
 namespace content {
 class WebContents;
 }
@@ -31,8 +30,7 @@ class EmbeddedPermissionPrompt
       public EmbeddedPermissionPromptViewDelegate,
       public EmbeddedPermissionPromptContentScrimView::Delegate {
  public:
-  EmbeddedPermissionPrompt(Browser* browser,
-                           content::WebContents* web_contents,
+  EmbeddedPermissionPrompt(content::WebContents* web_contents,
                            permissions::PermissionPrompt::Delegate* delegate);
   ~EmbeddedPermissionPrompt() override;
   EmbeddedPermissionPrompt(const EmbeddedPermissionPrompt&) = delete;
@@ -66,7 +64,7 @@ class EmbeddedPermissionPrompt
   void SystemPermissionsNoLongerDenied() override;
   base::WeakPtr<permissions::PermissionPrompt::Delegate>
   GetPermissionPromptDelegate() const override;
-  const std::vector<base::WeakPtr<permissions::PermissionRequest>>& Requests()
+  const std::vector<base::SafeRef<permissions::PermissionRequest>>& Requests()
       const override;
 
   // EmbeddedPermissionPromptContentScrimView::Delegate:
@@ -109,7 +107,7 @@ class EmbeddedPermissionPrompt
   raw_ptr<permissions::PermissionPrompt::Delegate> delegate_;
 
   std::set<ContentSettingsType> prompt_types_;
-  std::vector<base::WeakPtr<permissions::PermissionRequest>> requests_;
+  std::vector<base::SafeRef<permissions::PermissionRequest>> requests_;
 
   std::unique_ptr<permissions::EmbeddedPermissionPromptFlowModel> prompt_model_;
   base::WeakPtrFactory<EmbeddedPermissionPrompt> weak_factory_{this};

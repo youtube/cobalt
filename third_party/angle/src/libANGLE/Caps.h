@@ -145,9 +145,6 @@ struct Limitations
     // http://anglebug.com/42266263
     bool noRasterOrderGroupWithoutAttachmentZero = false;
 
-    // PVRTC1 textures must be squares.
-    bool squarePvrtc1 = false;
-
     // ETC1 texture support is emulated.
     bool emulatedEtc1 = false;
 
@@ -156,6 +153,10 @@ struct Limitations
 
     // D3D does not support compressed textures where the base mip level is not a multiple of 4
     bool compressedBaseMipLevelMultipleOfFour = false;
+
+    // True if the underlying API uses `base instance + instance` as its native
+    // instance id representation.
+    bool instanceIdMayOverflow = false;
 
     // An extra limit for WebGL texture size. Ignored if 0.
     GLint webGLTextureSizeLimit = 0;

@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/environment/environment.h"
 #include "api/jsep.h"
@@ -33,6 +34,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_environment.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/pc/sctp/fake_sctp_transport.h"
@@ -118,6 +120,23 @@ class PeerConnectionDataChannelBaseTest : public ::testing::Test {
   WrapperPtr CreatePeerConnection(
       const RTCConfiguration& config,
       const PeerConnectionFactoryInterface::Options factory_options) {
+    return CreatePeerConnection(config, factory_options, "");
+  }
+
+  WrapperPtr CreatePeerConnection(absl::string_view field_trials) {
+    return CreatePeerConnection(RTCConfiguration(), field_trials);
+  }
+
+  WrapperPtr CreatePeerConnection(const RTCConfiguration& config,
+                                  absl::string_view field_trials) {
+    return CreatePeerConnection(
+        config, PeerConnectionFactoryInterface::Options(), field_trials);
+  }
+
+  WrapperPtr CreatePeerConnection(
+      const RTCConfiguration& config,
+      const PeerConnectionFactoryInterface::Options factory_options,
+      absl::string_view field_trials) {
     auto factory_deps = CreatePeerConnectionFactoryDependencies();
     FakeSctpTransportFactory* fake_sctp_transport_factory =
         static_cast<FakeSctpTransportFactory*>(factory_deps.sctp_factory.get());
@@ -128,8 +147,12 @@ class PeerConnectionDataChannelBaseTest : public ::testing::Test {
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     RTCConfiguration modified_config = config;
     modified_config.sdp_semantics = sdp_semantics_;
-    auto result = pc_factory->CreatePeerConnectionOrError(
-        modified_config, PeerConnectionDependencies(observer.get()));
+    PeerConnectionDependencies pc_deps(observer.get());
+    if (!field_trials.empty()) {
+      pc_deps.trials = CreateTestFieldTrialsPtr(field_trials);
+    }
+    auto result = pc_factory->CreatePeerConnectionOrError(modified_config,
+                                                          std::move(pc_deps));
     if (!result.ok()) {
       return nullptr;
     }
@@ -269,8 +292,10 @@ TEST_P(PeerConnectionDataChannelTest, SctpPortPropagatedFromSdpToTransport) {
   constexpr int kNewSendPort = 9998;
   constexpr int kNewRecvPort = 7775;
 
+  // Munging allowed: kDataChannelSctpPort (102)
   auto caller = CreatePeerConnectionWithDataChannel();
-  auto callee = CreatePeerConnectionWithDataChannel();
+  auto callee = CreatePeerConnectionWithDataChannel(
+      "WebRTC-NoSdpMangleAllowForTesting/Enabled,102/");
 
   std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   ChangeSctpPortOnDescription(offer->description(), kNewSendPort);

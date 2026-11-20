@@ -212,7 +212,7 @@ IN_PROC_BROWSER_TEST_F(GuestLoginTest, PRE_ExitFullscreenOnSuspend) {
 
 IN_PROC_BROWSER_TEST_F(GuestLoginTest, ExitFullscreenOnSuspend) {
   login_manager_.WaitForActiveSession();
-  BrowserWindow* browser_window = browser()->window();
+  BrowserWindow* browser_window = BrowserWindow::FromBrowser(browser());
   browser()
       ->GetFeatures()
       .exclusive_access_manager()

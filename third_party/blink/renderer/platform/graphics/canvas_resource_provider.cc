@@ -180,7 +180,7 @@ Canvas2DResourceProviderBitmap::Canvas2DResourceProviderBitmap(
     SkAlphaType alpha_type,
     const gfx::ColorSpace& color_space,
     const gfx::HDRMetadata& hdr_metadata,
-    CanvasResourceProvider::Delegate* delegate)
+    CanvasResourceProviderDelegate* delegate)
     : size_(size),
       format_(format),
       alpha_type_(alpha_type),
@@ -1654,7 +1654,7 @@ Canvas2DResourceProviderBitmap::CreateWithClear(
     SkAlphaType alpha_type,
     const gfx::ColorSpace& color_space,
     const gfx::HDRMetadata& hdr_metadata,
-    CanvasResourceProvider::Delegate* delegate) {
+    CanvasResourceProviderDelegate* delegate) {
   auto provider = base::WrapUnique<Canvas2DResourceProviderBitmap>(
       new Canvas2DResourceProviderBitmap(size, format, alpha_type, color_space,
                                          hdr_metadata, delegate));
@@ -1677,7 +1677,7 @@ Canvas2DResourceProviderSharedImage::CreateWithClear(
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
     RasterMode raster_mode,
     gpu::SharedImageUsageSet shared_image_usage_flags,
-    CanvasResourceProvider::Delegate* delegate) {
+    CanvasResourceProviderDelegate* delegate) {
   // IsGpuCompositingEnabled can re-create the context if it has been lost, do
   // this up front so that we can fail early and not expose ourselves to
   // use after free bugs (crbug.com/1126424)
@@ -1807,7 +1807,7 @@ Canvas2DResourceProviderSharedImage::CreateWithClearForSoftwareCompositor(
     const gfx::ColorSpace& color_space,
     const gfx::HDRMetadata& hdr_metadata,
     WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-    CanvasResourceProvider::Delegate* delegate) {
+    CanvasResourceProviderDelegate* delegate) {
   if (SharedGpuContext::IsGpuCompositingEnabled()) {
     return nullptr;
   }
@@ -1837,7 +1837,7 @@ CanvasNon2DResourceProviderSharedImage::Create(
     const gfx::HDRMetadata& hdr_metadata,
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
     gpu::SharedImageUsageSet shared_image_usage_flags,
-    CanvasResourceProvider::Delegate* delegate) {
+    CanvasResourceProviderDelegate* delegate) {
   // IsGpuCompositingEnabled can re-create the context if it has been lost, do
   // this up front so that we can fail early and not expose ourselves to
   // use after free bugs (crbug.com/1126424)
@@ -1952,7 +1952,7 @@ CanvasNon2DResourceProviderSharedImage::CreateForWebGPU(
     const gfx::ColorSpace& color_space,
     const gfx::HDRMetadata& hdr_metadata,
     gpu::SharedImageUsageSet shared_image_usage_flags,
-    CanvasResourceProvider::Delegate* delegate) {
+    CanvasResourceProviderDelegate* delegate) {
   auto context_provider_wrapper = SharedGpuContext::ContextProviderWrapper();
   // The SharedImages created by this provider serve as a means of import/export
   // between VideoFrames/canvas and WebGPU, e.g.:
@@ -1978,7 +1978,7 @@ CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
     const gfx::ColorSpace& color_space,
     const gfx::HDRMetadata& hdr_metadata,
     WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-    CanvasResourceProvider::Delegate* delegate) {
+    CanvasResourceProviderDelegate* delegate) {
   if (SharedGpuContext::IsGpuCompositingEnabled()) {
     return nullptr;
   }
@@ -2138,9 +2138,7 @@ bool CanvasImageProvider::IsHardwareDecodeCache() const {
   return raster_mode_ != cc::PlaybackImageProvider::RasterMode::kSoftware;
 }
 
-
-void CanvasResourceProvider::NotifyWillTransfer(
-    cc::PaintImage::ContentId content_id) {
+void NotifyImageBitmapWillTransfer(cc::PaintImage::ContentId content_id) {
   // This is called when an ImageBitmap is about to be transferred. All
   // references to such a bitmap on the current thread must be released, which
   // means that DisplayItemLists that reference it must be flushed.
@@ -2284,7 +2282,7 @@ Canvas2DResourceProviderSharedImage::Canvas2DResourceProviderSharedImage(
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
     bool is_accelerated,
     gpu::SharedImageUsageSet shared_image_usage_flags,
-    CanvasResourceProvider::Delegate* delegate)
+    CanvasResourceProviderDelegate* delegate)
     : is_accelerated_(is_accelerated),
       is_software_(false),
       context_provider_wrapper_(std::move(context_provider_wrapper)),
@@ -2426,7 +2424,7 @@ Canvas2DResourceProviderSharedImage::Canvas2DResourceProviderSharedImage(
     const gfx::ColorSpace& color_space,
     const gfx::HDRMetadata& hdr_metadata,
     WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-    CanvasResourceProvider::Delegate* delegate)
+    CanvasResourceProviderDelegate* delegate)
     : is_accelerated_(false),
       is_software_(true),
       shared_image_interface_provider_(
@@ -2593,7 +2591,7 @@ CanvasNon2DResourceProviderSharedImage::CanvasNon2DResourceProviderSharedImage(
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
     bool is_accelerated,
     gpu::SharedImageUsageSet shared_image_usage_flags,
-    CanvasResourceProvider::Delegate* delegate)
+    CanvasResourceProviderDelegate* delegate)
     : size_(size),
       format_(format),
       alpha_type_(alpha_type),
@@ -2694,7 +2692,7 @@ CanvasNon2DResourceProviderSharedImage::CanvasNon2DResourceProviderSharedImage(
     const gfx::ColorSpace& color_space,
     const gfx::HDRMetadata& hdr_metadata,
     WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-    CanvasResourceProvider::Delegate* delegate)
+    CanvasResourceProviderDelegate* delegate)
     : size_(size),
       format_(format),
       alpha_type_(alpha_type),
@@ -2886,11 +2884,7 @@ sk_sp<SkSurface> CanvasNon2DResourceProviderSharedImage::CreateSkSurface()
   return SkSurfaces::Raster(resource_->CreateSkImageInfo(), &props);
 }
 
-
-
-
-
-std::unique_ptr<CanvasResourceProvider>
+std::unique_ptr<Canvas2DResourceProviderBitmap>
 Canvas2DResourceProviderBitmap::CreateForTesting(
     gfx::Size size,
     const Canvas2DColorParams& color_params) {

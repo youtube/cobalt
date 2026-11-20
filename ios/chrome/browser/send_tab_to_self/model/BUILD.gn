@@ -96,10 +96,14 @@ source_set("user_data") {
   sources = [
     "send_tab_to_self_load_navigation_user_data.h",
     "send_tab_to_self_load_navigation_user_data.mm",
+    "send_tab_to_self_tab_card_label_data.h",
+    "send_tab_to_self_tab_card_label_data.mm",
   ]
   deps = [
     "//base",
+    "//ios/chrome/app/strings",
     "//ios/web/public",
+    "//ui/base",
     "//url",
   ]
 }
@@ -132,6 +136,7 @@ source_set("unit_tests") {
     "ios_send_tab_to_self_infobar_delegate_unittest.mm",
     "send_tab_push_notification_client_unittest.mm",
     "send_tab_to_self_browser_agent_unittest.mm",
+    "send_tab_to_self_tab_card_label_data_unittest.mm",
     "send_tab_to_self_tab_helper_unittest.mm",
     "send_tab_to_self_text_fragment_selector_generator_unittest.mm",
   ]

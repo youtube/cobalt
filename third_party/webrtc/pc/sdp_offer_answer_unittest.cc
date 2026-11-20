@@ -1247,7 +1247,9 @@ TEST_F(SdpOfferAnswerTest,
 }
 
 TEST_F(SdpOfferAnswerTest, AllowOnlyOneSsrcGroupPerSemanticAndPrimarySsrc) {
-  auto pc = CreatePeerConnection();
+  // Munging allowed: kUnknownModification (SSRC munging)
+  auto pc =
+      CreatePeerConnection("WebRTC-NoSdpMangleAllowForTesting/Enabled,1/");
 
   pc->AddAudioTrack("audio_track", {});
   pc->AddVideoTrack("video_track", {});

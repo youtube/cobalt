@@ -428,8 +428,11 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
-      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Disabled/");
+  // Munging allowed: kRtpHeaderExtensionAdded (41)
+  std::unique_ptr<PeerConnectionWrapper> pc =
+      CreatePeerConnection(media_type, semantics,
+                           "WebRTC-HeaderExtensionNegotiateMemory/Disabled/"
+                           "WebRTC-NoSdpMangleAllowForTesting/Enabled,41/");
   std::string sdp =
       "v=0\r\n"
       "o=- 0 3 IN IP4 127.0.0.1\r\n"
@@ -483,8 +486,11 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
-      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  // Munging allowed: kRtpHeaderExtensionAdded (41)
+  std::unique_ptr<PeerConnectionWrapper> pc =
+      CreatePeerConnection(media_type, semantics,
+                           "WebRTC-HeaderExtensionNegotiateMemory/Enabled/"
+                           "WebRTC-NoSdpMangleAllowForTesting/Enabled,41/");
   std::string sdp =
       "v=0\r\n"
       "o=- 0 3 IN IP4 127.0.0.1\r\n"
@@ -538,8 +544,9 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
-  std::unique_ptr<PeerConnectionWrapper> pc =
-      CreatePeerConnection(media_type, semantics);
+  // Munging allowed: kRtpHeaderExtensionAdded (41)
+  std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
+      media_type, semantics, "WebRTC-NoSdpMangleAllowForTesting/Enabled,41/");
   pc->AddTransceiver(media_type);
 
   std::unique_ptr<SessionDescriptionInterface> offer =

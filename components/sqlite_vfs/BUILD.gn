@@ -21,6 +21,7 @@ component("sqlite_vfs") {
     public = [
       "client.h",
       "constants.h",
+      "file_set_error.h",
       "file_type.h",
       "lock_state.h",
       "sandboxed_file.h",
@@ -78,6 +79,7 @@ source_set("unit_tests") {
       "shared_locks_unittest.cc",
       "sqlite_database_vfs_file_set_unittest.cc",
       "sqlite_sandboxed_vfs_unittest.cc",
+      "vfs_utils_unittest.cc",
     ]
 
     deps = [

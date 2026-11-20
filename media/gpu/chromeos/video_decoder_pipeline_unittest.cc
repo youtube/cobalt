@@ -4,10 +4,13 @@
 
 #include "media/gpu/chromeos/video_decoder_pipeline.h"
 
+#include <vector>
+
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -444,36 +447,47 @@ TEST_P(VideoDecoderPipelineTest, Initialize) {
             !!GetUnderlyingDecoder());
 }
 
-const struct DecoderPipelineTestParams kDecoderPipelineTestParams[] = {
-    // A CreateDecoderFunctionCB that fails to Create() (i.e. returns a
-    // null Decoder)
-    {base::BindRepeating(&VideoDecoderPipelineTest::CreateNullMockDecoder),
-     DecoderStatus::Codes::kFailedToCreateDecoder},
+const std::vector<DecoderPipelineTestParams>& GetDecoderPipelineTestParams() {
+  static const base::NoDestructor<std::vector<DecoderPipelineTestParams>> val(
+      std::vector<DecoderPipelineTestParams>{
+          // A CreateDecoderFunctionCB that fails to Create() (i.e. returns a
+          // null Decoder)
+          {base::BindRepeating(
+               &VideoDecoderPipelineTest::CreateNullMockDecoder),
+           DecoderStatus::Codes::kFailedToCreateDecoder},
 
-    // A CreateDecoderFunctionCB that works fine, i.e. Create()s and
-    // Initialize()s correctly.
-    {base::BindRepeating(&VideoDecoderPipelineTest::CreateGoodMockDecoder),
-     DecoderStatus::Codes::kOk},
+          // A CreateDecoderFunctionCB that works fine, i.e. Create()s and
+          // Initialize()s correctly.
+          {base::BindRepeating(
+               &VideoDecoderPipelineTest::CreateGoodMockDecoder),
+           DecoderStatus::Codes::kOk},
 
 #if BUILDFLAG(IS_CHROMEOS)
-    // A CreateDecoderFunctionCB for transcryption, where Create() is ok, and
-    // the decoder will Initialize OK, but then the pipeline will not create the
-    // transcryptor due to a missing CdmContext. This will succeed if called
-    // through InitializeForTranscrypt where a CdmContext is set.
-    {base::BindRepeating(
-         &VideoDecoderPipelineTest::CreateGoodMockTranscryptDecoder),
-     DecoderStatus::Codes::kUnsupportedEncryptionMode},
+          // A CreateDecoderFunctionCB for transcryption, where Create() is ok,
+          // and
+          // the decoder will Initialize OK, but then the pipeline will not
+          // create
+          // the
+          // transcryptor due to a missing CdmContext. This will succeed if
+          // called
+          // through InitializeForTranscrypt where a CdmContext is set.
+          {base::BindRepeating(
+               &VideoDecoderPipelineTest::CreateGoodMockTranscryptDecoder),
+           DecoderStatus::Codes::kUnsupportedEncryptionMode},
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-    // A CreateDecoderFunctionCB that Create()s ok but fails to Initialize()
-    // correctly.
-    {base::BindRepeating(&VideoDecoderPipelineTest::CreateBadMockDecoder),
-     DecoderStatus::Codes::kFailed},
-};
+          // A CreateDecoderFunctionCB that Create()s ok but fails to
+          // Initialize()
+          // correctly.
+          {base::BindRepeating(&VideoDecoderPipelineTest::CreateBadMockDecoder),
+           DecoderStatus::Codes::kFailed},
+      });
+  return *val;
+}
 
 INSTANTIATE_TEST_SUITE_P(All,
                          VideoDecoderPipelineTest,
-                         testing::ValuesIn(kDecoderPipelineTestParams));
+                         testing::ValuesIn(GetDecoderPipelineTestParams()));
 
 // Verifies that trying to Initialize() with a non-supported config fails.
 TEST_F(VideoDecoderPipelineTest, InitializeFailsDueToNotSupportedConfig) {

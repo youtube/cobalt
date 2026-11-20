@@ -87,6 +87,9 @@
   ChangeProfileContinuationProvider _continuationProvider;
   // Block to execute before a change in profile.
   ProceduralBlock _prepareChangeProfile;
+  // Block to confirm the user actually wants to change profile.
+  // Can be nil, which means the user always accepts.
+  SigninChangeProfileConfirmationBlock _confirmChangeProfile;
 }
 
 #pragma mark - Public
@@ -96,6 +99,8 @@
                        browser:(Browser*)browser
                   contextStyle:(SigninContextStyle)contextStyle
                    accessPoint:(signin_metrics::AccessPoint)accessPoint
+          confirmChangeProfile:
+              (SigninChangeProfileConfirmationBlock)confirmChangeProfile
           prepareChangeProfile:(ProceduralBlock)prepareChangeProfile
           continuationProvider:
               (const ChangeProfileContinuationProvider&)continuationProvider {
@@ -105,7 +110,8 @@
                                accessPoint:accessPoint];
   if (self) {
     _continuationProvider = continuationProvider;
-    _prepareChangeProfile = prepareChangeProfile;
+    _confirmChangeProfile = [confirmChangeProfile copy];
+    _prepareChangeProfile = [prepareChangeProfile copy];
   }
   return self;
 }
@@ -115,6 +121,8 @@
                               browser:(Browser*)browser
                          contextStyle:(SigninContextStyle)contextStyle
                           accessPoint:(signin_metrics::AccessPoint)accessPoint
+                 confirmChangeProfile:
+                     (SigninChangeProfileConfirmationBlock)confirmChangeProfile
                  prepareChangeProfile:(ProceduralBlock)prepareChangeProfile
                  continuationProvider:(const ChangeProfileContinuationProvider&)
                                           continuationProvider {
@@ -143,6 +151,7 @@
                          browser:browser
                     contextStyle:contextStyle
                      accessPoint:accessPoint
+            confirmChangeProfile:confirmChangeProfile
             prepareChangeProfile:prepareChangeProfile
             continuationProvider:continuationProvider];
 }
@@ -255,6 +264,8 @@
 #pragma mark - AnimatedCoordinator
 
 - (void)stopAnimated:(BOOL)animated {
+  _confirmChangeProfile = nil;
+  _prepareChangeProfile = nil;
   [self stopAlertCoordinator];
   [self stopAddAccountCoordinatorAnimated:animated];
   if (self.navigationController) {
@@ -439,6 +450,7 @@
       presentingViewController:self.navigationController
                     anchorView:nil
                     anchorRect:CGRectNull];
+  authenticationFlow.confirmChangeProfile = _confirmChangeProfile;
   [self.consistencyPromoSigninMediator
       signinWithAuthenticationFlow:authenticationFlow];
 }

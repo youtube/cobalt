@@ -9,11 +9,17 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
-import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
+import { microtasksFinished } from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {createContextualTasksAppElement, fixtureUrl, simulateLoadCommit} from './test_utils.js';
+import { createContextualTasksAppElement, fixtureUrl } from './contextual_tasks_test_utils.js';
 
+// <if expr="not is_android or enable_webui_contextual_tasks_composebox">
+import { isVisible } from 'chrome://webui-test/test_util.js';
+import { simulateLoadCommit } from './contextual_tasks_test_utils.js';
+// </if>
+
+// <if expr="not is_android or enable_webui_contextual_tasks_composebox">
 // Remove the element to prevent background loadabort events from triggering
 // a race condition with our manual event simulation.
 async function removeThreadFrameToPreventRaceConditions() {
@@ -26,6 +32,7 @@ async function removeThreadFrameToPreventRaceConditions() {
     await microtasksFinished();
   }
 }
+// </if> not is_android or enable_webui_contextual_tasks_composebox
 
 suite('ContextualTasksAppTest', function() {
   let initialUrl: string;
@@ -36,6 +43,11 @@ suite('ContextualTasksAppTest', function() {
   });
 
   setup(() => {
+    Object.defineProperty(window.navigator, 'onLine', {
+      get: () => true,
+      configurable: true,
+    });
+
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     if (initialUrl) {
       window.history.replaceState({}, '', initialUrl);
@@ -411,6 +423,7 @@ suite('ContextualTasksAppTest', function() {
     await microtasksFinished();
     assertTrue(appElement['darkMode_']);
   });
+  // <if expr="not is_android or enable_webui_contextual_tasks_composebox">
   test('isAiPage reflected in dom', async () => {
     const {appElement, proxy} = await createContextualTasksAppElement(
         /*url=*/ fixtureUrl,
@@ -431,6 +444,7 @@ suite('ContextualTasksAppTest', function() {
 
     assertTrue(appElement.hasAttribute('is-ai-page_'));
   });
+  // </if> not is_android or enable_webui_contextual_tasks_composebox
 
   // Disabled due to flakiness. See http://crbug.com/481936603.
   test.skip('copies source and aep params on new thread click', async () => {
@@ -500,6 +514,7 @@ suite('ContextualTasksAppTest', function() {
             true));
   });
 
+  // <if expr="not is_android or enable_webui_contextual_tasks_composebox">
   test('sends composebox height update', async () => {
     const {appElement} =
         await createContextualTasksAppElement(/*url=*/ fixtureUrl);
@@ -532,7 +547,7 @@ suite('ContextualTasksAppTest', function() {
 
     // Verify that the new composebox height is sent to the webview.
     assertDeepEquals(
-        {type: 'composebox-height-update', height: 123}, sentMessage);
+      { type: 'composebox-height-update', height: 123 }, sentMessage);
   });
 
   test(
@@ -581,9 +596,11 @@ suite('ContextualTasksAppTest', function() {
     // Verify styles applied
     assertEquals('absolute', composebox.style.position);
     assertEquals(
-        `${window.innerHeight - (frameRect.top + rect.bottom)}px`,
-        composebox.style.bottom);
-    assertEquals(`${frameRect.left + rect.left}px`, composebox.style.left);
+      `${(window.innerHeight - (frameRect.top + rect.bottom)).toFixed(3)}px`,
+      `${parseFloat(composebox.style.bottom).toFixed(3)}px`);
+    assertEquals(
+      `${(frameRect.left + rect.left).toFixed(3)}px`,
+      `${parseFloat(composebox.style.left).toFixed(3)}px`);
     assertEquals(`${rect.width}px`, composebox.style.width);
     assertEquals('', composebox.style.height);
 
@@ -642,9 +659,11 @@ suite('ContextualTasksAppTest', function() {
 
     assertEquals('fixed', composebox.style.position);
     assertEquals(
-        `${window.innerHeight - (frameRect.top + rect.bottom)}px`,
-        composebox.style.bottom);
-    assertEquals(`${frameRect.left + rect.left}px`, composebox.style.left);
+      `${(window.innerHeight - (frameRect.top + rect.bottom)).toFixed(3)}px`,
+      `${parseFloat(composebox.style.bottom).toFixed(3)}px`);
+    assertEquals(
+      `${(frameRect.left + rect.left).toFixed(3)}px`,
+      `${parseFloat(composebox.style.left).toFixed(3)}px`);
     assertEquals(`${rect.width}px`, composebox.style.width);
     assertEquals('', composebox.style.height);
   });
@@ -904,6 +923,7 @@ suite('ContextualTasksAppTest', function() {
     assertTrue(
         clipPath.includes('path'), 'clip-path should contain path');
   });
+  // </if> not is_android or enable_webui_contextual_tasks_composebox
 
   test('sets isFrameLoading to false when content load finishes', async () => {
     const {appElement} = await createContextualTasksAppElement(
@@ -1008,6 +1028,7 @@ suite('ContextualTasksAppTest', function() {
             'isLoadError_ should be true if it was an error document');
       });
 
+  // <if expr="not is_android or enable_webui_contextual_tasks_composebox">
   test(
       'does not reset forced composebox bounds if navigation aborts',
       async () => {
@@ -1055,6 +1076,7 @@ suite('ContextualTasksAppTest', function() {
         // Bounds should still be present.
         assertDeepEquals(boundsBeforeNav, appElement.getForcedComposeboxBoundsForTesting()!);
       });
+  // </if> not is_android or enable_webui_contextual_tasks_composebox
 
   test(
       'leaves isLoadError false if load abort does not contain error document',
@@ -1126,6 +1148,7 @@ suite('ContextualTasksAppTest', function() {
     assertEquals('another', url.searchParams.get('hl'));
   });
 
+  // <if expr="not is_android or enable_webui_contextual_tasks_composebox">
   test('composebox hidden when isAimEligible is false', async () => {
     loadTimeData.overrideValues({
       isAimEligible: false,
@@ -1181,6 +1204,7 @@ suite('ContextualTasksAppTest', function() {
 
     assertTrue(wrapper.hasAttribute('hidden'));
   });
+  // </if> not is_android or enable_webui_contextual_tasks_composebox
 
   test(
       'does not initialize WindowManager when windowTrackingEnabled is false',

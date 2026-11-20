@@ -1407,7 +1407,8 @@ class AutocompleteMediator
 
     boolean shouldAnimateFuseboxPopover() {
         return mFuseboxCoordinator.getFuseboxStateSupplier().get() != FuseboxState.DISABLED
-                && mEmbedder.isTablet();
+                && mEmbedder.isTablet()
+                && !OmniboxCapabilities.isDesktopPlatform();
     }
 
     private @FuseboxLayoutMode int getFuseboxLayoutMode() {

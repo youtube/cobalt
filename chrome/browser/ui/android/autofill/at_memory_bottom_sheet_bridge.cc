@@ -91,6 +91,13 @@ void AtMemoryBottomSheetBridge::RequestShowContent(
                                       std::move(java_suggestions));
 }
 
+void AtMemoryBottomSheetBridge::Hide() {
+  if (java_object_) {
+    Java_AtMemoryBottomSheetBridge_hide(base::android::AttachCurrentThread(),
+                                        java_object_);
+  }
+}
+
 void AtMemoryBottomSheetBridge::OnDismissed(JNIEnv* env) {
   if (delegate_) {
     delegate_->OnDismissed();
@@ -102,6 +109,13 @@ void AtMemoryBottomSheetBridge::OnQuerySubmitted(JNIEnv* env,
                                                  const std::u16string& query) {
   if (delegate_) {
     delegate_->OnQuerySubmitted(query);
+  }
+}
+
+void AtMemoryBottomSheetBridge::OnSuggestionSelected(JNIEnv* env,
+                                                     int position) {
+  if (delegate_) {
+    delegate_->OnSuggestionSelected(position);
   }
 }
 

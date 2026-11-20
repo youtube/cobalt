@@ -23,6 +23,7 @@
 #include "init.h"
 #include "sentencepiece_processor.h"
 #include "absl/flags/flag.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 
@@ -37,8 +38,8 @@ namespace sentencepiece {
 namespace {
 
 std::string ToHexUInt64Array(
-    const std::vector<std::pair<std::string, std::string>> &data,
-    std::vector<size_t> *offset) {
+    const std::vector<std::pair<std::string, std::string>>& data,
+    std::vector<size_t>* offset) {
   std::stringstream os;
   os.setf(std::ios_base::hex, std::ios_base::basefield);
   os.setf(std::ios_base::uppercase);
@@ -47,14 +48,14 @@ std::string ToHexUInt64Array(
   os.unsetf(std::ios_base::showbase);
 
   size_t num = 0;
-  for (const auto &p : data) {
-    const char *begin = p.second.data();
-    const char *end = p.second.data() + p.second.size();
+  for (const auto& p : data) {
+    const char* begin = p.second.data();
+    const char* end = p.second.data() + p.second.size();
 
     offset->push_back(num);
     while (begin < end) {
       unsigned long long int n = 0;
-      unsigned char *buf = reinterpret_cast<unsigned char *>(&n);
+      unsigned char* buf = reinterpret_cast<unsigned char*>(&n);
       const size_t size = std::min<size_t>(end - begin, sizeof(n));
       for (size_t i = 0; i < size; ++i) {
         buf[i] = static_cast<unsigned char>(begin[i]);
@@ -71,9 +72,9 @@ std::string ToHexUInt64Array(
 }
 
 std::string ToHexData(absl::string_view data) {
-  const char *begin = data.data();
-  const char *end = data.data() + data.size();
-  constexpr char kHex[] = "0123456789ABCDEF";
+  const char* begin = data.data();
+  const char* end = data.data() + data.size();
+  constexpr absl::string_view kHex = "0123456789ABCDEF";
   constexpr size_t kNumOfBytesOnOneLine = 20;
 
   size_t output_count = 0;
@@ -101,7 +102,7 @@ std::string ToHexData(absl::string_view data) {
 }
 
 std::string MakeHeader(
-    const std::vector<std::pair<std::string, std::string>> &data) {
+    const std::vector<std::pair<std::string, std::string>>& data) {
   constexpr char kHeader[] =
       R"(#ifndef NORMALIZATION_RULE_H_
 #define NORMALIZATION_RULE_H_
@@ -127,11 +128,12 @@ struct BinaryBlob {
   os << kHeader;
 
   os << "#if defined(_WIN32) && !defined(__CYGWIN__)\n";
-  os << "constexpr unsigned long long int kNormalizationRules_blob_uint64_t[] = "
+  os << "constexpr unsigned long long int kNormalizationRules_blob_uint64_t[] "
+        "= "
         "{\n";
   std::vector<size_t> offset;
   os << ToHexUInt64Array(data, &offset);
-  ABSL_CHECK_EQ(offset.size(), data.size());
+  ABSL_QCHECK_EQ(offset.size(), data.size());
   os << "};\n\n";
   os << "const BinaryBlob kNormalizationRules_blob[] = {\n";
   for (size_t i = 0; i < data.size(); ++i) {
@@ -158,13 +160,12 @@ struct BinaryBlob {
 }  // namespace
 }  // namespace sentencepiece
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   sentencepiece::ScopedResourceDestructor cleaner;
   sentencepiece::ParseCommandLineFlags(argv[0], &argc, &argv, true);
 
-  const std::vector<std::pair<
-      std::string,
-      std::function<sentencepiece::util::Status(Builder::CharsMap *)>>>
+  const std::vector<
+      std::pair<std::string, std::function<absl::Status(Builder::CharsMap*)>>>
       kRuleList = {{"nfkc", Builder::BuildNFKCMap},
                    {"nmt_nfkc", Builder::BuildNmtNFKCMap},
                    {"nfkc_cf", Builder::BuildNFKC_CFMap},
@@ -177,16 +178,17 @@ int main(int argc, char **argv) {
                    {"nfd_cf", Builder::BuildNFD_CFMap}};
 
   std::vector<std::pair<std::string, std::string>> data;
-  for (const auto &[name, func] : kRuleList) {
+  for (const auto& [name, func] : kRuleList) {
     Builder::CharsMap normalized_map;
-    ABSL_CHECK_OK(func(&normalized_map));
+    ABSL_QCHECK_OK(func(&normalized_map));
 
     // Write Header.
     std::string index;
-    ABSL_CHECK_OK(Builder::CompileCharsMap(normalized_map, &index));
+    ABSL_QCHECK_OK(Builder::CompileCharsMap(normalized_map, &index));
 
     // Write TSV file.
-    ABSL_CHECK_OK(Builder::SaveCharsMap(absl::StrCat(name, ".tsv"), normalized_map));
+    ABSL_QCHECK_OK(
+        Builder::SaveCharsMap(absl::StrCat(name, ".tsv"), normalized_map));
 
     // Do not make NFKD map as it is optionally created.
     if (name == "nfkd" || name == "nfd" || name == "nfc" || name == "nfkd_cf" ||
@@ -201,12 +203,12 @@ int main(int argc, char **argv) {
     constexpr char kPrecompiledHeaderFileName[] = "normalization_rule.h";
     auto output =
         sentencepiece::filesystem::NewWritableFile(kPrecompiledHeaderFileName);
-    ABSL_CHECK_OK(output->status());
+    ABSL_QCHECK_OK(output->status());
     output->Write(sentencepiece::MakeHeader(data));
   }
 
   if (absl::GetFlag(FLAGS_output_precompiled_data)) {
-    for (const auto &[name, index] : data) {
+    for (const auto& [name, index] : data) {
       const auto filename = absl::StrCat(name, ".bin");
       auto output = sentencepiece::filesystem::NewWritableFile(
           filename, true /* is_binary */);

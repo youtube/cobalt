@@ -65,6 +65,10 @@ source_set("libc++abi") {
   # TODO(crbug.com/469458284): Remove this once libc++abi is rolled again.
   defines += [ "_LIBCPP_CONSTINIT=constinit" ]
 
+  if ((is_linux || is_android) && !is_cobalt_hermetic_build) {
+    defines += [ "_LIBCXXABI_USE_FUTEX" ]
+  }
+
   if (is_fuchsia || (is_posix && !is_apple)) {
     sources += [ "//third_party/libc++abi/src/src/cxa_thread_atexit.cpp" ]
 

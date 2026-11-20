@@ -6,6 +6,7 @@
 
 #include "base/notreached.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
+#include "content/browser/renderer_host/initiator_navigation_state_impl.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -147,7 +148,7 @@ void FencedFrame::Navigate(
       /*initiator_frame_token=*/nullptr,
       content::ChildProcessHost::kInvalidUniqueID, initiator_origin,
       /*initiator_base_url=*/std::nullopt,
-      /*source_site_instance=*/nullptr, content::Referrer(),
+      /*initiator_navigation_state=*/nullptr, content::Referrer(),
       ui::PAGE_TRANSITION_AUTO_SUBFRAME,
       /*should_replace_current_entry=*/true, download_policy, "GET",
       /*post_body=*/nullptr, /*extra_headers=*/"",
@@ -161,8 +162,7 @@ void FencedFrame::Navigate(
       /*is_embedder_initiated_fenced_frame_navigation=*/true,
       /*is_unfenced_top_navigation=*/false,
       /*force_new_browsing_instance=*/true, /*is_container_initiated=*/false,
-      /*has_rel_opener=*/false,
-      embedder_shared_storage_context);
+      /*has_rel_opener=*/false, embedder_shared_storage_context);
 }
 
 bool FencedFrame::IsHidden() {

@@ -823,7 +823,8 @@ base::OnceClosure OutOfProcessNetworkFetcher::DownloadToFile(
       base::BindOnce(
           [](const base::FilePath& file_path) {
             return base::File(file_path, base::File::FLAG_OPEN_ALWAYS |
-                                             base::File::FLAG_WRITE);
+                                             base::File::FLAG_WRITE |
+                                             base::File::FLAG_NO_FOLLOW);
           },
           file_path),
       base::BindOnce(&OutOfProcessNetworkFetcher::DoDownloadFile,

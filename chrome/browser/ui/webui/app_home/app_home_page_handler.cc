@@ -520,7 +520,8 @@ void AppHomePageHandler::UninstallWebApp(const std::string& web_app_id) {
   Browser* browser = GetCurrentBrowser();
   CHECK(browser);
   web_app_provider_->ui_manager().PresentUserUninstallDialog(
-      web_app_id, webapps::WebappUninstallSource::kAppsPage, browser->window(),
+      web_app_id, webapps::WebappUninstallSource::kAppsPage,
+      BrowserWindow::FromBrowser(browser),
       std::move(uninstall_success_callback));
   return;
 }

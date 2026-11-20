@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -297,7 +298,7 @@ class IntentPickerBubbleViewBrowserTestChromeOSBase
     app_info.emplace_back(apps::PickerEntryType::kArc, ui::ImageModel(),
                           "package_2", "dank_app_2");
 
-    browser()->window()->ShowIntentPickerBubble(
+    BrowserWindow::FromBrowser(browser())->ShowIntentPickerBubble(
         std::move(app_info), /*show_stay_in_chrome=*/true,
         /*show_remember_selection=*/true,
         IntentPickerBubbleView::BubbleType::kLinkCapturing, std::nullopt,

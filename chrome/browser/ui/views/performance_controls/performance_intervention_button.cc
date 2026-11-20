@@ -10,12 +10,11 @@
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "chrome/app/vector_icons/vector_icons.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
 #include "chrome/browser/ui/performance_controls/performance_intervention_button_controller.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/performance_controls/performance_intervention_bubble.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/grit/generated_resources.h"
@@ -30,11 +29,11 @@
 #include "ui/views/widget/widget.h"
 
 PerformanceInterventionButton::PerformanceInterventionButton(
-    BrowserView* browser_view)
+    BrowserWindowInterface* browser)
     : ToolbarButton(
           base::BindRepeating(&PerformanceInterventionButton::OnClicked,
                               base::Unretained(this))),
-      browser_view_(browser_view) {
+      browser_(browser) {
   button_controller()->set_notify_action(
       views::ButtonController::NotifyAction::kOnPress);
   SetFlipCanvasOnPaintForRTLUI(false);
@@ -47,7 +46,7 @@ PerformanceInterventionButton::PerformanceInterventionButton(
   SetVisible(false);
 
   controller_ = std::make_unique<PerformanceInterventionButtonController>(
-      this, browser_view->browser());
+      this, browser_.get());
 
   if (menu_model()) {
     GetViewAccessibility().SetHasPopup(ax::mojom::HasPopup::kMenu);
@@ -126,8 +125,8 @@ void PerformanceInterventionButton::OnClicked() {
 
 void PerformanceInterventionButton::CreateBubble() {
   CHECK(GetWidget());
-  bubble_dialog_model_host_ = PerformanceInterventionBubble::CreateBubble(
-      browser_view_->browser(), this, controller_.get());
+  bubble_dialog_model_host_ =
+      PerformanceInterventionBubble::CreateBubble(this, controller_.get());
   scoped_widget_observation_.Observe(bubble_dialog_model_host_->GetWidget());
 }
 

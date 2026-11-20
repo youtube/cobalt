@@ -6674,21 +6674,11 @@ class TurboshaftGraphBuildingInterface
         has_memory_ = true;
 #endif
         const WasmMemory& mem = mod->memories[0];
-        memory_can_grow_ = mem.initial_pages != mem.maximum_pages;
-        // For now, we don't cache the size of shared growable memories.
-        // If we wanted to support this case, we would have to reload the
-        // memory size when loop stack checks detect an interrupt request.
-        // Since memory size caching is particularly important for asm.js,
-        // which never uses growable or shared memories, this limitation is
-        // considered acceptable for now.
-        memory_size_cached_ =
-            mem.is_shared == SharedFlag::kNo || !memory_can_grow_;
-        // Trap handler enabled memories never move.
-        // Memories that can't grow have no reason to move.
-        // Shared memories can only be grown in-place.
-        memory_can_move_ = mem.bounds_checks != kTrapHandler &&
-                           memory_can_grow_ && mem.is_shared == SharedFlag::kNo;
+        memory_can_grow_ = mem.can_grow();
+        memory_can_move_ = mem.can_move();
         memory_is_shared_ = mem.is_shared == SharedFlag::kYes;
+        memory_size_cached_ =
+            mem.is_shared == SharedFlag::kNo && !memory_can_grow_;
         if (memory_size_cached_) {
           mem_size_ = LoadMemSize();
         }
@@ -6699,7 +6689,7 @@ class TurboshaftGraphBuildingInterface
     // TODO(14108): Port the dynamic "cached_memory_index" infrastructure
     // from Turbofan.
     void ReloadCachedMemory() {
-      if (memory_can_move()) mem_start_ = LoadMemStart();
+      if (memory_can_move_) mem_start_ = LoadMemStart();
       if (memory_can_grow_ && memory_size_cached_) mem_size_ = LoadMemSize();
     }
 
@@ -6715,6 +6705,11 @@ class TurboshaftGraphBuildingInterface
       if (!memory_size_cached_) return LoadMemSize();
       return mem_size_;
     }
+    void set_memory0_start(V<WordPtr> start) { mem_start_ = start; }
+    void set_memory0_size(V<WordPtr> size) { mem_size_ = size; }
+    bool memory_can_grow() const { return memory_can_grow_; }
+    bool memory_can_move() const { return memory_can_move_; }
+    bool memory_size_cached() const { return memory_size_cached_; }
 
    private:
     static constexpr uint8_t kUnused = ~uint8_t{0};
@@ -6725,7 +6720,7 @@ class TurboshaftGraphBuildingInterface
       // eliminable: shared memories never move, and non-shared memories can't
       // have their start modified by other threads.
       LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
-      if (!memory_can_move()) kind = kind.Immutable();
+      if (!memory_can_move_) kind = kind.Immutable();
       return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
                      WasmTrustedInstanceData::kMemory0StartOffset);
     }
@@ -6742,8 +6737,6 @@ class TurboshaftGraphBuildingInterface
       return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
                      WasmTrustedInstanceData::kMemory0SizeOffset);
     }
-
-    bool memory_can_move() { return memory_can_move_; }
 
     // For compatibility with `__` macro.
     Assembler& Asm() { return asm_; }
@@ -8488,7 +8481,39 @@ class TurboshaftGraphBuildingInterface
 
   void StackCheck(WasmStackCheckOp::Kind kind, FullDecoder* decoder) {
     if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
-    __ WasmStackCheck(kind);
+    bool needs_memory_update = false;
+    bool can_move = false;
+    bool can_grow_and_cached = false;
+    if (kind == WasmStackCheckOp::Kind::kLoop &&
+        !decoder->module_->memories.empty()) {
+      can_move = instance_cache_.memory_can_move();
+      can_grow_and_cached = instance_cache_.memory_can_grow() &&
+                            instance_cache_.memory_size_cached();
+      needs_memory_update = can_move || can_grow_and_cached;
+    }
+    if (needs_memory_update) {
+      V<WasmTrustedInstanceData> instance =
+          instance_cache_.trusted_instance_data();
+      V<WordPtr> start_input =
+          can_move ? instance_cache_.memory0_start() : V<WordPtr>::Invalid();
+      V<WordPtr> size_input = can_grow_and_cached
+                                  ? instance_cache_.memory0_size()
+                                  : V<WordPtr>::Invalid();
+      OpIndex updated =
+          __ WasmStackCheck(kind, instance, start_input, size_input);
+      if (can_move && can_grow_and_cached) {
+        V<Tuple<WordPtr, WordPtr>> tuple =
+            V<Tuple<WordPtr, WordPtr>>::Cast(updated);
+        instance_cache_.set_memory0_start(__ Projection<0>(tuple));
+        instance_cache_.set_memory0_size(__ Projection<1>(tuple));
+      } else if (can_move) {
+        instance_cache_.set_memory0_start(V<WordPtr>::Cast(updated));
+      } else if (can_grow_and_cached) {
+        instance_cache_.set_memory0_size(V<WordPtr>::Cast(updated));
+      }
+    } else {
+      __ WasmStackCheck(kind);
+    }
   }
 
  private:

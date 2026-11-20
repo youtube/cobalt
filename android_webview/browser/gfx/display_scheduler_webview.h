@@ -56,7 +56,8 @@ class DisplaySchedulerWebView : public viz::DisplaySchedulerBase,
       std::optional<viz::PossibleDeadline> deadline) override {}
 
   // DisplayDamageTracker::Delegate implementation.
-  void OnDisplayDamaged(viz::SurfaceId surface_id) override;
+  void OnDisplayDamaged(viz::SurfaceId surface_id,
+                        viz::BeginFrameId frame_id) override;
   void OnRootFrameMissing(bool missing) override {}
   void OnPendingSurfacesChanged() override {}
 

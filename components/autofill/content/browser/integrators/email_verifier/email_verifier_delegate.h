@@ -41,7 +41,8 @@ enum class EvpAutofillFlowResult {
   kVerificationFailed = 8,
   kManagerDestroyed = 9,
   kTokenSentToRenderer = 10,
-  kMaxValue = kTokenSentToRenderer,
+  kDriverInactive = 11,
+  kMaxValue = kDriverInactive,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/blink/enums.xml:EvpAutofillFlowResult)
 

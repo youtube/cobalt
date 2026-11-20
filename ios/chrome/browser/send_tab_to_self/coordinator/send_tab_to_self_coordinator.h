@@ -10,6 +10,9 @@
 @protocol SigninPresenter;
 
 class GURL;
+namespace send_tab_to_self {
+enum class ShareEntryPoint;
+}
 @protocol SendTabToSelfCoordinatorDelegate;
 
 // Displays the send tab to self UI for all device form factors. Will show a
@@ -24,7 +27,9 @@ class GURL;
                          browser:(Browser*)browser
                  signinPresenter:(id<SigninPresenter>)signinPresenter
                              url:(const GURL&)url
-                           title:(NSString*)title NS_DESIGNATED_INITIALIZER;
+                           title:(NSString*)title
+                      entryPoint:(send_tab_to_self::ShareEntryPoint)entryPoint
+    NS_DESIGNATED_INITIALIZER;
 
 - (id)initWithBaseViewController:(UIViewController*)baseViewController
                          browser:(Browser*)browser NS_UNAVAILABLE;

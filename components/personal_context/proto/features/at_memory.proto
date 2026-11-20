@@ -70,6 +70,11 @@ message AtMemorySearchResult {
   // of the UI suggestion. Ordered by relevance, starting from most helpful
   // ones.
   repeated Attribute secondary_attributes = 3;
+
+  // The relevance score of the result, between 0 and 1. AtMemorySearchResult
+  // will be returned sorted by relevance score. This score is returned to the
+  // client for additional sorting and deduping if needed.
+  float relevance_score = 4;
 }
 
 message Attribute {

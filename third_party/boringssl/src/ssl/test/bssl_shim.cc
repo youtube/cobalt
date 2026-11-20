@@ -716,12 +716,6 @@ static bool CheckHandshakeProperties(SSL *ssl, bool is_resume,
     return false;
   }
 
-  if (config->expect_key_usage_invalid != !!SSL_was_key_usage_invalid(ssl)) {
-    fprintf(stderr, "X.509 key usage was %svalid, but wanted opposite.\n",
-            SSL_was_key_usage_invalid(ssl) ? "in" : "");
-    return false;
-  }
-
   if (const auto &expected = config->expect_peer_certificate_type;
       expected.has_value()) {
     const uint8_t negotiated = SSL_get_peer_cert_type(ssl);

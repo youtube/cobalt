@@ -1862,7 +1862,7 @@ TEST_F(NewTabPageHandlerHaTSTest, ModuleInteractionTriggersHaTS) {
         .Times(1)
         .WillOnce(DoAll(SaveArg<2>(&timeout_ms),
                         SaveArg<8>(&supplied_trigger_id),
-                        testing::Return(true)));
+                        testing::Return(HatsService::LaunchError::kNone)));
 
     if (interaction == "disable") {
       handler_->SetModulesDisabled({kSampleModuleId}, /*disabled=*/true,
@@ -1903,7 +1903,7 @@ TEST_F(NewTabPageHandlerHaTSTest, IgnoredModuleTriggersHaTS) {
                                                 _, _, _, _))
       .Times(1)
       .WillOnce(DoAll(SaveArg<2>(&timeout_ms), SaveArg<8>(&supplied_trigger_id),
-                      testing::Return(true)));
+                      testing::Return(HatsService::LaunchError::kNone)));
   const std::vector<std::string> module_ids = {
       NewTabPageHandlerHaTSTest::kSampleModuleId};
   handler_->OnModulesLoadedWithData(module_ids);

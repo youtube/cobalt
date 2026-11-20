@@ -39,6 +39,17 @@ bool VSyncProviderMac::IsDisplayLinkInBrowserValid(int64_t vsync_display_id) {
   }
 }
 
+std::vector<int64_t> VSyncProviderMac::GetSupportedDisplayLinkIds() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(vsync_sequence_checker_);
+
+  std::vector<int64_t> display_ids;
+  for (auto callback_list : callback_lists_) {
+    int64_t id = callback_list.first;
+    display_ids.push_back(id);
+  }
+  return display_ids;
+}
+
 void VSyncProviderMac::SetSupportedDisplayLinkId(int64_t vsync_display_id,
                                                  bool is_supported) {
   CGDirectDisplayID display_id =

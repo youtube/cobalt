@@ -12,7 +12,7 @@ import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {fixtureUrl} from './test_utils.js';
+import {fixtureUrl} from './contextual_tasks_test_utils.js';
 
 suite('ContextualTasksWebviewTest', function() {
 

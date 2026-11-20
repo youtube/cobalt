@@ -112,6 +112,10 @@ void MediaSessionServiceImpl::SetMetadata(
 
 void MediaSessionServiceImpl::SetMicrophoneState(
     media_session::mojom::MicrophoneState microphone_state) {
+  if (!media_session::mojom::IsKnownEnumValue(microphone_state)) {
+    mojo::ReportBadMessage("Attempted to set invalid microphone state");
+    return;
+  }
   microphone_state_ = microphone_state;
   if (media_session_) {
     media_session_->OnMediaSessionInfoChanged(this);
@@ -120,6 +124,10 @@ void MediaSessionServiceImpl::SetMicrophoneState(
 
 void MediaSessionServiceImpl::SetCameraState(
     media_session::mojom::CameraState camera_state) {
+  if (!media_session::mojom::IsKnownEnumValue(camera_state)) {
+    mojo::ReportBadMessage("Attempted to set invalid camera state");
+    return;
+  }
   camera_state_ = camera_state;
   if (media_session_) {
     media_session_->OnMediaSessionInfoChanged(this);

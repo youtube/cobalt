@@ -14,7 +14,13 @@
 #include "services/webnn/public/mojom/webnn_compiler_context.mojom.h"
 #include "services/webnn/public/mojom/webnn_compiler_service.mojom.h"
 
+namespace base {
+class FilePath;
+}
+
 namespace webnn {
+
+struct EpDeviceInfo;
 
 // Maintains a set of WebNNCompilerContext instances. Runs in the WebNN Compiler
 // utility process.
@@ -36,7 +42,8 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNCompilerServiceImpl
   void CreateCompilerContext(
       mojom::CreateContextOptionsPtr context_options,
       const ContextProperties& context_properties,
-      base::flat_map<std::string, mojom::EpPackageInfoPtr> ep_package_info,
+      const base::FilePath& ep_library_path,
+      const EpDeviceInfo& target_device,
       mojo::PendingRemote<mojom::WebNNModelLoader> model_loader,
       mojo::PendingReceiver<mojom::WebNNCompilerContext> receiver) override;
 

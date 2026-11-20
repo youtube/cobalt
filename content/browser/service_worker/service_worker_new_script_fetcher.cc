@@ -96,6 +96,11 @@ void ServiceWorkerNewScriptFetcher::Start(StartCallback callback) {
 
 void ServiceWorkerNewScriptFetcher::StartScriptLoadingWithNewResourceID(
     int64_t resource_id) {
+  if (resource_id == blink::mojom::kInvalidServiceWorkerResourceId) {
+    std::move(callback_).Run(std::nullopt);
+    return;
+  }
+
   BrowserContext* browser_context = context_->wrapper()->browser_context();
   if (!browser_context) {
     std::move(callback_).Run(std::nullopt);

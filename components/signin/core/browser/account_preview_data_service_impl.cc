@@ -14,8 +14,6 @@
 #include "components/signin/core/browser/account_preview_metrics_recorder.h"
 #include "components/signin/public/base/persistent_repeating_timer.h"
 #include "components/signin/public/base/signin_pref_names.h"
-#include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
-#include "components/signin/public/identity_manager/identity_utils.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace signin {
@@ -111,53 +109,7 @@ void AccountPreviewDataServiceImpl::OnRefreshTokensLoaded() {
   }
 }
 
-void AccountPreviewDataServiceImpl::MaybeClearInvalidAccountPreviewData(
-    const AccountsInCookieJarInfo& accounts_in_cookie_jar_info) {
-  if (!accounts_in_cookie_jar_info.AreAccountsFresh()) {
-    return;
-  }
 
-  // All accounts that have valid cookies. For those accounts, we will keep
-  // their corresponding AccountPreviewData.
-  const base::flat_set<GaiaId> gaia_ids_to_keep =
-      GetAllGaiaIdsForKeyedPreferences(identity_manager_.get(),
-                                       accounts_in_cookie_jar_info);
-
-  // Gather all gaia_id keys that do not have valid cookies, those will have
-  // their data removed in the next step.
-  std::vector<GaiaId> accounts_prefs_to_remove;
-  for (const auto& [gaia_id, data] : cached_data_) {
-    if (!gaia_ids_to_keep.contains(gaia_id)) {
-      accounts_prefs_to_remove.push_back(gaia_id);
-    }
-  }
-
-  // Remove the account prefs/data that should not be kept.
-  for (const GaiaId& account_prefs_to_remove : accounts_prefs_to_remove) {
-    cached_data_.erase(account_prefs_to_remove);
-  }
-}
-
-void AccountPreviewDataServiceImpl::OnPrimaryAccountChanged(
-    const PrimaryAccountChangeEvent& event) {
-  switch (event.GetEventTypeFor(ConsentLevel::kSignin)) {
-    case PrimaryAccountChangeEvent::Type::kSet:
-    case PrimaryAccountChangeEvent::Type::kNone:
-      break;
-    case PrimaryAccountChangeEvent::Type::kCleared:
-      // When clearing the primary account, if the account is already removed
-      // from the cookie jar, we should remove the prefs as well.
-      MaybeClearInvalidAccountPreviewData(
-          identity_manager_->GetAccountsInCookieJar());
-      break;
-  }
-}
-
-void AccountPreviewDataServiceImpl::OnAccountsInCookieUpdated(
-    const AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
-    const GoogleServiceAuthError& error) {
-  MaybeClearInvalidAccountPreviewData(accounts_in_cookie_jar_info);
-}
 
 void AccountPreviewDataServiceImpl::OnIdentityManagerShutdown(
     IdentityManager* identity_manager) {

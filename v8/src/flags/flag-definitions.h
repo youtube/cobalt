@@ -608,9 +608,10 @@ DEFINE_BOOL_READONLY(local_off_stack_check,
 // stage them yet. Once sufficiently stable, they should be moved to
 // --future, --wasm-staging or a similar flag that indicates its readiness
 // for staging.
-DEFINE_BOOL(experimental_fuzzing, false,
-            "Implies all experimental pre-staged features that can already be "
-            "fuzzed but are not ready for staging yet.")
+DEFINE_EXPERIMENTAL_FEATURE(
+    experimental_fuzzing,
+    "Implies all experimental pre-staged features that can already be "
+    "fuzzed but are not ready for staging yet.")
 
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
@@ -784,7 +785,7 @@ DEFINE_BOOL(maglev_non_eager_inlining, false,
             "enable Maglev non-eager inlining")
 DEFINE_BOOL(turbolev_non_eager_inlining, true,
             "enable Turbolev non-eager inlining")
-DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_non_eager_inlining)
+DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_non_eager_loop_peeling)
 DEFINE_EXPERIMENTAL_FEATURE(turbolev_non_eager_loop_peeling,
                             "enable Turbolev non-eager loop peeling")
 DEFINE_DEVELOPER_FLAG(turbolev_trace_loop_peeling,
@@ -826,6 +827,9 @@ DEFINE_DEVELOPER_FLAG(trace_maglev_inlining, "trace maglev inlining")
 DEFINE_DEVELOPER_FLAG(trace_maglev_kna_processor,
                       "trace maglev known node aspects processor")
 DEFINE_DEVELOPER_FLAG(trace_maglev_scope_info, "trace maglev scope info")
+DEFINE_DEVELOPER_FLAG(trace_maglev, "trace Maglev IR to JSON")
+DEFINE_STRING(trace_maglev_file_prefix, "maglev",
+              "write maglev trace files with given prefix")
 
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 DEFINE_DEVELOPER_FLAG(print_maglev_deopt_verbose, "print verbose deopt info")
@@ -2287,7 +2291,8 @@ DEFINE_DEBUG_BOOL(trace_wasm_instances, false,
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 DEFINE_EXPERIMENTAL_FEATURE(
     experimental_wasm_revectorize,
-    "enable 128 to 256 bit revectorization for Webassembly SIMD")
+    "enable 128 to 256 bit revectorization for WebAssembly SIMD")
+DEFINE_WEAK_IMPLICATION(experimental_fuzzing, experimental_wasm_revectorize)
 DEFINE_DEVELOPER_FLAG(trace_wasm_revectorize, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

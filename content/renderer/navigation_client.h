@@ -101,6 +101,14 @@ class NavigationClient : mojom::NavigationClient {
 
   void DidIgnoreDuplicateNavigation();
 
+  void SetCookieModificationCount(uint64_t cookie_modification_count) {
+    cookie_modification_count_ = cookie_modification_count;
+  }
+
+  uint64_t cookie_modification_count() const {
+    return cookie_modification_count_;
+  }
+
   const blink::mojom::BeginNavigationParams& begin_params() const {
     return *begin_params_;
   }
@@ -142,6 +150,11 @@ class NavigationClient : mojom::NavigationClient {
 
   // See NavigationState::was_initiated_in_this_frame for details.
   bool was_initiated_in_this_frame_ = false;
+
+  // Captures a snapshot of the initiating document's cookie modification count
+  // when this navigation starts. Used during duplicate navigation checks to
+  // determine if cookies have changed since this navigation began.
+  uint64_t cookie_modification_count_ = 0;
 
   // If the navigation is initiated by this renderer, this will be set to the
   // params sent on the

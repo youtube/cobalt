@@ -4,25 +4,42 @@
 
 import {CrWebApi, gCrWeb} from '//ios/web/public/js_messaging/resources/gcrweb.js';
 
-
 /**
  * @fileoverview Contains feature flag state for behavior relating to Autofill
  *     form extraction and filling. Each entry should correspond to a
- *     base::Feature in C++ land.
+ *     base::Feature in C++ and a placeholder that is dynamically replaced by
+ *     C++ at script injection time.
  */
+
+declare const gCrWebPlaceholderAutofillAcrossIframesEnabled: boolean;
+declare const gCrWebPlaceholderAutofillAcrossIframesThrottling: boolean;
+declare const gCrWebPlaceholderAutofillDisallowMoreHyphenLikeLabels: boolean;
+declare const gCrWebPlaceholderAutofillIgnoreCheckableElements: boolean;
+declare const gCrWebPlaceholderAutofillSupportDateInput: boolean;
+declare const gCrWebPlaceholderAutofillCorrectUserEditedBitInParsedField:
+    boolean;
+declare const gCrWebPlaceholderAutofillAllowDefaultPreventedSubmission: boolean;
+declare const gCrWebPlaceholderAutofillDedupeFormSubmission: boolean;
+declare const gCrWebPlaceholderAutofillEmailVerification: boolean;
+declare const gCrWebPlaceholderAutofillReportFormSubmissionErrors: boolean;
+declare const gCrWebPlaceholderAutofillCountFormSubmissionInRenderer: boolean;
 
 // LINT.IfChange(autofill_across_iframes_ios)
 /**
  * Whether or not to register and return child frame IDs when extracting forms.
- * Corresponds to autofill::feature::AutofillAcrossIframesIos.
+ * Corresponds to autofill::features::kAutofillAcrossIframesIos.
  */
-let autofillAcrossIframes: boolean = true;
+function isAutofillAcrossIframesEnabled(): boolean {
+  return gCrWebPlaceholderAutofillAcrossIframesEnabled;
+}
 
 /**
  * True if the throttling of child frames for autofill across iframes is
  * enabled.
  */
-let autofillAcrossIframesThrottling: boolean = true;
+function isAutofillAcrossIframesThrottlingEnabled(): boolean {
+  return gCrWebPlaceholderAutofillAcrossIframesThrottling;
+}
 // LINT.ThenChange(//components/autofill/core/common/autofill_features.cc:autofill_across_iframes_ios)
 
 // LINT.IfChange(autofill_disallow_more_hyphen_like_labels)
@@ -30,58 +47,74 @@ let autofillAcrossIframesThrottling: boolean = true;
  * When true, labels that only contain em dashes, minuses, fullwidth hyphens
  * and other special characters are disallowed.
  */
-let autofillDisallowMoreHyphenLikeLabels: boolean = false;
+function isAutofillDisallowMoreHyphenLikeLabelsEnabled(): boolean {
+  return gCrWebPlaceholderAutofillDisallowMoreHyphenLikeLabels;
+}
 // LINT.ThenChange(//components/autofill/core/common/autofill_features.cc:autofill_disallow_more_hyphen_like_labels)
 
 // LINT.IfChange(autofill_ignore_checkable_elements)
 /**
  * If true, checkboxes and radio buttons aren't extracted anymore.
  */
-let autofillIgnoreCheckableElements: boolean = true;
+function isAutofillIgnoreCheckableElementsEnabled(): boolean {
+  return gCrWebPlaceholderAutofillIgnoreCheckableElements;
+}
 // LINT.ThenChange(//components/autofill/core/common/autofill_features.cc:autofill_ignore_checkable_elements)
 
 // LINT.IfChange(autofill_support_date_input)
 /**
  * If true, support for <input type="date"> fields is enabled.
  */
-let autofillSupportDateInput: boolean = false;
+function isAutofillSupportDateInputEnabled(): boolean {
+  return gCrWebPlaceholderAutofillSupportDateInput;
+}
 // LINT.ThenChange(//components/autofill/ios/common/features.mm:autofill_support_date_input)
 
 // LINT.IfChange(autofill_correct_user_edited_bit_in_parsed_field)
 /**
-Enables correctly setting the is_user_edited_deprecated bit in the parsed form
-fields instead of using true by default.
+ * Enables correctly setting the is_user_edited_deprecated bit in the parsed
+ * form fields instead of using true by default.
  */
-let autofillCorrectUserEditedBitInParsedField: boolean = false;
+function isAutofillCorrectUserEditedBitInParsedField(): boolean {
+  return gCrWebPlaceholderAutofillCorrectUserEditedBitInParsedField;
+}
 // LINT.ThenChange(//components/autofill/ios/common/features.mm:autofill_correct_user_edited_bit_in_parsed_field)
 
 // LINT.IfChange(autofill_allow_default_prevented_submission)
 /**
-Allows detecting form submissions that are `defaultPrevented` by the page
-content.
-*/
-let autofillAllowDefaultPreventedSubmission: boolean = true;
+ * Allows detecting form submissions that are `defaultPrevented` by the page
+ * content.
+ */
+function isAutofillAllowDefaultPreventedSubmission(): boolean {
+  return gCrWebPlaceholderAutofillAllowDefaultPreventedSubmission;
+}
 // LINT.ThenChange(//components/autofill/ios/common/features.mm:autofill_allow_default_prevented_submission)
 
 // LINT.IfChange(autofill_dedupe_form_submission)
 /**
-Dedupes form submission by only allowing one submission per form.
-*/
-let autofillDedupeFormSubmission: boolean = true;
+ * Dedupes form submission by only allowing one submission per form.
+ */
+function isAutofillDedupeFormSubmissionEnabled(): boolean {
+  return gCrWebPlaceholderAutofillDedupeFormSubmission;
+}
 // LINT.ThenChange(//components/autofill/ios/common/features.mm:autofill_dedupe_form_submission)
 
 // LINT.IfChange(autofill_email_verification)
 /**
-Whether or not the Email Verification Protocol is enabled.
-*/
-let autofillEmailVerification: boolean = false;
+ * Whether or not the Email Verification Protocol is enabled.
+ */
+function isAutofillEmailVerificationEnabled(): boolean {
+  return gCrWebPlaceholderAutofillEmailVerification;
+}
 // LINT.ThenChange(//components/autofill/ios/common/features.mm:autofill_email_verification)
 
 // LINT.IfChange(autofill_report_form_submission_errors)
 /**
  * Reports JS errors that occur upon handling form submission in the renderer.
  */
-let autofillReportFormSubmissionErrors: boolean = false;
+function isAutofillReportFormSubmissionErrorsEnabled(): boolean {
+  return gCrWebPlaceholderAutofillReportFormSubmissionErrors;
+}
 // LINT.ThenChange(//components/autofill/ios/common/features.mm:autofill_report_form_submission_errors)
 
 // LINT.IfChange(autofill_count_form_submission_in_renderer)
@@ -89,223 +122,41 @@ let autofillReportFormSubmissionErrors: boolean = false;
  * Record form submissions events that are detected in the renderer before they
  * are processed.
  */
-let autofillCountFormSubmissionInRenderer: boolean = true;
+function isAutofillCountFormSubmissionInRendererEnabled(): boolean {
+  return gCrWebPlaceholderAutofillCountFormSubmissionInRenderer;
+}
 // LINT.ThenChange(//components/autofill/ios/common/features.mm:autofill_count_form_submission_in_renderer)
 
-/**
- * @see autofillAcrossIframes
- */
-function setAutofillAcrossIframes(enabled: boolean): void {
-  autofillAcrossIframes = enabled;
-}
-
-/**
- * @see autofillAcrossIframes
- */
-function isAutofillAcrossIframesEnabled(): boolean {
-  return autofillAcrossIframes;
-}
-
-/**
- * @see autofillAcrossIframesThrottling
- */
-function setAutofillAcrossIframesThrottling(enabled: boolean): void {
-  autofillAcrossIframesThrottling = enabled;
-}
-
-/**
- * @see setAutofillAcrossIframesThrottling
- */
-function isAutofillAcrossIframesThrottlingEnabled(): boolean {
-  return autofillAcrossIframesThrottling;
-}
-
-/**
- * @see autofillDisallowMoreHyphenLikeLabels
- */
-function setAutofillDisallowMoreHyphenLikeLabels(enabled: boolean) {
-  autofillDisallowMoreHyphenLikeLabels = enabled;
-}
-
-/**
- * @see setAutofillDisallowMoreHyphenLikeLabel
- */
-function isAutofillDisallowMoreHyphenLikeLabelsEnabled(): boolean {
-  return autofillDisallowMoreHyphenLikeLabels;
-}
-
-/**
- * @see autofillIgnoreCheckableElements
- */
-function setAutofillIgnoreCheckableElements(enabled: boolean): void {
-  autofillIgnoreCheckableElements = enabled;
-}
-
-/**
- * @see autofillIgnoreCheckableElements
- */
-function isAutofillIgnoreCheckableElementsEnabled(): boolean {
-  return autofillIgnoreCheckableElements;
-}
-
-/**
- * @see autofillSupportDateInput
- */
-function setAutofillSupportDateInput(enabled: boolean): void {
-  autofillSupportDateInput = enabled;
-}
-
-/**
- * @see autofillSupportDateInput
- */
-function isAutofillSupportDateInputEnabled(): boolean {
-  return autofillSupportDateInput;
-}
-
-/**
- * @see autofillCorrectUserEditedBitInParsedField
- */
-function setAutofillCorrectUserEditedBitInParsedField(enabled: boolean): void {
-  autofillCorrectUserEditedBitInParsedField = enabled;
-}
-
-/**
- * @see autofillCorrectUserEditedBitInParsedField
- */
-function isAutofillCorrectUserEditedBitInParsedField(): boolean {
-  return autofillCorrectUserEditedBitInParsedField;
-}
-
-/**
- * @see autofillAllowDefaultPreventedSubmission
- */
-function setAutofillAllowDefaultPreventedSubmission(enabled: boolean): void {
-  autofillAllowDefaultPreventedSubmission = enabled;
-}
-
-/**
- * @see autofillAllowDefaultPreventedSubmission
- */
-function isAutofillAllowDefaultPreventedSubmission(): boolean {
-  return autofillAllowDefaultPreventedSubmission;
-}
-
-/**
- * @see autofillDedupeFormSubmission
- */
-function setAutofillDedupeFormSubmission(enabled: boolean): void {
-  autofillDedupeFormSubmission = enabled;
-}
-
-/**
- * @see autofillDedupeFormSubmission
- */
-function isAutofillDedupeFormSubmissionEnabled(): boolean {
-  return autofillDedupeFormSubmission;
-}
-
-/**
- * @see autofillEmailVerification
- */
-function setAutofillEmailVerification(enabled: boolean): void {
-  autofillEmailVerification = enabled;
-}
-
-/**
- * @see autofillEmailVerification
- */
-function isAutofillEmailVerificationEnabled(): boolean {
-  return autofillEmailVerification;
-}
-
-/**
- * @see autofillReportFormSubmissionErrors
- */
-function setAutofillReportFormSubmissionErrors(enabled: boolean): void {
-  autofillReportFormSubmissionErrors = enabled;
-}
-
-/**
- * @see autofillReportFormSubmissionErrors
- */
-function isAutofillReportFormSubmissionErrorsEnabled(): boolean {
-  return autofillReportFormSubmissionErrors;
-}
-
-/**
- * @see autofillCountFormSubmissionInRenderer
- */
-function setAutofillCountFormSubmissionInRenderer(enabled: boolean): void {
-  autofillCountFormSubmissionInRenderer = enabled;
-}
-
-/**
- * @see autofillCountFormSubmissionInRenderer
- */
-function isAutofillCountFormSubmissionInRendererEnabled(): boolean {
-  return autofillCountFormSubmissionInRenderer;
-}
-
-
-// Expose globally via `gCrWeb` instead of `export` to ensure state (feature
-// on/off) is maintained across imports.
+// Expose globally via `gCrWeb` under the 'autofill_form_features' API name.
 const autofillFormFeatures = new CrWebApi('autofill_form_features');
 
 autofillFormFeatures.addFunction(
-    'setAutofillAcrossIframes', setAutofillAcrossIframes);
-autofillFormFeatures.addFunction(
     'isAutofillAcrossIframesEnabled', isAutofillAcrossIframesEnabled);
-autofillFormFeatures.addFunction(
-    'setAutofillAcrossIframesThrottling', setAutofillAcrossIframesThrottling);
 autofillFormFeatures.addFunction(
     'isAutofillAcrossIframesThrottlingEnabled',
     isAutofillAcrossIframesThrottlingEnabled);
 autofillFormFeatures.addFunction(
-    'setAutofillDisallowMoreHyphenLikeLabels',
-    setAutofillDisallowMoreHyphenLikeLabels);
-autofillFormFeatures.addFunction(
     'isAutofillDisallowMoreHyphenLikeLabelsEnabled',
     isAutofillDisallowMoreHyphenLikeLabelsEnabled);
-autofillFormFeatures.addFunction(
-    'setAutofillIgnoreCheckableElements', setAutofillIgnoreCheckableElements);
 autofillFormFeatures.addFunction(
     'isAutofillIgnoreCheckableElementsEnabled',
     isAutofillIgnoreCheckableElementsEnabled);
 autofillFormFeatures.addFunction(
-    'setAutofillSupportDateInput', setAutofillSupportDateInput);
-autofillFormFeatures.addFunction(
     'isAutofillSupportDateInputEnabled', isAutofillSupportDateInputEnabled);
-autofillFormFeatures.addFunction(
-    'setAutofillCorrectUserEditedBitInParsedField',
-    setAutofillCorrectUserEditedBitInParsedField);
 autofillFormFeatures.addFunction(
     'isAutofillCorrectUserEditedBitInParsedField',
     isAutofillCorrectUserEditedBitInParsedField);
 autofillFormFeatures.addFunction(
-    'setAutofillAllowDefaultPreventedSubmission',
-    setAutofillAllowDefaultPreventedSubmission);
-autofillFormFeatures.addFunction(
     'isAutofillAllowDefaultPreventedSubmission',
     isAutofillAllowDefaultPreventedSubmission);
-autofillFormFeatures.addFunction(
-    'setAutofillDedupeFormSubmission', setAutofillDedupeFormSubmission);
 autofillFormFeatures.addFunction(
     'isAutofillDedupeFormSubmissionEnabled',
     isAutofillDedupeFormSubmissionEnabled);
 autofillFormFeatures.addFunction(
-    'setAutofillEmailVerification', setAutofillEmailVerification);
-autofillFormFeatures.addFunction(
-    'isAutofillEmailVerificationEnabled',
-    isAutofillEmailVerificationEnabled);
-autofillFormFeatures.addFunction(
-    'setAutofillReportFormSubmissionErrors',
-    setAutofillReportFormSubmissionErrors);
+    'isAutofillEmailVerificationEnabled', isAutofillEmailVerificationEnabled);
 autofillFormFeatures.addFunction(
     'isAutofillReportFormSubmissionErrorsEnabled',
     isAutofillReportFormSubmissionErrorsEnabled);
-autofillFormFeatures.addFunction(
-    'setAutofillCountFormSubmissionInRenderer',
-    setAutofillCountFormSubmissionInRenderer);
 autofillFormFeatures.addFunction(
     'isAutofillCountFormSubmissionInRendererEnabled',
     isAutofillCountFormSubmissionInRendererEnabled);

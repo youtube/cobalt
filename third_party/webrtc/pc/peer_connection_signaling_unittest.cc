@@ -25,6 +25,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
+#include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
@@ -149,12 +150,25 @@ class PeerConnectionSignalingBaseTest : public ::testing::Test {
     return CreatePeerConnection(RTCConfiguration());
   }
 
+  WrapperPtr CreatePeerConnection(absl::string_view field_trials) {
+    return CreatePeerConnection(RTCConfiguration(), field_trials);
+  }
+
   WrapperPtr CreatePeerConnection(const RTCConfiguration& config) {
+    return CreatePeerConnection(config, "");
+  }
+
+  WrapperPtr CreatePeerConnection(const RTCConfiguration& config,
+                                  absl::string_view field_trials) {
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     RTCConfiguration modified_config = config;
     modified_config.sdp_semantics = sdp_semantics_;
-    auto result = pc_factory_->CreatePeerConnectionOrError(
-        modified_config, PeerConnectionDependencies(observer.get()));
+    PeerConnectionDependencies pc_deps(observer.get());
+    if (!field_trials.empty()) {
+      pc_deps.trials = CreateTestFieldTrialsPtr(field_trials);
+    }
+    auto result = pc_factory_->CreatePeerConnectionOrError(modified_config,
+                                                           std::move(pc_deps));
     if (!result.ok()) {
       return nullptr;
     }
@@ -279,7 +293,9 @@ class PeerConnectionSignalingStateTest
     SignalingState state = std::get<0>(state_tuple);
     bool closed = std::get<1>(state_tuple);
 
-    auto wrapper = CreatePeerConnectionWithAudioVideo(GetConfig());
+    // Munging allowed: kWithoutCreateAnswer (2)
+    auto wrapper = CreatePeerConnectionWithAudioVideo(
+        GetConfig(), "WebRTC-NoSdpMangleAllowForTesting/Enabled,2/");
     switch (state) {
       case SignalingState::kStable: {
         break;

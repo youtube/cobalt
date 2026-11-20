@@ -151,7 +151,7 @@ HostCache::Key HostResolverManager::JobKey::ToCacheKey(bool secure) const {
     host_for_cache = std::string(host.GetHostnameWithoutBrackets());
   }
   HostCache::Key key(std::move(host_for_cache), query_type_for_key, flags,
-                     source, network_anonymization_key);
+                     source, network_anonymization_key, GetTargetNetwork());
   key.secure = secure;
   return key;
 }
@@ -745,7 +745,8 @@ void HostResolverManager::Job::StartSystemTask() {
   std::optional<HostResolverSystemTask::CacheParams> cache_params;
   if (key_.resolve_context->host_resolver_cache()) {
     cache_params.emplace(*key_.resolve_context->host_resolver_cache(),
-                         key_.network_anonymization_key);
+                         key_.network_anonymization_key,
+                         key_.GetTargetNetwork());
   }
 
   system_task_ = HostResolverSystemTask::Create(

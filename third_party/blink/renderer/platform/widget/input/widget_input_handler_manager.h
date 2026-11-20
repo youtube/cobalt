@@ -211,8 +211,8 @@ class PLATFORM_EXPORT WidgetInputHandlerManager final
   void SetInputHandlerProxyForTesting(
       std::unique_ptr<InputHandlerProxy> input_handler_proxy);
 
-  base::WeakPtr<WidgetInputHandlerManager> AsWeakPtr() {
-    return weak_ptr_factory_.GetWeakPtr();
+  void set_destruction_callback_for_testing(base::OnceClosure callback) {
+    destruction_callback_for_testing_ = std::move(callback);
   }
 
   uint16_t suppressing_input_events_state() const {
@@ -229,6 +229,7 @@ class PLATFORM_EXPORT WidgetInputHandlerManager final
   ~WidgetInputHandlerManager() override;
 
   void InitInputHandler();
+
   void InitOnInputHandlingThread(
       const base::WeakPtr<cc::CompositorDelegateForInput>& compositor_delegate,
       bool sync_compositing);
@@ -404,7 +405,7 @@ class PLATFORM_EXPORT WidgetInputHandlerManager final
 
   std::atomic<bool> dev_tools_session_attached_ = false;
 
-  base::WeakPtrFactory<WidgetInputHandlerManager> weak_ptr_factory_{this};
+  base::OnceClosure destruction_callback_for_testing_;
 };
 
 }  // namespace blink

@@ -15,15 +15,24 @@ export function getHtml(this: FeatureShowcasePasswordManagerStepElement) {
       alt="$i18n{passwordManagerIllustrationA11yLabel}">
   <span slot="title">$i18n{passwordManagerTitle}</span>
   <span slot="description">$i18n{passwordManagerSubtitle}</span>
-  <cr-button slot="button" id="confirm-button" class="action-button"
-      @click="${this.onConfirmClick_}"
-      ?disabled="${this.buttonsDisabled}">
-    $i18n{passwordManagerAddToToolbar}
-  </cr-button>
-  <cr-button slot="button" id="skip-button" @click="${this.onSkipClick_}"
-      ?disabled="${this.buttonsDisabled}">
-    $i18n{passwordManagerNoThanks}
-  </cr-button>
+  <if expr="is_win">
+    <cr-button slot="button" id="confirm-button" class="action-button"
+        @click="${this.onConfirmClick_}"
+        ?disabled="${this.buttonsDisabled}">
+      $i18n{passwordManagerAddToToolbar}
+    </cr-button>
+  </if>
+    <cr-button slot="button" id="skip-button" @click="${this.onSkipClick_}"
+        ?disabled="${this.buttonsDisabled}">
+      $i18n{passwordManagerNoThanks}
+    </cr-button>
+  <if expr="not is_win">
+    <cr-button slot="button" id="confirm-button" class="action-button"
+        @click="${this.onConfirmClick_}"
+        ?disabled="${this.buttonsDisabled}">
+      $i18n{passwordManagerAddToToolbar}
+    </cr-button>
+  </if>
 </feature-showcase-step>
 <!--_html_template_end_-->`;
   // clang-format on

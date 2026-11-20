@@ -22,6 +22,7 @@
 #include "third_party/microsoft_dxheaders/src/include/experimental-composition/experimental-dcomp.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/overlay_layer_id.h"
+#include "ui/gl/dc_commit_error.h"
 #include "ui/gl/dc_layer_overlay_params.h"
 #include "ui/gl/delegated_ink_point_renderer_gpu.h"
 #include "ui/gl/gl_export.h"
@@ -36,28 +37,7 @@ class DelegatedInkMetadata;
 
 namespace gl {
 
-struct CommitError {
-  // The source of the commit error. This should correspond with exactly one
-  // place in code to make identifying the cause of errors easier.
-  enum class Reason {
-    kUnknown,
-    kIDCompositionDeviceCommit,
-    kPresentToSwapChain,
-    kSolidColorSurfacePoolCreateSurface,
-    kSolidColorSurfaceBeginDraw,
-    kSolidColorSurfaceEndDraw,
-    kSolidColorSurfaceCreateRenderTargetView,
-    kIDCompositionDevice6PresentCompositionTextures,
-  };
-
-  Reason reason = Reason::kUnknown;
-
-  // If set, the error was caused by a Windows API and this is the HRESULT. If
-  // not set, the error was not caused by a Windows API or we did not explicitly
-  // copy out the failing HRESULT for the given `reason`.
-  std::optional<HRESULT> hr;
-};
-
+class SolidColorPoolBase;
 class SwapChainPresenter;
 
 // Cache video processor and its size.
@@ -111,56 +91,6 @@ struct VideoProcessorWrapper {
  private:
   // Whether the GPU driver supports video processor auto HDR.
   bool driver_supports_vp_auto_hdr = false;
-};
-
-class SolidColorSurface;
-
-// A resource pool that contains DComp surfaces containing solid color fills.
-class SolidColorSurfacePool final {
- public:
-  SolidColorSurfacePool(
-      Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device,
-      Microsoft::WRL::ComPtr<IDCompositionDevice3> dcomp_device);
-  ~SolidColorSurfacePool();
-
-  SolidColorSurfacePool(const SolidColorSurfacePool&) = delete;
-  SolidColorSurfacePool& operator=(const SolidColorSurfacePool&) = delete;
-
-  // The resulting surface only contains the opaque parts of |color| and needs
-  // to be scaled by |color.fA|. Its contents are only valid until the next
-  // |TrimAfterCommit| call, since surfaces can be reused (and recolored) on
-  // subsequent frames.
-  base::expected<IDCompositionSurface*, CommitError> GetSolidColorSurface(
-      const SkColor4f& color);
-
-  // Clean up any unused resources in the pool after DComp commit.
-  void TrimAfterCommit();
-
-  // Returns the number of surfaces currently tracked by this pool.
-  size_t GetNumSurfacesInPoolForTesting() const;
-
- private:
-  Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device_;
-  Microsoft::WRL::ComPtr<IDCompositionDevice3> dcomp_device_;
-
-  // Solid color surfaces that are tracked by this pool.
-  std::vector<SolidColorSurface> tracked_surfaces_;
-  // Index into |tracked_surfaces_| that partitions the surfaces used this frame
-  // (<num_used_this_frame_) and the surfaces free to use by subsequent
-  // |GetSolidColorSurface| calls (>=num_used_this_frame_).
-  size_t num_used_this_frame_ = 0;
-
-  struct Stats {
-    // The number of times |GetSolidColorSurface| was called. This represents
-    // the number of solid color overlays in the frame.
-    int num_surfaces_requested = 0;
-
-    // The number of surfaces that were filled.
-    int num_surfaces_recolored = 0;
-  };
-
-  // Stats about this pool since the last |TrimAfterCommit| call.
-  Stats stats_since_last_trim_;
 };
 
 // DCLayerTree manages a tree of direct composition visuals, and associated
@@ -235,9 +165,9 @@ class GL_EXPORT DCLayerTree {
   size_t GetDcompLayerCountForTesting() const;
   IDCompositionVisual2* GetContentVisualForTesting(
       const gfx::OverlayLayerId& layer_id) const;
-  IDCompositionSurface* GetBackgroundColorSurfaceForTesting(
+  IUnknown* GetBackgroundColorContentForTesting(
       const gfx::OverlayLayerId& layer_id) const;
-  size_t GetNumSurfacesInPoolForTesting() const;
+  size_t GetNumEntriesInSolidColorPoolForTesting() const;
 #if DCHECK_IS_ON()
   bool DcompVisualContentChangedFromPreviousFrameForTesting(
       const gfx::OverlayLayerId& layer_id) const;
@@ -285,7 +215,7 @@ class GL_EXPORT DCLayerTree {
     size_t GetDcompLayerCountForTesting() const;
     IDCompositionVisual2* GetContentVisualForTesting(
         const gfx::OverlayLayerId& layer_id) const;
-    IDCompositionSurface* GetBackgroundColorSurfaceForTesting(
+    IUnknown* GetBackgroundColorContentForTesting(
         const gfx::OverlayLayerId& layer_id) const;
 #if DCHECK_IS_ON()
     bool DcompVisualContentChangedFromPreviousFrameForTesting(
@@ -311,21 +241,20 @@ class GL_EXPORT DCLayerTree {
       VisualSubtree& operator=(VisualSubtree& other) = delete;
 
       // Returns true if something was changed.
-      bool Update(
-          IDCompositionDevice3* dcomp_device,
-          Microsoft::WRL::ComPtr<IUnknown> dcomp_visual_content,
-          uint64_t dcomp_surface_serial,
-          const gfx::Size& image_size,
-          const gfx::RectF& content_rect,
-          Microsoft::WRL::ComPtr<IDCompositionSurface> background_color_surface,
-          const SkColor4f& background_color,
-          const gfx::Rect& quad_rect,
-          bool nearest_neighbor_filter,
-          const gfx::Transform& quad_to_root_transform,
-          const gfx::RRectF& rounded_corner_bounds,
-          float opacity,
-          const std::optional<gfx::Rect>& clip_rect_in_root,
-          bool allow_antialiasing);
+      bool Update(IDCompositionDevice3* dcomp_device,
+                  Microsoft::WRL::ComPtr<IUnknown> dcomp_visual_content,
+                  uint64_t dcomp_surface_serial,
+                  const gfx::Size& image_size,
+                  const gfx::RectF& content_rect,
+                  Microsoft::WRL::ComPtr<IUnknown> background_color_content,
+                  const SkColor4f& background_color,
+                  const gfx::Rect& quad_rect,
+                  bool nearest_neighbor_filter,
+                  const gfx::Transform& quad_to_root_transform,
+                  const gfx::RRectF& rounded_corner_bounds,
+                  float opacity,
+                  const std::optional<gfx::Rect>& clip_rect_in_root,
+                  bool allow_antialiasing);
 
       IDCompositionVisual2* container_visual() const {
         return clip_visual_.Get();
@@ -336,9 +265,9 @@ class GL_EXPORT DCLayerTree {
       IUnknown* dcomp_visual_content() const {
         return dcomp_visual_content_.Get();
       }
-      IDCompositionSurface* background_color_surface_for_testing() const {
+      IUnknown* background_color_content_for_testing() const {
         CHECK_IS_TEST();
-        return background_color_surface_.Get();
+        return background_color_content_.Get();
       }
       void GetSwapChainVisualInfoForTesting(gfx::Transform* out_transform,
                                             gfx::Point* out_offset,
@@ -398,16 +327,17 @@ class GL_EXPORT DCLayerTree {
       // mapped to |quad_rect_|'s bounds.
       gfx::RectF content_rect_;
 
-      // The surface for the background color fill to be placed at a leaf of the
-      // visual subtree. Since |SolidColorSurfacePool::GetSolidColorSurface|
-      // returns a surface that is opaque, |background_color_visual_|'s opacity
+      // The content for the background color fill to be placed at a leaf of
+      // the visual subtree. Since |SolidColorSurfacePool::GetSolidColorContent|
+      // returns content that is opaque, |background_color_visual_|'s opacity
       // will be set to |background_color_.fA|. Must be present if
       // |background_color_| is non-transparent. Must be re-updated from
-      // |SolidColorSurfacePool::GetSolidColorSurface| every frame it is
-      // present.
-      Microsoft::WRL::ComPtr<IDCompositionSurface> background_color_surface_;
+      // |SolidColorSurfacePool::GetSolidColorContent| every frame it is
+      // present. Either an IDCompositionSurface (D3D11 path) or an
+      // IDCompositionTexture (D3D12 path).
+      Microsoft::WRL::ComPtr<IUnknown> background_color_content_;
 
-      // The color of |background_color_surface_|.
+      // The color of |background_color_content_|.
       SkColor4f background_color_;
 
       // The bounds which contain this overlay. When mapped by |transform_|,
@@ -544,9 +474,10 @@ class GL_EXPORT DCLayerTree {
   // textures prior to DComp commit.
   Microsoft::WRL::ComPtr<ID3D12CommandQueue> d3d12_command_queue_;
 
-  // Resource pool which owns surfaces for solid color overlays. This is needed
-  // since there is no way to procedurally fill a DComp visual.
-  std::unique_ptr<SolidColorSurfacePool> solid_color_surface_pool_;
+  // Resource pool that produces DComp content (`IDCompositionSurface` or
+  // `IDCompositionTexture`) for solid color overlays. This is needed since
+  // there is no way to procedurally fill a DComp visual.
+  std::unique_ptr<SolidColorPoolBase> solid_color_content_provider_;
 
   // Store the largest video processor for SDR and HDR content
   // to avoid problems in (http://crbug.com/1121061) and

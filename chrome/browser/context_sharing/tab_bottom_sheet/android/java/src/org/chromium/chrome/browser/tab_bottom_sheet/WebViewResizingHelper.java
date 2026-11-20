@@ -23,9 +23,11 @@ import androidx.annotation.Px;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.context_sharing.R;
+import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator;
 import org.chromium.components.thinwebview.ThinWebView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.animation.AnimationHandler;
+import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.util.CommonOnLayoutChangeListeners;
 
@@ -49,6 +51,7 @@ public class WebViewResizingHelper {
     private @Nullable WebContents mWebContents;
     private final View mExpandedContentGroup;
     private final WindowAndroid mWindowAndroid;
+    private final boolean mIsSidePanel;
 
     private boolean mIsViewportSizeFixed;
 
@@ -59,8 +62,17 @@ public class WebViewResizingHelper {
      */
     public WebViewResizingHelper(
             View containerView, WindowAndroid windowAndroid, @ColorInt int backgroundColor) {
+        this(containerView, windowAndroid, backgroundColor, /* isSidePanel= */ false);
+    }
+
+    public WebViewResizingHelper(
+            View containerView,
+            WindowAndroid windowAndroid,
+            @ColorInt int backgroundColor,
+            boolean isSidePanel) {
         mContext = containerView.getContext();
         mWindowAndroid = windowAndroid;
+        mIsSidePanel = isSidePanel;
         mExpandedContentGroup = containerView.findViewById(R.id.expanded_content_group);
 
         mResizingContainer = new FrameLayout(mContext);
@@ -242,21 +254,38 @@ public class WebViewResizingHelper {
             }
         }
 
-        @Px int width = mResizingContainer.getWidth();
-        @Px int height = mResizingContainer.getHeight();
+        if (mWebContents == null || mWebContents.isDestroyed()) {
+            return;
+        }
 
-        if (mWebContents == null
-                || mWebContents.isDestroyed()
-                || (width == mWebContents.getWidth() && height == mWebContents.getHeight())
-                || width == 0
-                || height == 0) {
+        @Px int resizingContainerWidth = mResizingContainer.getWidth();
+        @Px int resizingContainerHeight = mResizingContainer.getHeight();
+        @Px int webContentsWidth = ViewUtils.dpToPx(mContext, mWebContents.getWidth());
+        @Px int webContentsHeight = ViewUtils.dpToPx(mContext, mWebContents.getHeight());
+
+        // TODO(crbug.com/524719583): Make this feature-agnostic.
+        if (mIsSidePanel) {
+            if (resizingContainerWidth == 0) {
+                resizingContainerWidth =
+                        ViewUtils.dpToPx(
+                                mContext, SidePanelContainerCoordinator.WIDE_SIDE_PANEL_WIDTH_DP);
+            }
+            if (resizingContainerHeight == 0) {
+                resizingContainerHeight = getDecorViewHeight();
+            }
+        } else if (resizingContainerWidth == 0 || resizingContainerHeight == 0) {
+            return;
+        }
+
+        if (resizingContainerWidth == webContentsWidth
+                && resizingContainerHeight == webContentsHeight) {
             return;
         }
 
         if (mThinWebView != null) {
-            mThinWebView.resizeWebContents(width, height);
+            mThinWebView.resizeWebContents(resizingContainerWidth, resizingContainerHeight);
         } else {
-            mWebContents.setSize(width, height);
+            mWebContents.setSize(resizingContainerWidth, resizingContainerHeight);
         }
     }
 }

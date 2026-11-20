@@ -925,6 +925,8 @@ WebFormControlElement::TextInfo HTMLTextAreaElement::GetTextInfo() const {
 
   WebFormControlElement::TextInfo results;
   results.effective_zoom = inner_layout->StyleRef().EffectiveZoom();
+  results.primary_ascent =
+      inner_layout->StyleRef().GetFontHeight().ascent.ToFloat();
   for (LayoutObject* child = inner_layout->FirstChild(); child;
        child = child->NextSibling()) {
     const auto* paragraph_block = DynamicTo<LayoutBlockFlow>(child);

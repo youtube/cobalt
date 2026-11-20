@@ -89,15 +89,18 @@ source_set("in_process_context_provider") {
 if (is_win) {
   component("win") {
     sources = [
+      "ep_device_info.h",
       "execution_providers_info.h",
       "platform_functions_win.cc",
       "platform_functions_win.h",
       "win_app_runtime_package_info.h",
     ]
 
-    public_deps = [ "//base" ]
-
-    deps = [ "//third_party/windows_app_sdk_headers:version_info" ]
+    public_deps = [
+      "//base",
+      "//services/webnn/public/mojom:device",
+      "//third_party/windows_app_sdk_headers:version_info",
+    ]
 
     defines = [ "IS_WEBNN_PUBLIC_CPP_WIN_IMPL" ]
   }

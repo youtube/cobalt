@@ -25,13 +25,7 @@
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_event_router.h"
-#include "chrome/browser/extensions/api/passwords_private/passwords_private_event_router_factory.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_utils.h"
-#include "chrome/browser/password_manager/factories/account_password_store_factory.h"
-#include "chrome/browser/password_manager/factories/bulk_leak_check_service_factory.h"
-#include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
-#include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/common/extensions/api/passwords_private.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
@@ -227,25 +221,24 @@ api::passwords_private::CompromisedInfo CreateCompromiseInfo(
 }  // namespace
 
 PasswordCheckDelegate::PasswordCheckDelegate(
-    Profile* profile,
+    PrefService* prefs,
+    password_manager::BulkLeakCheckServiceInterface* bulk_leak_check_service,
     password_manager::SavedPasswordsPresenter* presenter,
     IdGenerator* id_generator,
     PasswordsPrivateEventRouter* event_router)
-    : profile_(profile),
+    : prefs_(prefs),
       saved_passwords_presenter_(presenter),
       insecure_credentials_manager_(presenter),
-      bulk_leak_check_service_adapter_(
-          presenter,
-          BulkLeakCheckServiceFactory::GetForProfile(profile_),
-          profile_->GetPrefs()),
+      bulk_leak_check_service_adapter_(presenter,
+                                       bulk_leak_check_service,
+                                       prefs_),
       id_generator_(id_generator),
       event_router_(event_router) {
   DCHECK(id_generator);
   observed_saved_passwords_presenter_.Observe(saved_passwords_presenter_.get());
   observed_insecure_credentials_manager_.Observe(
       &insecure_credentials_manager_);
-  observed_bulk_leak_check_service_.Observe(
-      BulkLeakCheckServiceFactory::GetForProfile(profile_));
+  observed_bulk_leak_check_service_.Observe(bulk_leak_check_service);
 }
 
 PasswordCheckDelegate::~PasswordCheckDelegate() = default;
@@ -378,7 +371,7 @@ PasswordCheckDelegate::GetPasswordCheckStatus() const {
   // Obtain the timestamp of the last completed password or weak check. This
   // will be null in case no check has completely ran before.
   base::Time last_check_completed =
-      std::max(base::Time::FromTimeT(profile_->GetPrefs()->GetDouble(
+      std::max(base::Time::FromTimeT(prefs_->GetDouble(
                    password_manager::prefs::kLastTimePasswordCheckCompleted)),
                last_completed_weak_check_);
   if (!last_check_completed.is_null()) {
@@ -423,8 +416,6 @@ PasswordCheckDelegate::GetInsecureCredentialsManager() {
 
 void PasswordCheckDelegate::OnBulkCheckServiceShutDown() {
   // Stop observing BulkLeakCheckService when the service shuts down.
-  CHECK(observed_bulk_leak_check_service_.IsObservingSource(
-      BulkLeakCheckServiceFactory::GetForProfile(profile_)));
   observed_bulk_leak_check_service_.Reset();
 }
 
@@ -493,9 +484,8 @@ void PasswordCheckDelegate::OnCredentialDone(
 
 void PasswordCheckDelegate::
     RecordAndNotifyAboutCompletedCompromisedPasswordCheck() {
-  profile_->GetPrefs()->SetDouble(
-      password_manager::prefs::kLastTimePasswordCheckCompleted,
-      base::Time::Now().InSecondsFSinceUnixEpoch());
+  prefs_->SetDouble(password_manager::prefs::kLastTimePasswordCheckCompleted,
+                    base::Time::Now().InSecondsFSinceUnixEpoch());
 
   // Delay the last Check Status update by a second. This avoids flickering of
   // the UI if the full check ran from start to finish almost immediately.

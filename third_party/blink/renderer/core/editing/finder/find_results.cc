@@ -119,7 +119,7 @@ const MatchResultICU FindResults::Iterator::operator*() const {
 void FindResults::Iterator::operator++() {
   DCHECK(!IsAtEnd());
   const MatchResultICU last_result = **this;
-  for (size_t i = 0; i < text_searcher_list_.size(); ++i) {
+  for (wtf_size_t i = 0; i < text_searcher_list_.size(); ++i) {
     auto& optional_match = match_list_[i];
     if (optional_match.has_value() &&
         optional_match->start == last_result.start) {

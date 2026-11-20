@@ -126,7 +126,6 @@
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
-#include "chrome/browser/ui/toolbar/pinned_toolbar/tab_search_toolbar_button_controller.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
@@ -200,7 +199,6 @@
 #include "chrome/browser/ui/views/sharing/sharing_dialog_view.h"
 #include "chrome/browser/ui/views/sharing_hub/screenshot/screenshot_captured_bubble.h"
 #include "chrome/browser/ui/views/sharing_hub/sharing_hub_bubble_view_impl.h"
-#include "chrome/browser/ui/views/sharing_hub/sharing_hub_icon_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/status_bubble_views.h"
@@ -1191,9 +1189,7 @@ BrowserView* BrowserView::GetBrowserViewForNativeWindow(
 // static
 BrowserView* BrowserView::GetBrowserViewForBrowser(
     const BrowserWindowInterface* browser) {
-  // It might look like this method should be implemented as:
-  //   return static_cast<BrowserView*>(browser->window())
-  // but in fact in unit tests browser->window() may not be a BrowserView even
+  // In unit tests, the BrowserWindow may not be a BrowserView even
   // in Views Browser builds. Always go through the ForNativeWindow path, which
   // is robust against being given any kind of native window.
   //
@@ -1201,7 +1197,7 @@ BrowserView* BrowserView::GetBrowserViewForBrowser(
   // BrowserWindow, so be sure to check for that as well.
   //
   // Lastly note that this function can be called during construction of
-  // Browser, at which point browser->window() might return nullptr.
+  // Browser, at which point `browser->GetWindow()` might return nullptr.
   if (!browser->GetWindow() || !browser->GetWindow()->GetNativeWindow()) {
     return nullptr;
   }
@@ -1885,8 +1881,8 @@ void BrowserView::UpdateLoadingAnimations(bool is_visible) {
   }
   if (!should_animate) {
     // Loads are now complete, update the state if a task was scheduled.
-    LoadingAnimationCallback(base::TimeTicks::Now());
     loading_animation_start_ = base::TimeTicks();
+    LoadingAnimationCallback(base::TimeTicks::Now());
   }
 }
 
@@ -2259,7 +2255,9 @@ void BrowserView::FullscreenStateChanged() {
     GetFrameView()->OnFullscreenStateChanged();
 
     // Reshow the split view after completing the toolbar sizing.
-    if (!IsFullscreen() && browser_->tab_strip_model()->IsActiveTabSplit()) {
+    const tabs::TabInterface* active_tab =
+        browser_->tab_strip_model()->GetActiveTab();
+    if (!IsFullscreen() && active_tab && active_tab->IsSplit()) {
       ShowSplitView(GetActiveContentsWebView()->HasFocus() ||
                     !GetFocusManager()->GetFocusedView());
     }
@@ -2765,8 +2763,6 @@ void BrowserView::OnFocusBookmarksToolbar() {
   }
 }
 
-
-
 void BrowserView::FocusAppMenu() {
   // Chrome doesn't have a traditional menu bar, but it has a menu button in the
   // main toolbar that plays the same role.  If the user presses a key that
@@ -2782,8 +2778,6 @@ void BrowserView::FocusAppMenu() {
     toolbar_->SetPaneFocusAndFocusAppMenu();
   }
 }
-
-
 
 void BrowserView::TryNotifyWindowBoundsChanged(const gfx::Rect& widget_bounds) {
   if (interactive_resize_in_progress_ || last_widget_bounds_ == widget_bounds) {
@@ -2921,23 +2915,6 @@ void BrowserView::MaybeShowReadingListInSidePanelIPH() {
           reading_list::prefs::kReadingListDesktopFirstUseExperienceShown)) {
     BrowserUserEducationInterface::From(browser())->MaybeShowFeaturePromo(
         feature_engagement::kIPHReadingListInSidePanelFeature);
-  }
-}
-
-void BrowserView::MaybeShowTabStripToolbarButtonIPH() {
-  if (!browser()->is_type_normal()) {
-    return;
-  }
-
-  bool should_show =
-      tabs::GetTabSearchPosition(browser()) ==
-          tabs::TabSearchPosition::kToolbarButton &&
-      toolbar_button_provider()->GetPinnedToolbarActions()->IsActionPinned(
-          kActionTabSearch);
-  if (should_show) {
-    BrowserUserEducationInterface::From(browser())
-        ->MaybeShowStartupFeaturePromo(
-            feature_engagement::kIPHTabSearchToolbarButtonFeature);
   }
 }
 
@@ -3087,7 +3064,6 @@ ShowTranslateBubbleResult BrowserView::ShowTranslateBubble(
 
   return ShowTranslateBubbleResult::kSuccess;
 }
-
 
 DownloadBubbleUIController* BrowserView::GetDownloadBubbleUIController() {
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -4098,7 +4074,7 @@ void BrowserView::OnWidgetDestroying(views::Widget* widget) {
 
 void BrowserView::OnWidgetActivationChanged(views::Widget* widget,
                                             bool active) {
-  if (browser_->window()) {
+  if (browser_->GetWindow()) {
     if (active) {
       if (restore_focus_on_activation_.has_value() &&
           restore_focus_on_activation_.value()) {
@@ -4232,18 +4208,6 @@ void BrowserView::UpdateTabSearchBubbleHost() {
     tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
         combo_button->end_button(), browser_.get());
     combo_button->SetTabSearchBubbleHost(tab_search_bubble_host_.get());
-  } else if (tabs::GetTabSearchPosition(browser_) ==
-             tabs::TabSearchPosition::kToolbarButton) {
-    tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
-        toolbar_->tab_search_button(), browser_.get());
-    auto* toolbar_button_controller =
-        TabSearchToolbarButtonController::From(browser_.get());
-    // If TabSearchToolbarButtonController has not yet been instantiated at this
-    // point it will update the TabSearchBubbleHost when it is constructed.
-    if (toolbar_button_controller) {
-      toolbar_button_controller->UpdateBubbleHost(
-          tab_search_bubble_host_.get());
-    }
   } else {
     tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
         BrowserElementsViews::From(browser_.get())
@@ -4469,8 +4433,8 @@ void BrowserView::GetAccessiblePanes(std::vector<views::View*>* panes) {
         toolbar_->location_bar_view()
             ->permission_dashboard_view()
             ->GetVisible()) {
-      panes->push_back(toolbar_->location_bar_view()
-                           ->permission_dashboard_view());
+      panes->push_back(
+          toolbar_->location_bar_view()->permission_dashboard_view());
     }
   } else if (toolbar_ && toolbar_->location_bar() &&
              toolbar_->location_bar()->GetChipController() &&
@@ -5064,7 +5028,6 @@ void BrowserView::AddedToWidget() {
   frame_view->UpdateMinimumSize();
   using_native_frame_ = browser_widget_->ShouldUseNativeFrame();
 
-  MaybeShowTabStripToolbarButtonIPH();
   MaybeShowSignInBenefitsIPH();
 
   // Want to show this promo, but not right at startup.
@@ -5443,7 +5406,9 @@ void BrowserView::PrepareFullscreen(bool fullscreen) {
 
     // Clear the active web contents when exiting a tab fullscreen to prepare
     // to reshow the split view after toolbar sizing.
-    if (!IsInSplitView() && browser_->tab_strip_model()->IsActiveTabSplit()) {
+    const tabs::TabInterface* active_tab =
+        browser_->tab_strip_model()->GetActiveTab();
+    if (!IsInSplitView() && active_tab && active_tab->IsSplit()) {
       multi_contents_view_->GetActiveContentsView()->SetWebContents(nullptr);
     }
   }
@@ -5476,7 +5441,9 @@ void BrowserView::ProcessFullscreen(bool fullscreen, const int64_t display_id) {
   GetFrameView()->OnFullscreenStateChanged();
 
   // Reshow the split view after completing the toolbar sizing.
-  if (!fullscreen && browser_->tab_strip_model()->IsActiveTabSplit()) {
+  const tabs::TabInterface* active_tab =
+      browser_->tab_strip_model()->GetActiveTab();
+  if (!fullscreen && active_tab && active_tab->IsSplit()) {
     ShowSplitView(GetActiveContentsWebView()->HasFocus() ||
                   !GetFocusManager()->GetFocusedView());
   }
@@ -5659,6 +5626,11 @@ int BrowserView::GetCommandIDForAppCommandID(int app_command_id) const {
 
 void BrowserView::UpdateAcceleratorMetrics(const ui::Accelerator& accelerator,
                                            int command_id) {
+  if (!accelerator.IsRepeat()) {
+    base::UmaHistogramSparse("Browser.Shortcuts.TriggeredCommandId",
+                             command_id);
+  }
+
   const ui::KeyboardCode key_code = accelerator.key_code();
   if (command_id == IDC_HELP_PAGE_VIA_KEYBOARD && key_code == ui::VKEY_F1) {
     base::RecordAction(UserMetricsAction("ShowHelpTabViaF1"));

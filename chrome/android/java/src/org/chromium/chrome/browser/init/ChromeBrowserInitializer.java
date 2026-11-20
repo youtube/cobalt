@@ -264,7 +264,6 @@ public class ChromeBrowserInitializer {
                             startGpuProcess,
                             startMinimalBrowser,
                             /* singleProcess= */ false,
-                            /* scheduleFlushStartupTasks= */ false,
                             callback);
         } finally {
             TraceEvent.end("ChromeBrowserInitializer.startChromeBrowserProcessesAsync");

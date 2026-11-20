@@ -6,7 +6,6 @@
 
 #import "base/apple/foundation_util.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
@@ -35,7 +34,7 @@ TEST_F(TableViewDetailTextItemTest, ItemProperties) {
 
   id cell = [[[item cellClass] alloc] init];
   ASSERT_TRUE([cell isMemberOfClass:[LegacyTableViewCell class]]);
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
 
   ASSERT_TRUE([[cell contentConfiguration]
       isMemberOfClass:TableViewCellContentConfiguration.class]);
@@ -56,15 +55,15 @@ TEST_F(TableViewDetailTextItemTest, ItemPropertiesAccessorySymbol) {
       [[TableViewDetailTextItem alloc] initWithType:0];
   LegacyTableViewCell* cell = [[[item cellClass] alloc] init];
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NSEQ(nil, cell.accessoryView);
 
   item.accessorySymbol = TableViewDetailTextCellAccessorySymbolChevron;
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NSNE(nil, cell.accessoryView);
 
   item.accessorySymbol = TableViewDetailTextCellAccessorySymbolNone;
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NSEQ(nil, cell.accessoryView);
 }
 
@@ -75,7 +74,7 @@ TEST_F(TableViewDetailTextItemTest, CellPrepareForReuseAccessorySymbolNil) {
   LegacyTableViewCell* cell = [[[item cellClass] alloc] init];
 
   item.accessorySymbol = TableViewDetailTextCellAccessorySymbolExternalLink;
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NSNE(nil, cell.accessoryView);
 
   [cell prepareForReuse];

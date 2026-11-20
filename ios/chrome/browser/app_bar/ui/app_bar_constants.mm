@@ -10,8 +10,6 @@ const CGFloat kAppBarHeightFullscreen = 62;
 
 const CGFloat kAppBarHeightLandscape = 69;
 
-const CGFloat kAppBarCornerRadius = 22.0;
-
 NSString* const kAppBarAssistantButtonId = @"kAppBarAssistantButtonId";
 NSString* const kAppBarTabGridButtonIdentifier =
     @"kAppBarTabGridButtonIdentifier";

@@ -43,7 +43,7 @@ std::unique_ptr<MockRenderWidgetHost> MockRenderWidgetHost::Create(
     base::SafeRef<SiteInstanceGroup> site_instance_group,
     int32_t routing_id,
     mojo::PendingAssociatedRemote<blink::mojom::Widget> pending_blink_widget) {
-  DCHECK(pending_blink_widget);
+  CHECK(pending_blink_widget, base::NotFatalUntil::M152);
   return base::WrapUnique(new MockRenderWidgetHost(
       frame_tree, delegate, std::move(site_instance_group), routing_id,
       std::move(pending_blink_widget)));

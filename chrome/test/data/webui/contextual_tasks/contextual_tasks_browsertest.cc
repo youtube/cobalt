@@ -63,7 +63,9 @@ class ContextualTasksBrowserTest : public WebUIMochaBrowserTest {
 };
 
 // TODO(crbug.com/487147580): Re-enable the test
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+// Only running on Mac and Desktop Android currently.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || \
+    (BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID))
 #define MAYBE_App DISABLED_App
 #else
 #define MAYBE_App App

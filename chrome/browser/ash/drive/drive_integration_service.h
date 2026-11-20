@@ -73,11 +73,6 @@ enum class DriveMountStatus {
   kMaxValue = kTimeout,
 };
 
-struct QuickAccessItem {
-  base::FilePath path;
-  double confidence;
-};
-
 // Notifications/Errors coming from DriveFs side which we need to persist in
 // the Chrome side.
 struct PersistedMessage {
@@ -113,8 +108,6 @@ class DriveIntegrationService : public KeyedService,
  public:
   using DriveFsMojoListenerFactory = base::RepeatingCallback<
       std::unique_ptr<drivefs::DriveFsBootstrapListener>()>;
-  using GetQuickAccessItemsCallback =
-      base::OnceCallback<void(FileError, std::vector<QuickAccessItem>)>;
   using SearchDriveByFileNameCallback =
       drivefs::mojom::SearchQuery::GetNextPageCallback;
   using GetThumbnailCallback =
@@ -242,9 +235,6 @@ class DriveIntegrationService : public KeyedService,
   // Returns the mojo interface to the DriveFs daemon if it is enabled and
   // connected.
   drivefs::mojom::DriveFs* GetDriveFsInterface() const;
-
-  void GetQuickAccessItems(int max_number,
-                           GetQuickAccessItemsCallback callback);
 
   void SearchDriveByFileName(
       std::string query,
@@ -476,11 +466,6 @@ class DriveIntegrationService : public KeyedService,
       base::OnceCallback<void(int64_t)> callback,
       FileError error,
       std::optional<std::vector<drivefs::mojom::QueryItemPtr>> results);
-
-  void OnGetQuickAccessItems(
-      GetQuickAccessItemsCallback callback,
-      FileError error,
-      std::optional<std::vector<drivefs::mojom::QueryItemPtr>> items);
 
   void OnSearchDriveByFileName(
       SearchDriveByFileNameCallback callback,

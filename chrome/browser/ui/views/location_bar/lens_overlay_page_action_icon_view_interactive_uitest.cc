@@ -25,6 +25,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/lens/lens_features.h"
+#include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "content/public/test/browser_test.h"
@@ -100,8 +101,7 @@ class LensOverlayPageActionIconViewTest
             {lens::features::kLensOverlay, {}},
             {lens::features::kLensOverlayOmniboxEntryPoint, {}},
         },
-        {lens::features::kLensOverlayKeyboardSelection,
-         omnibox::kAiModeOmniboxEntryPoint});
+        {lens::features::kLensOverlayKeyboardSelection});
   }
 
   // Returns the page action view that should be enabled for the current

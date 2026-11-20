@@ -288,3 +288,10 @@ struct WithPendingTypes {
 struct TypemappedStruct {
   int32 a;
 };
+
+struct WithPendingAssociatedTypes {
+  pending_associated_receiver<DummyInterface>? rec;
+  pending_associated_remote<DummyInterface>? rem;
+  pending_associated_receiver<DummyInterface>? rec2;
+  pending_associated_remote<DummyInterface>? rem2;
+};

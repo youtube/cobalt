@@ -681,6 +681,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     case StoreType::kF32StoreF16: {
       CpuFeatureScope fscope(this, F16C);
       vcvtps2ph(kScratchDoubleReg, src.fp(), 0);
+      if (trapping_store_pc) *trapping_store_pc = pc_offset();
       Pextrw(dst_op, kScratchDoubleReg, static_cast<uint8_t>(0));
       break;
     }
@@ -5262,6 +5263,13 @@ void LiftoffAssembler::MaybeOSR() {
   cmpq(liftoff::kOSRTargetSlot, Immediate(0));
   j(not_equal, static_cast<Address>(Builtin::kWasmOnStackReplace),
     RelocInfo::WASM_STUB_CALL);
+}
+
+void LiftoffAssembler::AssertOSREmpty() {
+  if (v8_flags.debug_code) {
+    cmpq(liftoff::kOSRTargetSlot, Immediate(0));
+    Check(equal, AbortReason::kOSREmptyCheckFailed);
+  }
 }
 
 void LiftoffStackSlots::Construct(int param_slots) {

@@ -25,8 +25,6 @@ class OriginGatingCache {
   // Returns true iff navigation to `destination_origin` is allowed, either
   // because the source and destination are considered the "same", or by a
   // previous call to `AllowNavigation`.
-  //
-  // Must not be called if `actor::IsNavigationGatingEnabled()` returns false.
   bool IsNavigationAllowed(const url::Origin& source_origin,
                            const url::Origin& destination_origin) const;
 

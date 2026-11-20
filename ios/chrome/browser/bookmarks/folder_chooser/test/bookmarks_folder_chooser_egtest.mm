@@ -1550,7 +1550,7 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
   [[EarlGrey
       selectElementWithMatcher:grey_accessibilityID(
                                    kBookmarksFolderPickerSearchScrimIdentifier)]
-      assertWithMatcher:grey_sufficientlyVisible()];
+      assertWithMatcher:grey_minimumVisiblePercent(0.5)];
 
   // Search for "Folder 2" and check the others disappeared.
   [[EarlGrey selectElementWithMatcher:SearchBar()]

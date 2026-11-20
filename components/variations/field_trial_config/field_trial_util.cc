@@ -25,6 +25,7 @@
 #include "components/variations/field_trial_config/fieldtrial_testing_config.h"
 #include "components/variations/study_filtering.h"
 #include "components/variations/variations_seed_processor.h"
+#include "components/variations/variations_switches.h"
 
 namespace variations {
 namespace {
@@ -162,7 +163,9 @@ void ChooseExperiment(
   const auto& command_line = *base::CommandLine::ForCurrentProcess();
   std::string hardware_class = ClientFilterableState::GetHardwareClass();
   const bool is_benchmarking_enabled =
-      command_line.HasSwitch(::switches::kEnableBenchmarking);
+      command_line.HasSwitch(::switches::kEnableBenchmarking) ||
+      command_line.GetSwitchValueASCII(
+          switches::kEnableFieldTrialTestingConfig) == "benchmarking";
   const FieldTrialTestingExperiment* chosen_experiment = nullptr;
   for (const FieldTrialTestingExperiment& experiment : study.experiments) {
     if (HasPlatform(experiment, platform)) {

@@ -618,6 +618,11 @@ suite('LanguageMenu', () => {
         assertLanguageLineWithTextAndSwitch(
             'Italian', getLanguageLineItems()[0]!);
       });
+
+      test('it has a close button label', async () => {
+        await drawLanguageMenu();
+        assertTrue(!!languageMenu.$.languageMenu.closeText);
+      });
     });
   });
 

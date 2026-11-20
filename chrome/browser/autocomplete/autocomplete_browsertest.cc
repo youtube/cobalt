@@ -67,7 +67,7 @@ class AutocompleteBrowserTest : public extensions::ExtensionBrowserTest {
   }
 
   LocationBar* GetLocationBar() const {
-    return browser()->window()->GetLocationBar();
+    return BrowserWindow::FromBrowser(browser())->GetLocationBar();
   }
 
   AutocompleteController* GetAutocompleteController() const {

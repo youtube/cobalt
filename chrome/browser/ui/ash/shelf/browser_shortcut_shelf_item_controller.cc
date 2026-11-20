@@ -364,7 +364,7 @@ void BrowserShortcutShelfItemController::ExecuteCommand(bool from_context_menu,
   // It's unclear why, but the browser's window may be null: crbug.com/41444285
   if (command_id < static_cast<int64_t>(app_menu_items_.size()) &&
       app_menu_items_[command_id].first &&
-      app_menu_items_[command_id].first->window()) {
+      app_menu_items_[command_id].first->GetWindow()) {
     ash::BrowserDelegate* browser =
         ash::BrowserController::GetInstance()->GetDelegate(
             app_menu_items_[command_id].first);

@@ -8,7 +8,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/legacy_table_view_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/image_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -35,7 +34,7 @@ TEST_F(SettingsImageDetailTextItemTest, ConfigureCell) {
       base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
   EXPECT_EQ(nil, imageDetailCell.contentConfiguration);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NE(nil, imageDetailCell.contentConfiguration);
   ASSERT_TRUE([imageDetailCell.contentConfiguration
       isMemberOfClass:TableViewCellContentConfiguration.class]);
@@ -73,7 +72,7 @@ TEST_F(SettingsImageDetailTextItemTest, ConfigureAttributedText) {
       base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
   EXPECT_EQ(nil, imageDetailCell.contentConfiguration);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NE(nil, imageDetailCell.contentConfiguration);
   ASSERT_TRUE([imageDetailCell.contentConfiguration
       isMemberOfClass:TableViewCellContentConfiguration.class]);
@@ -103,7 +102,7 @@ TEST_F(SettingsImageDetailTextItemTest, SetTextColor) {
       base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
   EXPECT_EQ(nil, imageDetailCell.contentConfiguration);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NE(nil, imageDetailCell.contentConfiguration);
   ASSERT_TRUE([imageDetailCell.contentConfiguration
       isMemberOfClass:TableViewCellContentConfiguration.class]);

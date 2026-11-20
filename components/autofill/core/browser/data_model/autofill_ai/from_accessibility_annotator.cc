@@ -17,7 +17,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
-#include "components/accessibility_annotator/core/annotation_reducer/entry_type.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 #include "components/accessibility_annotator/core/data_models/entity.h"
 #include "components/accessibility_annotator/core/data_models/entity_types.h"
 #include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
@@ -286,10 +286,10 @@ std::optional<EntityInstance> FromAccessibilityAnnotator(
                         /*frecency_override=*/"");
 }
 
-aa::EntryType AttributeTypeToEntryType(AttributeType type) {
+aa::MemoryDataType AttributeTypeToMemoryDataType(AttributeType type) {
 #define ATTRIBUTE_TO_QUERY_INTENT(name) \
   case AttributeTypeName::name:         \
-    return aa::EntryType::name
+    return aa::MemoryDataType::name
 
   switch (type.name()) {
     ATTRIBUTE_TO_QUERY_INTENT(kDriversLicenseName);
@@ -337,7 +337,7 @@ aa::EntryType AttributeTypeToEntryType(AttributeType type) {
     ATTRIBUTE_TO_QUERY_INTENT(kShipmentTrackingNumber);
     ATTRIBUTE_TO_QUERY_INTENT(kShipmentEstimatedDeliveryDate);
     case AttributeTypeName::kShipmentOrderIds:
-      return aa::EntryType::kShipmentAssociatedOrderId;
+      return aa::MemoryDataType::kShipmentAssociatedOrderId;
     case AttributeTypeName::kShipmentOrderDates:
     case AttributeTypeName::kShipmentMerchantName:
     case AttributeTypeName::kShipmentProductNames:
@@ -346,117 +346,117 @@ aa::EntryType AttributeTypeToEntryType(AttributeType type) {
       // `kShipmentDeliveryZipCode`. Since `delivery_address` is a
       // `std::string`, it's unclear how we can process this (here and in
       // general).
-      return aa::EntryType::kUnknown;
+      return aa::MemoryDataType::kUnknown;
   }
 #undef ATTRIBUTE_TO_QUERY_INTENT
-  return aa::EntryType::kUnknown;
+  return aa::MemoryDataType::kUnknown;
 }
 
-std::u16string GetEntryTypeNameForI18n(aa::EntryType type) {
+std::u16string GetMemoryDataTypeNameForI18n(aa::MemoryDataType type) {
   switch (type) {
-    case aa::EntryType::kUnknown:
+    case aa::MemoryDataType::kUnknown:
       return u"";
     // Field types:
     // TODO(crbug.com/481979475): Use internationalization for these strings.
-    case aa::EntryType::kNameFull:
+    case aa::MemoryDataType::kNameFull:
       return u"Name";
-    case aa::EntryType::kAddressFull:
+    case aa::MemoryDataType::kAddressFull:
       return u"Address";
-    case aa::EntryType::kAddressStreetAddress:
+    case aa::MemoryDataType::kAddressStreetAddress:
       return u"Street address";
-    case aa::EntryType::kAddressCity:
+    case aa::MemoryDataType::kAddressCity:
       return u"City";
-    case aa::EntryType::kAddressState:
+    case aa::MemoryDataType::kAddressState:
       return u"State";
-    case aa::EntryType::kAddressZip:
+    case aa::MemoryDataType::kAddressZip:
       return u"Zip";
-    case aa::EntryType::kAddressCountry:
+    case aa::MemoryDataType::kAddressCountry:
       return u"Country";
-    case aa::EntryType::kPhone:
+    case aa::MemoryDataType::kPhone:
       return u"Phone";
-    case aa::EntryType::kEmail:
+    case aa::MemoryDataType::kEmail:
       return u"Email";
-    case aa::EntryType::kCompanyName:
+    case aa::MemoryDataType::kCompanyName:
       return u"Company";
-    case aa::EntryType::kIban:
+    case aa::MemoryDataType::kIban:
       return u"IBAN";
-    case aa::EntryType::kIbanNickname:
+    case aa::MemoryDataType::kIbanNickname:
       return u"Name";
-    case aa::EntryType::kCreditCardNumber:
+    case aa::MemoryDataType::kCreditCardNumber:
       return u"Card number";
-    case aa::EntryType::kCreditCardExpirationDate:
+    case aa::MemoryDataType::kCreditCardExpirationDate:
       return u"Expiration date";
-    case aa::EntryType::kCreditCardSecurityCode:
+    case aa::MemoryDataType::kCreditCardSecurityCode:
       return u"Security code";
-    case aa::EntryType::kCreditCardNameOnCard:
+    case aa::MemoryDataType::kCreditCardNameOnCard:
       return u"Name on card";
-    case aa::EntryType::kCreditCardNickname:
+    case aa::MemoryDataType::kCreditCardNickname:
       return u"Card Nickname";
     // Entity types:
-    case aa::EntryType::kVehicle:
-    case aa::EntryType::kPassportFull:
-    case aa::EntryType::kFlightReservationFull:
-    case aa::EntryType::kNationalIdCardFull:
-    case aa::EntryType::kRedressNumberFull:
-    case aa::EntryType::kKnownTravelerNumberFull:
-    case aa::EntryType::kDriversLicenseFull:
-    case aa::EntryType::kOrderFull:
-    case aa::EntryType::kShipmentFull: {
+    case aa::MemoryDataType::kVehicle:
+    case aa::MemoryDataType::kPassportFull:
+    case aa::MemoryDataType::kFlightReservationFull:
+    case aa::MemoryDataType::kNationalIdCardFull:
+    case aa::MemoryDataType::kRedressNumberFull:
+    case aa::MemoryDataType::kKnownTravelerNumberFull:
+    case aa::MemoryDataType::kDriversLicenseFull:
+    case aa::MemoryDataType::kOrderFull:
+    case aa::MemoryDataType::kShipmentFull: {
       std::optional<AtMemoryDataType> data_type = ToAtMemoryDataType(type);
       const auto* entity_type =
           data_type ? std::get_if<EntityType>(&*data_type) : nullptr;
       return entity_type ? entity_type->GetNameForI18n() : u"";
     }
     // Attribute types:
-    case aa::EntryType::kVehicleMake:
-    case aa::EntryType::kVehicleModel:
-    case aa::EntryType::kVehicleYear:
-    case aa::EntryType::kVehicleOwner:
-    case aa::EntryType::kVehiclePlateNumber:
-    case aa::EntryType::kVehiclePlateState:
-    case aa::EntryType::kVehicleVin:
-    case aa::EntryType::kPassportName:
-    case aa::EntryType::kPassportCountry:
-    case aa::EntryType::kPassportNumber:
-    case aa::EntryType::kPassportIssueDate:
-    case aa::EntryType::kPassportExpirationDate:
-    case aa::EntryType::kFlightReservationFlightNumber:
-    case aa::EntryType::kFlightReservationTicketNumber:
-    case aa::EntryType::kFlightReservationConfirmationCode:
-    case aa::EntryType::kFlightReservationPassengerName:
-    case aa::EntryType::kFlightReservationDepartureAirport:
-    case aa::EntryType::kFlightReservationArrivalAirport:
-    case aa::EntryType::kFlightReservationDepartureDate:
-    case aa::EntryType::kFlightReservationArrivalDate:
-    case aa::EntryType::kNationalIdCardName:
-    case aa::EntryType::kNationalIdCardCountry:
-    case aa::EntryType::kNationalIdCardNumber:
-    case aa::EntryType::kNationalIdCardIssueDate:
-    case aa::EntryType::kNationalIdCardExpirationDate:
-    case aa::EntryType::kRedressNumberName:
-    case aa::EntryType::kRedressNumberNumber:
-    case aa::EntryType::kKnownTravelerNumberName:
-    case aa::EntryType::kKnownTravelerNumberNumber:
-    case aa::EntryType::kKnownTravelerNumberExpirationDate:
-    case aa::EntryType::kDriversLicenseName:
-    case aa::EntryType::kDriversLicenseState:
-    case aa::EntryType::kDriversLicenseNumber:
-    case aa::EntryType::kDriversLicenseIssueDate:
-    case aa::EntryType::kDriversLicenseExpirationDate:
-    case aa::EntryType::kOrderId:
-    case aa::EntryType::kOrderAccount:
-    case aa::EntryType::kOrderDate:
-    case aa::EntryType::kOrderMerchantName:
-    case aa::EntryType::kOrderMerchantDomain:
-    case aa::EntryType::kOrderProductNames:
-    case aa::EntryType::kOrderGrandTotal:
-    case aa::EntryType::kShipmentTrackingNumber:
-    case aa::EntryType::kShipmentAssociatedOrderId:
-    case aa::EntryType::kShipmentDeliveryAddress:
-    case aa::EntryType::kShipmentDeliveryZipCode:
-    case aa::EntryType::kShipmentCarrierName:
-    case aa::EntryType::kShipmentCarrierDomain:
-    case aa::EntryType::kShipmentEstimatedDeliveryDate: {
+    case aa::MemoryDataType::kVehicleMake:
+    case aa::MemoryDataType::kVehicleModel:
+    case aa::MemoryDataType::kVehicleYear:
+    case aa::MemoryDataType::kVehicleOwner:
+    case aa::MemoryDataType::kVehiclePlateNumber:
+    case aa::MemoryDataType::kVehiclePlateState:
+    case aa::MemoryDataType::kVehicleVin:
+    case aa::MemoryDataType::kPassportName:
+    case aa::MemoryDataType::kPassportCountry:
+    case aa::MemoryDataType::kPassportNumber:
+    case aa::MemoryDataType::kPassportIssueDate:
+    case aa::MemoryDataType::kPassportExpirationDate:
+    case aa::MemoryDataType::kFlightReservationFlightNumber:
+    case aa::MemoryDataType::kFlightReservationTicketNumber:
+    case aa::MemoryDataType::kFlightReservationConfirmationCode:
+    case aa::MemoryDataType::kFlightReservationPassengerName:
+    case aa::MemoryDataType::kFlightReservationDepartureAirport:
+    case aa::MemoryDataType::kFlightReservationArrivalAirport:
+    case aa::MemoryDataType::kFlightReservationDepartureDate:
+    case aa::MemoryDataType::kFlightReservationArrivalDate:
+    case aa::MemoryDataType::kNationalIdCardName:
+    case aa::MemoryDataType::kNationalIdCardCountry:
+    case aa::MemoryDataType::kNationalIdCardNumber:
+    case aa::MemoryDataType::kNationalIdCardIssueDate:
+    case aa::MemoryDataType::kNationalIdCardExpirationDate:
+    case aa::MemoryDataType::kRedressNumberName:
+    case aa::MemoryDataType::kRedressNumberNumber:
+    case aa::MemoryDataType::kKnownTravelerNumberName:
+    case aa::MemoryDataType::kKnownTravelerNumberNumber:
+    case aa::MemoryDataType::kKnownTravelerNumberExpirationDate:
+    case aa::MemoryDataType::kDriversLicenseName:
+    case aa::MemoryDataType::kDriversLicenseState:
+    case aa::MemoryDataType::kDriversLicenseNumber:
+    case aa::MemoryDataType::kDriversLicenseIssueDate:
+    case aa::MemoryDataType::kDriversLicenseExpirationDate:
+    case aa::MemoryDataType::kOrderId:
+    case aa::MemoryDataType::kOrderAccount:
+    case aa::MemoryDataType::kOrderDate:
+    case aa::MemoryDataType::kOrderMerchantName:
+    case aa::MemoryDataType::kOrderMerchantDomain:
+    case aa::MemoryDataType::kOrderProductNames:
+    case aa::MemoryDataType::kOrderGrandTotal:
+    case aa::MemoryDataType::kShipmentTrackingNumber:
+    case aa::MemoryDataType::kShipmentAssociatedOrderId:
+    case aa::MemoryDataType::kShipmentDeliveryAddress:
+    case aa::MemoryDataType::kShipmentDeliveryZipCode:
+    case aa::MemoryDataType::kShipmentCarrierName:
+    case aa::MemoryDataType::kShipmentCarrierDomain:
+    case aa::MemoryDataType::kShipmentEstimatedDeliveryDate: {
       std::optional<AtMemoryDataType> data_type = ToAtMemoryDataType(type);
       const auto* attribute_type =
           data_type ? std::get_if<AttributeType>(&*data_type) : nullptr;

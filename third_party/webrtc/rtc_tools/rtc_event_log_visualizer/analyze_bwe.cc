@@ -735,6 +735,7 @@ void CreateScreamSimulationBitrateGraph(const ParsedRtcEventLog& parsed_log,
   TimeSeries target_rate_series("Target rate", LineStyle::kStep);
   TimeSeries pacing_rate_series("Pacing rate", LineStyle::kStep);
   TimeSeries send_rate_series("Send rate", LineStyle::kStep);
+  TimeSeries received_rate_series("Received rate", LineStyle::kStep);
   IntervalSeries app_limited_series("Application limited", "#5092fc",
                                     IntervalSeries::kHorizontal);
 
@@ -752,6 +753,10 @@ void CreateScreamSimulationBitrateGraph(const ParsedRtcEventLog& parsed_log,
                                            state.pacing_rate.bps() / 1000);
     send_rate_series.points.emplace_back(config.GetCallTimeSec(state.time),
                                          state.send_rate.bps() / 1000);
+    if (state.received_rate.IsFinite()) {
+      received_rate_series.points.emplace_back(
+          config.GetCallTimeSec(state.time), state.received_rate.bps() / 1000);
+    }
     if (state.is_application_limited && !previously_app_limited) {
       app_limited_start_time = config.GetCallTimeSec(state.time);
       previously_app_limited = true;
@@ -770,6 +775,7 @@ void CreateScreamSimulationBitrateGraph(const ParsedRtcEventLog& parsed_log,
   plot->AppendTimeSeries(std::move(target_rate_series));
   plot->AppendTimeSeries(std::move(pacing_rate_series));
   plot->AppendTimeSeries(std::move(send_rate_series));
+  plot->AppendTimeSeries(std::move(received_rate_series));
   plot->AppendIntervalSeries(std::move(app_limited_series));
 
   plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",

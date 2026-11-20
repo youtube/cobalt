@@ -83,7 +83,8 @@ int DesktopProcessMain() {
 
   base::ThreadPoolInstance::CreateAndStartWithDefaultParams("Me2Me");
 
-  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI);
+  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI,
+                                                    /*is_main_thread=*/true);
   base::RunLoop run_loop;
   scoped_refptr<AutoThreadTaskRunner> ui_task_runner = new AutoThreadTaskRunner(
       main_task_executor.task_runner(), run_loop.QuitClosure());

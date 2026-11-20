@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">Värskendage üksust <ph name="CONTENT_TITLE" /></translation>
 <translation id="1142002900084379065">Hiljutised fotod</translation>
 <translation id="114221662579355151">See lubab rakendustel <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> ning kõikidel kaamerale juurdepääsemise loaga rakendustel ja veebisaitidel kaamerale juurde pääseda. Võimalik, et peate veebilehte värskendama või rakenduse taaskäivitama.</translation>
+<translation id="1145593918056169051">Printer on peatunud</translation>
 <translation id="1147991416141538220">Juurdepääsu palumiseks võtke ühendust selle seadme administraatoriga.</translation>
 <translation id="1148499908455722006">Avage konto <ph name="USER_NAME" /> teabedialoog</translation>
 <translation id="1150989369772528668">Kalender</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Otsi</translation>
 <translation id="1388728792929436380"><ph name="DEVICE_TYPE" /> taaskäivitub pärast värskendamise lõpetamist.</translation>
 <translation id="1390113502208199250">Chrome Educationi täienduse funktsioonide kasutamiseks peate seadme lähtestama tehaseseadetele.</translation>
+<translation id="1390907927270446471"><ph name="PROFILE_USERNAME" /> ei ole volitatud printeriga <ph name="PRINTER_NAME" /> printima. Võtke ühendust administraatoriga.</translation>
 <translation id="1391102559483454063">Sees</translation>
 <translation id="1394698770495054737">Täielikult hägustatud</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 päev tagasi}other{# päeva tagasi}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Jah</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> on blokeeritud</translation>
 <translation id="142765311413773645">Rakenduse <ph name="APP_NAME" /> litsents on aegunud</translation>
+<translation id="1430915738399379752">Printimine</translation>
 <translation id="1435537621343861112">Dikteerimist ei saa alustada. Teie mikrofon on väljas.</translation>
 <translation id="1445031758921122223">Näoga juhtimise failid on alla laaditud</translation>
 <translation id="1447907279406111651">Praegu · Lõpeb <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Tutvustuse toiming <ph name="STEP" />/<ph name="TOTAL_STEPS" />. Teie kinnitatud ja avatud rakendused on ekraani allservas asuval riiulil. Riiuliüksuste esiletõstmiseks vajutage klahve Alt + tõstuklahv + L ja seejärel tabulaatorit.</translation>
 <translation id="1602085790802918092">Virtuaalmasina käivitamine</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + allanool</translation>
+<translation id="1604432177629086300">Ei õnnestunud printida. Kontrollige printerit ja proovige uuesti.</translation>
 <translation id="1604857178818051494">Peata meediasisu</translation>
 <translation id="1607312127821884567">Teie telefoni rakenduste kuvamise seadistamisest loobumine</translation>
 <translation id="1610778689852195798">„Võta tagasi“</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Jõudeoleku andmed</translation>
 <translation id="2064048859448024834">Kaamera eelvaade on sisse lülitatud</translation>
 <translation id="2067220651560163985">Näita temperatuuri Celsiuse järgi</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> lõpetas printimise printerisse <ph name="PRINTER_NAME" /></translation>
 <translation id="2075520525463668108">Lülitage <ph name="CAPTURE_MEDIUM" /> sisse/välja. <ph name="CAPTURE_MEDIUM" /> on <ph name="CAPTURE_STATE" />.</translation>
 <translation id="2079545284768500474">Võta tagasi</translation>
 <translation id="2086334242442703436">Emotikonide valija avamine</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Rakenduse <ph name="APP_NAME" /> kasutamiseks taaskäivitage seade.</translation>
 <translation id="2335091074961603075">Teie Chromebook või Bluetooth-seade kasutab Bluetoothi vanemat versiooni. Parema helikvaliteedi huvides kasutage sisemist mikrofoni.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{<ph name="MANAGER" /> nõuab, et looksite täna WiFi-ühenduse, et värskendus alla laadida. Võite allalaadimiseks kasutada ka mahupõhist ühendust (rakenduda võivad tasud).}other{<ph name="MANAGER" /> nõuab, et looksite ühenduse WiFi-võrguga ja laadiksite enne tähtaega alla värskenduse. Võite allalaadimiseks kasutada ka mahupõhist ühendust (rakenduda võivad tasud).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> prindib ühe lehe printerisse <ph name="PRINTER_NAME" /></translation>
 <translation id="2336381494582898602">Powerwash</translation>
 <translation id="2339073806695260576">Puudutage riiulil elektronpliiatsi nuppu, et teha märkmeid, jäädvustada ekraanipilt, kasutada laserkursorit või suurendusklaasi.</translation>
 <translation id="2341729377289034582">Lukustatud vertikaalasendisse</translation>
@@ -755,6 +761,7 @@ Muidu lubatakse sisseehitatud puuteplaat uuesti pärast ajavahemikku <ph name="T
 <translation id="3206735939915734551">Suurtäheluku sisse- ja väljalülitamine</translation>
 <translation id="3207953481422525583">Kasutaja seaded</translation>
 <translation id="3208321278970793882">Rakendus</translation>
+<translation id="32101887417650595">Printeriga ei saa ühendust</translation>
 <translation id="3212221635583599601">Rohkemaks looge ühendus internetiga</translation>
 <translation id="3213571860604332401">Lingi salvestamine järjehoidjana</translation>
 <translation id="3217205077783620295">Helitugevus on sees, vahetamisel heli vaigistatakse.</translation>
@@ -823,6 +830,7 @@ Muidu lubatakse sisseehitatud puuteplaat uuesti pärast ajavahemikku <ph name="T
 <translation id="3431517721463707585">Töölaud 14</translation>
 <translation id="3433507769937235446">Lukusta lahkumisel</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">Paber on otsas</translation>
 <translation id="3435967511775410570">Sõrmejälg tunti ära</translation>
 <translation id="3437677362970530951">Mängud Play poes ja muudel mänguplatvormidel</translation>
 <translation id="3439896670700055005">Aktiivse lehe uuesti laadimine ilma vahemällu salvestatud sisuta</translation>
@@ -1000,6 +1008,7 @@ Jätkamiseks peavad kõik kasutajad välja logima.</translation>
 <translation id="3848526302597027234">Pääseda juurde järgmistele lubadele.</translation>
 <translation id="385051799172605136">Tagasi</translation>
 <translation id="385300504083504382">Algus</translation>
+<translation id="3854976556788175030">Väljastussalv on täis</translation>
 <translation id="3857807444929313943">Tõstke sõrm andurilt ja seejärel puudutage uuesti</translation>
 <translation id="3859364108019690">Rakendusi ei saa voogesitada</translation>
 <translation id="3861638017150647085">Kasutajanime „<ph name="USERNAME" />” pole saadaval</translation>
@@ -1052,6 +1061,7 @@ Jätkamiseks peavad kõik kasutajad välja logima.</translation>
 <translation id="401993194061514265">Marker pole saadaval. Avage Screencast uuesti.</translation>
 <translation id="4021716437419160885">Keri alla</translation>
 <translation id="4022497978915111141">Lukusta seade</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> prindib <ph name="PAGE_NUMBER" /> lehte printerisse <ph name="PRINTER_NAME" /></translation>
 <translation id="4024840464866786680">Kui unustasite oma PIN-koodi ja parooli või muutsite hiljuti oma Google'i konto parooli, proovige konto taastada.</translation>
 <translation id="4026843240379844265">Aktiivse akna teisaldamine ekraanide vahel</translation>
 <translation id="4028481283645788203">Turvalisuse suurendamiseks on vaja parooli</translation>
@@ -1581,6 +1591,7 @@ Teatud funktsioone on aku tööea pikendamiseks piiratud.</translation>
 <translation id="5491186829646618080">Saadaval on püsivaravärskendused</translation>
 <translation id="5503884284981862082">Ava/sule Google’i assistent</translation>
 <translation id="550391772491508736">Jätka ülekandmist</translation>
+<translation id="5505307013568720083">Tint on otsas</translation>
 <translation id="5506975627792768506">Lülita luup sisse või välja</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, sisestusklahvi vajutamisel heli vaigistatakse.</translation>
 <translation id="5512042095225963688">Eelmise sõna kustutamine</translation>
@@ -1692,12 +1703,14 @@ Teatud funktsioone on aku tööea pikendamiseks piiratud.</translation>
 <translation id="5791926618942305301">Määrake ekraanikuva jäädvustamises <ph name="SOURCE" /> <ph name="TYPE" />. Jäädvustamise tüübi valimiseks vajutage tabulaatorit. Jäädvustamiseks vajutage sisestusklahvi. Määrake jäädvustamisala valimisel osaline ekraanipilt. Kui see pole veel aktiivne, vajutage piirkonna valimiseks tühikut.</translation>
 <translation id="579415080077680903">Vaigistus</translation>
 <translation id="5802516411616338943">Ava kiirseaded</translation>
+<translation id="5804241973901381774">Load</translation>
 <translation id="5804651031882187592">Lülitage seade „SIMi lukustamine“ välja</translation>
 <translation id="5805809050170488595">Klõpsake võrgu <ph name="NETWORK_NAME" /> aktiveerimiseks</translation>
 <translation id="5818796501620225415">Saate rohkem aega lisada või keskendumisseansi lõpetada</translation>
 <translation id="5819918159912280082">Teie Chromebook taaskäivitati ootamatult. Avage oma eelmised aknad ja rakendused.</translation>
 <translation id="5823239091726045201">Google Tasks veebis</translation>
 <translation id="5825969630400862129">Ühendatud seadmete seaded</translation>
+<translation id="5828633471261496623">Printimine ...</translation>
 <translation id="5830180081891717894">Veel <ph name="WINDOWS" /></translation>
 <translation id="5830205393314753525">Rakendust <ph name="APP_NAME" /> ei saa avada</translation>
 <translation id="583281660410589416">Tundmatu</translation>
@@ -1722,6 +1735,7 @@ Teatud funktsioone on aku tööea pikendamiseks piiratud.</translation>
 <translation id="5892014525522223653">Võrguühendus puudub.</translation>
 <translation id="5895138241574237353">Taaskäivitamine</translation>
 <translation id="589817443623831496">Punkti skannimine</translation>
+<translation id="5901494423252125310">Printeri luuk on avatud</translation>
 <translation id="5901630391730855834">Kollane</translation>
 <translation id="5904614460720589786">Rakendust <ph name="APP_NAME" /> ei saanud konfiguratsiooniprobleemi tõttu seadistada. Võtke ühendust administraatoriga. Veakood: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> on võrguühenduseta</translation>
@@ -1786,6 +1800,7 @@ Teatud funktsioone on aku tööea pikendamiseks piiratud.</translation>
         <ph name="BEGIN_PARAGRAPH2" />Kui lülitate selle funktsiooni välja, saab seade endiselt saata oluliste teenuste (nagu süsteemivärskendused ja turvalisus) kasutamiseks vajalikku teavet.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />Omanik saab seda funktsiooni juhtida jaotises Seaded &gt; Täpsem &gt; Saada diagnostika- ja kasutusandmed automaatselt Google'ile.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Kui täiendavad veebi- ja rakendustegevused on teie lapse jaoks sisse lülitatud, võidakse need andmed salvestada tema Google'i kontole. Seadete ja nende kohandamise kohta leiate lisateavet saidilt families.google.com.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> proovib printida printerisse <ph name="PRINTER_NAME" /></translation>
 <translation id="6054305421211936131">Logi sisse kiipkaardiga</translation>
 <translation id="6059276912018042191">Hiljutised Chrome'i vahelehed</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1889,6 +1904,7 @@ Teatud funktsioone on aku tööea pikendamiseks piiratud.</translation>
 <translation id="6337159624125741244">Täisekraani suurendus on sisse lülitatud</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> on hallatud seanss, mida haldab <ph name="MANAGER" /></translation>
 <translation id="6340148837564298498">Kui unustasite oma PIN-koodi, proovige see kasutaja taastada.</translation>
+<translation id="634208815998129842">Tegumihaldur</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> on ühendatud</translation>
 <translation id="6345418402353744910">Teie kasutajanimi ja parool on puhverserveri <ph name="PROXY" /> jaoks nõutav, et administraator saaks teie võrgu seadistada</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" />, seejärel <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> või <ph name="KEY_THREE" /></translation>
@@ -2094,6 +2110,7 @@ Uus installimine</translation>
 <translation id="6921427376813842559">Viige seade tagasi</translation>
 <translation id="6929081673585394903">Kuva juhtelemendid</translation>
 <translation id="6931576957638141829">Sihtkohta salvestamine</translation>
+<translation id="6935286146439255109">Paberisalv puudub</translation>
 <translation id="6935857786205183008">Vertikaalpaigutus</translation>
 <translation id="6942518653766415536">Salvestise vormingu menüü</translation>
 <translation id="6945221475159498467">Vali</translation>
@@ -2116,6 +2133,7 @@ Uus installimine</translation>
 <translation id="6988094684494323731">Linuxi konteineri käivitamine</translation>
 <translation id="7000027735917578303">Akende ja töölaudade seaded</translation>
 <translation id="7001036685275644873">Linuxi rakenduste ja failide varundamine</translation>
+<translation id="7001066449188684145">Printeriga <ph name="PRINTER_NAME" /> printimiseks on vaja kasutaja kinnitada. Võtke ühendust administraatoriga.</translation>
 <translation id="7004910047186208204">Looge ühendus mobiilse andmesidega</translation>
 <translation id="7005239792648594238">Alustamiseks avage rakendus</translation>
 <translation id="7014684956566476813">Ühendatud seadmega <ph name="DEVICE_NAME" /></translation>
@@ -2155,6 +2173,7 @@ Uus installimine</translation>
 <translation id="7108254681523785542">Üksuse kleepimiseks valige see. Lõikelaua kuvamiseks vajutage klahvikombinatsiooni <ph name="SHORTCUT_KEY_NAME" /> + v.</translation>
 <translation id="7108338896283013870">Peida</translation>
 <translation id="7108933416628942903">Lukusta kohe</translation>
+<translation id="7116554090938189816">Printeri SSL-sertifikaat on aegunud. Taaskäivitage printer ja proovige uuesti.</translation>
 <translation id="7116969082764510092">Töölaud 11</translation>
 <translation id="7118268675952955085">ekraanipilt</translation>
 <translation id="7118597077555700347">Ava <ph name="SEARCH_RESULT_TEXT" /></translation>
@@ -2206,6 +2225,7 @@ Uus installimine</translation>
 <translation id="7312210124139670355">Administraator lähtestab teie eSIM-i. See võib võtta mõne minuti.</translation>
 <translation id="7312761820869643657">Viige seade tagasi eelmisele versioonile</translation>
 <translation id="7313193732017069507">Kaamera laiendamine</translation>
+<translation id="7325209047678309347">Paber on ummistunud</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> keelas ADB silumise. Kui seadme <ph name="DEVICE_TYPE" /> taaskäivitate, ei saa te rakendusi kõrvallaadida.</translation>
 <translation id="73289266812733869">Valimata</translation>
 <translation id="7330397557116570022">Dikteerimise kasutamiseks minge järgmisele väljale</translation>
@@ -2580,6 +2600,7 @@ Seadme väljalülitamiseks vajutage uuesti pikalt seadme toitenuppu.</translatio
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Halb väljund</translation>
 <translation id="8345019317483336363">Valitud on aken <ph name="WINDOW_TITLE" /></translation>
+<translation id="8347227221149377169">Prinditööd</translation>
 <translation id="8349826889576450703">käivitaja</translation>
 <translation id="8349964124165471584">Lingi avamine uues aknas</translation>
 <translation id="8351131234907093545">Märkme loomine</translation>
@@ -2618,6 +2639,7 @@ Seadme väljalülitamiseks vajutage uuesti pikalt seadme toitenuppu.</translatio
 <translation id="8458259704995116343">VM-i käivitamine nurjus.</translation>
 <translation id="84613761564611563">Taotleti juurdepääsu võrguseadistuse kasutajaliidesele, oodake …</translation>
 <translation id="8462305545768648477">Sule funktsioon Vali ja kuula</translation>
+<translation id="8463001014623882202">Volitamine ebaõnnestus</translation>
 <translation id="8466665972451889002">Kuva üksused grupis <ph name="GROUP_NAME" /></translation>
 <translation id="8468806060683421065">tähtaeg on <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" />: <ph name="FEATURE_STATE" /> <ph name="FEATURE_NAME" />.</translation>

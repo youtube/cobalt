@@ -11,11 +11,11 @@
 
 #include <stddef.h>
 
-
 #include "base/check.h"
 #include "base/containers/heap_array.h"
 #include "base/debug/alias.h"
 #include "base/immediate_crash.h"
+#include "base/logging.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -53,9 +53,17 @@ NOINLINE void CorruptMemoryBlock(bool induce_crash) {
 }
 #endif  // BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
 
+void MaybeImmediateCrash() {
+  // On non-ASan builds, the invalid memory access above is not guaranteed
+  // to crash and may leave the heap memory in corrupted state.
+  // To prevent potential exploitation, ensure the process crashes.
+#if !defined(ADDRESS_SANITIZER) && !BUILDFLAG(IS_HWASAN)
+  base::ImmediateCrash();
+#endif
+}
+
 }  // namespace
 
-#if defined(ADDRESS_SANITIZER) || BUILDFLAG(IS_HWASAN)
 // NOTE(sebmarchand): We intentionally perform some invalid heap access here in
 //     order to trigger an AddressSanitizer (ASan) error report.
 
@@ -65,14 +73,22 @@ NOINLINE void CorruptMemoryBlock(bool induce_crash) {
 static const size_t kArraySize = 4;
 
 void AsanHeapOverflow() {
+  // Don't fold so that crash reports will clearly show this method.
+  NO_CODE_FOLDING();
+
   // Declares the array as volatile to make sure it doesn't get optimized away.
   auto array = base::HeapArray<volatile int>::Uninit(kArraySize);
   // SAFETY: required for test.
   int dummy = UNSAFE_BUFFERS(array.data()[kArraySize]);
   base::debug::Alias(&dummy);
+
+  MaybeImmediateCrash();
 }
 
 void AsanHeapUnderflow() {
+  // Don't fold so that crash reports will clearly show this method.
+  NO_CODE_FOLDING();
+
   // Declares the array as volatile to make sure it doesn't get optimized away.
   auto array = base::HeapArray<volatile int>::Uninit(kArraySize);
   // We need to store the underflow address in a temporary variable as trying to
@@ -81,17 +97,64 @@ void AsanHeapUnderflow() {
   volatile int* underflow_address = &array[0] - 1;
   int dummy = *underflow_address;
   base::debug::Alias(&dummy);
+
+  MaybeImmediateCrash();
 }
 
 void AsanHeapUseAfterFree() {
+  // Don't fold so that crash reports will clearly show this method.
+  NO_CODE_FOLDING();
+
   // Declares the array as volatile to make sure it doesn't get optimized away.
   auto array = base::HeapArray<volatile int>::Uninit(kArraySize);
   volatile int* dangling = array.data();
   array = base::HeapArray<volatile int>();
   int dummy = dangling[kArraySize / 2];
   base::debug::Alias(&dummy);
+
+  MaybeImmediateCrash();
 }
 
+void AsanHeapMemberDereferenceAfterFree() {
+  // Don't fold so that crash reports will clearly show this method.
+  NO_CODE_FOLDING();
+
+  int on_stack_variable = 123;
+  // Allocate a pointer on the heap that points to a stack variable.
+  auto array = base::HeapArray<int*>::Uninit(kArraySize);
+  array[0] = &on_stack_variable;
+
+  CHECK(*array[0] == 123);
+
+  // Cast to a pointer to a volatile pointer. This forces the compiler to
+  // perform a volatile read from this memory location when we dereference it
+  // later, preventing the compiler from optimizing out the read after the
+  // memory is freed.
+  int* volatile* dangling = reinterpret_cast<int* volatile*>(array.data());
+
+  // Free the heap memory.
+  array = base::HeapArray<int*>();
+
+  // Perform a volatile read from the freed memory (Use-After-Free).
+  // This reads the address of `on_stack_variable` back from the freed heap
+  // allocation.
+  volatile int* bypassed_ptr = *dangling;
+
+  LOG(ERROR) << "Invalid Access Debug: dereferencing a pointer to "
+             << const_cast<int*>(bypassed_ptr);
+
+  // Dereference the pointer we just read to force the access.
+  int val = *bypassed_ptr;
+
+  // Ensure the read value is not optimized away.
+  base::debug::Alias(&val);
+
+  MaybeImmediateCrash();
+}
+
+#if defined(ADDRESS_SANITIZER) || BUILDFLAG(IS_HWASAN)
+// The "corrupt-block" and "corrupt-heap" classes of bugs is specific to
+// Windows.
 #if BUILDFLAG(IS_WIN)
 void AsanCorruptHeapBlock() {
   CorruptMemoryBlock(false);

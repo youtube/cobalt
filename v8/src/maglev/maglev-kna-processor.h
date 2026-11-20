@@ -10,6 +10,7 @@
 #include "src/base/base-export.h"
 #include "src/base/logging.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -17,7 +18,9 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-known-node-aspects.h"
 #include "src/maglev/maglev-node-type.h"
+#include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-tracer.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -43,10 +46,11 @@ concept IsNodeT = std::is_base_of_v<Node, T>;
 // successor basic blocks.
 class RecomputeKnownNodeAspectsProcessor {
  public:
-  explicit RecomputeKnownNodeAspectsProcessor(Graph* graph)
+  RecomputeKnownNodeAspectsProcessor(Graph* graph,
+                                     ReachableExceptionHandlerTracker& tracker)
       : graph_(graph),
         known_node_aspects_(nullptr),
-        reachable_exception_handlers_(zone()),
+        tracker_(tracker),
         tracer_(graph->compilation_info()) {}
 
   void PreProcessGraph(Graph* graph) {
@@ -59,21 +63,6 @@ class RecomputeKnownNodeAspectsProcessor {
   }
   void PostProcessGraph(Graph* graph) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    // TODO(victorgomes): Support removing the unreachable blocks instead of
-    // just skipping it.
-    if (V8_UNLIKELY(block->IsUnreachable())) {
-      // Ensure successors can also be unreachable.
-      return AbortBlock(block);
-    }
-
-    if (block->is_exception_handler_block()) {
-      if (!reachable_exception_handlers_.contains(block)) {
-        // This is an unreachable exception handler block.
-        // Ensure successors can also be unreachable.
-        return AbortBlock(block);
-      }
-    }
-
     bool is_fallthrough = false;
     if (block->is_loop() && block->state()->is_resumable_loop()) {
       // TODO(victorgomes): Ideally, we should use the loop backedge KNA cache
@@ -82,14 +71,16 @@ class RecomputeKnownNodeAspectsProcessor {
     } else if (block->is_loop()) {
       DCHECK_GT(block->predecessor_count(), 1);
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
+      KnownNodeAspects* backedge_known_node_aspects =
+          block->state()->backedge_known_node_aspects();
       // Merge saved backedge KNA to the forward one.
       TRACE_KNA("Merging KNA at loop header B"
                 << block->id() << ":" << TraceNewline{}
                 << "## Forward KNA:" << TraceNewline{} << *known_node_aspects_
                 << TraceNewline{} << "## Backward KNA:" << TraceNewline{}
-                << *block->state()->backedge_known_node_aspects());
-      known_node_aspects_->Merge(*block->state()->backedge_known_node_aspects(),
-                                 zone());
+                << *backedge_known_node_aspects);
+      backedge_known_node_aspects->UnwrapIdentitiesAndPhisInKeys(zone());
+      known_node_aspects_->Merge(*backedge_known_node_aspects, zone());
     } else if (block->has_state()) {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
     } else if (block->is_edge_split_block()) {
@@ -138,7 +129,7 @@ class RecomputeKnownNodeAspectsProcessor {
     if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
       BasicBlock* exception_handler = info->catch_block();
       if (mark_handler_reachable) {
-        reachable_exception_handlers_.insert(exception_handler);
+        tracker_.MarkReachable(exception_handler);
       }
       Merge(exception_handler);
     }
@@ -225,7 +216,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
   Graph* graph_;
   KnownNodeAspects* known_node_aspects_;
-  ZoneAbslFlatHashSet<BasicBlock*> reachable_exception_handlers_;
+  ReachableExceptionHandlerTracker& tracker_;
   Tracer tracer_;
 
   Zone* zone() { return graph_->zone(); }
@@ -236,17 +227,6 @@ class RecomputeKnownNodeAspectsProcessor {
   }
   bool EnsureType(ValueNode* node, NodeType type) {
     return known_node_aspects().EnsureType(broker(), node, type);
-  }
-
-  BlockProcessResult AbortBlock(BasicBlock* block) {
-    ControlNode* control = block->reset_control_node();
-    block->RemovePredecessorFollowing(control);
-    control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
-    block->set_deferred(true);
-    block->set_control_node(control);
-    block->mark_dead();
-    graph_->set_may_have_unreachable_blocks();
-    return BlockProcessResult::kSkip;
   }
 
   void Merge(BasicBlock* block) {
@@ -454,6 +434,16 @@ class RecomputeKnownNodeAspectsProcessor {
     ProcessStoreContextSlot(graph_->GetConstant(node->context()),
                             node->ValueInput().node(), node->slot_offset(),
                             kMaybeAssigned);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(AssumeMap* node) {
+    auto merger = KnownMapsMerger<compiler::ZoneRefSet<Map>>(broker(), zone(),
+                                                             node->maps());
+    merger.IntersectWithKnownNodeAspects(node->ObjectInput().node(),
+                                         known_node_aspects());
+    merger.UpdateKnownNodeAspects(node->ObjectInput().node(),
+                                  known_node_aspects());
     return ProcessResult::kContinue;
   }
 

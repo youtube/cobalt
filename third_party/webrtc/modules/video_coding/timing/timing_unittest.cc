@@ -90,7 +90,7 @@ void UpdateDecodeTimer(VCMTiming& timing,
                        TimeDelta decode_time) {
   for (int i = 0; i < k25Fps.hertz(); ++i) {
     clock.AdvanceTime(decode_time);
-    timing.StopDecodeTimer(decode_time, clock.CurrentTime());
+    timing.UpdateDecodeTimeEstimate(decode_time, clock.CurrentTime());
     clock.AdvanceTime(1 / k25Fps - decode_time);
   }
 }
@@ -164,7 +164,7 @@ TEST(VCMTimingTest, UpdateCurrentDelayCapsWhenOffByMicroseconds) {
   // EXPECT_THAT(timing.GetTimings(), HasConsistentVideoDelayTimings());
 }
 
-TEST(VCMTimingTest, StopDecodeTimerClearsOldEstimates) {
+TEST(VCMTimingTest, UpdateDecodeTimeEstimateClearsOldEstimates) {
   FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(0);
   VCMTiming timing(&clock, field_trials, kRenderDelay);
@@ -174,7 +174,7 @@ TEST(VCMTimingTest, StopDecodeTimerClearsOldEstimates) {
 
   // Advance time beyond the filter window, old estimates should be cleared.
   clock.AdvanceTime(TimeDelta::Seconds(30));
-  timing.StopDecodeTimer(TimeDelta::Millis(3), clock.CurrentTime());
+  timing.UpdateDecodeTimeEstimate(TimeDelta::Millis(3), clock.CurrentTime());
   EXPECT_EQ(timing.GetTimings().estimated_max_decode_time,
             TimeDelta::Millis(3));
 }

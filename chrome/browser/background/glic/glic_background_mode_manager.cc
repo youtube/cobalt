@@ -14,6 +14,7 @@
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/background/glic/glic_status_icon.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -153,7 +154,7 @@ GlicBackgroundModeManager::GlicBackgroundModeManager(StatusTray* status_tray)
       expected_registered_hotkeys_(
           !base::FeatureList::IsEnabled(features::kGlicHotkeyLocalScope)
               ? std::vector<ui::Accelerator>{GlicLauncherConfiguration::
-                                                 GetGlobalHotkey()}
+                                                 GetToggleHotkey()}
               : std::vector<ui::Accelerator>{}) {
   g_browser_process->profile_manager()->AddObserver(this);
   // Start tracking any profiles that already exist.
@@ -191,7 +192,7 @@ void GlicBackgroundModeManager::OnGlobalHotkeyChanged() {
   std::vector<ui::Accelerator> new_hotkeys;
 
   if (!base::FeatureList::IsEnabled(features::kGlicHotkeyLocalScope)) {
-    new_hotkeys.push_back(GlicLauncherConfiguration::GetGlobalHotkey());
+    new_hotkeys.push_back(GlicLauncherConfiguration::GetToggleHotkey());
   }
 
   if (expected_registered_hotkeys_ == new_hotkeys) {
@@ -226,7 +227,8 @@ void GlicBackgroundModeManager::HandleHotkey(
       ToggleUI(/*prevent_close=*/false, mojom::InvocationSource::kOsHotkey);
       // Record hotkey usage.
       const ui::Accelerator default_hotkey =
-          GlicLauncherConfiguration::GetDefaultHotkey();
+          LocalHotkeyManager::GetDefaultAccelerator(
+              LocalHotkeyManager::Command::kPanelToggle);
       base::UmaHistogramEnumeration("Glic.Usage.Hotkey",
                                     accelerator == default_hotkey
                                         ? glic::HotkeyUsage::kDefault

@@ -18,6 +18,7 @@
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_registrar.h"
+#include "extensions/browser/host_access_request_helper.h"
 #include "extensions/browser/permissions/scripting_permissions_modifier.h"
 #include "extensions/browser/permissions/site_permissions_helper.h"
 #include "extensions/common/extension.h"
@@ -49,6 +50,9 @@ ExtensionsToolbarUnitTest::ExtensionsToolbarUnitTest(
 ExtensionsToolbarUnitTest::~ExtensionsToolbarUnitTest() = default;
 
 void ExtensionsToolbarUnitTest::SetUp() {
+  cooldown_reset_.emplace(
+      extensions::HostAccessRequestsHelper::SetCooldownForTesting(
+          base::TimeDelta()));
   TestWithBrowserView::SetUp();
 
   extensions::TestExtensionSystem* extension_system =
@@ -65,6 +69,7 @@ void ExtensionsToolbarUnitTest::SetUp() {
 }
 
 void ExtensionsToolbarUnitTest::TearDown() {
+  cooldown_reset_.reset();
   // Avoid dangling pointer to profile.
   permissions_helper_.reset(nullptr);
 

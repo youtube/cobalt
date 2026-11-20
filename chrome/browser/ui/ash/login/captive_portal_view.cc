@@ -4,10 +4,10 @@
 
 #include "chrome/browser/ui/ash/login/captive_portal_view.h"
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ash/browser_delegate/browser_controller.h"
 #include "chrome/browser/ui/ash/login/captive_portal_window_proxy.h"
-#include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/network/network_state_handler.h"

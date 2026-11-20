@@ -52,7 +52,7 @@ void PopupMenuHelper::ShowPopupMenu(
     bool right_aligned,
     bool allow_multiple_selection) {
   // Only single selection list boxes show a popup on Mac.
-  DCHECK(!allow_multiple_selection);
+  CHECK(!allow_multiple_selection, base::NotFatalUntil::M152);
   if (!g_allow_showing_popup_menus)
     return;
 
@@ -107,7 +107,7 @@ void PopupMenuHelper::RenderWidgetHostVisibilityChanged(
 }
 
 void PopupMenuHelper::RenderWidgetHostDestroyed(RenderWidgetHost* widget_host) {
-  DCHECK(observation_.IsObservingSource(widget_host));
+  CHECK(observation_.IsObservingSource(widget_host), base::NotFatalUntil::M152);
   observation_.Reset();
 }
 

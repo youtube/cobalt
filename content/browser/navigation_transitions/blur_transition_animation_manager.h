@@ -19,6 +19,7 @@
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "ui/android/window_android.h"
@@ -209,6 +210,8 @@ class CONTENT_EXPORT BlurTransitionAnimationManager
       TransitionExitReason::kAnimationTimerExpired;
   std::unique_ptr<WebContentsViewAndroidDelegate>
       web_contents_view_android_delegate_;
+
+  std::optional<WebContents::ScopedIgnoreInputEvents> ignore_input_scope_;
 
   base::WeakPtrFactory<BlurTransitionAnimationManager> weak_factory_{this};
 };

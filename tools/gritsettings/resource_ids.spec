@@ -1348,7 +1348,7 @@
     "includes": [7400],
   },
   "<(SHARED_INTERMEDIATE_DIR)/components/policy/resources/webui/resources.grd": {
-    "META": {"sizes": {"includes": [30]}},
+    "META": {"sizes": {"includes": [50]}},
     "includes": [7420],
   },
   "<(SHARED_INTERMEDIATE_DIR)/components/webui/safe_browsing/resources/resources.grd": {
@@ -1603,7 +1603,7 @@
   "ash/login/resources/login_resources.grd": {
     "structures": [9140],
   },
-  "ash/login/resources/login_strings.grd": {
+  "ash/login/resources/ash_login_strings.grd": {
     "messages": [9150],
   },
   "ash/public/cpp/resources/ash_public_unscaled_resources.grd": {

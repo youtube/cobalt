@@ -444,6 +444,21 @@ chromium-metrics-reviews@google.com.
   <variant name="Compose"
       summary="Returns suitability of this page for compose."/>
   <variant name="CompressPublicImages" summary="Compresses public images"/>
+  <variant name="CurinosCreditCardCarRentalBenefits"
+      summary="This optimization provides information about whether a
+               merchant url is eligible for credit card car rental benefits.
+               Applies to only credit cards that are supported by Curinos
+               sourced benefits on Chrome."/>
+  <variant name="CurinosCreditCardFlightBenefits"
+      summary="This optimization provides information about whether a
+               merchant url is eligible for credit card flight benefits.
+               Applies to only credit cards that are supported by Curinos
+               sourced benefits on Chrome."/>
+  <variant name="CurinosCreditCardHotelBenefits"
+      summary="This optimization provides information about whether a
+               merchant url is eligible for credit card hotel benefits.
+               Applies to only credit cards that are supported by Curinos
+               sourced benefits on Chrome."/>
   <variant name="DeferAllScript" summary="Defers execution of script"/>
   <variant name="DigitalCredentialsLowFriction"
       summary="This optimization provides information about whether a URL is
@@ -1506,7 +1521,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceModelUninstallReason.{BaseModel}"
-    enum="OnDeviceModelUninstallReason" expires_after="2026-10-15">
+    enum="OnDeviceModelUninstallReason" expires_after="2026-12-16">
   <owner>zekunjiang@google.com</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -1980,7 +1995,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.OnDeviceModel.NewModelInstalled"
-    enum="InstalledModel" expires_after="2026-10-15">
+    enum="InstalledModel" expires_after="2026-12-16">
   <owner>zekunjiang@google.com</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -2228,6 +2243,62 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="OptimizationGuide.PageContentCache.CachePageContentLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the steady-state round-trip latency on the main thread for caching
+    the page context of a specific tab, including background task sequence hops.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentCache.DeletePageContentForTabsLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the steady-state round-trip latency on the main thread for
+    batch-deleting the page contexts of multiple stale tabs from the database,
+    including the background task sequence hops.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentCache.DeletePageContentForTabsResult"
+    enum="BooleanSuccess" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records whether the database operation to batch-delete multiple stale tabs'
+    page contexts was successful. Recorded each time the operation is performed.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentCache.DeletePageContentOlderThanLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the steady-state round-trip latency on the main thread for executing
+    the age-based purge query in the database, including the background task
+    sequence hops.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentCache.DeletePageContentOlderThanResult"
+    enum="BooleanSuccess" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records whether the database operation to purge old/expired page contexts
+    was successful. Recorded each time the operation is performed.
+  </summary>
+</histogram>
+
 <histogram
     name="OptimizationGuide.PageContentCache.EligibleTabsCachedPercentage"
     units="%" expires_after="2026-11-15">
@@ -2250,6 +2321,51 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="OptimizationGuide.PageContentCache.GetAllTabIdsLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the steady-state round-trip latency on the main thread for querying
+    the list of all cached tab IDs from the database, including the background
+    task sequence hops.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentCache.GetPageContentForTabCacheHit"
+    enum="BooleanCacheHit" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records whether the PageContentCache read query successfully resulted in a
+    cache hit (page context found) or cache miss.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentCache.GetPageContentForTabLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the steady-state round-trip latency on the main thread for querying
+    the page context of a specific tab from the cache, including the background
+    task sequence hops.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentCache.InitTime" units="ms"
+    expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the total time taken to initialize the PageContentCache. Measured on
+    the main thread, from PageContentCache instantiation until the OS Crypt
+    async encryptor is ready and the store is initialized.
+  </summary>
+</histogram>
+
 <histogram name="OptimizationGuide.PageContentCache.NotCachedTabsCount"
     units="tabs" expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
@@ -2257,6 +2373,18 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the number of tabs that do not have cached content. Recorded after a
     delay post-startup, only if the tab model is loaded.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentCache.RemovePageContentForTabLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the steady-state round-trip latency on the main thread for removing
+    the page context of a single tab from the database, including the background
+    task sequence hops.
   </summary>
 </histogram>
 
@@ -2597,6 +2725,110 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether Chrome was handling input, at the time when we requested a
     screenshot.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentStore.AddPageContentLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the time taken inside PageContentStore to encrypt and write the page
+    context to the SQLite database on the background thread.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentStore.DbInitTime" units="ms"
+    expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the SQL/file execution time taken to initialize the underlying
+    SQLite database in PageContentStore. Measured on the background sequence.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentStore.DecryptionLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the cryptographic decryption latency (using OS Crypt async)
+    occurring during page context retrieval. Measured on the background thread.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentStore.DeleteAllEntriesLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the time taken inside PageContentStore to execute the database query
+    to wipe all cache entries on the background thread.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentStore.DeletePageContentForTabLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the time taken inside PageContentStore to execute the database query
+    to delete the page context of a single tab on the background thread.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentStore.DeletePageContentForTabsLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the time taken inside PageContentStore to execute the database query
+    to delete the page contexts of multiple stale tabs on the background thread.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentStore.DeletePageContentOlderThanLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the time taken inside PageContentStore to execute the database query
+    to delete old/expired page contexts on the background thread.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentStore.EncryptionLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the cryptographic encryption latency (using OS Crypt async)
+    occurring during page context storage. Measured on the background thread.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentStore.GetAllTabIdsLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the time taken inside PageContentStore to query all cached tab IDs
+    from the database on the background thread.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentStore.GetPageContentForTabLatency"
+    units="ms" expires_after="2027-06-01">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the time taken inside PageContentStore to fetch and decrypt the page
+    context for a tab on the background thread.
   </summary>
 </histogram>
 

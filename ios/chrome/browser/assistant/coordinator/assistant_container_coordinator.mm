@@ -26,10 +26,19 @@
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
-#import "ios/chrome/browser/shared/ui/util/named_guide.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
-#import "ios/chrome/common/ui/util/constraints_ui_util.h"
+
+namespace {
+
+// The transition state of the assistant container coordinator.
+enum class TransitionState {
+  kIdle,
+  kPresenting,
+  kDismissing,
+};
+
+}  // namespace
 
 @interface AssistantContainerCoordinator () <FullscreenUIElement,
                                              FullscreenBrowserAgentObserving>
@@ -47,8 +56,8 @@
   UIViewController* _contentViewController;
   AssistantContainerAnimator* _animator;
   __weak id<AssistantContainerDelegate> _delegate;
-  // Whether a dismissal is currently in progress.
-  BOOL _dismissalInProgress;
+  // The current transition state.
+  TransitionState _transitionState;
   // Completion block to be executed after dismissal.
   ProceduralBlock _dismissalCompletion;
   // The available detents for the container.
@@ -62,6 +71,7 @@
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
     _minimizedDetentHeight = kAssistantContainerMinimizedDetentHeight;
+    _transitionState = TransitionState::kIdle;
   }
   return self;
 }
@@ -92,6 +102,7 @@
     return;
   }
 
+  _transitionState = TransitionState::kPresenting;
   _contentViewController = viewController;
   _delegate = delegate;
   _animator = [[AssistantContainerAnimator alloc]
@@ -132,6 +143,10 @@
   }
 
   __weak __typeof(self) weakSelf = self;
+  void (^animations)(void) = ^{
+    [weakSelf animateCutoutRadiusPresented:YES];
+  };
+
   if (IsUseSceneViewControllerEnabled()) {
     [self.presenter
         addAssistantContainerViewController:_containerViewController];
@@ -150,6 +165,7 @@
     [self.baseViewController.view layoutIfNeeded];
     [_animator animatePresentation:_containerViewController
                           animated:YES
+                        animations:animations
                         completion:^{
                           [weakSelf didCompletePresentationAnimation];
                         }];
@@ -189,6 +205,7 @@
 
   [_animator animatePresentation:_containerViewController
                         animated:YES
+                      animations:animations
                       completion:^{
                         [weakSelf didCompletePresentationAnimation];
                       }];
@@ -226,7 +243,7 @@
 
   // If a dismissal is already in progress, update the completion block.
   // If the new request is non-animated, force immediate dismissal.
-  if (_dismissalInProgress) {
+  if (_transitionState == TransitionState::kDismissing) {
     if (completion) {
       _dismissalCompletion = completion;
     }
@@ -238,7 +255,7 @@
     return;
   }
 
-  _dismissalInProgress = YES;
+  _transitionState = TransitionState::kDismissing;
   if (completion) {
     _dismissalCompletion = completion;
   }
@@ -263,8 +280,13 @@
     return;
   }
 
+  void (^animations)(void) = ^{
+    [weakSelf animateCutoutRadiusPresented:NO];
+  };
+
   [_animator animateDismissal:_containerViewController
                      animated:animated
+                   animations:animations
                    completion:^{
                      [weakSelf didCompleteDismissalAnimationAnimated:animated];
                    }];
@@ -272,8 +294,14 @@
 
 #pragma mark - Private
 
+// Animates the App Bar cutout radius to match the presented/dismissed state.
+- (void)animateCutoutRadiusPresented:(BOOL)presented {
+  [_containerViewController animateAlongsideTransitionPresented:presented];
+}
+
 // Called when the presentation animation completes.
 - (void)didCompletePresentationAnimation {
+  _transitionState = TransitionState::kIdle;
   if ([_delegate respondsToSelector:@selector(assistantContainer:
                                                didAppearAnimated:)]) {
     [_delegate assistantContainer:_containerViewController didAppearAnimated:YES];
@@ -284,7 +312,7 @@
 - (void)didCompleteDismissalAnimationAnimated:(BOOL)animated {
   // If the dismissal is not in progress, it means it has already been completed
   // (e.g. by a subsequent non-animated dismissal).
-  if (!_dismissalInProgress) {
+  if (_transitionState != TransitionState::kDismissing) {
     return;
   }
 
@@ -294,7 +322,7 @@
              didDisappearAnimated:animated];
   }
 
-  _dismissalInProgress = NO;
+  _transitionState = TransitionState::kIdle;
 
   // Cleanup view controller and state.
   _fullscreenUIUpdater = nullptr;

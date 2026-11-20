@@ -56,6 +56,7 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -1524,7 +1525,7 @@ void WebAppIntegrationTestDriver::InstallOmniboxIcon(InstallableSite site) {
                     browser()->GetActions()->root_action_item())
         ->InvokeAction();
   } else {
-    browser()->window()->ExecutePageActionIconForTesting(
+    BrowserWindow::FromBrowser(browser())->ExecutePageActionIconForTesting(
         PageActionIconType::kPwaInstall);
   }
 
@@ -1658,24 +1659,23 @@ void WebAppIntegrationTestDriver::InstallSubApp(
 
   std::string sub_url = GetRelativeSubAppPath(sub_app);
 
-  // The argument of add() is a dictionary-valued dictionary:
-  // { $manifest_id : {'installURL' : $installURL} }
-  // In our case, both $manifest_id and $installURL are sub_url.
-  base::DictValue inner_dict;
-  inner_dict.Set("installURL", sub_url);
-  base::DictValue outer_dict;
-  outer_dict.Set(sub_url, std::move(inner_dict));
+  base::ListValue install_urls;
+  install_urls.Append(sub_url);
 
   std::string script =
-      content::JsReplace("navigator.subApps.add($1)", std::move(outer_dict));
+      content::JsReplace("window.subApps.add($1)", std::move(install_urls));
   const content::EvalJsResult add_result =
       content::EvalJs(web_contents, script);
 
   if (option == SubAppInstallDialogOptions::kUserDeny) {
     EXPECT_FALSE(add_result.is_ok());
   } else {
+    base::DictValue expected_installed;
+    expected_installed.Set(sub_url, sub_url);
+
     base::DictValue expected_output;
-    expected_output.Set(sub_url, "success");
+    expected_output.Set("installedApps", std::move(expected_installed));
+    expected_output.Set("failedApps", base::DictValue());
     EXPECT_EQ(expected_output, add_result);
   }
 
@@ -1693,11 +1693,14 @@ void WebAppIntegrationTestDriver::RemoveSubApp(Site parent_app, Site sub_app) {
   std::string sub_url = GetRelativeSubAppPath(sub_app);
 
   const content::EvalJsResult remove_result = content::EvalJs(
-      web_contents,
-      content::JsReplace("navigator.subApps.remove([$1])", sub_url));
+      web_contents, content::JsReplace("window.subApps.remove([$1])", sub_url));
+
+  base::ListValue expected_removed;
+  expected_removed.Append(sub_url);
 
   base::DictValue expected_output;
-  expected_output.Set(sub_url, "success");
+  expected_output.Set("removedApps", std::move(expected_removed));
+  expected_output.Set("failedApps", base::DictValue());
   EXPECT_EQ(expected_output, remove_result);
 
   AfterStateChangeAction();
@@ -4145,7 +4148,7 @@ void WebAppIntegrationTestDriver::CheckHasSubApp(Site parent_app,
   std::string sub_app_url = GetRelativeSubAppPath(sub_app);
 
   const content::EvalJsResult list_result =
-      content::EvalJs(web_contents, "navigator.subApps.list()");
+      content::EvalJs(web_contents, "window.subApps.list()");
 
   const base::DictValue& list_result_dict = list_result.ExtractDict();
 
@@ -4169,7 +4172,7 @@ void WebAppIntegrationTestDriver::CheckNotHasSubApp(Site parent_app,
   std::string sub_app_url = GetRelativeSubAppPath(sub_app);
 
   const content::EvalJsResult list_result =
-      content::EvalJs(web_contents, "navigator.subApps.list()");
+      content::EvalJs(web_contents, "window.subApps.list()");
 
   const base::DictValue& list_result_dict = list_result.ExtractDict();
 
@@ -4190,7 +4193,7 @@ void WebAppIntegrationTestDriver::CheckNoSubApps(Site parent_app) {
       << "No open tab or window for the parent app was found.";
 
   const content::EvalJsResult result =
-      content::EvalJs(web_contents, "navigator.subApps.list()");
+      content::EvalJs(web_contents, "window.subApps.list()");
 
   // Check that list() returned an empty dictionary.
   EXPECT_EQ(base::Value(base::Value::Type::DICT), result);

@@ -14,9 +14,12 @@
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/inspector/inspector_session_state.h"
 #include "third_party/blink/renderer/core/inspector/protocol/protocol.h"
+#include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/platform/scheduler/public/page_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_cpu_throttler.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
+#include "third_party/blink/renderer/platform/testing/url_loader_test_delegate.h"
+#include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/inspector_protocol/crdtp/span.h"
 
@@ -52,8 +55,6 @@ class DummyFrontendChannel : public protocol::FrontendChannel {
       std::unique_ptr<protocol::Serializable> message) override {}
   void FlushProtocolNotifications() override {}
 };
-
-}  // namespace
 
 class InspectorEmulationAgentTest : public testing::Test {};
 
@@ -151,5 +152,107 @@ TEST_F(InspectorEmulationAgentTest, MultiSessionCPUThrottlingRestoreTest) {
   helper_.Reset();
 }
 #endif
+
+class MutatingBodyLoader : public WebNavigationBodyLoader {
+ public:
+  MutatingBodyLoader(InspectorEmulationAgent* agent,
+                     LocalFrame* frame,
+                     Persistent<DocumentLoader>* loader2)
+      : agent_(agent), frame_(frame), loader2_(loader2) {}
+
+  void SetTestReady(bool ready) { test_ready_ = ready; }
+
+  void SetDefersLoading(WebLoaderFreezeMode mode) override {
+    if (test_ready_ && mode == WebLoaderFreezeMode::kNone && !mutated_) {
+      mutated_ = true;
+      double base_ms = 0;
+      agent_->setVirtualTimePolicy(
+          protocol::Emulation::VirtualTimePolicyEnum::Pause, std::nullopt,
+          std::nullopt, std::nullopt, &base_ms);
+
+      auto params2 = std::make_unique<WebNavigationParams>();
+      params2->url = WebURL(KURL("https://example.com/test2.html"));
+      *loader2_ = MakeGarbageCollected<DocumentLoader>(
+          frame_, kWebNavigationTypeOther, std::move(params2), nullptr,
+          nullptr);
+
+      for (int i = 0; i < 50; ++i) {
+        agent_->WillCommitLoad(frame_, *loader2_);
+      }
+    }
+  }
+
+  void StartLoadingBody(Client*) override {}
+  BodyLoaderType GetType() const override { return BodyLoaderType::kStatic; }
+
+ private:
+  Persistent<InspectorEmulationAgent> agent_;
+  Persistent<LocalFrame> frame_;
+  Persistent<DocumentLoader>* loader2_;
+  bool mutated_ = false;
+  bool test_ready_ = false;
+};
+
+TEST_F(InspectorEmulationAgentTest, VirtualTimePolicyIteratorInvalidation) {
+  test::TaskEnvironment task_environment;
+  frame_test_helpers::WebViewHelper helper;
+  WebViewImpl* web_view = helper.Initialize();
+  WebLocalFrameImpl* web_frame = web_view->MainFrameImpl();
+  LocalFrame* frame = web_frame->GetFrame();
+  auto* virtual_time_controller =
+      web_view->Scheduler()->GetVirtualTimeController();
+
+  DummyFrontendChannel channel;
+  protocol::UberDispatcher dispatcher(&channel);
+  auto reattach_state = mojom::blink::DevToolsSessionState::New();
+  InspectorSessionState session_state(std::move(reattach_state));
+
+  auto* agent = MakeGarbageCollected<InspectorEmulationAgent>(
+      web_frame, *virtual_time_controller);
+  agent->Init(frame->GetProbeSink(), &dispatcher, &session_state);
+
+  double base_ms = 0;
+  agent->setVirtualTimePolicy(protocol::Emulation::VirtualTimePolicyEnum::Pause,
+                              std::nullopt, std::nullopt, std::nullopt,
+                              &base_ms);
+
+  Persistent<DocumentLoader> loader2;
+  auto body_loader =
+      std::make_unique<MutatingBodyLoader>(agent, frame, &loader2);
+  MutatingBodyLoader* body_loader_ptr = body_loader.get();
+
+  auto params1 = std::make_unique<WebNavigationParams>();
+  params1->url = WebURL(KURL("https://example.com/test1.html"));
+  params1->body_loader = std::move(body_loader);
+
+  auto* loader1 = MakeGarbageCollected<DocumentLoader>(
+      frame, kWebNavigationTypeOther, std::move(params1), nullptr, nullptr);
+  loader1->StartLoading();
+
+  agent->WillCommitLoad(frame, loader1);
+
+  body_loader_ptr->SetTestReady(true);
+
+  agent->setVirtualTimePolicy(
+      protocol::Emulation::VirtualTimePolicyEnum::Advance, 100.0, std::nullopt,
+      std::nullopt, &base_ms);
+
+  loader1->SetSentDidFinishLoad();
+  loader1->StopLoading();
+  loader1->DetachFromFrame(false);
+
+  if (loader2) {
+    loader2->SetSentDidFinishLoad();
+    loader2->StopLoading();
+    loader2->DetachFromFrame(false);
+  }
+
+  virtual_time_controller->DisableVirtualTimeForTesting();
+  agent->disable();
+  agent->Dispose();
+  helper.Reset();
+}
+
+}  // namespace
 
 }  // namespace blink

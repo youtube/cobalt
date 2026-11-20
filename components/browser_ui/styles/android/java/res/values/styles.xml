@@ -149,6 +149,7 @@ found in the LICENSE file.
         <item name="materialSizeOverlay">?attr/iconRowButtonSizeOverlay</item>
         <item name="backgroundTint">@color/tonal_button_bg_list</item>
         <item name="iconTint">@color/tonal_button_icon_tint_list</item>
+        <item name="shapeAppearance">@xml/expressive_button_shape_state_list</item>
     </style>
 
     <style name="SizeOverlay.BrowserUI.IconRowButton" parent="SizeOverlay.Material3Expressive.Button.IconButton.Small">

@@ -11,10 +11,7 @@ source_set("features") {
 }
 
 source_set("switches") {
-  sources = [
-    "switches.cc",
-    "switches.h",
-  ]
+  sources = [ "switches.h" ]
   deps = [ "//base" ]
 }
 
@@ -51,7 +48,6 @@ source_set("core") {
     "//url",
   ]
   public_deps = [
-    ":util",
     "//components/multistep_filter/core/annotation_index",
     "//components/multistep_filter/core/data_models",
     "//components/multistep_filter/core/extraction",

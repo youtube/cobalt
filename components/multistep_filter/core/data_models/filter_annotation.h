@@ -52,8 +52,6 @@ struct FilterAnnotation {
   base::Uuid id;
   // An identifier classifying the purpose of the annotation.
   std::string task_type;
-  // The eTLD+1 domain of the source URL.
-  std::string source_domain;
   // The host of the source URL.
   std::string source_host;
   // The timestamp when the annotation was generated.
@@ -63,7 +61,6 @@ struct FilterAnnotation {
 
   FilterAnnotation(base::Uuid id,
                    std::string task_type,
-                   std::string source_domain,
                    std::string source_host,
                    base::Time creation_timestamp,
                    std::vector<FilterAttribute> attributes);

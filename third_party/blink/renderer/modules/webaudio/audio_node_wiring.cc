@@ -138,7 +138,8 @@ void AudioNodeWiring::Disconnect(AudioNodeOutput& output,
   param.ChangedOutputs();
 }
 
-void AudioNodeWiring::Disable(AudioNodeOutput& output, AudioNodeInput& input) {
+scoped_refptr<AudioHandler> AudioNodeWiring::Disable(AudioNodeOutput& output,
+                                                     AudioNodeInput& input) {
   input.AssertGraphOwner();
 
   // These must be connected.
@@ -152,7 +153,7 @@ void AudioNodeWiring::Disable(AudioNodeOutput& output, AudioNodeInput& input) {
   // Move from the active list to the disabled list.
   // Do nothing if this is the current state.
   if (!input.disabled_outputs_.insert(&output).is_new_entry) {
-    return;
+    return nullptr;
   }
   input.outputs_.erase(&output);
 
@@ -160,13 +161,15 @@ void AudioNodeWiring::Disable(AudioNodeOutput& output, AudioNodeInput& input) {
   // rendering state updated.
   input.ChangedOutputs();
 
-  // Propagate disabled state downstream. This must happen after the set
-  // manipulations above, or the disabling logic could observe an inconsistent
-  // state.
-  input.Handler().DisableOutputsIfNecessary();
+  // Return the downstream handler so the caller can propagate the disabled
+  // state downstream (e.g. via a worklist) to avoid deep recursion.
+  // This must happen after the set manipulations above, or the disabling
+  // logic could observe an inconsistent state.
+  return base::WrapRefCounted(&input.Handler());
 }
 
-void AudioNodeWiring::Enable(AudioNodeOutput& output, AudioNodeInput& input) {
+scoped_refptr<AudioHandler> AudioNodeWiring::Enable(AudioNodeOutput& output,
+                                                    AudioNodeInput& input) {
   input.AssertGraphOwner();
 
   // These must be connected.
@@ -180,7 +183,7 @@ void AudioNodeWiring::Enable(AudioNodeOutput& output, AudioNodeInput& input) {
   // Move from the disabled list to the active list.
   // Do nothing if this is the current state.
   if (!input.outputs_.insert(&output).is_new_entry) {
-    return;
+    return nullptr;
   }
   input.disabled_outputs_.erase(&output);
 
@@ -188,10 +191,11 @@ void AudioNodeWiring::Enable(AudioNodeOutput& output, AudioNodeInput& input) {
   // rendering state updated.
   input.ChangedOutputs();
 
-  // Propagate enabled state downstream. This must happen after the set
-  // manipulations above, or the disabling logic could observe an inconsistent
-  // state.
-  input.Handler().EnableOutputsIfNecessary();
+  // Return the downstream handler so the caller can propagate the enabled
+  // state downstream (e.g. via a worklist) to avoid deep recursion.
+  // This must happen after the set manipulations above, or the enabling
+  // logic could observe an inconsistent state.
+  return base::WrapRefCounted(&input.Handler());
 }
 
 bool AudioNodeWiring::IsConnected(AudioNodeOutput& output,

@@ -31,6 +31,9 @@ class MEDIA_EXPORT HlsNetworkAccessImpl final : public HlsNetworkAccess {
  private:
   void ReadKey(const hls::MediaSegment::EncryptionData& data,
                HlsDataSourceProvider::ReadCb cb);
+  void MediaSegmentSecurityChecks(HlsDataSourceProvider::ReadCb cb,
+                                  url::Origin manifest_origin,
+                                  HlsDataSourceProvider::ReadResult result);
   void ReadUntilExhausted(HlsDataSourceProvider::ReadCb cb,
                           HlsDataSourceProvider::ReadResult result);
   void ReadSegmentQueueInternal(

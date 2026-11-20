@@ -10,6 +10,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/tabstrip/TabStripTopControlLayer.java",
   ]
   deps = [
+    "//base:callback_java",
     "//base:log_java",
     "//base:metrics_java",
     "//base:supplier_java",

@@ -8,12 +8,12 @@
 #include <set>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "net/third_party/uri_template/uri_template.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "url/url_canon.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_constants.h"
@@ -47,7 +47,7 @@ std::optional<std::string> GetHttpsHost(const std::string& url) {
 bool IsValidDohTemplate(const std::string& server_template, bool* use_post) {
   std::string url_string;
   std::string test_query = "this_is_a_test_query";
-  std::unordered_map<std::string, std::string> template_params(
+  absl::flat_hash_map<std::string, std::string> template_params(
       {{"dns", test_query}});
   std::set<std::string> vars_found;
   bool valid_template = uri_template::Expand(server_template, template_params,

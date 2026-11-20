@@ -10,7 +10,9 @@
 #include "chrome/browser/ui/views/permissions/embedded_permission_prompt_base_view.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 
-class Browser;
+namespace content {
+class WebContents;
+}
 
 // A view used to display information to the user that the permission is
 // controlled by policy and can't be changed.
@@ -21,7 +23,7 @@ class EmbeddedPermissionPromptPolicyView
 
  public:
   EmbeddedPermissionPromptPolicyView(
-      Browser* browser,
+      content::WebContents* web_contents,
       base::WeakPtr<EmbeddedPermissionPromptViewDelegate> delegate,
       bool is_permission_allowed);
   EmbeddedPermissionPromptPolicyView(

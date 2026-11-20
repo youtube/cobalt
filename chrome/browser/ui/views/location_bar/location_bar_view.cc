@@ -31,7 +31,6 @@
 #include "chrome/browser/page_info/page_info_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
-#include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
@@ -98,7 +97,6 @@
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_dashboard_view.h"
-#include "chrome/browser/ui/views/sharing_hub/sharing_hub_icon_view.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/user_education/browser_help_bubble.h"
@@ -561,8 +559,7 @@ void LocationBarView::Init() {
   // Because AIM eligibility can change during the lifecycle of the
   // `LocationBarView`, the AI Mode page action is added regardless of
   // eligibility, but its visibility is toggled to match eligibility.
-  if (browser_ &&
-      base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint)) {
+  if (browser_) {
     // Position in the leading position, like the entrypoint for
     // kLensOverlayHomework above. While both chips may be enabled, they will
     // not appear at the same time due to different focus behavior. The
@@ -587,8 +584,7 @@ void LocationBarView::Init() {
       AddChildView(std::make_unique<PageActionIconContainerView>(params));
   page_action_icon_controller_ = page_action_icon_container_->controller();
 
-  if (!page_action_icon_container_->children().empty() &&
-      base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint) &&
+  if (browser_ && !page_action_icon_container_->children().empty() &&
       !IsPageActionMigrated(PageActionIconType::kAiMode)) {
     auto* first_page_action_icon_view = static_cast<PageActionIconView*>(
         page_action_icon_container_->children().front());

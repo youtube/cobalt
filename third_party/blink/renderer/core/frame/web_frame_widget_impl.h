@@ -660,6 +660,8 @@ class CORE_EXPORT WebFrameWidgetImpl
 
   void SetWindowRect(const gfx::Rect& requested_rect,
                      const gfx::Rect& adjusted_rect);
+  void MoveWindowTo(const gfx::Point& origin);
+  void ResizeWindowTo(const gfx::Size& size);
   void SetWindowRectSynchronouslyForTesting(const gfx::Rect& new_window_rect);
 
   void UpdateTooltipUnderCursor(const String& tooltip_text, TextDirection dir);
@@ -849,6 +851,8 @@ class CORE_EXPORT WebFrameWidgetImpl
   friend class WebFrameWidgetScrollContainerHitTest;
 
   void NotifySwapAndPresentationTime(PromiseCallbacks callbacks);
+  gfx::Rect AdjustPendingWindowRectForDisplay(const gfx::Rect& pending_rect,
+                                              int minimum_size);
 
   // WidgetBaseClient overrides.
   void BeginCommitCompositorFrame() override;

@@ -36,10 +36,10 @@
 #include "remoting/host/desktop_display_info.h"
 #include "remoting/host/host_experiment_session_plugin.h"
 #include "remoting/host/host_extension_session_manager.h"
+#include "remoting/host/input_pipeline.h"
 #include "remoting/host/mojom/chromoting_host_services.mojom.h"
 #include "remoting/host/mojom/remote_url_opener.mojom.h"
 #include "remoting/host/mojom/webauthn_proxy.mojom.h"
-#include "remoting/host/remote_input_filter.h"
 #include "remoting/proto/action.pb.h"
 #include "remoting/protocol/audio_sample_info.h"
 #include "remoting/protocol/clipboard_echo_filter.h"
@@ -50,14 +50,9 @@
 #include "remoting/protocol/data_channel_manager.h"
 #include "remoting/protocol/display_size.h"
 #include "remoting/protocol/errors.h"
-#include "remoting/protocol/fractional_input_filter.h"
 #include "remoting/protocol/host_stub.h"
 #include "remoting/protocol/input_event_timestamps.h"
-#include "remoting/protocol/input_event_tracker.h"
-#include "remoting/protocol/input_filter.h"
 #include "remoting/protocol/mouse_cursor_monitor.h"
-#include "remoting/protocol/mouse_input_filter.h"
-#include "remoting/protocol/observing_input_filter.h"
 #include "remoting/protocol/pairing_registry.h"
 #include "remoting/protocol/transport.h"
 #include "remoting/protocol/video_stream.h"
@@ -346,34 +341,10 @@ class ClientSession : public protocol::HostStub,
   // Used to convert fractional coordinates to absolute coordinates.
   protocol::CoordinateConverter coordinate_converter_;
 
-  // Tracker used to release pressed keys and buttons when disconnecting.
-  protocol::InputEventTracker input_tracker_;
-
-  // Filter used to detect transitions into and out of client-side pointer lock,
-  // and to monitor local input to determine whether or not to include the mouse
-  // cursor in the desktop image.
-  CursorVisibilityNotifier cursor_visibility_notifier_;
-
-  // Filter used to disable remote inputs during local input activity.
-  RemoteInputFilter remote_input_filter_;
-
-  // Filter used to convert any fractional coordinates to input-injection
-  // coordinates.
-  protocol::FractionalInputFilter fractional_input_filter_;
-
-  // Filter used to clamp mouse events to the current display dimensions.
-  protocol::MouseInputFilter mouse_clamping_filter_;
-
-  // Filter used to notify listeners when remote input events are received.
-  protocol::ObservingInputFilter observing_input_filter_;
-
   // Filter to used to stop clipboard items sent from the client being echoed
   // back to it.  It is the final element in the clipboard (client -> host)
   // pipeline.
   protocol::ClipboardEchoFilter clipboard_echo_filter_;
-
-  // Filters used to manage enabling & disabling of input.
-  protocol::InputFilter disable_input_filter_;
 
   // Injects microphone input received from the client.
   std::unique_ptr<AudioInjector> audio_injector_;
@@ -413,6 +384,11 @@ class ClientSession : public protocol::HostStub,
 
   // Used to inject mouse and keyboard input and handle clipboard events.
   std::unique_ptr<InputInjector> input_injector_;
+
+  // Input pipeline encapsulating the event filters.
+  // Declared after `input_injector_` because it holds a reference to it (via
+  // target), ensuring the pipeline is destroyed before the injector.
+  InputPipeline input_pipeline_;
 
   // Used to apply client-requested changes in screen resolution.
   std::unique_ptr<ScreenControls> screen_controls_;

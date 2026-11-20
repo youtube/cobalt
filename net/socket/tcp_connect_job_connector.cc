@@ -172,7 +172,8 @@ int TcpConnectJob::Connector::DoTcpConnect() {
   const NetLogWithSource& net_log = parent_->net_log();
   transport_socket_ =
       parent_->client_socket_factory()->CreateTransportClientSocket(
-          AddressList(*current_address_), std::move(socket_performance_watcher),
+          AddressList(*current_address_), parent_->params_->target_network(),
+          std::move(socket_performance_watcher),
           parent_->network_quality_estimator(), net_log.net_log(),
           net_log.source());
 
@@ -265,7 +266,7 @@ int TcpConnectJob::Connector::OnEndpointFailed(int error) {
 
   // If there's only one connector, this makes the next attempt prefer the
   // address family other than that of the request that just failed.
-  parent_->prefer_ipv6_ =
+  parent_->fresh_state_.prefer_ipv6 =
       (current_address_->GetFamily() != ADDRESS_FAMILY_IPV6);
 
   // If this isn't an IsIPEndPointUsable() error, record the failed connection

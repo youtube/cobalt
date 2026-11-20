@@ -78,7 +78,7 @@ public final class SigninAndHistorySyncBundleHelper {
 
     public static FullscreenSigninAndHistorySyncConfig getFullscreenConfig(Bundle bundle) {
         FullscreenSigninAndHistorySyncConfig.Builder builder =
-                new FullscreenSigninAndHistorySyncConfig.Builder(
+                FullscreenSigninAndHistorySyncConfig.builder(
                         bundle.getString(SIGNIN_CONFIG_TITLE, ""),
                         bundle.getString(SIGNIN_CONFIG_SUBTITLE, ""),
                         bundle.getString(SIGNIN_CONFIG_DISMISS_TEXT, ""),

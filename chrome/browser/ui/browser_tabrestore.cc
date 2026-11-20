@@ -123,11 +123,12 @@ void LoadRestoredTabIfVisible(Browser* browser,
   // WebUI browser's content size is not available until the WebUI page is
   // loaded.
   if (!webui_browser::IsWebUIBrowserEnabled()) {
-    DCHECK(!browser->window()->GetContentsSize().IsEmpty() ||
+    DCHECK(!BrowserWindow::FromBrowser(browser)->GetContentsSize().IsEmpty() ||
            (browser->GetWindow()->GetBounds().IsEmpty() &&
             browser->GetWindow()->GetRestoredBounds().IsEmpty()));
   }
-  DCHECK_EQ(web_contents->GetSize(), browser->window()->GetContentsSize());
+  DCHECK_EQ(web_contents->GetSize(),
+            BrowserWindow::FromBrowser(browser)->GetContentsSize());
 
   web_contents->GetController().LoadIfNecessary();
 }
@@ -207,7 +208,7 @@ WebContents* AddRestoredTabImpl(std::unique_ptr<WebContents> web_contents,
   //
   // TODO(crbug.com/40113932): There should be a way to ask the browser
   // to perform a layout so that size of the WebContents is right.
-  gfx::Size size = browser->window()->GetContentsSize();
+  gfx::Size size = BrowserWindow::FromBrowser(browser)->GetContentsSize();
   // Fallback to the restore bounds if it's empty as the window is not shown
   // yet and the bounds may not be available on all platforms.
   if (size.IsEmpty()) {

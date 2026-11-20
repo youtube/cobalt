@@ -52,6 +52,7 @@ class PdfToolbarViewBinder {
             view.findViewById(R.id.download_button).setOnClickListener(listener);
             view.findViewById(R.id.rotate_button).setOnClickListener(listener);
             view.findViewById(R.id.print_button).setOnClickListener(listener);
+            view.findViewById(R.id.edit_button).setOnClickListener(listener);
         } else if (PdfToolbarProperties.TITLE == key) {
             TextView title = view.findViewById(R.id.pdf_title);
             title.setText(model.get(PdfToolbarProperties.TITLE));
@@ -110,6 +111,9 @@ class PdfToolbarViewBinder {
             view.setZoomControlsVisible(model.get(PdfToolbarProperties.ZOOM_CONTROLS_VISIBLE));
         } else if (PdfToolbarProperties.PAGE_NAV_AND_EDIT_VISIBLE == key) {
             view.setPageNavAndEditVisible(model.get(PdfToolbarProperties.PAGE_NAV_AND_EDIT_VISIBLE));
+        } else if (PdfToolbarProperties.EDIT_MODE_ACTIVE == key) {
+            View editButton = view.findViewById(R.id.edit_button);
+            editButton.setSelected(model.get(PdfToolbarProperties.EDIT_MODE_ACTIVE));
         }
     }
 }

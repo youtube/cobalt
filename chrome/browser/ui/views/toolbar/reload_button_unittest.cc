@@ -567,6 +567,28 @@ TEST_F(ReloadButtonMetricsTest, LogChangeVisibleModeToNextPaintMetric) {
       "InitialWebUI.ReloadButton.ChangeVisibleModeToNextPaintInReload", 1);
 }
 
+// Verifies that the latency from a mouse input event to the execution of the
+// reload command is recorded in the new unified InteractionToReload metric.
+TEST_F(ReloadButtonMetricsTest, LogInteractionToReloadMetric) {
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload.MouseRelease", 0);
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload", 0);
+
+  // Simulate a mouse click.
+  reload_button()->OnMousePressed(
+      CreateMouseEvent(ui::EventType::kMousePressed, {0, 0}));
+  reload_button()->OnMouseReleased(
+      CreateMouseEvent(ui::EventType::kMouseReleased, {0, 0}));
+
+  // It should log immediately (synchronously) because we call
+  // WaapUIMetricsService.
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload.MouseRelease", 1);
+  histogram_tester().ExpectTotalCount(
+      "InitialWebUI.ReloadButton.InteractionToReload", 1);
+}
+
 // Verifies that the InputCount for different input types (mouse release and
 // key press) is correctly recorded.
 TEST_F(ReloadButtonMetricsTest, LogInputCountMetric) {

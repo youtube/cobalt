@@ -22,11 +22,6 @@
 // encoded frames from Javascript.
 namespace webrtc {
 
-// TODO(bugs.webrtc.org/14708): Add the required parameters to these APIs.
-std::unique_ptr<TransformableVideoFrameInterface> CreateVideoSenderFrame();
-// TODO(bugs.webrtc.org/14708): Consider whether Receiver frames ever make sense
-// to create.
-std::unique_ptr<TransformableVideoFrameInterface> CreateVideoReceiverFrame();
 // Creates a new frame with the same metadata as the original.
 // The original can be a sender or receiver frame.
 RTC_EXPORT std::unique_ptr<TransformableAudioFrameInterface> CloneAudioFrame(

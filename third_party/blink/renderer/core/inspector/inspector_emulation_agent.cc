@@ -600,9 +600,16 @@ protocol::Response InspectorEmulationAgent::setVirtualTimePolicy(
         budget_amount,
         BindOnce(&InspectorEmulationAgent::VirtualTimeBudgetExpired,
                  WrapWeakPersistent(this)));
-    for (DocumentLoader* loader : pending_document_loaders_)
+    // SetDefersLoading() can synchronously run author script (virtual time
+    // forces kForceSynchronousParsing) which may spin a nested message loop
+    // and re-enter WillCommitLoad(), mutating |pending_document_loaders_|.
+    // Move to a local snapshot first so the live iterators cannot be
+    // invalidated.
+    HeapVector<Member<DocumentLoader>> loaders =
+        std::move(pending_document_loaders_);
+    for (DocumentLoader* loader : loaders) {
       loader->SetDefersLoading(LoaderFreezeMode::kNone);
-    pending_document_loaders_.clear();
+    }
   }
 
   if (max_virtual_time_task_starvation_count.value_or(0)) {

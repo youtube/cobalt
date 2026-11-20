@@ -249,7 +249,13 @@ TEST_F(PeerConnectionPrAnswerSwitchTest, SendMediaNoDataChannel) {
 }
 
 TEST_F(PeerConnectionPrAnswerSwitchTest, MediaWithCcfbFirstThenTwcc) {
-  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
+  // CCFB negotiation is asymmetric: the generator sets the flag but doesn't
+  // add it to codecs' feedback_params, while the parser adds it to codecs'
+  // feedback_params. This causes false positive munging detection (71, 86)
+  // when the prAnswer is re-parsed.
+  SetFieldTrials(
+      "WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/"
+      "WebRTC-NoSdpMangleAllowForTesting/Enabled,71,86/");
   SetFieldTrials("Callee2",
                  "WebRTC-RFC8888CongestionControlFeedback/Disabled/");
   std::unique_ptr<PeerConnectionIntegrationWrapper> second_callee =

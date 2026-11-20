@@ -43,7 +43,6 @@ class VIZ_COMMON_EXPORT ExternalBeginFrameSourceMac
 
   // BeginFrameSource implementation.
   void SetVSyncDisplayID(int64_t display_id, bool force_update) override;
-  void DidReceiveNewCALayerParams() override;
 
   void UpdateVSyncDisplay(int64_t display_id,
                           bool is_browser_vsync_supported) override;
@@ -82,13 +81,12 @@ class VIZ_COMMON_EXPORT ExternalBeginFrameSourceMac
 
   void CreateDelayBasedTimeSourceIfNeeded();
 
-  void StartBeginFrame();
+  void StartBeginFrame(bool display_link_keep_alive_only);
   void StopBeginFrame(bool force_stop);
 
-  // For the kCADisplayLinkInBrowser feature only. Defer the
-  // UpdateVSyncDisplay() call until the first frame is swapped and
-  // NeedsBeginFrames is false. This ensures a smooth transition when switching
-  // back to DisplayLinkMac after CADisplayLink becomes valid in the browser.
+  // Defer `UpdateVSyncDisplay()` calls while `needs_begin_frames_` is true
+  // to ensure a jank-free transition when switching to the browser-side
+  // DisplayLink. (Used for the kCADisplayLinkInBrowser feature only).
   void UpdateDeferredVSyncDisplayIfNeeded();
 
   void RecordFirstFrameHistograms(bool is_timer);
@@ -127,12 +125,11 @@ class VIZ_COMMON_EXPORT ExternalBeginFrameSourceMac
 
   bool just_started_begin_frame_ = false;
 
-  // For the kCADisplayLinkInBrowser feature only. Ensure smooth transition in
-  // startup.
+  // Indicates that a VSync display update is deferred until active rendering
+  // (`needs_begin_frames_`) stops, ensuring a smooth transition to the
+  // browser-side DisplayLink. (Used for the kCADisplayLinkInBrowser feature
+  // only).
   bool vsync_display_id_update_deferred_ = false;
-  bool has_swapped_frame_ = false;
-  // Only do this once.
-  bool did_defer_vsync_update_once_ = false;
 
   // To prevent the DisplayLink from constantly toggling on and off, allow it
   // to continue running for this many consecutive VSyncs after it is no longer

@@ -11,6 +11,10 @@
 namespace net {
 
 // A ClientSocketFactory to create sockets bound to `network`.
+//
+// TODO(crbug.com/495684670): Remove this once we no longer rely on the
+// old way of doing multi-networking (binding URLRequestContexts instead
+// of UrlRequests).
 class NetworkBindingClientSocketFactory : public ClientSocketFactory {
  public:
   explicit NetworkBindingClientSocketFactory(handles::NetworkHandle network);
@@ -24,11 +28,13 @@ class NetworkBindingClientSocketFactory : public ClientSocketFactory {
 
   std::unique_ptr<DatagramClientSocket> CreateDatagramClientSocket(
       DatagramSocket::BindType bind_type,
+      handles::NetworkHandle target_network,
       NetLog* net_log,
       const NetLogSource& source) override;
 
   std::unique_ptr<TransportClientSocket> CreateTransportClientSocket(
       const AddressList& addresses,
+      handles::NetworkHandle target_network,
       std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
       NetworkQualityEstimator* network_quality_estimator,
       NetLog* net_log,

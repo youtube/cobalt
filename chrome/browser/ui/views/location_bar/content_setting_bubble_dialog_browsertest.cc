@@ -196,7 +196,7 @@ void ContentSettingBubbleDialogTest::ApplyContentSettingsForType(
       break;
   }
   OverrideContentSettingsProvider({content_type});
-  browser()->window()->UpdateToolbar(web_contents);
+  BrowserWindow::FromBrowser(browser())->UpdateToolbar(web_contents);
 }
 
 void ContentSettingBubbleDialogTest::TriggerQuietNotificationPermissionRequest(
@@ -260,7 +260,9 @@ void ContentSettingBubbleDialogTest::NavigateToContentTab() {
 void ContentSettingBubbleDialogTest::ShowDialogBubble(
     ContentSettingImageModel::ImageType image_type) {
   LocationBarTesting* location_bar_testing =
-      browser()->window()->GetLocationBar()->GetLocationBarForTesting();
+      BrowserWindow::FromBrowser(browser())
+          ->GetLocationBar()
+          ->GetLocationBarForTesting();
   EXPECT_TRUE(location_bar_testing->TestContentSettingImagePressed(
       ContentSettingImageModel::GetContentSettingImageModelIndexForTesting(
           image_type)));

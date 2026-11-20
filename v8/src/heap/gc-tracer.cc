@@ -16,8 +16,8 @@
 #include "src/common/globals.h"
 #include "src/execution/thread-id.h"
 #include "src/heap/base/unsafe-json-emitter.h"
+#include "src/heap/cppgc-internal/metric-recorder.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
-#include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-inl.h"
@@ -263,6 +263,7 @@ void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
   // reconsidered.
   current_.start_time = start_of_observable_pause_.value();
   current_.reduce_memory = heap_->ShouldReduceMemory();
+  current_.growing_mode = heap_->CurrentHeapGrowingMode();
   TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), phase_track_,
                   current_.start_time);
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ObservablePause",
@@ -1623,6 +1624,7 @@ void GCTracer::ReportFullCycleToRecorder() {
   event.reason = static_cast<int>(current_.gc_reason);
   event.incremental_marking_reason =
       static_cast<int>(current_.incremental_marking_reason);
+  event.growing_mode = static_cast<int>(current_.growing_mode);
   event.priority = current_.priority;
   event.reduce_memory = current_.reduce_memory;
   event.is_loading = current_.is_loading;

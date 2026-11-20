@@ -16,8 +16,10 @@ export function getHtml(this: UserEducationInternalsCardElement) {
   <p ?hidden="${!this.showDescription_()}">
     ${this.promo.displayDescription}
   </p>
-  <p><b>Type:</b> ${this.promo.type}</p>
-  <p><b>Platforms: </b>${this.formatPlatforms_()}</p>
+  <p ?hidden="${!this.showType_()}"><b>Type:</b> ${this.promo.type}</p>
+  <p ?hidden="${!this.showPlatforms_()}">
+    <b>Platforms: </b>${this.formatPlatforms_()}
+  </p>
   <p ?hidden="${!this.showRequiredFeatures_()}">
     <b>Required features: </b>${this.formatRequiredFeatures_()}
   </p>

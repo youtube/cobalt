@@ -935,6 +935,11 @@ bool ValidateDrawElementsInstancedBase(const Context *context,
         return true;
     }
 
+    if (!ValidateDrawInstancedCounts(context, entryPoint, primcount, baseinstance))
+    {
+        return false;
+    }
+
     return ValidateDrawInstancedAttribs(context, entryPoint, primcount, baseinstance);
 }
 
@@ -967,6 +972,11 @@ bool ValidateDrawArraysInstancedBase(const Context *context,
     {
         // Early exit.
         return true;
+    }
+
+    if (!ValidateDrawInstancedCounts(context, entryPoint, primcount, baseinstance))
+    {
+        return false;
     }
 
     return ValidateDrawInstancedAttribs(context, entryPoint, primcount, baseinstance);
@@ -1146,6 +1156,36 @@ bool ValidImageSizeParameters(const Context *context,
     return true;
 }
 
+bool ValidCompressedFormatForTexture2DArray(GLenum format, const Extensions &extensions)
+{
+    if ((IsETC1Format(format) && !extensions.compressedETC1RGB8SubTextureEXT) ||
+        IsPVRTC1Format(format))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool ValidCompressedFormatForTexture3D(GLenum format, const Extensions &extensions)
+{
+    if (IsASTC2DFormat(format))
+    {
+        return extensions.textureCompressionAstcHdrKHR ||
+               extensions.textureCompressionAstcSliced3dKHR;
+    }
+
+    if (IsASTC3DFormat(format) || IsBPTCFormat(format))
+    {
+        return true;
+    }
+
+    // All other compressed formats are specified to not support 3D textures.
+    ASSERT((IsS3TCFormat(format) || IsRGTCFormat(format)) ||
+           (IsETC1Format(format) || IsETC2EACFormat(format)) || IsPVRTC1Format(format));
+    return false;
+}
+
 bool ValidCompressedImageSize(const Context *context,
                               GLenum internalFormat,
                               GLint level,
@@ -1166,8 +1206,8 @@ bool ValidCompressedImageSize(const Context *context,
             return false;
         }
 
-        // Some platforms support only square PVRTC1 textures.
-        if (width != height && context->getLimitations().squarePvrtc1)
+        // Supported platforms (Apple silicon) accept only square PVRTC1 textures.
+        if (width != height)
         {
             return false;
         }
@@ -1411,12 +1451,21 @@ bool ValidateDrawArraysTransformFeedbackBufferSize(const Context *context,
                                                    const GLsizei *primcounts,
                                                    GLsizei drawcount)
 {
-    if (ANGLE_UNLIKELY(context->getStateCache().isTransformFeedbackActiveUnpaused()) &&
-        ANGLE_UNLIKELY(!context->supportsGeometryOrTesselation()))
+    if (ANGLE_UNLIKELY(context->getStateCache().isTransformFeedbackActiveUnpaused()))
     {
-        const State &state                      = context->getState();
+        const State &state                  = context->getState();
+        const ProgramExecutable *executable = state.getProgramExecutable();
+        // When a Geometry or Tessellation Shader is active in the pipeline, the
+        // number of vertices emitted is determined dynamically by the GPU
+        // during shader execution. The CPU cannot predict how many vertices
+        // will be produced nor the corresponding amount of space required, so
+        // the buffer space check must be skipped.
+        bool hasGSorTS =
+            executable && (executable->hasLinkedShaderStage(ShaderType::Geometry) ||
+                           executable->hasLinkedShaderStage(ShaderType::TessEvaluation));
         TransformFeedback *curTransformFeedback = state.getCurrentTransformFeedback();
-        if (!curTransformFeedback->checkBufferSpaceForDraw(context, counts, primcounts, drawcount))
+        if (!hasGSorTS &&
+            !curTransformFeedback->checkBufferSpaceForDraw(context, counts, primcounts, drawcount))
         {
             ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, err::kTransformFeedbackBufferTooSmall);
             return false;
@@ -3041,7 +3090,8 @@ bool ValidateCopyImageSubDataTargetRegion(const Context *context,
         // INVALID_VALUE is generated if the dimensions of the either subregion exceeds the
         // boundaries of the corresponding image object
         Renderbuffer *buffer = context->getRenderbuffer(PackParam<RenderbufferID>(name));
-        if ((buffer->getWidth() - offsetX < width) || (buffer->getHeight() - offsetY < height))
+        if (buffer->getWidth() - offsetX < width || buffer->getHeight() - offsetY < height ||
+            offsetZ != 0 || depth > 1)
         {
             ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kSourceTextureTooSmall);
             return false;
@@ -4245,7 +4295,10 @@ const char *ValidateDrawStates(const Context *context, GLenum *outErrorCode)
         if (ANGLE_UNLIKELY(context->isWebGL() || context->isHardenedContext()))
         {
             // UB: Detect rendering feedback loops for WebGL or hardened context.
-            if (framebuffer->formsRenderingFeedbackLoopWith(context))
+            if (framebuffer->formsRenderingFeedbackLoopWith(
+                    context, context->isWebGL()
+                                 ? Framebuffer::AllowedFeedbackLoop::NoneAllowed
+                                 : Framebuffer::AllowedFeedbackLoop::ReadOnlyDepthStencil))
             {
                 return kFeedbackLoop;
             }

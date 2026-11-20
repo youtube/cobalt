@@ -55,10 +55,10 @@ std::unique_ptr<KeyedService> BuildFeatureEngagementMockTracker(
 }
 
 void ExpectNextShowTimeInRange(base::Time next_show_time) {
-  using signin::kPromoTriggerRange;
-  base::Time lo = base::Time::Now() + kPromoTriggerRange.first;
-  base::Time hi = base::Time::Now() + kPromoTriggerRange.second;
-  EXPECT_TRUE(next_show_time >= lo && next_show_time < hi);
+  base::Time lo = base::Time::Now() - base::Days(13);
+  base::Time hi = base::Time::Now();
+  EXPECT_GE(next_show_time, lo);
+  EXPECT_LE(next_show_time, hi);
 }
 
 class SigninUtilsTest : public PlatformTest {
@@ -73,6 +73,8 @@ class SigninUtilsTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              SyncServiceFactory::GetDefaultFactory());
     builder.AddTestingFactory(
         feature_engagement::TrackerFactory::GetInstance(),
         base::BindRepeating(&BuildFeatureEngagementMockTracker));
@@ -86,7 +88,7 @@ class SigninUtilsTest : public PlatformTest {
     mock_tracker_ = static_cast<feature_engagement::test::MockTracker*>(
         feature_engagement::TrackerFactory::GetForProfile(profile_.get()));
     time_in_past_ = base::Time::Now();
-    task_environment_.FastForwardBy(base::Days(1));
+    task_environment_.FastForwardBy(base::Days(2));
   }
 
   void TearDown() override {
@@ -133,9 +135,10 @@ class SigninUtilsTest : public PlatformTest {
 };
 
 // Should not show the sign-in upgrade for the first time, after FRE.
-TEST_F(SigninUtilsTest, TestWillNotDisplayNoNextShowTime) {
+TEST_F(SigninUtilsTest, TestWillNotDisplayNoLastShownTime) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(switches::kFullscreenSignInPromoUseDate);
+  feature_list.InitAndEnableFeatureWithParameters(
+      switches::kFullscreenSignInPromoUseDate, {{"interval", "1"}});
   FakeSystemIdentity* fake_identity1 = [FakeSystemIdentity fakeIdentity1];
   fake_system_identity_manager()->AddIdentity(fake_identity1);
   FakeSystemIdentity* fake_identity2 = [FakeSystemIdentity fakeIdentity2];
@@ -144,14 +147,36 @@ TEST_F(SigninUtilsTest, TestWillNotDisplayNoNextShowTime) {
 
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_1_0));
-  ExpectNextShowTimeInRange(
-      GetLocalState()->GetTime(prefs::kNextSSORecallTime));
+  ExpectNextShowTimeInRange(GetLocalState()->GetTime(
+      prefs::kSigninStartupPromoLastShownTimeWithRandomOffset));
+}
+
+// Should not show the sign-in upgrade for the first time, after FRE.
+TEST_F(SigninUtilsTest, TestWillRecordLastShowTimeAgain) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      switches::kFullscreenSignInPromoUseDate, {{"interval", "1"}});
+  FakeSystemIdentity* fake_identity1 = [FakeSystemIdentity fakeIdentity1];
+  fake_system_identity_manager()->AddIdentity(fake_identity1);
+  FakeSystemIdentity* fake_identity2 = [FakeSystemIdentity fakeIdentity2];
+  fake_system_identity_manager()->AddIdentity(fake_identity2);
+  const base::Version version_1_0("1.0");
+
+  GetLocalState()->SetTime(
+      prefs::kSigninStartupPromoLastShownTimeWithRandomOffset,
+      base::Time::Now() + base::Days(10));
+
+  EXPECT_FALSE(
+      signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_1_0));
+  ExpectNextShowTimeInRange(GetLocalState()->GetTime(
+      prefs::kSigninStartupPromoLastShownTimeWithRandomOffset));
 }
 
 // Should not show the sign-in upgrade if next show time is not reached.
 TEST_F(SigninUtilsTest, TestWillNotDisplayNextShowTimeNotReached) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(switches::kFullscreenSignInPromoUseDate);
+  feature_list.InitAndEnableFeatureWithParameters(
+      switches::kFullscreenSignInPromoUseDate, {{"interval", "100"}});
   FakeSystemIdentity* fake_identity1 = [FakeSystemIdentity fakeIdentity1];
   fake_system_identity_manager()->AddIdentity(fake_identity1);
   FakeSystemIdentity* fake_identity2 = [FakeSystemIdentity fakeIdentity2];
@@ -163,14 +188,15 @@ TEST_F(SigninUtilsTest, TestWillNotDisplayNextShowTimeNotReached) {
 
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_1_0));
-  ExpectNextShowTimeInRange(
-      GetLocalState()->GetTime(prefs::kNextSSORecallTime));
+  ExpectNextShowTimeInRange(GetLocalState()->GetTime(
+      prefs::kSigninStartupPromoLastShownTimeWithRandomOffset));
 }
 
 // Should show the sign-in upgrade if next show time is reached.
 TEST_F(SigninUtilsTest, TestWillDisplayNextShowTimeReached) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(switches::kFullscreenSignInPromoUseDate);
+  feature_list.InitAndEnableFeatureWithParameters(
+      switches::kFullscreenSignInPromoUseDate, {{"interval", "1"}});
   FakeSystemIdentity* fake_identity1 = [FakeSystemIdentity fakeIdentity1];
   fake_system_identity_manager()->AddIdentity(fake_identity1);
   FakeSystemIdentity* fake_identity2 = [FakeSystemIdentity fakeIdentity2];
@@ -179,13 +205,14 @@ TEST_F(SigninUtilsTest, TestWillDisplayNextShowTimeReached) {
 
   signin::RecordFullscreenSigninPromoStarted(
       identity_manager_, account_manager_service_, version_1_0);
-  base::Time next_show_time =
-      GetLocalState()->GetTime(prefs::kNextSSORecallTime);
+  base::Time next_show_time = GetLocalState()->GetTime(
+      prefs::kSigninStartupPromoLastShownTimeWithRandomOffset);
   task_environment_.FastForwardBy(base::Days(100));
 
   EXPECT_TRUE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_1_0));
-  EXPECT_EQ(GetLocalState()->GetTime(prefs::kNextSSORecallTime),
+  EXPECT_EQ(GetLocalState()->GetTime(
+                prefs::kSigninStartupPromoLastShownTimeWithRandomOffset),
             next_show_time);
 }
 
@@ -200,7 +227,10 @@ TEST_F(SigninUtilsTest, TestWillNotDisplaySameVersion) {
       identity_manager_, account_manager_service_, version_1_0);
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_1_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Should not show the sign-in upgrade twice until two major version after.
@@ -215,7 +245,10 @@ TEST_F(SigninUtilsTest, TestWillNotDisplayOneMinorVersion) {
       identity_manager_, account_manager_service_, version_1_0);
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_1_1));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Should not show the sign-in upgrade twice until two major version after.
@@ -230,7 +263,10 @@ TEST_F(SigninUtilsTest, TestWillNotDisplayTwoMinorVersions) {
       identity_manager_, account_manager_service_, version_1_0);
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_1_2));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Should not show the sign-in upgrade twice until two major version after.
@@ -245,7 +281,10 @@ TEST_F(SigninUtilsTest, TestWillNotDisplayOneMajorVersion) {
       identity_manager_, account_manager_service_, version_1_0);
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_2_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Should show the sign-in upgrade a second time, 2 version after.
@@ -260,7 +299,10 @@ TEST_F(SigninUtilsTest, TestWillDisplayTwoMajorVersions) {
       identity_manager_, account_manager_service_, version_1_0);
   EXPECT_TRUE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_3_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Show the sign-in upgrade on version 1.0.
@@ -286,7 +328,10 @@ TEST_F(SigninUtilsTest, TestWillShowTwoTimesOnlyLegacy) {
       identity_manager_, account_manager_service_, version_3_0);
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_5_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Show the sign-in upgrade on version 1.0.
@@ -323,7 +368,10 @@ TEST_F(SigninUtilsTest, TestWillShowTwoTimesOnly) {
       identity_manager_, account_manager_service_, version_3_0);
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_5_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Show the sign-in upgrade on version 1.0.
@@ -343,7 +391,10 @@ TEST_F(SigninUtilsTest, TestWillShowForNewAccountAdded) {
   fake_system_identity_manager()->AddIdentity(fake_identity);
   EXPECT_TRUE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_5_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Add new account.
@@ -371,7 +422,10 @@ TEST_F(SigninUtilsTest, TestWillNotShowWithAccountRemovedLegacy) {
                                                  base::DoNothing());
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_5_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Add new account.
@@ -410,7 +464,10 @@ TEST_F(SigninUtilsTest, TestWillNotShowWithAccountRemoved) {
 
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_5_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Show the sign-in upgrade on version 1.0.
@@ -430,7 +487,10 @@ TEST_F(SigninUtilsTest, TestWillNotShowNewAccountUntilTwoVersion) {
   fake_system_identity_manager()->AddIdentity(fake_identity);
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_4_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Show the sign-in upgrade on version 1.0.
@@ -447,13 +507,17 @@ TEST_F(SigninUtilsTest, TestWillNotShowNewAccountUntilTwoVersionBis) {
   fake_system_identity_manager()->AddIdentity(fake_identity);
   EXPECT_FALSE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_2_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Should not show the sign-in upgrade for first run after post restore.
 TEST_F(SigninUtilsTest, TestWillNotShowIfFirstRunAfterPostRestore) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(switches::kFullscreenSignInPromoUseDate);
+  feature_list.InitAndEnableFeatureWithParameters(
+      switches::kFullscreenSignInPromoUseDate, {{"interval", "1"}});
   const base::Version version_1_0("1.0");
   signin::RecordFullscreenSigninPromoStarted(
       identity_manager_, account_manager_service_, version_1_0);
@@ -474,7 +538,8 @@ TEST_F(SigninUtilsTest, TestWillNotShowIfFirstRunAfterPostRestore) {
 // Should not show the sign-in upgrade if sign-in is disabled by policy.
 TEST_F(SigninUtilsTest, TestWillNotShowIfDisabledByPolicy) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(switches::kFullscreenSignInPromoUseDate);
+  feature_list.InitAndEnableFeatureWithParameters(
+      switches::kFullscreenSignInPromoUseDate, {{"interval", "1"}});
   const base::Version version_1_0("1.0");
   signin::RecordFullscreenSigninPromoStarted(
       identity_manager_, account_manager_service_, version_1_0);
@@ -491,7 +556,8 @@ TEST_F(SigninUtilsTest, TestWillNotShowIfDisabledByPolicy) {
 // Should show if the user is signed-in without history opt-in.
 TEST_F(SigninUtilsTest, TestWillShowIfSignedInWithoutHistoryOptIn) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(switches::kFullscreenSignInPromoUseDate);
+  feature_list.InitAndEnableFeatureWithParameters(
+      switches::kFullscreenSignInPromoUseDate, {{"interval", "1"}});
   FakeSystemIdentity* identity = [FakeSystemIdentity fakeIdentity1];
   fake_system_identity_manager()->AddIdentity(identity);
   AuthenticationService* authentication_service =
@@ -504,17 +570,22 @@ TEST_F(SigninUtilsTest, TestWillShowIfSignedInWithoutHistoryOptIn) {
       identity_manager_, account_manager_service_, version_1_0);
   // Using task_environment_.FastForwardBy() causes this test to crash due to
   // sync internal logic.
-  GetLocalState()->SetTime(prefs::kNextSSORecallTime, time_in_past_);
+  GetLocalState()->SetTime(
+      prefs::kSigninStartupPromoLastShownTimeWithRandomOffset, time_in_past_);
 
   EXPECT_TRUE(
       signin::ShouldPresentUserSigninUpgrade(profile_.get(), version_1_0));
-  EXPECT_FALSE(GetLocalState()->GetTime(prefs::kNextSSORecallTime).is_null());
+  EXPECT_FALSE(
+      GetLocalState()
+          ->GetTime(prefs::kSigninStartupPromoLastShownTimeWithRandomOffset)
+          .is_null());
 }
 
 // Should not show if the user is signed-in with history opt-in.
 TEST_F(SigninUtilsTest, TestWillNotShowIfSignedInWithHistoryOptIn) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(switches::kFullscreenSignInPromoUseDate);
+  feature_list.InitAndEnableFeatureWithParameters(
+      switches::kFullscreenSignInPromoUseDate, {{"interval", "1"}});
   FakeSystemIdentity* identity = [FakeSystemIdentity fakeIdentity1];
   fake_system_identity_manager()->AddIdentity(identity);
   AuthenticationService* authentication_service =
@@ -526,7 +597,8 @@ TEST_F(SigninUtilsTest, TestWillNotShowIfSignedInWithHistoryOptIn) {
       identity_manager_, account_manager_service_, version_1_0);
   // Using task_environment_.FastForwardBy() causes this test to crash due to
   // sync internal logic.
-  GetLocalState()->SetTime(prefs::kNextSSORecallTime, time_in_past_);
+  GetLocalState()->SetTime(
+      prefs::kSigninStartupPromoLastShownTimeWithRandomOffset, time_in_past_);
 
   syncer::SyncUserSettings* sync_user_settings =
       sync_service_->GetUserSettings();

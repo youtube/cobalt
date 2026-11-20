@@ -82,7 +82,7 @@ class PopupRowViewTest : public ChromeViewsTestBase {
   void ShowView(int line_number,
                 bool has_control,
                 bool is_acceptable = true,
-                SuggestionType type = SuggestionType::kAddressEntry) {
+                SuggestionType type = SuggestionType::kPasswordEntry) {
     std::vector<Suggestion> suggestions(line_number + 1, Suggestion(type));
     suggestions[line_number].type = type;
     suggestions[line_number].acceptability =

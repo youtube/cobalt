@@ -18,6 +18,7 @@
 
 namespace web {
 class DownloadTask;
+class NavigationContext;
 class WebState;
 }  // namespace web
 
@@ -86,6 +87,8 @@ class ARQuickLookTabHelper
 
   // web::WebStateObserver overrides:
   void WasShown(web::WebState* web_state) override;
+  void DidStartNavigation(web::WebState* web_state,
+                          web::NavigationContext* navigation_context) override;
 
   // Previews the downloaded USDZ file or confirms the download if download has
   // not started.

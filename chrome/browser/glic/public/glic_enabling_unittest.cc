@@ -553,7 +553,7 @@ TEST_F(GlicEnablingProfileEligibilityTest, WasPreviouslyNotAllowedTest) {
   auto* identity_test_env = identity_test_env_adaptor_->identity_test_env();
   AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
       "test@example.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_use_model_execution_features(true);
   signin::UpdateAccountInfoForAccount(identity_test_env->identity_manager(),
                                       account_info);
@@ -1560,7 +1560,7 @@ class GlicEnablingGeminiEnterpriseSettingsTest
     AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
         params.is_enterprise ? "user@enterprise.com" : "user@gmail.com",
         signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(true);
     if (params.is_enterprise) {
       account_info = AccountInfo::Builder(account_info)
@@ -1737,7 +1737,7 @@ TEST_F(GlicEnablingWebActuationToggleTest, CapabilityIneligible) {
   auto* identity_test_env = identity_test_env_adaptor_->identity_test_env();
   AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
       "test@example.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_use_model_execution_features(false);
   signin::UpdateAccountInfoForAccount(identity_test_env->identity_manager(),
                                       account_info);
@@ -1750,7 +1750,7 @@ TEST_F(GlicEnablingWebActuationToggleTest, ManagedProfile_CannotActOnWeb) {
   auto* identity_test_env = identity_test_env_adaptor_->identity_test_env();
   AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
       "test@example.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_use_model_execution_features(true);
   signin::UpdateAccountInfoForAccount(identity_test_env->identity_manager(),
                                       account_info);
@@ -1771,7 +1771,7 @@ TEST_F(GlicEnablingWebActuationToggleTest, ManagedProfile_CanActOnWeb) {
   auto* identity_test_env = identity_test_env_adaptor_->identity_test_env();
   AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
       "test@example.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_use_model_execution_features(true);
   signin::UpdateAccountInfoForAccount(identity_test_env->identity_manager(),
                                       account_info);

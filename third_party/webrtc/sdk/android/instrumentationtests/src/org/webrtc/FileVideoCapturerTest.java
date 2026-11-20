@@ -11,6 +11,7 @@
 package org.webrtc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import android.os.Environment;
@@ -118,6 +119,33 @@ public class FileVideoCapturerTest {
           expectedFrames[i].getBytes(Charset.forName("US-ASCII")), frameContents);
       frame.release();
     }
+  }
+
+  // This test that FileVideoCapturer.isCapturing() returns the correct value across the
+  // initialize -> start -> stop lifecycle.
+  @Test
+  @SmallTest
+  public void testIsCapturing() throws InterruptedException, IOException {
+    final FileVideoCapturer fileVideoCapturer =
+        new FileVideoCapturer(Environment.getExternalStorageDirectory().getPath()
+            + "/chromium_tests_root/sdk/android/instrumentationtests/src/org/webrtc/"
+            + "capturetestvideo.y4m");
+    final MockCapturerObserver capturerObserver = new MockCapturerObserver();
+    fileVideoCapturer.initialize(
+        null /* surfaceTextureHelper */, null /* applicationContext */, capturerObserver);
+
+    assertFalse(
+        "Should not be capturing before startCapture()", fileVideoCapturer.isCapturing());
+
+    fileVideoCapturer.startCapture(4 /* width */, 4 /* height */, 30 /* fps */);
+    assertTrue(
+        "Should be capturing after startCapture()", fileVideoCapturer.isCapturing());
+
+    fileVideoCapturer.stopCapture();
+    assertFalse(
+        "Should not be capturing after stopCapture()", fileVideoCapturer.isCapturing());
+
+    fileVideoCapturer.dispose();
   }
 
   private static void assertByteBufferContents(byte[] expected, ByteBuffer actual) {

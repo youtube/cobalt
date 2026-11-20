@@ -1121,10 +1121,7 @@ void RTCVideoEncoder::Impl::CreateAndInitializeVEA(
   if (auto status =
           video_encoder_->Initialize(vea_config, this, media_log_->Clone());
       !status.is_ok()) {
-    NotifyErrorStatus(
-        {media::EncoderStatus::Codes::kEncoderInitializationError,
-         base::StrCat({"Failed to initialize VideoEncodeAccelerator: ",
-                       status.message()})});
+    NotifyErrorStatus(std::move(status).AddHere());
     return;
   }
 
@@ -1945,9 +1942,7 @@ void RTCVideoEncoder::Impl::NotifyErrorStatus(
   TRACE_EVENT0("webrtc", "RTCVideoEncoder::Impl::NotifyErrorStatus");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!status.is_ok());
-  LOG(ERROR) << "NotifyErrorStatus is called with code="
-             << static_cast<int>(status.code())
-             << ", message=" << status.message();
+  status.DebugLog(1);
   if (encoder_metrics_provider_) {
     // |encoder_metrics_provider_| is nullptr if NotifyErrorStatus() is called
     // before it is created in CreateAndInitializeVEA().

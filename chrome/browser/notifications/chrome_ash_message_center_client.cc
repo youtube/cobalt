@@ -9,12 +9,13 @@
 #include "base/feature_list.h"
 #include "base/i18n/string_compare.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/notifications/arc_application_notifier_controller.h"
 #include "chrome/browser/notifications/extension_notifier_controller.h"
 #include "chrome/browser/notifications/web_page_notifier_controller.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "ui/message_center/message_center.h"
@@ -32,8 +33,9 @@ ChromeAshMessageCenterClient* g_chrome_ash_message_center_client = nullptr;
 // All notifier actions are performed on the notifiers for the currently active
 // profile, so this just returns the active profile.
 Profile* GetProfileForNotifiers() {
-  return ash::ProfileHelper::Get()->GetProfileByUser(
-      user_manager::UserManager::Get()->GetActiveUser());
+  return Profile::FromBrowserContext(
+      ash::BrowserContextHelper::Get()->GetBrowserContextByUser(
+          user_manager::UserManager::Get()->GetActiveUser()));
 }
 
 class NotifierComparator {

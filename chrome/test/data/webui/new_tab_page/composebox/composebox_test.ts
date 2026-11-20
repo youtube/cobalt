@@ -755,30 +755,6 @@ suite('NewTabPageComposeboxTest', () => {
           testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 1);
     });
 
-    test('ShowContextMenuDescription', async () => {
-      loadTimeData.overrideValues({
-        composeboxShowContextMenuDescription: false,
-      });
-      createComposeboxElement(testProxy);
-      await microtasksFinished();
-
-      let entrypoint = $$(testProxy.element, '#contextEntrypoint');
-      assertTrue(!!entrypoint);
-      assertFalse(entrypoint.hasAttribute('show-context-menu-description'));
-
-      testProxy.element.remove();
-
-      loadTimeData.overrideValues({
-        composeboxShowContextMenuDescription: true,
-      });
-      createComposeboxElement(testProxy);
-      await microtasksFinished();
-
-      entrypoint = $$(testProxy.element, '#contextEntrypoint');
-      assertTrue(!!entrypoint);
-      assertTrue(entrypoint.hasAttribute('show-context-menu-description'));
-    });
-
     test('metrics are recorded for ToolMode clicks', async () => {
       loadTimeData.overrideValues({composeboxSource: 'NewTabPage'});
       createComposeboxElement(testProxy);

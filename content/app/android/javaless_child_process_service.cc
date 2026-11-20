@@ -152,6 +152,9 @@ void ChildProcessService::Run() {
     parent_process = parent_process_;
   }
 
+  std::vector<std::string> command_line_copy = args->commandLine;
+  base::android::CommandLineInit(command_line_copy);
+
   base::android::LibraryProcessType process_type =
       static_cast<base::android::LibraryProcessType>(args->libraryProcessType);
   if (!NativeInitializationHook(process_type)) {
@@ -160,8 +163,6 @@ void ChildProcessService::Run() {
   SetBuildInfo(*args);
   InitChildProcessCommon(args->cpuCount, args->cpuFeatures);
 
-  std::vector<std::string> command_line_copy = args->commandLine;
-  base::android::CommandLineInit(command_line_copy);
   base::android::LibraryLoaded(process_type);
   base::UmaHistogramBoolean("Android.ChildProcess.JavalessStarted", true);
 

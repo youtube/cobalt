@@ -293,4 +293,14 @@ const HatsConfig kHatsOfficeSurvey = {
     ash::prefs::kHatsOfficeSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
 };
 
+// Slow and laggy deep dive survey. -- Shown after login.
+const HatsConfig kHatsSlowAndLaggyDeepDive = {
+    ash::features::kHappinessTrackingSystemSlowAndLaggyDeepDive,  // feature
+    base::Days(7),
+    ash::prefs::
+        kHatsSlowAndLaggyDeepDiveSurveyIsSelected,  // is_selected_pref_name
+    ash::prefs::
+        kHatsSlowAndLaggyDeepDiveSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+};
+
 }  // namespace ash

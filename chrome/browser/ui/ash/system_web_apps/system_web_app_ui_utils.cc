@@ -265,8 +265,9 @@ BrowserDelegate* LaunchSystemWebAppImpl(Profile* profile,
   //
   // Since users can't configure SWA launch behavior, we don't report these
   // metrics to avoid skewing web app metrics.
-  web_app::UpdateLaunchStats(browser->GetActiveWebContents(), params.app_id,
-                             url);
+  web_app::UpdateLaunchMetricsAndStats(params.app_id, params.container,
+                                       params.launch_source, url,
+                                       browser->GetActiveWebContents());
 
   // LaunchSystemWebAppImpl may be called with a profile associated with an
   // inactive (background) desktop (e.g. when multiple users are logged in).

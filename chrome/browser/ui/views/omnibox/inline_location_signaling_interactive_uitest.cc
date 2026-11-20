@@ -156,8 +156,7 @@ class InlineLocationSignalingE2EInteractiveUiTest
 
     // Surgical Fix: Increase the global provider timeout specifically for this
     // test to avoid flakes on slow bots without affecting production users.
-    browser()
-        ->window()
+    BrowserWindow::FromBrowser(browser())
         ->GetLocationBar()
         ->GetOmniboxController()
         ->autocomplete_controller()
@@ -238,13 +237,14 @@ IN_PROC_BROWSER_TEST_P(InlineLocationSignalingE2EInteractiveUiTest,
       pattern, ContentSettingsPattern::Wildcard(),
       ContentSettingsType::GEOLOCATION, site_perm);
 
-  OmniboxController* omnibox_controller =
-      browser()->window()->GetLocationBar()->GetOmniboxController();
+  OmniboxController* omnibox_controller = BrowserWindow::FromBrowser(browser())
+                                              ->GetLocationBar()
+                                              ->GetOmniboxController();
   AutocompleteController* controller =
       omnibox_controller->autocomplete_controller();
 
   OmniboxView* omnibox_view =
-      browser()->window()->GetLocationBar()->GetOmniboxView();
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
 
   chrome::FocusLocationBar(browser());
   ASSERT_TRUE(base::test::RunUntil([&]() {

@@ -268,7 +268,10 @@ content_mojolpm_fuzzer_test("dom_storage_mojolpm_fuzzer") {
   seed_corpus_sources = [
     "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/local_storage_operations.textproto",
     "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/multi_area_operations.textproto",
+    "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/multiple_puts_and_get_all.textproto",
+    "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/opaque_origin_operations.textproto",
     "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/session_storage_operations.textproto",
+    "//content/test/data/fuzzer_corpus/dom_storage_mojolpm_fuzzer/storage_area_flush.textproto",
   ]
 }
 

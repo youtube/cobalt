@@ -140,10 +140,6 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
 }
 
 - (void)disconnect {
-  if (!IsGeminiCopresenceEnabled()) {
-    return;
-  }
-
   for (LegacyToolbarButton* button in self.view.allButtons) {
     // Ensures that unrecognized command selectors aren't called and context
     // menu interactions are disabled after disconnecting view controller.

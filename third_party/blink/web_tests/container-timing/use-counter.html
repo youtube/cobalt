@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+
+const kContainerTimingAttribute = 5932;
+const kContainerTimingAttributeHasRootName = 5933;
+const kContainerTimingIgnoreAttribute = 5934;
+
+test(() => {
+  assert_false(internals.isUseCounted(document, kContainerTimingAttribute),
+               "kContainerTimingAttribute shouldn't be counted before the test.");
+  assert_false(internals.isUseCounted(document, kContainerTimingAttributeHasRootName),
+               "kContainerTimingAttributeHasRootName shouldn't be counted before the test.");
+  assert_false(internals.isUseCounted(document, kContainerTimingIgnoreAttribute),
+               "kContainerTimingIgnoreAttribute shouldn't be counted before the test.");
+
+  // A bare containertiming attribute counts kContainerTimingAttribute only.
+  const bare = document.createElement('div');
+  bare.setAttribute("containertiming", "");
+  document.body.appendChild(bare);
+
+  assert_true(internals.isUseCounted(document, kContainerTimingAttribute),
+              "bare containertiming should count kContainerTimingAttribute.");
+  assert_false(internals.isUseCounted(document, kContainerTimingAttributeHasRootName),
+               "bare containertiming shouldn't count kContainerTimingAttributeHasRootName.");
+
+  // A named containertiming attribute counts kContainerTimingAttributeHasRootName too.
+  const named = document.createElement('div');
+  named.setAttribute("containertiming", "some-name");
+  document.body.appendChild(named);
+
+  assert_true(internals.isUseCounted(document, kContainerTimingAttributeHasRootName),
+              "named containertiming should count kContainerTimingAttributeHasRootName.");
+
+  // containertiming-ignore counts kContainerTimingIgnoreAttribute.
+  assert_false(internals.isUseCounted(document, kContainerTimingIgnoreAttribute),
+               "kContainerTimingIgnoreAttribute shouldn't be counted yet.");
+
+  const ignore = document.createElement('div');
+  ignore.setAttribute("containertiming-ignore", "");
+  document.body.appendChild(ignore);
+
+  assert_true(internals.isUseCounted(document, kContainerTimingIgnoreAttribute),
+              "containertiming-ignore should count kContainerTimingIgnoreAttribute.");
+}, 'Behavior of Container Timing attribute use counters');
+
+</script>

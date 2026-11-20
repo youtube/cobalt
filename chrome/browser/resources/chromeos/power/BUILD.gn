@@ -14,7 +14,7 @@ build_webui("build") {
     "power.html",
   ]
 
-  ts_files = [ "power.js" ]
+  ts_files = [ "power.ts" ]
 
   ts_deps = [
     "//ash/webui/common/resources:build_ts",

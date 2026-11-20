@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/platform/fonts/font_platform_data.h"
 #include "third_party/blink/renderer/platform/fonts/opentype/open_type_vertical_data.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_face.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/variation_selector_mode.h"
 #include "third_party/skia/include/core/SkFont.h"
 #include "third_party/skia/include/core/SkStrikeRef.h"
 
@@ -21,15 +22,15 @@ namespace blink {
 
 const unsigned kInvalidFallbackMetricsValue = static_cast<unsigned>(-1);
 
-// The HarfBuzzFontData struct carries user-pointer data for
+// The HarfBuzzFontData struct carries user-pointer data (a context) for
 // |hb_font_t| callback functions/operations. It contains metrics and OpenType
-// layout information related to a font scaled to a particular size.
+// layout information related to a font scaled to a particular size,
+// as well as the desired VariationSelectorMode for the current range.
+// Since it lives on a thread-local cache, it is used by one thread only.
 struct HarfBuzzFontData final : public GarbageCollected<HarfBuzzFontData> {
  public:
   explicit HarfBuzzFontData(hb_font_t* unscaled_font)
-      : unscaled_font_(hb::unique_ptr<hb_font_t>(unscaled_font)),
-        vertical_data_(nullptr),
-        range_set_(nullptr) {}
+      : unscaled_font_(unscaled_font) {}
 
   HarfBuzzFontData(const HarfBuzzFontData&) = delete;
   HarfBuzzFontData& operator=(const HarfBuzzFontData&) = delete;
@@ -101,6 +102,13 @@ struct HarfBuzzFontData final : public GarbageCollected<HarfBuzzFontData> {
     return vertical_data_.Get();
   }
 
+  VariationSelectorMode GetVariationSelectorMode() const {
+    return variation_selector_mode_;
+  }
+  void SetVariationSelectorMode(VariationSelectorMode value) {
+    variation_selector_mode_ = value;
+  }
+
   const hb::unique_ptr<hb_font_t> unscaled_font_;
   SkFont font_;
   // Lazily-populated cached strike for the HarfBuzz advance callbacks; reset
@@ -122,6 +130,8 @@ struct HarfBuzzFontData final : public GarbageCollected<HarfBuzzFontData> {
 
   Member<OpenTypeVerticalData> vertical_data_;
   Member<const UnicodeRangeSet> range_set_;
+  VariationSelectorMode variation_selector_mode_ =
+      kUseSpecifiedVariationSelector;
 };
 
 }  // namespace blink

@@ -2967,7 +2967,8 @@ TEST_F(NetworkContextTest, ClearHostCache) {
       host_cache->Set(
           net::HostCache::Key(domain, net::DnsQueryType::UNSPECIFIED, 0,
                               net::HostResolverSource::ANY,
-                              net::NetworkAnonymizationKey()),
+                              net::NetworkAnonymizationKey(),
+                              net::handles::kInvalidNetworkHandle),
           net::HostCache::Entry(net::OK, /*ip_endpoints=*/{}, /*aliases=*/{},
                                 net::HostCache::Entry::SOURCE_UNKNOWN),
           base::TimeTicks::Now(), base::Days(1));
@@ -2975,7 +2976,8 @@ TEST_F(NetworkContextTest, ClearHostCache) {
           net::HostCache::Key(
               url::SchemeHostPort(url::kHttpsScheme, domain, 443),
               net::DnsQueryType::UNSPECIFIED, 0, net::HostResolverSource::ANY,
-              net::NetworkAnonymizationKey()),
+              net::NetworkAnonymizationKey(),
+              net::handles::kInvalidNetworkHandle),
           net::HostCache::Entry(net::OK, /*ip_endpoints=*/{}, /*aliases=*/{},
                                 net::HostCache::Entry::SOURCE_UNKNOWN),
           base::TimeTicks::Now(), base::Days(1));

@@ -22,15 +22,45 @@ export function getHtml(this: AppElement) {
         <div class="clear-search-icon"></div>
       </button>
     </div>
-    <div class="flex">
+    <div class="flex actions-container">
       <cr-button id="experiment-reset-all" @click="${this.onResetAllClick_}"
           @keydown="${this.onResetAllKeydown_}" @blur="${this.onResetAllBlur_}">
         $i18n{reset}
       </cr-button>
+<if expr="not is_ios">
+      <label for="import-file-input">
+        <cr-icon-button id="experiment-import"
+            iron-icon="flags:file-upload"
+            aria-label="Import"
+            ?hidden="${!this.isImportExportEnabled_}">
+        </cr-icon-button>
+      </label>
+      <cr-tooltip for="experiment-import" fit-to-visible-bounds
+          ?hidden="${!this.isImportExportEnabled_}">
+        Import
+      </cr-tooltip>
+      <cr-icon-button id="experiment-export"
+          iron-icon="cr:file-download"
+          aria-label="Export"
+          @click="${this.onExportClick_}"
+          ?hidden="${!this.isImportExportEnabled_}">
+      </cr-icon-button>
+      <cr-tooltip for="experiment-export" fit-to-visible-bounds
+          ?hidden="${!this.isImportExportEnabled_}">
+        Export
+      </cr-tooltip>
+      <input type="file" id="import-file-input" accept=".json"
+          @change="${this.onImportFileChange_}" hidden>
+</if>
     </div>
   </div>
   <div class="screen-reader-only" id="screen-reader-status-message"
       role="status"></div>
+<if expr="not is_ios">
+  <cr-toast id="errorToast" duration="3000">
+    <div>${this.importError}</div>
+  </cr-toast>
+</if>
 </div>
 <div id="body-container">
   <div id="flagsTemplate">
@@ -50,8 +80,8 @@ export function getHtml(this: AppElement) {
 </if>
     </div>
     <p id="promos" ?hidden="${!this.shouldShowPromos_()}">
-      <!-- Those strings are not localized because they only appear in
-          chrome://flags, which is not localized. -->
+      <!-- Those strings are not localized because they only
+      appear in chrome://flags, which is not localized. -->
       <span id="channel-promo-beta"
           ?hidden="${!this.data.showBetaChannelPromotion}">
         Interested in cool new Chrome features? Try our

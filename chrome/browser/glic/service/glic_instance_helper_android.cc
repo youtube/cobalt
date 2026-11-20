@@ -18,18 +18,20 @@ void GlicInstanceHelper::InitJavaObject() {
       Java_GlicInstanceHelper_Constructor(env));
 }
 
-void GlicInstanceHelper::NotifyJavaInstanceTitleChanged() {
+void GlicInstanceHelper::NotifyJavaInstanceChanged() {
   if (java_ref_) {
     JNIEnv* env = base::android::AttachCurrentThread();
     std::string conversation_id =
         bound_instance_ ? bound_instance_->conversation_id().value_or("") : "";
     std::string conversation_title =
         bound_instance_ ? bound_instance_->conversation_title() : "";
+    int task_id = bound_instance_ ? bound_instance_->task_id().value_or(0) : 0;
 
     Java_GlicInstanceHelper_onInstanceChanged(
         env, java_ref_,
         base::android::ConvertUTF8ToJavaString(env, conversation_id),
-        base::android::ConvertUTF8ToJavaString(env, conversation_title));
+        base::android::ConvertUTF8ToJavaString(env, conversation_title),
+        task_id);
   }
 }
 

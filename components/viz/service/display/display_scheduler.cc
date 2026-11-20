@@ -88,6 +88,7 @@ DisplayScheduler::DisplayScheduler(BeginFrameSource* begin_frame_source,
     : begin_frame_observer_(*this),
       begin_frame_source_(begin_frame_source),
       task_runner_(task_runner),
+      last_undrawn_begin_frame_args_(std::nullopt),
       inside_surface_damaged_(false),
       visible_(false),
       output_surface_lost_(false),
@@ -98,6 +99,8 @@ DisplayScheduler::DisplayScheduler(BeginFrameSource* begin_frame_source,
       pending_swaps_(0),
       pending_swap_params_(std::move(pending_swap_params)),
       wait_for_all_surfaces_before_draw_(wait_for_all_surfaces_before_draw),
+      allow_multiple_swaps_per_vsync_(
+          base::FeatureList::IsEnabled(features::kAllowMultipleSwapsPerVsync)),
 #if BUILDFLAG(IS_ANDROID)
       use_platform_preferred_deadlines_(!base::FeatureList::IsEnabled(
           features::kUseAndroidCustomFrameDeadlines)),
@@ -158,6 +161,9 @@ void DisplayScheduler::SetVisible(bool visible) {
   }
 
   visible_ = visible;
+  if (!visible_) {
+    last_undrawn_begin_frame_args_ = std::nullopt;
+  }
   // If going invisible, we'll stop observing begin frames once we try
   // to draw and fail.
   MaybeStartObservingBeginFrames();
@@ -169,7 +175,8 @@ void DisplayScheduler::OnRootFrameMissing(bool missing) {
   ScheduleBeginFrameDeadline();
 }
 
-void DisplayScheduler::OnDisplayDamaged(SurfaceId surface_id) {
+void DisplayScheduler::OnDisplayDamaged(SurfaceId surface_id,
+                                        BeginFrameId frame_id) {
   // We may cause a new BeginFrame to be run inside this method, but to help
   // avoid being reentrant to the caller of SurfaceDamaged, track when this is
   // happening with |inside_surface_damaged_|.
@@ -178,6 +185,15 @@ void DisplayScheduler::OnDisplayDamaged(SurfaceId surface_id) {
   needs_draw_ = true;
   MaybeStartObservingBeginFrames();
   UpdateHasPendingSurfaces();
+
+  if (allow_multiple_swaps_per_vsync_ && CanDrawForPreviousFrame(frame_id)) {
+    // Note: In case of multiple surfaces submitting late damage only the first
+    // one will cause the immediate swap, as a `last_undrawn_begin_frame_args_`
+    // gets reset when a successful DrawAndSwap takes place.
+    ForceImmediateSwapForPreviousFrame();
+    return;
+  }
+
   ScheduleBeginFrameDeadline();
 }
 
@@ -195,9 +211,9 @@ base::TimeDelta DisplayScheduler::GetDeadlineOffset(
 void DisplayScheduler::ForceImmediateSwapIfPossible() {
   TRACE_EVENT0("viz", "DisplayScheduler::ForceImmediateSwapIfPossible");
   bool in_begin = inside_begin_frame_deadline_interval_;
-  bool did_draw = AttemptDrawAndSwap();
+  bool did_draw = AttemptDrawAndSwap(current_begin_frame_args_);
   if (in_begin)
-    DidFinishFrame(did_draw);
+    DidFinishFrame(current_begin_frame_args_.frame_id, did_draw);
 }
 
 bool DisplayScheduler::UpdateHasPendingSurfaces() {
@@ -302,7 +318,7 @@ void DisplayScheduler::OnPresentationFeedback(
   }
 }
 
-bool DisplayScheduler::DrawAndSwap() {
+bool DisplayScheduler::DrawAndSwap(const BeginFrameArgs& begin_frame_args) {
   TRACE_EVENT0("viz", "DisplayScheduler::DrawAndSwap");
   DCHECK_LT(pending_swaps_,
             std::max(pending_swap_params_.max_pending_swaps,
@@ -310,11 +326,11 @@ bool DisplayScheduler::DrawAndSwap() {
   DCHECK(!output_surface_lost_);
 
   DrawAndSwapParams params;
-  params.begin_frame_args = current_begin_frame_args_;
-  params.expected_display_time = current_frame_display_time();
+  params.begin_frame_args = begin_frame_args;
+  params.expected_display_time = current_frame_display_time(begin_frame_args);
   params.max_pending_swaps = MaxPendingSwaps();
-  if (current_begin_frame_args_.possible_deadlines) {
-    auto& deadlines = *current_begin_frame_args_.possible_deadlines;
+  if (begin_frame_args.possible_deadlines) {
+    auto& deadlines = *begin_frame_args.possible_deadlines;
     auto earliest_input_time =
         damage_tracker_
             ? damage_tracker_->GetEarliestInputGenerationTimeOfDamagedSurfaces()
@@ -324,13 +340,13 @@ bool DisplayScheduler::DrawAndSwap() {
     int max_allowed_buffers = std::max(MaxPendingSwapsForRefreshRate() + 1,
                                        current_allocated_buffers);
     auto selected_deadline = deadlines.deadlines[decider_.SelectDeadline(
-        deadlines, current_begin_frame_args_.interval, max_allowed_buffers,
-        current_begin_frame_args_.frame_time, earliest_input_time)];
+        deadlines, begin_frame_args.interval, max_allowed_buffers,
+        begin_frame_args.frame_time, earliest_input_time)];
     // TODO(crbug.com/500826814): Move this logic into FrameDeadlineDecider.
     if (base::FeatureList::IsEnabled(features::kSelectFutureFrameDeadline)) {
       base::TimeTicks now = NowTicks();
       base::TimeTicks preferred_latch_time =
-          current_begin_frame_args_.frame_time + selected_deadline.latch_delta;
+          begin_frame_args.frame_time + selected_deadline.latch_delta;
 
       // The `possible_deadlines.vsync_id` are different for each VSync we
       // receive. However they map to overlapping latch times.
@@ -347,7 +363,7 @@ bool DisplayScheduler::DrawAndSwap() {
           last_targeted_latch_time_ > now || preferred_latch_time < now) {
         for (const auto& deadline : deadlines.deadlines) {
           base::TimeTicks latch_time =
-              current_begin_frame_args_.frame_time + deadline.latch_delta;
+              begin_frame_args.frame_time + deadline.latch_delta;
           if (latch_time > last_targeted_latch_time_ && latch_time > now) {
             selected_deadline = deadline;
             break;
@@ -356,7 +372,7 @@ bool DisplayScheduler::DrawAndSwap() {
       }
     }
     last_targeted_latch_time_ =
-        current_begin_frame_args_.frame_time + selected_deadline.latch_delta;
+        begin_frame_args.frame_time + selected_deadline.latch_delta;
     params.choreographer_vsync_id = selected_deadline.vsync_id;
     params.selected_deadline = selected_deadline;
     if (!use_platform_preferred_deadlines_) {
@@ -375,6 +391,7 @@ bool DisplayScheduler::DrawAndSwap() {
   if (!success)
     return false;
 
+  last_undrawn_begin_frame_args_ = std::nullopt;
   needs_draw_ = false;
   return true;
 }
@@ -573,6 +590,36 @@ bool DisplayScheduler::ShouldDraw() const {
          !damage_tracker_->root_frame_missing();
 }
 
+bool DisplayScheduler::CanDrawForPreviousFrame(
+    const BeginFrameId& begin_frame_id) const {
+  // TODO(crbug.com/515323102): Check if the FrameDeadlineDecider chosen
+  // deadline actually allows swapping still.
+  if (!begin_frame_id.IsSequenceValid()) {
+    return false;
+  }
+  if (inside_begin_frame_deadline_interval_) {
+    return false;
+  }
+  if (last_undrawn_begin_frame_args_ &&
+      begin_frame_id == last_undrawn_begin_frame_args_->frame_id) {
+    return true;
+  }
+  return false;
+}
+
+void DisplayScheduler::ForceImmediateSwapForPreviousFrame() {
+  TRACE_EVENT0("viz", "DisplayScheduler::ForceImmediateSwapForPreviousFrame");
+  CHECK(last_undrawn_begin_frame_args_.has_value());
+  // Synchronous draw and swap as part of display damage notification makes sure
+  // begin frame task is ran separately using `missed_begin_frame_task_`.
+  CHECK(!inside_begin_frame_deadline_interval_);
+  // `last_undrawn_begin_frame_args_` could be reset in case of successful draw
+  // and swap, so make a copy.
+  auto begin_frame_args = *last_undrawn_begin_frame_args_;
+  bool did_draw = AttemptDrawAndSwap(begin_frame_args);
+  DidFinishFrame(begin_frame_args.frame_id, did_draw);
+}
+
 // static
 base::TimeTicks DisplayScheduler::DesiredBeginFrameDeadlineTime(
     BeginFrameDeadlineMode deadline_mode,
@@ -699,14 +746,18 @@ void DisplayScheduler::ScheduleBeginFrameDeadline() {
                "desired_deadline", desired_deadline);
 }
 
-bool DisplayScheduler::AttemptDrawAndSwap() {
-  inside_begin_frame_deadline_interval_ = false;
-  begin_frame_deadline_timer_.Stop();
-  begin_frame_deadline_task_time_ = base::TimeTicks();
+bool DisplayScheduler::AttemptDrawAndSwap(
+    const BeginFrameArgs& begin_frame_args) {
+  if (!last_undrawn_begin_frame_args_ ||
+      begin_frame_args.frame_id != last_undrawn_begin_frame_args_->frame_id) {
+    inside_begin_frame_deadline_interval_ = false;
+    begin_frame_deadline_timer_.Stop();
+    begin_frame_deadline_task_time_ = base::TimeTicks();
+  }
 
   if (ShouldDraw()) {
     if (pending_swaps_ < MaxPendingSwaps())
-      return DrawAndSwap();
+      return DrawAndSwap(begin_frame_args);
   } else {
     // We are going idle, so reset expectations.
     // TODO(eseckler): Should we avoid going idle if
@@ -722,14 +773,17 @@ void DisplayScheduler::OnBeginFrameDeadline() {
   TRACE_EVENT0("viz,input.scrolling", "DisplayScheduler::OnBeginFrameDeadline");
   DCHECK(inside_begin_frame_deadline_interval_);
 
-  bool did_draw = AttemptDrawAndSwap();
-  DidFinishFrame(did_draw);
+  bool did_draw = AttemptDrawAndSwap(current_begin_frame_args_);
+  if (!did_draw) {
+    last_undrawn_begin_frame_args_ = current_begin_frame_args_;
+  }
+  DidFinishFrame(current_begin_frame_args_.frame_id, did_draw);
 }
 
-void DisplayScheduler::DidFinishFrame(bool did_draw) {
+void DisplayScheduler::DidFinishFrame(BeginFrameId frame_id, bool did_draw) {
   DCHECK(begin_frame_source_);
   begin_frame_source_->DidFinishFrame(&begin_frame_observer_);
-  BeginFrameAck ack(current_begin_frame_args_, did_draw);
+  BeginFrameAck ack(frame_id.source_id, frame_id.sequence_number, did_draw);
   if (client_)
     client_->DidFinishFrame(ack);
   damage_tracker_->DidFinishFrame();

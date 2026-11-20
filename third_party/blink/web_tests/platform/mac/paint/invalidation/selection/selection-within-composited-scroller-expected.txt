@@ -9,7 +9,8 @@
     {
       "name": "LayoutBlockFlow (relayout-boundary) DIV id='scroller'",
       "bounds": [200, 200],
-      "drawsContent": false,
+      "contentsOpaque": true,
+      "backgroundColor": "#D3D3D3",
       "transform": 1
     },
     {

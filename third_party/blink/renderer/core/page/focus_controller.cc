@@ -515,10 +515,13 @@ class FocusNavigation final {
   //    is a reading flow element, use the reading flow.
   // 2. Else, use the DOM tree order.
   const Element* Next(const Element& current) {
-    return reading_flow_container_ &&
-                   reading_flow_next_elements_.Contains(&current)
-               ? reading_flow_next_elements_.at(&current)
-               : NextInDomOrder(current);
+    if (reading_flow_container_) {
+      const auto it = reading_flow_next_elements_.find(&current);
+      if (it != reading_flow_next_elements_.end()) {
+        return it->value;
+      }
+    }
+    return NextInDomOrder(current);
   }
 
   const Element* PreviousInDomOrder(const Element& current) {
@@ -560,10 +563,13 @@ class FocusNavigation final {
   //    is a reading flow element, use the reading flow.
   // 2. Else, use the DOM tree order.
   const Element* Previous(const Element& current) {
-    return reading_flow_container_ &&
-                   reading_flow_previous_elements_.Contains(&current)
-               ? reading_flow_previous_elements_.at(&current)
-               : PreviousInDomOrder(current);
+    if (reading_flow_container_) {
+      const auto it = reading_flow_previous_elements_.find(&current);
+      if (it != reading_flow_previous_elements_.end()) {
+        return it->value;
+      }
+    }
+    return PreviousInDomOrder(current);
   }
 
   const Element* First() {

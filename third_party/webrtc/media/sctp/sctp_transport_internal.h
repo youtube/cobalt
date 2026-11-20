@@ -88,6 +88,8 @@ class SctpTransportInternal {
   virtual size_t buffered_amount(int sid) const = 0;
   virtual size_t buffered_amount_low_threshold(int sid) const = 0;
   virtual void SetBufferedAmountLowThreshold(int sid, size_t bytes) = 0;
+
+  virtual size_t EarlyReceivedPacketCountForTesting() const = 0;
 };
 
 }  //  namespace webrtc

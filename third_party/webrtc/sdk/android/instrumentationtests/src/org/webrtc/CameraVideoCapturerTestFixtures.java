@@ -790,4 +790,40 @@ class CameraVideoCapturerTestFixtures {
 
     testObjectFactory.rawCloseCamera(competingCamera);
   }
+
+  // Verifies that VideoCapturer.isCapturing() reflects the lifecycle of
+  // startCapture()/stopCapture() across a full start/stop/restart cycle.
+  public void capturerReportsCapturingState() throws InterruptedException {
+    final CapturerInstance capturerInstance = createCapturer(true /* initialize */);
+
+    assertFalse("Should not be capturing before startCapture()",
+        capturerInstance.capturer.isCapturing());
+
+    startCapture(capturerInstance);
+    assertTrue(capturerInstance.observer.waitForCapturerToStart());
+    capturerInstance.observer.waitForNextCapturedFrame();
+    assertTrue("Should be capturing after the capturer has started",
+        capturerInstance.capturer.isCapturing());
+
+    capturerInstance.capturer.stopCapture();
+    capturerInstance.observer.releaseFrame();
+    capturerInstance.cameraEvents.waitForCameraClosed();
+    assertFalse("Should not be capturing after stopCapture()",
+        capturerInstance.capturer.isCapturing());
+
+    // Restart to verify the flag flips back to true on a subsequent start.
+    startCapture(capturerInstance);
+    assertTrue(capturerInstance.observer.waitForCapturerToStart());
+    capturerInstance.observer.waitForNextCapturedFrame();
+    assertTrue("Should be capturing again after restart",
+        capturerInstance.capturer.isCapturing());
+
+    capturerInstance.capturer.stopCapture();
+    capturerInstance.observer.releaseFrame();
+    capturerInstance.cameraEvents.waitForCameraClosed();
+    assertFalse(capturerInstance.capturer.isCapturing());
+
+    capturerInstance.capturer.dispose();
+    capturerInstance.surfaceTextureHelper.dispose();
+  }
 }

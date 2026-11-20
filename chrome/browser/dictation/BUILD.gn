@@ -6,12 +6,15 @@ source_set("dictation") {
   public = [
     "dictation_keyed_service.h",
     "dictation_keyed_service_factory.h",
+    "dictation_multiplexer.h",
     "features.h",
     "session_controller.h",
     "session_controller_delegate.h",
+    "session_state.h",
     "session_ui.h",
     "session_ui_delegate.h",
     "stream_provider.h",
+    "stream_provider_delegate.h",
     "target.h",
   ]
   public_deps = [
@@ -24,8 +27,12 @@ source_set("impl") {
   sources = [
     "dictation_keyed_service.cc",
     "dictation_keyed_service_factory.cc",
+    "dictation_multiplexer.cc",
     "features.cc",
+    "listener_stream_provider.cc",
+    "listener_stream_provider.h",
     "session_controller.cc",
+    "session_state.cc",
     "session_ui_impl.cc",
     "session_ui_impl.h",
   ]
@@ -37,7 +44,9 @@ source_set("impl") {
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/views/interaction",
+    "//chrome/common/extensions/api",
     "//content/public/browser",
+    "//extensions/browser",
     "//ui/views",
   ]
 }
@@ -52,8 +61,17 @@ source_set("test_support") {
   public_deps = [
     ":dictation",
     "//base",
+    "//chrome/common/extensions/api",
     "//testing/gmock",
     "//testing/gtest",
+  ]
+
+  deps = [
+    ":impl",
+    "//chrome/browser/extensions:test_support",
+    "//chrome/common:constants",
+    "//content/test:test_support",
+    "//extensions/browser:test_support",
   ]
 }
 

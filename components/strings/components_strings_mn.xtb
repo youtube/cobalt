@@ -117,7 +117,6 @@
 <translation id="1178821169867863726">12 x 16 инч</translation>
 <translation id="1181037720776840403">Хасах</translation>
 <translation id="1185331130467528132"><ph name="URL" /> таны дотоод сүлжээн дээрх бусад төхөөрөмжид хандахыг хүсэж байна</translation>
-<translation id="1185343831726846924">Виртуал картыг асаах боломжгүйг баталгаажуулж байна</translation>
 <translation id="1186201132766001848">Нууц үгийг шалгах</translation>
 <translation id="1187430513518041110">Авто машин, тээврийн хэрэгслүүд</translation>
 <translation id="1188817995162638216">Файл хадгалахыг цуцлах уу?</translation>
@@ -1262,7 +1261,6 @@
 <translation id="297173220375858963">Компьютероор нийтлэх</translation>
 <translation id="2972581237482394796">&amp; Дахин хийх</translation>
 <translation id="2974468223369775963">Энэ IBAN дугаарыг таны Google Бүртгэлд хадгалж чадсангүй. Оронд нь тус дугаарыг энэ төхөөрөмж дээр Chrome-д хадгалсан. Chrome таныг дараагийн удаа энэ IBAN дугаарыг ашиглахад дахин асууна.</translation>
-<translation id="2976162850019490782">Асаалттай үед Chrome танд илүү хамааралтай хариулт авахад туслахын тулд энэ цонхны бүх табыг хуваалцана. Та үүнийг Тохиргооноос бүх уялдаанд зориулж асаах боломжтой.</translation>
 <translation id="297667759942911166">Табын бүлэгт хамтран ажиллах</translation>
 <translation id="2977665033722899841">Одоогоор <ph name="ROW_NAME" />-г сонгосон байна. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">Дуурь</translation>
@@ -1672,7 +1670,6 @@
 <translation id="361438452008624280">Жагсаалтын оролт "<ph name="LANGUAGE_ID" />": Энэ хэлийг танихгүй эсвэл дэмжээгүй байна.</translation>
 <translation id="3614934205542186002"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome-н тохиргоонд аюулгүй байдлын шалгалтыг ажиллуулахын тулд Tab, дараа нь Enter дээр дарна уу</translation>
 <translation id="3615309852743236517">Маникюр болон педикур</translation>
-<translation id="3620034424637552643">Чиглэл, хүргэлт болон бусад зүйлд ихэвчлэн ашигладаг</translation>
 <translation id="3620239073311576716">Дүрэмт хувцас болон ажлын хувцас</translation>
 <translation id="3620865353340165509">Энэ IBAN-г Google Wallet-д хадгалж чадсангүй. Оронд нь үүнийг энэ төхөөрөмж дээрх Chrome-д хадгалсан. Chrome таныг дараагийн удаа энэ IBAN дугаарыг ашиглахад дахин асууна.</translation>
 <translation id="3621401353678567613">Мөшгөдөг бүтээгдэхүүнүүдийнхээ үнэ буурсан талаарх дохиолол авахын тулд тохиргоонд мэдэгдлийг асаана уу.</translation>
@@ -2221,7 +2218,6 @@
 <translation id="4434045419905280838">Попап болон дахин чиглүүлэлт</translation>
 <translation id="443673843213245140">Орлон ашиглах эрхийг хаасан байгаа боловч тодорхой түвшинд орлон ашиглах тохиргоог тусгасан байна.</translation>
 <translation id="4438821706955556403">Дундаж үнэ</translation>
-<translation id="4439687924334332880">Энэ цонхны нээлттэй таб энэ уялдаатай холбоотой бол автоматаар хуваалцаж илүү тохируулсан хариулт аваарай. Та үүнийг Тохиргооноос бүх уялдаанд зориулж асаах боломжтой.</translation>
 <translation id="4441832193888514600">Бодлогыг зөвхөн үүлний хэрэглэгчийн бодлого байдлаар тохируулах боломжтой тул үл хэрэгссэн.</translation>
 <translation id="4444062564459679679">Таны <ph name="DEVICE_NAME" /> дээрх Chrome-д аль хэдийн илгээсэн</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />, табаас хайхын тулд Enter дээр дарна уу</translation>
@@ -2355,6 +2351,7 @@
 <translation id="4691093235373904540">Дээвэр нөхөх, засах үйлчилгээ</translation>
 <translation id="4692623383562244444">Хайлтын систем</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> - <ph name="KEYWORD_SHORT_NAME" />-с асуух</translation>
+<translation id="4697071790493980729">Илэрц олдсонгүй</translation>
 <translation id="4698308118265482293">Паспортыг шинэчлэх</translation>
 <translation id="4698692901173737941">Тулааны спортууд</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2702,7 +2699,6 @@
 <translation id="5238301240406177137">Бүртгэлд хадгалах</translation>
 <translation id="5239119062986868403">Дундаж үнэ</translation>
 <translation id="5239623327352565343">Байршлыг зөвшөөрсөн</translation>
-<translation id="5241048084654737238">Картын мэдээллийг хадгалах боломжгүй болохыг баталгаажуулж байна</translation>
 <translation id="5242610955375133957">Хуурай хальс</translation>
 <translation id="5243004157379865295">Хаягийг шинэчлэх</translation>
 <translation id="5244521145258281926">Google Бүртгэл удирдах товчлуур, Google Бүртгэлийнхээ мэдээлэл, нууцлал болон аюулгүй байдлыг удирдахын тулд идэвхжүүлнэ үү</translation>
@@ -3357,6 +3353,7 @@
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> хоногийн өмнө</translation>
 <translation id="6246382863801034910">Тээврийн хэрэгсэл</translation>
 <translation id="6246868321321344665">Танай байгууллага ажлын болон хувийн профайл дахь нууц үг, түүх зэрэг интернэтээр үзсэн өгөгдлийг харах боломжтой</translation>
+<translation id="6248479108671123143"><ph name="MEMBER_FIRST_NAME" /> энэ <ph name="TAB_TITLE" /> табыг өөрчилсөн</translation>
 <translation id="6248988683584659830">Хайлтын тохиргоо</translation>
 <translation id="6250932670816326647">Усанд орох, биеийн бүтээгдэхүүнүүд</translation>
 <translation id="6251906504834538140">{0,plural, =1{Файлыг зөөхийг блоклосон}other{<ph name="FILE_COUNT" /> файлыг зөөхийг блоклосон}}</translation>
@@ -3713,6 +3710,7 @@
 <translation id="6798066466127540426">Жагсаалт ямар ч хүчинтэй хайлтын үйлчилгээ үзүүлэгч агуулаагүй байна.</translation>
 <translation id="6798460514924505775">Чоу дугтуй 3</translation>
 <translation id="6799145206637008376">Энэ виртуал картын карт баталгаажуулалтын кодыг бөглөнө үү</translation>
+<translation id="6800773453940486492"><ph name="MEMBER_FIRST_NAME" /> энэ <ph name="TAB_TITLE" /> табыг нэмсэн</translation>
 <translation id="6801920212017470190">Явж байх зуураа бүх үнийн бууралтаа хянаарай</translation>
 <translation id="6805030849054648206">Дугтуй B6/C4</translation>
 <translation id="6807791860691150411">Боловсрол</translation>
@@ -4715,6 +4713,7 @@
 <translation id="8351131234907093545">Тэмдэглэл үүсгэх</translation>
 <translation id="8352849934814541340">Энэ төхөөрөмжийн администратор нэмэлт функцэд зориулж аппликэйшнүүдийг суулгасан. Аппликэйшнүүд таны зарим өгөгдөлд хандах эрхтэй.</translation>
 <translation id="8355270400102541638">Дотоод гэмтлийн контекст:</translation>
+<translation id="8362914115861174987">Дараах руу орчуулах</translation>
 <translation id="8363502534493474904">Нислэгийн горимыг унтрааж байна</translation>
 <translation id="8363929499301563123">Вебсайтын күүки (саяхан зочилсон вебсайт дээрх нэвтэрсэн төлөвийг хадгална)</translation>
 <translation id="8364627913115013041">Тохиргоо хийгдээгүй.</translation>
@@ -4734,7 +4733,6 @@
 <translation id="8381674639488873545">Эдгээр тодорхойгүй төлбөр нь нэг удаагийнх эсвэл хэд хэдэн удаагийнх байж болзошгүй. <ph name="BEGIN_LINK" />Ямар ч байсан харуулах<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">Автомат бүтэн дэлгэц</translation>
 <translation id="838307841291975086">Тэвштэй суудлын машинууд</translation>
-<translation id="838953173259347825">Энэ цонхны нээлттэй таб энэ уялдаатай холбоотой бол автоматаар хуваалцаж илүү тохируулсан хариулт аваарай. Та үүнийг дараахаас бүх уялдаанд зориулж асаах боломжтой</translation>
 <translation id="8389532092404711541">Дунджаар <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">Захиалгат, өндөр хүчин чадалтай тээврийн хэрэгслүүд</translation>
 <translation id="8390725133630534698">Администраторын бодлогын дагуу <ph name="ORIGIN_NAME" />-с <ph name="VM_NAME" /> руу хуваалцахыг блоклосон</translation>
@@ -4900,6 +4898,7 @@
 <translation id="8671519637524426245"><ph name="SECURE_DNS_SALT" />-н утга нь шаардлагатай хэмжээнд нийцэхгүй байна.</translation>
 <translation id="867224526087042813">Гарын үсэг</translation>
 <translation id="8672535691554698269">Компьютерын сүлжээнүүд</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{Таб хуваалцах дэлгэрэнгүйг харуулна уу. {WEBSITE_LIST_STR}-с 1 таб хуваалцаж байна}other{Таб хуваалцах дэлгэрэнгүйг харуулна уу. {WEBSITE_LIST_STR}-с {NUM_TABS} таб хуваалцаж байна}}</translation>
 <translation id="8675446170353411473">Таны файлуудыг <ph name="CLOUD_PROVIDER" />-д байршуулж байна</translation>
 <translation id="8676424191133491403">Хүлээхгүй</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, хариулт, <ph name="ANSWER" /></translation>
@@ -5153,7 +5152,6 @@
 <translation id="9090243919347147717">Хавсралтууд</translation>
 <translation id="9090548458280093580">ХОУ-аар дэмжлэгтэйгээр түүхээсээ хайгаарай</translation>
 <translation id="9090993752571911635">Интернэт үйлчилгээ нийлүүлэгч (ISP)</translation>
-<translation id="9092305980625216393">Цаг агаар, орон нутгийн мэдээ болон бусад зүйлд ихэвчлэн ашигладаг</translation>
 <translation id="9093723786115107672">Унтлагын хувцас</translation>
 <translation id="9094424186948667194">Энэ төхөөрөмж дээрх бусад апп, үйлчилгээнд хандах</translation>
 <translation id="9094544726794842788">Муу тэмдэглэгээ нь танд эдгээр илэрц яагаад таалагдаагүй талаарх дэлгэрэнгүй санал хүсэлтийг илгээх маягтыг нээнэ</translation>
@@ -5279,7 +5277,6 @@
 <translation id="964050462028070434">Нууц үг болон Passkey-г удирдах…</translation>
 <translation id="964681140808832181">Тийм, би цуцлахыг хүсэж байна</translation>
 <translation id="969892804517981540">Албан ёсоор бий болгох</translation>
-<translation id="970182982363142444">Асаалттай үед Chrome танд илүү хамааралтай хариулт авахад туслахын тулд энэ цонхны бүх табыг хуваалцана. Та үүнийг дараахаас бүх чатад зориулж асаах боломжтой</translation>
 <translation id="97054401902912338">Контентын шүүлтүүрийн талаар нэмэлт мэдээлэл авах</translation>
 <translation id="973788791897303708">Энэ табын бүлэг дүүрсэн байна</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{Байхгүй}=1{1 зүйл}other{# зүйл}}</translation>

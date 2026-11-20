@@ -211,7 +211,7 @@ where
     }
 }
 
-/// # Certificate verification
+/// # Certificate verification - Signed Certificate Timestamps
 impl<M> TlsConnectionInHandshake<'_, Client, M> {
     /// Enable signed certificate timestamps.
     ///
@@ -228,7 +228,7 @@ impl<M> TlsConnectionInHandshake<'_, Client, M> {
     }
 }
 
-/// # Certificate verification
+/// # Certificate verification - X.509 Certificate Store
 impl<M> TlsConnectionInHandshake<'_, Client, M> {
     /// Set certificate verification store.
     pub fn set_certificate_store(&mut self, store: &X509Store) -> &mut Self {
@@ -267,7 +267,7 @@ impl<M> TlsConnectionInHandshake<'_, Client, M> {
     }
 }
 
-/// # Certificate verification.
+/// # Certificate verification - Server Host Name
 impl<M> TlsConnectionInHandshake<'_, Client, M> {
     /// Set host name.
     pub fn set_host(&mut self, host_name: &str) -> Result<&mut Self, Error> {
@@ -283,7 +283,7 @@ impl<M> TlsConnectionInHandshake<'_, Client, M> {
     }
 }
 
-/// # Certificate verification.
+/// # Certificate verification - Certificate Chain Verification
 impl<R, M> TlsConnectionInHandshake<'_, R, M> {
     /// Set depth of a potential certificate chain acceptable.
     pub fn set_verify_depth(&mut self, depth: u16) -> Result<&mut Self, Error> {

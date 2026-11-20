@@ -212,9 +212,6 @@
             android:process=":sandboxed_process{{ i }}"
             android:permission="{{ manifest_package|default(default_manifest_package) }}.permission.CHILD_SERVICE"
             android:isolatedProcess="true"
-            {% if (i == 0) %}
-            android:useAppZygote="true"
-            {% endif %}
             android:exported="false" >
             <property android:name="android.app.PROPERTY_NATIVE_SERVICE_LIBRARY_NAME"
                 android:value="lib{{ library_name }}.so" />

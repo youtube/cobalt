@@ -47,7 +47,7 @@ void UpdateLocationBarUiForWebContents(content::WebContents* web_contents) {
   }
 
   LocationBar* location_bar =
-      browser->GetBrowserForMigrationOnly()->window()->GetLocationBar();
+      BrowserWindow::FromBrowser(browser)->GetLocationBar();
   if (location_bar)
     location_bar->UpdateContentSettingsIcons();
 

@@ -26,10 +26,8 @@ namespace {
 // `frame_pointer`.
 uintptr_t DecodeFrame(uintptr_t frame_pointer, uintptr_t* return_address) {
 #if BUILDFLAG(IS_APPLE)
-  if (__builtin_available(iOS 12, *)) {
-    return pthread_stack_frame_decode_np(frame_pointer, return_address);
-  }
-#endif
+  return pthread_stack_frame_decode_np(frame_pointer, return_address);
+#else
   const uintptr_t* fp = reinterpret_cast<uintptr_t*>(frame_pointer);
 
   // MSAN does not consider the frame pointers and return addresses to have
@@ -40,6 +38,7 @@ uintptr_t DecodeFrame(uintptr_t frame_pointer, uintptr_t* return_address) {
   uintptr_t next_frame = *fp;
   *return_address = *(UNSAFE_TODO(fp + 1));
   return next_frame;
+#endif
 }
 
 }  // namespace

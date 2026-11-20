@@ -4,7 +4,9 @@
 
 #include "chrome/browser/ui/webui/flags/flags_ui_handler.h"
 
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "components/webui/flags/flags_storage.h"
 #include "components/webui/flags/flags_ui_constants.h"
 #include "content/public/common/content_switches.h"
@@ -100,6 +102,16 @@ class FlagsUIHandlerTest : public testing::Test {
   raw_ptr<TestFlagStorage> storage_;
 };
 
+class FlagsUIHandlerWithImportExportTest : public FlagsUIHandlerTest {
+ public:
+  FlagsUIHandlerWithImportExportTest() {
+    feature_list_.InitAndEnableFeature(features::kImportExportFlags);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
 TEST_F(FlagsUIHandlerTest, HandlesSetString) {
   // Need to use an actual feature name for ChromeOS.
   const std::string kTestFeature = "protected-audience-debug-token";
@@ -174,7 +186,7 @@ TEST_F(FlagsUIHandlerTest, HandleRequestDeprecatedFeatures) {
   EXPECT_EQ(0u, unsupported.size());
 }
 
-TEST_F(FlagsUIHandlerTest, ExportImportFeature) {
+TEST_F(FlagsUIHandlerWithImportExportTest, ExportImportFeature) {
   // Set flags.
   const std::string kTestFlag = "test-flag";
   const std::string kTestOriginListFlag = "isolate-origins";

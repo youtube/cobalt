@@ -128,6 +128,11 @@ class DesktopNativeWidgetTopLevelHandler : public aura::WindowObserver {
       init_params.remove_standard_frame = true;
     }
 #endif
+    // If the window should be transparent, then ensure the top level widget
+    // is also not opaque.
+    if (child_window->GetTransparent()) {
+      init_params.opacity = Widget::InitParams::WindowOpacity::kTranslucent;
+    }
     init_params.bounds = bounds;
     init_params.layer_type = ui::LAYER_NOT_DRAWN;
     init_params.activatable = full_screen

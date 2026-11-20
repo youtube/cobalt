@@ -296,10 +296,8 @@ void ReadingListPageHandler::GetWindowData(GetWindowDataCallback callback) {
         }
         auto window = reading_list::mojom::Window::New();
         window->active = (browser == active_browser);
-        window->height = browser->GetBrowserForMigrationOnly()
-                             ->window()
-                             ->GetContentsSize()
-                             .height();
+        window->height =
+            BrowserWindow::FromBrowser(browser)->GetContentsSize().height();
         windows.push_back(std::move(window));
         return true;
       });

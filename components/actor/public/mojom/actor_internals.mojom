@@ -32,6 +32,10 @@ struct JournalEntry {
 
   // A base64 encoded screenshot of the page.
   array<uint8>? screenshot;
+
+  // A base64 encoded screenshot of the page with iframe boundary and origin
+  // overlays.
+  array<uint8>? iframe_screenshot;
 };
 
 // Interface for browser-to-page events

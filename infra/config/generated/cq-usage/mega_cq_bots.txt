@@ -64,8 +64,6 @@ chromium/try/chromeos-amd64-generic-asan-rel
 chromium/try/chromeos-amd64-generic-cfi-thin-lto-rel
 chromium/try/chromeos-amd64-generic-dbg
 chromium/try/chromeos-amd64-generic-rel
-chromium/try/chromeos-amd64-generic-rel-gtest
-chromium/try/chromeos-amd64-generic-rel-gtest-and-tast
 chromium/try/chromeos-arm-generic-dbg
 chromium/try/chromeos-arm-generic-rel
 chromium/try/chromeos-arm64-generic-rel
@@ -92,7 +90,6 @@ chromium/try/linux-asan-dbg
 chromium/try/linux-asan-media-rel
 chromium/try/linux-asan-media-v8-arm-rel
 chromium/try/linux-asan-rel
-chromium/try/linux-asan-v8-arm-dbg
 chromium/try/linux-asan-v8-arm-rel
 chromium/try/linux-bfcache-rel
 chromium/try/linux-blink-asan-rel

@@ -4,12 +4,10 @@
 
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
 
-#include <limits>
 #include <memory>
 #include <optional>
 #include <utility>
 
-#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -17,11 +15,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
-#include "base/strings/string_util.h"
-#include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_source.h"
@@ -61,19 +55,11 @@
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
-#include "chrome/common/chrome_switches.h"
-#include "chrome/common/url_constants.h"
 #include "components/feature_engagement/public/feature_constants.h"
-#include "components/feature_engagement/public/tracker.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
-#include "components/omnibox/browser/autocomplete_match.h"
-#include "components/performance_manager/public/user_tuning/prefs.h"
-#include "components/prefs/pref_service.h"
-#include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/saved_tab_group.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/split_tabs/split_tab_id.h"
-#include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
@@ -81,22 +67,16 @@
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/tabs/public/tab_network_state.h"
-#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/peak_gpu_memory_tracker_factory.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/metrics_proto/omnibox_event.pb.h"
-#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/list_selection_model.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/color/color_provider_manager.h"
 #include "ui/compositor/compositor.h"
-#include "ui/gfx/color_utils.h"
-#include "ui/gfx/image/image.h"
 #include "ui/gfx/range/range.h"
-#include "ui/gfx/text_elider.h"
 #include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/widget/widget.h"
 #include "url/origin.h"
@@ -184,9 +164,9 @@ void BrowserTabStripController::InitFromModel(TabStrip* tabstrip) {
 
   // Add all pinned / unpinned tabs regardless of group / split affiliation.
   std::vector<TabStrip::AddTabData> tabs_to_add;
-  for (int i = 0; i < model_->count(); ++i) {
-    tabs::TabInterface* const tab_interface = model_->GetTabAtIndex(i);
-    tabs_to_add.push_back({.index = i,
+  int i = 0;
+  for (const tabs::TabInterface* tab_interface : *model_) {
+    tabs_to_add.push_back({.index = i++,
                            .handle = tab_interface->GetHandle(),
                            .is_pinned = tab_interface->IsPinned()});
   }

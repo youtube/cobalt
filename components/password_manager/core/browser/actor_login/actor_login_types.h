@@ -14,6 +14,7 @@
 #include "base/types/expected.h"
 #include "base/types/id_type.h"
 #include "base/types/strong_alias.h"
+#include "components/actor/public/mojom/actor_types.mojom-shared.h"
 #include "components/optimization_guide/proto/features/actor_login.pb.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
@@ -133,6 +134,10 @@ enum class ActorLoginError {
   kFeatureDisabled,
 };
 
+// Translates `ActorLoginError` to `actor::mojom::ActionResultCode`.
+actor::mojom::ActionResultCode LoginErrorToActorResult(
+    ActorLoginError login_error);
+
 using CredentialsOrError =
     base::expected<std::vector<Credential>, ActorLoginError>;
 using CredentialsOrErrorReply = base::OnceCallback<void(CredentialsOrError)>;
@@ -189,6 +194,10 @@ enum class LoginStatusResult {
   // Federated login requires a button click to trigger sign in.
   kRequiresButtonClick,
 };
+
+// Translates `LoginStatusResult` to `actor::mojom::ActionResultCode`.
+actor::mojom::ActionResultCode LoginResultToActorResult(
+    LoginStatusResult login_result);
 
 using LoginStatusResultOrError =
     base::expected<LoginStatusResult, ActorLoginError>;

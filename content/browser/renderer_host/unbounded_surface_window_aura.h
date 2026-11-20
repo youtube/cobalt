@@ -17,7 +17,6 @@
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "third_party/blink/public/mojom/unbounded_element/unbounded_element.mojom.h"
-#include "ui/aura/client/focus_change_observer.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_delegate.h"
 #include "ui/aura/window_observer.h"
@@ -32,7 +31,6 @@ class RenderWidgetHostViewAura;
 class UnboundedSurfaceWindowAura : public UnboundedSurfaceWindow,
                                    public aura::WindowDelegate,
                                    public aura::WindowObserver,
-                                   public aura::client::FocusChangeObserver,
                                    public viz::HostFrameSinkClient,
                                    public blink::mojom::UnboundedSurfaceHost {
  public:
@@ -47,6 +45,7 @@ class UnboundedSurfaceWindowAura : public UnboundedSurfaceWindow,
 
   // UnboundedSurfaceWindow overrides:
   bool is_valid() const override;
+  gfx::NativeWindow GetNativeWindow() const override;
   void SetBounds(const gfx::Rect& bounds_in_screen) override;
   viz::FrameSinkId GetFrameSinkId() const override;
   viz::LocalSurfaceId GetLocalSurfaceId() const override;
@@ -57,6 +56,13 @@ class UnboundedSurfaceWindowAura : public UnboundedSurfaceWindow,
 
   void RouteMouseEvent(const blink::WebMouseEvent& event) override;
   gfx::Rect GetBounds() const override;
+  void CopyFromSurface(
+      const gfx::Rect& src_subrect,
+      const gfx::Size& dst_size,
+      base::TimeDelta timeout,
+      base::OnceCallback<void(const content::CopyFromSurfaceResult&)> callback)
+      override;
+  void EnsureSurfaceSynchronizedForWebTest() override;
 
   // blink::mojom::UnboundedSurfaceHost overrides:
   void UpdateBounds(const gfx::Rect& bounds) override;
@@ -89,9 +95,6 @@ class UnboundedSurfaceWindowAura : public UnboundedSurfaceWindow,
   void OnMouseEvent(ui::MouseEvent* event) override;
   void OnTouchEvent(ui::TouchEvent* event) override;
 
-  // aura::client::FocusChangeObserver overrides:
-  void OnWindowFocused(aura::Window* gained_focus,
-                       aura::Window* lost_focus) override;
 
   // viz::HostFrameSinkClient overrides:
   void OnFirstSurfaceActivation(const viz::SurfaceInfo& surface_info) override {

@@ -7,11 +7,18 @@ package org.chromium.chrome.browser.ui.autofill;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSearchTileProperties.TILE_DETAILS;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSearchTileProperties.TILE_ICON;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSearchTileProperties.TILE_TITLE;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSuggestionProperties.DETAILS;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSuggestionProperties.ICON;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSuggestionProperties.TITLE;
 
 import android.app.Activity;
 import android.util.TypedValue;
 import android.view.ContextThemeWrapper;
 import android.view.ViewGroup;
+import android.widget.ViewFlipper;
 
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.filters.LargeTest;
@@ -40,6 +47,7 @@ import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
+import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerFactory;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
@@ -82,7 +90,7 @@ public class AtMemoryBottomSheetViewRenderTest {
     @Rule
     public final RenderTestRule mRenderTestRule =
             RenderTestRule.Builder.withPublicCorpus()
-                    .setRevision(2)
+                    .setRevision(3)
                     .setBugComponent(Component.UI_BROWSER_AUTOFILL)
                     .build();
 
@@ -139,7 +147,7 @@ public class AtMemoryBottomSheetViewRenderTest {
 
     @Test
     @Feature({"RenderTest"})
-    public void testAtMemoryBottomSheetView() throws Exception {
+    public void testAtMemoryBottomSheetMainScreen() throws Exception {
         ContextThemeWrapper themeWrapper =
                 new ContextThemeWrapper(mActivity, R.style.Theme_BrowserUI_DayNight);
 
@@ -198,15 +206,108 @@ public class AtMemoryBottomSheetViewRenderTest {
                     }
                 });
         mRenderTestRule.render(
-                mActivity.findViewById(android.R.id.content), "at_memory_bottom_sheet_view");
+                mActivity.findViewById(android.R.id.content), "at_memory_main_screen");
+    }
+
+    @Test
+    @Feature({"RenderTest"})
+    public void testAtMemoryBottomSheetView_searchTile() throws Exception {
+        ContextThemeWrapper themeWrapper =
+                new ContextThemeWrapper(mActivity, R.style.Theme_BrowserUI_DayNight);
+
+        runOnUiThreadBlocking(
+                () -> {
+                    mView = new AtMemoryBottomSheetView(themeWrapper);
+                    AtMemoryBottomSheetContent content =
+                            new AtMemoryBottomSheetContent(
+                                    mView.getContentView(), mBottomSheetController);
+
+                    ModelList modelList = new ModelList();
+                    PropertyModel searchTileModel =
+                            createSearchTileModel(
+                                    "flight",
+                                    mActivity.getString(
+                                            R.string.autofill_at_memory_search_tile_details),
+                                    R.drawable.ic_spark_24dp);
+                    modelList.add(
+                            new ListItem(
+                                    AtMemoryBottomSheetCoordinator.ITEM_TYPE_SEARCH_TILE,
+                                    searchTileModel));
+
+                    SimpleRecyclerViewAdapter adapter = new SimpleRecyclerViewAdapter(modelList);
+                    adapter.registerType(
+                            AtMemoryBottomSheetCoordinator.ITEM_TYPE_SEARCH_TILE,
+                            new LayoutViewBuilder<>(R.layout.at_memory_bottom_sheet_search_item),
+                            AtMemoryBottomSheetSearchTileViewBinder::bind);
+                    mView.setRecyclerViewAdapter(adapter);
+                    mView.setShowSuggestionsBackground(false);
+
+                    mBottomSheetController.requestShowContent(content, false);
+                });
+
+        ViewUtils.waitForStableView(mView.getContentView());
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    RecyclerView recyclerView =
+                            mView.getContentView().findViewById(R.id.suggestions_view);
+                    if (recyclerView.getChildCount() <= 0) {
+                        throw new RuntimeException("No children in recycler view");
+                    }
+                });
+        mRenderTestRule.render(
+                mActivity.findViewById(android.R.id.content),
+                "at_memory_bottom_sheet_view_search_tile");
     }
 
     private static PropertyModel createSuggestionModel(
             String title, String details, int iconResId) {
-        return new PropertyModel.Builder(AtMemoryBottomSheetSuggestionProperties.ALL_PROPERTIES)
-                .with(AtMemoryBottomSheetSuggestionProperties.TITLE, title)
-                .with(AtMemoryBottomSheetSuggestionProperties.DETAILS, details)
-                .with(AtMemoryBottomSheetSuggestionProperties.ICON, iconResId)
+        return new PropertyModel.Builder(AtMemoryBottomSheetSuggestionProperties.ALL_KEYS)
+                .with(TITLE, title)
+                .with(DETAILS, details)
+                .with(ICON, iconResId)
                 .build();
+    }
+
+    private static PropertyModel createSearchTileModel(
+            String title, String details, int iconResId) {
+        return new PropertyModel.Builder(AtMemoryBottomSheetSearchTileProperties.ALL_KEYS)
+                .with(TILE_TITLE, title)
+                .with(TILE_DETAILS, details)
+                .with(TILE_ICON, iconResId)
+                .build();
+    }
+
+    @Test
+    @Feature({"RenderTest"})
+    public void testAtMemoryBottomSheetFlyoutScreen() throws Exception {
+        ContextThemeWrapper themeWrapper =
+                new ContextThemeWrapper(mActivity, R.style.Theme_BrowserUI_DayNight);
+
+        runOnUiThreadBlocking(
+                () -> {
+                    mView = new AtMemoryBottomSheetView(themeWrapper);
+                    AtMemoryBottomSheetContent content =
+                            new AtMemoryBottomSheetContent(
+                                    mView.getContentView(), mBottomSheetController);
+
+                    ((ViewFlipper) mView.getContentView()).setDisplayedChild(1);
+                    mView.setFlyoutSuggestions(
+                            List.of(
+                                    createAutofillSuggestion("Elisa Beckett", ""),
+                                    createAutofillSuggestion("123530", "Passport number"),
+                                    createAutofillSuggestion("07-05-2032", "Issue date"),
+                                    createAutofillSuggestion("07-05-2032", "Expiration date"),
+                                    createAutofillSuggestion("USA", "")));
+
+                    mBottomSheetController.requestShowContent(content, false);
+                });
+
+        ViewUtils.waitForStableView(mView.getContentView());
+        mRenderTestRule.render(
+                mActivity.findViewById(android.R.id.content), "at_memory_flyout_screen");
+    }
+
+    private AutofillSuggestion createAutofillSuggestion(String label, String subLabel) {
+        return new AutofillSuggestion.Builder().setLabel(label).setSubLabel(subLabel).build();
     }
 }

@@ -4,8 +4,8 @@
 
 #include "chrome/browser/ui/webui/ash/login/quick_start_screen_handler.h"
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/values.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "quick_start_screen_handler.h"
 

@@ -9,6 +9,7 @@
 #include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/pref_registry/pref_registry_syncable.h"
 
 namespace contextual_cueing {
 
@@ -41,7 +42,8 @@ ContextualCueingServiceFactory::BuildServiceInstanceForBrowserContext(
   if (!base::FeatureList::IsEnabled(kContextualCueingV2)) {
     return nullptr;
   }
-  return std::make_unique<ContextualCueingService>();
+  Profile* profile = Profile::FromBrowserContext(context);
+  return std::make_unique<ContextualCueingService>(profile->GetPrefs());
 }
 
 bool ContextualCueingServiceFactory::ServiceIsCreatedWithBrowserContext()

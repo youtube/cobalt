@@ -299,12 +299,6 @@ void Port::PostAddAddress(bool is_final) {
   }
 }
 
-[[deprecated]] void Port::SubscribePortComplete(
-    absl::AnyInvocable<void(Port*)> callback) {
-  RTC_DCHECK_RUN_ON(thread_);
-  port_complete_callback_list_.AddReceiver(std::move(callback));
-}
-
 void Port::SubscribePortComplete(const void* tag,
                                  absl::AnyInvocable<void(Port*)> callback) {
   RTC_DCHECK_RUN_ON(thread_);
@@ -324,22 +318,10 @@ void Port::SendCandidateError(const IceCandidateErrorEvent& event) {
 }
 
 void Port::SubscribeCandidateReadyCallback(
-    absl::AnyInvocable<void(Port*, const Candidate&)> callback) {
-  RTC_DCHECK_RUN_ON(thread_);
-  candidate_ready_callback_list_.AddReceiver(std::move(callback));
-}
-
-void Port::SubscribeCandidateReadyCallback(
     const void* tag,
     absl::AnyInvocable<void(Port*, const Candidate&)> callback) {
   RTC_DCHECK_RUN_ON(thread_);
   candidate_ready_callback_list_.AddReceiver(tag, std::move(callback));
-}
-
-[[deprecated]] void Port::SubscribePortError(
-    absl::AnyInvocable<void(Port*)> callback) {
-  RTC_DCHECK_RUN_ON(thread_);
-  port_error_callback_list_.AddReceiver(std::move(callback));
 }
 
 void Port::SubscribePortError(const void* tag,
@@ -878,12 +860,6 @@ void Port::DestroyIfDead() {
   if (dead) {
     Destroy();
   }
-}
-
-[[deprecated]] void Port::SubscribePortDestroyed(
-    std::function<void(PortInterface*)> callback) {
-  RTC_DCHECK_RUN_ON(thread_);
-  port_destroyed_callback_list_.AddReceiver(std::move(callback));
 }
 
 void Port::SubscribePortDestroyed(

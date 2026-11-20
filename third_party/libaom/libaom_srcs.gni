@@ -161,6 +161,7 @@ aom_av1_common_sources = [
   "//third_party/libaom/source/libaom/av1/common/token_cdfs.h",
   "//third_party/libaom/source/libaom/av1/common/txb_common.c",
   "//third_party/libaom/source/libaom/av1/common/txb_common.h",
+  "//third_party/libaom/source/libaom/av1/common/wedge_masks_data.inc",
   "//third_party/libaom/source/libaom/common/args_helper.c",
   "//third_party/libaom/source/libaom/common/args_helper.h",
 ]

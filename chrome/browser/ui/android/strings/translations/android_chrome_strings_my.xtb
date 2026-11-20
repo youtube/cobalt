@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">PDF များကို အလိုအလျောက်ဖွင့်ခြင်း</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> တွင် ဖွင့်ထားသည်</translation>
 <translation id="1448440926884431741">သင်စောင့်ကြည့်ထားသော ထုတ်ကုန်များကို ‘လိပ်စာများ’ တွင် စုစည်းနိုင်သည်</translation>
+<translation id="1452651021404174820">စက်ပစ္စည်း ရွေးပါ</translation>
 <translation id="1455845192930279203">မည်သို့ပင်ဖြစ်စေ “<ph name="FILE_NAME" />” (<ph name="FILE_SIZE" />) ကို <ph name="DOWNLOAD_DOMAIN" /> မှ ဒေါင်းလုဒ်လုပ်လိုသလား။</translation>
 <translation id="1460751212339734034">အချိန်ကုန်သက်သာခြင်း၊ စာရိုက်ရသက်သာခြင်း</translation>
 <translation id="146522654774760805">စကားဝှက်များ၊ အော်တိုဖြည့်ခြင်း</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441"><ph name="FILE_NAME" /> ဒေါင်းလုဒ်မှာ အကြောင်း အမျိုးမျိုးကြောင့် မအောင်မြင်ခဲ့ပါ။</translation>
 <translation id="147982357559798527">ပြောင်းထားသည်</translation>
 <translation id="1480287803138246127">သင်၏ မှတ်တမ်းအချို့ကို ဤနေရာတွင် ပြမည်မဟုတ်ပါ။ သင့် Chrome မှတ်တမ်းအားလုံးကြည့်ရန် Chrome မှတ်တမ်းအပြည့်အစုံကို ဖွင့်ပါ။</translation>
+<translation id="1483493594462132177">ပို့ရန်</translation>
 <translation id="1495677929897281669">တဘ်သို့ ပြန်သွားရန်</translation>
 <translation id="1496514951988037011">အသုံးပြုသူအမည်</translation>
 <translation id="1501480321619201731">အဖွဲ့ကို ဖျက်ရန်</translation>
@@ -1272,6 +1274,7 @@
 <translation id="634208815998129842">အလုပ်မန်နေဂျာ</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 နှင့် နောက်ထပ် <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ခု}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 နှင့် နောက်ထပ် <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ခု}}</translation>
 <translation id="6345878117466430440">ဖတ်ပြီးဟု မှတ်သားရန်</translation>
+<translation id="6350745006329795504">သင့်စက်များကို စီမံရန်</translation>
 <translation id="6356893102071098867">မှန်ကန်သည့်အကောင့်ကို ရွေးထားခြင်းရှိ၊ မရှိ ကြည့်ပါ</translation>
 <translation id="6364438453358674297">အကြံပေးချက်ကို မှတ်တမ်း ထဲမှ ဖယ်ရှားမလား?</translation>
 <translation id="6380100320871303656">Chrome က သင်ဝင်ကြည့်လိုသည်ဟု ထင်သည့် စာမျက်နှာများကို မကြာခဏ ကြိုဖွင့်ပေးသည်။ ဤဆက်တင်သည် ဒေတာအသုံးပြုမှု များသွားစေနိုင်ပါသည်။</translation>

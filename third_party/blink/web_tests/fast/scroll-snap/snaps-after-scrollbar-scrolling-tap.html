@@ -17,44 +17,38 @@
 <script>
   internals.settings.setScrollAnimatorEnabled(false);
 
-  window.onload = () => {
+  window.onload = async () => {
+    // MacOS devices do not have touch screens Tests are irrelevant.
+    const macPlatform = navigator.platform.indexOf('Mac') == 0;
+    if (shouldSkipTests(macPlatform,
+                        'Platform does not support touch screens')) {
+      return;
+    }
+
+    await waitForCompositorCommit();
+
     const scroller = document.getElementById("scroller");
     const snapPoint = 400;
     const trackPos = 350;
 
-    function scrollTop() {
-      return scroller.scrollTop;
+    function tapAndScroll(x, y) {
+      const scrollend = waitForScrollendEvent(scroller);
+      touchTapOn(x, y);
+      return scrollend;
     }
-
-    function scrollLeft() {
-      return scroller.scrollLeft;
-    }
-
-    // MacOS devices do not have touch screens Tests are irrelevant.
-    const macPlatform = navigator.platform.indexOf('Mac') == 0;
 
     promise_test (async () => {
-      if (macPlatform)
-        return;
-
-      scroller.scrollTo(0, 0);
-      await waitForCompositorCommit();
-
+      await waitForScrollReset(scroller);
       const thumb = horizontalThumb(scroller);
-      await touchTapOn(trackPos, thumb.y);
-      await waitForScrollEnd(scroller, scrollLeft, snapPoint);
+      await tapAndScroll(trackPos, thumb.y);
+      assert_approx_equals(scroller.scrollLeft, snapPoint, 1);
     }, "Snaps after tapping on the forward track on the horizontal scrollbar.");
 
     promise_test (async () => {
-      if (macPlatform)
-        return;
-
-      scroller.scrollTo(0, 0);
-      await waitForCompositorCommit();
-
+      await waitForScrollReset(scroller);
       const thumb = verticalThumb(scroller);
-      await touchTapOn(thumb.x, trackPos);
-      await waitForScrollEnd(scroller, scrollTop, snapPoint);
+      await tapAndScroll(thumb.x, trackPos);
+      assert_approx_equals(scroller.scrollTop, snapPoint, 1);
     }, "Snaps after tapping on the forward track on the vertical scrollbar.");
   };
 </script>

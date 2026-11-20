@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
     std::string line;
     for (const auto &filename : rest_args) {
       auto input = sentencepiece::filesystem::NewReadableFile(filename);
-      ABSL_CHECK_OK(input->status());
+      ABSL_QCHECK_OK(input->status());
       while (input->ReadLine(&line)) {
         output->WriteLine(normalizer.Normalize(line));
       }

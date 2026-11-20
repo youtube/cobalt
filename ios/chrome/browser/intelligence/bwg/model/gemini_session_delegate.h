@@ -138,6 +138,9 @@ typedef NS_ENUM(NSInteger, GeminiCancelType) {
                                           sessionID:(NSString*)sessionID
                                      conversationID:(NSString*)conversationID;
 
+// Called when a request to detach a tab with a specific ID is made.
+- (void)didRequestToDetachTabWithID:(NSString*)tabID;
+
 #pragma mark - Gemini Live
 
 // Called when the user interrupts during Gemini Live session.

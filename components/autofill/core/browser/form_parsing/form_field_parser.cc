@@ -262,12 +262,9 @@ void FormFieldParser::ParseFormFields(ParsingContext& context,
   ParseFormFieldsPass(NameFieldParser::Parse, context, fields, &IsRelevant,
                       field_candidates);
 
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillSupportPhoneticNameForJP)) {
-    // Alternative name (e.g. phonetic name) pass.
-    ParseFormFieldsPass(AlternativeNameFieldParser::Parse, context, fields,
-                        &IsRelevant, field_candidates);
-  }
+  // Alternative name (e.g. phonetic name) pass.
+  ParseFormFieldsPass(AlternativeNameFieldParser::Parse, context, fields,
+                      &IsRelevant, field_candidates);
 
   // Search pass.
   ParseFormFieldsPass(SearchFieldParser::Parse, context, fields, &IsRelevant,

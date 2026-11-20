@@ -141,7 +141,7 @@ reviewer.
   </summary>
 </histogram>
 
-<histogram name="PrivateAi.Client.ServerErrorCode" enum="GoogleRpcCode"
+<histogram name="PrivateAi.Client.ServerStatusCode" enum="GoogleRpcCode"
     expires_after="2026-12-01">
   <owner>nikhiljakhar@google.com</owner>
   <owner>arabm@google.com</owner>
@@ -167,6 +167,20 @@ reviewer.
     Records the WebSocket close code when the connection is dropped. This helps
     diagnose connection issues. See RFC 6455, Section 7.4.1 for a list of
     defined status codes. Recorded every time the WebSocket channel is dropped.
+  </summary>
+</histogram>
+
+<histogram name="PrivateAi.Client.WebSocketSessionDuration.ClosedByServer"
+    units="ms" expires_after="2026-12-10">
+  <owner>nikhiljakhar@google.com</owner>
+  <owner>arabm@google.com</owner>
+  <owner>dullweber@chromium.org</owner>
+  <owner>lamzin@google.com</owner>
+  <owner>saeideid@google.com</owner>
+  <summary>
+    Records the duration of a WebSocket connection starting from when the
+    connection is established to when it is closed by the server. Recorded when
+    the connection is closed by the server.
   </summary>
 </histogram>
 

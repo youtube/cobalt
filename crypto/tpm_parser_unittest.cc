@@ -1,0 +1,402 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "crypto/tpm_parser.h"
+
+#include <utility>
+#include <vector>
+
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/containers/span.h"
+#include "base/containers/span_writer.h"
+#include "base/containers/to_vector.h"
+#include "base/test/gmock_expected_support.h"
+#include "base/types/expected.h"
+#include "crypto/ecdsa_utils.h"
+#include "crypto/hash.h"
+#include "crypto/keypair.h"
+#include "crypto/sign.h"
+#include "crypto/test_support.h"
+#include "crypto/tpm.rs.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace crypto::tpm {
+
+using ::base::test::ErrorIs;
+using ::base::test::ValueIs;
+
+namespace {
+
+constexpr uint16_t kTpmAlgRsaSsa = std::to_underlying(TpmAlg::TPM_ALG_RSASSA);
+constexpr uint16_t kTpmAlgEcdsa = std::to_underlying(TpmAlg::TPM_ALG_ECDSA);
+constexpr uint16_t kTpmAlgSha1 = std::to_underlying(TpmAlg::TPM_ALG_SHA1);
+constexpr uint16_t kTpmAlgSha256 = std::to_underlying(TpmAlg::TPM_ALG_SHA256);
+
+constexpr std::array<uint8_t, 4> kChallenge = {1, 2, 3, 4};
+
+// Builds a serialized TPMT_SIGNATURE containing an RSASSA signature.
+// TPMT_SIGNATURE layout (TPM 2.0 Part 2, Section 11.1.1):
+// - sigAlg (TPMI_ALG_SIG_SCHEME): 2 bytes (uint16_t, e.g. kTpmAlgRsaSsa)
+// - signature (union based on sigAlg):
+//   For TPMS_SIGNATURE_RSASSA (Section 11.1.3):
+//   - hash (TPMI_ALG_HASH): 2 bytes (uint16_t, e.g. hash_alg)
+//   - sig (TPM2B_PUBLIC_KEY_RSA):
+//     - size (uint16_t): 2 bytes
+//     - buffer (bytes): sig.size() bytes
+std::vector<uint8_t> BuildTpmRsaSignature(uint16_t hash_alg,
+                                          base::span<const uint8_t> sig) {
+  size_t size = 2 + 2 + 2 + sig.size();
+  std::vector<uint8_t> tpm_sig(size);
+  base::SpanWriter<uint8_t> writer(tpm_sig);
+  writer.WriteU16BigEndian(kTpmAlgRsaSsa);
+  writer.WriteU16BigEndian(hash_alg);
+  writer.WriteU16BigEndian(sig.size());
+  writer.Write(sig);
+  CHECK_EQ(writer.remaining(), 0u);
+  return tpm_sig;
+}
+
+// Builds a serialized TPMT_SIGNATURE containing an ECDSA signature.
+// TPMT_SIGNATURE layout (TPM 2.0 Part 2, Section 11.1.1):
+// - sigAlg (TPMI_ALG_SIG_SCHEME): 2 bytes (uint16_t, e.g. kTpmAlgEcdsa)
+// - signature (union based on sigAlg):
+//   For TPMS_SIGNATURE_ECC (Section 11.1.5):
+//   - hash (TPMI_ALG_HASH): 2 bytes (uint16_t, e.g. hash_alg)
+//   - signature (TPMS_ECC_POINT containing r and s as TPM2B_ECC_PARAMETERs):
+//     - r.size (uint16_t): 2 bytes
+//     - r.buffer (bytes): r.size() bytes
+//     - s.size (uint16_t): 2 bytes
+//     - s.buffer (bytes): s.size() bytes
+std::vector<uint8_t> BuildTpmEcdsaSignature(uint16_t hash_alg,
+                                            base::span<const uint8_t> r,
+                                            base::span<const uint8_t> s) {
+  size_t size = 2 + 2 + 2 + r.size() + 2 + s.size();
+  std::vector<uint8_t> tpm_sig(size);
+  base::SpanWriter<uint8_t> writer(tpm_sig);
+  writer.WriteU16BigEndian(kTpmAlgEcdsa);
+  writer.WriteU16BigEndian(hash_alg);
+  writer.WriteU16BigEndian(r.size());
+  writer.Write(r);
+  writer.WriteU16BigEndian(s.size());
+  writer.Write(s);
+  CHECK_EQ(writer.remaining(), 0u);
+  return tpm_sig;
+}
+
+// Builds a serialized TPMS_ATTEST structure representing a certify statement.
+// TPMS_ATTEST layout (TPM 2.0 Part 2, Section 10.12.1):
+// - magic (TPM_GENERATED): 4 bytes (uint32_t, e.g. magic)
+// - type (TPMI_ST_ATTEST): 2 bytes (uint16_t, e.g. type)
+// - qualifiedSigner (TPM2B_NAME): 2 bytes size + 0 bytes buffer = 2 bytes
+// - extraData (TPM2B_DATA, holds challenge):
+//   - size (uint16_t): 2 bytes
+//   - buffer (bytes): challenge.size() bytes
+// - clockInfo (TPMS_CLOCK_INFO): 17 bytes (8 clock + 4 reset + 4 restart + 1
+// safe)
+// - firmwareVersion (uint64_t): 8 bytes
+// - attested (union based on type):
+//   For TPMS_CERTIFY_INFO (Section 10.12.3):
+//   - name (TPM2B_NAME): 2 bytes size + 0 bytes buffer = 2 bytes
+//   - qualifiedName (TPM2B_NAME): 2 bytes size + 0 bytes buffer = 2 bytes
+std::vector<uint8_t> BuildFakeCertifyStatement(
+    base::span<const uint8_t> challenge,
+    uint32_t magic,
+    uint16_t type) {
+  size_t size = 4 + 2 + 2 + 2 + challenge.size() + 17 + 8 + 2 + 2;
+  std::vector<uint8_t> statement(size);
+  base::SpanWriter<uint8_t> writer(statement);
+  writer.WriteU32BigEndian(magic);
+  writer.WriteU16BigEndian(type);
+  writer.WriteU16BigEndian(0);  // qualified_signer size = 0
+  writer.WriteU16BigEndian(challenge.size());
+  writer.Write(challenge);
+
+  std::array<uint8_t, 17> clock_info = {0};
+  writer.Write(clock_info);
+
+  std::array<uint8_t, 8> firmware_version = {0};
+  writer.Write(firmware_version);
+
+  writer.WriteU16BigEndian(0);  // name size = 0
+  writer.WriteU16BigEndian(0);  // qualified_name size = 0
+
+  CHECK_EQ(writer.remaining(), 0u);
+  return statement;
+}
+
+// Builds a serialized TPM response representing a certify command output.
+// TPM Response Layout:
+// - Header (10 bytes):
+//   - tag (TPMI_ST_COMMAND_TAG): 2 bytes (uint16_t, TPM_ST_NO_SESSIONS =
+//   0x8001)
+//   - responseSize (uint32_t): 4 bytes (total response size)
+//   - responseCode (TPM_RC): 4 bytes (response_code)
+// - Body (only if response_code == 0):
+//   - certifyInfo (TPM2B_ATTEST):
+//     - size (uint16_t): 2 bytes
+//     - buffer (bytes): statement.size() bytes
+//   - signature (TPMT_SIGNATURE): signature.size() bytes
+std::vector<uint8_t> BuildFakeCertifyResponse(
+    base::span<const uint8_t> challenge,
+    base::span<const uint8_t> signature,
+    uint32_t response_code = 0,
+    uint32_t magic = 0xFF544347,
+    uint16_t type = 0x8017) {
+  std::vector<uint8_t> statement =
+      BuildFakeCertifyStatement(challenge, magic, type);
+
+  uint32_t resp_size = 10;
+  if (response_code == 0) {
+    resp_size += 2 + statement.size() + signature.size();
+  }
+
+  std::vector<uint8_t> resp(resp_size);
+  base::SpanWriter<uint8_t> writer(resp);
+  writer.WriteU16BigEndian(0x8001);  // tag = TPM_ST_NO_SESSIONS
+  writer.WriteU32BigEndian(resp_size);
+  writer.WriteU32BigEndian(response_code);
+
+  if (response_code == 0) {
+    writer.WriteU16BigEndian(statement.size());
+    writer.Write(statement);
+    writer.Write(signature);
+  }
+
+  CHECK_EQ(writer.remaining(), 0u);
+  return resp;
+}
+
+}  // namespace
+
+TEST(TpmCppParserTest, VerifySignature_RsaSha256_Success) {
+  auto rsa_priv = test::FixedRsa2048PrivateKeyForTesting();
+  auto rsa_pub = test::FixedRsa2048PublicKeyForTesting();
+  std::vector<uint8_t> spki = rsa_pub.ToSubjectPublicKeyInfo();
+
+  static constexpr uint8_t kStatement[] = {1, 2, 3, 4};
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::RSA_PKCS1_SHA256, rsa_priv, kStatement);
+
+  auto sig_blob = BuildTpmRsaSignature(kTpmAlgSha256, sig_bytes);
+  EXPECT_OK(VerifySignature(spki, kStatement, sig_blob));
+}
+
+TEST(TpmCppParserTest, VerifySignature_RsaSha1_Success) {
+  auto rsa_priv = test::FixedRsa2048PrivateKeyForTesting();
+  auto rsa_pub = test::FixedRsa2048PublicKeyForTesting();
+  std::vector<uint8_t> spki = rsa_pub.ToSubjectPublicKeyInfo();
+
+  static constexpr uint8_t kStatement[] = {1, 2, 3, 4};
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::RSA_PKCS1_SHA1, rsa_priv, kStatement);
+
+  auto sig_blob = BuildTpmRsaSignature(kTpmAlgSha1, sig_bytes);
+  EXPECT_OK(VerifySignature(spki, kStatement, sig_blob));
+}
+
+TEST(TpmCppParserTest, VerifySignature_EcdsaSha256_Success) {
+  auto ec_priv = keypair::PrivateKey::GenerateEcP256();
+  auto ec_pub = keypair::PublicKey::FromPrivateKey(ec_priv);
+  std::vector<uint8_t> spki = ec_pub.ToSubjectPublicKeyInfo();
+
+  static constexpr uint8_t kStatement[] = {1, 2, 3, 4};
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::ECDSA_SHA256, ec_priv, kStatement);
+
+  ASSERT_OK_AND_ASSIGN(std::vector<uint8_t> raw_sig,
+                       ConvertEcdsaDerSignatureToRaw(ec_pub, sig_bytes));
+  ASSERT_EQ(raw_sig.size(), 64u);
+
+  auto [r_span, s_span] = base::span<const uint8_t, 64>(raw_sig).split_at<32>();
+
+  auto sig_blob = BuildTpmEcdsaSignature(kTpmAlgSha256, r_span, s_span);
+  EXPECT_OK(VerifySignature(spki, kStatement, sig_blob));
+}
+
+TEST(TpmCppParserTest, VerifySignature_UnsupportedSignatureAlgorithm) {
+  auto rsa_pub = test::FixedRsa2048PublicKeyForTesting();
+  std::vector<uint8_t> spki = rsa_pub.ToSubjectPublicKeyInfo();
+  static constexpr uint8_t kStatement[] = {1, 2, 3, 4};
+
+  // 0x1234 is an unsupported signature algorithm
+  EXPECT_THAT(VerifySignature(spki, kStatement,
+                              std::to_array<uint8_t>({0x12, 0x34, 0x00, 0x0B,
+                                                      0x00, 0x04, 1, 2, 3, 4})),
+              ErrorIs(SignatureError::kUnsupportedSignatureAlgorithm));
+}
+
+TEST(TpmCppParserTest, VerifySignature_UnsupportedHashAlgorithm) {
+  auto rsa_pub = test::FixedRsa2048PublicKeyForTesting();
+  std::vector<uint8_t> spki = rsa_pub.ToSubjectPublicKeyInfo();
+  static constexpr uint8_t kStatement[] = {1, 2, 3, 4};
+  static constexpr uint8_t kDummySig[256] = {0};
+
+  EXPECT_THAT(VerifySignature(spki, kStatement,
+                              BuildTpmRsaSignature(0x0010, kDummySig)),
+              ErrorIs(SignatureError::kUnsupportedHashAlgorithm));
+}
+
+TEST(TpmCppParserTest, VerifySignature_BufferTooSmall) {
+  auto rsa_pub = test::FixedRsa2048PublicKeyForTesting();
+  std::vector<uint8_t> spki = rsa_pub.ToSubjectPublicKeyInfo();
+  static constexpr uint8_t kStatement[] = {1, 2, 3, 4};
+
+  std::vector<uint8_t> empty;
+  EXPECT_THAT(VerifySignature(spki, kStatement, empty),
+              ErrorIs(SignatureError::kBufferTooSmall));
+}
+
+TEST(TpmCppParserTest, VerifySignature_TrailingBytes) {
+  auto rsa_priv = test::FixedRsa2048PrivateKeyForTesting();
+  auto rsa_pub = test::FixedRsa2048PublicKeyForTesting();
+  std::vector<uint8_t> spki = rsa_pub.ToSubjectPublicKeyInfo();
+  static constexpr uint8_t kStatement[] = {1, 2, 3, 4};
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::RSA_PKCS1_SHA256, rsa_priv, kStatement);
+
+  auto sig_blob = BuildTpmRsaSignature(kTpmAlgSha256, sig_bytes);
+  sig_blob.push_back(0x99);  // Trailing garbage
+
+  EXPECT_THAT(VerifySignature(spki, kStatement, sig_blob),
+              ErrorIs(SignatureError::kTrailingBytes));
+}
+
+TEST(TpmCppParserTest, VerifySignature_InvalidPublicKey) {
+  auto rsa_priv = test::FixedRsa2048PrivateKeyForTesting();
+  auto rsa_pub = test::FixedRsa2048PublicKeyForTesting();
+  std::vector<uint8_t> spki = rsa_pub.ToSubjectPublicKeyInfo();
+  spki[0] += 1;  // Corrupt the SPKI header
+
+  static constexpr uint8_t kStatement[] = {1, 2, 3, 4};
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::RSA_PKCS1_SHA256, rsa_priv, kStatement);
+
+  auto sig_blob = BuildTpmRsaSignature(kTpmAlgSha256, sig_bytes);
+  EXPECT_THAT(VerifySignature(spki, kStatement, sig_blob),
+              ErrorIs(SignatureError::kInvalidPublicKey));
+}
+
+TEST(TpmCppParserTest, VerifySignature_InvalidSignature) {
+  auto rsa_priv = test::FixedRsa2048PrivateKeyForTesting();
+  auto rsa_pub = test::FixedRsa2048PublicKeyForTesting();
+  std::vector<uint8_t> spki = rsa_pub.ToSubjectPublicKeyInfo();
+
+  static constexpr uint8_t kStatement[] = {1, 2, 3, 4};
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::RSA_PKCS1_SHA256, rsa_priv, kStatement);
+
+  auto sig_blob = BuildTpmRsaSignature(kTpmAlgSha256, sig_bytes);
+
+  // Verify with a different statement to trigger verification failure
+  static constexpr uint8_t kWrongStatement[] = {9, 9, 9, 9};
+  EXPECT_THAT(VerifySignature(spki, kWrongStatement, sig_blob),
+              ErrorIs(SignatureError::kInvalidSignature));
+}
+
+TEST(TpmCppParserTest, GetSignatureAlgorithms_Rsa_Success) {
+  static constexpr uint8_t kDummySig[256] = {0};
+  EXPECT_THAT(
+      GetSignatureAlgorithms(BuildTpmRsaSignature(kTpmAlgSha256, kDummySig)),
+      ValueIs(SignatureAlgorithms{
+          .sig_alg = kTpmAlgRsaSsa,
+          .hash_alg = kTpmAlgSha256,
+      }));
+}
+
+TEST(TpmCppParserTest, GetSignatureAlgorithms_Ecdsa_Success) {
+  static constexpr uint8_t kR[32] = {0};
+  static constexpr uint8_t kS[32] = {0};
+  EXPECT_THAT(
+      GetSignatureAlgorithms(BuildTpmEcdsaSignature(kTpmAlgSha256, kR, kS)),
+      ValueIs(SignatureAlgorithms{
+          .sig_alg = kTpmAlgEcdsa,
+          .hash_alg = kTpmAlgSha256,
+      }));
+}
+
+TEST(TpmCppParserTest, GetSignatureAlgorithms_UnsupportedSignatureAlgorithm) {
+  // 0x1234 is an unsupported signature algorithm
+  EXPECT_THAT(GetSignatureAlgorithms(std::to_array<uint8_t>(
+                  {0x12, 0x34, 0x00, 0x0B, 0x00, 0x04, 1, 2, 3, 4})),
+              ErrorIs(SignatureError::kUnsupportedSignatureAlgorithm));
+}
+
+TEST(TpmCppParserTest, GetSignatureAlgorithms_UnsupportedHashAlgorithm) {
+  static constexpr uint8_t kDummySig[256] = {0};
+  constexpr uint16_t kUnsupportedHashAlg = 0x0010;  // TPM_ALG_NULL
+  EXPECT_THAT(GetSignatureAlgorithms(
+                  BuildTpmRsaSignature(kUnsupportedHashAlg, kDummySig)),
+              ValueIs(SignatureAlgorithms{
+                  .sig_alg = kTpmAlgRsaSsa,
+                  .hash_alg = kUnsupportedHashAlg,
+              }));
+}
+
+TEST(TpmCppParserTest, ParseCertifyResponse_Success) {
+  auto rsa_priv = test::FixedRsa2048PrivateKeyForTesting();
+  std::vector<uint8_t> statement =
+      BuildFakeCertifyStatement(kChallenge, 0xFF544347, 0x8017);
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::RSA_PKCS1_SHA256, rsa_priv, statement);
+
+  auto sig_blob = BuildTpmRsaSignature(kTpmAlgSha256, sig_bytes);
+  auto resp = BuildFakeCertifyResponse(kChallenge, sig_blob);
+
+  EXPECT_THAT(ParseCertifyResponse(resp, kChallenge),
+              ValueIs(CertifyResponse{
+                  .statement = statement,
+                  .signature = sig_blob,
+              }));
+}
+
+TEST(TpmCppParserTest, ParseCertifyResponse_BadMagic) {
+  auto rsa_priv = test::FixedRsa2048PrivateKeyForTesting();
+  std::vector<uint8_t> statement =
+      BuildFakeCertifyStatement(kChallenge, 0x11223344, 0x8017);  // Bad magic
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::RSA_PKCS1_SHA256, rsa_priv, statement);
+
+  auto sig_blob = BuildTpmRsaSignature(kTpmAlgSha256, sig_bytes);
+  auto resp = BuildFakeCertifyResponse(kChallenge, sig_blob, 0, 0x11223344);
+
+  EXPECT_THAT(ParseCertifyResponse(resp, kChallenge),
+              ErrorIs(CertifyResponseError(
+                  CertifyResponseError::Type::kBadMagicNumber)));
+}
+
+TEST(TpmCppParserTest, ParseCertifyResponse_ChallengeMismatch) {
+  auto rsa_priv = test::FixedRsa2048PrivateKeyForTesting();
+  std::vector<uint8_t> statement =
+      BuildFakeCertifyStatement(kChallenge, 0xFF544347, 0x8017);
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::RSA_PKCS1_SHA256, rsa_priv, statement);
+
+  auto sig_blob = BuildTpmRsaSignature(kTpmAlgSha256, sig_bytes);
+  auto resp = BuildFakeCertifyResponse(kChallenge, sig_blob);
+
+  static constexpr uint8_t kWrongChallenge[] = {9, 9, 9, 9};
+  EXPECT_THAT(ParseCertifyResponse(resp, kWrongChallenge),
+              ErrorIs(CertifyResponseError(
+                  CertifyResponseError::Type::kChallengeMismatch)));
+}
+
+TEST(TpmCppParserTest, ParseCertifyResponse_TpmError) {
+  auto rsa_priv = test::FixedRsa2048PrivateKeyForTesting();
+  std::vector<uint8_t> statement =
+      BuildFakeCertifyStatement(kChallenge, 0xFF544347, 0x8017);
+  auto sig_bytes =
+      sign::Sign(sign::SignatureKind::RSA_PKCS1_SHA256, rsa_priv, statement);
+
+  auto sig_blob = BuildTpmRsaSignature(kTpmAlgSha256, sig_bytes);
+  auto resp = BuildFakeCertifyResponse(kChallenge, sig_blob,
+                                       0x100);  // TPM error code 0x100
+
+  EXPECT_THAT(ParseCertifyResponse(resp, kChallenge),
+              ErrorIs(CertifyResponseError(
+                  CertifyResponseError::Type::kTpmErrorResponse, 0x100)));
+}
+
+}  // namespace crypto::tpm

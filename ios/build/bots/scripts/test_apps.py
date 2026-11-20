@@ -180,6 +180,7 @@ class GTestsApp(object):
     self.test_app_path = test_app
     self.project_path = os.path.dirname(self.test_app_path)
     self.platform_type = platform_type
+    self._xcode_platform_dir_name = kwargs.get('xcode_platform_dir_name')
     self.test_args = kwargs.get('test_args') or []
     self.env_vars = {}
     for env_var in kwargs.get('env_vars') or []:
@@ -243,6 +244,8 @@ class GTestsApp(object):
     """Returns the directory name under __PLATFORMS__ corresponding to the
     current target platform.
     """
+    if getattr(self, '_xcode_platform_dir_name', None):
+      return self._xcode_platform_dir_name
     if self.platform_type == constants.IOSPlatformType.TVOS:
       return 'AppleTVSimulator.platform'
     return 'iPhoneSimulator.platform'
@@ -266,23 +269,29 @@ class GTestsApp(object):
         webkit_path = os.path.join(self.test_app_path, 'WebKitFrameworks')
       dyld_path = dyld_path + ':' + webkit_path
 
+    dyld_library_paths = [dyld_path]
+    dyld_framework_paths = [dyld_path]
+
+    # Prepend the packaged frameworks only for XCUITests (which have a host
+    # app).
+    if (self.xcode_platform_dir_name == 'iPhoneSimulator.platform' and
+        self.host_app_path):
+      frameworks_dir = os.path.join(self.test_app_path, 'Frameworks')
+      dyld_library_paths.append(frameworks_dir)
+      dyld_framework_paths.append(frameworks_dir)
+
+    platform_dev_path = (
+        f'__PLATFORMS__/{self.xcode_platform_dir_name}/Developer')
+    dyld_library_paths.append(f'{platform_dev_path}/Library')
+    dyld_framework_paths.append(f'{platform_dev_path}/Library/Frameworks')
+
     module_data = {
         'TestBundlePath': self.test_app_path,
         'TestHostPath': self.test_app_path,
         'TestHostBundleIdentifier': get_bundle_id(self.test_app_path),
         'TestingEnvironmentVariables': {
-            'DYLD_LIBRARY_PATH':
-                ':'.join([
-                    dyld_path,
-                    f'__PLATFORMS__/{self.xcode_platform_dir_name}/Developer/'
-                    'Library'
-                ]),
-            'DYLD_FRAMEWORK_PATH':
-                ':'.join([
-                    dyld_path,
-                    f'__PLATFORMS__/{self.xcode_platform_dir_name}/Developer/'
-                    'Library/Frameworks'
-                ]),
+            'DYLD_LIBRARY_PATH': ':'.join(dyld_library_paths),
+            'DYLD_FRAMEWORK_PATH': ':'.join(dyld_framework_paths),
         }
     }
 

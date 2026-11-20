@@ -109,11 +109,6 @@ struct UvmEntry {
   uint16 matcher_protection_type;
 };
 
-// The output for the `supplementalPubKeys` extension.
-struct SupplementalPubKeysResponse {
-  array<array<uint8>> signatures;
-};
-
 // The output for the CMTG key extension.
 struct CmtgKeyResponse {
   array<uint8> cmtg_key;
@@ -182,8 +177,6 @@ struct MakeCredentialAuthenticatorResponse {
   // extension output should be.
   bool echo_large_blob;
   bool supports_large_blob;
-
-  SupplementalPubKeysResponse? supplemental_pub_keys;
 
   // The response for the payment extension.
   AuthenticationExtensionsPaymentResponse? payment;
@@ -254,8 +247,6 @@ struct AuthenticationExtensionsClientOutputs {
   // The value of the `getCredBlob` extension output, which maybe empty, or
   // null if none.
   array<uint8>? get_cred_blob;
-
-  SupplementalPubKeysResponse? supplemental_pub_keys;
 
   // The response for the payment extension.
   AuthenticationExtensionsPaymentResponse? payment;
@@ -371,13 +362,6 @@ struct RemoteDesktopClientOverride {
   bool same_origin_with_ancestors;
 };
 
-struct SupplementalPubKeysRequest {
-  bool device_scope_requested;
-  bool provider_scope_requested;
-  AttestationConveyancePreference attestation;
-  array<string> attestation_formats;
-};
-
 // TODO(https://crbug.com/459517287): With `IMMEDIATE` reflecting `uiMode`,
 // this no longer maps to the `mediation` field of `CredentialRequestOptions`,
 // and should be renamed to avoid confusion.
@@ -460,10 +444,6 @@ struct AuthenticationExtensionsClientInputs {
   // Indicates that a remote desktop client is making a forwarded request on
   // behalf of another origin.
   RemoteDesktopClientOverride? remote_desktop_client_override;
-
-  // If present, reflects the contents of the "supplementalPubKeys" extension.
-  // https://github.com/w3c/webauthn/pull/1663
-  SupplementalPubKeysRequest? supplemental_pub_keys;
 
   // Parameters defining the type of browser bound keys that the relying party
   // would accept.
@@ -612,10 +592,6 @@ struct PublicKeyCredentialCreationOptions {
   // Indicates that a remote desktop client is making a forwarded request on
   // behalf of another origin.
   RemoteDesktopClientOverride? remote_desktop_client_override;
-
-  // If present, reflects the contents of the "supplementalPubKeys" extension.
-  // https://github.com/w3c/webauthn/pull/1663
-  SupplementalPubKeysRequest? supplemental_pub_keys;
 
   // Parameters defining the type of browser bound keys that the relying party
   // would accept.

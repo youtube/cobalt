@@ -27,6 +27,7 @@ class EnhancedTargetDevicePickerMediator {
     private final Supplier<@Nullable Tab> mTabProvider;
     private final PropertyModel mModel;
 
+    private final @ShareEntryPoint int mEntryPoint;
     private final Map<String, PropertyModel> mDeviceModels = new HashMap<>();
     private @Nullable PropertyModel mSelectedModel;
     private boolean mIsActionStarted;
@@ -37,12 +38,14 @@ class EnhancedTargetDevicePickerMediator {
             List<TargetDeviceInfo> targetDevices,
             Profile profile,
             Supplier<@Nullable Tab> tabProvider,
-            PropertyModel model) {
+            PropertyModel model,
+            @ShareEntryPoint int entryPoint) {
         mUrl = url;
         mTitle = title;
         mProfile = profile;
         mTabProvider = tabProvider;
         mModel = model;
+        mEntryPoint = entryPoint;
 
         mModel.set(EnhancedTargetDevicePickerProperties.SEND_CALLBACK, this::onSendClick);
 
@@ -119,6 +122,7 @@ class EnhancedTargetDevicePickerMediator {
                 selectedDevice.deviceName,
                 mUrl,
                 mTitle,
-                null);
+                null,
+                mEntryPoint);
     }
 }

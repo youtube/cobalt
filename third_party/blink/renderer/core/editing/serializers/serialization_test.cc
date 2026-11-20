@@ -29,7 +29,7 @@ class SerializationTest : public EditingTestBase {
     return CreateMarkup(Position::BeforeNode(node), Position::AfterNode(node),
                         CreateMarkupOptions::Builder()
                             .SetShouldAnnotateForInterchange(true)
-                            .SetShouldResolveURLs(kResolveNonLocalURLs)
+                            .SetShouldResolveUrls(ResolveUrls::kNonLocal)
                             .Build())
         .Utf8();
   }

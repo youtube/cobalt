@@ -32,11 +32,11 @@ int main(int argc, char *argv[]) {
   sentencepiece::ParseCommandLineFlags(argv[0], &argc, &argv, true);
 
   sentencepiece::SentencePieceProcessor sp;
-  ABSL_CHECK_OK(sp.Load(absl::GetFlag(FLAGS_model)));
+  ABSL_QCHECK_OK(sp.Load(absl::GetFlag(FLAGS_model)));
 
   auto output =
       sentencepiece::filesystem::NewWritableFile(absl::GetFlag(FLAGS_output));
-  ABSL_CHECK_OK(output->status());
+  ABSL_QCHECK_OK(output->status());
 
   if (absl::GetFlag(FLAGS_output_format) == "vocab") {
     for (const auto &piece : sp.model_proto().pieces()) {

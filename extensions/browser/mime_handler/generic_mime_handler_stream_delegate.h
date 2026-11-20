@@ -37,6 +37,7 @@ class GenericMimeHandlerStreamDelegate : public MimeHandlerStreamDelegate {
       extensions::StreamInfo* stream_info) override;
   void ValidateContentFrameHost(content::RenderFrameHost* content_host,
                                 extensions::StreamInfo* stream_info) override;
+  bool RequiresPerInstanceProcessIsolation() const override;
 
   ~GenericMimeHandlerStreamDelegate() override;
 };

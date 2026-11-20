@@ -931,6 +931,8 @@ TEST_P(PeerConnectionIntegrationTest, AnswererRejectsAudioAndVideoSections) {
 // rejected. Once the re-negotiation is done, the video flow should stop and
 // the audio flow should continue.
 TEST_P(PeerConnectionIntegrationTest, VideoRejectedInSubsequentOffer) {
+  // Munging allowed: kUnknownModification (section rejection)
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();
@@ -1172,6 +1174,7 @@ void ModifyPayloadTypesAndRemoveMidExtension(
 // Regression test for: http://crbug.com/webrtc/12029
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        EndToEndCallWithTwoVideoTracksDemultiplexedByPayloadType) {
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,26,40,80/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddVideoTrack();
@@ -2757,6 +2760,7 @@ TEST_P(PeerConnectionIntegrationTest, IceTransportFactoryUsedForConnections) {
 // fact that code at some layers was doing case-insensitive comparisons and
 // code at other layers was not.
 TEST_P(PeerConnectionIntegrationTest, CodecNamesAreCaseInsensitive) {
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,60,80/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();
@@ -3488,6 +3492,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        H264FmtpSpsPpsIdrInKeyframeParameterUsage) {
+  // Munging allowed: kVideoCodecsFmtp (85)
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,85/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddVideoTrack();
@@ -4136,6 +4142,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan, VideoPacketLossCausesNack) {
   RTCConfiguration config;
+  // Munging allowed: kVideoCodecsRemoved (80)
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,80/");
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
   ConnectFakeSignaling();
   auto video_transceiver_or_error =
@@ -4551,6 +4559,10 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 // Regression test for https://issues.chromium.org/395077824
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        MungeOfferCodecAndReOfferWorks) {
+  // Munging allowed: kUnknownModification (1), kVideoCodecsFmtp (85)
+  // Codec replacement VP9 -> AV1 is detected as kVideoCodecsFmtp because
+  // it modifies params in-place.
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1,85/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddVideoTrack();
@@ -4597,6 +4609,7 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        MungeOfferCodecAndReOfferWorksWithSetCodecPreferencesIsAFootgun) {
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,85/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddVideoTrack();
@@ -4763,6 +4776,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 // that this mechanism will go on working.
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        MungeRawPacketizationChangesSubsequentSections) {
+  // Munging allowed: kVideoCodecsModifiedWithRawPacketization (88)
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,88/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   // Add first video track.
   caller()->AddVideoTrack();
@@ -5065,6 +5080,8 @@ TEST_P(PeerConnectionIntegrationTest,
        DataChannelEncryptionDowngradeViaBundleDesyncInPrAnswer) {
   RTCConfiguration config;
   config.bundle_policy = PeerConnectionInterface::kBundlePolicyBalanced;
+  // Munging allowed: kBundle (33)
+  SetFieldTrials("Callee", "WebRTC-NoSdpMangleAllowForTesting/Enabled,33/");
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
   ConnectFakeSignaling();
 
@@ -5183,6 +5200,8 @@ TEST_P(PeerConnectionIntegrationTest,
        BundleEstablishedInPrAnswerThenRemovedInFinalAnswer) {
   RTCConfiguration config;
   config.bundle_policy = PeerConnectionInterface::kBundlePolicyBalanced;
+  // Munging allowed: kBundle (33)
+  SetFieldTrials("Callee", "WebRTC-NoSdpMangleAllowForTesting/Enabled,33/");
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
   ConnectFakeSignaling();
 
@@ -5268,6 +5287,8 @@ TEST_P(PeerConnectionIntegrationTest,
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        MungeOfferCodecAndReOfferCausesNoDuplicateId) {
+  // Munging allowed: kUnknownModification (codec replacement VP9 -> AV1)
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddVideoTrack();
@@ -5314,6 +5335,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        MungeOfferCodecWithNonsenseFailsAtSetLocalDescription) {
+  // Munging allowed: kUnknownModification (codec replacement VP9 -> NONSENSE)
+  SetFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddVideoTrack();

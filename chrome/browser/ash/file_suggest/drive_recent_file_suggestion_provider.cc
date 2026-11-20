@@ -332,9 +332,6 @@ void DriveRecentFileSuggestionProvider::PerformSearch(
           weak_factory_.GetWeakPtr(), search_type, std::move(callback)));
 }
 
-void DriveRecentFileSuggestionProvider::MaybeUpdateItemSuggestCache(
-    base::PassKey<FileSuggestKeyedService>) {}
-
 void DriveRecentFileSuggestionProvider::OnSearchRequestComplete(
     SearchType search_type,
     base::RepeatingClosure callback,

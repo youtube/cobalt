@@ -57,6 +57,9 @@
     "signin_chrome_sync_keys_recoverability_degraded_url": {
       "url": "https://accounts.example.com/encryption/unlock/example-platform?kdi=CAIaDgoKY2hyb21lc3luYxAB"
     },
+    "signin_chrome_passkey_unlock_desktop_embedded_url": {
+      "url": "https://accounts.example.com/encryption/unlock/desktopembedded?kdi=CAESDgoMaHdfcHJvdGVjdGVk"
+    },
     "service_logout_url": {
       "url": "https://accounts.example.com/Logout"
     },

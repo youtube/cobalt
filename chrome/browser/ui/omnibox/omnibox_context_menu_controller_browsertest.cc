@@ -106,7 +106,8 @@ class OmniboxContextMenuControllerBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
 
     OmniboxPopupWebContentsHelper::CreateForWebContents(GetWebContents());
-    LocationBar* location_bar = browser()->window()->GetLocationBar();
+    LocationBar* location_bar =
+        BrowserWindow::FromBrowser(browser())->GetLocationBar();
     OmniboxPopupWebContentsHelper::FromWebContents(GetWebContents())
         ->set_omnibox_controller(location_bar->GetOmniboxController());
   }
@@ -329,7 +330,8 @@ class OmniboxContextMenuControllerPecBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
 
     OmniboxPopupWebContentsHelper::CreateForWebContents(GetWebContents());
-    LocationBar* location_bar = browser()->window()->GetLocationBar();
+    LocationBar* location_bar =
+        BrowserWindow::FromBrowser(browser())->GetLocationBar();
     OmniboxPopupWebContentsHelper::FromWebContents(GetWebContents())
         ->set_omnibox_controller(location_bar->GetOmniboxController());
   }

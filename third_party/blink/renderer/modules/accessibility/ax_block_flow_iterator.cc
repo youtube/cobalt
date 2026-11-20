@@ -272,7 +272,7 @@ void AXBlockFlowData::ProcessBoxFragment(const PhysicalBoxFragment* fragment,
   // Then item 5 is on a separate nested line containing the annotation. For the
   // purpose of next-previous on-line, we want to be using the line within the
   // paragraph (item 1).
-  std::optional<size_t> current_outermost_line_index;
+  std::optional<wtf_size_t> current_outermost_line_index;
   for (auto it = items->Items().begin(); it != items->Items().end();
        it++, fragment_index++) {
     const LayoutObject* layout_object = it->GetLayoutObject();

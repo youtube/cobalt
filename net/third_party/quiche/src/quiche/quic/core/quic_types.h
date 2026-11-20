@@ -355,9 +355,10 @@ enum QuicIetfFrameType : uint64_t {
   IETF_ACK_FREQUENCY = 0xaf,
 
   // A QUIC extension frame which augments the IETF_ACK frame definition with
-  // packet receive timestamps.
-  // TODO(ianswett): Determine a proper value to replace this temporary value.
-  IETF_ACK_RECEIVE_TIMESTAMPS = 0x22,
+  // packet receive timestamps.  The draft codepoints are from
+  // <https://github.com/quicwg/receive-ts/commit/108fc85425fd6a698fa6d5784566825cc8c47aa6>.
+  IETF_ACK_RECEIVE_TIMESTAMPS = 0x03178307,
+  IETF_ACK_RECEIVE_TIMESTAMPS_ECN = 0x03178308,
 
   // https://datatracker.ietf.org/doc/html/draft-ietf-quic-reliable-stream-reset
   IETF_RESET_STREAM_AT = 0x24,
@@ -365,6 +366,19 @@ enum QuicIetfFrameType : uint64_t {
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                        const QuicIetfFrameType& c);
 QUICHE_EXPORT std::string QuicIetfFrameTypeString(QuicIetfFrameType t);
+
+// Returns true if the specified IETF frame type is an ACK frame.
+QUICHE_EXPORT constexpr bool IsIetfAckFrame(uint64_t type) {
+  switch (type) {
+    case IETF_ACK:
+    case IETF_ACK_ECN:
+    case IETF_ACK_RECEIVE_TIMESTAMPS:
+    case IETF_ACK_RECEIVE_TIMESTAMPS_ECN:
+      return true;
+    default:
+      return false;
+  }
+}
 
 // Masks for the bits that indicate the frame is a Stream frame vs the
 // bits used as flags.
@@ -1001,6 +1015,16 @@ enum class QuicPriorityType : uint8_t {
 
 QUICHE_EXPORT std::string QuicPriorityTypeToString(QuicPriorityType type);
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os, QuicPriorityType type);
+
+// Individual QUIC RTT sample as it is reported to by the application.
+struct QUICHE_EXPORT QuicRttSample {
+  // The time delta between the time that the packet was received, and the time
+  // that the packet was acknowledged, adjusted for the ACK delay (see RFC 9000,
+  // Section 13.2.5).
+  QuicTimeDelta latest_rtt;
+
+  bool operator==(const QuicRttSample& other) const = default;
+};
 
 }  // namespace quic
 

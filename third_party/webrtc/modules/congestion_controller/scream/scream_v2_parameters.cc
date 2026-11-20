@@ -66,7 +66,9 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
       allow_large_pacing_bursts_after_congestion_time(
           "AllowLargePacingBurstsAfterCongestionTime",
           TimeDelta::Seconds(15)),
-      enable_alr("EnableAlr", true) {
+      enable_alr("EnableAlr", true),
+      alr_threshold("AlrThreshold", 0.9),
+      received_rate_window("ReceivedRateWindow", TimeDelta::Millis(100)) {
   ParseFieldTrial({&min_ref_window,
                    &l4s_avg_g_up,
                    &l4s_avg_g_down,
@@ -102,7 +104,9 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
                    &pacing_factor,
                    &feedback_hold_time_avg_g,
                    &allow_large_pacing_bursts_after_congestion_time,
-                   &enable_alr},
+                   &enable_alr,
+                   &alr_threshold,
+                   &received_rate_window},
                   trials.Lookup("WebRTC-Bwe-ScreamV2"));
 }
 

@@ -5,6 +5,7 @@
 #include "media/formats/webm/webm_video_client.h"
 
 #include "media/base/video_decoder_config.h"
+#include "media/base/video_spatial_format.h"
 #include "media/formats/mp4/box_definitions.h"
 #include "media/formats/webm/webm_constants.h"
 #include "media/media_buildflags.h"
@@ -48,9 +49,8 @@ media::VideoCodecProfile GetAV1CodecProfile(const std::vector<uint8_t>& data) {
 // Values for "StereoMode" are spec'd here:
 // https://www.matroska.org/technical/elements.html#StereoMode
 bool IsValidStereoMode(int64_t stereo_mode_code) {
-  const int64_t stereo_mode_min = 0;  // mono
-  // both eyes laced in one Block (right eye is first)
-  const int64_t stereo_mode_max = 14;
+  const int64_t stereo_mode_min = kWebMStereoModeMono;
+  const int64_t stereo_mode_max = kWebMStereoModeBothEyesBlockRL;
   return stereo_mode_code >= stereo_mode_min &&
          stereo_mode_code <= stereo_mode_max;
 }
@@ -173,6 +173,20 @@ bool WebMVideoClient::InitializeConfig(
                      color_space, transformation, coded_size, visible_rect,
                      natural_size, codec_private, encryption_scheme);
 
+  VideoSpatialFormat spatial_format;
+  if (stereo_mode_ != -1) {
+    if (stereo_mode_ == kWebMStereoModeLeftRight) {
+      spatial_format.stereo_mode = VideoStereoMode::kSideBySideLeftFirst;
+    } else if (stereo_mode_ == kWebMStereoModeTopBottom) {
+      spatial_format.stereo_mode = VideoStereoMode::kTopBottomLeftFirst;
+    }
+  }
+
+  if (projection_parsed_) {
+    spatial_format.projection_type = projection_parser_.GetProjectionType();
+  }
+  config->set_spatial_format(spatial_format);
+
   return config->IsValidConfig();
 }
 
@@ -198,7 +212,7 @@ bool WebMVideoClient::OnListEnd(int id) {
   if (id == kWebMIdColour) {
     colour_parsed_ = true;
   } else if (id == kWebMIdProjection) {
-    if (!projection_parser_.Validate()) {
+    if (!projection_parser_.OnListEnd(id)) {
       return false;
     }
     projection_parsed_ = true;

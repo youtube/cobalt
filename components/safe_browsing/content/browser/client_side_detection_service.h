@@ -29,9 +29,9 @@
 #include "base/scoped_multi_source_observation.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
-#include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/safe_browsing/content/browser/client_side_phishing_model.h"
+#include "components/safe_browsing/core/browser/client_side_detection_service_base.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
@@ -49,34 +49,15 @@ class SharedURLLoaderFactory;
 
 namespace safe_browsing {
 class ClientPhishingRequest;
-class ClientSideDetectionHost;
 
-// Enum used to keep stats on classification using threshold comparison.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class SBClientDetectionClassifyThresholdsResult {
-  kSuccess = 0,
-  kModelSizeMismatch = 1,
-  kModelLabelNotFound = 2,
-  kMaxValue = kModelLabelNotFound,
-};
-
-// Main service which pushes models to the renderers, responds to classification
-// requests. This owns two ModelLoader objects.
+// Content implementation of ClientSideDetectionServiceBase which pushes models
+// to the renderers, responds to classification requests. This owns two
+// ModelLoader objects.
 class ClientSideDetectionService
-    : public KeyedService,
+    : public ClientSideDetectionServiceBase,
       public content::RenderProcessHostCreationObserver,
       public content::RenderProcessHostObserver {
  public:
-  // void(GURL phishing_url, bool is_phishing,
-  // std::optional<net::HttpStatusCode> response_code,
-  // std::optional<IntelligentScanVerdict> intelligent_scan_verdict).
-  typedef base::OnceCallback<void(GURL,
-                                  bool,
-                                  std::optional<net::HttpStatusCode>,
-                                  std::optional<IntelligentScanVerdict>)>
-      ClientReportPhishingRequestCallback;
-
   // Delegate which allows to provide embedder specific implementations.
   class Delegate {
    public:
@@ -103,56 +84,32 @@ class ClientSideDetectionService
 
   ~ClientSideDetectionService() override;
 
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   void Shutdown() override;
 
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   bool enabled() const {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     return enabled_;
   }
 
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   void OnURLLoaderComplete(network::SimpleURLLoader* url_loader,
                            base::Time start_time,
                            std::optional<std::string> response_body);
 
-  // Sends a request to the SafeBrowsing servers with the ClientPhishingRequest.
-  // The URL scheme of the |url()| in the request should be HTTP.  This method
-  // takes ownership of the |verdict| as well as the |callback| and calls the
-  // the callback once the result has come back from the server or if an error
-  // occurs during the fetch.  If the service is disabled or an error occurs the
-  // phishing verdict will always be false.  The callback is always called after
-  // SendClientReportPhishingRequest() returns and on the same thread as
-  // SendClientReportPhishingRequest() was called.  You may set |callback| to
-  // NULL if you don't care about the server verdict.  If |access_token| is not
-  // empty, it is set in the "Authorization: Bearer" header.
-  virtual void SendClientReportPhishingRequest(
+  // ClientSideDetectionServiceBase implementation:
+  void SendClientReportPhishingRequest(
       std::unique_ptr<ClientPhishingRequest> verdict,
       ClientReportPhishingRequestCallback callback,
-      const std::string& access_token);
-
-  // Returns true if the given IP address falls within a private
-  // (unroutable) network block.  Pages which are hosted on these IP addresses
-  // are exempt from client-side phishing detection.  This is called by the
-  // ClientSideDetectionHost prior to sending the renderer a
-  // SafeBrowsingMsg_StartPhishingDetection IPC.
-  virtual bool IsPrivateIPAddress(const net::IPAddress& address) const;
-
-  // Returns true and sets is_phishing if url is in the cache and valid.
-  virtual bool GetValidCachedResult(const GURL& url, bool* is_phishing);
-
-  // Returns true if we have sent at least kMaxReportsPerInterval phishing
-  // reports in the last kReportsInterval.
-  virtual bool AtPhishingReportLimit();
+      const std::string& access_token) override;
+  CSDModelType GetModelType() override;
+  base::ReadOnlySharedMemoryRegion GetModelSharedMemoryRegion() override;
+  base::CallbackListSubscription RegisterCallbackForModelUpdates(
+      base::RepeatingClosure callback) override;
 
   // Sends a model to each renderer.
   virtual void SendModelToRenderers();
-
-  // Returns the model type (protobuf or flatbuffer). Virtual so that mock
-  // implementation can override it.
-  virtual CSDModelType GetModelType();
-
-  // Returns the ReadOnlySharedMemoryRegion for the flatbuffer model. Virtual so
-  // that mock implementation can override it.
-  virtual base::ReadOnlySharedMemoryRegion GetModelSharedMemoryRegion();
 
   // Returns the TfLite model file. Virtual so that mock implementation can
   // override it.
@@ -170,16 +127,20 @@ class ClientSideDetectionService
   virtual bool IsModelMetadataImageEmbeddingVersionMatching();
 
   // Returns the visual TFLite model thresholds from the model class
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   virtual const std::vector<TfLiteModelMetadata::Threshold>&
   GetVisualTfLiteModelThresholds();
 
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   // Compare the scores from classification to TFLite model thresholds
   virtual void ClassifyPhishingThroughThresholds(
       ClientPhishingRequest* verdict);
 
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   virtual void ClassifyThroughEmbeddings(ClientPhishingRequest* verdict);
 
   // Returns the list of target image embeddings.
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   virtual const std::vector<TargetEmbedding>& GetTargetImageEmbeddings();
 
   // Overrides the SharedURLLoaderFactory
@@ -210,8 +171,6 @@ class ClientSideDetectionService
   bool IsSubscribedToImageEmbeddingModelUpdates();
   bool IsSubscribedToImageClassifierModelUpdates();
 
-  base::CallbackListSubscription RegisterCallbackForModelUpdates(
-      base::RepeatingClosure callback);
 
   // Returns the trigger model version to be used in cache for CSD-Phishing
   // debugging metadata.
@@ -236,20 +195,7 @@ class ClientSideDetectionService
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionServiceTest,
                            TestModelFollowsPrefs);
 
-  // CacheState holds all information necessary to respond to a caller without
-  // actually making a HTTP request.
-  struct CacheState {
-    bool is_phishing;
-    base::Time timestamp;
-
-    CacheState(bool phish, base::Time time);
-  };
-
   static const char kClientReportPhishingUrl[];
-  static const int kMaxReportsPerInterval;
-  static const int kReportsIntervalDays;
-  static const int kNegativeCacheIntervalDays;
-  static const int kPositiveCacheIntervalMinutes;
 
   // Called when the prefs have changed in a way we may need to respond to. May
   // enable or disable the service and refresh the state of all renderers.
@@ -266,6 +212,7 @@ class ClientSideDetectionService
 
   // Starts sending the request to the client-side detection frontends.
   // This method takes ownership of both pointers.
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   void StartClientReportPhishingRequest(
       std::unique_ptr<ClientPhishingRequest> request,
       ClientReportPhishingRequestCallback callback,
@@ -273,27 +220,15 @@ class ClientSideDetectionService
 
   // Called by OnURLFetchComplete to handle the server response from
   // sending the client-side phishing request.
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   void HandlePhishingVerdict(network::SimpleURLLoader* source,
                              const GURL& url,
                              int net_error,
                              std::optional<net::HttpStatusCode> response_code,
                              const std::string& data);
 
-  // Invalidate cache results which are no longer useful.
-  void UpdateCache();
-
-  // Get the number of phishing reports that we have sent over kReportsInterval.
-  int GetPhishingNumReports();
-
-  // Returns true if we can successfully add a phishing report to
-  // |phishing_report_times_| and stores the result in prefs. Returns false if
-  // we're at the ping limit or prefs is null.
-  bool AddPhishingReport(base::Time timestamp);
-
-  // Populates |phishing_report_times_| with the data stored in local prefs.
-  void LoadPhishingReportTimesFromPrefs();
-
   // Returns the URL that will be used for phishing requests.
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   static GURL GetClientReportUrl(const std::string& report_url);
 
   // content::RenderProcessHostCreationObserver:
@@ -332,24 +267,13 @@ class ClientSideDetectionService
            std::unique_ptr<ClientPhishingReportInfo>>
       client_phishing_reports_;
 
-  // Cache of completed requests. Used to satisfy requests for the same urls
-  // as long as the next request falls within our caching window (which is
-  // determined by kNegativeCacheInterval and kPositiveCacheInterval). The
-  // size of this cache is limited by kMaxReportsPerDay *
-  // ceil(InDays(max(kNegativeCacheInterval, kPositiveCacheInterval))).
-  // TODO(gcasto): Serialize this so that it doesn't reset on browser restart.
-  std::map<GURL, std::unique_ptr<CacheState>> cache_;
-
-  // Timestamp of when we sent a phishing request. Used to limit the number
-  // of phishing requests that we send in a day.
-  std::deque<base::Time> phishing_report_times_;
-
   // The URLLoaderFactory we use to issue network requests.
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
   // PrefChangeRegistrar used to track when the Safe Browsing pref changes.
   PrefChangeRegistrar pref_change_registrar_;
 
+  // TODO(crbug.com/502615476): Move this to ClientSideDetectionServiceBase.
   std::unique_ptr<Delegate> delegate_;
 
   base::CallbackListSubscription update_model_subscription_;

@@ -43,7 +43,7 @@ sk_sp<SkImage> make_gpu_src_img(GrDirectContext* dContext, float srcSize) {
 
 // This test will trigger an assert if the max quads/TextureOp limit overflows
 void run_test(GrDirectContext* dContext, uint32_t numXSteps, uint32_t numYSteps, bool withAA) {
-    constexpr uint32_t kRectSize = 40;
+    constexpr uint32_t kRectSize = 8;
     constexpr float kHalfRectSize = kRectSize / 2.0f;
 
     sk_sp<SkImage> srcImg = make_gpu_src_img(dContext, kRectSize);

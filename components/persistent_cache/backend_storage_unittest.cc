@@ -12,6 +12,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "components/persistent_cache/backend.h"
@@ -76,10 +77,10 @@ TEST_F(BackendStorageTest, MakePendingBackendFails) {
   EXPECT_CALL(
       mock_delegate(),
       MakePendingBackend(Client::kTest, GetStorageDir(), base_name, true, true))
-      .WillOnce(Return(std::nullopt));
+      .WillOnce(Return(base::unexpected(TransactionError::kConnectionError)));
   auto result = backend_storage().MakePendingBackend(
       base_name, /*single_connection=*/true, /*journal_mode_wal=*/true);
-  EXPECT_EQ(result, std::nullopt);
+  EXPECT_THAT(result, base::test::ErrorIs(TransactionError::kConnectionError));
 }
 
 TEST_F(BackendStorageTest, MakePendingBackendSucceeds) {

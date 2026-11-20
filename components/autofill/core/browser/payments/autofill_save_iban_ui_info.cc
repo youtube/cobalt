@@ -64,13 +64,23 @@ AutofillSaveIbanUiInfo AutofillSaveIbanUiInfo::CreateForUploadSave(
     const LegalMessageLines& legal_message_lines) {
   bool is_wallet_branding_v2_enabled =
       base::FeatureList::IsEnabled(features::kAutofillEnableWalletBrandingV2);
+
+  int logo_icon_id;
+  if (base::FeatureList::IsEnabled(features::kAutofillEnableWalletBranding)) {
+    if (is_wallet_branding_v2_enabled) {
+      logo_icon_id = base::FeatureList::IsEnabled(
+                         features::kAutofillEnableGradientGoogleLogos)
+                         ? IDR_AUTOFILL_GOOGLE_WALLET_ICON_WITH_GRADIENT
+                         : IDR_AUTOFILL_GOOGLE_WALLET_ICON;
+    } else {
+      logo_icon_id = IDR_AUTOFILL_GOOGLE_WALLET;
+    }
+  } else {
+    logo_icon_id = IDR_AUTOFILL_GOOGLE_PAY;
+  }
+
   return CreateAutofillSaveIbanUiInfo(
-      /*is_server_save=*/true,
-      base::FeatureList::IsEnabled(features::kAutofillEnableWalletBranding)
-          ? is_wallet_branding_v2_enabled ? IDR_AUTOFILL_GOOGLE_WALLET_ICON
-                                          : IDR_AUTOFILL_GOOGLE_WALLET
-          : IDR_AUTOFILL_GOOGLE_PAY,
-      iban_value,
+      /*is_server_save=*/true, logo_icon_id, iban_value,
       l10n_util::GetStringUTF16(
           is_wallet_branding_v2_enabled
               ? IDS_AUTOFILL_SAVE_IBAN_TO_WALLET_PROMPT_TITLE

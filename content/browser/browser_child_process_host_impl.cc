@@ -291,6 +291,7 @@ void BrowserChildProcessHostImpl::LaunchWithoutExtraCommandLineSwitches(
       switches::kDisableBestEffortTasks,
       switches::kIPCConnectionTimeout,
       switches::kLogBestEffortTasks,
+      switches::kPartitionAllocSchedulerLoopQuarantine,
       switches::kPerfettoDisableInterning,
   };
   cmd_line->CopySwitchesFrom(browser_command_line, kForwardSwitches);

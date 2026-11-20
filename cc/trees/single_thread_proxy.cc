@@ -332,6 +332,31 @@ void SingleThreadProxy::SetTargetLocalSurfaceId(
   host_impl_->SetTargetLocalSurfaceId(target_local_surface_id);
 }
 
+void SingleThreadProxy::SetUnboundedFrameSink(
+    std::unique_ptr<LayerTreeFrameSink> unbounded_frame_sink,
+    const viz::LocalSurfaceId& local_surface_id) {
+  DCHECK(task_runner_provider_->IsMainThread());
+  DCHECK(layer_tree_host_->GetSettings().enable_unbounded_element);
+  DebugScopedSetImplThread impl(task_runner_provider_);
+  host_impl_->SetUnboundedFrameSink(std::move(unbounded_frame_sink),
+                                    local_surface_id);
+}
+
+void SingleThreadProxy::DismissUnboundedFrameSink() {
+  DCHECK(task_runner_provider_->IsMainThread());
+  DCHECK(layer_tree_host_->GetSettings().enable_unbounded_element);
+  DebugScopedSetImplThread impl(task_runner_provider_);
+  host_impl_->DismissUnboundedFrameSink();
+}
+
+void SingleThreadProxy::SetUnboundedLocalSurfaceId(
+    const viz::LocalSurfaceId& local_surface_id) {
+  DCHECK(task_runner_provider_->IsMainThread());
+  DCHECK(layer_tree_host_->GetSettings().enable_unbounded_element);
+  DebugScopedSetImplThread impl(task_runner_provider_);
+  host_impl_->SetUnboundedLocalSurfaceId(local_surface_id);
+}
+
 void SingleThreadProxy::DetachInputDelegateAndRenderFrameObserver() {
   DCHECK(task_runner_provider_->IsMainThread());
 

@@ -355,6 +355,10 @@ export class OsSettingsPrivacyPageElement extends
     if (newRoute === routes.OS_SYNC_SETUP || newRoute === this.route) {
       this.attemptDeepLink();
     }
+
+    if (newRoute === this.route) {
+      this.initializeLockState();
+    }
   }
 
   /**
@@ -367,16 +371,7 @@ export class OsSettingsPrivacyPageElement extends
     return this.i18n('lockScreenTitleLock');
   }
 
-  private getPasswordState_(hasPin: boolean, enableScreenLock: boolean):
-      string {
-    if (!enableScreenLock) {
-      return this.i18n('lockScreenNone');
-    }
-    if (hasPin) {
-      return this.i18n('lockScreenPinOrPassword');
-    }
-    return this.i18n('lockScreenPasswordOnly');
-  }
+
 
   private getSyncAndGoogleServicesSubtext_(): string {
     if (this.syncStatus && this.syncStatus.hasError &&

@@ -7,6 +7,7 @@
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
+#import "components/send_tab_to_self/metrics_util.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/sharing/ui_bundled/activity_services/data/share_to_data.h"
@@ -63,7 +64,10 @@ NSString* const kSendTabToSelfActivityType =
 
 - (void)performActivity {
   [self activityDidFinish:YES];
-  [self.handler showSendTabToSelfUI:self.data.shareURL title:self.data.title];
+  [self.handler
+      showSendTabToSelfUI:self.data.shareURL
+                    title:self.data.title
+               entryPoint:send_tab_to_self::ShareEntryPoint::kShareSheet];
 }
 
 @end

@@ -56,6 +56,9 @@ class PdfToolbarProperties {
     static final WritableBooleanPropertyKey DOWNLOAD_BUTTON_VISIBLE =
             new WritableBooleanPropertyKey();
 
+    /** Whether edit mode is active. */
+    static final WritableBooleanPropertyKey EDIT_MODE_ACTIVE = new WritableBooleanPropertyKey();
+
     /** Whether the rotate button is visible. */
     static final WritableBooleanPropertyKey ROTATE_BUTTON_VISIBLE =
             new WritableBooleanPropertyKey();
@@ -78,6 +81,7 @@ class PdfToolbarProperties {
         TOTAL_PAGE_COUNT,
         ZOOM_LEVEL,
         ON_CLICK_LISTENER,
+        EDIT_MODE_ACTIVE,
         TWO_PAGES_PER_ROW_ACTIVE,
         ZOOM_DECREASE_BUTTON_ENABLED,
         ZOOM_INCREASE_BUTTON_ENABLED,

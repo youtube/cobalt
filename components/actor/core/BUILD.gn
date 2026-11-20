@@ -16,6 +16,8 @@ source_set("journal") {
   sources = [
     "aggregated_journal.cc",
     "aggregated_journal.h",
+    "aggregated_journal_serializer.cc",
+    "aggregated_journal_serializer.h",
     "journal_details_builder.cc",
     "journal_details_builder.h",
   ]
@@ -23,6 +25,10 @@ source_set("journal") {
     ":core",
     ":logging",
     "//base",
+    "//components/tracing:tracing_metrics",
+    "//third_party/perfetto:libperfetto",
+    "//third_party/perfetto/protos/perfetto/config:zero_gen",
+    "//third_party/perfetto/protos/perfetto/trace/perfetto:zero_gen",
     "//third_party/protobuf:protobuf_lite",
     "//url",
   ]

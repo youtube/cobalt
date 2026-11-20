@@ -11,6 +11,5 @@ include_rules = [
   "+chrome/browser/ui/browser_commands.h",
   "+chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h",
   "+chrome/browser/ui/browser_window/public/global_browser_collection.h",
-  "+chrome/browser/ui/chrome_pages.h",
   "+chrome/test",
 ]

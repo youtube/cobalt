@@ -244,9 +244,29 @@ TEST_F(ChromeAppDeprecationKioskTest, DisabledFeatureFlagDefaultPolicy) {
                   /*DeprecationCheckOutcome::kKioskModeBlocked*/ 6, 1)));
 }
 
-TEST_F(ChromeAppDeprecationKioskTest, DisabledFeatureFlagOverridenByPolicy) {
+TEST_F(ChromeAppDeprecationKioskTest, DisabledFeatureFlagEnabledPolicy) {
   scoped_feature_list_.InitAndDisableFeature(kAllowChromeAppsInKioskSessions);
   ASSERT_FALSE(base::FeatureList::IsEnabled(kAllowChromeAppsInKioskSessions));
+
+  profile()->GetPrefs()->SetBoolean(ash::prefs::kKioskChromeAppsForceAllowed,
+                                    true);
+  ASSERT_TRUE(profile()->GetPrefs()->GetBoolean(
+      ash::prefs::kKioskChromeAppsForceAllowed));
+
+  ScopedSkipSystemDialogForTesting skip_system_dialog;
+  EXPECT_EQ(HandleDeprecation(app_->id(), profile()),
+            DeprecationStatus::kLaunchBlocked);
+
+  EXPECT_THAT(
+      histogram_tester_.GetAllSamples(kHistogram),
+      BucketsAre(base::Bucket(
+          /*DeprecationCheckOutcome::kKioskModeBlockedButAllowedByAdminPolicy*/
+          14, 1)));
+}
+
+TEST_F(ChromeAppDeprecationKioskTest, EnabledFeatureFlagAndPolicy) {
+  scoped_feature_list_.InitAndEnableFeature(kAllowChromeAppsInKioskSessions);
+  ASSERT_TRUE(base::FeatureList::IsEnabled(kAllowChromeAppsInKioskSessions));
 
   profile()->GetPrefs()->SetBoolean(ash::prefs::kKioskChromeAppsForceAllowed,
                                     true);

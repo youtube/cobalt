@@ -58,26 +58,24 @@ std::pair<int, int> GetDeviceIds(const base::DictValue& object) {
 }
 
 std::u16string GetDeviceNameFromIds(int vendor_id, int product_id) {
-#if !BUILDFLAG(IS_ANDROID)
-  const char* product_name =
-      device::UsbIds::GetProductName(vendor_id, product_id);
-  if (product_name)
-    return base::UTF8ToUTF16(product_name);
+  device::UsbIdNames names =
+      device::UsbIds::GetVendorAndProductName(vendor_id, product_id);
+  if (names.product_name) {
+    return base::UTF8ToUTF16(names.product_name);
+  }
 
-  const char* vendor_name = device::UsbIds::GetVendorName(vendor_id);
-  if (vendor_name) {
+  if (names.vendor_name) {
     if (product_id == kDeviceIdWildcard) {
       return l10n_util::GetStringFUTF16(
           IDS_USB_POLICY_DEVICE_DESCRIPTION_FOR_VENDOR_NAME,
-          base::UTF8ToUTF16(vendor_name));
+          base::UTF8ToUTF16(names.vendor_name));
     }
 
     return l10n_util::GetStringFUTF16(
         IDS_USB_POLICY_DEVICE_DESCRIPTION_FOR_PRODUCT_ID_AND_VENDOR_NAME,
         base::ASCIIToUTF16(base::StringPrintf("0x%04X", product_id)),
-        base::UTF8ToUTF16(vendor_name));
+        base::UTF8ToUTF16(names.vendor_name));
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   if (product_id == kDeviceIdWildcard) {
     if (vendor_id == kDeviceIdWildcard)

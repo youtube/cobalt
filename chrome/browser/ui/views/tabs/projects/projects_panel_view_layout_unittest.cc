@@ -8,7 +8,6 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/tabs/projects/layout_constants.h"
-#include "chrome/browser/ui/views/tabs/projects/projects_panel_recent_threads_view.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/metadata/metadata_impl_macros.h"

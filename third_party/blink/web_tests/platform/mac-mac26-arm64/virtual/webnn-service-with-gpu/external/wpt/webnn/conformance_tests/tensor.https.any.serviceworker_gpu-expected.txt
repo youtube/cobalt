@@ -1,8 +1,0 @@
-This is a testharness.js-based test.
-Found 2 FAIL, 0 TIMEOUT, 0 NOTRUN.
-[FAIL] interop float16 low-power / export big tensor
-  promise_test: Unhandled rejection with value: object "TypeError: Failed to execute 'createExportableTensor' on 'MLContext': Tensor size is too large."
-[FAIL] interop float16 high-performance / export big tensor
-  promise_test: Unhandled rejection with value: object "TypeError: Failed to execute 'createExportableTensor' on 'MLContext': Tensor size is too large."
-Harness: the test ran to completion.
-

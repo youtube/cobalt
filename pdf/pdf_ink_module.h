@@ -73,13 +73,6 @@ class PdfInkModule {
   // `drawing_stroke_state().inputs`.
   void Draw(SkCanvas& canvas);
 
-  // Generates a thumbnail of `thumbnail_size` for the page at `page_index`
-  // using DrawThumbnail(). Sends the result to the WebUI if successful.
-  // Otherwise, do not send anything to the WebUI.
-  // `thumbnail_size` must be non-empty.
-  void GenerateAndSendInkThumbnail(int page_index,
-                                   const gfx::Size& thumbnail_size);
-
   // Returns whether the event was handled or not.
   bool HandleInputEvent(const blink::WebInputEvent& event);
 
@@ -229,8 +222,7 @@ class PdfInkModule {
     ~EraserState();
 
     bool erasing = false;
-    base::flat_set<int> page_indices_with_stroke_erasures;
-    base::flat_set<int> page_indices_with_partitioned_mesh_erasures;
+    base::flat_set<int> page_indices_to_update;
 
     // The event position for the last input, similar to what is stored in
     // `DrawingStrokeState` for compensating for missed input events.
@@ -490,21 +482,9 @@ class PdfInkModule {
   // page `page_index`.
   TransformAndClipRect GetTransformAndClipRect(int page_index);
 
-  // Helper that calls GenerateAndSendInkThumbnail() without needing to specify
-  // the thumbnail size. This helper determines the size by asking
-  // PdfInkModuleClient.
-  void GenerateAndSendInkThumbnailInternal(int page_index);
-
-  // Draws `strokes_` for `page_index` into `canvas`. Here, `canvas` only covers
-  // the region for the page at `page_index`, so this only draws strokes for
-  // that page, regardless of page visibility.
-  bool DrawThumbnail(SkCanvas& canvas, int page_index);
-
-  // Updates the page indices in `ink_updates` using
-  // GenerateAndSendInkThumbnailInternal(), and updates the page indices in
-  // `pdf_updates` using PdfInkModuleClient::RequestThumbnail().
-  void RequestThumbnailUpdates(const base::flat_set<int>& ink_updates,
-                               const base::flat_set<int>& pdf_updates);
+  // Updates the page indices in `page_indices` using
+  // PdfInkModuleClient::RequestThumbnail().
+  void RequestThumbnailUpdates(const base::flat_set<int>& page_indices);
 
   // Handles the callback for PDF thumbnail generation requests. Sends
   // `thumbnail` to the WebUI.

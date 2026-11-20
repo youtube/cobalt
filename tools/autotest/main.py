@@ -88,7 +88,7 @@ def main(ctx, **kwargs) -> int:
   if config.builder and not (config.run_changed or config.run_related
                              or config.files or config.name or config.target):
     display_utr_help()
-    return 0
+    ctx.exit(0)
 
   if config.out_dir:
     constants.SetOutputDirectory(config.out_dir)
@@ -219,29 +219,30 @@ def main(ctx, **kwargs) -> int:
                                  used_cache, out_dir)
 
   if not build_ok:
-    return 1
+    ctx.exit(1)
 
   if config.builder:
-    return run_utr_tests(config, out_dir, targets)
+    ctx.exit(run_utr_tests(config, out_dir, targets))
 
-  return test_executor.RunTestTargets(out_dir,
-                                      targets,
-                                      current_gtest_filter,
-                                      pref_mapping_filter,
-                                      config.extras,
-                                      config.dry_run,
-                                      config.no_try_android_wrappers,
-                                      config.no_fast_local_dev,
-                                      config.no_single_variant,
-                                      is_suite=config.suite,
-                                      gemini=config.gemini,
-                                      web_test_files=web_test_files)
+  ctx.exit(
+      test_executor.RunTestTargets(out_dir,
+                                   targets,
+                                   current_gtest_filter,
+                                   pref_mapping_filter,
+                                   config.extras,
+                                   config.dry_run,
+                                   config.no_try_android_wrappers,
+                                   config.no_fast_local_dev,
+                                   config.no_single_variant,
+                                   is_suite=config.suite,
+                                   gemini=config.gemini,
+                                   web_test_files=web_test_files))
 
 if __name__ == '__main__':
   telemetry.telemetry.initialize('chromium.tools.autotest')
 
   try:
-    sys.exit(main(prog_name='tools/autotest.py'))
+    main(prog_name='tools/autotest.py')
   except (AutotestError, CommandError) as e:
     print(e, file=sys.stderr)
     sys.exit(1)

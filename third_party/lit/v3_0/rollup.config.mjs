@@ -23,11 +23,15 @@ function plugin() {
 
   // URL mappings from bare import URLs to file paths.
   const redirects = new Map([
+    ['lit/directives/repeat.js',
+      path.join(pathToNodeModules, 'lit/directives/repeat.js')],
     ['lit/index.js', path.join(pathToNodeModules, 'lit/index.js')],
     ['lit-html/async-directive.js',
       path.join(pathToNodeModules, 'lit-html/async-directive.js')],
     ['lit-html/directive.js',
       path.join(pathToNodeModules, 'lit-html/directive.js')],
+    ['lit-html/directives/repeat.js',
+      path.join(pathToNodeModules, 'lit-html/directives/repeat.js')],
     ['lit-element/lit-element.js',
       path.join(pathToNodeModules, 'lit-element/lit-element.js')],
     ['lit-html/is-server.js',

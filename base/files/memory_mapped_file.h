@@ -110,7 +110,6 @@ class BASE_EXPORT MemoryMappedFile {
     return Initialize(std::move(file), region, READ_ONLY);
   }
 
-  const uint8_t* data() const { return bytes_.data(); }
   uint8_t* data() { return bytes_.data(); }
   size_t length() const { return bytes_.size(); }
 

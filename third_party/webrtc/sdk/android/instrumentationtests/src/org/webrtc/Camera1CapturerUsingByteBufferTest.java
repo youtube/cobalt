@@ -202,4 +202,12 @@ public class Camera1CapturerUsingByteBufferTest {
   public void testStartWhileCameraIsAlreadyOpenAndStop() throws InterruptedException {
     fixtures.startWhileCameraIsAlreadyOpenAndStop();
   }
+
+  // This test that VideoCapturer.isCapturing() returns the correct value across the
+  // start -> stop -> restart -> stop lifecycle.
+  @Test
+  @MediumTest
+  public void testIsCapturing() throws InterruptedException {
+    fixtures.capturerReportsCapturingState();
+  }
 }

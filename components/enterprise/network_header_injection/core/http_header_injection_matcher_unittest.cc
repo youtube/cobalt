@@ -209,4 +209,27 @@ TEST_F(HttpHeaderInjectionMatcherTest,
   EXPECT_EQ(1, header_count);
 }
 
+// Tests that if the same header is set multiple times in the same rule,
+// the last value specified is the one that takes effect (consistent with
+// how later rules win over earlier rules).
+TEST_F(HttpHeaderInjectionMatcherTest, DuplicateHeadersInSameRule_LastOneWins) {
+  matcher_->UpdateRules({{.url_patterns = {"example.com"},
+                          .headers = {{"X-Duplicate-Header", "FirstValue"},
+                                      {"X-Duplicate-Header", "SecondValue"}}}});
+
+  auto headers = matcher_->GetHeadersForUrl(GURL("https://example.com"));
+
+  EXPECT_EQ("SecondValue", headers.GetHeader("X-Duplicate-Header"));
+
+  // Verify only one header is set.
+  net::HttpRequestHeaders::Iterator it(headers);
+  int header_count = 0;
+  while (it.GetNext()) {
+    header_count++;
+    EXPECT_EQ("X-Duplicate-Header", it.name());
+    EXPECT_EQ("SecondValue", it.value());
+  }
+  EXPECT_EQ(1, header_count);
+}
+
 }  // namespace enterprise_custom_headers

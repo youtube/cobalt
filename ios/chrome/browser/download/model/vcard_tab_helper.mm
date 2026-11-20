@@ -9,6 +9,7 @@
 #import "ios/chrome/browser/download/model/vcard_tab_helper_delegate.h"
 #import "ios/chrome/browser/shared/model/utils/mime_type_util.h"
 #import "ios/web/public/download/download_task.h"
+#import "ios/web/public/navigation/navigation_context.h"
 #import "net/base/apple/url_conversions.h"
 
 #pragma mark - Initialization
@@ -46,6 +47,15 @@ void VcardTabHelper::WasShown(web::WebState* web_state) {
   CHECK_EQ(web_state_, web_state);
   if (delegate_ && pending_vcard_) {
     [delegate_ openVcardFromData:pending_vcard_];
+    pending_vcard_ = nil;
+  }
+}
+
+void VcardTabHelper::DidStartNavigation(
+    web::WebState* web_state,
+    web::NavigationContext* navigation_context) {
+  CHECK_EQ(web_state_, web_state);
+  if (!navigation_context->IsSameDocument()) {
     pending_vcard_ = nil;
   }
 }

@@ -450,8 +450,7 @@ class ScopedBrowserShower {
       if (params_->is_tab_modal_popup_deprecated) {
         CHECK_EQ(params_->disposition, WindowOpenDisposition::NEW_POPUP);
         CHECK_NE(source_contents_, nullptr);
-        params_->browser->GetBrowserForMigrationOnly()
-            ->window()
+        BrowserWindow::FromBrowser(params_->browser)
             ->SetIsTabModalPopupDeprecated(true);
         constrained_window::ShowModalDialog(window->GetNativeWindow(),
                                             source_contents_);
@@ -908,8 +907,7 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
     // TODO(crbug.com/40719979): preferably pipe this information through the
     // TabStripModel instead. See bug for deeper discussion.
     if (params->user_gesture && source_browser == params->browser) {
-      params->browser->GetBrowserForMigrationOnly()
-          ->window()
+      BrowserWindow::FromBrowser(params->browser)
           ->LinkOpeningFromGesture(params->disposition);
     }
 
@@ -1009,8 +1007,10 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
       params->web_app_navigation_data->launch_params()) {
     auto* user_data = web_app::WebAppLaunchNavigationHandleUserData::
         GetOrCreateForNavigationHandle(*navigation_handle);
+    const auto& web_app_navigation_data = params->web_app_navigation_data;
     user_data->SetLaunchParams(
-        std::move(*params->web_app_navigation_data->launch_params()));
+        std::move(*web_app_navigation_data->launch_params()));
+    user_data->SetLaunchSource(web_app_navigation_data->launch_source());
   }
 
   if (app_navigation) {

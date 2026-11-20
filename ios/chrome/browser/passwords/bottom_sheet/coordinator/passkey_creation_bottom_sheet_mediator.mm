@@ -111,13 +111,8 @@
     return;
   }
 
-  // TODO(crbug.com/479249845): The code below is the correct behavior.
-  // We need to review it with broader teams to confirm that this is the best
-  // approach. When reauthentication cannot be attempted, we
-  // could fail the request or show an appropriate error to the user. However,
-  // there might be other means for the device to authenticate the user (other
-  // credential providers in the system). So, deferring to the renderer is a
-  // reasonable fallback.
+  // Defer to the OS to allow authentication methods that don't require a
+  // passcode. (e.g., security keys, using a QR code).
   [self deferPasskeyCreationToRenderer];
   [_mediatorDelegate dismissPasskeyCreation];
 }

@@ -116,6 +116,7 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
     // This padding does not make the avatar larger in the menu.
     // `profile_image` is drawn smaller to leave space around for the padding.
     int profile_image_padding = 0;
+    int ai_subscription_tier = 0;
 
     // Must not be empty.
     std::u16string title;

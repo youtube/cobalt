@@ -1,6 +1,6 @@
 <!-- go/cmark -->
 
-<!--* freshness: {owner: 'hta' reviewed: '2026-04-24'} *-->
+<!--* freshness: {owner: 'danilchap' reviewed: '2026-06-17'} *-->
 
 # Plan: Iterative Removal of Deprecated Symbols
 

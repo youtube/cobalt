@@ -1159,8 +1159,9 @@ TEST_F(PopupViewViewsTest, OverflowWithNonSelectableCells) {
 TEST_F(PopupViewViewsTest, SelectingSuggestionWithNoControlResetsToContent) {
   controller().set_suggestions(
       {CreateSuggestionWithChildren(
-           SuggestionType::kAddressEntry,
-           {Suggestion(u"Child suggestion", SuggestionType::kAddressEntry)}),
+           SuggestionType::kPasswordEntry,
+           {Suggestion(u"Child suggestion",
+                       SuggestionType::kPasswordFieldByFieldFilling)}),
        Suggestion(u"Suggestion without control",
                   SuggestionType::kAddressEntry)});
   CreateAndShowView();
@@ -1181,8 +1182,9 @@ TEST_F(PopupViewViewsTest, SelectingSuggestionWithNoControlResetsToContent) {
 TEST_F(PopupViewViewsTest, LeftAndRightKeyEventsAreHandled) {
   // The control cell is present in suggestions with children.
   controller().set_suggestions({CreateSuggestionWithChildren(
-      SuggestionType::kAddressEntry,
-      {Suggestion(u"Child #1", SuggestionType::kAddressEntry)})});
+      SuggestionType::kPasswordEntry,
+      {Suggestion(u"Child #1",
+                  SuggestionType::kPasswordFieldByFieldFilling)})});
   CreateAndShowView();
   view().SetSelectedCell(CellIndex{0, CellType::kContent},
                          PopupCellSelectionSource::kNonUserInput);
@@ -1206,8 +1208,9 @@ TEST_F(PopupViewViewsTest, LeftAndRightKeyEventsAreHandledForRTL) {
 
   // The control cell is present in suggestions with children.
   controller().set_suggestions({CreateSuggestionWithChildren(
-      SuggestionType::kAddressEntry,
-      {Suggestion(u"Child #1", SuggestionType::kAddressEntry)})});
+      SuggestionType::kPasswordEntry,
+      {Suggestion(u"Child #1",
+                  SuggestionType::kPasswordFieldByFieldFilling)})});
   CreateAndShowView();
   view().SetSelectedCell(CellIndex{0, CellType::kControl},
                          PopupCellSelectionSource::kNonUserInput);
@@ -1436,9 +1439,10 @@ TEST_F(PopupViewViewsTest, MovingSelectionSkipsInsecureFormWarning) {
 TEST_F(PopupViewViewsTest, EscClosesSubPopup) {
   controller().set_suggestions({
       CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Child #1", SuggestionType::kAddressEntry)}),
-      Suggestion(u"Suggestion #2", SuggestionType::kAddressEntry),
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)}),
+      Suggestion(u"Suggestion #2", SuggestionType::kPasswordEntry),
   });
   CreateAndShowView();
 
@@ -1880,25 +1884,25 @@ TEST_F(PopupViewViewsTest, VoiceOverTest) {
 
 TEST_F(PopupViewViewsTest, ExpandableSuggestionA11yMessageTest) {
   // Set up the popup with suggestions.
-  std::u16string address_line = u"Address line #1";
-  Suggestion suggestion(address_line, SuggestionType::kAddressEntry);
+  std::u16string main_text = u"Password";
+  Suggestion suggestion(main_text, SuggestionType::kPasswordEntry);
   suggestion.children = {
-      Suggestion(SuggestionType::kAddressFieldByFieldFilling),
-      Suggestion(SuggestionType::kAddressFieldByFieldFilling)};
+      Suggestion(SuggestionType::kPasswordFieldByFieldFilling),
+      Suggestion(SuggestionType::kPasswordFieldByFieldFilling)};
   controller().set_suggestions({suggestion});
   CreateAndShowView();
 
   // Verify that the accessibility layer gets the right string to read out.
   ui::AXNodeData node_data;
   GetPopupRowViewAt(0).GetViewAccessibility().GetAccessibleNodeData(&node_data);
+  std::u16string expected_a11y_name = base::JoinString(
+      {main_text, l10n_util::GetStringFUTF16(
+                      IDS_AUTOFILL_EXPANDABLE_SUGGESTION_SUBMENU_HINT,
+                      l10n_util::GetStringUTF16(
+                          IDS_AUTOFILL_EXPANDABLE_SUGGESTION_EXPAND_SHORTCUT))},
+      u". ");
   EXPECT_EQ(node_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
-            base::JoinString(
-                {address_line,
-                 l10n_util::GetStringFUTF16(
-                     IDS_AUTOFILL_EXPANDABLE_SUGGESTION_SUBMENU_HINT,
-                     l10n_util::GetStringUTF16(
-                         IDS_AUTOFILL_EXPANDABLE_SUGGESTION_EXPAND_SHORTCUT))},
-                u". "));
+            expected_a11y_name);
 
   ui::AXNodeData content_node_data;
   GetPopupRowViewAt(0)
@@ -1907,15 +1911,7 @@ TEST_F(PopupViewViewsTest, ExpandableSuggestionA11yMessageTest) {
       .GetAccessibleNodeData(&content_node_data);
   EXPECT_EQ(
       content_node_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
-      base::JoinString(
-          {address_line,
-           l10n_util::GetStringUTF16(
-               IDS_AUTOFILL_EXPANDABLE_SUGGESTION_FILL_ADDRESS_A11Y_ADDON),
-           l10n_util::GetStringFUTF16(
-               IDS_AUTOFILL_EXPANDABLE_SUGGESTION_SUBMENU_HINT,
-               l10n_util::GetStringUTF16(
-                   IDS_AUTOFILL_EXPANDABLE_SUGGESTION_EXPAND_SHORTCUT))},
-          u". "));
+      expected_a11y_name);
 }
 
 TEST_F(PopupViewViewsTest, UpdateSuggestionsNoCrash) {
@@ -2010,9 +2006,10 @@ TEST_F(PopupViewViewsTest, SubViewIsClosedWithParent) {
 TEST_F(PopupViewViewsTest, CellOpensClosesSubPopupWithDelay) {
   controller().set_suggestions({
       CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Child #1", SuggestionType::kAddressEntry)}),
-      Suggestion(u"Suggestion #2", SuggestionType::kAddressEntry),
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)}),
+      Suggestion(u"Suggestion #2", SuggestionType::kPasswordEntry),
   });
   CreateAndShowView();
 
@@ -2035,9 +2032,10 @@ TEST_F(PopupViewViewsTest, CellOpensClosesSubPopupWithDelay) {
 TEST_F(PopupViewViewsTest, CellSubPopupResetAfterSuggestionsUpdates) {
   controller().set_suggestions({
       CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Child #1", SuggestionType::kAddressEntry)}),
-      Suggestion(u"Suggestion #2", SuggestionType::kAddressEntry),
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)}),
+      Suggestion(u"Suggestion #2", SuggestionType::kPasswordEntry),
   });
   CreateAndShowView();
 
@@ -2047,7 +2045,7 @@ TEST_F(PopupViewViewsTest, CellSubPopupResetAfterSuggestionsUpdates) {
   EXPECT_NE(test_api(view()).GetOpenSubPopupRow(), std::nullopt)
       << "Openning a sub-popup should happen.";
 
-  UpdateSuggestions({SuggestionType::kAddressEntry});
+  UpdateSuggestions({SuggestionType::kPasswordEntry});
   EXPECT_EQ(test_api(view()).GetOpenSubPopupRow(), std::nullopt)
       << "The cell's sub-popup should be closed.";
 }
@@ -2099,9 +2097,10 @@ TEST_F(PopupViewViewsTest, SubPopupHidingOnNoSelection) {
                             ui::EF_IS_SYNTHESIZED, 0);
   controller().set_suggestions({
       CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Child #1", SuggestionType::kAddressEntry)}),
-      Suggestion(u"Suggestion #2", SuggestionType::kAddressEntry),
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)}),
+      Suggestion(u"Suggestion #2", SuggestionType::kPasswordEntry),
   });
   CreateAndShowView();
   CellIndex cell{0, CellType::kControl};
@@ -2111,10 +2110,10 @@ TEST_F(PopupViewViewsTest, SubPopupHidingOnNoSelection) {
   ASSERT_EQ(test_api(view()).GetOpenSubPopupRow(), cell.first);
 
   auto [sub_controller, sub_view] = OpenSubView(
-      view(),
-      {CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Sub Child #1", SuggestionType::kAddressEntry)})});
+      view(), {CreateSuggestionWithChildren(
+                  SuggestionType::kPasswordEntry,
+                  {Suggestion(u"Sub Child #1",
+                              SuggestionType::kPasswordFieldByFieldFilling)})});
   view().SetSelectedCell(std::nullopt, PopupCellSelectionSource::kNonUserInput);
   sub_view->SetSelectedCell(cell, PopupCellSelectionSource::kNonUserInput);
   task_environment()->FastForwardBy(PopupViewViews::kNonMouseOpenSubPopupDelay);
@@ -2123,8 +2122,9 @@ TEST_F(PopupViewViewsTest, SubPopupHidingOnNoSelection) {
   auto [sub_sub_controller, sub_sub_view] = OpenSubView(
       *sub_view,
       {CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Sub Sub Child #1", SuggestionType::kAddressEntry)})});
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Sub Sub Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)})});
   sub_view->SetSelectedCell(std::nullopt,
                             PopupCellSelectionSource::kNonUserInput);
   sub_sub_view->SetSelectedCell(cell, PopupCellSelectionSource::kNonUserInput);
@@ -2142,9 +2142,10 @@ TEST_F(PopupViewViewsTest, SubPopupHidingOnNoSelection) {
 TEST_F(PopupViewViewsTest, SubPopupHidingIsCanceledOnSelection) {
   controller().set_suggestions({
       CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Child #1", SuggestionType::kAddressEntry)}),
-      Suggestion(u"Suggestion #2", SuggestionType::kAddressEntry),
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)}),
+      Suggestion(u"Suggestion #2", SuggestionType::kPasswordEntry),
   });
   CreateAndShowView();
   CellIndex cell{0, CellType::kControl};
@@ -2153,10 +2154,10 @@ TEST_F(PopupViewViewsTest, SubPopupHidingIsCanceledOnSelection) {
   ASSERT_EQ(test_api(view()).GetOpenSubPopupRow(), cell.first);
 
   auto [sub_controller, sub_view] = OpenSubView(
-      view(),
-      {CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Sub Child #1", SuggestionType::kAddressEntry)})});
+      view(), {CreateSuggestionWithChildren(
+                  SuggestionType::kPasswordEntry,
+                  {Suggestion(u"Sub Child #1",
+                              SuggestionType::kPasswordFieldByFieldFilling)})});
   view().SetSelectedCell(std::nullopt, PopupCellSelectionSource::kNonUserInput);
 
   // This triggers the no-selection hiding timer.
@@ -2174,9 +2175,10 @@ TEST_F(PopupViewViewsTest, SubPopupHidingIsCanceledOnSelection) {
 TEST_F(PopupViewViewsTest, SubPopupHidingIsCanceledOnParentHiding) {
   controller().set_suggestions({
       CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Child #1", SuggestionType::kAddressEntry)}),
-      Suggestion(u"Suggestion #2", SuggestionType::kAddressEntry),
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)}),
+      Suggestion(u"Suggestion #2", SuggestionType::kPasswordEntry),
   });
   CreateAndShowView();
   CellIndex cell{0, CellType::kControl};
@@ -2196,9 +2198,10 @@ TEST_F(PopupViewViewsTest, SubPopupOwnSelectionPreventsHiding) {
                             ui::EF_IS_SYNTHESIZED, 0);
   controller().set_suggestions({
       CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Child #1", SuggestionType::kAddressEntry)}),
-      Suggestion(u"Suggestion #2", SuggestionType::kAddressEntry),
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)}),
+      Suggestion(u"Suggestion #2", SuggestionType::kPasswordEntry),
   });
   CreateAndShowView();
   CellIndex cell{0, CellType::kControl};
@@ -2208,10 +2211,10 @@ TEST_F(PopupViewViewsTest, SubPopupOwnSelectionPreventsHiding) {
   ASSERT_EQ(test_api(view()).GetOpenSubPopupRow(), cell.first);
 
   auto [sub_controller, sub_view] = OpenSubView(
-      view(),
-      {CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Sub Child #1", SuggestionType::kAddressEntry)})});
+      view(), {CreateSuggestionWithChildren(
+                  SuggestionType::kPasswordEntry,
+                  {Suggestion(u"Sub Child #1",
+                              SuggestionType::kPasswordFieldByFieldFilling)})});
   view().SetSelectedCell(std::nullopt, PopupCellSelectionSource::kNonUserInput);
   sub_view->SetSelectedCell(cell, PopupCellSelectionSource::kNonUserInput);
   task_environment()->FastForwardBy(PopupViewViews::kNonMouseOpenSubPopupDelay);
@@ -2220,8 +2223,9 @@ TEST_F(PopupViewViewsTest, SubPopupOwnSelectionPreventsHiding) {
   auto [sub_sub_controller, sub_sub_view] = OpenSubView(
       *sub_view,
       {CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Sub Sub Child #1", SuggestionType::kAddressEntry)})});
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Sub Sub Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)})});
   sub_view->SetSelectedCell(std::nullopt,
                             PopupCellSelectionSource::kNonUserInput);
   sub_sub_view->SetSelectedCell(cell, PopupCellSelectionSource::kNonUserInput);
@@ -2244,8 +2248,9 @@ TEST_F(PopupViewViewsTest, SubPopupOwnSelectionPreventsHiding) {
 TEST_F(PopupViewViewsTest, SubPopupOpensWithNoAutoselectByMouse) {
   controller().set_suggestions({
       CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Child #1", SuggestionType::kAddressEntry)}),
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)}),
   });
   CreateAndShowView();
 
@@ -2260,8 +2265,9 @@ TEST_F(PopupViewViewsTest, SubPopupOpensWithNoAutoselectByMouse) {
 TEST_F(PopupViewViewsTest, SubPopupOpensWithAutoselectByRightKey) {
   controller().set_suggestions({
       CreateSuggestionWithChildren(
-          SuggestionType::kAddressEntry,
-          {Suggestion(u"Child #1", SuggestionType::kAddressEntry)}),
+          SuggestionType::kPasswordEntry,
+          {Suggestion(u"Child #1",
+                      SuggestionType::kPasswordFieldByFieldFilling)}),
   });
   CreateAndShowView();
 
@@ -2275,8 +2281,8 @@ TEST_F(PopupViewViewsTest, SubPopupOpensWithAutoselectByRightKey) {
 
 TEST_F(PopupViewViewsTest, SubPopupOpensForNonSelectableContentSelection) {
   Suggestion suggestion = CreateSuggestionWithChildren(
-      SuggestionType::kAddressEntry,
-      {Suggestion(u"Child", SuggestionType::kAddressEntry)});
+      SuggestionType::kPasswordEntry,
+      {Suggestion(u"Child", SuggestionType::kPasswordFieldByFieldFilling)});
   suggestion.acceptability = Suggestion::Acceptability::kUnacceptable;
   controller().set_suggestions({suggestion});
   CreateAndShowView();
@@ -2290,8 +2296,8 @@ TEST_F(PopupViewViewsTest, SubPopupOpensForNonSelectableContentSelection) {
 
 TEST_F(PopupViewViewsTest, SubPopupNotOpenForSelectableContentSelection) {
   Suggestion suggestion = CreateSuggestionWithChildren(
-      SuggestionType::kAddressEntry,
-      {Suggestion(u"Child", SuggestionType::kAddressEntry)});
+      SuggestionType::kPasswordEntry,
+      {Suggestion(u"Child", SuggestionType::kPasswordFieldByFieldFilling)});
   suggestion.acceptability = Suggestion::Acceptability::kAcceptable;
   controller().set_suggestions({suggestion});
   CreateAndShowView();
@@ -2306,8 +2312,8 @@ TEST_F(PopupViewViewsTest, SubPopupNotOpenForSelectableContentSelection) {
 TEST_F(PopupViewViewsTest,
        SubPopupNotOpenForMerchantOptedOutVcnContentSelection) {
   Suggestion suggestion = CreateSuggestionWithChildren(
-      SuggestionType::kAddressEntry,
-      {Suggestion(u"Child", SuggestionType::kAddressEntry)});
+      SuggestionType::kPasswordEntry,
+      {Suggestion(u"Child", SuggestionType::kPasswordFieldByFieldFilling)});
   suggestion.acceptability =
       Suggestion::Acceptability::kUnacceptableWithDeactivatedStyle;
   controller().set_suggestions({suggestion});
@@ -2960,12 +2966,17 @@ TEST_F(PopupViewViewsTest, AtMemory_KeyboardNavigation) {
       .Times(testing::AnyNumber());
 
   // RETURN triggers filter update when no suggestion is selected.
+  EXPECT_CALL(controller(),
+              SetFilter(Eq(AutofillPopupController::SuggestionFilter(
+                            AutofillPopupController::StringFilter(u"query"))),
+                        AutofillPopupController::FilterSource::kInputChanged));
   EXPECT_CALL(
       controller(),
       SetFilter(Eq(AutofillPopupController::SuggestionFilter(
                     AutofillPopupController::StringFilter(u"query"))),
                 AutofillPopupController::FilterSource::kSearchSubmitted));
   test_api(view()).SetSearchQuery(u"query");
+  task_environment()->RunUntilIdle();
   event.windows_key_code = ui::VKEY_RETURN;
   EXPECT_TRUE(test_api(view()).HandleKeyPressEvent(event));
 

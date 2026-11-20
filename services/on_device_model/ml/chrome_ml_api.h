@@ -15,7 +15,10 @@
 #include "third_party/dawn/include/dawn/dawn_proc_table.h"
 #include "third_party/dawn/include/dawn/webgpu.h"
 
-// This header defines the public interface to the ChromeML shared library.
+// This header defines the public interface to the ChromeML shared library. The
+// interface is exposed via a C API to encapsulate the C++ types used in its
+// implementation. ABI compatibility is not a goal of the API, nor is it used
+// for that purpose.
 //
 // Lifetime: All pointer fields in output structs (e.g., ChromeMLGenerateOutput,
 // ChromeMLToolCall) are non-owning and valid only for the duration of the

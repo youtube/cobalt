@@ -42,6 +42,11 @@ public interface VideoCapturer {
   void changeCaptureFormat(int width, int height, int framerate);
 
   /**
+   * @return true if capturing is currently active.
+   */
+  boolean isCapturing();
+
+  /**
    * Perform any final cleanup here. No more capturing will be done after this call.
    */
   void dispose();

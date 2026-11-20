@@ -186,6 +186,10 @@ class CONTENT_EXPORT BrowsingContextState
   void SetIsAdFrame(bool is_ad_frame);
   bool IsAdFrame() const;
 
+  // Sets the is-secure-context-root bit and broadcasts to all RemoteFrame
+  // proxies. No-op if the value is unchanged.
+  void SetIsSecureContextRoot(bool is_secure_context_root);
+
   // Delete a RenderFrameProxyHost owned by this object.
   void DeleteRenderFrameProxyHost(
       SiteInstanceGroup* site_instance_group,

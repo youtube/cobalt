@@ -182,6 +182,10 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
 // The Lens button. May be null if Lens is not available.
 @property(nonatomic, strong) ExtendedTouchTargetButton* lensButton;
+// The Identity Disc showing the current user's avatar on NTP.
+@property(nonatomic, strong) NTPIdentityDiscButton* identityDiscButton;
+// The entrypoint for the Home customization menu.
+@property(nonatomic, strong) UIButton* customizationMenuButton;
 // The button that opens multiodal actions in Composebox. May be nil if
 // Composebox or multimodal actions are not enabled.
 @property(nonatomic, strong) ExtendedTouchTargetButton* plusButton;
@@ -1094,6 +1098,9 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 
   _customizationMenuButton = customizationMenuButton;
   _customizationNewFeatureBadge = newBadgeView;
+
+  [self.layoutGuideCenter referenceView:customizationMenuButton
+                              underName:kFeedIPHNamedGuide];
 
   if (IsNTPBackgroundCustomizationEnabled()) {
     [self applyBackgroundTheme];

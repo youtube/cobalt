@@ -36,9 +36,8 @@ const CGFloat kVerticalPadding = 14;
   return self;
 }
 
-- (void)configureCell:(BYOTextFieldCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(BYOTextFieldCell*)cell {
+  [super configureCell:cell];
   [cell installTextField:self.textField];
 }
 

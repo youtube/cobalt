@@ -29,6 +29,7 @@ enum class WebGPUBlocklistReason : uint64_t {
   Consteval22ndBit = 1 << 8,
   QualcommWindows = 1 << 9,
   StringPatternQualcommWindows = 1 << 10,
+  StringPatternImgTec = 1 << 11,
   // When adding an enum, update kKnownReasons with a description.
 };
 

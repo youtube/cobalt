@@ -10,7 +10,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.UserData;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
-import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.fusebox.ComposeboxQueryControllerBridge;
@@ -77,7 +76,8 @@ public class FuseboxSessionState implements UserData {
     private @Nullable ComposeboxQueryControllerBridge mComposeBoxQueryControllerBridge;
     protected @Nullable AutocompleteController mAutocomplete;
     private @Nullable FuseboxAttachmentModelList mFuseboxAttachmentModelList;
-    private @Nullable OneShotCallback<Profile> mPendingProfileCallback;
+    private @Nullable Callback<Profile> mPendingProfileCallback;
+    private @Nullable MonotonicObservableSupplier<Profile> mProfileSupplier;
     private @Nullable WebContents mWebContents;
     private boolean mIsActive;
 
@@ -142,6 +142,7 @@ public class FuseboxSessionState implements UserData {
             MonotonicObservableSupplier<Profile> profileSupplier,
             @Nullable Runnable onFullyActivated) {
         mWebContents = webContents;
+        mProfileSupplier = profileSupplier;
         if (mIsActive) {
             // This session is being re-activated. It has already been fully initialized so simply
             // emit the event.
@@ -188,9 +189,8 @@ public class FuseboxSessionState implements UserData {
         // requesting multiple session controllers.
         if (mPendingProfileCallback != null) return;
 
-        mPendingProfileCallback =
-                new OneShotCallback<>(
-                        profileSupplier, p -> setUpSessionControllers(p, onFullyActivated));
+        mPendingProfileCallback = p -> setUpSessionControllers(p, onFullyActivated);
+        profileSupplier.addSyncObserverAndCallIfNonNull(mPendingProfileCallback);
     }
 
     /**
@@ -202,6 +202,11 @@ public class FuseboxSessionState implements UserData {
         if (!mIsActive) return;
 
         mAutocompleteInput.reset();
+        if (mProfileSupplier != null && mPendingProfileCallback != null) {
+            mProfileSupplier.removeObserver(mPendingProfileCallback);
+            mPendingProfileCallback = null;
+        }
+
         tearDownSessionControllers();
         mWebContents = null;
         mIsActive = false;
@@ -215,7 +220,10 @@ public class FuseboxSessionState implements UserData {
      */
     private void setUpSessionControllers(Profile profile, @Nullable Runnable onFullyActivated) {
         // Record the event that we're not waiting for profile anymore.
-        mPendingProfileCallback = null;
+        if (mProfileSupplier != null && mPendingProfileCallback != null) {
+            mProfileSupplier.removeObserver(mPendingProfileCallback);
+            mPendingProfileCallback = null;
+        }
 
         // If the session became inactive while we wait for the profile - don't accept the new
         // profile.
@@ -289,6 +297,7 @@ public class FuseboxSessionState implements UserData {
         mAutocomplete = null;
         mMetrics = null;
         mProfile = null;
+        mProfileSupplier = null;
     }
 
     private void linkSessionControllers() {

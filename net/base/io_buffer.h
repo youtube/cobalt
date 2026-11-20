@@ -10,11 +10,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
-#include "base/memory/free_deleter.h"
 #include "base/memory/raw_span.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
@@ -245,13 +245,13 @@ class NET_EXPORT GrowableIOBuffer : public IOBuffer {
  public:
   GrowableIOBuffer();
 
-  // realloc memory to the specified capacity.
+  // Resizes the buffer to the specified capacity.
   void SetCapacity(int capacity);
-  int capacity() { return capacity_; }
+  int capacity() const { return static_cast<int>(real_data_.size()); }
 
   // `offset` moves the `data_` pointer, allowing "seeking" in the data.
   void set_offset(int offset);
-  int offset() { return offset_; }
+  int offset() const { return offset_; }
 
   // Advances the offset by `bytes`. It's equivalent to `set_offset(offset() +
   // bytes)`, though does not accept negative values, as they likely indicate a
@@ -274,11 +274,7 @@ class NET_EXPORT GrowableIOBuffer : public IOBuffer {
  private:
   ~GrowableIOBuffer() override;
 
-  // TODO(329476354): Convert to std::vector, use reserve()+resize() to make
-  // exact reallocs, and remove `capacity_`. Possibly with an allocator the
-  // default-initializes, if it's important to not initialize the new memory?
-  std::unique_ptr<uint8_t, base::FreeDeleter> real_data_;
-  int capacity_ = 0;
+  std::vector<uint8_t> real_data_;
   int offset_ = 0;
 };
 

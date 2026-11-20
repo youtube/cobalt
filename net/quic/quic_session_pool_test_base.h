@@ -148,6 +148,7 @@ class QuicSessionPoolTestBase : public WithTaskEnvironment {
     bool require_dns_https_alpn = false;
     int cert_verify_flags = 0;
     GURL url = GURL(kDefaultUrl);
+    handles::NetworkHandle target_network = handles::kInvalidNetworkHandle;
     NetLogWithSource net_log;
     NetErrorDetails net_error_details;
     CompletionOnceCallback failed_on_default_network_callback;
@@ -169,7 +170,8 @@ class QuicSessionPoolTestBase : public WithTaskEnvironment {
       const ProxyChain& proxy_chain = ProxyChain::Direct(),
       SessionUsage session_usage = SessionUsage::kDestination,
       bool require_dns_https_alpn = false,
-      bool disable_cert_verification_network_fetches = false);
+      bool disable_cert_verification_network_fetches = false,
+      handles::NetworkHandle target_network = handles::kInvalidNetworkHandle);
   bool HasActiveJob(const url::SchemeHostPort& scheme_host_port,
                     const PrivacyMode privacy_mode,
                     bool require_dns_https_alpn = false);
@@ -185,7 +187,8 @@ class QuicSessionPoolTestBase : public WithTaskEnvironment {
       const ProxyChain& proxy_chain = ProxyChain::Direct(),
       SessionUsage session_usage = SessionUsage::kDestination,
       bool require_dns_https_alpn = false,
-      bool disable_cert_verification_network_fetches = false);
+      bool disable_cert_verification_network_fetches = false,
+      handles::NetworkHandle target_network = handles::kInvalidNetworkHandle);
 
   int GetSourcePortForNewSessionAndGoAway(
       const url::SchemeHostPort& destination);

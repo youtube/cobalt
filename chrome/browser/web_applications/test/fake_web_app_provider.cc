@@ -16,7 +16,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/externally_managed_app_manager.h"
 #include "chrome/browser/web_applications/file_utils_wrapper.h"
-#include "chrome/browser/web_applications/isolated_web_apps/install/isolated_web_app_dev_install_manager.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_manager.h"
 #include "chrome/browser/web_applications/manifest_update_manager.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
@@ -184,14 +183,6 @@ void FakeWebAppProvider::SetWebAppUiManager(
   ui_manager_ = std::move(ui_manager);
 }
 
-void FakeWebAppProvider::SetIsolatedWebAppDevInstallManager(
-    std::unique_ptr<IsolatedWebAppDevInstallManager>
-        isolated_web_app_dev_install_manager) {
-  CheckNotStartedAndDisconnect();
-  isolated_web_app_dev_install_manager_ =
-      std::move(isolated_web_app_dev_install_manager);
-}
-
 void FakeWebAppProvider::SetWebAppPolicyManager(
     std::unique_ptr<WebAppPolicyManager> web_app_policy_manager) {
   CheckNotStartedAndDisconnect();
@@ -199,12 +190,6 @@ void FakeWebAppProvider::SetWebAppPolicyManager(
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
-void FakeWebAppProvider::SetIsolatedWebAppUpdateManager(
-    std::unique_ptr<IsolatedWebAppUpdateManager> iwa_update_manager) {
-  CheckNotStartedAndDisconnect();
-  isolated_web_app_update_manager_ = std::move(iwa_update_manager);
-}
-
 void FakeWebAppProvider::SetWebAppRunOnOsLoginManager(
     std::unique_ptr<WebAppRunOnOsLoginManager>
         web_app_run_on_os_login_manager) {

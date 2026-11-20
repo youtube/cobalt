@@ -630,7 +630,15 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
   if (@available(iOS 26.0, *)) {
     // For iOS26 windowing, ensure the new window doesn't fully overlap the
     // prior window.
-    options.placement = [UIWindowSceneProminentPlacement prominentPlacement];
+    BOOL should_skip_prominent_placement = NO;
+#if TARGET_OS_SIMULATOR
+    // Workaround Metal compositor crash on iOS 27.0 beta simulator.
+    should_skip_prominent_placement = base::ios::IsRunningOnOrLater(27, 0, 0) &&
+                                      !base::ios::IsRunningOnOrLater(27, 0, 1);
+#endif
+    if (!should_skip_prominent_placement) {
+      options.placement = [UIWindowSceneProminentPlacement prominentPlacement];
+    }
   }
 
   [UIApplication.sharedApplication
@@ -1409,10 +1417,6 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
 
 + (BOOL)isDemographicMetricsReportingEnabled {
   return base::FeatureList::IsEnabled(metrics::kDemographicMetricsReporting);
-}
-
-+ (BOOL)isAskGeminiChipEnabled {
-  return IsAskGeminiChipEnabled();
 }
 
 + (BOOL)isProactiveSuggestionsFrameworkEnabled {

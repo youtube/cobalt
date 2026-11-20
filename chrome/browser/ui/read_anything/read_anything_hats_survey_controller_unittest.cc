@@ -195,7 +195,7 @@ TEST_F(ReadAnythingHatsSurveyControllerUnitTest, SurveyShownIfConditionsMet) {
               LaunchDelayedSurveyForWebContents(
                   kHatsSurveyTriggerReadingModeExit, _, _, _, _, _, _, _, _, _))
       .Times(1)
-      .WillOnce(testing::Return(true));
+      .WillOnce(testing::Return(HatsService::LaunchError::kNone));
 
   survey_controller_->Activate(false, std::nullopt,
                                kMinSessionDuration + base::Seconds(1));

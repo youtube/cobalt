@@ -31,9 +31,8 @@ const CGFloat kCellTrailingPadding = 31;
   return self;
 }
 
-- (void)configureCell:(AddressBarOptionsCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(AddressBarOptionsCell*)cell {
+  [super configureCell:cell];
   cell.selectionStyle = UITableViewCellSelectionStyleNone;
   cell.addressBarpreferenceServiceDelegate =
       _addressBarpreferenceServiceDelegate;

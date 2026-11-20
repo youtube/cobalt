@@ -12,6 +12,7 @@ import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.RecyclerView.RecycledViewPool;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.build.annotations.NullMarked;
@@ -135,6 +136,11 @@ public class PreWarmingRecycledViewPool extends RecycledViewPool {
                 : "startCreatingViews must be called on the same thread the pool was created on";
         try (TraceEvent t = TraceEvent.scoped("PreWarmingRecycledViewPool.startCreatingViews")) {
             if (mStopCreatingViews || !OmniboxCapabilities.shouldPreWarmRecyclerViewPool()) return;
+            boolean runsOnExpectedThread =
+                    OmniboxFeatures.sAsyncViewInflation.isEnabled()
+                            ? !ThreadUtils.runningOnUiThread()
+                            : ThreadUtils.runningOnUiThread();
+            OmniboxMetrics.recordPreWarmingThreadMatchesExpectedThread(runsOnExpectedThread);
             for (var viewTypeAndCount : mViewsToCreate) {
                 mExpectedViewCount += viewTypeAndCount.count;
                 for (int index = 0; index < viewTypeAndCount.count; ++index) {

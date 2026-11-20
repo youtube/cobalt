@@ -143,6 +143,7 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -616,7 +617,7 @@ public class TouchToFillPaymentMethodViewTest {
 
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
-        assertThat(getCreditCardSuggestions().getChildCount(), is(3));
+        pollUiThread(() -> Criteria.checkThat(getCreditCardSuggestions().getChildCount(), is(3)));
 
         assertThat(getSuggestionMainTextAt(0).getText(), is(VISA_SUGGESTION.getLabel()));
         assertThat(getSuggestionMinorTextAt(0).getText(), is(VISA_SUGGESTION.getSecondaryLabel()));
@@ -701,6 +702,7 @@ public class TouchToFillPaymentMethodViewTest {
 
     @Test
     @MediumTest
+    @DisabledTest(message = "crbug.com/516254354 the test is flaky.")
     public void testSheetScrollabilityDependsOnState() {
         runOnUiThreadBlocking(
                 () -> {
@@ -1660,7 +1662,8 @@ public class TouchToFillPaymentMethodViewTest {
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
-        assertThat(getCreditCardSuggestions().getChildCount(), is(2));
+        pollUiThread(() -> Criteria.checkThat(getCreditCardSuggestions().getChildCount(), is(2)));
+
         assertThat(getSuggestionPrimaryTextAt(1).getText(), is(BNPL_SUGGESTION.getLabel()));
         assertThat(getSuggestionSecondaryTextAt(1).getText(), is(BNPL_SUGGESTION.getSublabel()));
         assertContentDescriptionEquals(
@@ -2252,6 +2255,7 @@ public class TouchToFillPaymentMethodViewTest {
 
     @Test
     @MediumTest
+    @DisabledTest(message = "crbug.com/516254354 the test is flaky.")
     public void testStateChangeEventWithFullStateScreenButUnexpectedHeight()
             throws TimeoutException {
         // Open a screen with full height.

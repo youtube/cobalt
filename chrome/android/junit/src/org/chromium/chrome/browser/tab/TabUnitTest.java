@@ -169,9 +169,11 @@ public class TabUnitTest {
     @Test
     @SmallTest
     public void testSetRootIdWithChange() {
-        TabStateAttributes.createForTab(mTab, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributesRegistry.createAttributesForTab(
+                mTab, TabStateAttributes.StoreKey.class, TabCreationState.FROZEN_ON_RESTORE);
         assertThat(
-                TabStateAttributes.from(mTab).getDirtinessState(),
+                TabStateAttributesRegistry.getAttributesFor(mTab, TabStateAttributes.StoreKey.class)
+                        .getDirtinessState(),
                 equalTo(TabStateAttributes.DirtinessState.CLEAN));
         assertThat(mTab.getRootId(), equalTo(TAB1_ID));
 
@@ -181,35 +183,42 @@ public class TabUnitTest {
 
         assertThat(mTab.getRootId(), equalTo(TAB2_ID));
         assertThat(
-                TabStateAttributes.from(mTab).getDirtinessState(),
+                TabStateAttributesRegistry.getAttributesFor(mTab, TabStateAttributes.StoreKey.class)
+                        .getDirtinessState(),
                 equalTo(TabStateAttributes.DirtinessState.DIRTY));
     }
 
     @Test
     @SmallTest
     public void testSetRootIdWithoutChange() {
-        TabStateAttributes.createForTab(mTab, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributesRegistry.createAttributesForTab(
+                mTab, TabStateAttributes.StoreKey.class, TabCreationState.FROZEN_ON_RESTORE);
         assertThat(
-                TabStateAttributes.from(mTab).getDirtinessState(),
+                TabStateAttributesRegistry.getAttributesFor(mTab, TabStateAttributes.StoreKey.class)
+                        .getDirtinessState(),
                 equalTo(TabStateAttributes.DirtinessState.CLEAN));
         assertThat(mTab.getRootId(), equalTo(TAB1_ID));
-        TabStateAttributes.from(mTab).clearTabStateDirtiness();
+        TabStateAttributesRegistry.getAttributesFor(mTab, TabStateAttributes.StoreKey.class)
+                .clearTabStateDirtiness();
 
         mTab.setRootId(TAB1_ID);
 
         verify(mObserver, never()).onRootIdChanged(any(Tab.class), anyInt());
         assertThat(mTab.getRootId(), equalTo(TAB1_ID));
         assertThat(
-                TabStateAttributes.from(mTab).getDirtinessState(),
+                TabStateAttributesRegistry.getAttributesFor(mTab, TabStateAttributes.StoreKey.class)
+                        .getDirtinessState(),
                 equalTo(TabStateAttributes.DirtinessState.CLEAN));
     }
 
     @Test
     @SmallTest
     public void testSetTabGroupIdWithChange() {
-        TabStateAttributes.createForTab(mTab, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributesRegistry.createAttributesForTab(
+                mTab, TabStateAttributes.StoreKey.class, TabCreationState.FROZEN_ON_RESTORE);
         assertThat(
-                TabStateAttributes.from(mTab).getDirtinessState(),
+                TabStateAttributesRegistry.getAttributesFor(mTab, TabStateAttributes.StoreKey.class)
+                        .getDirtinessState(),
                 equalTo(TabStateAttributes.DirtinessState.CLEAN));
         assertNull(mTab.getTabGroupId());
 
@@ -230,7 +239,9 @@ public class TabUnitTest {
 
         verify(mObserver).onTabGroupIdChanged(mTab, token);
 
-        TabStateAttributes attributes = TabStateAttributes.from(mTab);
+        TabStateAttributes attributes =
+                TabStateAttributesRegistry.getAttributesFor(
+                        mTab, TabStateAttributes.StoreKey.class);
         assertThat(mTab.getTabGroupId(), equalTo(token));
         assertThat(
                 attributes.getDirtinessState(), equalTo(TabStateAttributes.DirtinessState.DIRTY));
@@ -241,27 +252,34 @@ public class TabUnitTest {
     @Test
     @SmallTest
     public void testSetTabGroupIdWithoutChange() {
-        TabStateAttributes.createForTab(mTab, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributesRegistry.createAttributesForTab(
+                mTab, TabStateAttributes.StoreKey.class, TabCreationState.FROZEN_ON_RESTORE);
         assertThat(
-                TabStateAttributes.from(mTab).getDirtinessState(),
+                TabStateAttributesRegistry.getAttributesFor(mTab, TabStateAttributes.StoreKey.class)
+                        .getDirtinessState(),
                 equalTo(TabStateAttributes.DirtinessState.CLEAN));
         assertNull(mTab.getTabGroupId());
-        TabStateAttributes.from(mTab).clearTabStateDirtiness();
+        TabStateAttributesRegistry.getAttributesFor(mTab, TabStateAttributes.StoreKey.class)
+                .clearTabStateDirtiness();
 
         mTab.setTabGroupId(null);
 
         verify(mObserver, never()).onTabGroupIdChanged(any(Tab.class), any());
         assertNull(mTab.getTabGroupId());
         assertThat(
-                TabStateAttributes.from(mTab).getDirtinessState(),
+                TabStateAttributesRegistry.getAttributesFor(mTab, TabStateAttributes.StoreKey.class)
+                        .getDirtinessState(),
                 equalTo(TabStateAttributes.DirtinessState.CLEAN));
     }
 
     @Test
     @SmallTest
     public void testSetTabHasSensitiveContentWithChange() {
-        TabStateAttributes.createForTab(mTab, TabCreationState.FROZEN_ON_RESTORE);
-        TabStateAttributes attributes = TabStateAttributes.from(mTab);
+        TabStateAttributesRegistry.createAttributesForTab(
+                mTab, TabStateAttributes.StoreKey.class, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributes attributes =
+                TabStateAttributesRegistry.getAttributesFor(
+                        mTab, TabStateAttributes.StoreKey.class);
 
         assertThat(
                 attributes.getDirtinessState(), equalTo(TabStateAttributes.DirtinessState.CLEAN));
@@ -277,8 +295,11 @@ public class TabUnitTest {
     @Test
     @SmallTest
     public void testSetTabHasSensitiveContentWithoutChange() {
-        TabStateAttributes.createForTab(mTab, TabCreationState.FROZEN_ON_RESTORE);
-        TabStateAttributes attributes = TabStateAttributes.from(mTab);
+        TabStateAttributesRegistry.createAttributesForTab(
+                mTab, TabStateAttributes.StoreKey.class, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributes attributes =
+                TabStateAttributesRegistry.getAttributesFor(
+                        mTab, TabStateAttributes.StoreKey.class);
 
         assertThat(
                 attributes.getDirtinessState(), equalTo(TabStateAttributes.DirtinessState.CLEAN));
@@ -295,8 +316,11 @@ public class TabUnitTest {
     @Test
     @SmallTest
     public void testSetIsPinnedWithChange() {
-        TabStateAttributes.createForTab(mTab, TabCreationState.FROZEN_ON_RESTORE);
-        TabStateAttributes attributes = TabStateAttributes.from(mTab);
+        TabStateAttributesRegistry.createAttributesForTab(
+                mTab, TabStateAttributes.StoreKey.class, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributes attributes =
+                TabStateAttributesRegistry.getAttributesFor(
+                        mTab, TabStateAttributes.StoreKey.class);
 
         assertThat(
                 attributes.getDirtinessState(), equalTo(TabStateAttributes.DirtinessState.CLEAN));
@@ -312,8 +336,11 @@ public class TabUnitTest {
     @Test
     @SmallTest
     public void testSetIsPinnedWithoutChange() {
-        TabStateAttributes.createForTab(mTab, TabCreationState.FROZEN_ON_RESTORE);
-        TabStateAttributes attributes = TabStateAttributes.from(mTab);
+        TabStateAttributesRegistry.createAttributesForTab(
+                mTab, TabStateAttributes.StoreKey.class, TabCreationState.FROZEN_ON_RESTORE);
+        TabStateAttributes attributes =
+                TabStateAttributesRegistry.getAttributesFor(
+                        mTab, TabStateAttributes.StoreKey.class);
 
         assertThat(
                 attributes.getDirtinessState(), equalTo(TabStateAttributes.DirtinessState.CLEAN));

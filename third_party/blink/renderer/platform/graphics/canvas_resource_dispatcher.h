@@ -39,10 +39,6 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
  public:
   static constexpr unsigned kMaxPendingCompositorFrames = 2;
 
-  base::WeakPtr<CanvasResourceDispatcher> GetWeakPtr() {
-    return weak_ptr_factory_.GetWeakPtr();
-  }
-
   CanvasResourceDispatcherClient* Client() { return client_; }
 
   // `task_runner` is the task runner this object is associated with and
@@ -51,11 +47,8 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
   CanvasResourceDispatcher(
       CanvasResourceDispatcherClient*,
       scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-      scoped_refptr<base::SingleThreadTaskRunner>
-          agent_group_scheduler_compositor_task_runner,
       uint32_t client_id,
       uint32_t sink_id,
-      DOMNodeId placeholder_canvas_id,
       const gfx::Size&);
 
   ~CanvasResourceDispatcher() override;
@@ -131,8 +124,6 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
   mojo::Remote<mojom::blink::SurfaceEmbedder> surface_embedder_;
   mojo::Receiver<viz::mojom::blink::CompositorFrameSinkClient> receiver_{this};
 
-  DOMNodeId placeholder_canvas_id_;
-
   viz::ResourceIdGenerator id_generator_;
 
   // Stores resources that have been exported to the compositor, to be released
@@ -146,13 +137,7 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
 
   raw_ptr<CanvasResourceDispatcherClient> client_;
 
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-  scoped_refptr<base::SingleThreadTaskRunner>
-      agent_group_scheduler_compositor_task_runner_;
-
   TaskRunnerTimer<CanvasResourceDispatcher> fake_frame_timer_;
-
-  base::WeakPtrFactory<CanvasResourceDispatcher> weak_ptr_factory_{this};
 };
 
 }  // namespace blink

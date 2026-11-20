@@ -4,6 +4,8 @@
 
 #include "components/autofill/core/browser/payments/autofill_payments_feature_availability.h"
 
+#include <optional>
+
 #include "base/feature_list.h"
 #include "build/buildflag.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
@@ -25,12 +27,11 @@ bool DidDisplayBenefitForCard(const CreditCard& card,
   const PaymentsDataManager& pay_dm =
       autofill_client.GetPersonalDataManager().payments_data_manager();
   return pay_dm.IsCardEligibleForBenefits(card) &&
-         !pay_dm
-              .GetApplicableBenefitDescriptionForCardAndOrigin(
-                  card,
-                  autofill_client.GetLastCommittedPrimaryMainFrameOrigin(),
-                  autofill_client.GetAutofillOptimizationGuideDecider())
-              .empty();
+         pay_dm
+             .GetApplicableBenefitForCardAndOrigin(
+                 card, autofill_client.GetLastCommittedPrimaryMainFrameOrigin(),
+                 autofill_client.GetAutofillOptimizationGuideDecider())
+             .has_value();
 }
 
 bool IsVcn3dsEnabled() {

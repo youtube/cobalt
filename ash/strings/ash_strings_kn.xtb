@@ -48,6 +48,7 @@
 <translation id="1129383337808748948"><ph name="CONTENT_TITLE" /> ರಿಫ್ರೆಶ್ ಮಾಡಿ</translation>
 <translation id="1142002900084379065">ಇತ್ತೀಚಿನ ಫೋಟೋಗಳು</translation>
 <translation id="114221662579355151">ಕ್ಯಾಮರಾವನ್ನು ಬಳಸಲು ಅನುಮತಿ ಹೊಂದಿರುವ <ph name="APP1_NAME" />, <ph name="APP2_NAME" /> ಮತ್ತು ಎಲ್ಲಾ ಆ್ಯಪ್‌ಗಳು ಹಾಗೂ ವೆಬ್‌ಸೈಟ್‌ಗಳಿಗೆ ಇದು ಕ್ಯಾಮರಾಗೆ ಆ್ಯಕ್ಸೆಸ್ ನೀಡುತ್ತದೆ. ನೀವು ವೆಬ್ ಪುಟವನ್ನು ರಿಫ್ರೆಶ್ ಮಾಡಬೇಕಾಗಬಹುದು ಅಥವಾ ಆ್ಯಪ್ ಅನ್ನು ಮರುಪ್ರಾರಂಭಿಸಬೇಕಾಗಬಹುದು.</translation>
+<translation id="1145593918056169051">ಪ್ರಿಂಟರ್ ನಿಂತುಹೋಗಿದೆ</translation>
 <translation id="1147991416141538220">ಪ್ರವೇಶಕ್ಕಾಗಿ ಕೇಳಲು, ಈ ಸಾಧನದ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.</translation>
 <translation id="1148499908455722006"><ph name="USER_NAME" /> ಗೆ ಸಂಬಂಧಿಸಿದ ಮಾಹಿತಿ ಡೈಲಾಗ್ ಅನ್ನು ತೆರೆಯಿರಿ</translation>
 <translation id="1150989369772528668">ಕ್ಯಾಲೆಂಡರ್</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">ಹುಡುಕಿ</translation>
 <translation id="1388728792929436380">ಅಪ್‌ಡೇಟ್‌ಗಳು ಪೂರ್ಣವಾದಾಗ <ph name="DEVICE_TYPE" /> ಸಾಧನವು ಮರುಪ್ರಾರಂಭವಾಗುತ್ತದೆ.</translation>
 <translation id="1390113502208199250">Chrome Education ಅಪ್‌ಗ್ರೇಡ್ ಫೀಚರ್‌ಗಳನ್ನು ಬಳಸಲು ನೀವು ಈ ಸಾಧನವನ್ನು ಫ್ಯಾಕ್ಟರಿ ರೀಸೆಟ್ ಮಾಡಬೇಕಾಗುತ್ತದೆ.</translation>
+<translation id="1390907927270446471"><ph name="PRINTER_NAME" /> ಅನ್ನು ಪ್ರಿಂಟ್ ಮಾಡಲು <ph name="PROFILE_USERNAME" /> ಗೆ ಅನುಮತಿ ನೀಡಿಲ್ಲ. ನಿಮ್ಮ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.</translation>
 <translation id="1391102559483454063">ಆನ್</translation>
 <translation id="1394698770495054737">ಫುಲ್ ಬ್ಲರ್</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{1 ದಿನದ ಹಿಂದೆ}one{# ದಿನಗಳ ಹಿಂದೆ}other{# ದಿನಗಳ ಹಿಂದೆ}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">ಹೌದು</translation>
 <translation id="142655739075382478"><ph name="APP_NAME" /> ಅನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ</translation>
 <translation id="142765311413773645"><ph name="APP_NAME" /> ಪರವಾನಗಿಯ ಅವಧಿ ಮುಗಿದಿದೆ</translation>
+<translation id="1430915738399379752">ಮುದ್ರಿಸು</translation>
 <translation id="1435537621343861112">ಉಕ್ತಲೇಖನವನ್ನು ಪ್ರಾರಂಭಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ನಿಮ್ಮ ಮೈಕ್ ಆಫ್ ಆಗಿದೆ.</translation>
 <translation id="1445031758921122223">ಫೇಸ್ ಕಂಟ್ರೋಲ್ ಫೈಲ್‌ಗಳನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="1447907279406111651">ಇದೀಗ · <ph name="END_TIME" /> ಸಮಯಕ್ಕೆ ಮುಕ್ತಾವಾಗುತ್ತದೆ</translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">ಟೂರ್ ಹಂತ <ph name="TOTAL_STEPS" /> ರಲ್ಲಿ <ph name="STEP" />ನೇ ಹಂತ. ನಿಮ್ಮ ಪಿನ್ ಮಾಡಿದ ಮತ್ತು ತೆರೆದ ಆ್ಯಪ್‌ಗಳು, ನಿಮ್ಮ ಸ್ಕ್ರೀನ್‌ನ ಕೆಳಭಾಗದಲ್ಲಿರುವ ಶೆಲ್ಫ್‌ನಲ್ಲಿರುತ್ತವೆ. ಶೆಲ್ಫ್ ಐಟಂಗಳ ಮೇಲೆ ಫೋಕಸ್ ಮಾಡಲು Alt + Shift + L ಒತ್ತಿರಿ ನಂತರ ಟ್ಯಾಬ್ ಒತ್ತಿರಿ.</translation>
 <translation id="1602085790802918092">ವರ್ಚುವಲ್ ಯಂತ್ರವನ್ನು ಪ್ರಾರಂಭಿಸಲಾಗುತ್ತಿದೆ</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + ಡೌನ್ ಆ್ಯರೋ</translation>
+<translation id="1604432177629086300">ಪ್ರಿಂಟ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಪ್ರಿಂಟರ್ ಅನ್ನು ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.</translation>
 <translation id="1604857178818051494">ಮಾಧ್ಯಮವನ್ನು ವಿರಾಮಗೊಳಿಸಿ</translation>
 <translation id="1607312127821884567">ನಿಮ್ಮ ಫೋನ್‌ನ ಆ್ಯಪ್‌ಗಳನ್ನು ವೀಕ್ಷಿಸುವುದಕ್ಕಾಗಿ ಸೆಟಪ್ ಮಾಡುವುದನ್ನು ವಜಾಗೊಳಿಸಿ</translation>
 <translation id="1610778689852195798">"ರದ್ದುಗೊಳಿಸಿ"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">ತಟಸ್ಥ ಸ್ಥಿತಿಯ ಡೇಟಾ</translation>
 <translation id="2064048859448024834">ಕ್ಯಾಮರಾ ಪೂರ್ವವೀಕ್ಷಣೆ ಆನ್ ಆಗಿದೆ</translation>
 <translation id="2067220651560163985">ತಾಪಮಾನವನ್ನು ಸೆಲ್ಸಿಯಸ್‌ನಲ್ಲಿ ತೋರಿಸಿ</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> <ph name="PRINTER_NAME" /> ಗೆ ಮುದ್ರಣವನ್ನು ಪೂರ್ಣಗೊಳಿಸಿದೆ</translation>
 <translation id="2075520525463668108"><ph name="CAPTURE_MEDIUM" /> ಅನ್ನು ಟಾಗಲ್ ಮಾಡಿ. <ph name="CAPTURE_MEDIUM" /> ಈಗ <ph name="CAPTURE_STATE" /> ಸ್ಥಿತಿಯಲ್ಲಿದೆ</translation>
 <translation id="2079545284768500474">ರದ್ದುಮಾಡಿ</translation>
 <translation id="2086334242442703436">ಎಮೋಜಿ ಪಿಕರ್ ತೆರೆಯಿರಿ</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498"><ph name="APP_NAME" /> ಬಳಸಲು ನಿಮ್ಮ ಸಾಧನವನ್ನು ಮರುಪ್ರಾರಂಭಿಸಿ.</translation>
 <translation id="2335091074961603075">ನಿಮ್ಮ Chromebook ಅಥವಾ ಬ್ಲೂಟೂತ್ ಸಾಧನವು ಬ್ಲೂಟೂತ್‌ನ ಹಳೆಯ ಆವೃತ್ತಿಯನ್ನು ಬಳಸುತ್ತಿದೆ. ಉತ್ತಮ ಆಡಿಯೊ ಗುಣಮಟ್ಟಕ್ಕಾಗಿ ಆಂತರಿಕ ಮೈಕ್ರೊಫೋನ್ ಅನ್ನು ಬಳಸಿ.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{ಅಪ್‌ಡೇಟ್ ಅನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲು, ನೀವು ಇಂದೇ ವೈ-ಫೈಗೆ ಕನೆಕ್ಟ್ ಮಾಡಬೇಕೆಂದು <ph name="MANAGER" /> ಬಯಸುತ್ತದೆ. ಅಥವಾ ಮೀಟರ್ಡ್ ಕನೆಕ್ಷನ್‌ನಿಂದ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ (ಶುಲ್ಕಗಳು ಅನ್ವಯವಾಗಬಹುದು).}one{ನೀವು ವೈ-ಫೈಗೆ ಕನೆಕ್ಟ್ ಮಾಡುವ ಮೂಲಕ ಅಪ್‌ಡೇಟ್‌ ಒಂದನ್ನು ಗಡುವಿನ ಮೊದಲು ಡೌನ್‌ಲೋಡ್ ಮಾಡಬೇಕೆಂದು <ph name="MANAGER" /> ಬಯಸುತ್ತದೆ. ಅಥವಾ ಮೀಟರ್ಡ್ ಕನೆಕ್ಷನ್‌ನಿಂದ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ (ಶುಲ್ಕಗಳು ಅನ್ವಯವಾಗಬಹುದು).}other{ನೀವು ವೈ-ಫೈಗೆ ಕನೆಕ್ಟ್ ಮಾಡುವ ಮೂಲಕ ಅಪ್‌ಡೇಟ್‌ ಒಂದನ್ನು ಗಡುವಿನ ಮೊದಲು ಡೌನ್‌ಲೋಡ್ ಮಾಡಬೇಕೆಂದು <ph name="MANAGER" /> ಬಯಸುತ್ತದೆ. ಅಥವಾ ಮೀಟರ್ಡ್ ಕನೆಕ್ಷನ್‌ನಿಂದ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ (ಶುಲ್ಕಗಳು ಅನ್ವಯವಾಗಬಹುದು).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> 1 ಪುಟವನ್ನು <ph name="PRINTER_NAME" /> ಗೆ ಮುದ್ರಿಸುತ್ತಿದೆ</translation>
 <translation id="2336381494582898602">ಪವರ್‌ವಾಶ್</translation>
 <translation id="2339073806695260576">ಟಿಪ್ಪಣಿ, ಸ್ಕ್ರೀನ್‌ಶಾಟ್ ತೆಗೆದುಕೊಳ್ಳಲು, ಲೇಸರ್‌ ಪಾಯಿಂಟರ್ ಬಳಸಲು ಅಥವಾ ಭೂತಗನ್ನಡಿ ಬಳಸಲು ಶೆಲ್ಫ್‌ನಲ್ಲಿ ಸ್ಟೈಲಸ್ ಬಟನ್ ಅನ್ನು ಟ್ಯಾಪ್ ಮಾಡಿ.</translation>
 <translation id="2341729377289034582">ಪರದೆಯು ಲಂಬವಾಗಿ ತೋರುವಂತೆ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ</translation>
@@ -755,6 +761,7 @@
 <translation id="3206735939915734551">caps lock ಕೀಯನ್ನು ಆನ್/ಆಫ್ ಮಾಡಿ</translation>
 <translation id="3207953481422525583">ಬಳಕೆದಾರರ ಸೆಟ್ಟಿಂಗ್‌ಗಳು</translation>
 <translation id="3208321278970793882">ಆ್ಯಪ್</translation>
+<translation id="32101887417650595">ಪ್ರಿಂಟರ್‌ಗೆ ಕನೆಕ್ಟ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ</translation>
 <translation id="3212221635583599601">ಹೆಚ್ಚಿನದಕ್ಕಾಗಿ ಇಂಟರ್ನೆಟ್‌ಗೆ ಕನೆಕ್ಟ್‌ ಮಾಡಿ</translation>
 <translation id="3213571860604332401">ಲಿಂಕ್ ಅನ್ನು ಬುಕ್‌ಮಾರ್ಕ್‌ನಂತೆ ಸೇವ್ ಮಾಡಿ</translation>
 <translation id="3217205077783620295">ವಾಲ್ಯೂಮ್ ಆನ್ ಆಗಿದೆ, ಟಾಗಲ್ ಮಾಡುವುದರಿಂದ ಆಡಿಯೋ ಮ್ಯೂಟ್ ಆಗುತ್ತದೆ.</translation>
@@ -823,6 +830,7 @@
 <translation id="3431517721463707585">ಡೆಸ್ಕ್ 14</translation>
 <translation id="3433507769937235446">ನಿರ್ಗಮಿಸುವಾಗ ಲಾಕ್ ಮಾಡಿ</translation>
 <translation id="3434107140712555581"><ph name="BATTERY_PERCENTAGE" />%</translation>
+<translation id="343578350365773421">ಪೇಪರ್ ಖಾಲಿಯಾಗಿದೆ</translation>
 <translation id="3435967511775410570">ಫಿಂಗರ್‌ಪ್ರಿಂಟ್‌ ಅನ್ನು ಗುರುತಿಸಲಾಗಿದೆ</translation>
 <translation id="3437677362970530951">Play Store ಮತ್ತು ಇತರ ಗೇಮಿಂಗ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್‌ಗಳಲ್ಲಿನ ಗೇಮ್‌ಗಳು</translation>
 <translation id="3439896670700055005">ಸಂಗ್ರಹಿಸಿದ ವಿಷಯವನ್ನು ಬಳಸದೇ ಪ್ರಸ್ತುತ ಪುಟವನ್ನು ಮರುಲೋಡ್ ಮಾಡಿ</translation>
@@ -999,6 +1007,7 @@
 <translation id="3848526302597027234">ಈ ಕೆಳಗಿನ ಅನುಮತಿಗಳನ್ನು ಆ್ಯಕ್ಸೆಸ್ ಮಾಡಬಹುದು:</translation>
 <translation id="385051799172605136">ಹಿಂದೆ</translation>
 <translation id="385300504083504382">ಪ್ರಾರಂಭ</translation>
+<translation id="3854976556788175030">ಔಟ್‌ಪುಟ್ ಟ್ರೇ ಭರ್ತಿಯಾಗಿದೆ</translation>
 <translation id="3857807444929313943">ಎತ್ತಿರಿ, ನಂತರ ಪುನಃ ಸ್ಪರ್ಶಿಸಿ</translation>
 <translation id="3859364108019690">ಆ್ಯಪ್‌ಗಳನ್ನು ಸ್ಟ್ರೀಮ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ</translation>
 <translation id="3861638017150647085">ಬಳಕೆದಾರ ಹೆಸರು "<ph name="USERNAME" />" ಲಭ್ಯವಿಲ್ಲ</translation>
@@ -1051,6 +1060,7 @@
 <translation id="401993194061514265">ಮಾರ್ಕರ್ ಲಭ್ಯವಿಲ್ಲ. ಸ್ಕ್ರೀನ್‌ಕ್ಯಾಸ್ಟ್ ಅನ್ನು ಮರುತೆರೆಯಿರಿ.</translation>
 <translation id="4021716437419160885">ಕೆಳಗೆ ಸ್ಕ್ರಾಲ್ ಮಾಡಿ</translation>
 <translation id="4022497978915111141">ಸಾಧನವನ್ನು ಲಾಕ್‌ಮಾಡಿ</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> <ph name="PAGE_NUMBER" /> ಪುಟಗಳನ್ನು <ph name="PRINTER_NAME" /> ಗೆ ಮುದ್ರಿಸುತ್ತಿದೆ</translation>
 <translation id="4024840464866786680">ನಿಮ್ಮ ಪಿನ್ ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್ ಅನ್ನು ನೀವು ಮರೆತಿದ್ದರೆ ಅಥವಾ ಇತ್ತೀಚೆಗೆ ನಿಮ್ಮ Google ಖಾತೆಯ ಪಾಸ್‌ವರ್ಡ್ ಅನ್ನು ಬದಲಾಯಿಸಿದ್ದರೆ ಈ ಬಳಕೆದಾರರನ್ನು ಮರುಪಡೆಯಲು ಪ್ರಯತ್ನಿಸಿ.</translation>
 <translation id="4026843240379844265">ಸಕ್ರಿಯ ವಿಂಡೋವನ್ನು ಡಿಸ್‌ಪ್ಲೇಗಳ ನಡುವೆ ಸರಿಸಿ</translation>
 <translation id="4028481283645788203">ಹೆಚ್ಚಿನ ಭದ್ರತೆಗಾಗಿ ಪಾಸ್‌ವರ್ಡ್ ಅಗತ್ಯವಿದೆ</translation>
@@ -1581,6 +1591,7 @@
 <translation id="5491186829646618080">ಫರ್ಮ್‌‌ವೇರ್‌‌ ಅಪ್‌ಡೇಟ್‌ಗಳು ಲಭ್ಯವಿವೆ</translation>
 <translation id="5503884284981862082">Google Assistant ತೆರೆಯಿರಿ/ಮುಚ್ಚಿ</translation>
 <translation id="550391772491508736">ಬಿತ್ತರಿಸುವಿಕೆಯನ್ನು ಪುನರಾರಂಭಿಸಿ</translation>
+<translation id="5505307013568720083">ಶಾಯಿ ಖಾಲಿಯಾಗಿದೆ</translation>
 <translation id="5506975627792768506">ಮ್ಯಾಗ್ನಿಫೈಯರ್ ಅನ್ನು ಆನ್ ಅಥವಾ ಆಫ್ ಮಾಡಿ</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />, Enter ಒತ್ತಿದರೆ ಆಡಿಯೋ ಮ್ಯೂಟ್ ಆಗುತ್ತದೆ.</translation>
 <translation id="5512042095225963688">ಹಿಂದಿನ ಪದವನ್ನು ಅಳಿಸಿ</translation>
@@ -1692,12 +1703,14 @@
 <translation id="5791926618942305301">ಸ್ಕ್ರೀನ್ ಕ್ಯಾಪ್ಚರ್‌ನಲ್ಲಿ, <ph name="SOURCE" /> <ph name="TYPE" /> ಗೆ ಸೆಟ್ ಮಾಡಲಾಗಿದೆ. ಕ್ಯಾಪ್ಚರ್ ಮಾಡುವಿಕೆಯ ಪ್ರಕಾರವನ್ನು ಆಯ್ಕೆ ಮಾಡಲು ಟ್ಯಾಬ್ ಒತ್ತಿರಿ. ಕ್ಯಾಪ್ಚರ್ ಮಾಡಲು ಎಂಟರ್ ಒತ್ತಿರಿ. ಕ್ಯಾಪ್ಚರ್ ಮಾಡುವ ಪ್ರದೇಶವನ್ನು ಆಯ್ಕೆ ಮಾಡಲು, ಭಾಗಶಃ ಸ್ಕ್ರೀನ್‌ಶಾಟ್‌ಗೆ ಸೆಟ್ ಮಾಡಿ. ಈಗಾಗಲೇ ಸಕ್ರಿಯವಾಗಿಲ್ಲದಿದ್ದರೆ, ಪ್ರದೇಶವನ್ನು ಆಯ್ಕೆ ಮಾಡಲು ಸ್ಪೇಸ್ ಒತ್ತಿರಿ.</translation>
 <translation id="579415080077680903">ನಿಶ್ಯಬ್ದಗೊಳಿಸಿ</translation>
 <translation id="5802516411616338943">ತ್ವರಿತ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</translation>
+<translation id="5804241973901381774">ಅನುಮತಿಗಳು</translation>
 <translation id="5804651031882187592">"SIM ಅನ್ನು ಲಾಕ್ ಮಾಡಿ" ಎಂಬ ಸೆಟ್ಟಿಂಗ್ ಅನ್ನು ಆಫ್ ಮಾಡಿ</translation>
 <translation id="5805809050170488595"><ph name="NETWORK_NAME" /> ಸಕ್ರಿಯಗೊಳಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ</translation>
 <translation id="5818796501620225415">ನೀವು ಹೆಚ್ಚಿನ ಸಮಯ ಸೇರಿಸಬಹುದು ಅಥವಾ ಫೋಕಸ್ ಸೆಶನ್ ಕೊನೆಗೊಳಿಸಬಹುದು</translation>
 <translation id="5819918159912280082">ನಿಮ್ಮ Chromebook ಅನಿರೀಕ್ಷಿತವಾಗಿ ಮರುಪ್ರಾರಂಭಗೊಂಡಿದೆ. ನಿಮ್ಮ ಹಿಂದಿನ ವಿಂಡೋಗಳು ಮತ್ತು ಆ್ಯಪ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ.</translation>
 <translation id="5823239091726045201">ವೆಬ್‌ನಲ್ಲಿ Google ಕಾರ್ಯಗಳು</translation>
 <translation id="5825969630400862129">ಕನೆಕ್ಟ್ ಮಾಡಿದ ಸಾಧನಗಳ ಸೆಟ್ಟಿಂಗ್‌ಗಳು</translation>
+<translation id="5828633471261496623">ಮುದ್ರಿಸಲಾಗುತ್ತಿದೆ...</translation>
 <translation id="5830180081891717894">ಇನ್ನೂ <ph name="WINDOWS" /></translation>
 <translation id="5830205393314753525"><ph name="APP_NAME" /> ತೆರೆಯಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ</translation>
 <translation id="583281660410589416">ಅಪರಿಚಿತ</translation>
@@ -1722,6 +1735,7 @@
 <translation id="5892014525522223653">ನೀವು ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿದ್ದೀರಿ.</translation>
 <translation id="5895138241574237353">ಮರುಪ್ರಾರಂಭಿಸಿ</translation>
 <translation id="589817443623831496">ಪಾಯಿಂಟ್ ಸ್ಕ್ಯಾನಿಂಗ್</translation>
+<translation id="5901494423252125310">ಪ್ರಿಂಟರ್ ಡೋರ್ ತೆರೆದಿದೆ</translation>
 <translation id="5901630391730855834">ಹಳದಿ</translation>
 <translation id="5904614460720589786">ಕಾನ್ಫಿಗರೇಶನ್ ಸಮಸ್ಯೆಯಿಂದಾಗಿ, <ph name="APP_NAME" /> ಅನ್ನು ಸೆಟಪ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ನಿಮ್ಮ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ. ದೋಷ ಕೋಡ್: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> ಸಾಧನ ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿದೆ</translation>
@@ -1786,6 +1800,7 @@
         <ph name="BEGIN_PARAGRAPH2" />ಈ ಫೀಚರ್ ಅನ್ನು ಆಫ್ ಮಾಡುವುದರಿಂದ ಸಿಸ್ಟಂ ಅಪ್‌ಡೇಟ್‌ಗಳು ಮತ್ತು ಸುರಕ್ಷತೆಯಂತಹ ಅಗತ್ಯ ಸೇವೆಗಳಿಗೆ ಬೇಕಾದ ಮಾಹಿತಿಯನ್ನು ಕಳುಹಿಸುವುದಕ್ಕೆ ಸಂಬಂಧಿಸಿದ ಹಾಗೆ, ಈ ಸಾಧನದ ಸಾಮರ್ಥ್ಯದ ಮೇಲೆ ಇದು ಪರಿಣಾಮ ಬೀರುವುದಿಲ್ಲ.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />ಮಾಲೀಕರು, ಸೆಟ್ಟಿಂಗ್‌ಗಳು &gt; ಸುಧಾರಿತ &gt; ಡಯಾಗ್ನಾಸ್ಟಿಕ್ ಹಾಗೂ ಬಳಕೆಯ ಡೇಟಾವನ್ನು Google ಗೆ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಕಳುಹಿಸಿ ಎಂಬಲ್ಲಿಂದ ಈ ಫೀಚರ್ ಅನ್ನು ನಿಯಂತ್ರಿಸಬಹುದು.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />ನಿಮ್ಮ ಮಗುವಿಗಾಗಿ, ಹೆಚ್ಚುವರಿ ವೆಬ್ ಮತ್ತು ಆ್ಯಪ್ ಚಟುವಟಿಕೆಯನ್ನು ಆನ್ ಮಾಡಿದ್ದರೆ, ಈ ಡೇಟಾವನ್ನು ಅವರ Google ಖಾತೆಯಲ್ಲಿ ಸೇವ್ ಮಾಡಬಹುದು. ಈ ಸೆಟ್ಟಿಂಗ್‌ಗಳ ಕುರಿತು ಮತ್ತು ಇವುಗಳನ್ನು ಹೊಂದಾಣಿಕೆ ಮಾಡುವುದು ಹೇಗೆ ಎಂಬ ಕುರಿತು families.google.com ನಲ್ಲಿ ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> <ph name="PRINTER_NAME" /> ಗೆ ಮುದ್ರಿಸಲು ಪ್ರಯತ್ನಿಸುತ್ತಿದೆ</translation>
 <translation id="6054305421211936131">ಸ್ಮಾರ್ಟ್ ಕಾರ್ಡ್ ಮೂಲಕ ಸೈನ್ ಇನ್ ಮಾಡಿ</translation>
 <translation id="6059276912018042191">ಇತ್ತೀಚಿನ Chrome ಟ್ಯಾಬ್‌ಗಳು</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1890,6 +1905,7 @@
 <translation id="6337159624125741244">ಫುಲ್‌ಸ್ಕ್ರೀನ್ ಮ್ಯಾಗ್ನಿಫೈರ್ ಆನ್ ಆಗಿದೆ</translation>
 <translation id="6338485349199627913"><ph name="DISPLAY_NAME" /> ಎಂಬುದು <ph name="MANAGER" /> ಮೂಲಕ ನಿರ್ವಹಿಸಲಾದ ಒಂದು ನಿರ್ವಹಿಸಿದ ಸೆಶನ್ ಆಗಿದೆ</translation>
 <translation id="6340148837564298498">ನಿಮ್ಮ ಪಿನ್ ಅನ್ನು ನೀವು ಮರೆತಿದ್ದರೆ, ಈ ಬಳಕೆದಾರರನ್ನು ರಿಕವರ್ ಮಾಡಲು ಪ್ರಯತ್ನಿಸಿ.</translation>
+<translation id="634208815998129842">ಕಾರ್ಯ ನಿರ್ವಾಹಕ</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> ಅನ್ನು ಕನೆಕ್ಟ್ ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="6345418402353744910"><ph name="PROXY" /> ಪ್ರಾಕ್ಸಿಗಾಗಿ ನಿಮ್ಮ ಬಳಕೆದಾರರ ಹೆಸರು ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್‌ನ ಅಗತ್ಯವಿದೆ. ಇದರಿಂದ ನಿಮ್ಮ ನೆಟ್‌ವರ್ಕ್ ಅನ್ನು ನಿರ್ವಾಹಕರು ಕಾನ್ಫಿಗರ್ ಮಾಡಬಹುದು</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" /> ನಂತರ <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> ಅಥವಾ <ph name="KEY_THREE" /></translation>
@@ -2095,6 +2111,7 @@
 <translation id="6921427376813842559">ಸಾಧನವನ್ನು ಅಪ್‌ಡೇಟ್‌ ಮಾಡಿ</translation>
 <translation id="6929081673585394903">ಕಂಟ್ರೋಲ್‌ಗಳನ್ನು ತೋರಿಸಿ</translation>
 <translation id="6931576957638141829">ಇಲ್ಲಿ ಸೇವ್ ಮಾಡಿ</translation>
+<translation id="6935286146439255109">ಪೇಪರ್ ಟ್ರೇ ಕಾಣಿಸುತ್ತಿಲ್ಲ</translation>
 <translation id="6935857786205183008">ಪೋರ್ಟ್ರೇಟ್</translation>
 <translation id="6942518653766415536">ರೆಕಾರ್ಡಿಂಗ್ ಫಾರ್ಮ್ಯಾಟ್ ಮೆನು</translation>
 <translation id="6945221475159498467">ಆಯ್ಕೆಮಾಡಿ</translation>
@@ -2117,6 +2134,7 @@
 <translation id="6988094684494323731">Linux ಕಂಟೇನರ್ ಅನ್ನು ಪ್ರಾರಂಭಿಸಲಾಗುತ್ತಿದೆ</translation>
 <translation id="7000027735917578303">ವಿಂಡೋಸ್ ಮತ್ತು ಡೆಸ್ಕ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳು</translation>
 <translation id="7001036685275644873">Linux ಆ್ಯಪ್‌ಗಳು &amp; ಫೈಲ್‌ಗಳನ್ನು ಬ್ಯಾಕಪ್ ಮಾಡಲಾಗುತ್ತಿದೆ</translation>
+<translation id="7001066449188684145"><ph name="PRINTER_NAME" /> ಅನ್ನು ಪ್ರಿಂಟ್ ಮಾಡಲು ಗುರುತಿಸುವಿಕೆ ಅಗತ್ಯವಿದೆ. ನಿಮ್ಮ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.</translation>
 <translation id="7004910047186208204">ಮೊಬೈಲ್ ಡೇಟಾಗೆ ಕನೆಕ್ಟ್ ಮಾಡಿ</translation>
 <translation id="7005239792648594238">ಪ್ರಾರಂಭಿಸಲು ಆ್ಯಪ್ ತೆರೆಯಿರಿ</translation>
 <translation id="7014684956566476813"><ph name="DEVICE_NAME" /> ಹೆಸರಿನ ಸಾಧನಕ್ಕೆ ಕನೆಕ್ಟ್ ಮಾಡಲಾಗಿದೆ</translation>
@@ -2156,6 +2174,7 @@
 <translation id="7108254681523785542">ಇದನ್ನು ಪೇಸ್ಟ್ ಮಾಡಲು ಐಟಂ ಅನ್ನು ಆಯ್ಕೆಮಾಡಿ. ನೀವು <ph name="SHORTCUT_KEY_NAME" /> + v ಒತ್ತುವ ಮೂಲಕ ಕ್ಲಿಪ್‌ಬೋರ್ಡ್ ಅನ್ನು ನೋಡಬಹುದು.</translation>
 <translation id="7108338896283013870">ಮರೆಮಾಡಿ</translation>
 <translation id="7108933416628942903">ಈಗ ಲಾಕ್ ಮಾಡಿ</translation>
+<translation id="7116554090938189816">ಪ್ರಿಂಟರ್ SSL ಪ್ರಮಾಣಪತ್ರದ ಅವಧಿ ಮೀರಿದೆ. ಪ್ರಿಂಟರ್ ಅನ್ನು ಮರುಪ್ರಾರಂಭಿಸಿ ಮತ್ತು ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.</translation>
 <translation id="7116969082764510092">ಡೆಸ್ಕ್ 11</translation>
 <translation id="7118268675952955085">ಸ್ಕ್ರೀನ್‌ಶಾಟ್</translation>
 <translation id="7118597077555700347"><ph name="SEARCH_RESULT_TEXT" /> ಅನ್ನು ತೆರೆಯಿರಿ</translation>
@@ -2207,6 +2226,7 @@
 <translation id="7312210124139670355">ನಿಮ್ಮ ನಿರ್ವಾಹಕರು ನಿಮ್ಮ eSIM ಅನ್ನು ರೀಸೆಟ್ ಮಾಡುತ್ತಿದ್ದಾರೆ. ಇದಕ್ಕೆ ಕೆಲವು ನಿಮಿಷಗಳ ಕಾಲಾವಕಾಶ ಬೇಕಾಗಬಹುದು.</translation>
 <translation id="7312761820869643657">ಹಿಂದಿನ ಆವೃತ್ತಿಗೆ ಸಾಧನವನ್ನು ಅಪ್‌ಡೇಟ್‌ ಮಾಡಿ</translation>
 <translation id="7313193732017069507">ಕ್ಯಾಮರಾ ವಿಸ್ತರಿಸಿ</translation>
+<translation id="7325209047678309347">ಪೇಪರ್ ಜಾಮ್ ಆಗಿದೆ</translation>
 <translation id="7327989755579928735">ADB ಡೀಬಗ್ ಮಾಡುವಿಕೆಯನ್ನು <ph name="MANAGER" /> ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದೆ. ನಿಮ್ಮ <ph name="DEVICE_TYPE" /> ಅನ್ನು ಮರುಪ್ರಾರಂಭಿಸಿದ ನಂತರ, ಆ್ಯಪ್‌ಗಳನ್ನು ಅಪರಿಚಿತ ಮೂಲದಿಂದ ಲೋಡ್ ಮಾಡಲು ನಿಮಗೆ ಸಾಧ್ಯವಾಗುವುದಿಲ್ಲ.</translation>
 <translation id="73289266812733869">ಆಯ್ಕೆ ಮಾಡಲಾಗಿಲ್ಲ</translation>
 <translation id="7330397557116570022">ಉಕ್ತಲೇಖನವನ್ನು ಬಳಸಲು ಪಠ್ಯದ ಫೀಲ್ಡ್‌ಗೆ ಹೋಗಿ</translation>
@@ -2581,6 +2601,7 @@
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">ಕಳಪೆ ಔಟ್‌‌ಪುಟ್</translation>
 <translation id="8345019317483336363"><ph name="WINDOW_TITLE" /> ವಿಂಡೋ ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ</translation>
+<translation id="8347227221149377169">ಮುದ್ರಣ ಕಾರ್ಯಗಳು</translation>
 <translation id="8349826889576450703">ಲಾಂಚರ್</translation>
 <translation id="8349964124165471584">ಹೊಸ ವಿಂಡೋದಲ್ಲಿ ಲಿಂಕ್ ತೆರೆಯಿರಿ</translation>
 <translation id="8351131234907093545">ಟಿಪ್ಪಣಿ ರಚಿಸಿ</translation>
@@ -2619,6 +2640,7 @@
 <translation id="8458259704995116343">VM ಅನ್ನು ಪ್ರಾರಂಭಿಸುವುದು ವಿಫಲವಾಗಿದೆ.</translation>
 <translation id="84613761564611563">ನೆಟ್‌ವರ್ಕ್ ಕಾನ್ಫಿಗರ್ UI ವಿನಂತಿಸಲಾಗಿದೆ, ದಯವಿಟ್ಟು ಕಾಯಿರಿ...</translation>
 <translation id="8462305545768648477">ಆಯ್ಕೆಮಾಡಿ ಮತ್ತು ಆಲಿಸಿ ಅನ್ನು ಮುಚ್ಚಿರಿ</translation>
+<translation id="8463001014623882202">ದೃಢೀಕರಣ ವಿಫಲವಾಗಿದೆ</translation>
 <translation id="8466665972451889002"><ph name="GROUP_NAME" /> ನಲ್ಲಿನ ಐಟಂಗಳನ್ನು ತೋರಿಸಿ</translation>
 <translation id="8468806060683421065">ಕೊನೆಯ ದಿನಾಂಕ <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" />, <ph name="FEATURE_STATE" /> <ph name="FEATURE_NAME" /> ಹೊಂದಿದೆ.</translation>

@@ -74,7 +74,10 @@ public class SidePanelDevFeatureIntegrationTest {
         // Act: Toggle the dev feature.
         ThreadUtils.runOnUiThreadBlocking(sidePanelDevFeature::toggle);
 
-        // Assert: The dev feature is shown.
+        // Assert: The dev feature reports it has content to show.
+        assertTrue(ThreadUtils.runOnUiThreadBlocking(sidePanelDevFeature::hasDevContentToShow));
+
+        // Assert: The dev content is shown in the side panel container.
         var sidePanelContainerCoordinator = getSidePanelContainerCoordinator();
         var sidePanelDevFeatureContent =
                 ThreadUtils.runOnUiThreadBlocking(
@@ -94,7 +97,10 @@ public class SidePanelDevFeatureIntegrationTest {
         // Act: Toggle the dev feature again.
         ThreadUtils.runOnUiThreadBlocking(sidePanelDevFeature::toggle);
 
-        // Assert: The dev feature is hidden.
+        // Assert: The dev feature reports it has no content to show.
+        assertFalse(ThreadUtils.runOnUiThreadBlocking(sidePanelDevFeature::hasDevContentToShow));
+
+        // Assert: The dev feature is not shown in the side panel container..
         assertFalse(
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> sidePanelContainerCoordinator.isShowing(sidePanelContent)));

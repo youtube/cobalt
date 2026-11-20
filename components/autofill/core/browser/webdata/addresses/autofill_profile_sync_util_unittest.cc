@@ -987,7 +987,6 @@ class AutofillProfileSyncUtilTest
     features_.InitWithFeatures(
         {
             features::kAutofillUseINAddressModel,
-            features::kAutofillSupportPhoneticNameForJP,
             features::kAutofillSupportSplitZipCode,
         },
         {});

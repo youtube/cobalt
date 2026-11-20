@@ -5,10 +5,11 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_PERFORMANCE_CONTROLS_MEMORY_SAVER_BUBBLE_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_PERFORMANCE_CONTROLS_MEMORY_SAVER_BUBBLE_VIEW_H_
 
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_bubble_observer.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
 #include "ui/views/view.h"
+
+class BrowserWindowInterface;
 
 class MemorySaverBubbleView {
  public:
@@ -22,7 +23,7 @@ class MemorySaverBubbleView {
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kMemorySaverDialogCancelButton);
 
   static views::BubbleDialogModelHost* ShowBubble(
-      Browser* browser,
+      BrowserWindowInterface* browser,
       views::BubbleAnchor anchor,
       MemorySaverBubbleObserver* observer);
 

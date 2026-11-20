@@ -16,6 +16,7 @@
 #include "base/win/windows_types.h"
 #include "chrome/updater/get_updater_scope.h"
 #include "chrome/updater/registration_data.h"
+#include "chrome/updater/util/util.h"
 #include "chrome/updater/util/win_util.h"
 
 namespace updater {
@@ -65,7 +66,10 @@ std::optional<std::string> ValidateStringEmptyOk(const wchar_t* value,
 }
 
 std::optional<std::string> ValidateAppId(const wchar_t* app_id) {
-  return ValidateStringEmptyNotOk(app_id, kMaxStringLen);
+  std::optional<std::string> app_id_s =
+      ValidateStringEmptyNotOk(app_id, kMaxStringLen);
+  return app_id_s && IsValidAppId(*app_id_s) ? std::move(app_id_s)
+                                             : std::nullopt;
 }
 
 std::optional<std::string> ValidateCommandId(const wchar_t* command_id) {

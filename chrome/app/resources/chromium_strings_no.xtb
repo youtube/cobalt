@@ -73,6 +73,7 @@
 <translation id="1820835682567584003">Chromium prøver å <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Neste gang du åpner Chromium på <ph name="DEVICE_TYPE" />, ser du en forespørsel om å bruke Google Passordlagring.</translation>
 <translation id="1838374766361614909">Fjern søket</translation>
+<translation id="1846849503013521481">For å sikre arbeidet ditt i Chromium kan organisasjonen din se eller administrere bestemt informasjon</translation>
 <translation id="18552579716432081">For å slette nettlesingsdata kun på denne enheten og beholde dem i Google-kontoen, <ph name="BEGIN_LINK" />logg av Chrome<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Last ned Chromium på telefonen for å åpne eller opprette nye fanegrupper uansett hvor du er.</translation>
 <translation id="185970820835152459">Du kan administrere de påloggede Google-kontoene dine. Google-kontoene dine brukes i Chromium-nettleseren, Play-butikken, Gmail med mer. Hvis du vil legge til en konto for noen andre, for eksempel et familiemedlem, legger du til en ny person på <ph name="DEVICE_TYPE" /> i stedet. <ph name="LINK_BEGIN" />Finn ut mer<ph name="LINK_END" /></translation>
@@ -435,6 +436,7 @@ Hvis denne siden ikke fungerer som forventet, kan du prøve å tillate optimalis
 <translation id="5953657885167112863">Gi Chromium et personlig preg</translation>
 <translation id="5960071705175224773">Innstillingene dine er endret av en ukjent app</translation>
 <translation id="5968400720580217226">AI-modus</translation>
+<translation id="5977420883993828287">Festet. Bruk Kontekstuelle oppgaver igjen fra verktøylinjen</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Organisasjonen din lukker Chromium-nettleseren automatisk når den ikke har vært i bruk på ett minutt.}other{Organisasjonen din lukker Chromium-nettleseren automatisk når den ikke har vært i bruk på # minutter.}}</translation>
 <translation id="5987687638152509985">Oppdater Chromium for å starte synkroniseringen</translation>
 <translation id="6003112304606738118">Laster ned … <ph name="HOURS" /> time(r) igjen</translation>
@@ -539,6 +541,17 @@ Det er mulig at enkelte funksjoner ikke er tilgjengelige. Angi en annen profilka
 <translation id="6896758677409633944">Kopiér</translation>
 <translation id="6901631050894301805">Angi Chromium som standardnettleser, og fest den til oppgavelinjen</translation>
 <translation id="6909503629704372277">&amp;Administrer Chromium-profiler</translation>
+<translation id="6919942714452658456">Denne handlingen vil:
+          <ph name="LINE_BREAKS" />
+            • tilbakestille oppstartssiden, Ny fane-siden, søkemotoren og festede faner
+            <ph name="LINE_BREAK" />
+            • slå av utvidelser
+            <ph name="LINE_BREAK" />
+            • slette informasjonskapsler og andre midlertidige nettstedsdata
+            <ph name="LINE_BREAK" />
+            • tilbakestille Chromium-snarveier
+            <ph name="LINE_BREAKS" />
+            Bokmerker, loggen og lagrede passord vil ikke bli påvirket.</translation>
 <translation id="6934579572334859869">Spør Bildesøk om dette bildet</translation>
 <translation id="6948031725951063910">Du har nådd Chromiums grense på <ph name="BOOKMARK_LIMIT" /> bokmerker, så noen av bokmerkene dine er ikke lagret i Google-kontoen din ennå.
 
@@ -608,6 +621,7 @@ Chromium kan ikke gjenopprette innstillingen dine.</translation>
 <translation id="7686590090926151193">Chromium er ikke standardnettleseren din</translation>
 <translation id="7689606757190482937">Synkroniser og gi Chromium et personlig preg på alle enhetene dine</translation>
 <translation id="7699779824407626136">Chromium-oppdatering</translation>
+<translation id="7700735928747402058">Arbeidet ditt er sikret i Chromium</translation>
 <translation id="7716950018788545737">Oppgaven(e) er avsluttet.</translation>
 <translation id="77283119132245232">Leverer tjenester for systemsporing for <ph name="BROWSER_NAME" />. Hvis denne tjenesten er deaktivert, inkluderer ikke ytelsessporingene som nettleseren oppretter, systemomfattende hendelser som kontekstbytte og hendelser for trådklarhet.</translation>
 <translation id="7745317241717453663">Dette sletter nettlesingsdataene dine fra denne enheten. For å hente dataene dine igjen senere må du logge på Chromium som <ph name="USER_EMAIL" />.</translation>
@@ -639,6 +653,7 @@ Chromium kan ikke gjenopprette innstillingen dine.</translation>
 <translation id="8031714377769448844">Fest Chrome til oppgavelinjen for å få rask tilgang til den når som helst</translation>
 <translation id="80471789339884597">Installasjonen er fullført. Start alle nettlesere på nytt før du tar i bruk <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Vis alltid snarveien til bildesøk</translation>
+<translation id="8069447462453318634">Velg «Fest til verktøylinjen»</translation>
 <translation id="8077498902115777962">Deaktiver kjøring av Chromium i bakgrunnen for apper</translation>
 <translation id="80790299200510644">Bildesøk</translation>
 <translation id="8086881907087796310">Installasjonen mislyktes fordi datamaskinen ikke oppfyller minimumskravene til maskinvare.</translation>
@@ -720,6 +735,15 @@ Chromium kan ikke gjenopprette innstillingen dine.</translation>
 <translation id="8907580949721785412">Chromium forsøker å vise passord. Skriv inn Windows-passordet ditt for å tillate dette.</translation>
 <translation id="8932992523185907506">Chromium er ikke lenger standardnettleseren din. Vil du gjøre Chromium til standardnettleseren?</translation>
 <translation id="8941642502866065432">Kan ikke oppdatere Chromium</translation>
+<translation id="8944232836376404813">Denne handlingen vil:
+          <ph name="LINE_BREAKS" />
+            • tilbakestille oppstartssiden, Ny fane-siden, søkemotoren og festede faner
+            <ph name="LINE_BREAK" />
+            • slå av utvidelser
+            <ph name="LINE_BREAK" />
+            • slette informasjonskapsler og andre midlertidige nettstedsdata
+            <ph name="LINE_BREAKS" />
+            Bokmerker, loggen og lagrede passord vil ikke bli påvirket.</translation>
 <translation id="897581876605952338">Chromium Enterprise-logo</translation>
 <translation id="8981150672034878610">Chromium kunne ikke starte, fordi det oppsto en feil ved åpning av profilen din. Prøv å starte Chromium på nytt.</translation>
 <translation id="8988036198400390003">Administrer Chromium-profiler</translation>

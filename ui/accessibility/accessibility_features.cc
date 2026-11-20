@@ -180,6 +180,15 @@ CanvasAccessibilityMode GetCanvasAccessibilityMode() {
   return kCanvasAccessibilityMode.Get();
 }
 
+BASE_FEATURE(kEnableCollectAccessibilityHeuristicInCanvasUkm,
+             "EnableCollectAccessibilityHeuristicInCanvasUkm",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsCollectAccessibilityHeuristicInCanvasUkmEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kEnableCollectAccessibilityHeuristicInCanvasUkm);
+}
+
 #if BUILDFLAG(IS_WIN)
 BASE_FEATURE(kAccessibilityWinAXFragmentRootParent,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -434,7 +443,6 @@ bool IsReadAnythingImagesViaAlgorithmEnabled() {
       ::features::kReadAnythingImagesViaAlgorithm);
 }
 
-BASE_FEATURE(kReadAnythingDocsIntegration, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsReadAnythingDocsIntegrationEnabled() {
   return base::FeatureList::IsEnabled(
       ax::mojom::features::kReadAnythingDocsIntegration);

@@ -83,8 +83,7 @@ ui::NativeTheme* GetNativeThemeDeprecated(content::WebContents* web_contents) {
 
     if (browser) {
       // Find for WebContents hosted in a tab.
-      native_theme =
-          browser->GetBrowserForMigrationOnly()->window()->GetNativeTheme();
+      native_theme = BrowserWindow::FromBrowser(browser)->GetNativeTheme();
     }
 
     if (!native_theme) {
@@ -131,7 +130,7 @@ const ui::ThemeProvider* GetThemeProviderDeprecated(
   BrowserWindowInterface* browser =
       ProfileBrowserCollection::GetForProfile(profile)->GetLastActiveBrowser();
   if (browser) {
-    return browser->GetBrowserForMigrationOnly()->window()->GetThemeProvider();
+    return BrowserWindow::FromBrowser(browser)->GetThemeProvider();
   }
 
   // Fallback 2: get the theme provider from the last created browser.
@@ -143,8 +142,7 @@ const ui::ThemeProvider* GetThemeProviderDeprecated(
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
 
   return browser_window_interface
-             ? browser_window_interface->GetBrowserForMigrationOnly()
-                   ->window()
+             ? BrowserWindow::FromBrowser(browser_window_interface)
                    ->GetThemeProvider()
              : nullptr;
 }

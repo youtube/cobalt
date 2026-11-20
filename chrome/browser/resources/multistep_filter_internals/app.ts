@@ -23,7 +23,7 @@ export interface LogEntry {
   formattedTime: string;
   navigationId: bigint;
   eventType: string;
-  sourceEtldPlus1: string;
+  host: string;
   details: string;
   searchKey: string;
 }
@@ -129,17 +129,16 @@ export class MultistepFilterInternalsAppElement extends CrLitElement {
 
     return {
       timestamp: mojoLog.timestamp,
-      sourceEtldPlus1: mojoLog.sourceEtldPlus1 || '',
+      host: mojoLog.host || '',
       navigationId: mojoLog.navigationId,
       formattedTime,
       eventType,
       details,
       // Include more fields in search index
-      searchKey:
-          `${formattedTime} ${eventType} ${mojoLog.sourceEtldPlus1 || ''} ${
-              mojoLog.navigationId ? mojoLog.navigationId.toString() :
-                                     ''} ${details}`
-              .toLowerCase(),
+      searchKey: `${formattedTime} ${eventType} ${mojoLog.host || ''} ${
+                     mojoLog.navigationId ? mojoLog.navigationId.toString() :
+                                            ''} ${details}`
+                     .toLowerCase(),
     };
   }
 

@@ -132,10 +132,8 @@ SkColor NativeThemeBase::GetScrollbarThumbColor(
     const ColorProvider* color_provider,
     State state,
     const ScrollbarThumbExtraParams& extra_params) const {
-  const SkColor bg_color =
-      GetContrastingColorForScrollbarPart(extra_params.track_color,
-                                          std::nullopt, state)
-          .value_or(GetControlColor(kScrollbarTrack, {}, {}, color_provider));
+  const SkColor bg_color = extra_params.track_color.value_or(
+      GetControlColor(kScrollbarTrack, {}, {}, color_provider));
   if (const std::optional<SkColor> color = GetContrastingColorForScrollbarPart(
           extra_params.thumb_color, bg_color, state)) {
     return color.value();

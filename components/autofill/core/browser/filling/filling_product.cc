@@ -73,6 +73,7 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kSaveAndFillCreditCardEntry:
     case SuggestionType::kScanCreditCard:
     case SuggestionType::kVirtualCreditCardEntry:
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return FillingProduct::kCreditCard;
     case SuggestionType::kMerchantPromoCodeEntry:
       return FillingProduct::kMerchantPromoCode;
@@ -114,6 +115,7 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kPersonalContextNotice:
       return FillingProduct::kNone;

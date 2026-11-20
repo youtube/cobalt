@@ -49,6 +49,7 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GaiaUrls {
   GURL SigninChromePasskeyUnlockUrl(size_t account_index) const;
   GURL SigninChromeSyncKeysRecoverabilityDegradedUrl(
       size_t account_index) const;
+  GURL SigninChromePasskeyUnlockDesktopEmbeddedUrl(size_t account_index) const;
   const GURL& service_logout_url() const;
   const GURL& oauth_multilogin_url() const;
   const GURL& oauth_user_info_url() const;
@@ -123,6 +124,7 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GaiaUrls {
   GURL signin_chrome_sync_keys_retrieval_url_;
   GURL signin_chrome_passkey_unlock_url_;
   GURL signin_chrome_sync_keys_recoverability_degraded_url_;
+  GURL signin_chrome_passkey_unlock_desktop_embedded_url_;
   GURL service_logout_url_;
   GURL blank_page_url_;
   GURL oauth_multilogin_url_;

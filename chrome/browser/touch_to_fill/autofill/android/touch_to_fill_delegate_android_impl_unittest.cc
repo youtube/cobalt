@@ -815,21 +815,6 @@ TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
 }
 
 TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
-       TryToShowTouchToFillFailsIfFormIsNotSecure) {
-  // Simulate non-secure form.
-  form_ = test::CreateTestCreditCardFormData(/*is_https=*/false,
-                                             /*use_month_type=*/false);
-
-  ASSERT_FALSE(touch_to_fill_delegate_->IsShowingTouchToFill());
-
-  TryToShowTouchToFill(/*expected_success=*/false);
-
-  histogram_tester_.ExpectUniqueSample(
-      kUmaTouchToFillCreditCardTriggerOutcome,
-      TouchToFillPaymentMethodTriggerOutcome::kFormOrClientNotSecure, 1);
-}
-
-TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
        TryToShowTouchToFillFailsIfClientIsNotSecure) {
   // Simulate non-secure client.
   autofill_client().set_last_committed_primary_main_frame_url(

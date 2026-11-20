@@ -207,6 +207,26 @@ public class OmniboxMetrics {
                 dropdownAvailable);
     }
 
+    /** Record whether the SuggestionsDropdown inflation thread matches the expected thread. */
+    public static void recordSuggestionsDropdownInflationThreadMatchesExpectedThread(
+            boolean runsOnExpectedThread) {
+        RecordHistogram.recordBooleanHistogram(
+                "Android.Omnibox.SuggestionsDropdown.InflationThreadMatches", runsOnExpectedThread);
+    }
+
+    /** Record whether the prewarming thread matches the expected thread. */
+    public static void recordPreWarmingThreadMatchesExpectedThread(boolean runsOnExpectedThread) {
+        RecordHistogram.recordBooleanHistogram(
+                "Android.Omnibox.SuggestionsDropdown.PreWarmingThreadMatches",
+                runsOnExpectedThread);
+    }
+
+    /** Record whether forced synchronous inflation occurred for the suggestions container. */
+    public static void recordForcedSyncInflation(boolean isForced) {
+        RecordHistogram.recordBooleanHistogram(
+                "Android.Omnibox.SuggestionsDropdown.ForcedSyncInflation", isForced);
+    }
+
     /**
      * Record the total cumulative thread time spent creating all views in the PrewarmingRecycled
      * View Pool when async view inflation is disabled.

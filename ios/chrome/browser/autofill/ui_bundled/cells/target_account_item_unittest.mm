@@ -5,7 +5,6 @@
 #import "ios/chrome/browser/autofill/ui_bundled/cells/target_account_item.h"
 
 #import "base/apple/foundation_util.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -31,7 +30,7 @@ TEST_F(TargetAccountItemTest, ItemProperties) {
   EXPECT_FALSE(targetAccountCell.emailLabel.text);
   EXPECT_FALSE(targetAccountCell.avatarBadge.image);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NSEQ(email, targetAccountCell.emailLabel.text);
   EXPECT_FALSE(targetAccountCell.avatarBadge.isHidden);
 }

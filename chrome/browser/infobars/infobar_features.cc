@@ -11,13 +11,16 @@ BASE_FEATURE(kCentralizedInfoBarFramework, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
                    kEnableAll,
                    &kCentralizedInfoBarFramework,
-                   "enable_all",
                    false);
 
 BASE_FEATURE_PARAM(bool,
                    kMigratedCollectedCookies,
                    &kCentralizedInfoBarFramework,
-                   "collected_cookies",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMigratedInstallerDownloader,
+                   &kCentralizedInfoBarFramework,
                    false);
 
 const base::FeatureParam<bool>* GetInfoBarMigrationParam(
@@ -25,6 +28,8 @@ const base::FeatureParam<bool>* GetInfoBarMigrationParam(
   switch (infobar_id) {
     case InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE:
       return &kMigratedCollectedCookies;
+    case InfoBarDelegate::INSTALLER_DOWNLOADER_INFOBAR_DELEGATE:
+      return &kMigratedInstallerDownloader;
     default:
       return nullptr;
   }

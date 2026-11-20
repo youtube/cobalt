@@ -50,6 +50,12 @@ class FormActivityTabHelper
   virtual void AddObserver(FormActivityObserver* observer);
   virtual void RemoveObserver(FormActivityObserver* observer);
 
+  // Forces `submitted_by_user` to be true in `FormSubmissionHandler`.
+  // Used by tests simulating a click event to submit forms.
+  void SetForceSubmittedByUserForTesting(bool force) {
+    force_submitted_by_user_for_testing_ = force;
+  }
+
  private:
   friend class web::WebStateUserData<FormActivityTabHelper>;
 
@@ -74,6 +80,8 @@ class FormActivityTabHelper
 
   // The observers.
   base::ObserverList<FormActivityObserver>::Unchecked observers_;
+
+  bool force_submitted_by_user_for_testing_ = false;
 };
 
 }  // namespace autofill

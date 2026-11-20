@@ -685,10 +685,11 @@ void HTMLSlotElement::NotifySlottedNodesOfFlatTreeChangeNaive(
       ++j;
       continue;
     }
-    if (old_index_map.Contains(new_node)) {
-      wtf_size_t old_index = old_index_map.at(new_node);
+    if (auto it = old_index_map.find(new_node);
+        it != old_index_map.end()) {
+      wtf_size_t old_index = it->value;
       if (old_index > i) {
-        i = old_index_map.at(new_node) + 1;
+        i = old_index + 1;
         ++j;
         continue;
       }
@@ -714,8 +715,9 @@ void HTMLSlotElement::NotifySlottedNodesOfFlatTreeChangeNaive(
       --j;
       continue;
     }
-    if (old_index_map.Contains(new_node)) {
-      wtf_size_t old_index = old_index_map.at(new_node);
+    if (auto it = old_index_map.find(new_node);
+        it != old_index_map.end()) {
+      wtf_size_t old_index = it->value;
       if (old_index < i - 1) {
         i = old_index;
         --j;

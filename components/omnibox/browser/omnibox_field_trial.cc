@@ -622,8 +622,7 @@ bool IsHideSuggestionGroupHeadersEnabledInContext(
 bool IsAimOmniboxEntrypointEnabled(
     const AimEligibilityService* aim_eligibility_service) {
   // `aim_eligibility_service` can be null in tests.
-  return base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint) &&
-         aim_eligibility_service && aim_eligibility_service->IsAimEligible();
+  return aim_eligibility_service && aim_eligibility_service->IsAimEligible();
 }
 
 bool IsAimStarterPackEnabled(

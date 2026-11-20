@@ -671,11 +671,6 @@ BASE_FEATURE(kRestrictOrientationLockToPhones,
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kSandboxedProcessServiceLimitOnAndroid,
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(int,
-                   kSandboxedProcessServiceLimitOnAndroidCount,
-                   &kSandboxedProcessServiceLimitOnAndroid,
-                   "count",
-                   98);
 
 BASE_FEATURE(kScrollAfterOSKViewportShrinkFix,
              base::FEATURE_ENABLED_BY_DEFAULT);

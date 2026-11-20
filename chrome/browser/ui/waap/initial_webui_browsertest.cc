@@ -15,9 +15,11 @@
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/waap/waap_utils.h"
@@ -26,6 +28,7 @@
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_test_utils.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/chrome_switches.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/common/webui_url_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -35,6 +38,7 @@
 #include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/metrics/mapping/metrics_mapping_features.h"
 #include "components/metrics/mapping/metrics_name_mapping.pb.h"
+#include "components/startup_metric_utils/browser/startup_metric_utils.h"
 #include "components/ukm/gmock_matchers.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "components/viz/common/features.h"
@@ -974,5 +978,87 @@ IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest,
 }
 
 #endif  // BUILDFLAG(IS_WIN)
+
+class InitialWebUISameStartupPopupBrowserTest
+    : public InitialWebUIBrowserTestBase {
+ public:
+  InitialWebUISameStartupPopupBrowserTest() {
+    set_exit_when_last_browser_closes(false);
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    InitialWebUIBrowserTestBase::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(switches::kNoStartupWindow);
+    command_line->AppendSwitch(switches::kKeepAliveForTest);
+  }
+};
+
+// Verify that startup metrics are not incorrectly hijacked by a popup window
+// when both a popup and a normal window are created during startup.
+// Popups do not have reload buttons and thus cannot report complete startup
+// metrics, so they should be ignored by the InitialWebUIWindowMetricsManager.
+IN_PROC_BROWSER_TEST_F(InitialWebUISameStartupPopupBrowserTest,
+                       PopupPaintsFirstConsistentMetrics) {
+  ASSERT_EQ(0u, GlobalBrowserCollection::GetInstance()->GetSize());
+
+  Profile* profile = ProfileManager::GetLastUsedProfile();
+  ASSERT_TRUE(profile);
+
+  // Create popup browser.
+  Browser::CreateParams popup_params(Browser::TYPE_POPUP, profile, true);
+  Browser* popup_browser = Browser::Create(popup_params);
+  ASSERT_TRUE(popup_browser);
+
+  // Create normal browser.
+  Browser::CreateParams normal_params(Browser::TYPE_NORMAL, profile, true);
+  Browser* normal_browser = Browser::Create(normal_params);
+  ASSERT_TRUE(normal_browser);
+
+  auto* popup_manager = InitialWebUIWindowMetricsManager::From(popup_browser);
+  auto* normal_manager = InitialWebUIWindowMetricsManager::From(normal_browser);
+
+  // After the fix, the popup manager should NOT be instantiated.
+  ASSERT_EQ(nullptr, popup_manager);
+  ASSERT_NE(nullptr, normal_manager);
+
+  base::HistogramTester histogram_tester;
+
+  base::TimeTicks t0 = base::TimeTicks::Now();
+
+  // Reset startup metrics utility state to enable logging even with
+  // kNoStartupWindow.
+  startup_metric_utils::GetBrowser().ResetSessionForTesting();
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // On ChromeOS, startup metrics logging requires the time origin to be
+  // initialized via RecordWebContentsStartTime(). Since this test uses
+  // kNoStartupWindow, the normal browser launch flow is bypassed and we must
+  // initialize it manually.
+  startup_metric_utils::GetBrowser().RecordWebContentsStartTime(t0);
+#endif
+
+  // Reset static state of the manager.
+  InitialWebUIWindowMetricsManager::ResetForTesting();
+
+  // Simulate normal window events.
+  normal_manager->OnBrowserWindowShowRequested(t0);
+  normal_manager->OnBrowserWindowFirstPresentation(t0 +
+                                                   base::Milliseconds(100));
+  normal_manager->OnReloadButtonFirstPaint(t0 + base::Milliseconds(150));
+
+  // Verify histograms.
+  // We expect all startup metrics to be recorded from the normal window.
+  histogram_tester.ExpectTotalCount(
+      "InitialWebUI.Startup.BrowserWindow.FirstPaint", 1);
+
+  histogram_tester.ExpectTotalCount(
+      "InitialWebUI.Startup.ReloadButton.FirstPaint", 1);
+
+  histogram_tester.ExpectTotalCount(
+      "InitialWebUI.Startup.BrowserWindowToReloadButton.FirstPaintGap", 1);
+
+  histogram_tester.ExpectTotalCount(
+      "InitialWebUI.Startup.BrowserWindow.ShowRequestedToFirstPaint", 1);
+}
 
 }  // namespace waap

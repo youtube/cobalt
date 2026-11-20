@@ -46,9 +46,8 @@ const CGFloat kFolderCellHorizonalInset = 17.0;
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)cell {
+  [super configureCell:cell];
   TableViewBookmarksFolderCell* folderCell =
       base::apple::ObjCCastStrict<TableViewBookmarksFolderCell>(cell);
   switch (self.style) {

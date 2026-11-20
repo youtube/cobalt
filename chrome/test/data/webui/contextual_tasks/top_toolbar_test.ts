@@ -14,10 +14,11 @@ import type {CrIconElement} from 'chrome://resources/cr_elements/cr_icon/cr_icon
 import type {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {assertHTMLElement} from './test_utils.js';
+import {assertHTMLElement} from './contextual_tasks_test_utils.js';
 
 suite('TopToolbarTest', () => {
   let topToolbar: TopToolbarElement;
@@ -118,6 +119,7 @@ suite('TopToolbarTest', () => {
         tab: {
           title: 'Tab 1',
           url: 'https://example.com',
+          hasChromeTabData: false,
           tabId: 1,
         },
       }];
@@ -133,6 +135,7 @@ suite('TopToolbarTest', () => {
       const tab = {
         title: 'Tab 1',
         url: 'https://example.com',
+        hasChromeTabData: false,
         tabId: 1,
       };
       topToolbar.contextInfos = [{tab: tab}];
@@ -269,6 +272,7 @@ suite('TopToolbarTest', () => {
           tab: {
             title: 'Tab 1',
             url: 'https://example.com/1',
+            hasChromeTabData: false,
             tabId: 1,
           },
         },
@@ -276,6 +280,7 @@ suite('TopToolbarTest', () => {
           tab: {
             title: 'Tab 2',
             url: 'https://example.com/2',
+            hasChromeTabData: false,
             tabId: 2,
           },
         },
@@ -283,6 +288,7 @@ suite('TopToolbarTest', () => {
           tab: {
             title: 'Tab 3',
             url: 'https://example.com/3',
+            hasChromeTabData: false,
             tabId: 3,
           },
         },
@@ -306,6 +312,7 @@ suite('TopToolbarTest', () => {
           tab: {
             title: 'Tab 1',
             url: 'https://example.com/1',
+            hasChromeTabData: false,
             tabId: 1,
           },
         },
@@ -313,6 +320,7 @@ suite('TopToolbarTest', () => {
           tab: {
             title: 'Tab 2',
             url: 'https://example.com/2',
+            hasChromeTabData: false,
             tabId: 2,
           },
         },
@@ -320,6 +328,7 @@ suite('TopToolbarTest', () => {
           tab: {
             title: 'Tab 3',
             url: 'https://example.com/3',
+            hasChromeTabData: false,
             tabId: 3,
           },
         },
@@ -327,6 +336,7 @@ suite('TopToolbarTest', () => {
           tab: {
             title: 'Tab 4',
             url: 'https://example.com/4',
+            hasChromeTabData: false,
             tabId: 4,
           },
         },
@@ -419,8 +429,8 @@ suite('TopToolbarTest', () => {
     });
 
     const isPhone = loadTimeData.getBoolean('isSmallDeviceFormFactor');
-    (isPhone ? test.skip :
-               test)('handles more menu interactions', async () => {
+    (isPhone ? test.skip : test)('handles more menu interactions', async () => {
+      const metrics = fakeMetricsPrivate();
       const moreButton =
           topToolbar.shadowRoot.querySelector<CrIconButtonElement>(
               '#overflowMenuButton');
@@ -433,6 +443,14 @@ suite('TopToolbarTest', () => {
 
       const buttons = menu.shadowRoot.querySelectorAll('button');
       assertEquals(3, buttons.length);
+
+      assertEquals(
+          2,
+          metrics.count('ContextualTasks.WebUI.UserAction.OpenOverflowMenu'));
+      assertEquals(
+          1,
+          metrics.count(
+              'ContextualTasks.WebUI.UserAction.OpenOverflowMenu', true));
     });
 
     test('menu button visibility independent of ai page state', async () => {
@@ -509,6 +527,37 @@ suite('TopToolbarTest', () => {
       helpButton.click();
       await proxy.handler.whenCalled('openFeedbackUi');
     });
+
+    test('calls maybeTriggerPinningPromo when AI page is shown', async () => {
+      topToolbar.isAiPage = false;
+      await microtasksFinished();
+      proxy.handler.reset();
+
+      topToolbar.isAiPage = true;
+      await microtasksFinished();
+
+      // <if expr="is_android">
+      assertEquals(0, proxy.handler.getCallCount('maybeTriggerPinningPromo'));
+      // </if>
+      // <if expr="not is_android">
+      await proxy.handler.whenCalled('maybeTriggerPinningPromo');
+      // </if>
+    });
+
+    test(
+        'does not call maybeTriggerPinningPromo when onboarding tooltip is showing',
+        async () => {
+          topToolbar.isAiPage = false;
+          topToolbar.onboardingTooltipShowing = true;
+          await microtasksFinished();
+          proxy.handler.reset();
+
+          topToolbar.isAiPage = true;
+          await microtasksFinished();
+
+          assertEquals(
+              0, proxy.handler.getCallCount('maybeTriggerPinningPromo'));
+        });
   });
 
   (loadTimeData.getBoolean('isSmallDeviceFormFactor') ? suite.skip : suite)(
@@ -563,6 +612,7 @@ suite('TopToolbarTest', () => {
         tab: {
           title: 'Tab 1',
           url: 'https://example.com/1',
+          hasChromeTabData: false,
           tabId: 1,
         },
       },
@@ -582,6 +632,7 @@ suite('TopToolbarTest', () => {
         tab: {
           title: 'Tab 2',
           url: 'https://example.com/2',
+          hasChromeTabData: false,
           tabId: 2,
         },
       },

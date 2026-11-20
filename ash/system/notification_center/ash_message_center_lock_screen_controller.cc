@@ -4,8 +4,6 @@
 
 #include "ash/system/notification_center/ash_message_center_lock_screen_controller.h"
 
-#include "ash/constants/ash_features.h"
-#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/login/ui/lock_screen.h"
 #include "ash/public/cpp/system/toast_data.h"
@@ -18,7 +16,6 @@
 #include "ash/system/toast/toast_manager_impl.h"
 #include "ash/system/unified/unified_system_tray.h"
 #include "base/strings/utf_string_conversions.h"
-#include "components/prefs/pref_service.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/widget/widget.h"
 
@@ -48,24 +45,7 @@ AshMessageCenterLockScreenController::GetMode() {
   if (overridden_mode_for_testing_.has_value())
     return *overridden_mode_for_testing_;
 
-  if (!features::IsLockScreenNotificationsEnabled())
-    return Mode::PROHIBITED;
-
-  // User prefs may be null in some tests.
-  PrefService* user_prefs =
-      Shell::Get()->session_controller()->GetLastActiveUserPrefService();
-  if (!user_prefs)
-    return Mode::PROHIBITED;
-
-  const std::string& mode =
-      user_prefs->GetString(prefs::kMessageCenterLockScreenMode);
-  if (mode == prefs::kMessageCenterLockScreenModeShow)
-    return Mode::SHOW;
-  if (mode == prefs::kMessageCenterLockScreenModeHideSensitive &&
-      features::IsLockScreenHideSensitiveNotificationsSupported())
-    return Mode::HIDE_SENSITIVE;
-
-  return Mode::HIDE;
+  return Mode::PROHIBITED;
 }
 
 // static, only for testing

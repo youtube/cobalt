@@ -41,7 +41,7 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) BackendStorage {
     // backend) is true, the database will use write-ahead log journaling.
     // Returns no value in case of error (e.g., if the backend's files could not
     // be opened or created).
-    virtual std::optional<PendingBackend> MakePendingBackend(
+    virtual base::expected<PendingBackend, TransactionError> MakePendingBackend(
         Client client,
         const base::FilePath& directory,
         const base::FilePath& base_name,
@@ -119,9 +119,10 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) BackendStorage {
   // may be used to open only one `PersistentCache` -- connections to that cache
   // cannot be shared. If `journal_mode_wal` (which only applies to the SQLite
   // backend) is true, the database will use write-ahead log journaling. Returns
-  // no value in case of error (e.g., if the backend's files could not be opened
-  // or created).
-  std::optional<PendingBackend> MakePendingBackend(
+  // `TransactionError::kTransient` in case of an error for which a retry may
+  // succeed (e.g., `single_connection` is true and the main database file is
+  // in-use).
+  base::expected<PendingBackend, TransactionError> MakePendingBackend(
       const base::FilePath& base_name,
       bool single_connection,
       bool journal_mode_wal);

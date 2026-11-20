@@ -195,6 +195,7 @@ class CORE_EXPORT HTMLCanvasElement final
   HTMLCanvasAccessibilityManager* GetAccessibilityManagerForTesting() {
     return accessibility_manager_.Get();
   }
+  bool GetNeedsAccessibilitySupportHeuristic();
   void ClearCanvas2DLayerTexture() override;
 
   void SetNeedsPushProperties();
@@ -252,7 +253,7 @@ class CORE_EXPORT HTMLCanvasElement final
 
   bool IsPageVisible() const override;
 
-  // CanvasResourceProvider::Delegate implementation
+  // CanvasResourceProviderDelegate implementation
   void NotifyGpuContextLost() override;
   bool IsPrinting() const override;
 
@@ -272,6 +273,16 @@ class CORE_EXPORT HTMLCanvasElement final
   // OffscreenCanvasPlaceholder implementation.
   void SetOffscreenCanvasResource(
       scoped_refptr<ExportedCanvasResource>&&) override;
+
+  void RecordRenderedText(const String& text,
+                          const gfx::RectF& bounds,
+                          float font_height) override;
+  void ClearRenderedText(const gfx::RectF& rect) override;
+  void ClearRenderedText() override;
+  void UpdateCaptureRenderedText();
+
+  String CanvasAnnotation() const;
+
   void Trace(Visitor*) const override;
 
   static void RegisterRenderingContextFactory(

@@ -180,6 +180,57 @@ public class TabStripTransitionCoordinatorUnitTest {
     }
 
     @Test
+    public void suppressTabStrip_DesktopWindow() {
+        setUpTabStripTransitionCoordinator(
+                /* isInDesktopWindow= */ true, LARGE_DESKTOP_WINDOW_WIDTH);
+        verifyFadeTransitionState(/* expectedScrimOpacity= */ 0f);
+
+        int expectedHeight = TEST_TAB_STRIP_HEIGHT + mReservedTopPadding;
+        assertEquals(
+                "Tab strip height requested is incorrect.",
+                expectedHeight,
+                mTestHandler.heightRequested);
+
+        mTestHandler.reset();
+
+        mCoordinator.suppressTabStrip(true);
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
+
+        verifyFadeTransitionState(/* expectedScrimOpacity= */ 1f);
+        assertEquals("Height requested should be 0.", 0, mTestHandler.heightRequested);
+    }
+
+    @Test
+    public void suppressTabStrip_DesktopWindow_Toggle() {
+        setUpTabStripTransitionCoordinator(
+                /* isInDesktopWindow= */ true, LARGE_DESKTOP_WINDOW_WIDTH);
+        verifyFadeTransitionState(/* expectedScrimOpacity= */ 0f);
+        int expectedHeight = TEST_TAB_STRIP_HEIGHT + mReservedTopPadding;
+        assertEquals(
+                "Tab strip height requested is incorrect.",
+                expectedHeight,
+                mTestHandler.heightRequested);
+
+        mTestHandler.reset();
+
+        mCoordinator.suppressTabStrip(true);
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
+        verifyFadeTransitionState(/* expectedScrimOpacity= */ 1f);
+        assertEquals("Height requested should be 0.", 0, mTestHandler.heightRequested);
+
+        mTestHandler.reset();
+
+        mCoordinator.suppressTabStrip(false);
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
+
+        verifyFadeTransitionState(/* expectedScrimOpacity= */ 0f);
+        assertEquals(
+                "Height requested should be restored.",
+                expectedHeight,
+                mTestHandler.heightRequested);
+    }
+
+    @Test
     public void hideTabStrip() {
         setDeviceWidthDp(NARROW_NORMAL_WINDOW_WIDTH);
 
@@ -842,6 +893,37 @@ public class TabStripTransitionCoordinatorUnitTest {
                 .when(mSpyControlContainer)
                 .getHeight();
         simulateLayoutChange(LARGE_DESKTOP_WINDOW_WIDTH);
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
+        assertEquals(
+                "Height transition should update the strip top padding.",
+                TEST_TAB_STRIP_HEIGHT + mReservedTopPadding,
+                mTestHandler.heightRequested);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_STRIP_HEIGHT_TRANSITION_GLITCH_FIX)
+    public void appHeaderStateChanged_HeightTransitionPending_TriggeredOnNextStateChanged() {
+        // Set the height/width as if the first measure pass hasn't happened yet.
+        doReturn(0).when(mSpyControlContainer).getHeight();
+        doReturn(0).when(mSpyControlContainer).getWidth();
+
+        // Create the transition coordinator for a desktop window.
+        setUpTabStripTransitionCoordinator(
+                /* isInDesktopWindow= */ true, LARGE_DESKTOP_WINDOW_WIDTH);
+        assertEquals(
+                "Height request should be ignored if control container hasn't been measured.",
+                NOTHING_OBSERVED,
+                mTestHandler.heightRequested);
+
+        // Simulate control container being measured.
+        doReturn(TEST_TOOLBAR_HEIGHT + TEST_TAB_STRIP_HEIGHT)
+                .when(mSpyControlContainer)
+                .getHeight();
+        doReturn(LARGE_DESKTOP_WINDOW_WIDTH).when(mSpyControlContainer).getWidth();
+
+        // Trigger onAppHeaderStateChanged again. Since the control container is now measured,
+        // the pending height transition should be triggered.
+        mCoordinator.onAppHeaderStateChanged(mAppHeaderState);
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertEquals(
                 "Height transition should update the strip top padding.",

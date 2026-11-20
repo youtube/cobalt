@@ -581,7 +581,6 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
       signed_cert_timestamps_enabled(false),
       ocsp_stapling_enabled(false),
       channel_id_enabled(false),
-      enforce_rsa_key_usage(true),
       retain_only_sha256_of_client_certs(false),
       handoff(false),
       shed_handshake_config(false),
@@ -2954,17 +2953,6 @@ void SSL_CTX_set_dos_protection_cb(SSL_CTX *ctx,
 
 void SSL_CTX_set_reverify_on_resume(SSL_CTX *ctx, int enabled) {
   FromOpaque(ctx)->reverify_on_resume = !!enabled;
-}
-
-void SSL_set_enforce_rsa_key_usage(SSL *ssl, int enabled) {
-  if (!ssl->config) {
-    return;
-  }
-  ssl->config->enforce_rsa_key_usage = !!enabled;
-}
-
-int SSL_was_key_usage_invalid(const SSL *ssl) {
-  return ssl->s3->was_key_usage_invalid;
 }
 
 void SSL_set_renegotiate_mode(SSL *ssl, enum ssl_renegotiate_mode_t mode) {

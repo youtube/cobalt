@@ -413,7 +413,10 @@ CGFloat const kSheetTopPadding = 40.0f;
 - (void)composeboxPickerPresenter:(ComposeboxPickerPresenter*)presenter
                 didPickDriveItems:
                     (NSArray<ComposeboxPickerDriveResult*>*)results {
-  // TODO(crbug.com/515377633): Record metrics for Drive files.
+  if (results.count == 0) {
+    return;
+  }
+  [_metricsRecorder recordDriveFilesAttached:results.count];
   [_mediator processDriveItems:results];
 }
 

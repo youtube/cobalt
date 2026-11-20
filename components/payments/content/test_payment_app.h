@@ -13,7 +13,9 @@ namespace payments {
 // A fake PaymentApp for use in unittests.
 class TestPaymentApp : public PaymentApp {
  public:
-  explicit TestPaymentApp(const std::string& method);
+  explicit TestPaymentApp(
+      const std::string& method,
+      PaymentApp::Type type = PaymentApp::Type::SERVICE_WORKER_APP);
   ~TestPaymentApp() override;
 
   TestPaymentApp(const TestPaymentApp& other) = delete;

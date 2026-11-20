@@ -137,6 +137,24 @@ UIInterfaceOrientation GetTargetInterfaceOrientation(
   [_observers layoutState:self didChangeAppBarPosition:appBarPosition];
 }
 
+- (void)setAssistantContainerCutoutRadius:
+    (CGFloat)assistantContainerCutoutRadius {
+  if (_assistantContainerCutoutRadius == assistantContainerCutoutRadius) {
+    return;
+  }
+  _assistantContainerCutoutRadius = assistantContainerCutoutRadius;
+  [_observers layoutState:self
+      didChangeAssistantContainerCutoutRadius:assistantContainerCutoutRadius];
+}
+
+- (void)setToolbarPosition:(ToolbarPosition)toolbarPosition {
+  if (_toolbarPosition == toolbarPosition) {
+    return;
+  }
+  _toolbarPosition = toolbarPosition;
+  [_observers layoutState:self didChangeToolbarPosition:toolbarPosition];
+}
+
 - (void)updateAppBarPositionWithView:(UIView*)view
                          coordinator:(id<UIViewControllerTransitionCoordinator>)
                                          coordinator {

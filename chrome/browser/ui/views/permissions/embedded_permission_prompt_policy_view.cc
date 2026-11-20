@@ -13,10 +13,10 @@
 #include "ui/gfx/paint_vector_icon.h"
 
 EmbeddedPermissionPromptPolicyView::EmbeddedPermissionPromptPolicyView(
-    Browser* browser,
+    content::WebContents* web_contents,
     base::WeakPtr<EmbeddedPermissionPromptViewDelegate> delegate,
     bool is_permission_allowed)
-    : EmbeddedPermissionPromptBaseView(browser, delegate),
+    : EmbeddedPermissionPromptBaseView(web_contents, delegate),
       is_permission_allowed_(is_permission_allowed) {}
 
 EmbeddedPermissionPromptPolicyView::~EmbeddedPermissionPromptPolicyView() =

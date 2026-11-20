@@ -108,8 +108,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTest, DefaultSearchProvider) {
   // Verify that searching from the omnibox uses kSearchURL.
   chrome::FocusLocationBar(browser());
   ui_test_utils::SendToOmniboxAndSubmit(browser(), "stuff to search for");
-  OmniboxEditModel* model = browser()
-                                ->window()
+  OmniboxEditModel* model = BrowserWindow::FromBrowser(browser())
                                 ->GetLocationBar()
                                 ->GetOmniboxController()
                                 ->edit_model();

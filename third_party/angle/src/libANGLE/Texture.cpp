@@ -1658,21 +1658,17 @@ angle::Result Texture::copySubImage(Context *context,
 
 angle::Result Texture::copyRenderbufferSubData(Context *context,
                                                const gl::Renderbuffer *srcBuffer,
-                                               GLint srcLevel,
                                                GLint srcX,
                                                GLint srcY,
-                                               GLint srcZ,
                                                GLint dstLevel,
                                                GLint dstX,
                                                GLint dstY,
                                                GLint dstZ,
                                                GLsizei srcWidth,
-                                               GLsizei srcHeight,
-                                               GLsizei srcDepth)
+                                               GLsizei srcHeight)
 {
-    ANGLE_TRY(mTexture->copyRenderbufferSubData(context, srcBuffer, srcLevel, srcX, srcY, srcZ,
-                                                dstLevel, dstX, dstY, dstZ, srcWidth, srcHeight,
-                                                srcDepth));
+    ANGLE_TRY(mTexture->copyRenderbufferSubData(context, srcBuffer, srcX, srcY, dstLevel, dstX,
+                                                dstY, dstZ, srcWidth, srcHeight));
 
     // Incorrect: must set initialized only if the entire subresource is covered, and only for the
     // corresponding ImageDesc.  Image must be initialized before copy if not writing to entire
@@ -2066,6 +2062,13 @@ angle::Result Texture::bindTexImageFromSurface(Context *context, egl::Surface *s
 {
     ASSERT(surface);
     ASSERT(!mBoundSurface);
+
+    // Release from previous calls to eglBindTexImage, to avoid calling the Impl after
+    ANGLE_TRY(releaseTexImageInternal(context));
+
+    egl::RefCountObjectReleaser<egl::Image> releaseImage;
+    ANGLE_TRY(orphanImages(context, &releaseImage));
+
     mBoundSurface = surface;
 
     // Set the image info to the size and format of the surface
@@ -2073,6 +2076,7 @@ angle::Result Texture::bindTexImageFromSurface(Context *context, egl::Surface *s
     ImageDesc desc(surface->getSize(), surface->getBindTexImageFormat(), InitState::Initialized);
     mState.setImageDesc(NonCubeTextureTypeToTarget(mState.mType), 0, desc);
     mState.mHasProtectedContent = surface->hasProtectedContent();
+    mState.mEGLImageSourceIndex = ImageIndex{};
 
     ANGLE_TRY(mTexture->bindTexImage(context, surface));
 
@@ -2164,6 +2168,14 @@ angle::Result Texture::releaseTexImageInternal(Context *context)
     return angle::Result::Continue;
 }
 
+angle::Result Texture::orphanImages(const gl::Context *context,
+                                    egl::RefCountObjectReleaser<egl::Image> *outReleaseImage)
+{
+    ANGLE_TRY(ImageSibling::orphanImages(context, outReleaseImage));
+    mState.mEGLImageSourceIndex = ImageIndex{};
+    return angle::Result::Continue;
+}
+
 angle::Result Texture::setEGLImageTargetImpl(Context *context,
                                              TextureType type,
                                              GLuint levels,
@@ -2185,6 +2197,7 @@ angle::Result Texture::setEGLImageTargetImpl(Context *context,
     mState.setImageDescChain(0, levels - 1, imageTarget->getExtents(), imageTarget->getFormat(),
                              initState);
     mState.mHasProtectedContent = imageTarget->hasProtectedContent();
+    mState.mEGLImageSourceIndex = imageTarget->getSourceImageIndex();
 
     ANGLE_TRY(mTexture->setEGLImageTarget(context, type, imageTarget));
 
@@ -2364,26 +2377,31 @@ GLenum Texture::getGenerateMipmapHint() const
     return mState.getGenerateMipmapHint();
 }
 
-angle::Result Texture::setBuffer(const gl::Context *context,
-                                 gl::Buffer *buffer,
-                                 GLenum internalFormat)
+angle::Result Texture::setBuffer(gl::Context *context, gl::Buffer *buffer, GLenum internalFormat)
 {
     // Use 0 to indicate that the size is taken from whatever size the buffer has when the texture
     // buffer is used.
     return setBufferRange(context, buffer, internalFormat, 0, 0);
 }
 
-angle::Result Texture::setBufferRange(const gl::Context *context,
+angle::Result Texture::setBufferRange(gl::Context *context,
                                       gl::Buffer *buffer,
                                       GLenum internalFormat,
                                       GLintptr offset,
                                       GLsizeiptr size)
 {
+    // Release from previous calls to eglBindTexImage, to avoid calling the Impl after
+    ANGLE_TRY(releaseTexImageInternal(context));
+
+    egl::RefCountObjectReleaser<egl::Image> releaseImage;
+    ANGLE_TRY(orphanImages(context, &releaseImage));
+
     mState.mImmutableFormat = true;
     mState.mBuffer.set(context, buffer, offset, size);
     ANGLE_TRY(mTexture->setBuffer(context, internalFormat));
 
     mState.clearImageDescs();
+    mState.mEGLImageSourceIndex = ImageIndex{};
     if (buffer == nullptr)
     {
         mBufferObserver.reset();

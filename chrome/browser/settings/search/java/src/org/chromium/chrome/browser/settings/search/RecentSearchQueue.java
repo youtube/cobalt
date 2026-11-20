@@ -13,7 +13,6 @@ import org.chromium.base.Log;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
@@ -52,8 +51,6 @@ public class RecentSearchQueue extends LinkedHashMap<String, SettingsIndexData.E
 
     @CalledByNative
     public static void deleteDiskData() {
-        if (!ChromeFeatureList.sSearchInSettings.isEnabled()) return;
-
         if (sInstance != null) sInstance.clear();
         SharedPreferencesManager preferencesManager = ChromeSharedPreferences.getInstance();
         preferencesManager.removeKey(ChromePreferenceKeys.SETTINGS_RECENT_SEARCH_ENTRIES);

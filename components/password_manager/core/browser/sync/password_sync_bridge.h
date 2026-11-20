@@ -92,6 +92,11 @@ class PasswordSyncBridge : public syncer::DataTypeSyncBridge {
   // store. This should be called during MergeFullSyncData().
   std::optional<syncer::ModelError> CleanupPasswordStore();
 
+  // Reads local credentials. If decryption failure is encountered, tries to
+  // clean up the database and re-read. Returns the error if fails.
+  std::optional<syncer::ModelError> ReadCredentialsOrCleanup(
+      PrimaryKeyToPasswordSpecificsDataMap* key_to_local_specifics_map);
+
   // If available, returns cached possibly trimmed PasswordSpecificsData for
   // given |storage_key|. By default, empty PasswordSpecificsData is returned.
   const sync_pb::PasswordSpecificsData& GetPossiblyTrimmedPasswordSpecificsData(

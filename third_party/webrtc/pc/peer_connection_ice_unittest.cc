@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
@@ -174,7 +175,16 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
     return CreatePeerConnection(RTCConfiguration());
   }
 
+  WrapperPtr CreatePeerConnection(absl::string_view field_trials) {
+    return CreatePeerConnection(RTCConfiguration(), field_trials);
+  }
+
   WrapperPtr CreatePeerConnection(const RTCConfiguration& config) {
+    return CreatePeerConnection(config, "");
+  }
+
+  WrapperPtr CreatePeerConnection(const RTCConfiguration& config,
+                                  absl::string_view field_trials) {
     PeerConnectionFactoryDependencies pcf_deps;
     pcf_deps.network_thread = network_thread_.get();
     pcf_deps.worker_thread = worker_thread_.get();
@@ -204,6 +214,9 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
     modified_config.sdp_semantics = sdp_semantics_;
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     PeerConnectionDependencies pc_dependencies(observer.get());
+    if (!field_trials.empty()) {
+      pc_dependencies.trials = CreateTestFieldTrialsPtr(field_trials);
+    }
     auto result = pc_factory->CreatePeerConnectionOrError(
         modified_config, std::move(pc_dependencies));
     if (!result.ok()) {
@@ -1416,8 +1429,11 @@ TEST_P(PeerConnectionIceTest,
 // in RFC5245 Section 5.1.1.
 TEST_P(PeerConnectionIceTest,
        OfferFromLiteIceControlledAndAnswerFromFullIceControlling) {
-  auto caller = CreatePeerConnectionWithAudioVideo();
-  auto callee = CreatePeerConnectionWithAudioVideo();
+  // Munging allowed: kIceMode (23)
+  auto caller = CreatePeerConnectionWithAudioVideo(
+      "WebRTC-NoSdpMangleAllowForTesting/Enabled,23/");
+  auto callee = CreatePeerConnectionWithAudioVideo(
+      "WebRTC-NoSdpMangleAllowForTesting/Enabled,23/");
 
   std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   SetIceMode(offer.get(), IceMode::ICEMODE_LITE);
@@ -1438,8 +1454,11 @@ TEST_P(PeerConnectionIceTest,
 // takes the CONTROLLED role. This is specified in RFC5245 Section 5.1.1.
 TEST_P(PeerConnectionIceTest,
        OfferFromLiteIceControllingAndAnswerFromLiteIceControlled) {
-  auto caller = CreatePeerConnectionWithAudioVideo();
-  auto callee = CreatePeerConnectionWithAudioVideo();
+  // Munging allowed: kIceMode (23)
+  auto caller = CreatePeerConnectionWithAudioVideo(
+      "WebRTC-NoSdpMangleAllowForTesting/Enabled,23/");
+  auto callee = CreatePeerConnectionWithAudioVideo(
+      "WebRTC-NoSdpMangleAllowForTesting/Enabled,23/");
 
   std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   SetIceMode(offer.get(), IceMode::ICEMODE_LITE);

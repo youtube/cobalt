@@ -45,6 +45,7 @@ class LogScreamSimulation {
     DataRate target_rate = DataRate::Zero();
     DataRate pacing_rate = DataRate::Zero();
     DataRate send_rate = DataRate::Zero();
+    DataRate received_rate = DataRate::Zero();
 
     DataSize ref_window = DataSize::Zero();
     DataSize ref_window_i = DataSize::Zero();

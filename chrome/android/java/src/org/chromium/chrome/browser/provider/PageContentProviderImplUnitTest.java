@@ -265,7 +265,8 @@ public class PageContentProviderImplUnitTest {
 
     @Test
     public void testGetProtoContentUriForUrl() {
-        var eventChecker = getWatcherForEvent(PageContentProviderEvent.GET_CONTENT_URI_SUCCESS);
+        var eventChecker =
+                getWatcherForEvent(PageContentProviderEvent.GET_CONTENT_URI_SUCCESS, true);
         Uri protoContentUri;
         try (HistogramWatcher histogramWatcher =
                 HistogramWatcher.newSingleRecordWatcher(
@@ -422,18 +423,77 @@ public class PageContentProviderImplUnitTest {
         eventChecker.assertExpected();
     }
 
+    @Test
+    public void testProtoQueryValidContentUri_WithGsa() {
+        var nodeContents = "Page contents!";
+        var apcProto = getAnnotatedPageContentsProto(nodeContents);
+        setProtoContentExtractionResult(apcProto, 100);
+        var eventChecker =
+                getWatcherForEvent(
+                        RequestType.QUERY,
+                        Format.PROTO,
+                        /* isGsa= */ true,
+                        PageContentProviderEvent.REQUEST_STARTED,
+                        PageContentProviderEvent.REQUEST_SUCCEEDED_RETURNED_EXTRACTED);
+
+        var protoContentUri =
+                PageContentProviderImpl.getProtoContentUriForUrl(
+                        JUnitTestGURLs.GOOGLE_URL.getSpec(),
+                        mActivityTabProvider,
+                        "com.google.android.googlequicksearchbox");
+        mFakeTimeTestRule.advanceMillis(300);
+        Cursor resultCursor;
+        try (HistogramWatcher histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Android.AssistContent.WebPageContentProvider.Latency.CreateToExtractionStart.Query.Proto.Aga",
+                                300)
+                        .expectIntRecord(
+                                "Android.AssistContent.WebPageContentProvider.Latency.ExtractionStartToEnd.Query.Proto.Aga",
+                                100)
+                        .expectIntRecord(
+                                "Android.AssistContent.WebPageContentProvider.Latency.TotalLatency.Query.Proto.Aga",
+                                300 + 100)
+                        .build()) {
+            resultCursor = mProvider.query(protoContentUri, null, null, null, null);
+        }
+
+        assertProtoCursorContainsValues(
+                resultCursor, JUnitTestGURLs.GOOGLE_URL.getSpec(), apcProto.toByteArray());
+        verify(mPageContentProtoProviderNatives).getAiPageContent(eq(mWebContents), any());
+        eventChecker.assertExpected();
+    }
+
     private HistogramWatcher getWatcherForEvent(@PageContentProviderEvent int event) {
-        return HistogramWatcher.newSingleRecordWatcher(
-                "Android.AssistContent.WebPageContentProvider.Events", event);
+        return getWatcherForEvent(event, false);
+    }
+
+    private HistogramWatcher getWatcherForEvent(
+            @PageContentProviderEvent int event, boolean isGsa) {
+        var name =
+                PageContentProviderMetrics.concatenateConsumerToHistogramName(
+                        "Android.AssistContent.WebPageContentProvider.Events", isGsa);
+        return HistogramWatcher.newSingleRecordWatcher(name, event);
     }
 
     private HistogramWatcher getWatcherForEvent(
             @RequestType int requestType,
             @Format int format,
             @PageContentProviderEvent int... events) {
+        return getWatcherForEvent(requestType, format, false, events);
+    }
+
+    private HistogramWatcher getWatcherForEvent(
+            @RequestType int requestType,
+            @Format int format,
+            boolean isGsa,
+            @PageContentProviderEvent int... events) {
         var histogramName =
-                PageContentProviderMetrics.concatenateTypeAndFormatToHistogramName(
-                        "Android.AssistContent.WebPageContentProvider.Events", requestType, format);
+                PageContentProviderMetrics.concatenateTypeFormatAndConsumerToHistogramName(
+                        "Android.AssistContent.WebPageContentProvider.Events",
+                        requestType,
+                        format,
+                        isGsa);
         return HistogramWatcher.newBuilder().expectIntRecords(histogramName, events).build();
     }
 
