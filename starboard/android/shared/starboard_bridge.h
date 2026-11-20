@@ -17,8 +17,12 @@
 
 #include <jni.h>
 
+<<<<<<< HEAD
 #include <string>
 #include <vector>
+=======
+#include <optional>
+>>>>>>> 79d6264879d (android: Report used GPU memory from Starboard (#14043))
 
 #include "base/memory/singleton.h"
 #include "starboard/common/size.h"
@@ -66,6 +70,7 @@ class StarboardBridge {
   std::string GetFriendlyName(JNIEnv* env);
   double GetScreenDiagonal(JNIEnv* env);
   bool GetWasLowMemoryKilled(JNIEnv* env);
+  std::optional<int> GetUsedGraphicsMemoryKb(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
   void RequestStop(JNIEnv* env, jint error_level);
