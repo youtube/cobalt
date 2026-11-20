@@ -1,4 +1,4 @@
-name: raspi-2-modular_26.eap
+name: raspi-2-modular
 permissions: read-all
 
 on:
