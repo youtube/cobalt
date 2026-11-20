@@ -18,6 +18,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <deque>
+#include <limits>
 #include <mutex>
 #include <vector>
 
@@ -414,6 +415,131 @@ TEST_F(MediaCodecVideoDecoderTest, FlushSeekSameColorKeepsCodec) {
   EXPECT_EQ(fake_factory_->video_codec_create_count(), created);
   EXPECT_FALSE(error_called_);
 }
+
+// Tests of |kMediaFixFlushedSeekPreroll|: how many frames the decoder prerolls,
+// and whether the preroll can time out, at the start of a playback and after a
+// seek.
+class MediaCodecVideoDecoderSeekPrerollTest
+    : public MediaCodecVideoDecoderTest,
+      public ::testing::WithParamInterface<bool> {
+ protected:
+  static constexpr int64_t kNoTimeout = std::numeric_limits<int64_t>::max();
+
+  bool fix_flushed_seek_preroll() const { return GetParam(); }
+
+  void CreateAndStart(bool enable_flush_during_seek, int64_t first_timestamp) {
+    ExperimentalFeatures::Map settings;
+    if (fix_flushed_seek_preroll()) {
+      settings.emplace(std::string(kMediaFixFlushedSeekPreroll.key()),
+                       int64_t{1});
+    }
+    CreateDecoder(/*max_video_capabilities=*/"", &stream_info_,
+                  ExperimentalFeatures(std::move(settings)),
+                  enable_flush_during_seek);
+    ASSERT_TRUE(decoder_);
+    InitializeDecoder();
+    initial_preroll_frame_count_ = decoder_->GetPrerollFrameCount();
+    ASSERT_GT(initial_preroll_frame_count_, 1U);
+    ASSERT_NE(decoder_->GetPrerollTimeout(), kNoTimeout);
+    decoder_->WriteInputBuffers(
+        {CreateDummyVideoInputBuffer(first_timestamp, 1024, &stream_info_)});
+  }
+
+  void SeekTo(int64_t timestamp) {
+    decoder_->Reset();
+    // The renderer reads the timeout right after the reset.
+    timeout_after_reset_ = decoder_->GetPrerollTimeout();
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+        timestamp, 1024, &stream_info_, /*is_key_frame=*/true)});
+  }
+
+  // The initial preroll count is lowered to the number of output buffers other
+  // decoders of the same format were seen to have in this process. No test
+  // decodes a real H.265 stream, so this format has no such record.
+  const VideoStreamInfo stream_info_ = [] {
+    VideoStreamInfo info = kDefaultVideoStreamInfo;
+    info.codec = kSbMediaVideoCodecH265;
+    return info;
+  }();
+  size_t initial_preroll_frame_count_ = 0;
+  int64_t timeout_after_reset_ = 0;
+};
+
+TEST_P(MediaCodecVideoDecoderSeekPrerollTest, StartOfPlaybackIsNotAffected) {
+  CreateAndStart(/*enable_flush_during_seek=*/true, /*first_timestamp=*/0);
+
+  EXPECT_EQ(decoder_->GetPrerollFrameCount(), initial_preroll_frame_count_);
+  EXPECT_NE(decoder_->GetPrerollTimeout(), kNoTimeout);
+}
+
+// The case the setting is for: the codec is kept, so the decoder still sees the
+// first timestamp of the playback, which is 0.
+TEST_P(MediaCodecVideoDecoderSeekPrerollTest,
+       SeekKeepingCodecInPlaybackStartedAtZero) {
+  CreateAndStart(/*enable_flush_during_seek=*/true, /*first_timestamp=*/0);
+  const int created = fake_factory_->video_codec_create_count();
+
+  SeekTo(2'000'000);
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), created);
+
+  if (fix_flushed_seek_preroll()) {
+    EXPECT_EQ(decoder_->GetPrerollFrameCount(), 1U);
+    EXPECT_EQ(timeout_after_reset_, kNoTimeout);
+    EXPECT_EQ(decoder_->GetPrerollTimeout(), kNoTimeout);
+  } else {
+    EXPECT_EQ(decoder_->GetPrerollFrameCount(), initial_preroll_frame_count_);
+    EXPECT_NE(timeout_after_reset_, kNoTimeout);
+  }
+}
+
+// Already a single frame without the setting: the first timestamp is not 0.
+TEST_P(MediaCodecVideoDecoderSeekPrerollTest,
+       SeekKeepingCodecInPlaybackStartedAfterZero) {
+  CreateAndStart(/*enable_flush_during_seek=*/true,
+                 /*first_timestamp=*/5'000'000);
+
+  SeekTo(2'000'000);
+
+  EXPECT_EQ(decoder_->GetPrerollFrameCount(), 1U);
+  EXPECT_EQ(decoder_->GetPrerollTimeout(), kNoTimeout);
+}
+
+// Already a single frame without the setting: the new codec's first timestamp
+// is the seek target. Only the timeout read right after the reset differs.
+TEST_P(MediaCodecVideoDecoderSeekPrerollTest, SeekRecreatingCodec) {
+  CreateAndStart(/*enable_flush_during_seek=*/false, /*first_timestamp=*/0);
+  const int created = fake_factory_->video_codec_create_count();
+
+  SeekTo(2'000'000);
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+
+  EXPECT_EQ(decoder_->GetPrerollFrameCount(), 1U);
+  EXPECT_EQ(decoder_->GetPrerollTimeout(), kNoTimeout);
+  if (fix_flushed_seek_preroll()) {
+    EXPECT_EQ(timeout_after_reset_, kNoTimeout);
+  } else {
+    EXPECT_NE(timeout_after_reset_, kNoTimeout);
+  }
+}
+
+TEST_P(MediaCodecVideoDecoderSeekPrerollTest, SeekToZeroRecreatingCodec) {
+  CreateAndStart(/*enable_flush_during_seek=*/false,
+                 /*first_timestamp=*/5'000'000);
+
+  SeekTo(0);
+
+  if (fix_flushed_seek_preroll()) {
+    EXPECT_EQ(decoder_->GetPrerollFrameCount(), 1U);
+    EXPECT_EQ(decoder_->GetPrerollTimeout(), kNoTimeout);
+  } else {
+    EXPECT_EQ(decoder_->GetPrerollFrameCount(), initial_preroll_frame_count_);
+    EXPECT_NE(decoder_->GetPrerollTimeout(), kNoTimeout);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(FixFlushedSeekPreroll,
+                         MediaCodecVideoDecoderSeekPrerollTest,
+                         ::testing::Bool());
 
 TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {
   CreateDecoder();

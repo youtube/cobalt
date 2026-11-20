@@ -331,6 +331,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       skip_flush_on_decoder_teardown_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipFlushOnDecoderTeardown)),
+      fix_flushed_seek_preroll_(pipeline_config.experimental_features.GetBool(
+          kMediaFixFlushedSeekPreroll)),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
@@ -473,7 +475,7 @@ size_t MediaCodecVideoDecoder::GetPrerollFrameCount() const {
   if (tunnel_mode_audio_session_id_) {
     return 0;
   }
-  if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
+  if (IsNonInitialPreroll()) {
     return kNonInitialPrerollFrameCount;
   }
   return number_of_preroll_frames_;
@@ -484,10 +486,21 @@ int64_t MediaCodecVideoDecoder::GetPrerollTimeout() const {
   if (tunnel_mode_audio_session_id_) {
     return std::numeric_limits<int64_t>::max();
   }
-  if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
+  if (IsNonInitialPreroll()) {
     return std::numeric_limits<int64_t>::max();
   }
   return kInitialPrerollTimeout;
+}
+
+bool MediaCodecVideoDecoder::IsNonInitialPreroll() const {
+  if (fix_flushed_seek_preroll_ && has_seeked_.load()) {
+    return true;
+  }
+  // A seek that recreates the codec is recognized by the timestamp of the first
+  // input written to the new codec. This misses a seek to 0, and a seek that
+  // keeps the codec in a playback that started at 0, as neither value is reset
+  // when the codec is flushed.
+  return input_buffer_written_ > 0 && first_buffer_timestamp_ != 0;
 }
 
 void MediaCodecVideoDecoder::WriteInputBuffers(
@@ -653,6 +666,12 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
 
 void MediaCodecVideoDecoder::Reset() {
   ResetInternal(/*skip_flush=*/false);
+  if (fix_flushed_seek_preroll_) {
+    has_seeked_.store(true);
+    SB_LOG(INFO) << "FixFlushedSeekPreroll: seek codec_kept="
+                 << (is_flushed_ ? 1 : 0)
+                 << " preroll_frames=" << kNonInitialPrerollFrameCount;
+  }
 }
 
 void MediaCodecVideoDecoder::ResetForTeardown() {

@@ -167,6 +167,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void ReportError(SbPlayerError error, const std::string& error_message);
 
   void ResetInternal(bool skip_flush);
+  // Returns true if the decoder is prerolling for a seek, as opposed to the
+  // start of the playback.
+  bool IsNonInitialPreroll() const;
   bool NeedsCodecTransition(
       const scoped_refptr<InputBuffer>& input_buffer) const;
 
@@ -204,6 +207,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
   const bool skip_flush_on_decoder_teardown_;
+  // See |kMediaFixFlushedSeekPreroll|.
+  const bool fix_flushed_seek_preroll_;
 
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
@@ -272,6 +277,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
+  // Set once Reset() has been called, i.e. once the playback has seeked. Only
+  // used when |fix_flushed_seek_preroll_| is true. Atomic as the preroll
+  // getters are also called on the codec thread.
+  std::atomic_bool has_seeked_{false};
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
