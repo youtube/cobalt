@@ -58,7 +58,8 @@ source_set("gl_headers") {
 }
 
 use_angle_stubs =
-    use_static_angle && (is_linux || is_chromeos || is_win || is_mac)
+    use_static_angle && (is_linux || is_chromeos || is_win || is_mac) &&
+    !is_cobalt_hermetic_build
 
 # Generate stubs for EGL and GLESv2 libraries when linking ANGLE statically.
 # Some bot infrastructure expects these files to exist even in static builds.
@@ -216,7 +217,7 @@ component("gl") {
 
   data_deps = []
 
-  if (use_angle_stubs && !is_cobalt_hermetic_build) {
+  if (use_angle_stubs) {
     # Added via data_deps so that the dummy libraries are generated for build
     # infrastructure but not linked into dependent targets.
     data_deps += [ ":generate_angle_stubs" ]
@@ -431,7 +432,7 @@ component("gl") {
     ]
   }
 
-  if (is_android || is_chromeos || is_linux && !is_starboard) {
+  if (is_android || is_chromeos || (is_linux && !is_starboard)) {
     # Windows doesn't support base::FileDescriptor.
     # libsync isn't supported or needed on MacOSX.
     # Fuchsia is excluded due to a libsync dependency and because it's

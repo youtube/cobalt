@@ -1756,6 +1756,10 @@ if (is_linux || is_chromeos) {
 
       deps = [ "//third_party/swiftshader/src/Vulkan:swiftshader_libvulkan" ]
     }
+    if (enable_cobalt_hermetic_hacks) {
+      group("angle_egl_symbols") {}
+      group("angle_gles_symbols") {}
+    } else {
     extract_symbols("angle_egl_symbols") {
       binary = "$root_out_dir/libEGL.so"
 
@@ -1787,6 +1791,7 @@ if (is_linux || is_chromeos) {
       } else {
         deps = [ "//third_party/angle:libGLESv2" ]
       }
+    }
     }
     if (!is_chromeos && angle_shared_libvulkan) {
       extract_symbols("angle_libvulkan_symbols") {
