@@ -22,6 +22,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.chromium.base.BaseSwitches;
@@ -69,6 +70,12 @@ public class JavaSwitches {
 
   @VisibleForTesting static final String DEFAULT_DEVICE_SCALE_FACTOR = "1";
   @VisibleForTesting static final String FORCE_720P_UI_DEVICE_SCALE_FACTOR = "1.5";
+
+  /**
+   * GPU memory budget in MB that the server launched for high-end devices (see
+   * DeviceUtil.isHighEndGpuMemoryDevice()). Used only when no experiment config is cached yet.
+   */
+  @VisibleForTesting static final String HIGH_END_FORCE_GPU_MEM_AVAILABLE_MB = "256";
 
   /**
    * Disables the StartupGuard watchdog.
@@ -210,7 +217,8 @@ public class JavaSwitches {
   /**
    * Applies pre-native switches to {@code args} and stashes the sanitized map for C++ expansion
    * ({@code cobalt/android/androidtv_flag_map.cc}). In crash-streak safe mode, no switches are
-   * applied.
+   * applied. When no experiment config is cached yet, device-based defaults are applied instead
+   * (see getNoCachedConfigDefaults()).
    */
   public static void apply(Map<String, String> javaSwitches, List<String> args) {
     apply(javaSwitches, shouldApplyExperimentConfigs(), args);
@@ -219,11 +227,38 @@ public class JavaSwitches {
   @VisibleForTesting
   static void apply(
       Map<String, String> javaSwitches, boolean shouldApplyExperimentConfigs, List<String> args) {
-    if (!shouldApplyExperimentConfigs || javaSwitches == null) {
+    if (!shouldApplyExperimentConfigs) {
+      // Crash-streak safe mode: no switches, and no first-launch defaults either.
       javaSwitches = Collections.emptyMap();
+    } else if (javaSwitches == null || javaSwitches.isEmpty()) {
+      // No experiment config is cached yet, e.g. a process pre-spawned right after install.
+      javaSwitches = getNoCachedConfigDefaults();
     }
     addSwitchesReadBeforeNativeInit(args, javaSwitches);
     sNativeKeyValues = toNativeKeyValues(javaSwitches);
+  }
+
+  /**
+   * Returns the Java switches to use when the app has no cached experiment config yet. See
+   * b/586564688.
+   *
+   * <p>The app builds the Java switches from its cached COLD_CONFIG. Every key is opt-in and the
+   * launched configs always carry several of them, so an empty map means that no config has been
+   * cached yet (e.g. the first launch after a factory reset or app update, when the process is
+   * pre-spawned before the config is fetched). A cached config that omits a key is non-empty, and
+   * its absence is respected. Crash-streak safe mode is handled before this is called.
+   *
+   * <p>Only launched server values belong here, with the same device targeting as the server, so
+   * that the first launch matches the following ones. The defaults go through the same path as
+   * server values (C++ ExpandAndroidTvFlags()).
+   */
+  @VisibleForTesting
+  static Map<String, String> getNoCachedConfigDefaults() {
+    Map<String, String> defaults = new HashMap<>();
+    if (DeviceUtil.isHighEndGpuMemoryDevice()) {
+      defaults.put(AndroidTvFlags.FORCE_GPU_MEM_AVAILABLE_MB, HIGH_END_FORCE_GPU_MEM_AVAILABLE_MB);
+    }
+    return defaults;
   }
 
   /** Returns and clears the sanitized [key0, value0, ...] array for C++ initialization. */

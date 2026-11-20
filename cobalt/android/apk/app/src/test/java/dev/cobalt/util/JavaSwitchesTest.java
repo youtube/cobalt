@@ -42,6 +42,8 @@ public class JavaSwitchesTest {
     clearConfigFiles();
     JavaSwitches.setOverrideForTesting(null);
     JavaSwitches.takeNativeKeyValues();
+    // Tests run on the host, whose RAM would otherwise make every device "high-end".
+    DeviceUtil.setIsHighEndGpuMemoryDeviceForTesting(false);
   }
 
   @After
@@ -279,7 +281,8 @@ public class JavaSwitchesTest {
 
     assertThat(JavaSwitches.takeNativeKeyValues())
         .asList()
-        .containsExactly("AvoidCCReuseResource", "", "EnableQUIC", "", "V8SetBytecodeOldTime", "1024")
+        .containsExactly(
+            "AvoidCCReuseResource", "", "EnableQUIC", "", "V8SetBytecodeOldTime", "1024")
         .inOrder();
   }
 
@@ -372,5 +375,83 @@ public class JavaSwitchesTest {
   @Test
   public void testApply_Force720pUi_SafeModeUsesDefault() {
     assertThat(applyForce720pUi(true, true, true, false)).contains(DEFAULT_SCALE);
+  }
+
+  private static final String GPU_MEM_KEY = AndroidTvFlags.FORCE_GPU_MEM_AVAILABLE_MB;
+
+  private static String[] applyOnDevice(
+      Map<String, String> switches, boolean isHighEndDevice, boolean shouldApply) {
+    DeviceUtil.setIsHighEndGpuMemoryDeviceForTesting(isHighEndDevice);
+    List<String> args = apply(switches, shouldApply);
+    // Device defaults reach C++ like server values, not as command-line switches.
+    assertThat(args).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
+    return JavaSwitches.takeNativeKeyValues();
+  }
+
+  @Test
+  public void testApply_NoCachedConfig_HighEndDevice_DefaultsGpuMemTo256() {
+    assertThat(applyOnDevice(new HashMap<>(), true, true))
+        .asList()
+        .containsExactly(GPU_MEM_KEY, "256")
+        .inOrder();
+  }
+
+  @Test
+  public void testApply_NullSwitches_HighEndDevice_DefaultsGpuMemTo256() {
+    assertThat(applyOnDevice(null, true, true))
+        .asList()
+        .containsExactly(GPU_MEM_KEY, "256")
+        .inOrder();
+  }
+
+  @Test
+  public void testApply_NoCachedConfig_LowRamDevice_Unchanged() {
+    assertThat(applyOnDevice(new HashMap<>(), false, true)).isEmpty();
+  }
+
+  @Test
+  public void testApply_ExplicitServerValueWins() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(GPU_MEM_KEY, "128");
+
+    assertThat(applyOnDevice(switches, true, true))
+        .asList()
+        .containsExactly(GPU_MEM_KEY, "128")
+        .inOrder();
+  }
+
+  @Test
+  public void testApply_CachedConfigWithoutGpuMem_NoDefault() {
+    // A cached config that omits the key is respected: no device default is added.
+    Map<String, String> switches = new HashMap<>();
+    switches.put(AndroidTvFlags.ENABLE_QUIC, "1");
+
+    assertThat(applyOnDevice(switches, true, true))
+        .asList()
+        .containsExactly(AndroidTvFlags.ENABLE_QUIC, "1")
+        .inOrder();
+  }
+
+  @Test
+  public void testApply_SafeMode_NoDefaults() {
+    assertThat(applyOnDevice(new HashMap<>(), true, false)).isEmpty();
+    assertThat(applyOnDevice(null, true, false)).isEmpty();
+  }
+
+  @Test
+  public void testApply_SafeMode_IgnoresServerValue() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(GPU_MEM_KEY, "256");
+
+    assertThat(applyOnDevice(switches, true, false)).isEmpty();
+  }
+
+  @Test
+  public void testGetNoCachedConfigDefaults() {
+    DeviceUtil.setIsHighEndGpuMemoryDeviceForTesting(true);
+    assertThat(JavaSwitches.getNoCachedConfigDefaults()).containsExactly(GPU_MEM_KEY, "256");
+
+    DeviceUtil.setIsHighEndGpuMemoryDeviceForTesting(false);
+    assertThat(JavaSwitches.getNoCachedConfigDefaults()).isEmpty();
   }
 }

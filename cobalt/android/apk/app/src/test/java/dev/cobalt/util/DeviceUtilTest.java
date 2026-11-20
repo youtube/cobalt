@@ -119,4 +119,102 @@ public class DeviceUtilTest {
 
     assertThat(DeviceUtil.isDisplayAtLeast1080p()).isFalse();
   }
+
+  @Test
+  public void testIsHighEndGpuMemoryDevice_Override() {
+    DeviceUtil.setIsHighEndGpuMemoryDeviceForTesting(true);
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice()).isTrue();
+
+    DeviceUtil.setIsHighEndGpuMemoryDeviceForTesting(false);
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice()).isFalse();
+  }
+
+  private static final int TWO_GB_KB = 2 * 1024 * 1024;
+  private static final int FOUR_GB_KB = 4 * 1024 * 1024;
+
+  @Test
+  public void testIsHighEndGpuMemoryDevice_RamThreshold() {
+    int threshold = DeviceUtil.THREE_GB_OR_MORE_RAM_THRESHOLD_KB;
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("acme", "acme", "tv", threshold + 1)).isTrue();
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("acme", "acme", "tv", FOUR_GB_KB)).isTrue();
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("acme", "acme", "tv", threshold)).isFalse();
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("acme", "acme", "tv", TWO_GB_KB)).isFalse();
+  }
+
+  @Test
+  public void testIsHighEndGpuMemoryDevice_UnknownRam() {
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("acme", "acme", "tv", 0)).isFalse();
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("acme", "acme", "tv", -1)).isFalse();
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice(null, null, null, 0)).isFalse();
+  }
+
+  @Test
+  public void testIsHighEndGpuMemoryDevice_NvidiaShield() {
+    // foster, darcy and mdarcy have 3 GB and report ~2.98 GB.
+    int threeGbShieldRamKb = 2980000;
+    // Above 2 GiB but below the Is3GBOrMore threshold, so only the SHIELD branch can match.
+    int carveoutShieldRamKb = 2200000;
+    assertThat(
+            DeviceUtil.isHighEndGpuMemoryDevice(
+                "NVIDIA", "NVIDIA", "SHIELD Android TV", threeGbShieldRamKb))
+        .isTrue();
+    // A 3 GB SHIELD reporting just above 2 GiB because of carveouts.
+    assertThat(
+            DeviceUtil.isHighEndGpuMemoryDevice(
+                "NVIDIA", "NVIDIA", "SHIELD Android TV", carveoutShieldRamKb))
+        .isTrue();
+    // Newer firmware, e.g. darcy_nova (4 GB) on Android 16.
+    assertThat(
+            DeviceUtil.isHighEndGpuMemoryDevice("NVIDIA", "NVIDIA", "NVIDIA Android TV", 3900000))
+        .isTrue();
+    assertThat(
+            DeviceUtil.isHighEndGpuMemoryDevice(
+                "acme", "NVIDIA", "SHIELD Android TV", carveoutShieldRamKb))
+        .isTrue();
+    assertThat(
+            DeviceUtil.isHighEndGpuMemoryDevice(
+                "NVIDIA", "NVIDIA", "Other TV", carveoutShieldRamKb))
+        .isFalse();
+    assertThat(
+            DeviceUtil.isHighEndGpuMemoryDevice(
+                "acme", "acme", "SHIELD Android TV", carveoutShieldRamKb))
+        .isFalse();
+  }
+
+  @Test
+  public void testIsHighEndGpuMemoryDevice_NvidiaShield2Gb() {
+    // The 2 GB SHIELD TV 2019 tube (sif) reports ~1.98 GB and must keep the low default.
+    // See b/576081785.
+    int sifRamKb = 1984872;
+    assertThat(
+            DeviceUtil.isHighEndGpuMemoryDevice("NVIDIA", "NVIDIA", "SHIELD Android TV", sifRamKb))
+        .isFalse();
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("acme", "NVIDIA", "SHIELD Android TV", sifRamKb))
+        .isFalse();
+    assertThat(
+            DeviceUtil.isHighEndGpuMemoryDevice(
+                "NVIDIA", "NVIDIA", "SHIELD Android TV", DeviceUtil.NVIDIA_SHIELD_MIN_RAM_KB))
+        .isFalse();
+    assertThat(
+            DeviceUtil.isHighEndGpuMemoryDevice(
+                "NVIDIA", "NVIDIA", "SHIELD Android TV", DeviceUtil.NVIDIA_SHIELD_MIN_RAM_KB + 1))
+        .isTrue();
+  }
+
+  @Test
+  public void testIsHighEndGpuMemoryDevice_NvidiaShieldUnknownRam() {
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("NVIDIA", "NVIDIA", "SHIELD Android TV", 0))
+        .isFalse();
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("NVIDIA", "NVIDIA", "NVIDIA Android TV", -1))
+        .isFalse();
+  }
+
+  @Test
+  public void testIsHighEndGpuMemoryDevice_GoogleStreamer() {
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("Google", "google", "Google TV Streamer", 0))
+        .isTrue();
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("Google", "google", "Chromecast", TWO_GB_KB))
+        .isFalse();
+    assertThat(DeviceUtil.isHighEndGpuMemoryDevice("acme", "acme", "Streamer", 0)).isFalse();
+  }
 }
