@@ -256,7 +256,7 @@ int64_t AudioTrackBridge::GetAudioTimestamp(int64_t* updated_at) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_audio_timestamp =
       Java_AudioTrackBridge_getAudioTimestamp(env, j_audio_track_bridge_);
-  SB_DCHECK(!j_audio_timestamp.is_null());
+  SB_CHECK(!j_audio_timestamp.is_null());
 
   if (updated_at) {
     *updated_at =
