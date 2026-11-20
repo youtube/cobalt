@@ -3,7 +3,7 @@
 This guide is for the **Issue Worker** (`pr-shepherd-fixer`) subagent. You are
 dispatched by the Watch Coordinator (`pr-shepherd-watcher`) in an isolated
 workspace (`Workspace: "branch"` or a WISP worktree) to triage and resolve a
-specific CI failure, unresolved review comment, or merge conflict.
+specific CI failure, unresolved review comment code change, or merge conflict.
 
 ---
 
@@ -13,7 +13,7 @@ specific CI failure, unresolved review comment, or merge conflict.
 > **SCOPE LIMITATION & NO AUTONOMOUS TEST FILTERING**:
 > Fixes by the PR Shepherd are **strictly limited to issues caused by the PR**.
 > - **PR-Caused Failures (Must Fix)**: Build errors, compile failures, broken
->   tests caused by the PR diff, linter issues, merge conflicts, and code
+>   tests caused by the PR diff, linter issues, merge conflicts, and clear code
 >   changes requested in review comments.
 > - **No Autonomous Test Filtering**: You must **NEVER** autonomously add
 >   failing or flaky tests to test filter manifests (e.g., `*_filter.json`,
@@ -35,15 +35,20 @@ specific CI failure, unresolved review comment, or merge conflict.
 > the base branch is strictly forbidden.
 
 > [!CAUTION]
-> **NO AUTOMATIC COMMENTS OR REPLIES**:
-> Never post PR comments, inline review replies, or issue comments on GitHub
-> autonomously without explicit single-use user consent in chat.
-> - **Single-Use Consent**: User approval to post a comment or reply expires
->   immediately after being used once; mandatory re-approval is required for
->   any subsequent reply.
-> - **In-Thread Replies When Authorized**: Only if explicit single-use consent
->   was granted for a specific reply, post directly to the inline thread via:
->   `gh api repos/<owner>/<repo>/pulls/<PR_NUMBER>/comments/<COMMENT_ID>/replies --field body="..."`
+> **NO AUTOMATIC COMMENTS, REPLIES, REVIEWS, OR THREAD RESOLUTION**:
+> `pr-shepherd` and its workers have **NO exemption** to post on GitHub or
+> resolve threads. You must **NEVER** autonomously:
+> - Post PR/issue comments (`gh pr comment`, `gh issue comment`),
+> - Post inline review replies (`gh api .../pulls/.../comments/.../replies`),
+> - Submit PR reviews (`gh pr review`), or
+> - Resolve or unresolve review threads (GraphQL `resolveReviewThread` /
+>   `unresolveReviewThread`).
+>
+> **Escalate Only**: Record proposed replies in `shepherding_report.md` and
+> escalate them to `pr-shepherd-watcher` / the user. Even if the user grants
+> single-use consent in chat for one specific reply, that consent expires
+> immediately after one use and requires explicit re-approval for any further
+> reply.
 
 ### Isolated Workspace Hygiene
 - Edit, build, test, and rebase **strictly inside your isolated workspace**
@@ -66,7 +71,9 @@ specific CI failure, unresolved review comment, or merge conflict.
 >    `gh pr diff <PR_NUMBER> --repo <owner>/<repo>`).
 > 2. **Check Pre-Downloaded Artifacts First**: Look inside
 >    `<artifacts_dir>/test_results/` and `<artifacts_dir>/logs/` populated by
->    `shepherd_pr.py` before making redundant network calls.
+>    `shepherd_pr.py` before making redundant network calls (`shepherd_pr.py`
+>    downloads only failing `shepherd-report-*` directories and collision-safe
+>    `<safe_name>_<job_id>.log` files for failed required checks).
 > 3. **Determine Causality**: Check whether the failure touches modified files,
 >    changed symbols, or affected subsystems:
 >    - **PR-Caused**: Compiler errors on modified code, unit/integration test
@@ -77,18 +84,20 @@ specific CI failure, unresolved review comment, or merge conflict.
 
 ### ⚡ Early-Failure Fast Path (No `shepherd_report.json`)
 
-When a job fails early (e.g., workflow syntax errors, missing inputs,
-`depot_tools`/environment setup failures, action schema evaluation, or early
-build failures before test report artifacts are uploaded), `shepherd_report.json`
-will **not** exist:
+When a required check fails early (e.g., workflow syntax errors, missing
+inputs, `depot_tools`/environment setup failures, action schema evaluation, or
+early build failures before test report artifacts are uploaded),
+`shepherd_report.json` will **not** exist:
 
 1. **Do NOT wait for `shepherd_report.json` or other matrix jobs.**
-2. **Check `<artifacts_dir>/logs/` or locate `<JOB_ID>`**:
+2. **Check `<artifacts_dir>/logs/` or use the `run_id`/`job_id` from
+   `shepherd_pr.py`'s output**:
    ```bash
    gh pr checks <PR_NUMBER> --repo <owner>/<repo>
    gh run view <RUN_ID> --repo <owner>/<repo>
    ```
-3. **Fetch failed step logs immediately**:
+3. **Fetch failed step logs immediately** (if not already in
+   `<artifacts_dir>/logs/`):
    ```bash
    gh run view --job <JOB_ID> --log-failed --repo <owner>/<repo>
    # Only fetch full job log if --log-failed is incomplete:
@@ -102,8 +111,9 @@ will **not** exist:
 
 For completed runs and test failures, Cobalt CI uploads structured
 `shepherd_report.json` files inside `shepherd-report-<platform>` artifacts
-(already saved in `<artifacts_dir>/test_results/` when downloaded, or fetchable
-via `gh run download <RUN_ID> -p "shepherd-report-*" -D /tmp/shepherd_reports --repo <owner>/<repo>`):
+(already filtered to failing platforms in `<artifacts_dir>/test_results/`, or
+fetchable via
+`gh run download <RUN_ID> -p "shepherd-report-*" -D /tmp/shepherd_reports --repo <owner>/<repo>`):
 
 1. **Step 1 — Check Pipeline Stage Status (`checks`)**:
    - Inspect `checks` in `shepherd_report.json`.
@@ -218,20 +228,24 @@ If triage reveals a failure is **not** caused by the PR diff:
 3. **Update Action Ledger**: Record the conflict resolution commit/rebase in
    `shepherding_report.md`.
 
-### Addressing Review Comments
-1. Locate the file and line indicated in the watch output (`path:line`).
-2. Implement the requested code changes adhering to the repository style guide.
-   Keep changes scoped strictly to what the review comment requests (plus
-   required build/test/caller fixes).
-3. Verify locally with tests/linters, commit, and push.
-4. **Reply Policy (Strict Single-Use Consent)**:
-   - **Never** post GitHub replies autonomously.
-   - Only run `gh api repos/<owner>/<repo>/pulls/<PR_NUMBER>/comments/<COMMENT_ID>/replies --field body="..."`
-     if explicit single-use user consent was granted for that specific reply.
-   - Otherwise, record the code fix commit SHA and a suggested draft reply in
-     `shepherding_report.md` (Section 4 `Review Comments` and Section 2 Ledger)
-     and report to `pr-shepherd-watcher` so the user can approve posting or
-     reply directly.
+### Handling Review Comments (Draft & Escalate Replies Only)
+1. Locate the file, line, and `comment_id` indicated in `shepherd_pr.py`'s
+   output (`Unresolved thread [comment_id=<ID>] <path>:<line>`).
+2. If the comment requests a clear, scoped code change adhering to the
+   repository style guide, implement it (plus required build/test/caller fixes),
+   verify locally with tests/linters, commit, and push so CI runs. If the
+   comment is ambiguous, asks a design question, or requires a judgment call, do
+   not guess—draft options and escalate.
+3. **Reply & Thread Resolution Policy (Strictly Prohibited Autonomously)**:
+   - **Never** post GitHub comments, post inline replies
+     (`gh api .../replies`), submit reviews (`gh pr review`), or resolve/unresolve
+     threads (`resolveReviewThread`/`unresolveReviewThread`) autonomously.
+   - Always record the `comment_id`, code fix commit SHA (if pushed), and a
+     suggested draft reply in `shepherding_report.md` (Section 4 `Review Comments`
+     with status `Code Fixed (Reply Pending Consent)` or `Drafted (Never Posted)`
+     and Section 2 Ledger) and report to `pr-shepherd-watcher` so the watcher can
+     pass `--ignore-comment-ids` while CI runs and escalate the drafts to the
+     user once CI is green.
 
 ### Stacked PRs & `gh stack` Upstack Cascade
 1. **Branch Naming**: Stack branches pushed to `origin` follow
@@ -278,8 +292,9 @@ with open(lock_path, "w", encoding="utf-8") as lock_f:
 ```
 
 Record:
-- Timestamp, target PR & check/thread, classification (`PR-Caused`, `Flake`,
-  `Infra`, `Base-Drift`, `Review-Comment`, `Merge-Conflict`), exact action
-  taken (commit SHA, `gh run rerun` ID, rebase base SHA, or upstack cascade),
-  and outcome (`Verifying`, `Passed`, `Code Fixed (Reply Pending Consent)`, or
+- Timestamp, target PR & check/thread (`comment_id`), classification
+  (`PR-Caused`, `Flake`, `Infra`, `Base-Drift`, `Review-Comment`,
+  `Merge-Conflict`), exact action taken (commit SHA, `gh run rerun` ID, rebase
+  base SHA, upstack cascade, or draft reply), and outcome (`Verifying`, `Passed`,
+  `Code Fixed (Reply Pending Consent)`, `Drafted (Never Posted)`, or
   `Escalated`).
