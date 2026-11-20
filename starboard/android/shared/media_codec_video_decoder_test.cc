@@ -749,29 +749,36 @@ TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
   constexpr uint32_t kOtherImprovementBit = 1u << 1;
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
-      ExperimentalFeatures(), kGuardSurfaceCleanupByOwnership));
+      GetAndroidVideoDecoderImprovementsFlags(ExperimentalFeatures()),
+      kGuardSurfaceCleanupByOwnership));
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
-      MakeVideoDecoderImprovementsFeatures(0),
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(0)),
       kGuardSurfaceCleanupByOwnership));
 
   // Negative values act as disabled/placebo even though bit 0 is set in two's
   // complement representation.
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
-      MakeVideoDecoderImprovementsFeatures(-1),
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(-1)),
       kGuardSurfaceCleanupByOwnership));
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
-      MakeVideoDecoderImprovementsFeatures(kOtherImprovementBit),
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(kOtherImprovementBit)),
       kGuardSurfaceCleanupByOwnership));
 
   EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
-      MakeVideoDecoderImprovementsFeatures(kGuardSurfaceCleanupByOwnership),
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(
+              kGuardSurfaceCleanupByOwnership)),
       kGuardSurfaceCleanupByOwnership));
 
   EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
-      MakeVideoDecoderImprovementsFeatures(kGuardSurfaceCleanupByOwnership |
-                                           kOtherImprovementBit),
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(kGuardSurfaceCleanupByOwnership |
+                                               kOtherImprovementBit)),
       kGuardSurfaceCleanupByOwnership));
 }
 

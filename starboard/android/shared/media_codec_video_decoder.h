@@ -68,13 +68,18 @@ inline constexpr uint32_t kGuardSurfaceCleanupByOwnership = 1u << 0;
 
 }  // namespace android_video_decoder_improvements
 
-inline bool IsAndroidVideoDecoderImprovementEnabled(
-    const ExperimentalFeatures& experimental_features,
-    uint32_t improvement_flag) {
+inline uint32_t GetAndroidVideoDecoderImprovementsFlags(
+    const ExperimentalFeatures& experimental_features) {
   const int flags =
       experimental_features.Get(kMediaAndroidVideoDecoderImprovements)
           .value_or(0);
-  return flags > 0 && (static_cast<uint32_t>(flags) & improvement_flag) != 0;
+  return flags > 0 ? static_cast<uint32_t>(flags) : 0u;
+}
+
+inline bool IsAndroidVideoDecoderImprovementEnabled(
+    uint32_t decoder_improvements_flags,
+    uint32_t improvement_flag) {
+  return (decoder_improvements_flags & improvement_flag) != 0;
 }
 
 class MediaCodecVideoDecoder : public VideoDecoder,
@@ -242,7 +247,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
-  const bool guard_surface_cleanup_by_ownership_;
+  const uint32_t decoder_improvements_flags_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline

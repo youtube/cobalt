@@ -348,11 +348,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
-      guard_surface_cleanup_by_ownership_(
-          IsAndroidVideoDecoderImprovementEnabled(
-              pipeline_config.experimental_features,
-              android_video_decoder_improvements::
-                  kGuardSurfaceCleanupByOwnership)),
+      decoder_improvements_flags_(GetAndroidVideoDecoderImprovementsFlags(
+          pipeline_config.experimental_features)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -419,17 +416,19 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
                << ToString(ignore_stale_rendered_frames_after_seek_)
-               << ", guard_surface_cleanup_by_ownership="
-               << ToString(guard_surface_cleanup_by_ownership_);
+               << ", decoder_improvements_flags="
+               << decoder_improvements_flags_;
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
 
+  const bool guard_surface_cleanup = IsAndroidVideoDecoderImprovementEnabled(
+      decoder_improvements_flags_,
+      android_video_decoder_improvements::kGuardSurfaceCleanupByOwnership);
   const bool should_clean_up_surface =
-      !guard_surface_cleanup_by_ownership_ ||
-      (has_acquired_video_surface_ &&
-       (surface_view_ || IsVideoSurfaceAvailable()));
+      !guard_surface_cleanup || (has_acquired_video_surface_ &&
+                                 (surface_view_ || IsVideoSurfaceAvailable()));
   if (should_clean_up_surface) {
     // The video surface must be reset after tunnel mode playbacks. This
     // prevents video distortion on some platforms. For details, see
