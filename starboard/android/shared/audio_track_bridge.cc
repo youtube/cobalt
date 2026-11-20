@@ -252,17 +252,18 @@ void AudioTrackBridge::SetVolume(double volume) {
   }
 }
 
-int64_t AudioTrackBridge::GetAudioTimestamp(int64_t* updated_at) {
+AudioTrack::AudioTimestamp AudioTrackBridge::GetAudioTimestamp() {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_audio_timestamp =
       Java_AudioTrackBridge_getAudioTimestamp(env, j_audio_track_bridge_);
   SB_DCHECK(!j_audio_timestamp.is_null());
 
-  if (updated_at) {
-    *updated_at =
-        Java_AudioTimestamp_getNanoTime(env, j_audio_timestamp) / 1000;
-  }
-  return Java_AudioTimestamp_getFramePosition(env, j_audio_timestamp);
+  AudioTimestamp timestamp;
+  timestamp.updated_at_us =
+      Java_AudioTimestamp_getNanoTime(env, j_audio_timestamp) / 1000;
+  timestamp.frame_position =
+      Java_AudioTimestamp_getFramePosition(env, j_audio_timestamp);
+  return timestamp;
 }
 
 AudioTrack::AudioDeviceChange AudioTrackBridge::GetAndResetAudioDeviceChange() {

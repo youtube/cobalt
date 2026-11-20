@@ -52,6 +52,13 @@ class AudioTrack {
     kRestartPlayer,     // Capability changed: tear down player & recreate
   };
 
+  struct AudioTimestamp {
+    int64_t frame_position = 0;
+    // Monotonic system time (in microseconds) when |frame_position| was
+    // sampled.
+    int64_t updated_at_us = 0;
+  };
+
   // The maximum number of frames that can be written to android audio track per
   // write request.
   static constexpr int kMaxFramesPerRequest = 65'536;
@@ -92,9 +99,7 @@ class AudioTrack {
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual void SetVolume(double volume) = 0;
 
-  // |updated_at| contains the timestamp when the audio timestamp is updated on
-  // return.  It can be nullptr.
-  virtual int64_t GetAudioTimestamp(int64_t* updated_at) = 0;
+  virtual AudioTimestamp GetAudioTimestamp() = 0;
   virtual AudioDeviceChange GetAndResetAudioDeviceChange() = 0;
   virtual int GetUnderrunCount() = 0;
   virtual int GetStartThresholdInFrames() = 0;
