@@ -71,10 +71,9 @@ const VideoStreamInfo kAv1VideoStreamInfo = [] {
   return info;
 }();
 
-ExperimentalFeatures MakeVideoDecoderImprovementsFeatures(int flags) {
+ExperimentalFeatures MakeVideoDecoderImprovementsFeatures(int64_t flags) {
   return ExperimentalFeatures(ExperimentalFeatures::Map{
-      {std::string(kMediaAndroidVideoDecoderImprovements.key()),
-       static_cast<int64_t>(flags)}});
+      {std::string(kMediaAndroidVideoDecoderImprovements.key()), flags}});
 }
 
 // Forces `MediaCapabilitiesCache::IsAv18kCappedAt30()` to return true so AV1
@@ -743,6 +742,37 @@ TEST_F(MediaCodecVideoDecoderTest,
   EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
   first_decoder.value().reset();
   EXPECT_EQ(gles_context_runner_count_, 0);
+}
+
+TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
+  using android_video_decoder_improvements::kGuardSurfaceCleanupByOwnership;
+  constexpr uint32_t kOtherImprovementBit = 1u << 1;
+
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      ExperimentalFeatures(), kGuardSurfaceCleanupByOwnership));
+
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      MakeVideoDecoderImprovementsFeatures(0),
+      kGuardSurfaceCleanupByOwnership));
+
+  // Negative values act as disabled/placebo even though bit 0 is set in two's
+  // complement representation.
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      MakeVideoDecoderImprovementsFeatures(-1),
+      kGuardSurfaceCleanupByOwnership));
+
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      MakeVideoDecoderImprovementsFeatures(kOtherImprovementBit),
+      kGuardSurfaceCleanupByOwnership));
+
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      MakeVideoDecoderImprovementsFeatures(kGuardSurfaceCleanupByOwnership),
+      kGuardSurfaceCleanupByOwnership));
+
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      MakeVideoDecoderImprovementsFeatures(kGuardSurfaceCleanupByOwnership |
+                                           kOtherImprovementBit),
+      kGuardSurfaceCleanupByOwnership));
 }
 
 }  // namespace

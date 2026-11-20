@@ -183,17 +183,6 @@ inline const char* ToString(NdkAudioMode mode) {
   return "unknown";
 }
 
-// Bitfield flags for `Media.AndroidVideoDecoderImprovements`. Non-positive
-// values (<= 0) are treated as disabled/placebo. Follow-up changes will add
-// additional improvement bits.
-namespace android_video_decoder_improvements {
-
-// Guards video surface cleanup and reset in `~MediaCodecVideoDecoder()` by
-// video surface ownership.
-inline constexpr int kGuardSurfaceCleanupByOwnership = 1 << 0;
-
-}  // namespace android_video_decoder_improvements
-
 // -----------------------------------------------------------------------------
 // Experimental Feature Key Constants
 // -----------------------------------------------------------------------------
@@ -204,9 +193,9 @@ inline constexpr int kGuardSurfaceCleanupByOwnership = 1 << 0;
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 
-// Bitfield controlling Android video decoder improvements; see
-// `android_video_decoder_improvements` above. Follow-up changes will expand
-// the supported bits.
+// Bitfield controlling Android video decoder improvements. Non-positive values
+// (<= 0) are treated as disabled/placebo. Follow-up changes will expand the
+// supported bits.
 // TODO: b/588129850 - Remove this flag once the experiment is complete.
 inline constexpr ExperimentalFeatureKey<int>
     kMediaAndroidVideoDecoderImprovements(
@@ -281,15 +270,6 @@ inline constexpr ExperimentalFeatureKey<int>
 inline constexpr ExperimentalFeatureKey<int> kMediaVideoRendererMinInputBuffers(
     "Media.VideoRendererMinInputBuffers");
 // keep-sorted end
-
-inline bool IsAndroidVideoDecoderImprovementEnabled(
-    const ExperimentalFeatures& experimental_features,
-    int improvement_flag) {
-  const int flags =
-      experimental_features.Get(kMediaAndroidVideoDecoderImprovements)
-          .value_or(0);
-  return flags > 0 && (flags & improvement_flag) != 0;
-}
 
 }  // namespace starboard
 

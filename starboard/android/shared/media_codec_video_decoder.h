@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -51,6 +52,27 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
+
+// Bitfield flags for `kMediaAndroidVideoDecoderImprovements`
+// ("Media.AndroidVideoDecoderImprovements"). Non-positive values (<= 0) are
+// treated as disabled/placebo. Follow-up changes will add additional
+// improvement bits.
+namespace android_video_decoder_improvements {
+
+// Guards video surface cleanup and reset in `~MediaCodecVideoDecoder()` by
+// video surface ownership.
+inline constexpr uint32_t kGuardSurfaceCleanupByOwnership = 1u << 0;
+
+}  // namespace android_video_decoder_improvements
+
+inline bool IsAndroidVideoDecoderImprovementEnabled(
+    const ExperimentalFeatures& experimental_features,
+    uint32_t improvement_flag) {
+  const int flags =
+      experimental_features.Get(kMediaAndroidVideoDecoderImprovements)
+          .value_or(0);
+  return flags > 0 && (static_cast<uint32_t>(flags) & improvement_flag) != 0;
+}
 
 class MediaCodecVideoDecoder : public VideoDecoder,
                                public MediaCodecDecoder::Host,

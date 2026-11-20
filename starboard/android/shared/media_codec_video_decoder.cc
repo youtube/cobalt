@@ -424,21 +424,21 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
-  const bool can_clean_up_surface =
-      has_acquired_video_surface_ &&
-      (owns_video_surface_ || surface_view_ || IsVideoSurfaceAvailable());
-  const bool should_clean_up_surface =
-      !guard_surface_cleanup_by_ownership_ || can_clean_up_surface;
   TeardownCodec();
-  if (!should_clean_up_surface) {
-    return;
-  }
-  // The video surface must be reset after tunnel mode playbacks. This prevents
-  // video distortion on some platforms. For details, see http://b/182610842.
-  if (tunnel_mode_audio_session_id_.has_value()) {
-    ResetVideoSurface();
-  } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
-    CleanUpVideoSurface(decode_target_graphics_context_provider_);
+
+  const bool should_clean_up_surface =
+      !guard_surface_cleanup_by_ownership_ ||
+      (has_acquired_video_surface_ &&
+       (surface_view_ || IsVideoSurfaceAvailable()));
+  if (should_clean_up_surface) {
+    // The video surface must be reset after tunnel mode playbacks. This
+    // prevents video distortion on some platforms. For details, see
+    // http://b/182610842.
+    if (tunnel_mode_audio_session_id_.has_value()) {
+      ResetVideoSurface();
+    } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
+      CleanUpVideoSurface(decode_target_graphics_context_provider_);
+    }
   }
 }
 
