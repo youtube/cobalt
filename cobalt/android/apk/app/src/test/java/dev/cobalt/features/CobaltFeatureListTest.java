@@ -41,8 +41,9 @@ import org.robolectric.util.ReflectionHelpers;
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class CobaltFeatureListTest {
-  // Default of LowMemoryDeviceThresholdMB on Android.
-  private static final int DEFAULT_THRESHOLD_MB = SysUtils.LOW_MEMORY_DEVICE_THRESHOLD_MB;
+  // Value of LowMemoryDeviceThresholdMB when LowEndMemoryExperiment doesn't set it.
+  private static final int DEFAULT_THRESHOLD_MB =
+      CobaltFeatureList.DEFAULT_LOW_MEMORY_DEVICE_THRESHOLD_MB;
   // Value of LowMemoryDeviceThresholdMB set by Finch or --enable-features.
   private static final int EXPERIMENT_THRESHOLD_MB = 2048;
   // Never set by CobaltFeatureList, so tests can tell whether SysUtils was updated.
@@ -78,6 +79,31 @@ public class CobaltFeatureListTest {
   }
 
   @Test
+  public void isLowMemoryDeviceThresholdSet_nothingCached_false() {
+    assertThat(CobaltFeatureList.isLowMemoryDeviceThresholdSet()).isFalse();
+  }
+
+  @Test
+  public void isLowMemoryDeviceThresholdSet_cachedByPreviousLaunch_true() {
+    CobaltFeatureList.applyCachedValuesBeforeNative();
+    cacheNativeValuesWithThreshold(EXPERIMENT_THRESHOLD_MB);
+    assertThat(CobaltFeatureList.isLowMemoryDeviceThresholdSet()).isFalse();
+
+    simulateRelaunch();
+
+    assertThat(CobaltFeatureList.isLowMemoryDeviceThresholdSet()).isTrue();
+  }
+
+  @Test
+  public void isLowMemoryDeviceThresholdSet_nonPositiveThreshold_false() {
+    CobaltFeatureList.sLowMemoryDeviceThresholdMb.setForTesting(0);
+    assertThat(CobaltFeatureList.isLowMemoryDeviceThresholdSet()).isFalse();
+
+    CobaltFeatureList.sLowMemoryDeviceThresholdMb.setForTesting(-1);
+    assertThat(CobaltFeatureList.isLowMemoryDeviceThresholdSet()).isFalse();
+  }
+
+  @Test
   public void applyCachedValuesBeforeNative_javaIsLowEndDeviceUsesCachedThreshold() {
     // No --enable-low-end-device-mode, so SysUtils compares RAM against the threshold.
     CommandLine.resetForTesting(true);
@@ -104,12 +130,12 @@ public class CobaltFeatureListTest {
   }
 
   @Test
-  public void applyCachedValuesBeforeNative_nothingCached_usesDefault() {
+  public void applyCachedValuesBeforeNative_nothingCached_keepsSysUtilsThreshold() {
     CobaltFeatureList.applyCachedValuesBeforeNative();
 
     assertThat(CobaltFeatureList.sLowMemoryDeviceThresholdMb.getValue())
         .isEqualTo(DEFAULT_THRESHOLD_MB);
-    assertThat(getSysUtilsThresholdMb()).isEqualTo(DEFAULT_THRESHOLD_MB);
+    assertThat(getSysUtilsThresholdMb()).isEqualTo(UNSET_THRESHOLD_MB);
   }
 
   @Test
@@ -120,7 +146,7 @@ public class CobaltFeatureListTest {
 
     assertThat(CobaltFeatureList.sLowMemoryDeviceThresholdMb.getValue())
         .isEqualTo(DEFAULT_THRESHOLD_MB);
-    assertThat(getSysUtilsThresholdMb()).isEqualTo(DEFAULT_THRESHOLD_MB);
+    assertThat(getSysUtilsThresholdMb()).isEqualTo(UNSET_THRESHOLD_MB);
   }
 
   @Test
@@ -148,10 +174,11 @@ public class CobaltFeatureListTest {
     assertThat(getSysUtilsThresholdMb()).isEqualTo(EXPERIMENT_THRESHOLD_MB);
     CobaltFeatureList.cacheNativeValues();
 
-    // Launch 3: back to the default.
+    // Launch 3: back to the default, so SysUtils is not updated.
     simulateRelaunch();
     CobaltFeatureList.applyCachedValuesBeforeNative();
-    assertThat(getSysUtilsThresholdMb()).isEqualTo(DEFAULT_THRESHOLD_MB);
+    assertThat(CobaltFeatureList.isLowMemoryDeviceThresholdSet()).isFalse();
+    assertThat(getSysUtilsThresholdMb()).isEqualTo(UNSET_THRESHOLD_MB);
   }
 
   /** Calls cacheNativeValues() as if native had {@code thresholdMb} as the param value. */

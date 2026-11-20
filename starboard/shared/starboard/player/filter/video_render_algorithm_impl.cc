@@ -46,12 +46,9 @@ void VideoRenderAlgorithmImpl::Render(
     return;
   }
 
-  bool is_audio_playing;
-  bool is_audio_eos_played;
-  bool is_underflow;
-  double playback_rate;
-  int64_t media_time = media_time_provider->GetCurrentMediaTime(
-      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+  const MediaTimeInfo media_time_info =
+      media_time_provider->GetCurrentMediaTime();
+  const int64_t media_time = media_time_info.media_time;
 
   // Video frames are synced to the audio timestamp. However, the audio
   // timestamp is not queried at a consistent interval. For example, if the
@@ -78,7 +75,7 @@ void VideoRenderAlgorithmImpl::Render(
   //
   // In the above example, this ensures advancement from frame timestamp 20
   // to frame timestamp 30 when the sample time is 19.
-  if (is_audio_playing && frames->size() > 1 &&
+  if (media_time_info.is_playing && frames->size() > 1 &&
       frames->front()->timestamp() == last_frame_timestamp_ &&
       last_frame_timestamp_ - kMediaTimeThresholdUsec < media_time) {
     frames->pop_front();
@@ -111,7 +108,7 @@ void VideoRenderAlgorithmImpl::Render(
     frames->pop_front();
   }
 
-  if (is_audio_eos_played) {
+  if (media_time_info.is_eos_played) {
     while (frames->size() > 1) {
       frames->pop_front();
     }
@@ -161,12 +158,10 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     refresh_rate = 60;
   }
 
-  bool is_audio_playing;
-  bool is_audio_eos_played;
-  bool is_underflow;
-  double playback_rate;
-  int64_t media_time = media_time_provider->GetCurrentMediaTime(
-      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+  const MediaTimeInfo media_time_info =
+      media_time_provider->GetCurrentMediaTime();
+  const int64_t media_time = media_time_info.media_time;
+  double playback_rate = media_time_info.playback_rate;
 
   while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
          frames->front()->timestamp() < media_time) {
@@ -245,7 +240,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     cadence_pattern_generator_.AdvanceToNextFrame();
   }
 
-  if (is_audio_eos_played) {
+  if (media_time_info.is_eos_played) {
     while (frames->size() > 1) {
       frames->pop_front();
     }
@@ -256,7 +251,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     // want to advance to it explicitly if the current media time is later than
     // the timestamp of the first frame, and the first frame has been displayed.
     // This ensures that the video can be properly ended when there is no audio
-    // stream, where |is_audio_eos_played| will never be true.
+    // stream, where |media_time_info.is_eos_played| will never be true.
     auto second_iter = frames->begin();
     ++second_iter;
 

@@ -110,7 +110,7 @@ jobs:
 
           base_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')
           gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
-            -f ref="refs/heads/${pr_branch}" -f sha="${base_sha}" >/dev/null 2>&1 || \
+            -f ref="refs/heads/${pr_branch}" -f sha="${base_sha}" >/dev/null || \
           gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/heads/${pr_branch}" \
             -f sha="${base_sha}" -F force=true >/dev/null
 
