@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include <utility>
+
 #include "base/android/jni_array.h"
 #include "base/android/jni_bytebuffer.h"
 #include "base/android/jni_string.h"
@@ -22,6 +24,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -39,7 +42,39 @@ using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
 using jni_zero::AttachCurrentThread;
 using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
+
+// Owns a Java MediaCodecBridge whose codec is configured, but not started, and
+// which has no native MediaCodecBridge attached.
+class PreparedAudioCodecImpl : public MediaCodec::PreparedAudioCodec {
+ public:
+  PreparedAudioCodecImpl(
+      JNIEnv* env,
+      const ScopedJavaLocalRef<jobject>& j_media_codec_bridge)
+      : j_media_codec_bridge_(env, j_media_codec_bridge.obj()) {}
+
+  ~PreparedAudioCodecImpl() override {
+    if (j_media_codec_bridge_) {
+      Java_MediaCodecBridge_release(AttachCurrentThread(),
+                                    j_media_codec_bridge_);
+    }
+  }
+
+  bool AttachAndStart(JNIEnv* env, jlong native_media_codec_bridge) {
+    return Java_MediaCodecBridge_attachAndStart(env, j_media_codec_bridge_,
+                                                native_media_codec_bridge) ==
+           JNI_TRUE;
+  }
+
+  // Passes the ownership of the Java object to the caller.
+  ScopedJavaGlobalRef<jobject> Take() {
+    return std::move(j_media_codec_bridge_);
+  }
+
+ private:
+  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_;
+};
 
 }  // namespace
 
@@ -95,6 +130,97 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodec(
 
   SB_LOG(INFO) << __func__ << ": audio_stream_info=" << audio_stream_info;
 
+  native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
+  return native_media_codec_bridge;
+}
+
+// static
+std::unique_ptr<MediaCodec::PreparedAudioCodec>
+MediaCodecBridge::PrepareAudioMediaCodec(
+    const AudioStreamInfo& audio_stream_info) {
+  bool is_passthrough = false;
+  const char* mime =
+      SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
+  if (!mime) {
+    SB_LOG(ERROR) << "Unsupported codec " << audio_stream_info.codec << ".";
+    return nullptr;
+  }
+
+  std::string decoder_name =
+      MediaCapabilitiesCache::GetInstance()->FindAudioDecoder(
+          mime, /* bitrate = */ 0);
+  if (decoder_name.empty()) {
+    SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
+                  << ".";
+    return nullptr;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+
+  ScopedJavaLocalRef<jbyteArray> configuration_data;
+  if (audio_stream_info.codec == kSbMediaAudioCodecOpus &&
+      !audio_stream_info.audio_specific_config.empty()) {
+    configuration_data.Reset(
+        ToJavaByteArray(env, audio_stream_info.audio_specific_config.data(),
+                        audio_stream_info.audio_specific_config.size()));
+  }
+
+  // The two steps are separate calls so that each can be timed.
+  const int64_t create_start_us = CurrentMonotonicTime();
+  ScopedJavaLocalRef<jobject> j_media_codec_bridge =
+      Java_MediaCodecBridgeBuilder_createDetachedAudioDecoder(
+          env, ConvertUTF8ToJavaString(env, mime),
+          ConvertUTF8ToJavaString(env, decoder_name));
+  const int64_t configure_start_us = CurrentMonotonicTime();
+  bool configured = false;
+  if (j_media_codec_bridge) {
+    configured =
+        Java_MediaCodecBridge_configureDetachedAudioDecoder(
+            env, j_media_codec_bridge, ConvertUTF8ToJavaString(env, mime),
+            audio_stream_info.samples_per_second,
+            audio_stream_info.number_of_channels,
+            configuration_data) == JNI_TRUE;
+  }
+  const int64_t configure_end_us = CurrentMonotonicTime();
+
+  SB_LOG(INFO) << "Audio codec prepared: create(msec)="
+               << (configure_start_us - create_start_us) / 1'000
+               << ", configure(msec)="
+               << (configure_end_us - configure_start_us) / 1'000
+               << ", ok=" << ToString(configured);
+
+  if (!j_media_codec_bridge) {
+    return nullptr;
+  }
+  // From here on the codec is released when |prepared_codec| is destroyed.
+  auto prepared_codec =
+      std::make_unique<PreparedAudioCodecImpl>(env, j_media_codec_bridge);
+  if (!configured) {
+    return nullptr;
+  }
+  return prepared_codec;
+}
+
+// static
+std::unique_ptr<MediaCodecBridge> MediaCodecBridge::AttachAudioMediaCodec(
+    std::unique_ptr<PreparedAudioCodec> prepared_codec,
+    Handler* handler) {
+  SB_CHECK(prepared_codec);
+  JNIEnv* env = AttachCurrentThread();
+
+  std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
+      new MediaCodecBridge(handler));
+  // The Java object stays owned by |prepared_codec| until the codec has been
+  // started, so that it is released if it can't be.
+  auto* prepared_codec_impl =
+      static_cast<PreparedAudioCodecImpl*>(prepared_codec.get());
+  if (!prepared_codec_impl->AttachAndStart(
+          env, reinterpret_cast<jlong>(native_media_codec_bridge.get()))) {
+    SB_LOG(ERROR) << "Failed to start prepared audio codec.";
+    return nullptr;
+  }
+  ScopedJavaGlobalRef<jobject> j_media_codec_bridge =
+      prepared_codec_impl->Take();
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
 }

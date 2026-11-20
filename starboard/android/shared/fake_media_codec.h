@@ -125,6 +125,13 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
       MediaCodec::Handler* handler,
       const jni_zero::JavaRef<jobject>& j_media_crypto) override;
 
+  // Blocks while BlockAudioPrepare() is in effect.
+  std::unique_ptr<MediaCodec::PreparedAudioCodec> PrepareAudioMediaCodec(
+      const AudioStreamInfo& audio_stream_info) override;
+  std::unique_ptr<MediaCodec> AttachAudioMediaCodec(
+      std::unique_ptr<MediaCodec::PreparedAudioCodec> prepared_codec,
+      MediaCodec::Handler* handler) override;
+
   NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
       SbMediaVideoCodec video_codec,
       const Size& frame_size_hint,
@@ -135,6 +142,32 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
       const jni_zero::JavaRef<jobject>& j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
       const MediaCodec::VideoPlatformOptions& platform_options) override;
+
+  // Makes PrepareAudioMediaCodec() wait, on the thread it is called on, until
+  // UnblockAudioPrepare() is called.
+  void BlockAudioPrepare();
+  void UnblockAudioPrepare();
+  // Waits until PrepareAudioMediaCodec() has been entered |count| times in
+  // total. Returns false on timeout.
+  bool WaitForAudioPrepareEntered(int count, int timeout_ms);
+  // Each makes the respective call return nullptr.
+  void set_fail_audio_prepare(bool fail) { fail_audio_prepare_ = fail; }
+  void set_fail_audio_attach(bool fail) { fail_audio_attach_ = fail; }
+  void set_fail_audio_create(bool fail) { fail_audio_create_ = fail; }
+  // The number of calls of CreateAudioMediaCodec(), PrepareAudioMediaCodec()
+  // and AttachAudioMediaCodec(), whether or not they succeeded.
+  int audio_create_count() const { return audio_create_count_; }
+  int audio_prepare_count() const { return audio_prepare_count_; }
+  int audio_attach_count() const { return audio_attach_count_; }
+  // The number of prepared audio codecs that have been destroyed, attached or
+  // not. A prepared codec is released when it is destroyed without having been
+  // attached. The counters outlive the factory.
+  int prepared_audio_codec_destroyed_count() const {
+    return prepared_audio_codec_counters_->destroyed;
+  }
+  int prepared_audio_codec_released_count() const {
+    return prepared_audio_codec_counters_->released;
+  }
 
   FakeMediaCodec* last_created_audio_codec() const {
     return last_created_audio_codec_;
@@ -149,6 +182,25 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
   }
 
  private:
+  struct PreparedAudioCodecCounters {
+    std::atomic<int> destroyed{0};
+    std::atomic<int> released{0};
+  };
+  class FakePreparedAudioCodec;
+
+  std::atomic_bool fail_audio_prepare_{false};
+  std::atomic_bool fail_audio_attach_{false};
+  std::atomic_bool fail_audio_create_{false};
+  std::atomic<int> audio_create_count_{0};
+  std::atomic<int> audio_prepare_count_{0};
+  std::atomic<int> audio_attach_count_{0};
+  const std::shared_ptr<PreparedAudioCodecCounters>
+      prepared_audio_codec_counters_ =
+          std::make_shared<PreparedAudioCodecCounters>();
+  std::condition_variable audio_prepare_cv_;
+  bool audio_prepare_blocked_ = false;   // Guarded by |mutex_|.
+  int audio_prepare_entered_count_ = 0;  // Guarded by |mutex_|.
+
   std::atomic<FakeMediaCodec*> last_created_audio_codec_{nullptr};
   std::atomic<FakeMediaCodec*> last_created_video_codec_{nullptr};
   std::atomic<int> video_codec_create_count_{0};

@@ -119,6 +119,7 @@ class MediaCodecBridge {
 
   private final MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
+  private volatile boolean mHasEncounteredError;
 
   private boolean shouldSkipVideoFrame(long presentationTimeUs, boolean isDecodeOnly) {
     final double kMaxAcceptedOperatingRate = 60.0;
@@ -309,6 +310,7 @@ class MediaCodecBridge {
         new MediaCodec.Callback() {
           @Override
           public void onError(MediaCodec codec, MediaCodec.CodecException e) {
+            mHasEncounteredError = true;
             synchronized (mNativeBridgeLock) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
@@ -751,6 +753,65 @@ class MediaCodecBridge {
           });
     }
     return MediaCodecStatus.OK;
+  }
+
+  /**
+   * Configures an audio decoder created by MediaCodecBridgeBuilder.createDetachedAudioDecoder() for
+   * a clear stream, the way MediaCodecBridgeBuilder.createAudioDecoder() does, without starting it.
+   * Can be called on any thread.
+   *
+   * @return false on failure. The caller must then release the bridge.
+   */
+  @CalledByNative
+  boolean configureDetachedAudioDecoder(
+      String mime, int sampleRate, int channelCount, @Nullable byte[] configurationData) {
+    byte[][] csds = {};
+    boolean frameHasAdtsHeader = false;
+    if (mime.contains("opus")) {
+      csds = MediaFormatBuilder.starboardParseOpusConfigurationData(sampleRate, configurationData);
+      if (csds == null) {
+        return false;
+      }
+    } else {
+      frameHasAdtsHeader = true;
+    }
+    MediaFormat mediaFormat =
+        MediaFormatBuilder.createAudioFormat(
+            mime, sampleRate, channelCount, csds, frameHasAdtsHeader);
+    if (!configureAudio(mediaFormat, /* crypto= */ null, /* flags= */ 0)) {
+      Log.e(TAG, "Failed to configure audio codec.");
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Starts a configured codec that has no native owner and attaches it to one. A codec that has not
+   * been started delivers no buffer callbacks, so none is lost while it has no owner.
+   *
+   * @return false if the codec has reported an error or can't be started. The bridge then stays
+   *     without native owner and the caller must release it.
+   */
+  @CalledByNative
+  boolean attachAndStart(long nativeMediaCodecBridge) {
+    // The callbacks of the started codec need the lock, so none of them runs before the owner is
+    // attached.
+    synchronized (mNativeBridgeLock) {
+      if (mHasEncounteredError) {
+        Log.e(TAG, "Failed to start audio codec: it has reported an error.");
+        return false;
+      }
+      if (!start()) {
+        Log.e(TAG, "Failed to start audio codec.");
+        return false;
+      }
+      mNativeMediaCodecBridge = nativeMediaCodecBridge;
+      return true;
+    }
+  }
+
+  String getCodecName() {
+    return mCodecName;
   }
 
   @CalledByNative

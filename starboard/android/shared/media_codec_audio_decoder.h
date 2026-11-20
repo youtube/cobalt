@@ -22,12 +22,14 @@
 #include <optional>
 #include <queue>
 #include <string>
+#include <vector>
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_codec_decoder.h"
 #include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -42,17 +44,28 @@ class MediaCodecAudioDecoder : public AudioDecoder,
                                public MediaCodecDecoder::Host,
                                private JobQueue::JobOwner {
  public:
+  // |enable_async_codec_creation|: see |kMediaAsyncAudioCodecCreation|. Only
+  // has an effect when |drm_system| is invalid. The decoder is then returned
+  // before its MediaCodec exists, and a failure to create the MediaCodec is
+  // reported through the error callback passed to Initialize() instead of by
+  // the return value.
+  // |media_codec_factory|: creates the MediaCodec. Must outlive the decoder.
+  // Null for the factory used in production.
   static NonNullResult<std::unique_ptr<MediaCodecAudioDecoder>> Create(
       JobQueue* job_queue,
       const AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system,
-      bool enable_flush_during_seek);
+      bool enable_flush_during_seek,
+      bool enable_async_codec_creation = false,
+      MediaCodec::Factory* media_codec_factory = nullptr);
 
   MediaCodecAudioDecoder(PassKey<MediaCodecAudioDecoder>,
                          JobQueue* job_queue,
                          const AudioStreamInfo& audio_stream_info,
                          SbDrmSystem drm_system,
                          bool enable_flush_during_seek,
+                         bool enable_async_codec_creation,
+                         MediaCodec::Factory* media_codec_factory,
                          std::string* error_message);
 
   ~MediaCodecAudioDecoder() override;
@@ -69,7 +82,22 @@ class MediaCodecAudioDecoder : public AudioDecoder,
   // and |media_decoder_->GetNumberOfPendingTasks()|.
   static const int kMaxPendingWorkSize = 64;
 
+  // A call of Decode() made while the codec is being prepared.
+  struct ParkedDecode {
+    InputBuffers input_buffers;
+    ConsumedCB consumed_cb;
+  };
+
+  class PrepareThread;
+
   Result<void> InitializeCodec();
+  void DecodeInternal(const InputBuffers& input_buffers,
+                      const ConsumedCB& consumed_cb);
+  // Runs on |prepare_thread_|.
+  void PrepareCodec();
+  // Runs on the thread of the job queue once PrepareCodec() has finished.
+  void OnCodecPrepared();
+  size_t GetNumberOfParkedInputBuffers() const;
   void ProcessOutputBuffer(MediaCodec* media_codec_bridge,
                            const DequeueOutputResult& output,
                            int number_of_pending_inputs) override;
@@ -102,6 +130,34 @@ class MediaCodecAudioDecoder : public AudioDecoder,
 
   AudioFrameDiscarder audio_frame_discarder_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
+
+  DefaultMediaCodecFactory default_media_codec_factory_;
+  MediaCodec::Factory* const media_codec_factory_;
+
+  // The members below are only used with |kMediaAsyncAudioCodecCreation|.
+  //
+  // True from the constructor until OnCodecPrepared() has run: the codec is
+  // being created and configured on |prepare_thread_|, or is waiting to be
+  // started on this thread. |media_decoder_| is null and input is parked
+  // meanwhile. Only used on the thread of the job queue.
+  bool preparing_codec_ = false;
+  // What was written while |preparing_codec_|, to be passed on once the codec
+  // is ready. Dropped by Reset().
+  std::vector<ParkedDecode> parked_decodes_;
+  bool parked_end_of_stream_ = false;
+  // An error that occurred before Initialize() provided |error_cb_|.
+  std::optional<std::string> error_before_initialize_;
+  int64_t prepare_started_at_us_ = 0;
+
+  std::mutex prepare_mutex_;
+  // The result of PrepareCodec(), null on failure. Guarded by |prepare_mutex_|.
+  std::unique_ptr<MediaCodec::PreparedAudioCodec> prepared_codec_;
+  // Guarded by |prepare_mutex_|.
+  int64_t prepare_finished_at_us_ = 0;
+
+  // Joined at the start of the destructor, so PrepareCodec() never outlives
+  // this object.
+  std::unique_ptr<Thread> prepare_thread_;
 };
 
 }  // namespace starboard

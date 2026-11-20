@@ -179,14 +179,90 @@ FakeMediaCodec::ConsumeReleasedOutputs() {
 }
 
 // FakeMediaCodecFactory
+class FakeMediaCodecFactory::FakePreparedAudioCodec
+    : public MediaCodec::PreparedAudioCodec {
+ public:
+  explicit FakePreparedAudioCodec(
+      std::shared_ptr<PreparedAudioCodecCounters> counters)
+      : counters_(std::move(counters)) {}
+
+  ~FakePreparedAudioCodec() override {
+    ++counters_->destroyed;
+    if (!attached_) {
+      ++counters_->released;
+    }
+  }
+
+  void set_attached() { attached_ = true; }
+
+ private:
+  const std::shared_ptr<PreparedAudioCodecCounters> counters_;
+  bool attached_ = false;
+};
+
 std::unique_ptr<MediaCodec> FakeMediaCodecFactory::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
     MediaCodec::Handler* handler,
     const jni_zero::JavaRef<jobject>& j_media_crypto) {
+  ++audio_create_count_;
+  if (fail_audio_create_) {
+    return nullptr;
+  }
   auto fake =
       std::make_unique<FakeMediaCodec>(handler, &last_created_audio_codec_);
   last_created_audio_codec_ = fake.get();
   return fake;
+}
+
+std::unique_ptr<MediaCodec::PreparedAudioCodec>
+FakeMediaCodecFactory::PrepareAudioMediaCodec(
+    const AudioStreamInfo& audio_stream_info) {
+  ++audio_prepare_count_;
+  {
+    std::unique_lock lock(mutex_);
+    ++audio_prepare_entered_count_;
+    audio_prepare_cv_.notify_all();
+    audio_prepare_cv_.wait(lock, [this] { return !audio_prepare_blocked_; });
+  }
+  if (fail_audio_prepare_) {
+    return nullptr;
+  }
+  return std::make_unique<FakePreparedAudioCodec>(
+      prepared_audio_codec_counters_);
+}
+
+std::unique_ptr<MediaCodec> FakeMediaCodecFactory::AttachAudioMediaCodec(
+    std::unique_ptr<MediaCodec::PreparedAudioCodec> prepared_codec,
+    MediaCodec::Handler* handler) {
+  SB_CHECK(prepared_codec);
+  ++audio_attach_count_;
+  if (fail_audio_attach_) {
+    return nullptr;
+  }
+  static_cast<FakePreparedAudioCodec*>(prepared_codec.get())->set_attached();
+  auto fake =
+      std::make_unique<FakeMediaCodec>(handler, &last_created_audio_codec_);
+  last_created_audio_codec_ = fake.get();
+  return fake;
+}
+
+void FakeMediaCodecFactory::BlockAudioPrepare() {
+  std::lock_guard lock(mutex_);
+  audio_prepare_blocked_ = true;
+}
+
+void FakeMediaCodecFactory::UnblockAudioPrepare() {
+  std::lock_guard lock(mutex_);
+  audio_prepare_blocked_ = false;
+  audio_prepare_cv_.notify_all();
+}
+
+bool FakeMediaCodecFactory::WaitForAudioPrepareEntered(int count,
+                                                       int timeout_ms) {
+  std::unique_lock lock(mutex_);
+  return audio_prepare_cv_.wait_for(
+      lock, std::chrono::milliseconds(timeout_ms),
+      [this, count] { return audio_prepare_entered_count_ >= count; });
 }
 
 NonNullResult<std::unique_ptr<MediaCodec>>

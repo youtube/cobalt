@@ -111,9 +111,35 @@ class MediaCodec {
     virtual void OnMediaCodecFirstTunnelFrameReady() = 0;
   };
 
+  // An audio codec that has been created and configured, but neither started
+  // nor attached to a Handler, so it delivers no callbacks. Destroying it
+  // releases the codec. It can be created and destroyed on any thread.
+  class PreparedAudioCodec {
+   public:
+    virtual ~PreparedAudioCodec() = default;
+  };
+
   class Factory {
    public:
     virtual ~Factory() = default;
+    // Creates and configures a codec for a clear (not encrypted) audio stream
+    // without starting it, so the slow part of the creation can run on another
+    // thread than the one that is going to use the codec. Can be called on any
+    // thread. Returns nullptr on failure, or if the factory doesn't support
+    // it. See |kMediaAsyncAudioCodecCreation|.
+    virtual std::unique_ptr<PreparedAudioCodec> PrepareAudioMediaCodec(
+        const AudioStreamInfo& audio_stream_info) {
+      return nullptr;
+    }
+    // Starts a codec returned by PrepareAudioMediaCodec() of the same factory
+    // and attaches it to |handler|. The result is the same as that of
+    // CreateAudioMediaCodec(). Returns nullptr on failure, the codec is then
+    // released.
+    virtual std::unique_ptr<MediaCodec> AttachAudioMediaCodec(
+        std::unique_ptr<PreparedAudioCodec> prepared_codec,
+        Handler* handler) {
+      return nullptr;
+    }
     virtual std::unique_ptr<MediaCodec> CreateAudioMediaCodec(
         const AudioStreamInfo& audio_stream_info,
         Handler* handler,
@@ -189,6 +215,12 @@ class DefaultMediaCodecFactory : public MediaCodec::Factory {
       const AudioStreamInfo& audio_stream_info,
       MediaCodec::Handler* handler,
       const jni_zero::JavaRef<jobject>& j_media_crypto) override;
+
+  std::unique_ptr<MediaCodec::PreparedAudioCodec> PrepareAudioMediaCodec(
+      const AudioStreamInfo& audio_stream_info) override;
+  std::unique_ptr<MediaCodec> AttachAudioMediaCodec(
+      std::unique_ptr<MediaCodec::PreparedAudioCodec> prepared_codec,
+      MediaCodec::Handler* handler) override;
 
   NonNullResult<std::unique_ptr<MediaCodec>> CreateVideoMediaCodec(
       SbMediaVideoCodec video_codec,
