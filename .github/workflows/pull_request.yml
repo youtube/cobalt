@@ -1,7 +1,7 @@
 # Disable dangerous-triggers rule because this workflow uses pull_request_target
 # and issue_comment strictly for PR automation (anchor comment, commit statuses,
-# and commit message generation) without checking out or executing untrusted
-# code from PR branches.
+# commit message generation, and read-only owner review) without executing
+# untrusted code from PR branches.
 # actionlint: disable dangerous-triggers
 name: 'Pull Request Automation'
 
@@ -177,6 +177,10 @@ jobs:
         run: |
           set -euo pipefail
           prompt_file="${RUNNER_TEMP}/review_prompt.txt"
+          review_out_dir="${RUNNER_TEMP}/review-out"
+          review_file="${review_out_dir}/owner_review.json"
+          mkdir -p "${review_out_dir}"
+          rm -f "${review_file}"
           mapfile -t changed_files < "${RUNNER_TEMP}/changed_files.txt"
           reviewer_paths=""
           if [[ ${#changed_files[@]} -gt 0 ]]; then
@@ -187,6 +191,7 @@ jobs:
             echo "reviewer_paths=$(printf '%s\n' "${reviewer_paths}" | paste -sd ' ' -)" >> "${GITHUB_OUTPUT}"
             {
               echo "Review the PR diff below as the lead reviewer."
+              echo "The full PR source tree is available in read-only mode at ${RUNNER_TEMP}/pr-src (use read_file, list_directory, glob, or grep_search with that path to inspect surrounding code)."
               echo "Run each matching reviewer persona as a subagent using its prompt file:"
               for rpath in ${reviewer_paths}; do
                 echo "---"
@@ -196,9 +201,11 @@ jobs:
               done
               echo "---"
               echo "Produce comments ONLY on files matching each reviewer's own paths globs (never comment on files outside a reviewer's paths)."
+              echo "In \"comments\", each \"path\" MUST be the repository-relative path from the diff (never prefix it with \"${RUNNER_TEMP}/pr-src/\")."
               echo "Start EVERY inline comment's body with a markdown header identifying the reviewer persona (e.g. #### 🛡️ Review by \`<reviewer-name>\` followed by a blank line), and include change suggestions in \`\`\`suggestion blocks where appropriate."
-              echo "Return ONLY raw JSON (no markdown code fences, overriding any output format in the reviewer prompts above) with fields:"
+              echo "Write the final review result using the write_file tool directly to ${review_file} as raw JSON (no markdown code fences, overriding any output format in the reviewer prompts above) with fields:"
               echo '{"summary": "overall review summary", "comments": [{"path": "file/path", "line": 12, "body": "#### 🛡️ Review by `<reviewer-name>`\n\ncomment with ```suggestion\nreplacement\n```"}]}'
+              echo "After writing ${review_file}, respond with a brief confirmation."
               echo ""
               echo "<code_diff>"
               cat "${RUNNER_TEMP}/pr.diff"
@@ -212,6 +219,27 @@ jobs:
             } >> "${GITHUB_OUTPUT}"
           fi
 
+      - name: 'Checkout PR source'
+        if: steps.trigger.outputs.owner_rev == 'true' && steps.resolve_review.outputs.has_reviewers == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number || github.event.issue.number }}/head
+          path: pr-src
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: 'Lock PR source read-only'
+        if: steps.trigger.outputs.owner_rev == 'true' && steps.resolve_review.outputs.has_reviewers == 'true'
+        run: |
+          set -euo pipefail
+          if [[ -d "${RUNNER_TEMP}/pr-src" ]]; then
+            chmod -R u+w "${RUNNER_TEMP}/pr-src"
+            rm -rf "${RUNNER_TEMP}/pr-src"
+          fi
+          rm -rf pr-src/.git
+          mv pr-src "${RUNNER_TEMP}/pr-src"
+          chmod -R a-w "${RUNNER_TEMP}/pr-src" .agent .github
+
       - name: 'Review with Gemini CLI'
         id: gemini_review
         if: steps.trigger.outputs.owner_rev == 'true' && steps.resolve_review.outputs.has_reviewers == 'true'
@@ -221,18 +249,38 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           gemini_model: 'gemini-3.8-flash'
+          settings: |-
+            {
+              "context": {
+                "includeDirectories": [
+                  "${{ runner.temp }}/pr-src",
+                  "${{ runner.temp }}/review-out"
+                ],
+                "loadMemoryFromIncludeDirectories": false
+              },
+              "tools": {
+                "core": [
+                  "list_directory",
+                  "read_file",
+                  "glob",
+                  "grep_search",
+                  "write_file"
+                ]
+              }
+            }
           prompt: ${{ steps.resolve_review.outputs.prompt }}
 
       - name: 'Format Comment'
         id: format_comment
         env:
           COMMIT_MSG: ${{ steps.gemini_commit.outputs.summary || '' }}
-          OWNER_REV: ${{ steps.gemini_review.outputs.summary || '' }}
+          OWNER_REV_RAN: ${{ steps.gemini_review.outcome == 'success' }}
           PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
           set -euo pipefail
           out_file="${RUNNER_TEMP}/comment.md"
           json_file="${RUNNER_TEMP}/comments.json"
+          review_file="${RUNNER_TEMP}/review-out/owner_review.json"
           echo "[]" > "${json_file}"
           rm -f "${out_file}"
           touch "${out_file}"
@@ -246,7 +294,7 @@ jobs:
             echo "" >> "${out_file}"
           fi
 
-          if [ -n "${OWNER_REV}" ]; then
+          if [[ "${OWNER_REV_RAN}" == "true" ]]; then
             if [ -s "${out_file}" ]; then
               echo "---" >> "${out_file}"
               echo "" >> "${out_file}"
@@ -254,11 +302,9 @@ jobs:
             echo "### 🛡️ CODEOWNERS Critic Review" >> "${out_file}"
             echo "" >> "${out_file}"
 
-            cleaned_rev=$(python3 -c 'import re, sys; s = sys.stdin.read().strip(); s = re.sub(r"^```[a-zA-Z0-9_-]*[ \t]*(?:\r?\n)?", "", s); s = re.sub(r"(?:\r?\n)?```$", "", s); print(s.strip())' <<< "${OWNER_REV}")
-
-            if printf '%s\n' "${cleaned_rev}" | jq -e 'type == "object" and (.summary | type == "string") and (.comments | type == "array")' >/dev/null 2>&1; then
-              printf '%s\n\n' "$(printf '%s\n' "${cleaned_rev}" | jq -r .summary)" >> "${out_file}"
-              printf '%s\n' "${cleaned_rev}" | jq -c .comments > "${json_file}"
+            if [ -f "${review_file}" ] && jq -e 'type == "object" and (.summary | type == "string") and (.comments | type == "array")' "${review_file}" >/dev/null 2>&1; then
+              printf '%s\n\n' "$(jq -r .summary "${review_file}")" >> "${out_file}"
+              jq -c .comments "${review_file}" > "${json_file}"
             else
               echo "[]" > "${json_file}"
               echo "Automated code review could not be generated for this change." >> "${out_file}"
