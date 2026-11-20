@@ -27,6 +27,7 @@ from datetime import datetime
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import shlex
@@ -288,6 +289,7 @@ def _adb_shell(serial: Optional[str],
       input=input_text,
       capture_output=True,
       text=True,
+      errors="replace",
       check=False,
       timeout=timeout)
 
@@ -298,6 +300,7 @@ def _device_info(serial: Optional[str], package: str) -> Dict[str, str]:
       _adb_cmd(serial, "get-state"),
       capture_output=True,
       text=True,
+      errors="replace",
       check=False,
       timeout=10)
   if res.stdout.strip() != "device":
@@ -509,10 +512,13 @@ def record_trace(args: argparse.Namespace, config: str, trace_path: str,
         _adb_cmd(serial, "pull", remote, trace_path),
         capture_output=True,
         text=True,
+        errors="replace",
         check=False,
         timeout=600)
     if res.returncode != 0:
       raise RuntimeError(f"adb pull failed: {res.stderr.strip()}")
+    if not os.path.isfile(trace_path) or os.path.getsize(trace_path) == 0:
+      raise RuntimeError(f"Pulled trace is missing or empty: {trace_path}")
     _adb_shell(serial, f"rm -f {shlex.quote(remote)}")
     print(f"Saved trace to {trace_path}")
   return capture
@@ -526,8 +532,11 @@ def load_queries(package: str = DEFAULT_PACKAGE,
   queries = []
   for block in re.split(r"(?m)^(?=-- Q\d+: )", text)[1:]:
     match = re.match(r"-- Q(\d+): (.*)", block)
-    queries.append((int(match.group(1)), match.group(2).strip(),
-                    block.replace(SQL_PACKAGE_LITERAL, f"'{package}'")))
+    if match:
+      queries.append((int(match.group(1)), match.group(2).strip(),
+                      block.replace(SQL_PACKAGE_LITERAL, f"'{package}'")))
+  if not queries:
+    raise ValueError(f"No '-- Q<n>: <title>' queries found in {path}")
   return queries
 
 
@@ -537,11 +546,15 @@ def _run_query(trace_processor: str, trace: str, sql: str,
   sql_path = os.path.join(tmp_dir, "query.sql")
   with open(sql_path, "w", encoding="utf-8") as f:
     f.write(sql)
-  res = subprocess.run([trace_processor, "-q", sql_path, trace],
-                       capture_output=True,
-                       text=True,
-                       check=False,
-                       timeout=900)
+  try:
+    res = subprocess.run([trace_processor, "-q", sql_path, trace],
+                         capture_output=True,
+                         text=True,
+                         errors="replace",
+                         check=False,
+                         timeout=900)
+  except (OSError, subprocess.SubprocessError) as exc:
+    return "", f"{type(exc).__name__}: {exc}"
   if res.returncode != 0:
     return "", (" ".join(res.stderr.strip().splitlines()[-3:]) or
                 f"trace_processor_shell exited with {res.returncode}")
@@ -549,7 +562,43 @@ def _run_query(trace_processor: str, trace: str, sql: str,
 
 
 def parse_csv(text: str) -> List[List[str]]:
-  return list(csv.reader(io.StringIO(text)))
+  """Parses trace_processor CSV output, stripping embedded NUL bytes."""
+  return list(csv.reader(io.StringIO(text.replace("\x00", "")), strict=True))
+
+
+def _parse_query_csv(text: str) -> Tuple[List[List[str]], str]:
+  try:
+    return parse_csv(text), ""
+  except csv.Error as exc:
+    return [], f"malformed CSV output: {exc}"
+
+
+def _parse_nonneg_int(value: Any) -> Optional[int]:
+  if isinstance(value, bool):
+    return None
+  try:
+    parsed = int(value)
+  except (TypeError, ValueError):
+    return None
+  return parsed if parsed >= 0 else None
+
+
+def _parse_finite_float(value: Any) -> Optional[float]:
+  if isinstance(value, bool):
+    return None
+  try:
+    parsed = float(value)
+  except (TypeError, ValueError):
+    return None
+  return parsed if math.isfinite(parsed) else None
+
+
+def _duration_s(metadata: Dict[str, str]) -> float:
+  duration_ns = _parse_nonneg_int(metadata.get("duration_ns", 0))
+  return round((duration_ns or 0) / 1e9, 3)
+
+
+_HEALTH_HEADER = ["kind", "name", "idx", "severity", "value"]
 
 
 def parse_health(
@@ -557,22 +606,48 @@ def parse_health(
   """Returns (trace_health, metadata) from the HEALTH_SQL result rows."""
   counters = {name: 0 for name in HEALTH_COUNTERS}
   data_loss = []
-  metadata = {}
-  for kind, name, idx, severity, value in rows[1:]:
-    if kind == "meta":
-      metadata[name] = value
+  metadata: Dict[str, str] = {}
+  parse_errors = []
+  if rows and rows[0] != _HEALTH_HEADER:
+    parse_errors.append(f"unexpected health header: {rows[0]!r}")
+    body_rows: List[List[str]] = []
+  else:
+    body_rows = rows[1:]
+  for row in body_rows:
+    if len(row) != 5:
+      parse_errors.append(f"malformed health row ({len(row)} columns)")
       continue
-    if name in counters:
-      counters[name] += int(value)
-    if severity == "data_loss":
-      suffix = "" if idx == "[NULL]" else f"[{idx}]"
-      data_loss.append(f"{name}{suffix}={value}")
+    kind, name, idx, severity, value = row
+    if kind == "meta":
+      if value == "[NULL]":
+        if name == "duration_ns":
+          parse_errors.append("invalid duration_ns: [NULL]")
+        continue
+      if name in ("duration_ns", "tracing_disabled_ns"):
+        if _parse_nonneg_int(value) is None:
+          parse_errors.append(f"invalid {name}: {value!r}")
+          continue
+      metadata[name] = value
+    elif kind == "stat":
+      parsed_value = _parse_nonneg_int(value)
+      if parsed_value is None:
+        parse_errors.append(f"invalid stat {name}: {value!r}")
+        continue
+      if name in counters:
+        counters[name] += parsed_value
+      if severity == "data_loss":
+        suffix = "" if idx == "[NULL]" else f"[{idx}]"
+        data_loss.append(f"{name}{suffix}={parsed_value}")
+    else:
+      parse_errors.append(f"unknown health row kind: {kind!r}")
+  if rows and "duration_ns" not in metadata and not parse_errors:
+    parse_errors.append("missing duration_ns")
   # traced writes tracing_disabled_ns and the final stats when tracing stops.
   # Without them the trace was cut off and the counters above are incomplete.
   truncated = "tracing_disabled_ns" not in metadata
-  health = {
-      "healthy":
-          not truncated and not data_loss and not any(counters.values()),
+  health: Dict[str, Any] = {
+      "healthy": (not truncated and not data_loss and
+                  not any(counters.values()) and not parse_errors),
       "truncated":
           truncated,
       "counters":
@@ -585,6 +660,8 @@ def parse_health(
           if line.strip()
       ],
   }
+  if parse_errors:
+    health["error"] = "; ".join(parse_errors)
   return health, metadata
 
 
@@ -618,35 +695,63 @@ def health_banner(health: Dict[str, Any]) -> str:
 
 def _after_home(phases: List[Dict[str, Any]], q5_rows: List[List[str]]) -> str:
   """Returns when each storage engine's last I/O ended after HOME."""
-  home = next((p["start_s"] for p in phases if p["name"] == "exit"), None)
+  home = next((_parse_finite_float(p.get("start_s"))
+               for p in phases
+               if isinstance(p, dict) and p.get("name") == "exit"), None)
   if home is None or len(q5_rows) < 2:
     return ""
   header = q5_rows[0]
-  engine, last_end = header.index("engine"), header.index("last_end_boottime_s")
-  items = [
-      f"{row[engine]} +{float(row[last_end]) - home:.2f} s"
-      for row in q5_rows[1:]
-      if float(row[last_end]) > home
-  ]
+  if "engine" not in header or "last_end_boottime_s" not in header:
+    return ""
+  engine = header.index("engine")
+  last_end = header.index("last_end_boottime_s")
+  min_len = max(engine, last_end) + 1
+  items = []
+  for row in q5_rows[1:]:
+    if len(row) < min_len:
+      continue
+    end_s = _parse_finite_float(row[last_end])
+    if end_s is not None and end_s > home:
+      items.append(f"{row[engine]} +{end_s - home:.2f} s")
   return ("Last storage I/O after HOME (Q5): " + (", ".join(items) or "none") +
           ".")
 
 
 def _markdown_table(rows: List[List[str]]) -> List[str]:
   """Returns the header and the first REPORT_ROWS rows as a Markdown table."""
+  if not rows or not rows[0]:
+    return []
   header = rows[0]
-  lines = ["| " + " | ".join(header) + " |", "|" + " --- |" * len(header)]
+  lines = [
+      "| " + " | ".join(_cell(col) for col in header) + " |",
+      "|" + " --- |" * len(header),
+  ]
   for row in rows[1:REPORT_ROWS + 1]:
-    lines.append("| " + " | ".join(_cell(value) for value in row) + " |")
+    if not row:
+      continue
+    padded = (row + [""] * len(header))[:len(header)]
+    lines.append("| " + " | ".join(_cell(value) for value in padded) + " |")
   return lines
 
 
 def _phase_lines(capture: Dict[str, Any],
                  q5_rows: List[List[str]]) -> List[str]:
-  phases = capture.get("phases", [])
-  if not phases:
+  if not isinstance(capture, dict):
     return []
-  cuj, t0 = capture["cuj"], phases[0]["start_s"]
+  raw_phases = capture.get("phases")
+  if not isinstance(raw_phases, list) or not raw_phases:
+    return []
+  phases = []
+  for phase in raw_phases:
+    if not isinstance(phase, dict) or not isinstance(phase.get("name"), str):
+      return []
+    start = _parse_finite_float(phase.get("start_s"))
+    end = _parse_finite_float(phase.get("end_s"))
+    if start is None or end is None:
+      return []
+    phases.append({"name": phase["name"], "start_s": start, "end_s": end})
+  cuj = capture.get("cuj") or "unknown"
+  t0 = phases[0]["start_s"]
   lines = [
       "",
       f"## Phases (`{cuj}`, CLOCK_BOOTTIME s; trace ts = s * 1e9)",
@@ -660,6 +765,43 @@ def _phase_lines(capture: Dict[str, Any],
                  f"{end - start:.1f} |")
   after_home = _after_home(phases, q5_rows)
   return lines + (["", after_home] if after_home else [])
+
+
+def load_capture(phases_path: str) -> Optional[Dict[str, Any]]:
+  """Loads and validates a <stem>.phases.json sidecar, warning if malformed."""
+  try:
+    with open(phases_path, encoding="utf-8") as f:
+      data = json.load(f)
+  except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+    print(
+        f"WARNING: ignoring malformed phases file {phases_path}: {exc}",
+        file=sys.stderr)
+    return None
+  if not isinstance(data, dict):
+    print(
+        f"WARNING: ignoring malformed phases file {phases_path}: "
+        f"expected JSON object, got {type(data).__name__}",
+        file=sys.stderr)
+    return None
+  device = data.get("device")
+  if device is not None and not isinstance(device, dict):
+    print(
+        f"WARNING: ignoring malformed phases file {phases_path}: "
+        "'device' must be an object",
+        file=sys.stderr)
+    return None
+  phases = data.get("phases")
+  if phases is not None:
+    if not isinstance(phases, list) or any(
+        not isinstance(p, dict) or not isinstance(p.get("name"), str) or
+        _parse_finite_float(p.get("start_s")) is None or
+        _parse_finite_float(p.get("end_s")) is None for p in phases):
+      print(
+          f"WARNING: ignoring malformed phases file {phases_path}: "
+          "invalid 'phases' entries",
+          file=sys.stderr)
+      return None
+  return data
 
 
 def format_markdown(summary: Dict[str, Any], results: List[Dict[str,
@@ -703,11 +845,16 @@ def analyze_trace(trace: str, report_dir: str, trace_processor: str,
                   package: str, capture: Optional[Dict[str, Any]]) -> int:
   """Runs the queries on a trace and writes the CSV, JSON and MD reports."""
   stem = os.path.splitext(os.path.basename(trace))[0]
-  version = subprocess.run([trace_processor, "--version"],
-                           capture_output=True,
-                           text=True,
-                           check=False,
-                           timeout=60).stdout.strip().splitlines()
+  try:
+    version = subprocess.run([trace_processor, "--version"],
+                             capture_output=True,
+                             text=True,
+                             errors="replace",
+                             check=False,
+                             timeout=60).stdout.strip().splitlines()
+  except (OSError, subprocess.SubprocessError) as exc:
+    print(f"Error: failed to run {trace_processor}: {exc}", file=sys.stderr)
+    return 1
   results = []
   with tempfile.TemporaryDirectory() as tmp_dir:
     health_text, health_error = _run_query(trace_processor, trace, HEALTH_SQL,
@@ -717,7 +864,10 @@ def analyze_trace(trace: str, report_dir: str, trace_processor: str,
       csv_name = f"{stem}.q{number}.csv"
       with open(os.path.join(report_dir, csv_name), "w", encoding="utf-8") as f:
         f.write(text)
-      rows = parse_csv(text)
+      rows, csv_error = _parse_query_csv(text)
+      if not error and not csv_error and not rows:
+        csv_error = "empty CSV output from trace_processor_shell"
+      error = "; ".join(e for e in (error, csv_error) if e)
       results.append({
           "number": number,
           "title": title,
@@ -726,23 +876,30 @@ def analyze_trace(trace: str, report_dir: str, trace_processor: str,
           "error": error,
           "rows": rows,
       })
-  health, metadata = parse_health(parse_csv(health_text))
-  if health_error:
+  health_rows, health_csv_error = _parse_query_csv(health_text)
+  if not health_error and not health_csv_error and not health_rows:
+    health_csv_error = "empty CSV output from trace_processor_shell"
+  health, metadata = parse_health(health_rows)
+  health_errors = [
+      e for e in (health_error, health_csv_error, health.get("error")) if e
+  ]
+  if health_errors:
     health["healthy"] = False
-    health["error"] = health_error
-  device = (capture or {}).get("device", {})
+    health["error"] = "; ".join(health_errors)
+  raw_device = capture.get("device") if isinstance(capture, dict) else None
+  device = raw_device if isinstance(raw_device, dict) else {}
   summary = {
       "trace": {
           "path": trace,
           "sha256": _sha256(trace),
           "size_bytes": os.path.getsize(trace),
-          "duration_s": round(int(metadata.get("duration_ns", 0)) / 1e9, 3),
+          "duration_s": _duration_s(metadata),
           "clock_id": metadata.get("trace_time_clock_id", ""),
       },
       "versions": {
           "trace_processor": version[0] if version else "",
-          "device_perfetto": device.get("perfetto", ""),
-          "app_version_name": device.get("app_version_name", ""),
+          "device_perfetto": str(device.get("perfetto") or ""),
+          "app_version_name": str(device.get("app_version_name") or ""),
           "build_fingerprint": metadata.get("android_build_fingerprint", ""),
           "chrome_user_agent": metadata.get("cr-user-agent", ""),
       },
@@ -750,7 +907,7 @@ def analyze_trace(trace: str, report_dir: str, trace_processor: str,
       "queries": [{
           k: v for k, v in r.items() if k != "rows"
       } for r in results],
-      "capture": capture,
+      "capture": capture if isinstance(capture, dict) else None,
   }
   summary_path = os.path.join(report_dir, f"{stem}.summary.json")
   with open(summary_path, "w", encoding="utf-8") as f:
@@ -844,9 +1001,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
   args = parser.parse_args(argv)
   if not re.fullmatch(r"[\w.]+", args.package):
     parser.error(f"Invalid --package: {args.package}")
+  if args.duration_s is not None and (not math.isfinite(args.duration_s) or
+                                      args.duration_s <= 0):
+    parser.error(f"--duration-s must be positive: {args.duration_s}")
+  if args.analyze_only and args.out:
+    parser.error("--analyze-only and --out cannot be combined")
   if args.cuj_cmd and args.cuj != "manual":
     parser.error("--cuj-cmd requires --cuj manual")
-  if args.cuj_cmd and args.duration_s:
+  if args.cuj_cmd and args.duration_s is not None:
     parser.error("--cuj-cmd and --duration-s cannot be combined")
   if args.duration_s is not None and args.cuj == "lifecycle":
     parser.error("--duration-s does not apply to --cuj lifecycle")
@@ -873,29 +1035,41 @@ def main(argv: Optional[List[str]] = None) -> int:
   trace = (
       args.analyze_only or args.out or
       f"storage_perfetto_{args.cuj}_{datetime.now():%Y%m%d_%H%M%S}.pftrace")
-  stem = os.path.splitext(os.path.basename(trace))[0]
-  report_dir = args.report_dir or os.path.dirname(os.path.abspath(trace))
-  os.makedirs(report_dir, exist_ok=True)
-  phases_path = os.path.join(report_dir, f"{stem}.phases.json")
-  capture = None
   if args.analyze_only:
     if not os.path.isfile(trace):
       print(f"Error: {trace} not found.", file=sys.stderr)
       return 1
+    if os.path.getsize(trace) == 0:
+      print(f"Error: {trace} is empty.", file=sys.stderr)
+      return 1
+  stem = os.path.splitext(os.path.basename(trace))[0]
+  report_dir = args.report_dir or os.path.dirname(os.path.abspath(trace))
+  try:
+    os.makedirs(report_dir, exist_ok=True)
+  except OSError as exc:
+    print(f"Error: cannot create {report_dir}: {exc}", file=sys.stderr)
+    return 1
+  phases_path = os.path.join(report_dir, f"{stem}.phases.json")
+  capture = None
+  if args.analyze_only:
     if os.path.isfile(phases_path):
-      with open(phases_path, encoding="utf-8") as f:
-        capture = json.load(f)
+      capture = load_capture(phases_path)
   else:
-    os.makedirs(os.path.dirname(os.path.abspath(trace)), exist_ok=True)
     try:
+      os.makedirs(os.path.dirname(os.path.abspath(trace)), exist_ok=True)
       capture = record_trace(args, config, trace, phases_path)
     except (RuntimeError, OSError, subprocess.SubprocessError,
             KeyboardInterrupt) as exc:
       print(f"Error: {type(exc).__name__}: {exc}", file=sys.stderr)
       return 1
-  returncode = analyze_trace(trace, report_dir, trace_processor, args.package,
-                             capture)
-  cuj_cmd_returncode = (capture or {}).get("cuj_cmd_returncode")
+  try:
+    returncode = analyze_trace(trace, report_dir, trace_processor, args.package,
+                               capture)
+  except (OSError, ValueError, RuntimeError) as exc:
+    print(f"Error: {type(exc).__name__}: {exc}", file=sys.stderr)
+    return 1
+  cuj_cmd_returncode = (capture if isinstance(capture, dict) else
+                        {}).get("cuj_cmd_returncode")
   if cuj_cmd_returncode:
     print(
         f"ERROR: --cuj-cmd exited with {cuj_cmd_returncode}.", file=sys.stderr)

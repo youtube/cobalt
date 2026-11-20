@@ -446,10 +446,18 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
     self.assertEqual(args.cuj, "cold_start")
     self.assertEqual(args.duration_s, 65.0)
     self.assertIsNone(psp.parse_args(["--cuj", "manual"]).duration_s)
-    for bad in (["--cuj-cmd",
-                 "true"], ["--cuj", "lifecycle", "--duration-s",
-                           "5"], ["--package", "a;rm"],
-                ["--cuj", "manual", "--cuj-cmd", "true", "--duration-s", "5"]):
+    for bad in (
+        ["--cuj-cmd", "true"],
+        ["--cuj", "lifecycle", "--duration-s", "5"],
+        ["--package", "a;rm"],
+        ["--cuj", "manual", "--cuj-cmd", "true", "--duration-s", "5"],
+        ["--cuj", "manual", "--cuj-cmd", "true", "--duration-s", "0"],
+        ["--duration-s", "0"],
+        ["--duration-s", "-5"],
+        ["--duration-s", "nan"],
+        ["--duration-s", "inf"],
+        ["--analyze-only", "a.pftrace", "--out", "b.pftrace"],
+    ):
       with self.assertRaises(SystemExit), \
           mock.patch("sys.stderr", new_callable=io.StringIO):
         psp.parse_args(bad)
@@ -572,6 +580,187 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
           "kill -INT 42",
           check=False)
     self.assertEqual((event["start_s"], event["end_s"]), (10.0, 10.25))
+
+  def test_malformed_health_and_duration_outputs(self):
+    bad_rows = [
+        ["kind", "name", "idx", "severity", "value"],
+        ["meta", "tracing_disabled_ns", "[NULL]", "[NULL]", "[NULL]"],
+        ["meta", "duration_ns", "[NULL]", "[NULL]", "[NULL]"],
+        ["meta", "android_build_fingerprint", "[NULL]", "[NULL]", "[NULL]"],
+        ["stat", "traced_flushes_failed", "[NULL]", "data_loss", "not-an-int"],
+        ["short", "row"],
+        ["unknown", "x", "[NULL]", "[NULL]", "1"],
+    ]
+    health, metadata = psp.parse_health(bad_rows)
+    self.assertFalse(health["healthy"])
+    self.assertTrue(health["truncated"])
+    self.assertEqual(metadata, {})
+    self.assertIn("invalid duration_ns: [NULL]", health["error"])
+    self.assertIn("invalid stat traced_flushes_failed", health["error"])
+    self.assertIn("malformed health row (2 columns)", health["error"])
+    self.assertIn("unknown health row kind", health["error"])
+    for raw in ("[NULL]", "", "abc", "-5", None):
+      self.assertEqual(
+          psp._duration_s({"duration_ns": raw}),  # pylint: disable=protected-access
+          0.0)
+
+    bad_header_health, _ = psp.parse_health([["wrong", "header"]])
+    self.assertFalse(bad_header_health["healthy"])
+    self.assertIn("unexpected health header", bad_header_health["error"])
+
+    missing_dur_health, _ = psp.parse_health([
+        ["kind", "name", "idx", "severity", "value"],
+        ["meta", "tracing_disabled_ns", "[NULL]", "[NULL]", "100"],
+    ])
+    self.assertFalse(missing_dur_health["healthy"])
+    self.assertEqual(missing_dur_health["error"], "missing duration_ns")
+
+    for bad_health_csv in (
+        '"kind","name","idx","severity","value"\n'
+        '"meta","tracing_disabled_ns","[NULL]","[NULL]",70000000000\n'
+        '"meta","duration_ns","[NULL]","[NULL]","[NULL]"\n',
+        '"kind","name"\n"unterminated',
+    ):
+      rc, files, summary = self._analyze_only(
+          FakeSubprocess(health_csv=bad_health_csv))
+      self.assertEqual(rc, 1)
+      self.assertEqual(len(files), 10)
+      self.assertEqual(summary["trace"]["duration_s"], 0.0)
+      self.assertFalse(summary["trace_health"]["healthy"])
+      self.assertTrue(summary["trace_health"]["error"])
+
+  def test_malformed_query_csv_and_q5_outputs(self):
+    self.assertEqual(
+        psp.parse_csv('"col","val"\n"a\x00b",1\n'),
+        [["col", "val"], ["ab", "1"]])
+    phases = [{"name": "exit", "start_s": 200.0}]
+    self.assertEqual(
+        psp._after_home(  # pylint: disable=protected-access
+            phases, [["wrong_col"], ["LocalStorage"]]),
+        "")
+    self.assertEqual(
+        psp._after_home(  # pylint: disable=protected-access
+            phases, [
+                ["engine", "last_end_boottime_s"],
+                ["ShortRow"],
+                ["NullEnd", "[NULL]"],
+                ["NanEnd", "nan"],
+                ["ValidEngine", "205.5"],
+            ]),
+        "Last storage I/O after HOME (Q5): ValidEngine +5.50 s.")
+    self.assertEqual(
+        psp._markdown_table([["a", "b"], [], ["only_one"], ["1", "2", "3"]]),  # pylint: disable=protected-access
+        ["| a | b |", "| --- | --- |", "| only_one |  |", "| 1 | 2 |"])
+
+    fake = FakeSubprocess()
+    orig_run = fake.run
+
+    def broken_q8_run(cmd, **kwargs):
+      res = orig_run(cmd, **kwargs)
+      if isinstance(cmd, list) and len(cmd) >= 3 and cmd[1] == "-q":
+        with open(cmd[2], encoding="utf-8") as f:
+          sql = f.read()
+        if sql.startswith("-- Q7:"):
+          return subprocess.CompletedProcess(cmd, 0, "", "")
+        if sql.startswith("-- Q8:"):
+          return subprocess.CompletedProcess(cmd, 0, '"a","b"\n"unclosed', "")
+      return res
+
+    with mock.patch.object(fake, "run", side_effect=broken_q8_run):
+      rc, _, summary = self._analyze_only(fake)
+    self.assertEqual(rc, 1)
+    errors = {q["number"]: q["error"] for q in summary["queries"] if q["error"]}
+    self.assertIn("empty CSV output", errors[7])
+    self.assertIn("malformed CSV output", errors[8])
+
+  def test_malformed_inputs_and_sidecar_files(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      trace_processor = os.path.join(tmp, "trace_processor_shell")
+      with open(trace_processor, "wb") as f:
+        f.write(b"fake")
+      empty_trace = os.path.join(tmp, "empty.pftrace")
+      with open(empty_trace, "wb"):
+        pass
+      missing_dir = os.path.join(tmp, "never_created")
+      missing_trace = os.path.join(missing_dir, "missing.pftrace")
+      for bad_trace in (missing_trace, empty_trace):
+        with mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+          self.assertEqual(
+              psp.main([
+                  "--analyze-only", bad_trace, "--trace-processor",
+                  trace_processor
+              ]), 1)
+        self.assertIn("Error:", stderr.getvalue())
+      self.assertFalse(os.path.exists(missing_dir))
+
+      bad_sql = os.path.join(tmp, "empty.sql")
+      with open(bad_sql, "w", encoding="utf-8") as f:
+        f.write("-- no queries here\n")
+      with self.assertRaisesRegex(ValueError, "No '-- Q<n>: <title>' queries"):
+        psp.load_queries(path=bad_sql)
+
+      trace = os.path.join(tmp, "valid.pftrace")
+      with open(trace, "wb") as f:
+        f.write(b"trace-bytes")
+      with mock.patch.object(
+          psp.subprocess, "run", side_effect=PermissionError("denied")), \
+          mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+        self.assertEqual(
+            psp.main(
+                ["--analyze-only", trace, "--trace-processor",
+                 trace_processor]), 1)
+      self.assertIn("failed to run", stderr.getvalue())
+
+      report_dir = os.path.join(tmp, "sidecar_reports")
+      os.makedirs(report_dir, exist_ok=True)
+      phases_path = os.path.join(report_dir, "valid.phases.json")
+      for bad_sidecar in (
+          "{not json",
+          "[]",
+          json.dumps({"device": "not-a-dict"}),
+          json.dumps({"phases": [{
+              "name": "cold_start",
+              "start_s": "bad"
+          }]}),
+      ):
+        with open(phases_path, "w", encoding="utf-8") as f:
+          f.write(bad_sidecar)
+        fake = FakeSubprocess()
+        with mock.patch.object(psp.subprocess, "run", side_effect=fake.run), \
+            mock.patch("sys.stdout", new_callable=io.StringIO), \
+            mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+          rc = psp.main([
+              "--analyze-only", trace, "--report-dir", report_dir,
+              "--trace-processor", trace_processor
+          ])
+        self.assertEqual(rc, 0)
+        self.assertIn("WARNING: ignoring malformed phases file",
+                      stderr.getvalue())
+        with open(
+            os.path.join(report_dir, "valid.summary.json"),
+            encoding="utf-8") as f:
+          self.assertIsNone(json.load(f)["capture"])
+
+      # Empty file from `adb pull` raises RuntimeError cleanly.
+      fake = FakeSubprocess()
+      orig_run = fake.run
+
+      def empty_pull(cmd, **kwargs):
+        if isinstance(cmd, list) and cmd[:1] == ["adb"] and "pull" in cmd:
+          with open(cmd[-1], "wb"):
+            pass
+          return subprocess.CompletedProcess(cmd, 0, "", "")
+        return orig_run(cmd, **kwargs)
+
+      with mock.patch.object(psp.subprocess, "run", side_effect=empty_pull), \
+          mock.patch.object(psp.time, "sleep"), \
+          mock.patch("sys.stdout", new_callable=io.StringIO):
+        with self.assertRaisesRegex(RuntimeError,
+                                    "Pulled trace is missing or empty"):
+          psp.record_trace(
+              psp.parse_args(["--serial", "s1", "--duration-s", "1"]), "CFG",
+              os.path.join(tmp, "pulled.pftrace"),
+              os.path.join(tmp, "pulled.phases.json"))
 
 
 if __name__ == "__main__":
