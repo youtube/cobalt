@@ -358,6 +358,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      decoder_improvements_flags_(GetAndroidVideoDecoderImprovementsFlags(
+          pipeline_config.experimental_features)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -423,17 +425,32 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_)
+               << ", decoder_improvements_flags="
+               << decoder_improvements_flags_;
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
-  // The video surface must be reset after tunnel mode playbacks. This prevents
-  // video distortion on some platforms. For details, see http://b/182610842.
-  if (tunnel_mode_audio_session_id_.has_value()) {
-    ResetVideoSurface();
-  } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
-    CleanUpVideoSurface(decode_target_graphics_context_provider_);
+
+  const bool guard_surface_reset_and_cleanup =
+      IsAndroidVideoDecoderImprovementEnabled(
+          decoder_improvements_flags_,
+          android_video_decoder_improvements::
+              kGuardSurfaceResetAndCleanupByOwnership);
+  const bool should_reset_or_clean_up_surface =
+      !guard_surface_reset_and_cleanup ||
+      (needs_surface_reset_or_cleanup_ &&
+       (surface_view_ || IsVideoSurfaceAvailable()));
+  if (should_reset_or_clean_up_surface) {
+    // The video surface must be reset after tunnel mode playbacks. This
+    // prevents video distortion on some platforms. For details, see
+    // http://b/182610842.
+    if (tunnel_mode_audio_session_id_.has_value()) {
+      ResetVideoSurface();
+    } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
+      CleanUpVideoSurface(decode_target_graphics_context_provider_);
+    }
   }
 }
 
@@ -836,6 +853,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       }
       if (j_output_surface) {
         owns_video_surface_ = true;
+        needs_surface_reset_or_cleanup_ = true;
       }
     } break;
     case kSbPlayerOutputModeDecodeToTexture: {
@@ -1219,6 +1237,7 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
   }
   // When this function is called, the decoder no longer owns the surface.
   owns_video_surface_ = false;
+  needs_surface_reset_or_cleanup_ = false;
   TeardownCodec();
   {
     std::lock_guard lock(surface_destroy_mutex_);
