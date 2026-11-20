@@ -27,7 +27,11 @@ class FunctionsEGLDL : public FunctionsEGL
     void *getProcAddress(const char *name) const override;
 
   private:
+#if !defined(STARBOARD) || defined(ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN)
+    // Hermetic Starboard builds look up entry points through
+    // ANGLESetNativeEGLGetProcAddress() instead (see FunctionsEGLDL.cpp).
     PFNEGLGETPROCADDRESSPROC mGetProcAddressPtr;
+#endif
 };
 }  // namespace rx
 
