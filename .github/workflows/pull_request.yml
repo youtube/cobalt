@@ -103,11 +103,19 @@ jobs:
           COMMENT: ${{ github.event.comment.body }}
           AUTHOR: ${{ github.event.pull_request.user.login }}${{ github.event.issue.user.login }}
         run: |
-          [[ "${AUTHOR}" =~ -bot$ ]] && exit 0
-          [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/generate-commit-message"* ]] && echo "commit_msg=true" >> "${GITHUB_OUTPUT}"
-          [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/owner-review"* ]] && echo "owner_rev=true" >> "${GITHUB_OUTPUT}"
+          set -euo pipefail
+          if [[ "${AUTHOR}" =~ (-bot|\[bot\])$ ]]; then
+            exit 0
+          fi
+          if [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/generate-commit-message"* ]]; then
+            echo "commit_msg=true" >> "${GITHUB_OUTPUT}"
+          fi
+          if [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/owner-review"* ]]; then
+            echo "owner_rev=true" >> "${GITHUB_OUTPUT}"
+          fi
 
       - name: 'Checkout prompts'
+        if: steps.trigger.outputs.commit_msg == 'true' || steps.trigger.outputs.owner_rev == 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
@@ -116,10 +124,12 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: 'Get PR Diff'
+        if: steps.trigger.outputs.commit_msg == 'true' || steps.trigger.outputs.owner_rev == 'true'
         env:
           URL: ${{ github.event.pull_request.url }}${{ github.event.issue.pull_request.url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           mkdir -p "${RUNNER_TEMP}"
           curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github.v3.diff" "${URL}" > "${RUNNER_TEMP}/pr.diff"
           gh api "${URL}/files" --paginate --jq '.[].filename' > "${RUNNER_TEMP}/changed_files.txt"
@@ -131,6 +141,7 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}${{ github.event.issue.title }}
           BODY: ${{ github.event.pull_request.body }}${{ github.event.issue.body }}
         run: |
+          set -euo pipefail
           prompt_file="${RUNNER_TEMP}/commit_prompt.txt"
           {
             cat .agent/commit_message_prompt.md
@@ -142,31 +153,38 @@ jobs:
             cat "${RUNNER_TEMP}/pr.diff"
             echo "</code_diff>"
           } > "${prompt_file}"
+          delim="EOF_$(openssl rand -hex 16)"
           {
-            echo "prompt<<EOF"
+            echo "prompt<<${delim}"
             cat "${prompt_file}"
-            echo "EOF"
+            echo "${delim}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: 'Generate Commit Message'
         id: gemini_commit
         if: steps.trigger.outputs.commit_msg == 'true'
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           gemini_model: 'gemini-3.8-flash'
-          instruction: ${{ steps.commit_prompt.outputs.prompt }}
+          prompt: ${{ steps.commit_prompt.outputs.prompt }}
 
       - name: 'Resolve Reviewers & Prompt'
         id: resolve_review
         if: steps.trigger.outputs.owner_rev == 'true'
         run: |
+          set -euo pipefail
           prompt_file="${RUNNER_TEMP}/review_prompt.txt"
           mapfile -t changed_files < "${RUNNER_TEMP}/changed_files.txt"
-          reviewer_paths=$(python3 .github/scripts/resolve_codeowners.py "${changed_files[@]}")
+          reviewer_paths=""
+          if [[ ${#changed_files[@]} -gt 0 ]]; then
+            reviewer_paths=$(python3 .github/scripts/resolve_codeowners.py "${changed_files[@]}")
+          fi
           if [ -n "${reviewer_paths}" ]; then
             echo "has_reviewers=true" >> "${GITHUB_OUTPUT}"
-            echo "reviewer_paths=${reviewer_paths}" >> "${GITHUB_OUTPUT}"
+            echo "reviewer_paths=$(printf '%s\n' "${reviewer_paths}" | paste -sd ' ' -)" >> "${GITHUB_OUTPUT}"
             {
               echo "Review the PR diff below as the lead reviewer."
               echo "Run each matching reviewer persona as a subagent using its prompt file:"
@@ -177,18 +195,20 @@ jobs:
                 echo ""
               done
               echo "---"
-              echo "Produce comments on lines with change suggestions integrated in \`\`\`suggestion blocks."
-              echo "Return output in JSON format with fields:"
-              echo '{"summary": "overall review summary", "comments": [{"path": "file/path", "line": 12, "body": "comment with ```suggestion\nreplacement\n```"}]}'
+              echo "Produce comments ONLY on files matching each reviewer's own paths globs (never comment on files outside a reviewer's paths)."
+              echo "Start EVERY inline comment's body with a markdown header identifying the reviewer persona (e.g. #### 🛡️ Review by \`<reviewer-name>\` followed by a blank line), and include change suggestions in \`\`\`suggestion blocks where appropriate."
+              echo "Return ONLY raw JSON (no markdown code fences, overriding any output format in the reviewer prompts above) with fields:"
+              echo '{"summary": "overall review summary", "comments": [{"path": "file/path", "line": 12, "body": "#### 🛡️ Review by `<reviewer-name>`\n\ncomment with ```suggestion\nreplacement\n```"}]}'
               echo ""
               echo "<code_diff>"
               cat "${RUNNER_TEMP}/pr.diff"
               echo "</code_diff>"
             } > "${prompt_file}"
+            delim="EOF_$(openssl rand -hex 16)"
             {
-              echo "prompt<<EOF"
+              echo "prompt<<${delim}"
               cat "${prompt_file}"
-              echo "EOF"
+              echo "${delim}"
             } >> "${GITHUB_OUTPUT}"
           fi
 
@@ -196,10 +216,12 @@ jobs:
         id: gemini_review
         if: steps.trigger.outputs.owner_rev == 'true' && steps.resolve_review.outputs.has_reviewers == 'true'
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
         with:
           gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
           gemini_model: 'gemini-3.8-flash'
-          instruction: ${{ steps.resolve_review.outputs.prompt }}
+          prompt: ${{ steps.resolve_review.outputs.prompt }}
 
       - name: 'Format Comment'
         id: format_comment
@@ -208,6 +230,7 @@ jobs:
           OWNER_REV: ${{ steps.gemini_review.outputs.summary || '' }}
           PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
+          set -euo pipefail
           out_file="${RUNNER_TEMP}/comment.md"
           json_file="${RUNNER_TEMP}/comments.json"
           echo "[]" > "${json_file}"
@@ -224,13 +247,18 @@ jobs:
           fi
 
           if [ -n "${OWNER_REV}" ]; then
-            [ -s "${out_file}" ] && echo "---" >> "${out_file}" && echo "" >> "${out_file}"
+            if [ -s "${out_file}" ]; then
+              echo "---" >> "${out_file}"
+              echo "" >> "${out_file}"
+            fi
             echo "### 🛡️ CODEOWNERS Critic Review" >> "${out_file}"
             echo "" >> "${out_file}"
 
-            if printf '%s\n' "${OWNER_REV}" | jq -e 'type == "object" and (.summary | type == "string") and (.comments | type == "array")' >/dev/null 2>&1; then
-              printf '%s\n\n' "$(printf '%s\n' "${OWNER_REV}" | jq -r .summary)" >> "${out_file}"
-              printf '%s\n' "${OWNER_REV}" | jq -c .comments > "${json_file}"
+            cleaned_rev=$(python3 -c 'import re, sys; s = sys.stdin.read().strip(); s = re.sub(r"^```[a-zA-Z0-9_-]*[ \t]*(?:\r?\n)?", "", s); s = re.sub(r"(?:\r?\n)?```$", "", s); print(s.strip())' <<< "${OWNER_REV}")
+
+            if printf '%s\n' "${cleaned_rev}" | jq -e 'type == "object" and (.summary | type == "string") and (.comments | type == "array")' >/dev/null 2>&1; then
+              printf '%s\n\n' "$(printf '%s\n' "${cleaned_rev}" | jq -r .summary)" >> "${out_file}"
+              printf '%s\n' "${cleaned_rev}" | jq -c .comments > "${json_file}"
             else
               echo "[]" > "${json_file}"
               echo "Automated code review could not be generated for this change." >> "${out_file}"
@@ -244,22 +272,24 @@ jobs:
             echo "> - Comment \`/owner-review\` to trigger CODEOWNERS review." >> "${out_file}"
             echo "has_comment=true" >> "${GITHUB_OUTPUT}"
             echo "pr_number=${PR_NUM}" >> "${GITHUB_OUTPUT}"
+            delim="EOF_$(openssl rand -hex 16)"
             {
-              echo "comment_body<<EOF"
+              echo "comment_body<<${delim}"
               cat "${out_file}"
-              echo "EOF"
+              echo "${delim}"
             } >> "${GITHUB_OUTPUT}"
+            delim="EOF_$(openssl rand -hex 16)"
             {
-              echo "review_comments<<EOF"
+              echo "review_comments<<${delim}"
               cat "${json_file}"
-              echo "EOF"
+              echo "${delim}"
             } >> "${GITHUB_OUTPUT}"
           fi
 
   post_review_comment:
     name: 'Post Review Comment'
     needs: [pull_request_review]
-    if: needs.pull_request_review.outputs.has_comment == 'true'
+    if: always() && !cancelled() && needs.pull_request_review.result == 'success' && needs.pull_request_review.outputs.has_comment == 'true'
     runs-on: ubuntu-latest
     permissions:
       issues: write

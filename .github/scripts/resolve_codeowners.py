@@ -29,8 +29,16 @@ def main() -> int:
     parts = md.read_text(encoding='utf-8').split('---', 2)
     if len(parts) < 3:
       continue
-    meta = yaml.safe_load(parts[1]) or {}
-    patterns = [p.removeprefix('./') for p in meta.get('paths', [])]
+    try:
+      meta = yaml.safe_load(parts[1])
+    except yaml.YAMLError:
+      continue
+    if not isinstance(meta, dict):
+      continue
+    paths = meta.get('paths', [])
+    if not isinstance(paths, list):
+      continue
+    patterns = [p.removeprefix('./') for p in paths if isinstance(p, str)]
     if any(
         fnmatch.fnmatch(f.removeprefix('./'), p)
         for f in files
