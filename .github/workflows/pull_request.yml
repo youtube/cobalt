@@ -10,9 +10,24 @@ on: # zizmor: ignore[dangerous-triggers]
     types: [opened, reopened, synchronize]
   issue_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to run review/commit message on'
+        required: true
+        type: string
+      mode:
+        description: 'Which automation(s) to run'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - owner-review
+          - commit-message
 
 concurrency:
-  group: ${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.issue.number || github.sha }}
+  group: ${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -84,7 +99,8 @@ jobs:
         (github.event_name == 'issue_comment' && github.event.issue.pull_request && (
           startsWith(github.event.comment.body, '/generate-commit-message') ||
           startsWith(github.event.comment.body, '/owner-review')
-        ))
+        )) ||
+        github.event_name == 'workflow_dispatch'
       )
     runs-on: ubuntu-latest
     permissions:
@@ -102,10 +118,48 @@ jobs:
           EVENT: ${{ github.event_name }}
           COMMENT: ${{ github.event.comment.body }}
           AUTHOR: ${{ github.event.pull_request.user.login }}${{ github.event.issue.user.login }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          INPUT_PR: ${{ inputs.pr_number }}
+          INPUT_MODE: ${{ inputs.mode }}
+          PR_URL_EVENT: ${{ github.event.pull_request.url }}${{ github.event.issue.pull_request.url }}
+          PR_NUM_EVENT: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PR_TITLE_EVENT: ${{ github.event.pull_request.title }}${{ github.event.issue.title }}
+          PR_BODY_EVENT: ${{ github.event.pull_request.body }}${{ github.event.issue.body }}
         run: |
-          [[ "${AUTHOR}" =~ -bot$ ]] && exit 0
-          [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/generate-commit-message"* ]] && echo "commit_msg=true" >> "${GITHUB_OUTPUT}"
-          [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/owner-review"* ]] && echo "owner_rev=true" >> "${GITHUB_OUTPUT}"
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}"
+          if [[ "${EVENT}" == "workflow_dispatch" ]]; then
+            [[ "${INPUT_PR}" =~ ^[0-9]+$ ]] || { echo "::error::pr_number must be numeric"; exit 1; }
+            mode="${INPUT_MODE:-both}"
+            [[ "${mode}" =~ ^(both|owner-review|commit-message)$ ]] || { echo "::error::Invalid mode"; exit 1; }
+            pr_json=$(gh api "repos/${REPO}/pulls/${INPUT_PR}")
+            printf '%s\n' "${pr_json}" | jq -r '.url' > "${RUNNER_TEMP}/pr_url.txt"
+            printf '%s\n' "${pr_json}" | jq -r '.title // ""' > "${RUNNER_TEMP}/pr_title.txt"
+            printf '%s\n' "${pr_json}" | jq -r '.body // ""' > "${RUNNER_TEMP}/pr_body.txt"
+            pr_num="${INPUT_PR}"
+            author=$(printf '%s\n' "${pr_json}" | jq -r '.user.login // ""')
+            [[ "${author}" =~ -bot$ ]] && exit 0
+            if [[ "${mode}" == "both" || "${mode}" == "commit-message" ]]; then
+              echo "commit_msg=true" >> "${GITHUB_OUTPUT}"
+            fi
+            if [[ "${mode}" == "both" || "${mode}" == "owner-review" ]]; then
+              echo "owner_rev=true" >> "${GITHUB_OUTPUT}"
+            fi
+          else
+            [[ "${AUTHOR}" =~ -bot$ ]] && exit 0
+            printf '%s\n' "${PR_URL_EVENT}" > "${RUNNER_TEMP}/pr_url.txt"
+            printf '%s\n' "${PR_TITLE_EVENT}" > "${RUNNER_TEMP}/pr_title.txt"
+            printf '%s\n' "${PR_BODY_EVENT}" > "${RUNNER_TEMP}/pr_body.txt"
+            pr_num="${PR_NUM_EVENT}"
+            if [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/generate-commit-message"* ]]; then
+              echo "commit_msg=true" >> "${GITHUB_OUTPUT}"
+            fi
+            if [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/owner-review"* ]]; then
+              echo "owner_rev=true" >> "${GITHUB_OUTPUT}"
+            fi
+          fi
+          echo "pr_number=${pr_num}" >> "${GITHUB_OUTPUT}"
 
       - name: 'Checkout prompts'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -117,35 +171,37 @@ jobs:
 
       - name: 'Get PR Diff'
         env:
-          URL: ${{ github.event.pull_request.url }}${{ github.event.issue.pull_request.url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           mkdir -p "${RUNNER_TEMP}"
-          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github.v3.diff" "${URL}" > "${RUNNER_TEMP}/pr.diff"
-          gh api "${URL}/files" --paginate --jq '.[].filename' > "${RUNNER_TEMP}/changed_files.txt"
+          pr_url=$(cat "${RUNNER_TEMP}/pr_url.txt")
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github.v3.diff" "${pr_url}" > "${RUNNER_TEMP}/pr.diff"
+          gh api "${pr_url}/files" --paginate --jq '.[].filename' > "${RUNNER_TEMP}/changed_files.txt"
 
       - name: 'Prepare Commit Prompt'
         id: commit_prompt
         if: steps.trigger.outputs.commit_msg == 'true'
-        env:
-          TITLE: ${{ github.event.pull_request.title }}${{ github.event.issue.title }}
-          BODY: ${{ github.event.pull_request.body }}${{ github.event.issue.body }}
         run: |
+          set -euo pipefail
           prompt_file="${RUNNER_TEMP}/commit_prompt.txt"
+          title=$(cat "${RUNNER_TEMP}/pr_title.txt")
+          body=$(cat "${RUNNER_TEMP}/pr_body.txt")
           {
             cat .agent/commit_message_prompt.md
             echo ""
-            echo "**PR Title:** ${TITLE}"
-            echo "**PR Description:** ${BODY}"
+            echo "**PR Title:** ${title}"
+            echo "**PR Description:** ${body}"
             echo ""
             echo "<code_diff>"
             cat "${RUNNER_TEMP}/pr.diff"
             echo "</code_diff>"
           } > "${prompt_file}"
+          delim="EOF_$(openssl rand -hex 16)"
           {
-            echo "prompt<<EOF"
+            echo "prompt<<${delim}"
             cat "${prompt_file}"
-            echo "EOF"
+            echo "${delim}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: 'Generate Commit Message'
@@ -185,10 +241,11 @@ jobs:
               cat "${RUNNER_TEMP}/pr.diff"
               echo "</code_diff>"
             } > "${prompt_file}"
+            delim="EOF_$(openssl rand -hex 16)"
             {
-              echo "prompt<<EOF"
+              echo "prompt<<${delim}"
               cat "${prompt_file}"
-              echo "EOF"
+              echo "${delim}"
             } >> "${GITHUB_OUTPUT}"
           fi
 
@@ -206,8 +263,9 @@ jobs:
         env:
           COMMIT_MSG: ${{ steps.gemini_commit.outputs.summary || '' }}
           OWNER_REV: ${{ steps.gemini_review.outputs.summary || '' }}
-          PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PR_NUM: ${{ steps.trigger.outputs.pr_number }}
         run: |
+          set -euo pipefail
           out_file="${RUNNER_TEMP}/comment.md"
           json_file="${RUNNER_TEMP}/comments.json"
           echo "[]" > "${json_file}"
@@ -244,15 +302,17 @@ jobs:
             echo "> - Comment \`/owner-review\` to trigger CODEOWNERS review." >> "${out_file}"
             echo "has_comment=true" >> "${GITHUB_OUTPUT}"
             echo "pr_number=${PR_NUM}" >> "${GITHUB_OUTPUT}"
+            delim1="EOF_$(openssl rand -hex 16)"
             {
-              echo "comment_body<<EOF"
+              echo "comment_body<<${delim1}"
               cat "${out_file}"
-              echo "EOF"
+              echo "${delim1}"
             } >> "${GITHUB_OUTPUT}"
+            delim2="EOF_$(openssl rand -hex 16)"
             {
-              echo "review_comments<<EOF"
+              echo "review_comments<<${delim2}"
               cat "${json_file}"
-              echo "EOF"
+              echo "${delim2}"
             } >> "${GITHUB_OUTPUT}"
           fi
 
