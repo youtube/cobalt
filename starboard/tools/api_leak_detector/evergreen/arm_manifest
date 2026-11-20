@@ -4,7 +4,11 @@
 
 TLS init function for egl::gCurrentThread
 TLS init function for gl::gCurrentValidContext
+<<<<<<< HEAD
 TLS init function for v8::internal::trap_handler::TrapHandlerGuard::is_active_
+=======
+TLS init function for v8::internal::trap_handler::g_thread_in_wasm_code
+>>>>>>> 19e64b787e8 (starboard: Load GL through ANGLE in hermetic Starboard builds (#14108))
 __clock_gettime64
 dlopen
 dlsym

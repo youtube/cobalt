@@ -15,8 +15,17 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_GL_OZONE_EGL_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_GL_OZONE_EGL_STARBOARD_H_
 
+<<<<<<< HEAD
 #include "ui/gfx/native_ui_types.h"
+=======
+#include "base/gtest_prod_util.h"
+#include "ui/gfx/native_widget_types.h"
+#include "ui/gl/gl_implementation.h"
+>>>>>>> 19e64b787e8 (starboard: Load GL through ANGLE in hermetic Starboard builds (#14108))
 #include "ui/ozone/common/gl_ozone_egl.h"
+
+struct SbEglInterface;
+struct SbGlesInterface;
 
 namespace ui {
 
@@ -41,6 +50,30 @@ class GLOzoneEGLStarboard : public GLOzoneEGL {
       const gl::GLImplementationParts& implementation) override;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(GLOzoneEGLStarboardTest,
+                           DetectsAngleClientExtension);
+  FRIEND_TEST_ALL_PREFIXES(GLOzoneEGLStarboardTest, ProcAddressFallbackOrder);
+
+  // Returns whether the space-separated EGL |extensions| string contains the
+  // EGL_ANGLE_platform_angle extension.
+  static bool HasAnglePlatformExtension(const char* extensions);
+
+  // Looks up EGL and GLES entry point |name|: from |egl| first, since some EGL
+  // functions might be overridden by the Starboard implementation, then from
+  // |egl|'s eglGetProcAddress(), then from |gles|. Any argument may be null.
+  static gl::GLFunctionPointerType ResolveStarboardProcAddress(
+      const char* name,
+      const SbEglInterface* egl,
+      const SbGlesInterface* gles);
+
+  // ResolveStarboardProcAddress() with Starboard's EGL and GLES interfaces.
+  static gl::GLFunctionPointerType GetStarboardProcAddress(const char* name);
+  static void* GetStarboardProcAddressForANGLE(const char* name);
+
+  // Returns whether Starboard's EGL implementation is itself ANGLE (e.g. on
+  // desktop Linux), based on its client extensions.
+  static bool IsStarboardEglANGLE();
+
   void CreateDisplayTypeIfNeeded();
 
   void* display_type_ = nullptr;
