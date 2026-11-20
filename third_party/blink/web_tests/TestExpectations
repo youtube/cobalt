@@ -9558,7 +9558,6 @@ crbug.com/524577269 [ Mac26 ] svg/text/text-selection-fonts-01-t.svg [ Failure P
 crbug.com/524577269 [ Mac26 ] svg/W3C-SVG-1.1/text-fonts-01-t.svg [ Failure Pass ]
 crbug.com/524577269 [ Mac26 ] virtual/text-antialias/international/lang-glyph-cache-separation.html [ Failure Pass ]
 crbug.com/524577269 [ Mac26 ] virtual/text-antialias/justify-ideograph-complex.html [ Failure Pass ]
-<<<<<<< HEAD
 crbug.com/40788763 [ Mac ] external/wpt/webrtc/RTCPeerConnection-helper-test.html [ Skip Timeout ]
 # Gardener 2026-06-17
 crbug.com/525007363 [ Win10.20h2 ] virtual/webnn-service-on-cpu/external/wpt/webnn/conformance_tests/add.https.any.html?cpu [ Failure Skip ]
@@ -9566,7 +9565,6 @@ crbug.com/525007363 [ Win10.20h2 ] virtual/webnn-service-on-cpu/external/wpt/web
 # Gardener 2026-06-23
 crbug.com/524086652 [ Release Mac15-arm64 ] webaudio/Analyser/realtimeanalyser-freq-data.html [ Failure Pass ]
 crbug.com/524086652 [ Release Mac26-arm64 ] webaudio/Analyser/realtimeanalyser-freq-data.html [ Failure Pass ]
-=======
 
 # Cobalt bug: b/461834934.
 wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
@@ -9580,4 +9578,3 @@ wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Time
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
 wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
->>>>>>> parent of 306a37951f1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

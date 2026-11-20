@@ -637,9 +637,5 @@ declare_args() {
 # not a big deal, and is probably preferable to sticking
 # `base::unchecked` on all those spans (shutting them out entirely).
 use_checked_span = !(is_asan || is_ubsan || is_tsan) && use_partition_alloc &&
-<<<<<<< HEAD
                    has_64_bit_pointers
-=======
-                   has_64_bit_pointers && is_debug
 }
->>>>>>> parent of 306a37951f1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

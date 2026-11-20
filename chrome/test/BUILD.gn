@@ -10464,8 +10464,11 @@ if (!is_android && !is_chromeos_device) {
       "//chrome/browser/ui/views/location_bar:interactive_ui_tests",
       "//chrome/browser/ui/views/location_bar/cookie_controls:interactive_ui_tests",
       "//chrome/browser/ui/views/tabs/groups:interactive_ui_tests",
-      "//chrome/browser/ui/webui/print_preview:interactive_ui_tests",
     ]
+
+    if (enable_print_preview) {
+      deps += [ "//chrome/browser/ui/webui/print_preview:interactive_ui_tests" ]
+    }
 
     if (!is_chrome_for_testing) {
       deps += [

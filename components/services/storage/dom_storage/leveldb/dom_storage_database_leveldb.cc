@@ -158,11 +158,13 @@ DomStorageDatabaseLevelDB::Open(
                                    max_supported_version);
   if (!status.ok()) {
 #if BUILDFLAG(IS_COBALT)
+    const DatabaseMetricsType metrics_type =
+        directory.empty() ? DatabaseMetricsType::kInMemory
+                          : DatabaseMetricsType::kOnDisk;
     if (status.IsCorruption()) {
-      status.Log("Cobalt.LocalStorage.DatabaseVersionMismatch",
-                 directory.empty());
+      status.Log("Cobalt.LocalStorage.DatabaseVersionMismatch", metrics_type);
     } else {
-      status.Log("Cobalt.LocalStorage.DatabaseReadError", directory.empty());
+      status.Log("Cobalt.LocalStorage.DatabaseReadError", metrics_type);
     }
 #endif
     return base::unexpected(std::move(status));
