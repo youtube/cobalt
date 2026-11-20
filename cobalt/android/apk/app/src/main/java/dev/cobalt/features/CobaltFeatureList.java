@@ -57,7 +57,7 @@ public final class CobaltFeatureList {
           CobaltFeatureMap.getInstance(),
           BaseFeatures.LOW_END_MEMORY_EXPERIMENT,
           "LowMemoryDeviceThresholdMB",
-          1024);
+          SysUtils.LOW_MEMORY_DEVICE_THRESHOLD_MB);
 
   /** All CachedFeatureParams that are persisted for the next launch. */
   private static final List<CachedFeatureParam<?>> sParamsCached =
