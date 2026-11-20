@@ -104,6 +104,7 @@ COBALT_STORAGE_PATH(DirCache, "Code Cache/wasm", CodeCacheWasm)
 COBALT_STORAGE_PATH(DirCache, "GrShaderCache", GrShaderCache)
 COBALT_STORAGE_PATH(DirCache, "ShaderCache", ShaderCache)
 COBALT_STORAGE_PATH(DirCache, "font_unique_name_table.pb", FontCache)
+COBALT_STORAGE_PATH(DirCache, "font_cache", FontCache)
 COBALT_STORAGE_PATH(DirCache, "crashpad", Crashpad)
 COBALT_STORAGE_PATH(DirCache, "", OtherCache)
 
@@ -421,7 +422,8 @@ class FootprintTimeline:
   """Writes the footprint timeline as JSONL, one record per line.
 
   Lifetime/Ownership: Owned by storage_monitor.main() for one run; the file
-  is flushed after every record so an interrupted run keeps its data.
+  is opened on the first record and flushed after every record so a failed
+  preflight leaves no empty file while an interrupted run keeps its data.
   Threading Model: Single-threaded.
   """
 
@@ -434,9 +436,8 @@ class FootprintTimeline:
     self._last_pid: Optional[int] = None
     self.sample_count = 0
     self.last_total_bytes = 0
-    # Kept open for the run and closed by close().
-    self._file = open(path, "w", encoding="utf-8")  # pylint: disable=consider-using-with
-    self._write({
+    self._file: Optional[Any] = None
+    self._header = {
         "type": "header",
         "version": JSONL_VERSION,
         "package": package,
@@ -452,7 +453,7 @@ class FootprintTimeline:
         "budgets_bytes": BUDGETS_BYTES,
         "folder_fields": ["allocated_bytes", "logical_bytes", "files"],
         "file_fields": ["path", "allocated_bytes", "logical_bytes"],
-    })
+    }
 
   def event(self, t: float, name: str, detail: str = "") -> None:
     self._write({
@@ -487,9 +488,15 @@ class FootprintTimeline:
     return record
 
   def close(self) -> None:
-    self._file.close()
+    if self._file is not None:
+      self._file.close()
+      self._file = None
 
   def _write(self, record: Dict[str, Any]) -> None:
+    if self._file is None:
+      # Kept open for the run and closed by close().
+      self._file = open(self.path, "w", encoding="utf-8")  # pylint: disable=consider-using-with
+      self._file.write(json.dumps(self._header, separators=(",", ":")) + "\n")
     self._file.write(json.dumps(record, separators=(",", ":")) + "\n")
     self._file.flush()
 

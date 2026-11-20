@@ -130,6 +130,8 @@ COBALT_STORAGE_PATH(UserData, "", B)
         ("DirCache", "Code Cache/wasm/abc_0", "CodeCacheWasm"),
         ("DirCache", "Code Cache", "OtherCache"),
         ("DirCache", "ShaderCache/data_0", "ShaderCache"),
+        ("DirCache", "font_unique_name_table.pb", "FontCache"),
+        ("DirCache", "font_cache/Roboto.123.456.ttf", "FontCache"),
         ("DirCache", "crashpad/pending/1.dmp", "Crashpad"),
         ("DirCache", "Experiment Config", "OtherCache"),
         ("AppData", "app_content_shell", "OtherAppData"),
@@ -268,6 +270,19 @@ class TimelineTest(unittest.TestCase):
     return timeline
 
   def test_round_trip_and_events(self):
+    unused = sf.FootprintTimeline(
+        self.path,
+        package=PKG,
+        platform="android",
+        cuj="cold_start",
+        interval_sec=1.0,
+        extra_args="",
+        roots=sf.android_roots(PKG),
+        table=sf.load_bucket_table())
+    self.assertFalse(os.path.exists(self.path))
+    unused.close()
+    self.assertFalse(os.path.exists(self.path))
+
     timeline = self._write_run(extra_args="--enable-features=X")
     self.assertEqual(timeline.sample_count, 61)
     loaded = sf.load_timeline(self.path)

@@ -38,10 +38,12 @@ Device-wide counters such as `/proc/diskstats` and `/proc/pressure/io` are not c
 python3 cobalt/tools/storage/storage_monitor.py \
   --platform android \
   [--package dev.cobalt.coat] \
+  [--serial <serial>] \
   [--cuj <manual|cold_start|home_scroll|video_playback|pause_flush|warm_relaunch|all>] \
   [--interval 1.0] \
   [--verify-storage-apis] \
   [--cdp-port 9222] \
+  [--extra-args <args>] \
   [--output storage_report.md] \
   [--timeline storage_report_footprint.jsonl]
 

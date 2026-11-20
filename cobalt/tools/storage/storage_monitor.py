@@ -1523,6 +1523,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     return 1
   finally:
     timeline.close()
+    if timeline.sample_count == 0 and os.path.exists(timeline_path):
+      os.remove(timeline_path)
 
   report_data = tracker.build_summary_data(
       platform=args.platform,

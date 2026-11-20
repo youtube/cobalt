@@ -16,6 +16,7 @@
 
 import os
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -491,6 +492,51 @@ class StorageMonitorTest(unittest.TestCase):
     with mock.patch.dict(os.environ):
       os.environ.pop("ANDROID_SERIAL", None)
       self.assertIsNone(storage_monitor.parse_args([]).serial)
+
+  # Covers the user journey where an initial run fails ADB preflight (e.g.
+  # missing --serial) and the user immediately retries with the same --output
+  # path once the device connection is fixed.
+  def test_main_does_not_leave_empty_timeline_on_preflight_failure(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      timeline_path = os.path.join(temp_dir, "run_footprint.jsonl")
+      output_path = os.path.join(temp_dir, "run.md")
+      with mock.patch(
+          "cobalt.tools.storage.storage_monitor.run_cuj_android",
+          side_effect=RuntimeError("No active Android TV device"),
+      ):
+        rc = storage_monitor.main(
+            ["--output", output_path, "--timeline", timeline_path])
+      self.assertEqual(rc, 1)
+      self.assertFalse(os.path.exists(timeline_path))
+
+      # Also cleans up if an event was written before failing with 0 samples.
+      def _fail_after_event(**kwargs):
+        kwargs["timeline"].event(0.0, "cuj", "cold_start")
+        raise RuntimeError("Launch failed")
+
+      with mock.patch(
+          "cobalt.tools.storage.storage_monitor.run_cuj_android",
+          side_effect=_fail_after_event,
+      ):
+        rc = storage_monitor.main(
+            ["--output", output_path, "--timeline", timeline_path])
+      self.assertEqual(rc, 1)
+      self.assertFalse(os.path.exists(timeline_path))
+
+      # Retrying with the exact same paths succeeds once the device is ready.
+      def _succeed(**kwargs):
+        kwargs["timeline"].sample(0.0, [], pid=123)
+        return 1.0
+
+      with mock.patch(
+          "cobalt.tools.storage.storage_monitor.run_cuj_android",
+          side_effect=_succeed,
+      ):
+        rc = storage_monitor.main(
+            ["--output", output_path, "--timeline", timeline_path])
+      self.assertEqual(rc, 0)
+      self.assertTrue(os.path.exists(timeline_path))
+      self.assertTrue(os.path.exists(output_path))
 
 
 if __name__ == "__main__":
