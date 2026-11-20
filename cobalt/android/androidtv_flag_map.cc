@@ -176,14 +176,10 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
     }
   };
 
-  // An explicit --enable-quic (qa and devel builds pass switches through the
-  // launch intent) wins over the experiment default: the network session
-  // configurator only honours --disable-quic, so appending it here would
-  // silently override the user's switch.
-  if (!flag_map.Has(flags::kEnableQuic) &&
-      !cmd_line->HasSwitch(::switches::kEnableQuic)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kDisableQuic);
-  }
+  // QUIC defaults to off in NetworkContext unless the CobaltEnableQuic feature
+  // is on (net/base/features.h). EnableQUIC stays as a force-on
+  // (--enable-quic) for the Kimono cold-config studies.
+  append_switch_if_set(flags::kEnableQuic, ::switches::kEnableQuic);
 
   if (flag_map.Has(flags::kUseMinorMsForMinorGc)) {
     js_flags.push_back(v8_switches::kMinorMs);

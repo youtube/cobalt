@@ -89,9 +89,9 @@ inline constexpr char kEnableCobaltMmapFontCache[] =
 inline constexpr char kEnableModerateMemoryPressure[] =
     "EnableModerateMemoryPressure";
 
-// Enables QUIC for network requests; otherwise --disable-quic is passed,
-// unless --enable-quic is already on the command line.
-// See b/467778593.
+// Forces QUIC on (--enable-quic). QUIC is otherwise off unless the
+// CobaltEnableQuic feature (net/base/features.h) is enabled.
+// See b/467778593, b/586557818.
 inline constexpr char kEnableQuic[] = "EnableQUIC";
 
 // Allows scaling clipped images in GpuImageDecodeCache.

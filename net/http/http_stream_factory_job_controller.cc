@@ -1286,10 +1286,19 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
         return AlternativeServiceInfo();
       }
 #endif
+      AlternativeService alt_svc(NextProto::kProtoQUIC, origin.host(),
+                                 origin.port());
+      // Honour broken marks for the synthetic entry too. Without this, a host
+      // whose Alt-Svc header has not been cached yet (or has expired) would
+      // keep racing QUIC after it was marked broken, for example by
+      // QuicSessionPool::OnBlackholeAfterHandshakeConfirmed().
+      if (http_server_properties.IsAlternativeServiceBroken(
+              alt_svc, request_info.network_anonymization_key)) {
+        return AlternativeServiceInfo();
+      }
       quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
       return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
-          AlternativeService(NextProto::kProtoQUIC, origin.host(), origin.port()),
-          base::Time::Max(), versions);
+          alt_svc, base::Time::Max(), versions);
     }
 #endif  // BUILDFLAG(IS_COBALT)
     return AlternativeServiceInfo();
