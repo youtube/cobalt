@@ -221,9 +221,12 @@ bool CheckAndConsumeMarker(const char* path,
   if (fd >= 0) {
     struct stat st;
     if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode)) {
+      constexpr size_t kMaxMarkerBytes = 4 * 1024 * 1024;
       char buf[1024];
-      for (;;) {
-        ssize_t bytes_read = read(fd, buf, sizeof(buf));
+      while (contents.size() < kMaxMarkerBytes) {
+        const size_t remaining = kMaxMarkerBytes - contents.size();
+        const ssize_t bytes_read =
+            read(fd, buf, std::min(sizeof(buf), remaining));
         if (bytes_read > 0) {
           contents.append(buf, static_cast<size_t>(bytes_read));
           continue;

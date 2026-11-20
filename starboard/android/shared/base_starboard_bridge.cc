@@ -112,6 +112,11 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
   return reinterpret_cast<jlong>(g_native_app_instance);
 }
 
+// Test-only startup path for unit test APKs that do not launch a full
+// ApplicationAndroid instance. Must not be called before
+// JNI_BaseStarboardBridge_StartNativeStarboard in the same process, as
+// StartNativeStarboard assumes SbFileAndroidInitialize has not yet run when
+// g_native_app_instance is null.
 void JNI_BaseStarboardBridge_InitializeFilesForTesting(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_asset_manager,

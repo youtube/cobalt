@@ -100,6 +100,11 @@ void SbFileAndroidTeardown() {
     free(const_cast<char*>(g_app_cache_dir));
     g_app_cache_dir = NULL;
   }
+
+  if (g_app_lib_dir) {
+    free(const_cast<char*>(g_app_lib_dir));
+    g_app_lib_dir = NULL;
+  }
 }
 
 bool IsAndroidAssetPath(const char* path) {
