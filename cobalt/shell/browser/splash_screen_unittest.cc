@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -1047,6 +1048,122 @@ TEST_F(SplashScreenTest, StartupMetricsNotRecordedAfterConceal) {
   EXPECT_TRUE(
       histogram_tester.GetTotalCountsForPrefix("Cobalt.Startup.Timeline.")
           .empty());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+namespace {
+
+// Records WebContents visibility changes on the UI thread for the observed
+// WebContents lifetime.
+class VisibilityChangeRecorder : public WebContentsObserver {
+ public:
+  explicit VisibilityChangeRecorder(WebContents* web_contents)
+      : WebContentsObserver(web_contents) {}
+
+  void OnVisibilityChanged(Visibility visibility) override {
+    visibilities_.push_back(visibility);
+  }
+
+  const std::vector<Visibility>& visibilities() const { return visibilities_; }
+
+ private:
+  std::vector<Visibility> visibilities_;
+};
+
+}  // namespace
+
+// User journey: A user launches Cobalt in the foreground with video splash
+// enabled and the main page finishes loading before the 1500ms minimum splash
+// duration elapses. While waiting for the timer to dismiss the splash screen,
+// the main WebContents must remain visible with no HIDDEN or OCCLUDED
+// transitions.
+TEST_F(SplashScreenTest, VideoSplashKeepsMainVisibleWhileWaitingForTimer) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+
+  Shell* shell = CreateShellWithSplashScreen();
+  VisibilityChangeRecorder recorder(shell->web_contents());
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenVideoStarted(shell);
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  CallLoadProgressChanged(shell, 1.0);
+
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(1100));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+  EXPECT_THAT(recorder.visibilities(), testing::Each(Visibility::VISIBLE));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// User journey: A user launches Cobalt in the foreground with video splash
+// enabled and the main page finishes loading after the 1500ms minimum splash
+// duration has already elapsed (remaining_delay == 0). Scheduling and executing
+// the immediate switch must not trigger a 0ms hidden/shown cycle on the main
+// WebContents.
+TEST_F(SplashScreenTest, VideoSplashKeepsMainVisibleWhenMinDurationElapsed) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+
+  Shell* shell = CreateShellWithSplashScreen();
+  VisibilityChangeRecorder recorder(shell->web_contents());
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenVideoStarted(shell);
+  task_environment()->FastForwardBy(base::Milliseconds(2000));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  task_environment()->RunUntilIdle();
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+  EXPECT_THAT(recorder.visibilities(), testing::Each(Visibility::VISIBLE));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// User journey: A user launches Cobalt with video splash enabled and the OS
+// conceals the app before the splash screen finishes. Completing the switch to
+// the main WebContents while concealed must not call WasShown() or transition
+// the main WebContents back to VISIBLE.
+TEST_F(SplashScreenTest, ConcealedDuringVideoSplashDoesNotShowMainOnSwitch) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+
+  Shell* shell = CreateShellWithSplashScreen();
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenVideoStarted(shell);
+
+  // Simulate OS conceal while the video splash screen is still active.
+  platform_->SetIsVisible(false);
+  shell->web_contents()->WasHidden();
+  ASSERT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
+
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::HIDDEN);
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));
