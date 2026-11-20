@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/stringprintf.h"
@@ -31,6 +32,13 @@
 
 namespace cobalt {
 namespace migrate_storage_record {
+
+// Relocates `migration_completed.txt` from clearable `base::DIR_CACHE` to
+// persistent `content::SHELL_DIR_USER_DATA` (with a one-time fallback migrating
+// an existing `DIR_CACHE` sentinel) and probes legacy Starboard storage records
+// without creating empty 0-byte `.starboard.*.storage` files or reporting
+// missing/0-byte records as `MigrationOutcome::kFailed`.
+BASE_DECLARE_FEATURE(kCobaltStorageMigrationOptimization);
 
 // Tracks the outcome of attempting to read the legacy Starboard storage record.
 enum class StorageReadResult {
