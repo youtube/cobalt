@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/stringprintf.h"
@@ -31,6 +32,14 @@
 
 namespace cobalt {
 namespace migrate_storage_record {
+
+// Persists `migration_completed.txt` in `StoragePartition::GetPath()`
+// (`UserData`, with a one-time fallback copying an existing `DIR_CACHE`
+// sentinel) and treats 0-byte `SbStorageRecord`s as missing (`kSkipped`) while
+// deleting legacy records via `SbStorageDeleteRecord` without `O_CREAT`.
+// TODO(b/586960811): Verify persistent storage quota on 3P (`IS_STARBOARD`)
+// before enabling outside Android TV.
+BASE_DECLARE_FEATURE(kCobaltStorageMigrationOptimization);
 
 // Tracks the outcome of attempting to read the legacy Starboard storage record.
 enum class StorageReadResult {

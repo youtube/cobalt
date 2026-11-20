@@ -138,7 +138,8 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     }
 
     case kSbSystemPathTempDirectory: {
-      if (starboard::strlcpy(path, g_app_cache_dir, kPathSize) >= kPathSize) {
+      if (!g_app_cache_dir ||
+          starboard::strlcpy(path, g_app_cache_dir, kPathSize) >= kPathSize) {
         return false;
       }
 
