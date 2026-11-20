@@ -101,6 +101,14 @@ if (is_cobalt_hermetic_build) {
 
     if (current_toolchain == default_toolchain) {
       data_deps = [ ":starboard($starboard_toolchain)" ]
+    } else if (current_toolchain == starboard_toolchain &&
+               starboard_target_type == "shared_library") {
+      # Standalone starboard_toolchain targets (e.g. starboard_unittests,
+      # loader_app, player_filter_tests) also depend directly on static
+      # Starboard libraries; linking libstarboard.so alongside them duplicates
+      # globals and triggers ASan ODR violations. Thin modular loader binaries
+      # that dlopen default_toolchain modules use :starboard_shared instead.
+      deps += [ ":starboard_deps" ]
     } else {
       deps += [ ":starboard($starboard_toolchain)" ]
     }
@@ -204,6 +212,11 @@ if (current_toolchain == starboard_toolchain) {
   starboard_platform_target("starboard") {
   }
 
+  group("starboard_shared") {
+    public_deps = [ ":starboard_headers_only" ]
+    deps = [ ":starboard" ]
+  }
+
   if (platform_tests_path == "") {
     # If 'starboard_platform_tests' is not defined by the platform, then an
     # empty 'starboard_platform_tests' target is defined.
@@ -234,6 +247,9 @@ if (current_toolchain == starboard_toolchain) {
   }
   target(_starboard_unittests_target_type, "starboard_unittests") {
     testonly = true
+    if (is_cobalt_hermetic_build) {
+      output_name = "starboard_unittests_wrapper"
+    }
     defines = [ "STARBOARD_IMPLEMENTATION_TEST" ]
 
     # Only the hermetic executable writes the wrapper's runtime deps. In
