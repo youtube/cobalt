@@ -97,7 +97,7 @@ runs:
           "${extra_args[@]}"
 
     - name: Archive Chromedriver Smoke Test Artifacts
-      if: always() && !cancelled()
+      if: ${{ !cancelled() }}
       uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
       with:
         name: chromedriver_smoketest_results_${{ github.run_attempt }}
