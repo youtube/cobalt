@@ -915,5 +915,292 @@ TEST_F(ExternalBeginFrameSourceTest, RootsNotifiedLast) {
   source_->RemoveObserver(&obs2);
 }
 
+#if BUILDFLAG(IS_COBALT)
+// Test fixture exercising BufferedSwapBeginFrameSource with a mockable clock
+// and task runner.
+//
+// Lifetime and ownership: Instantiated per GoogleTest case; owns
+// |BufferedSwapBeginFrameSource| (which owns |FakeDelayBasedTimeSource|) and
+// |MockBeginFrameObserver| across SetUp()..TearDown().
+// Threading model: Single-threaded on |TestTaskRunner|.
+class BufferedSwapBeginFrameSourceTest : public ::testing::Test {
+ protected:
+  static constexpr int64_t kIntervalUs = 16666;
+
+  void SetUp() override {
+    task_runner_ = base::MakeRefCounted<TestTaskRunner>();
+    // Advance past 2 * kIntervalUs so [Now() - 2*interval, Now()] starts at a
+    // clean positive timestamp.
+    task_runner_->AdvanceMockTickClock(base::Microseconds(99000));
+    auto time_source = std::make_unique<FakeDelayBasedTimeSource>(
+        task_runner_->GetMockTickClock(), task_runner_.get());
+    delay_based_time_source_ = time_source.get();
+    source_ = std::make_unique<BufferedSwapBeginFrameSource>(
+        std::move(time_source), BeginFrameSource::kNotRestartableId);
+    source_->OnUpdateVSyncParameters(base::TimeTicks(),
+                                     base::Microseconds(kIntervalUs));
+    obs_ = std::make_unique<::testing::NiceMock<MockBeginFrameObserver>>();
+  }
+
+  void TearDown() override { obs_.reset(); }
+
+  scoped_refptr<TestTaskRunner> task_runner_;
+  std::unique_ptr<BufferedSwapBeginFrameSource> source_;
+  std::unique_ptr<MockBeginFrameObserver> obs_;
+  raw_ptr<FakeDelayBasedTimeSource> delay_based_time_source_;
+};
+
+// Covers the TV UI scrolling journey where fast initial frames (6 ms) pre-fill
+// the N=2 EGL back-buffer cushion with frame_time <= Now(), and a subsequent
+// 24 ms frame spike is absorbed without skipping a BeginFrame or jumping
+// requestAnimationFrame step distances.
+TEST_F(BufferedSwapBeginFrameSourceTest,
+       PreFillsBackBufferQueueAndAbsorbsTransientSlowFrameWithUniformSteps) {
+  std::vector<BeginFrameArgs> received;
+  ON_CALL(*obs_, OnBeginFrame(_))
+      .WillByDefault(::testing::Invoke([&](const BeginFrameArgs& args) {
+        obs_->last_begin_frame_args = args;
+        received.push_back(args);
+      }));
+
+  // At t = 100000 us, waking from idle starts at Now() - 2 * 16666 = 66668 us.
+  source_->AddObserver(obs_.get());
+  task_runner_->RunUntilIdle();
+  ASSERT_EQ(1u, received.size());
+  EXPECT_EQ(base::TimeTicks() + base::Microseconds(66668),
+            received[0].frame_time);
+  EXPECT_LE(received[0].frame_time, task_runner_->NowTicks());
+  EXPECT_EQ(task_runner_->NowTicks() + base::Microseconds(kIntervalUs),
+            received[0].deadline);
+
+  // Fast 6 ms frames pre-fill the 2 EGL back buffers until steady state locks
+  // onto Now().
+  for (int i = 0; i < 3; ++i) {
+    task_runner_->AdvanceMockTickClock(base::Microseconds(6000));
+    source_->DidFinishFrame(obs_.get());
+    task_runner_->RunUntilIdle();
+  }
+  ASSERT_EQ(4u, received.size());
+  // Frame 3 reaches steady state at frame_time = 116666 us (Now() = 118000 us).
+  EXPECT_EQ(base::TimeTicks() + base::Microseconds(116666),
+            received[3].frame_time);
+
+  // Simulate blocking eglSwapBuffers aligning Frame 3 completion to 133332 us,
+  // so Frame 4 starts right at steady state (Now() == frame_time == 133332 us).
+  task_runner_->AdvanceMockTickClock(base::Microseconds(15332));
+  source_->DidFinishFrame(obs_.get());
+  task_runner_->RunUntilIdle();
+  ASSERT_EQ(5u, received.size());
+  EXPECT_EQ(base::TimeTicks() + base::Microseconds(133332),
+            received[4].frame_time);
+
+  // Inject a 24 ms slow frame (133332 -> 157332 us). Because 2 back buffers
+  // were queued ahead of scanout, Frame 5 must dispatch immediately with an
+  // exact +kIntervalUs step (149998 us), not a +2*kIntervalUs jump.
+  task_runner_->AdvanceMockTickClock(base::Microseconds(24000));
+  source_->DidFinishFrame(obs_.get());
+  task_runner_->RunUntilIdle();
+  ASSERT_EQ(6u, received.size());
+
+  for (size_t i = 1; i < received.size(); ++i) {
+    EXPECT_EQ(base::Microseconds(kIntervalUs),
+              received[i].frame_time - received[i - 1].frame_time);
+    EXPECT_LE(received[i].frame_time, task_runner_->NowTicks());
+  }
+}
+
+// Covers platforms or headless drivers where eglSwapBuffers returns in 1 ms
+// without blocking even when the EGL surface buffer queue is full, verifying
+// that steady-state frame production never exceeds the target refresh rate.
+TEST_F(BufferedSwapBeginFrameSourceTest,
+       ThrottlesSteadyStateRateWhenSwapBuffersNeverBlocks) {
+  std::vector<BeginFrameArgs> received;
+  ON_CALL(*obs_, OnBeginFrame(_))
+      .WillByDefault(::testing::Invoke([&](const BeginFrameArgs& args) {
+        obs_->last_begin_frame_args = args;
+        received.push_back(args);
+      }));
+
+  source_->AddObserver(obs_.get());
+  task_runner_->RunUntilIdle();
+  ASSERT_EQ(1u, received.size());  // frame_time = 66668, now = 100000
+
+  // Two 1 ms swaps complete the initial N=2 pre-fill up to frame_time = 100000.
+  for (int i = 0; i < 2; ++i) {
+    task_runner_->AdvanceMockTickClock(base::Microseconds(1000));
+    source_->DidFinishFrame(obs_.get());
+    task_runner_->RunUntilIdle();
+  }
+  ASSERT_EQ(3u, received.size());
+  EXPECT_EQ(base::TimeTicks() + base::Microseconds(100000),
+            received[2].frame_time);
+
+  // A 4th frame wants frame_time = 116666 us while Now() is only 103000 us.
+  // RunUntilIdle() without advancing the clock must NOT fire early.
+  task_runner_->AdvanceMockTickClock(base::Microseconds(1000));
+  source_->DidFinishFrame(obs_.get());
+  task_runner_->RunUntilIdle();
+  EXPECT_EQ(3u, received.size());
+  EXPECT_TRUE(task_runner_->HasPendingTask());
+
+  // Advancing to 116666 us dispatches Frame 4 right on schedule.
+  task_runner_->FastForwardTo(base::TimeTicks() + base::Microseconds(116666));
+  ASSERT_EQ(4u, received.size());
+  EXPECT_EQ(base::TimeTicks() + base::Microseconds(116666),
+            received[3].frame_time);
+}
+
+// Covers genuine UI freezes (> 2 VSyncs) and short idle pauses, verifying that
+// frame_time advances by missed VSync multiples when the buffer queue drains
+// while remaining strictly monotonic across rapid RemoveObserver/AddObserver.
+TEST_F(BufferedSwapBeginFrameSourceTest,
+       AdvancesByMissedIntervalsAfterGenuineBufferQueueUnderrunOrIdlePause) {
+  std::vector<BeginFrameArgs> received;
+  ON_CALL(*obs_, OnBeginFrame(_))
+      .WillByDefault(::testing::Invoke([&](const BeginFrameArgs& args) {
+        obs_->last_begin_frame_args = args;
+        received.push_back(args);
+      }));
+
+  source_->AddObserver(obs_.get());
+  task_runner_->RunUntilIdle();
+  for (int i = 0; i < 2; ++i) {
+    task_runner_->AdvanceMockTickClock(base::Microseconds(1000));
+    source_->DidFinishFrame(obs_.get());
+    task_runner_->RunUntilIdle();
+  }
+  ASSERT_EQ(3u, received.size());
+  // Now at 102000 us, last_frame_time = 100000 us. Simulate a 60 ms freeze
+  // (102000 -> 162000 us), which drains the 2-buffer cushion by 1 VSync.
+  task_runner_->AdvanceMockTickClock(base::Microseconds(60000));
+  source_->DidFinishFrame(obs_.get());
+  task_runner_->RunUntilIdle();
+  ASSERT_EQ(4u, received.size());
+  // Skips 1 dropped VSync (116666 us) and lands at 133332 us inside
+  // [162000 - 33332, 162000] so the 2-buffer cushion can refill.
+  EXPECT_EQ(base::TimeTicks() + base::Microseconds(133332),
+            received[3].frame_time);
+
+  // Rapidly toggling RemoveObserver / AddObserver 2 ms later must preserve
+  // monotonicity (>= 133332 us) rather than rewinding by 2 * kIntervalUs.
+  source_->RemoveObserver(obs_.get());
+  task_runner_->AdvanceMockTickClock(base::Microseconds(2000));
+  source_->AddObserver(obs_.get());
+  task_runner_->RunUntilIdle();
+  ASSERT_EQ(5u, received.size());
+  EXPECT_GT(received[4].frame_time, received[3].frame_time);
+}
+
+// Covers multi-observer coordination where DisplayScheduler subscribes mid-frame
+// while the renderer is still preparing a 24 ms frame, verifying MISSED join
+// delivery with an unexpired deadline and barrier synchronization.
+TEST_F(BufferedSwapBeginFrameSourceTest,
+       SynchronizesMultipleObserversAndDeliversMissedArgsToLateJoiner) {
+  NiceMock<MockBeginFrameObserver> renderer_obs;
+  NiceMock<MockBeginFrameObserver> display_obs;
+  std::vector<BeginFrameArgs> renderer_args;
+  std::vector<BeginFrameArgs> display_args;
+  ON_CALL(renderer_obs, OnBeginFrame(_))
+      .WillByDefault(::testing::Invoke([&](const BeginFrameArgs& args) {
+        renderer_obs.last_begin_frame_args = args;
+        renderer_args.push_back(args);
+      }));
+  ON_CALL(display_obs, OnBeginFrame(_))
+      .WillByDefault(::testing::Invoke([&](const BeginFrameArgs& args) {
+        display_obs.last_begin_frame_args = args;
+        display_args.push_back(args);
+      }));
+
+  source_->AddObserver(&renderer_obs);
+  task_runner_->RunUntilIdle();
+  ASSERT_EQ(1u, renderer_args.size());
+
+  // 20 ms later (renderer still busy on Frame 1), DisplayScheduler subscribes.
+  task_runner_->AdvanceMockTickClock(base::Microseconds(20000));
+  source_->AddObserver(&display_obs);
+  ASSERT_EQ(1u, display_args.size());
+  EXPECT_EQ(BeginFrameArgs::MISSED, display_args[0].type);
+  EXPECT_EQ(renderer_args[0].frame_time, display_args[0].frame_time);
+  EXPECT_GT(display_args[0].deadline, task_runner_->NowTicks());
+
+  // DisplayScheduler finishes first; Frame 2 must wait until renderer finishes.
+  source_->DidFinishFrame(&display_obs);
+  task_runner_->RunUntilIdle();
+  EXPECT_EQ(1u, renderer_args.size());
+
+  task_runner_->AdvanceMockTickClock(base::Microseconds(4000));
+  source_->DidFinishFrame(&renderer_obs);
+  task_runner_->RunUntilIdle();
+  EXPECT_EQ(2u, renderer_args.size());
+  EXPECT_EQ(2u, display_args.size());
+
+  source_->RemoveObserver(&display_obs);
+  source_->RemoveObserver(&renderer_obs);
+}
+
+// Covers 50 Hz TV displays (20 ms VSync interval), verifying that once
+// OnUpdateVSyncParameters delivers a 20 ms interval, animation frame_time steps
+// switch cleanly to 20 ms increments.
+TEST_F(BufferedSwapBeginFrameSourceTest,
+       AdaptsStepIntervalWhenDisplayRefreshRateUpdatesTo50Hz) {
+  std::vector<BeginFrameArgs> received;
+  ON_CALL(*obs_, OnBeginFrame(_))
+      .WillByDefault(::testing::Invoke([&](const BeginFrameArgs& args) {
+        obs_->last_begin_frame_args = args;
+        received.push_back(args);
+      }));
+
+  source_->OnUpdateVSyncParameters(base::TimeTicks(), base::Milliseconds(20));
+  source_->AddObserver(obs_.get());
+  task_runner_->RunUntilIdle();
+  task_runner_->AdvanceMockTickClock(base::Milliseconds(8));
+  source_->DidFinishFrame(obs_.get());
+  task_runner_->RunUntilIdle();
+
+  ASSERT_EQ(2u, received.size());
+  EXPECT_EQ(base::Milliseconds(20),
+            received[1].frame_time - received[0].frame_time);
+  EXPECT_EQ(base::Milliseconds(20), received[1].interval);
+}
+
+// Covers browser startup where multiple CompositorFrameSinkSupport / Display
+// observers subscribe while a BeginFrame tick timer is already armed, and one
+// observer unsubscribes synchronously inside OnBeginFrame() after delivering
+// presentation timing.
+TEST_F(BufferedSwapBeginFrameSourceTest,
+       HandlesConcurrentObserverRegistrationWhileTimerActiveAndSyncRemoval) {
+  NiceMock<MockBeginFrameObserver> transient_obs;
+  NiceMock<MockBeginFrameObserver> renderer_obs;
+  std::vector<BeginFrameArgs> renderer_args;
+
+  ON_CALL(transient_obs, OnBeginFrame(_))
+      .WillByDefault(::testing::Invoke([&](const BeginFrameArgs& args) {
+        transient_obs.last_begin_frame_args = args;
+        source_->RemoveObserver(&transient_obs);
+      }));
+  ON_CALL(renderer_obs, OnBeginFrame(_))
+      .WillByDefault(::testing::Invoke([&](const BeginFrameArgs& args) {
+        renderer_obs.last_begin_frame_args = args;
+        renderer_args.push_back(args);
+      }));
+
+  // Register two observers back-to-back while the tick timer is already active,
+  // and also exercise ScheduleTickAt() directly while running.
+  source_->AddObserver(&transient_obs);
+  source_->AddObserver(&renderer_obs);
+  delay_based_time_source_->ScheduleTickAt(task_runner_->NowTicks() +
+                                           base::Milliseconds(1));
+  task_runner_->FastForwardBy(base::Milliseconds(1));
+
+  ASSERT_EQ(1u, renderer_args.size());
+  task_runner_->AdvanceMockTickClock(base::Milliseconds(6));
+  source_->DidFinishFrame(&renderer_obs);
+  task_runner_->RunUntilIdle();
+  EXPECT_EQ(2u, renderer_args.size());
+
+  source_->RemoveObserver(&renderer_obs);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace
 }  // namespace viz

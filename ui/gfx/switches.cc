@@ -71,4 +71,13 @@ BASE_FEATURE(kUseSmartRefForGPUFenceHandle,
 
 BASE_FEATURE(kHdrAgtm, "HdrAgtm", base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)
+// Enables swap-paced BeginFrame generation with an N=2 EGL back-buffer cushion
+// and deferred FIFO VSync-slot presentation timestamps on surfaces without a
+// VSyncProvider.
+BASE_FEATURE(kCobaltBufferedSwapPacing,
+             "CobaltBufferedSwapPacing",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace features

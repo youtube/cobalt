@@ -52,6 +52,11 @@
 #include "components/viz/service/frame_sinks/external_begin_frame_source_win.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "ui/gfx/switches.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace viz {
 
 namespace {
@@ -95,6 +100,11 @@ class RootCompositorFrameSinkImpl::StandaloneBeginFrameObserver
                   STEP_SEND_ON_STANDALONE_BEGIN_FRAME_MOJO_MESSAGE);
         });
     remote_observer_->OnStandaloneBeginFrame(args);
+#if BUILDFLAG(IS_COBALT)
+    if (begin_frame_source_) {
+      begin_frame_source_->DidFinishFrame(this);
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     return true;
   }
 
@@ -224,9 +234,22 @@ RootCompositorFrameSinkImpl::Create(
       if (!external_begin_frame_source && !synthetic_begin_frame_source) {
         auto time_source = std::make_unique<DelayBasedTimeSource>(
             base::SingleThreadTaskRunner::GetCurrentDefault().get());
+#if BUILDFLAG(IS_COBALT)
+        if (base::FeatureList::IsEnabled(
+                ::features::kCobaltBufferedSwapPacing)) {
+          synthetic_begin_frame_source =
+              std::make_unique<BufferedSwapBeginFrameSource>(
+                  std::move(time_source), restart_id);
+        } else {
+          synthetic_begin_frame_source =
+              std::make_unique<DelayBasedBeginFrameSource>(
+                  std::move(time_source), restart_id);
+        }
+#else
         synthetic_begin_frame_source =
             std::make_unique<DelayBasedBeginFrameSource>(std::move(time_source),
                                                          restart_id);
+#endif  // BUILDFLAG(IS_COBALT)
       }
     }
 #endif  // BUILDFLAG(IS_ANDROID)

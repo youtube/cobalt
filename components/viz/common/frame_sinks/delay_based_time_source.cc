@@ -92,6 +92,22 @@ void DelayBasedTimeSource::SetTimebaseAndInterval(base::TimeTicks timebase,
   timebase_ = timebase;
 }
 
+#if BUILDFLAG(IS_COBALT)
+void DelayBasedTimeSource::ScheduleTickAt(base::TimeTicks target_tick_time) {
+  const base::TimeTicks now = Now();
+  interval_ = base::TimeDelta();
+  timebase_ = base::TimeTicks();
+  if (!timer_.IsRunning()) {
+    timer_.SetTaskRunner(task_runner_.get());
+  }
+  active_ = true;
+  next_tick_time_ = std::max(now, target_tick_time);
+  timer_.Start(FROM_HERE,
+               target_tick_time <= now ? base::TimeTicks() : target_tick_time,
+               tick_closure_, base::subtle::DelayPolicy::kPrecise);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 base::TimeTicks DelayBasedTimeSource::Now() const {
   return base::TimeTicks::Now();
 }

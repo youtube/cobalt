@@ -18,6 +18,8 @@
 
 #include "starboard/egl.h"
 #include "starboard/gles.h"
+#include "ui/gl/gl_surface_egl.h"
+#include "ui/ozone/platform/starboard/platform_screen_starboard.h"
 
 namespace ui {
 
@@ -240,8 +242,19 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
   CHECK(window != gfx::kNullAcceleratedWidget);
   // TODO(b/371272304): Verify widget dimensions match our expected display size
   // (likely full screen for Cobalt).
-  return gl::InitializeGLSurface(new gl::NativeViewGLSurfaceEGL(
-      display->GetAs<gl::GLDisplayEGL>(), window, nullptr));
+  scoped_refptr<gl::GLSurface> surface =
+      gl::InitializeGLSurface(new gl::NativeViewGLSurfaceEGL(
+          display->GetAs<gl::GLDisplayEGL>(), window, nullptr));
+  if (surface && PlatformScreenStarboard::GetInstance() &&
+      !PlatformScreenStarboard::GetInstance()->GetAllDisplays().empty()) {
+    const float display_hz = PlatformScreenStarboard::GetInstance()
+                                 ->GetDisplayForAcceleratedWidget(window)
+                                 .display_frequency();
+    if (display_hz > 0.0f) {
+      surface->SetNominalVSyncInterval(base::Seconds(1) / display_hz);
+    }
+  }
+  return surface;
 }
 
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(
