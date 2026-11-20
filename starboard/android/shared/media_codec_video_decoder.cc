@@ -1018,7 +1018,8 @@ Result<void> MediaCodecVideoDecoder::TryInitializeCodec() {
 
   auto j_output_surface = PrepareOutputSurface();
   if (!j_output_surface) {
-    // A missing surface or decode target isn't fixed by retrying.
+    // A missing surface or decode target isn't retried.
+    // TODO(b/545652710): Retry when the surface is missing too.
     TeardownCodec();
     return Unexpected(std::move(j_output_surface).error());
   }
