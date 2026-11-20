@@ -533,6 +533,22 @@ TEST(MimeTypeTest, NonAsciiBytesAreNotWhitespace) {
             mime_type->GetParamStringValue(kMimeParamCodecs, ""));
 }
 
+TEST(MimeTypeDeathTest, OutOfBoundsParamIndexAborts) {
+  auto mime_type = MimeType::Create("video/mp4; width=1920");
+  ASSERT_TRUE(mime_type);
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamType(MimeType::kInvalidParamIndex), "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamIntValue(MimeType::kInvalidParamIndex), "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamFloatValue(MimeType::kInvalidParamIndex), "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamStringValue(MimeType::kInvalidParamIndex), "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamBoolValue(MimeType::kInvalidParamIndex), "");
+  EXPECT_DEATH_IF_SUPPORTED(mime_type->GetParamType(1), "");
+}
+
 }  // namespace
 
 }  // namespace starboard

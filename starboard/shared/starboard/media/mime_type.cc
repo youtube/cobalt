@@ -188,6 +188,7 @@ int MimeType::GetParamCount() const {
 }
 
 MimeType::ParamType MimeType::GetParamType(int index) const {
+  SB_CHECK_GE(index, 0);
   SB_CHECK_LT(index, GetParamCount());
 
   return params_[index].type;
@@ -203,6 +204,7 @@ int MimeType::GetParamIndexByName(const MimeParam& param) const {
 }
 
 int MimeType::GetParamIntValue(int index) const {
+  SB_CHECK_GE(index, 0);
   SB_CHECK_LT(index, GetParamCount());
 
   if (params_[index].type == kParamTypeInteger) {
@@ -212,6 +214,7 @@ int MimeType::GetParamIntValue(int index) const {
 }
 
 float MimeType::GetParamFloatValue(int index) const {
+  SB_CHECK_GE(index, 0);
   SB_CHECK_LT(index, GetParamCount());
 
   if (params_[index].type == kParamTypeInteger) {
@@ -224,12 +227,14 @@ float MimeType::GetParamFloatValue(int index) const {
 }
 
 const std::string& MimeType::GetParamStringValue(int index) const {
+  SB_CHECK_GE(index, 0);
   SB_CHECK_LT(index, GetParamCount());
 
   return params_[index].string_value;
 }
 
 bool MimeType::GetParamBoolValue(int index) const {
+  SB_CHECK_GE(index, 0);
   SB_CHECK_LT(index, GetParamCount());
 
   if (params_[index].type == kParamTypeBoolean) {
