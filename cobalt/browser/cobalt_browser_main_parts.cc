@@ -618,6 +618,9 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
+    browser_client->StartAfterStartupTaskFailsafeTimer();
+  }
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
 
   base::FilePath base_dir;
@@ -835,6 +838,9 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
+    browser_client->OnMainReady();
+  }
 #if BUILDFLAG(IS_ANDROID)
   android_os_signal_evaluator_.reset();
 #endif
