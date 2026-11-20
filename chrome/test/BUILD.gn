@@ -3837,7 +3837,10 @@ if (!is_android) {
 
       if (enable_printing) {
         sources += [ "../browser/pdf/pdf_extension_printing_test.cc" ]
-        deps += [ "//chrome/browser/printing" ]
+        deps += [
+          "//chrome/browser/printing",
+          "//printing/backend:test_support",
+        ]
       }
 
       if (enable_pdf_save_to_drive) {
