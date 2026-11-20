@@ -13,12 +13,11 @@ media_use_ffmpeg = false
 
 # Cobalt doesn't use Chromium's Rust software audio decoders (Symphonia:
 # MP3/FLAC/Vorbis/PCM); audio is decoded by Starboard/platform decoders.
-# The default enables it on is_linux, which costs ~0.6 MiB of libcobalt.so
-# on Evergreen (b/555766579).
+# It is enabled by default for all Blink builds, which costs ~0.6 MiB of
+# libcobalt.so on Evergreen and ~0.3 MiB of libchrobalt.so on Android.
 media_use_symphonia = false
 
 # Cobalt doesn't need the JPEG XL image decoder (~0.4 MiB, b/555766579).
-# Declared in //third_party/blink/renderer/config.gni.
 enable_jxl_decoder = false
 
 # TODO(b/378934120): Remove flags below this line
