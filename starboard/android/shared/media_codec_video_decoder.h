@@ -59,6 +59,9 @@ namespace starboard {
 // improvement bits.
 namespace android_video_decoder_improvements {
 
+// Note: Only bits 0 to 30 are supported. Bit 31 (the sign bit) must not be
+// used as a flag because negative values are treated as disabled/placebo.
+
 // Guards video surface cleanup and reset in `~MediaCodecVideoDecoder()` by
 // video surface ownership.
 inline constexpr uint32_t kGuardSurfaceCleanupByOwnership = 1u << 0;
