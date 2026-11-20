@@ -38,7 +38,6 @@
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/heap/heap_test_utilities.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
-#include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
@@ -89,7 +88,8 @@ class FakeCobaltLifecycleObserver
 };
 
 // Unit test fixture verifying CobaltLifecycleController Mojo notifications,
-// context-destruction guards, and Oilpan WeakPersistent callback cancellation.
+// context-destruction guards, and Oilpan WeakPersistent null-clearing on
+// collection.
 //
 // Lifetime and ownership: Instantiated and owned by GTest per test case.
 // Threading: Runs exclusively on the Blink main test thread.
@@ -193,6 +193,7 @@ TEST_F(
 
   CommitCrossDocumentNavigationWithoutRunningTasks(
       KURL("https://b.example/next"));
+  ASSERT_TRUE(weak_old_controller);
 
   test::RunPendingTasks();
   observer.FlushForTesting();

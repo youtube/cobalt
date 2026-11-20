@@ -19,6 +19,7 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -74,6 +75,13 @@ std::unique_ptr<net::test_server::HttpResponse> HandleInlinePageRequest(
   return response;
 }
 
+// Shared synchronization flags written by the in-process renderer test hook
+// during navigation/GC and checked on the browser UI thread after commit.
+//
+// Lifetime and ownership: Shared via std::shared_ptr between the browser test
+// body and LifecycleDuringCommitObserver on the renderer thread.
+// Threading: Written on the renderer main thread (memory_order_release) and
+// read on the browser UI thread (memory_order_acquire).
 struct LifecycleHookState {
   std::atomic<bool> pagehide_fired{false};
   std::atomic<bool> gc_completed{false};
@@ -169,24 +177,43 @@ class LifecycleDuringCommitObserver : public content::RenderFrameObserver {
   bool queued_during_pagehide_ = false;
 };
 
-// Scoped browser-side observer that blocks a RunLoop until
-// CobaltLifecycleManager reports OnAllFramesConcealed for the target
-// WebContents.
+// Scoped browser-side observer that waits for CobaltLifecycleManager to report
+// main-frame registration (OnMainFrameRegistered) and conceal completion
+// (OnAllFramesConcealed) for the target WebContents.
 //
-// Lifetime and ownership: Stack-allocated per test check; registers and
+// Lifetime and ownership: Stack-allocated per test case; registers and
 // unregisters with CobaltLifecycleManager in constructor and destructor.
 // Threading: Used exclusively on the browser UI main thread.
-class VisibilityAckWaiter : public CobaltLifecycleManagerObserver {
+class LifecycleAckWaiter : public CobaltLifecycleManagerObserver {
  public:
-  explicit VisibilityAckWaiter(content::WebContents* web_contents)
+  explicit LifecycleAckWaiter(content::WebContents* web_contents)
       : web_contents_(web_contents) {
     CobaltLifecycleManager::GetInstance()->AddObserver(this);
   }
-  ~VisibilityAckWaiter() override {
+  ~LifecycleAckWaiter() override {
     CobaltLifecycleManager::GetInstance()->RemoveObserver(this);
   }
 
+  void WaitForMainFrameRegistered() {
+    if (!main_frame_registered_) {
+      base::RunLoop loop;
+      registered_quit_ = loop.QuitClosure();
+      loop.Run();
+    }
+    main_frame_registered_ = false;
+  }
+
   void WaitForConcealed() { concealed_loop_.Run(); }
+
+  void OnMainFrameRegistered(content::WebContents* web_contents) override {
+    if (web_contents != web_contents_) {
+      return;
+    }
+    main_frame_registered_ = true;
+    if (registered_quit_) {
+      std::move(registered_quit_).Run();
+    }
+  }
 
   void OnAllFramesConcealed(content::WebContents* web_contents) override {
     if (web_contents == web_contents_) {
@@ -198,6 +225,8 @@ class VisibilityAckWaiter : public CobaltLifecycleManagerObserver {
 
  private:
   content::WebContents* const web_contents_;
+  bool main_frame_registered_ = false;
+  base::OnceClosure registered_quit_;
   base::RunLoop concealed_loop_;
 };
 
@@ -249,9 +278,11 @@ IN_PROC_BROWSER_TEST_F(
   const GURL url1 = embedded_test_server()->GetURL("/page1.html");
   const GURL url2 = embedded_test_server()->GetURL("/page2.html");
 
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url1));
+  LifecycleAckWaiter waiter(shell()->web_contents());
   CobaltLifecycleManager::GetInstance()->InitializeTracker(
       shell()->web_contents());
-  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url1));
+  waiter.WaitForMainFrameRegistered();
   EXPECT_EQ("visible",
             content::EvalJs(shell()->web_contents(), "document.visibilityState")
                 .ExtractString());
@@ -283,13 +314,13 @@ IN_PROC_BROWSER_TEST_F(
                               "window.__queueVisibilityDuringPagehide());"));
 
   ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url2));
+  waiter.WaitForMainFrameRegistered();
   EXPECT_EQ("visible",
             content::EvalJs(shell()->web_contents(), "document.visibilityState")
                 .ExtractString());
   EXPECT_TRUE(hook_state->pagehide_fired.load(std::memory_order_acquire));
   EXPECT_TRUE(hook_state->gc_completed.load(std::memory_order_acquire));
 
-  VisibilityAckWaiter waiter(shell()->web_contents());
   CobaltLifecycleManager::GetInstance()->StartWaitingForAck(
       shell()->web_contents(), PendingAck::kConceal);
   shell()->web_contents()->WasHidden();
