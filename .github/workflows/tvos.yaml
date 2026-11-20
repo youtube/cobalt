@@ -1,4 +1,4 @@
-name: tvos_27.lts
+name: tvos
 
 on:
   pull_request:

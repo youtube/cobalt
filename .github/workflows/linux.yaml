@@ -1,4 +1,4 @@
-name: linux_27.lts
+name: linux
 
 on:
   pull_request:
