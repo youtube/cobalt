@@ -219,26 +219,27 @@ jobs:
             } >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: 'Checkout PR source'
+      - name: 'Checkout PR source read-only'
         if: steps.trigger.outputs.owner_rev == 'true' && steps.resolve_review.outputs.has_reviewers == 'true'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: refs/pull/${{ github.event.pull_request.number || github.event.issue.number }}/head
-          path: pr-src
-          persist-credentials: false
-          fetch-depth: 1
-
-      - name: 'Lock PR source read-only'
-        if: steps.trigger.outputs.owner_rev == 'true' && steps.resolve_review.outputs.has_reviewers == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if [[ -d "${RUNNER_TEMP}/pr-src" ]]; then
-            chmod -R u+w "${RUNNER_TEMP}/pr-src"
-            rm -rf "${RUNNER_TEMP}/pr-src"
+          pr_src="${RUNNER_TEMP}/pr-src"
+          if [[ -d "${pr_src}" ]]; then
+            chmod -R u+w "${pr_src}"
+            rm -rf "${pr_src}"
           fi
-          rm -rf pr-src/.git
-          mv pr-src "${RUNNER_TEMP}/pr-src"
-          chmod -R a-w "${RUNNER_TEMP}/pr-src" .agent .github
+          mkdir -p "${pr_src}"
+          git -C "${pr_src}" init -q
+          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -C "${pr_src}" -c "http.extraheader=${auth_header}" \
+            fetch -q --depth=1 --no-tags "https://github.com/${REPO}.git" "refs/pull/${PR_NUM}/head"
+          git -C "${pr_src}" checkout -q --detach FETCH_HEAD
+          rm -rf "${pr_src}/.git"
+          chmod -R a-w "${pr_src}" .agent .github
 
       - name: 'Review with Gemini CLI'
         id: gemini_review
