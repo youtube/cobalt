@@ -138,6 +138,18 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
   void SetPlaybackRate(double playback_rate);
 
+  // True if the render algorithm should report how long the next frame can
+  // wait, see set_time_to_next_render(). See |kMediaDeadlineDrivenVideoOutput|.
+  bool deadline_driven_video_output() const {
+    return deadline_driven_video_output_;
+  }
+  // Called by the render algorithm, while it renders inside Tick(), with the
+  // time until it has to render again provided that no new frame arrives, in
+  // microseconds. nullopt means it has to be called at the usual interval.
+  void set_time_to_next_render(std::optional<int64_t> time_to_next_render_us) {
+    time_to_next_render_us_ = time_to_next_render_us;
+  }
+
   void OnFrameAvailable() override;
 
  private:
@@ -152,6 +164,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnEndOfStreamWritten(MediaCodec* media_codec_bridge) override;
   void RefreshOutputFormat(MediaCodec* media_codec_bridge) override;
   bool Tick(MediaCodec* media_codec_bridge) override;
+  std::optional<int64_t> GetTimeToNextTick() override;
   void OnFlushing() override;
   bool IsBufferDecodeOnly(
       const scoped_refptr<InputBuffer>& input_buffer) override;
@@ -217,6 +230,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
+  // See |kMediaDeadlineDrivenVideoOutput|.
+  const bool deadline_driven_video_output_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -272,6 +287,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
+  // What the render algorithm reported during the last Tick(), see
+  // set_time_to_next_render(). Only used on the thread that calls Tick().
+  std::optional<int64_t> time_to_next_render_us_;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.

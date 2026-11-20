@@ -348,6 +348,11 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      // Tunneled frames are rendered by the codec, without Tick().
+      deadline_driven_video_output_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaDeadlineDrivenVideoOutput) &&
+          !tunnel_mode_audio_session_id_),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -904,7 +909,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           /*enable_ndk_video=*/enable_ndk_video_,
           /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
           /*enable_codec_thread_improvements=*/
-          enable_codec_thread_improvements_});
+          enable_codec_thread_improvements_,
+          /*deadline_driven_video_output=*/deadline_driven_video_output_});
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -1113,7 +1119,13 @@ bool MediaCodecVideoDecoder::Tick(MediaCodec* media_codec_bridge) {
   // Tunnel mode renders frames in MediaCodec automatically and shouldn't reach
   // here.
   SB_DCHECK(!tunnel_mode_audio_session_id_);
+  // Set again by the render algorithm if it runs.
+  time_to_next_render_us_ = std::nullopt;
   return sink_->Render();
+}
+
+std::optional<int64_t> MediaCodecVideoDecoder::GetTimeToNextTick() {
+  return time_to_next_render_us_;
 }
 
 void MediaCodecVideoDecoder::OnFlushing() {

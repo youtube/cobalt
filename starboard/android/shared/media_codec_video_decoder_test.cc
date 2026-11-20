@@ -18,6 +18,8 @@
 #include <chrono>
 #include <condition_variable>
 #include <deque>
+#include <list>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -25,6 +27,10 @@
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider.h"
+#include "starboard/shared/starboard/player/filter/video_frame_internal.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -413,6 +419,165 @@ TEST_F(MediaCodecVideoDecoderTest, FlushSeekSameColorKeepsCodec) {
 
   EXPECT_EQ(fake_factory_->video_codec_create_count(), created);
   EXPECT_FALSE(error_called_);
+}
+
+// A media clock that is at a fixed time.
+class FakeMediaTimeProvider : public MediaTimeProvider {
+ public:
+  void set_media_time(int64_t media_time) { media_time_ = media_time; }
+  void set_is_playing(bool is_playing) { is_playing_ = is_playing; }
+  void set_playback_rate(double playback_rate) {
+    playback_rate_ = playback_rate;
+  }
+
+  void Play() override {}
+  void Pause() override {}
+  void SetPlaybackRate(double playback_rate) override {}
+  void Seek(int64_t seek_to_pts) override {}
+  int64_t GetCurrentMediaTime(bool* is_playing,
+                              bool* is_eos_played,
+                              bool* is_underflow,
+                              double* playback_rate) override {
+    *is_playing = is_playing_;
+    *is_eos_played = false;
+    *is_underflow = false;
+    *playback_rate = playback_rate_;
+    return media_time_;
+  }
+  int64_t GetAudioWriteHead() override { return media_time_; }
+  int64_t AdjustTimestampToAudioClock(int64_t timestamp) override {
+    return timestamp;
+  }
+
+ private:
+  int64_t media_time_ = 0;
+  bool is_playing_ = true;
+  double playback_rate_ = 1.0;
+};
+
+// Tests of |kMediaDeadlineDrivenVideoOutput|: what the render algorithm of the
+// decoder reports as the time until it has to render again.
+class MediaCodecVideoDecoderDeadlineDrivenTest
+    : public MediaCodecVideoDecoderTest {
+ protected:
+  void CreateDecoderAndAlgorithm(bool deadline_driven_video_output) {
+    ExperimentalFeatures::Map settings;
+    if (deadline_driven_video_output) {
+      settings.emplace(std::string(kMediaDeadlineDrivenVideoOutput.key()),
+                       int64_t{1});
+    }
+    CreateDecoder(/*max_video_capabilities=*/"",
+                  /*initial_stream_info=*/nullptr,
+                  ExperimentalFeatures(std::move(settings)));
+    ASSERT_TRUE(decoder_);
+    algorithm_ = decoder_->GetRenderAlgorithm();
+    ASSERT_TRUE(algorithm_);
+  }
+
+  // Renders |frames|, which must not be due, as the frames of this test can't
+  // be drawn.
+  void Render(std::list<scoped_refptr<VideoFrame>> frames) {
+    const size_t frame_count = frames.size();
+    algorithm_->Render(&media_time_provider_, &frames,
+                       [](const scoped_refptr<VideoFrame>& frame,
+                          int64_t release_time_in_nanoseconds) {
+                         ADD_FAILURE() << "Unexpected frame drawn.";
+                         return VideoRendererSink::kReleased;
+                       });
+    EXPECT_EQ(frames.size(), frame_count);
+  }
+
+  // The decoder as seen by the thread that renders.
+  MediaCodecDecoder::Host* host() { return decoder_.get(); }
+
+  static scoped_refptr<VideoFrame> FrameAt(int64_t timestamp) {
+    return make_scoped_refptr<VideoFrame>(timestamp);
+  }
+
+  // A base for the media time that is not 0, the time of the initial seek.
+  static constexpr int64_t kMediaTime = 10'000'000;
+  // The longest time the algorithm lets pass without rendering.
+  static constexpr int64_t kMaxTimeToNextRender = 50'000;
+
+  FakeMediaTimeProvider media_time_provider_;
+  std::unique_ptr<VideoRenderAlgorithm> algorithm_;
+};
+
+TEST_F(MediaCodecVideoDecoderDeadlineDrivenTest, ReportsNothingByDefault) {
+  CreateDecoderAndAlgorithm(/*deadline_driven_video_output=*/false);
+  media_time_provider_.set_media_time(kMediaTime);
+
+  Render({FrameAt(kMediaTime + 500'000)});
+
+  EXPECT_FALSE(host()->GetTimeToNextTick().has_value());
+}
+
+TEST_F(MediaCodecVideoDecoderDeadlineDrivenTest,
+       WaitsForNextDecodedFrameWithoutFrames) {
+  CreateDecoderAndAlgorithm(/*deadline_driven_video_output=*/true);
+  media_time_provider_.set_media_time(kMediaTime);
+
+  Render({});
+
+  EXPECT_EQ(host()->GetTimeToNextTick(), kMaxTimeToNextRender);
+}
+
+TEST_F(MediaCodecVideoDecoderDeadlineDrivenTest,
+       WaitsUntilFrontFrameBecomesReady) {
+  CreateDecoderAndAlgorithm(/*deadline_driven_video_output=*/true);
+  media_time_provider_.set_media_time(kMediaTime);
+
+  // Half a second early: far beyond the longest wait.
+  Render({FrameAt(kMediaTime + 500'000)});
+  EXPECT_EQ(host()->GetTimeToNextTick(), kMaxTimeToNextRender);
+
+  // 150 ms early: ready when it is 50 ms early. The release time is aligned to
+  // the display refresh, which makes it earlier by up to 1.3 refresh intervals,
+  // so how long that takes depends on the display.
+  Render({FrameAt(kMediaTime + 150'000)});
+  ASSERT_TRUE(host()->GetTimeToNextTick().has_value());
+  EXPECT_GE(*host()->GetTimeToNextTick(), 1'000);
+  EXPECT_LE(*host()->GetTimeToNextTick(), kMaxTimeToNextRender);
+}
+
+// Nothing tells the render thread when the audio starts, so it has to keep
+// checking at the usual interval.
+TEST_F(MediaCodecVideoDecoderDeadlineDrivenTest,
+       ChecksAtUsualIntervalWhileAudioIsNotPlaying) {
+  CreateDecoderAndAlgorithm(/*deadline_driven_video_output=*/true);
+  media_time_provider_.set_media_time(kMediaTime);
+  media_time_provider_.set_is_playing(false);
+
+  Render({FrameAt(kMediaTime + 500'000)});
+
+  EXPECT_FALSE(host()->GetTimeToNextTick().has_value());
+}
+
+// The app pauses by setting the playback rate to 0, which leaves the audio
+// "playing" with the media time standing still.
+TEST_F(MediaCodecVideoDecoderDeadlineDrivenTest,
+       ChecksAtUsualIntervalWhilePaused) {
+  CreateDecoderAndAlgorithm(/*deadline_driven_video_output=*/true);
+  media_time_provider_.set_media_time(kMediaTime);
+  media_time_provider_.set_playback_rate(0);
+
+  Render({FrameAt(kMediaTime + 500'000)});
+
+  EXPECT_FALSE(host()->GetTimeToNextTick().has_value());
+}
+
+// Tick() forgets the previous report, so a render that doesn't reach the
+// algorithm leaves the loop at its usual interval.
+TEST_F(MediaCodecVideoDecoderDeadlineDrivenTest, TickForgetsPreviousReport) {
+  CreateDecoderAndAlgorithm(/*deadline_driven_video_output=*/true);
+  media_time_provider_.set_media_time(kMediaTime);
+  Render({});
+  ASSERT_TRUE(host()->GetTimeToNextTick().has_value());
+
+  // The sink of this test doesn't call the algorithm.
+  host()->Tick(GetFakeVideoCodec());
+
+  EXPECT_FALSE(host()->GetTimeToNextTick().has_value());
 }
 
 TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {
