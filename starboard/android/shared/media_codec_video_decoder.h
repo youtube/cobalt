@@ -151,9 +151,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const jni_zero::JavaRef<jobject>& j_output_surface);
   // Prepares the output surface and initializes the codec for |stream_info_|.
   // A failure to create the MediaCodec itself is retried later while retry
-  // budget remains, keeping the prepared surface; |codec_creation_retry_| then
-  // has a pending retry. Otherwise tears the codec down on failure and returns
-  // a failure that the caller has to report.
+  // budget remains, keeping the prepared surface; |codec_creation_retry_job_|
+  // then holds the scheduled retry. Otherwise tears the codec down on failure
+  // and returns a failure that the caller has to report.
   Result<void> TryInitializeCodec();
   void RetryCodecCreation();
   // Cancels a pending codec creation retry, if any, releasing the buffered
@@ -312,26 +312,16 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
 
-  // Codec creation retry state.
-  struct CodecCreationRetryState {
-    // Decodes the `Media.VideoCodecCreationRetry` H5VCC setting, see
-    // kMediaVideoCodecCreationRetry.
-    explicit CodecCreationRetryState(int setting);
-
-    // Retries scheduled in the current episode.
-    int attempts_made() const { return max_retries - retries_left; }
-
-    // 0 when retries are disabled.
-    const int max_retries;
-    // Attempt n waits n * |base_delay_usec|.
-    const int64_t base_delay_usec;
-    // Reset on every successful codec creation and on Reset(), i.e. the
-    // budget applies per codec initialization episode.
-    int retries_left;
-    // The scheduled retry job, if any.
-    std::optional<JobQueue::JobToken> pending;
-  };
-  CodecCreationRetryState codec_creation_retry_;
+  // Codec creation retries, from the `Media.VideoCodecCreationRetry` H5VCC
+  // setting (see kMediaVideoCodecCreationRetry). 0 when retries are disabled.
+  const int max_codec_creation_retries_;
+  // Attempt n waits n * |codec_creation_retry_base_delay_usec_|.
+  const int64_t codec_creation_retry_base_delay_usec_;
+  // Refilled on every successful codec creation and on Reset(), i.e. the
+  // budget applies per codec initialization episode.
+  int codec_creation_retries_left_;
+  // The scheduled codec creation retry job, if any.
+  std::optional<JobQueue::JobToken> codec_creation_retry_job_;
 
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateInternal(
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,
