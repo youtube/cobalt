@@ -804,6 +804,26 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // Enables web font MIME caching and ShouldPassThrough pre-entry filtering in
 // Cobalt's HTTP cache.
 NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
+
+// Enables QUIC with Cobalt's launch-candidate settings, applied in
+// NetworkContext::MakeURLRequestContext() and QuicSessionPool:
+//  - connection options (default BWS2,BWRS), so YouTube's video servers
+//    bootstrap the congestion window per request as they already do for TCP
+//    (b/586649769);
+//  - a 10 s initial delay with exponential backoff for broken QUIC alternative
+//    services instead of Chromium's 300 s (b/586557818);
+//  - marking the origin broken as soon as a session black-holes after the
+//    handshake, instead of after the failed request's TCP retry completes
+//    (b/505079764#comment34).
+// Disabled by default: Cobalt keeps QUIC off outside experiments. An explicit
+// --enable-quic also turns QUIC on; --disable-quic always wins.
+NET_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableQuic);
+
+// Comma-separated QUIC connection option tags sent to the server. Empty sends
+// none (an explicit --quic-connection-options switch is kept either way).
+NET_EXPORT extern const base::FeatureParam<std::string>
+    kCobaltQuicConnectionOptions;
+
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net::features

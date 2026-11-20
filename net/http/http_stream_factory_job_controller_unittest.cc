@@ -24,6 +24,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/values.h"
 #include "net/base/completion_once_callback.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/proxy_chain.h"
@@ -5117,6 +5118,41 @@ TEST_P(HttpStreamFactoryJobControllerPreconnectTest, LimitEarlyPreconnects) {
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(HttpStreamFactoryPeer::IsJobControllerDeleted(factory_));
 }
+
+#if BUILDFLAG(IS_COBALT)
+// Cobalt races QUIC for origins without a cached Alt-Svc entry (synthetic
+// alternative service). A broken mark for that origin must still be honoured,
+// otherwise a host marked broken by QuicSessionPool's black-hole handling
+// keeps racing QUIC into the dead path until an Alt-Svc header is cached.
+TEST_F(HttpStreamFactoryJobControllerTest,
+       UnknownOriginQuicRespectsBrokenMark) {
+  session_deps_.use_quic_for_unknown_origins = true;
+  HttpRequestInfo request_info;
+  request_info.method = "GET";
+  request_info.url = GURL("https://www.google.com");
+
+  Initialize(request_info);
+  JobControllerPeer::InitializeProxyInfo(job_controller_);
+
+  // No Alt-Svc entry: the synthetic QUIC alternative is offered.
+  AlternativeServiceInfo alt_svc_info =
+      JobControllerPeer::GetAlternativeServiceInfoFor(
+          job_controller_, request_info, &request_delegate_,
+          HttpStreamRequest::HTTP_STREAM);
+  EXPECT_EQ(NextProto::kProtoQUIC, alt_svc_info.protocol());
+
+  // Marked broken: no alternative, so the request goes to the main (TCP) job.
+  url::SchemeHostPort server(request_info.url);
+  session_->http_server_properties()
+      ->MarkAlternativeServiceBrokenUntilDefaultNetworkChanges(
+          AlternativeService(NextProto::kProtoQUIC, server.host(), 443),
+          NetworkAnonymizationKey());
+  alt_svc_info = JobControllerPeer::GetAlternativeServiceInfoFor(
+      job_controller_, request_info, &request_delegate_,
+      HttpStreamRequest::HTTP_STREAM);
+  EXPECT_EQ(NextProto::kProtoUnknown, alt_svc_info.protocol());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Test that GetAlternativeServiceInfoFor will include a list of advertised
 // versions, which contains a version that is supported. Returns an empty list

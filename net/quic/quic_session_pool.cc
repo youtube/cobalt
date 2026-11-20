@@ -30,6 +30,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "crypto/openssl_util.h"
 #include "net/base/address_list.h"
 #include "net/base/connection_endpoint_metadata.h"
@@ -966,6 +967,21 @@ void QuicSessionPool::OnBlackholeAfterHandshakeConfirmed(
   if (ping_timeout_ > reduced_ping_timeout_) {
     ping_timeout_ = reduced_ping_timeout_;
   }
+#if BUILDFLAG(IS_COBALT)
+  // b/505079764#comment34: mark the origin broken now rather than after the
+  // failed request's TCP retry completes, so requests issued in the meantime
+  // go straight to TCP instead of each starting a QUIC handshake that stalls
+  // on the same dead path. The mark is cleared when the default network
+  // changes and otherwise expires on the schedule set by CobaltEnableQuic.
+  if (base::FeatureList::IsEnabled(features::kCobaltEnableQuic)) {
+    http_server_properties_
+        ->MarkAlternativeServiceBrokenUntilDefaultNetworkChanges(
+            AlternativeService(NextProto::kProtoQUIC,
+                               session->server_id().host(),
+                               session->server_id().port()),
+            session->quic_session_key().network_anonymization_key());
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void QuicSessionPool::CancelRequest(QuicSessionRequest* request) {

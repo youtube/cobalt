@@ -80,7 +80,10 @@ TEST(AndroidTvFlagMapTest, GetNumeric) {
 TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
   const base::CommandLine cmd_line = ExpandWith("");
 
-  EXPECT_TRUE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  // QUIC's off default lives in NetworkContext (CobaltEnableQuic), not on the
+  // command line.
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableQuic));
   // Low-end device mode is emitted from Java, since it is read before the
   // native initialization hook runs.
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableLowEndDeviceMode));
@@ -103,6 +106,7 @@ TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
 TEST(AndroidTvFlagMapTest, EnableQuic) {
   const base::CommandLine cmd_line = ExpandWith("EnableQUIC");
 
+  EXPECT_TRUE(cmd_line.HasSwitch(::switches::kEnableQuic));
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
 }
 
@@ -143,7 +147,8 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
       "V8DisableSparkplug,"
       "V8SetBytecodeOldTime=10");
 
-  EXPECT_TRUE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableQuic));
   EXPECT_TRUE(cmd_line.HasSwitch(
       ::switches::kDisableGpuMemoryBufferCompositorResources));
   EXPECT_EQ("256",

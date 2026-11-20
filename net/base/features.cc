@@ -788,6 +788,15 @@ BASE_FEATURE(kRestrictAbusePortsOnLocalhost,
 BASE_FEATURE(kCobaltHttpCacheFontAndPassThrough,
              "CobaltHttpCacheFontAndPassThrough",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltEnableQuic,
+             "CobaltEnableQuic",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Cobalt's Finch flattens params across features into one namespace, so the
+// param names are prefixed with the feature name.
+const base::FeatureParam<std::string> kCobaltQuicConnectionOptions{
+    &kCobaltEnableQuic, "CobaltEnableQuic_connection_options", "BWS2,BWRS"};
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net::features
