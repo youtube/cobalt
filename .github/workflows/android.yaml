@@ -1,4 +1,4 @@
-name: evergreen_22.lts.1+
+name: android
 
 on:
   pull_request:
@@ -17,43 +17,27 @@ on:
         default: false
 
 jobs:
-  evergreen-x64:
+  android-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-x64
+      platform: android-arm64
       nightly: ${{ github.event.inputs.nightly }}
-  evergreen-arm-hardfp:
+  android-arm:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-hardfp
+      platform: android-arm
       nightly: ${{ github.event.inputs.nightly }}
-  evergreen-arm-softfp:
+  android-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-softfp
-      nightly: ${{ github.event.inputs.nightly }}
-  evergreen-arm64:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-arm64
-      nightly: ${{ github.event.inputs.nightly }}
-  evergreen-x86:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-x86
+      platform: android-x86
       nightly: ${{ github.event.inputs.nightly }}
