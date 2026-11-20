@@ -613,11 +613,24 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   base::android::MemoryPressureListenerAndroid::Initialize(
       base::android::AttachCurrentThread());
 #endif
+#if BUILDFLAG(IS_ANDROID)
+  // Upstream `BrowserMainLoop` only instantiates
+  // `scoped_best_effort_execution_fence_` on `!BUILDFLAG(IS_ANDROID)`
+  // (`content/browser/browser_main_loop.cc:492`). Hold an explicit `ThreadPool`
+  // `BEST_EFFORT` fence before `BrowserMainLoop::CreateThreads()` releases
+  // `scoped_execution_fence_` when `kCobaltDeferAfterStartupTasks` is enabled.
+  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
+    browser_client->HoldThreadPoolBestEffortFenceIfDeferred();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   return ShellBrowserMainParts::PreCreateThreads();
 }
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
+    browser_client->StartAfterStartupTaskFailsafeTimer();
+  }
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
 
   base::FilePath base_dir;
@@ -686,10 +699,9 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   MaybeApplyMemoryAblation();
 
 #if !BUILDFLAG(IS_ANDROIDTV)
-  auto* client = CobaltContentBrowserClient::Get();
-  CHECK(client) << "CobaltContentBrowserClient::Get() returned NULL in "
-                << "PreMainMessageLoopRun!";
-  client->SetUserAgentCrashAnnotation();
+  if (auto* client = CobaltContentBrowserClient::Get()) {
+    client->SetUserAgentCrashAnnotation();
+  }
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 #if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
@@ -835,6 +847,9 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
+    browser_client->CancelDeferredAfterStartupTasks();
+  }
 #if BUILDFLAG(IS_ANDROID)
   android_os_signal_evaluator_.reset();
 #endif
@@ -845,6 +860,11 @@ void CobaltBrowserMainParts::PostMainMessageLoopRun() {
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
+#if BUILDFLAG(IS_ANDROID)
+  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
+    browser_client->ReleaseThreadPoolBestEffortFence();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   GlobalFeatures::GetInstance()->Shutdown();
   ShellBrowserMainParts::PostDestroyThreads();
 }

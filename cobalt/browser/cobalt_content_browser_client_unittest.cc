@@ -1378,5 +1378,250 @@ TEST_F(CobaltPlatformServiceBinderTest,
   close_loop.Run();
 }
 
+TEST(CobaltAfterStartupTaskTest,
+     DefaultDisabledPostsImmediatelyAndReportsStartupComplete) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+
+  bool ran = false;
+  client.PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindLambdaForTesting([&]() { ran = true; }));
+  task_environment.RunUntilIdle();
+  EXPECT_TRUE(ran);
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     EnabledQueuesTasksAcrossThreadsUntilOnMainReadyInFifoOrder) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  EXPECT_FALSE(client.IsBrowserStartupComplete());
+
+  std::vector<int> execution_order;
+  auto main_runner = base::SequencedTaskRunner::GetCurrentDefault();
+
+  client.PostAfterStartupTask(
+      FROM_HERE, main_runner,
+      base::BindLambdaForTesting([&]() { execution_order.push_back(1); }));
+
+  // Post a second after-startup task from a background ThreadPool worker to
+  // verify cross-thread queuing safety.
+  base::WaitableEvent worker_queued;
+  base::ThreadPool::PostTask(FROM_HERE, base::BindLambdaForTesting([&]() {
+                               EXPECT_FALSE(client.IsBrowserStartupComplete());
+                               client.PostAfterStartupTask(
+                                   FROM_HERE, main_runner,
+                                   base::BindLambdaForTesting([&]() {
+                                     execution_order.push_back(2);
+                                   }));
+                               worker_queued.Signal();
+                             }));
+  worker_queued.Wait();
+
+  task_environment.RunUntilIdle();
+  EXPECT_TRUE(execution_order.empty());
+  EXPECT_FALSE(client.IsBrowserStartupComplete());
+
+  // Signal WebApp readiness (`h5vcc.system.notifyMainReady()`).
+  client.OnBrowserStartupComplete();
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+  task_environment.RunUntilIdle();
+  EXPECT_EQ(execution_order, (std::vector<int>{1, 2}));
+
+  // Subsequent PostAfterStartupTask calls post immediately without re-queuing.
+  client.PostAfterStartupTask(
+      FROM_HERE, main_runner,
+      base::BindLambdaForTesting([&]() { execution_order.push_back(3); }));
+  task_environment.RunUntilIdle();
+  EXPECT_EQ(execution_order, (std::vector<int>{1, 2, 3}));
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     FailsafeTimerReleasesFenceBeforeTenSecondMetricsAndClampsUpperBound) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  // Configure an oversized 30s parameter to verify clamping to 9500ms (< 10s
+  // CobaltStorageMetricsHelper delay).
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltDeferAfterStartupTasks,
+      {{features::kCobaltDeferAfterStartupTasksFailsafeDelay.name, "30s"}});
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  client.StartAfterStartupTaskFailsafeTimer();
+
+  bool ran = false;
+  client.PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindLambdaForTesting([&]() { ran = true; }));
+
+  task_environment.FastForwardBy(base::Milliseconds(9499));
+  EXPECT_FALSE(client.IsBrowserStartupComplete());
+  EXPECT_FALSE(ran);
+
+  task_environment.FastForwardBy(base::Milliseconds(1));
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+  EXPECT_TRUE(ran);
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     SetBrowserStartupIsCompleteForTestingReleases) {
+  base::test::TaskEnvironment task_environment;
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  bool ran = false;
+  client.PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindLambdaForTesting([&]() { ran = true; }));
+  task_environment.RunUntilIdle();
+  EXPECT_FALSE(ran);
+
+  client.SetBrowserStartupIsCompleteForTesting();
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+  task_environment.RunUntilIdle();
+  EXPECT_TRUE(ran);
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     CancelDeferredAfterStartupTasksDiscardsWithoutRunning) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  client.StartAfterStartupTaskFailsafeTimer();
+
+  bool main_ran = false;
+  bool worker_ran = false;
+  client.PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindLambdaForTesting([&]() { main_ran = true; }));
+  scoped_refptr<base::SequencedTaskRunner> worker_runner =
+      base::ThreadPool::CreateSequencedTaskRunner({});
+  client.PostAfterStartupTask(
+      FROM_HERE, worker_runner,
+      base::BindLambdaForTesting([&]() { worker_ran = true; }));
+
+  // Simulate early browser shutdown before `notifyMainReady()` or the failsafe
+  // timer fires: queued startup tasks must be discarded without executing.
+  client.CancelDeferredAfterStartupTasks();
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+
+  task_environment.FastForwardBy(base::Seconds(10));
+  EXPECT_FALSE(main_ran);
+  EXPECT_FALSE(worker_ran);
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     GetReturnsNullptrWhenNonCobaltShellClientIsActive) {
+  base::test::TaskEnvironment task_environment;
+  EXPECT_EQ(CobaltContentBrowserClient::Get(), nullptr);
+
+  {
+    // Simulates `cobalt_browsertests` / `content_browsertests` installing a
+    // non-`CobaltContentBrowserClient` subclass of `ShellContentBrowserClient`.
+    content::ShellContentBrowserClient shell_only_client(/*deep_link=*/"",
+                                                         /*is_visible=*/true);
+    EXPECT_EQ(CobaltContentBrowserClient::Get(), nullptr);
+  }
+
+  {
+    CobaltContentBrowserClient cobalt_client(
+        /*startup_timestamp=*/absl::nullopt,
+        /*deep_link=*/"",
+        /*is_visible=*/true);
+    EXPECT_EQ(CobaltContentBrowserClient::Get(), &cobalt_client);
+    {
+      content::ShellContentBrowserClient nested_shell_client(
+          /*deep_link=*/"", /*is_visible=*/true);
+      EXPECT_EQ(CobaltContentBrowserClient::Get(), nullptr);
+    }
+    EXPECT_EQ(CobaltContentBrowserClient::Get(), &cobalt_client);
+  }
+  EXPECT_EQ(CobaltContentBrowserClient::Get(), nullptr);
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     HoldThreadPoolBestEffortFenceHaltsWorkerTasksUntilStartupComplete) {
+  base::test::TaskEnvironment task_environment;
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  client.HoldThreadPoolBestEffortFenceIfDeferred();
+
+  std::atomic<bool> best_effort_ran{false};
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT},
+      base::BindLambdaForTesting(
+          [&]() { best_effort_ran.store(true, std::memory_order_release); }));
+
+  // `USER_VISIBLE` worker tasks must continue running unblocked while
+  // `BEST_EFFORT` tasks remain held behind the startup fence.
+  base::WaitableEvent user_visible_ran;
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::TaskPriority::USER_VISIBLE},
+      base::BindLambdaForTesting([&]() { user_visible_ran.Signal(); }));
+  user_visible_ran.Wait();
+  EXPECT_FALSE(best_effort_ran.load(std::memory_order_acquire));
+
+  client.OnBrowserStartupComplete();
+  task_environment.RunUntilIdle();
+  EXPECT_TRUE(best_effort_ran.load(std::memory_order_acquire));
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     HoldThreadPoolBestEffortFenceReleasesOnFailsafeBeforeTenSecondMetrics) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  client.HoldThreadPoolBestEffortFenceIfDeferred();
+  client.StartAfterStartupTaskFailsafeTimer();
+
+  // Models `ScheduleCobaltStorageMetricsRecording()` (+10s `BEST_EFFORT`
+  // `ThreadPool` delayed task) on a page that never calls `notifyMainReady()`.
+  bool ten_second_metrics_ran = false;
+  base::ThreadPool::PostDelayedTask(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT},
+      base::BindLambdaForTesting([&]() { ten_second_metrics_ran = true; }),
+      base::Seconds(10));
+
+  task_environment.FastForwardBy(base::Milliseconds(8500));
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+  EXPECT_FALSE(ten_second_metrics_ran);
+
+  task_environment.FastForwardBy(base::Milliseconds(1500));
+  EXPECT_TRUE(ten_second_metrics_ran);
+}
+
 }  // namespace
 }  // namespace cobalt
