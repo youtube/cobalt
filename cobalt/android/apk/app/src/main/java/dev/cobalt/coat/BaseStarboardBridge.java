@@ -199,6 +199,11 @@ public class BaseStarboardBridge {
     mIsAmatiDevice = false;
     mNativeApp = 0;
     sInstance = this;
+    mNatives.initializeFilesForTesting(
+        getAssetsFromContext(),
+        getFilesCanonicalPath(),
+        getCacheCanonicalPath(),
+        getNativeLibraryDir());
   }
 
   public BaseStarboardBridge(
@@ -247,6 +252,9 @@ public class BaseStarboardBridge {
     long currentMonotonicTime();
 
     long startNativeStarboard(
+        AssetManager assetManager, String filesDir, String cacheDir, String nativeLibraryDir);
+
+    void initializeFilesForTesting(
         AssetManager assetManager, String filesDir, String cacheDir, String nativeLibraryDir);
 
     boolean initJNI(BaseStarboardBridge starboardBridge);
