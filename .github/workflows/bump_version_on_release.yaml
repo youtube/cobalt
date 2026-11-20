@@ -109,13 +109,10 @@ jobs:
           fi
 
           base_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')
-          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${pr_branch}" >/dev/null 2>&1; then
-            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/heads/${pr_branch}" \
-              -f sha="${base_sha}" -F force=true >/dev/null
-          else
-            gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
-              -f ref="refs/heads/${pr_branch}" -f sha="${base_sha}" >/dev/null
-          fi
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/heads/${pr_branch}" -f sha="${base_sha}" >/dev/null || \
+          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/heads/${pr_branch}" \
+            -f sha="${base_sha}" -F force=true >/dev/null
 
           new_content=$(sed -E "s/^#define COBALT_VERSION \".*\"$/#define COBALT_VERSION \"${next_version}\"/" <<< "${content}" | base64 -w0)
           commit_msg=$(printf 'Update version.h for %s\n\nAutomated bump after release %s was published.\n\nBug: 538269087' "${next_version}" "${TAG}")
