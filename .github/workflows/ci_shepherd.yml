@@ -176,6 +176,7 @@ jobs:
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           RERUN_TRIGGERED: ${{ steps.deflake.outputs.rerun_triggered || 'false' }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         shell: bash
         run: |
           set -euo pipefail
@@ -183,6 +184,9 @@ jobs:
           if [[ "${RERUN_TRIGGERED}" == "true" ]]; then
             state="pending"
             desc="Retrying failed jobs"
+          elif [[ "${RUN_CONCLUSION:-}" == "cancelled" ]]; then
+            state="failure"
+            desc="Cancelled"
           else
             mkdir -p shepherd_artifacts
             gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true

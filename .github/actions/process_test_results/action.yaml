@@ -33,7 +33,7 @@ runs:
       shell: bash
 
     - name: Check Failed Tests
-      if: always()
+      if: always() && !cancelled()
       env:
         TESTS_FAILED: ${{ steps.test-summary.outputs.failed }}
         TESTS_PASSED: ${{ steps.test-summary.outputs.passed }}
@@ -110,7 +110,7 @@ runs:
     - name: Get Datadog CLI
       id: download-dd-cli
       # The API key is not available on PRs created from a fork.
-      if: always() && inputs.datadog_api_key != ''
+      if: always() && !cancelled() && inputs.datadog_api_key != ''
       continue-on-error: true
       env:
         DD_VERSION: 'v2.18.0'
@@ -124,7 +124,7 @@ runs:
       shell: bash
 
     - name: Upload Results to Datadog
-      if: always() && steps.download-dd-cli.outcome == 'success'
+      if: always() && !cancelled() && steps.download-dd-cli.outcome == 'success'
       continue-on-error: true
       env:
         DATADOG_SITE: us5.datadoghq.com
