@@ -19,6 +19,7 @@
 
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "base/values.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/core/embedder/scoped_ipc_support.h"
@@ -70,7 +71,8 @@ TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
   net::HttpRequestHeaders initial_headers;
   initial_headers.SetHeader("Existing-Header", "Existing-Value");
 
-  base::test::TestFuture<int32_t, const std::optional<net::HttpRequestHeaders>&>
+  base::test::TestFuture<int32_t, const std::optional<net::HttpRequestHeaders>&,
+                         std::optional<base::DictValue>>
       future;
   remote->OnBeforeSendHeaders(GURL("https://example.com/"), initial_headers,
                               future.GetCallback());
