@@ -3061,18 +3061,16 @@ void WebMediaPlayerImpl::StartPipeline() {
   // defers when WebView visibility != kVisible and would otherwise run the
   // StartPipeline() closure synchronously.
   if (defer_load_cb_ && delegate_->IsPageHidden()) {
+    auto weak_this = weak_this_;
     auto defer_load_cb = std::move(defer_load_cb_);
-    const bool is_deferred = defer_load_cb.Run(
-        WTF::BindOnce(&WebMediaPlayerImpl::StartPipeline, weak_this_));
-    if (weak_this_) {
+    // Whether `defer_load_cb` defers or runs the closure synchronously while
+    // `defer_load_cb_` is moved out, return immediately so `StartPipeline()`
+    // does not execute a second time.
+    defer_load_cb.Run(
+        WTF::BindOnce(&WebMediaPlayerImpl::StartPipeline, weak_this));
+    if (weak_this) {
       defer_load_cb_ = std::move(defer_load_cb);
     }
-    if (is_deferred) {
-      return;
-    }
-    // If `defer_load_cb` returned false, it already executed the bound
-    // `StartPipeline()` closure synchronously while `defer_load_cb_` was moved
-    // out, so return to avoid running `StartPipeline()` a second time.
     return;
   }
 #endif  // BUILDFLAG(IS_COBALT)

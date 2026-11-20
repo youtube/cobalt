@@ -118,13 +118,19 @@ TEST(CobaltContentRendererClientTest, PlatformDrmSbdlKeySystemIsRegistered) {
 
 }  // namespace
 
+// Test fixture verifying asynchronous SbWindow handle retrieval through
+// CobaltContentRendererClient's PlatformWindowProvider Mojo binding on the
+// renderer main thread and caller-sequence reply posting.
 class CobaltContentRendererClientWindowHandleTest : public ::testing::Test {
  protected:
+  // In-memory fake browser PlatformWindowProvider that queues incoming
+  // GetSbWindow() requests so tests can resolve or drop them deterministically.
   class FakePlatformWindowProvider
       : public media::mojom::PlatformWindowProvider {
    public:
     void Bind(
         mojo::PendingReceiver<media::mojom::PlatformWindowProvider> receiver) {
+      ++bind_count_;
       receivers_.Add(this, std::move(receiver));
     }
 
@@ -132,6 +138,7 @@ class CobaltContentRendererClientWindowHandleTest : public ::testing::Test {
       pending_callbacks_.push_back(std::move(callback));
     }
 
+    size_t bind_count() const { return bind_count_; }
     size_t pending_request_count() const { return pending_callbacks_.size(); }
 
     void ResolveNextRequest(uint64_t handle) {
@@ -141,158 +148,159 @@ class CobaltContentRendererClientWindowHandleTest : public ::testing::Test {
       std::move(cb).Run(handle);
     }
 
+    void DropAllReceiversAndPendingRequests() {
+      receivers_.Clear();
+      pending_callbacks_.clear();
+    }
+
    private:
+    size_t bind_count_ = 0;
     mojo::ReceiverSet<media::mojom::PlatformWindowProvider> receivers_;
     std::deque<GetSbWindowCallback> pending_callbacks_;
   };
 
-  class TestCobaltContentRendererClient : public CobaltContentRendererClient {
-   public:
-    explicit TestCobaltContentRendererClient(
-        FakePlatformWindowProvider* provider)
-        : provider_(provider) {}
-
-   private:
-    void BindPlatformWindowProvider(
-        content::RenderFrame* /*render_frame*/,
-        mojo::PendingReceiver<media::mojom::PlatformWindowProvider> receiver)
-        override {
-      provider_->Bind(std::move(receiver));
-    }
-
-    FakePlatformWindowProvider* provider_;
-  };
-
   void SetUp() override {
-    client_ = std::make_unique<TestCobaltContentRendererClient>(&provider_);
-  }
-
-  static content::RenderFrame* FakeFrameId(uintptr_t id) {
-    return reinterpret_cast<content::RenderFrame*>(id * 0x100);
-  }
-
-  void OnMainFrameShown(content::RenderFrame* frame) {
-    client_->OnMainFrameShown(frame);
-  }
-
-  void OnMainFrameHiddenOrDestroyed(content::RenderFrame* frame) {
-    client_->OnMainFrameHiddenOrDestroyed(frame);
+    client_ = std::make_unique<CobaltContentRendererClient>();
+    client_->main_task_runner_ = task_environment_.GetMainThreadTaskRunner();
+    client_->SetPlatformWindowProviderBinderForTesting(base::BindRepeating(
+        &FakePlatformWindowProvider::Bind, base::Unretained(&provider_)));
   }
 
   base::test::TaskEnvironment task_environment_;
   FakePlatformWindowProvider provider_;
-  std::unique_ptr<TestCobaltContentRendererClient> client_;
+  std::unique_ptr<CobaltContentRendererClient> client_;
 };
 
-// Verifies the user journey where the splash screen finishes and switches to
-// the main WebContents (Shell::SwitchToMainWebContents): if the splash frame's
-// WasHidden() arrives on its Widget Mojo pipe after the main frame's
-// WasShown(), the cached SbWindow handle must remain valid so subsequent video
-// playback does not hang waiting for a new handle.
+#if BUILDFLAG(IS_STARBOARD)
+// Verifies the user journey where playback starts before conceal, the app is
+// backgrounded (destroying the old SbWindow), and playback resumes on reveal:
+// each GetSbWindowHandle() fetches the current live handle from the browser so
+// resumed players never receive a destroyed pre-conceal handle.
 TEST_F(CobaltContentRendererClientWindowHandleTest,
-       SplashFrameHiddenAfterMainFrameShownPreservesSbWindowHandle) {
-  content::RenderFrame* splash_frame = FakeFrameId(1);
-  content::RenderFrame* main_frame = FakeFrameId(2);
-
-  OnMainFrameShown(splash_frame);
+       GetSbWindowHandleFetchesFreshWindowAcrossConcealAndReveal) {
+  uint64_t first_handle = 0;
+  client_->GetSbWindowHandle(base::BindLambdaForTesting(
+      [&](uint64_t handle) { first_handle = handle; }));
   task_environment_.RunUntilIdle();
   ASSERT_EQ(provider_.pending_request_count(), 1u);
   provider_.ResolveNextRequest(0x1111);
   task_environment_.RunUntilIdle();
+  EXPECT_EQ(first_handle, 0x1111u);
 
-  // Main frame becomes visible, then splash frame hides/destroys afterwards.
-  OnMainFrameShown(main_frame);
-  OnMainFrameHiddenOrDestroyed(splash_frame);
-  task_environment_.RunUntilIdle();
-
-  uint64_t received_handle = 0;
+  // Subsequent media initialization after conceal/reveal issues a new browser
+  // request and receives the refreshed handle instead of a stale cached value.
+  uint64_t second_handle = 0;
   client_->GetSbWindowHandle(base::BindLambdaForTesting(
-      [&](uint64_t handle) { received_handle = handle; }));
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(received_handle, 0x1111u);
-}
-
-// Verifies the user journey at startup when LoadSplashScreenContents()
-// detaches the initial main WebContents while showing the splash WebContents:
-// the main frame's WasHidden() must not wipe the shared SbWindow handle while
-// the splash frame is still visible for video splash playback.
-TEST_F(CobaltContentRendererClientWindowHandleTest,
-       MainFrameHiddenWhileSplashVisiblePreservesSbWindowHandle) {
-  content::RenderFrame* main_frame = FakeFrameId(1);
-  content::RenderFrame* splash_frame = FakeFrameId(2);
-
-  OnMainFrameShown(main_frame);
-  OnMainFrameShown(splash_frame);
-  task_environment_.RunUntilIdle();
-  ASSERT_EQ(provider_.pending_request_count(), 1u);
-  provider_.ResolveNextRequest(0x1111);
-  task_environment_.RunUntilIdle();
-
-  OnMainFrameHiddenOrDestroyed(main_frame);
-  task_environment_.RunUntilIdle();
-
-  uint64_t received_handle = 0;
-  client_->GetSbWindowHandle(base::BindLambdaForTesting(
-      [&](uint64_t handle) { received_handle = handle; }));
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(received_handle, 0x1111u);
-}
-
-// Verifies the user journey where the user backgrounds the app (hiding all
-// visible main frames) while a window request is in flight and later returns:
-// the pre-conceal request is invalidated so its stale reply is ignored, and
-// queued GetSbWindowHandle() callers receive the fresh post-reveal SbWindow.
-TEST_F(CobaltContentRendererClientWindowHandleTest,
-       AllMainFramesHiddenResetsAndRefetchesNewSbWindowOnReveal) {
-  content::RenderFrame* main_frame = FakeFrameId(1);
-
-  OnMainFrameShown(main_frame);
-  task_environment_.RunUntilIdle();
-  ASSERT_EQ(provider_.pending_request_count(), 1u);
-
-  // Conceal before the initial GetSbWindow() reply arrives.
-  OnMainFrameHiddenOrDestroyed(main_frame);
-  provider_.ResolveNextRequest(0x1111);
-  task_environment_.RunUntilIdle();
-
-  uint64_t received_handle = 0;
-  client_->GetSbWindowHandle(base::BindLambdaForTesting(
-      [&](uint64_t handle) { received_handle = handle; }));
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(received_handle, 0u);
-
-  // Reveal requests a fresh handle and fulfills the queued media callback.
-  OnMainFrameShown(main_frame);
+      [&](uint64_t handle) { second_handle = handle; }));
   task_environment_.RunUntilIdle();
   ASSERT_EQ(provider_.pending_request_count(), 1u);
   provider_.ResolveNextRequest(0x2222);
   task_environment_.RunUntilIdle();
-  EXPECT_EQ(received_handle, 0x2222u);
+  EXPECT_EQ(second_handle, 0x2222u);
 }
 
-// Verifies the recovery journey where an initial GetSbWindow() call returned
-// an invalid handle (0) while a main frame remained visible: a subsequent
-// media GetSbWindowHandle() call re-requests the handle from the browser
-// instead of waiting indefinitely.
+// Verifies the user journey where a media load requests the window handle while
+// no native SbWindow exists yet (e.g., preloading or mid-reveal) and the
+// browser queues the request until OnSbWindowCreated() runs.
 TEST_F(CobaltContentRendererClientWindowHandleTest,
-       GetSbWindowHandleSelfHealsWhenVisibleFrameExistsWithoutCachedHandle) {
-  content::RenderFrame* main_frame = FakeFrameId(1);
-
-  OnMainFrameShown(main_frame);
-  task_environment_.RunUntilIdle();
-  ASSERT_EQ(provider_.pending_request_count(), 1u);
-  provider_.ResolveNextRequest(0);
-  task_environment_.RunUntilIdle();
-
+       GetSbWindowHandleWaitsForDeferredBrowserWindowReply) {
+  bool callback_invoked = false;
   uint64_t received_handle = 0;
-  client_->GetSbWindowHandle(base::BindLambdaForTesting(
-      [&](uint64_t handle) { received_handle = handle; }));
+  client_->GetSbWindowHandle(base::BindLambdaForTesting([&](uint64_t handle) {
+    callback_invoked = true;
+    received_handle = handle;
+  }));
   task_environment_.RunUntilIdle();
   ASSERT_EQ(provider_.pending_request_count(), 1u);
+  EXPECT_FALSE(callback_invoked);
 
   provider_.ResolveNextRequest(0x3333);
   task_environment_.RunUntilIdle();
+  EXPECT_TRUE(callback_invoked);
   EXPECT_EQ(received_handle, 0x3333u);
 }
+
+// Verifies the failure-recovery journey where the browser drops the
+// PlatformWindowProvider Mojo pipe without replying (e.g., during shutdown or
+// host disconnect): the callback still runs with 0 instead of hanging media
+// initialization indefinitely, and later requests continue to succeed.
+TEST_F(CobaltContentRendererClientWindowHandleTest,
+       GetSbWindowHandleReturnsZeroWhenProviderDisconnects) {
+  bool first_called = false;
+  uint64_t first_handle = 0xdead;
+  client_->GetSbWindowHandle(base::BindLambdaForTesting([&](uint64_t handle) {
+    first_called = true;
+    first_handle = handle;
+  }));
+  task_environment_.RunUntilIdle();
+  ASSERT_EQ(provider_.pending_request_count(), 1u);
+
+  provider_.DropAllReceiversAndPendingRequests();
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(first_called);
+  EXPECT_EQ(first_handle, 0u);
+
+  uint64_t second_handle = 0;
+  client_->GetSbWindowHandle(base::BindLambdaForTesting(
+      [&](uint64_t handle) { second_handle = handle; }));
+  task_environment_.RunUntilIdle();
+  ASSERT_EQ(provider_.pending_request_count(), 1u);
+  provider_.ResolveNextRequest(0x4444);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(second_handle, 0x4444u);
+}
+
+// Verifies the cross-thread media pipeline journey where
+// StarboardRendererClient calls GetSbWindowHandle() from the media sequence:
+// the request hops to the renderer main thread for Mojo binding and delivers
+// the handle back on the caller's sequence.
+TEST_F(CobaltContentRendererClientWindowHandleTest,
+       GetSbWindowHandleRepliesOnCallerSequence) {
+  scoped_refptr<base::SequencedTaskRunner> caller_runner =
+      base::ThreadPool::CreateSequencedTaskRunner({});
+
+  base::RunLoop request_sent;
+  base::RunLoop reply_received;
+  bool replied_on_caller_sequence = false;
+  uint64_t received_handle = 0;
+
+  caller_runner->PostTask(
+      FROM_HERE, base::BindLambdaForTesting([&]() {
+        client_->GetSbWindowHandle(
+            base::BindLambdaForTesting([&](uint64_t handle) {
+              replied_on_caller_sequence =
+                  caller_runner->RunsTasksInCurrentSequence();
+              received_handle = handle;
+              reply_received.Quit();
+            }));
+        request_sent.Quit();
+      }));
+
+  request_sent.Run();
+  task_environment_.RunUntilIdle();
+  ASSERT_EQ(provider_.pending_request_count(), 1u);
+
+  provider_.ResolveNextRequest(0x5555);
+  reply_received.Run();
+  EXPECT_TRUE(replied_on_caller_sequence);
+  EXPECT_EQ(received_handle, 0x5555u);
+}
+#else
+// Verifies that non-Starboard builds (e.g., Android and tvOS) return 0
+// immediately without binding PlatformWindowProvider.
+TEST_F(CobaltContentRendererClientWindowHandleTest,
+       GetSbWindowHandleReturnsZeroWithoutBindingOnNonStarboard) {
+  bool called = false;
+  uint64_t received_handle = 0xdead;
+  client_->GetSbWindowHandle(base::BindLambdaForTesting([&](uint64_t handle) {
+    called = true;
+    received_handle = handle;
+  }));
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(called);
+  EXPECT_EQ(received_handle, 0u);
+  EXPECT_EQ(provider_.bind_count(), 0u);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace cobalt

@@ -21,11 +21,15 @@
 #include "base/unguessable_token.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
+#include "content/browser/media/media_web_contents_observer.h"
 #include "content/test/test_web_contents.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
+#include "media/mojo/mojom/media_player.mojom.h"
 #include "media/starboard/starboard_renderer.h"
+#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -49,7 +53,11 @@ class FakeStarboardRendererBarrier {
     media::StarboardRenderer::ResumeActiveRenderers();
   }
 
-  bool suspend_called() const { return media_task_runner_->HasPendingTask(); }
+  bool HasPendingMediaTask() const {
+    return media_task_runner_->HasPendingTask();
+  }
+
+  bool suspend_called() const { return HasPendingMediaTask(); }
 
   bool IsConcealed() const {
     std::unique_ptr<media::StarboardRenderer> probe = CreateRenderer();
@@ -452,11 +460,11 @@ TEST_F(LifecycleTest, RevealWithoutPlatformWindowKeepsRenderersConcealed) {
   task_environment()->RunUntilIdle();
 
   EXPECT_TRUE(fake_barrier.IsConcealed());
-  EXPECT_FALSE(fake_barrier.suspend_called());
+  EXPECT_FALSE(fake_barrier.HasPendingMediaTask());
   testing::Mock::VerifyAndClearExpectations(platform_);
 
   // Subsequent re-conceal followed by a successful reveal
-  // (HasPlatformWindow() == true) resumes active renderers.
+  // (HasPlatformWindow() == true) resumes active renderers after RevealShell().
   EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
     platform_->ShellPlatformDelegate::OnConceal();
   });
@@ -471,13 +479,83 @@ TEST_F(LifecycleTest, RevealWithoutPlatformWindowKeepsRenderersConcealed) {
   EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
     platform_->ShellPlatformDelegate::OnReveal();
   });
-  EXPECT_CALL(*platform_, RevealShell(shell_));
+  EXPECT_CALL(*platform_, RevealShell(shell_)).WillOnce([&](Shell*) {
+    EXPECT_TRUE(fake_barrier.IsConcealed());
+  });
   EXPECT_CALL(*platform_, HasPlatformWindow()).WillOnce(testing::Return(true));
   Shell::OnReveal();
   task_environment()->RunUntilIdle();
 
   EXPECT_FALSE(fake_barrier.IsConcealed());
-  EXPECT_TRUE(fake_barrier.suspend_called());
+  EXPECT_TRUE(fake_barrier.HasPendingMediaTask());
+}
+
+// Minimal MediaPlayer Mojo receiver used to verify that players registering
+// after conceal has already hidden the WebContents receive
+// SuspendForFrameClosed().
+class TestMediaPlayer final : public media::mojom::MediaPlayer {
+ public:
+  mojo::AssociatedReceiver<media::mojom::MediaPlayer>& receiver() {
+    return receiver_;
+  }
+  int suspend_count() const { return suspend_count_; }
+
+  void RequestPlay() override {}
+  void RequestPause(bool triggered_by_user) override {}
+  void RequestSeekForward(base::TimeDelta seek_time) override {}
+  void RequestSeekBackward(base::TimeDelta seek_time) override {}
+  void RequestSeekTo(base::TimeDelta seek_time) override {}
+  void RequestEnterPictureInPicture() override {}
+  void RequestMute(bool mute) override {}
+  void SetVolumeMultiplier(double multiplier) override {}
+  void SetPersistentState(bool persistent) override {}
+  void SetPowerExperimentState(bool enabled) override {}
+  void SetAudioSinkId(const std::string& sink_id) override {}
+  void SuspendForFrameClosed() override { ++suspend_count_; }
+  void RequestMediaRemoting() override {}
+  void RequestVisibility(
+      RequestVisibilityCallback request_visibility_callback) override {}
+  void RecordAutoPictureInPictureInfo(
+      const media::PictureInPictureEventsInfo::AutoPipInfo&
+          auto_picture_in_picture_info) override {}
+
+ private:
+  mojo::AssociatedReceiver<media::mojom::MediaPlayer> receiver_{this};
+  int suspend_count_ = 0;
+};
+
+// Verifies the user journey where a media player's OnMediaPlayerAdded()
+// registration reaches the browser after conceal has already hidden the
+// WebContents and suspended existing players: the late-registering player
+// must immediately receive SuspendForFrameClosed().
+TEST_F(LifecycleTest, OnMediaPlayerAddedWhileHiddenSuspendsPlayer) {
+  CreateTestShell(true /* is_visible */);
+
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  Shell::OnConceal();
+  ASSERT_EQ(shell_->web_contents()->GetVisibility(), Visibility::HIDDEN);
+
+  auto* web_contents = static_cast<TestWebContents*>(shell_->web_contents());
+  MediaWebContentsObserver* media_observer =
+      web_contents->media_web_contents_observer();
+  ASSERT_NE(media_observer, nullptr);
+
+  mojo::AssociatedRemote<media::mojom::MediaPlayerHost> player_host;
+  media_observer->BindMediaPlayerHost(
+      web_contents->GetPrimaryMainFrame()->GetGlobalId(),
+      player_host.BindNewEndpointAndPassDedicatedReceiver());
+
+  TestMediaPlayer player;
+  mojo::AssociatedRemote<media::mojom::MediaPlayerObserver> player_observer;
+  player_host->OnMediaPlayerAdded(
+      player.receiver().BindNewEndpointAndPassRemote(),
+      player_observer.BindNewEndpointAndPassReceiver(), /*player_id=*/0);
+
+  player_host.FlushForTesting();
+  player.receiver().FlushForTesting();
+  EXPECT_EQ(player.suspend_count(), 1);
 }
 
 }  // namespace content

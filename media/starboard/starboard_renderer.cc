@@ -552,7 +552,7 @@ void StarboardRenderer::OnTracksChanged(
 void StarboardRenderer::SetStarboardRendererCallbacks(
     PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
     UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb,
-    GetSbWindowHandleCallback get_sb_window_handle_cb
+    RequestSbWindowHandleCB get_sb_window_handle_cb
 #if BUILDFLAG(IS_ANDROID)
     ,
     RequestOverlayInfoCallBack request_overlay_info_cb
@@ -598,6 +598,9 @@ void StarboardRenderer::OnSbWindowHandleReady(const uint64_t sb_window_handle) {
     if (pending_sb_window_handle_callbacks_ > 0) {
       return;
     }
+  }
+  if (!init_cb_) {
+    return;
   }
   if (init_deferred_for_conceal_ || IsApplicationConcealed()) {
     init_deferred_for_conceal_ = true;
@@ -693,7 +696,9 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   // creation; otherwise the post-reveal `OnOverlayInfoChanged()` retry with the
   // same routing token would be ignored as unchanged below.
   if (init_deferred_for_conceal_ || IsApplicationConcealed()) {
-    init_deferred_for_conceal_ = true;
+    if (init_cb_) {
+      init_deferred_for_conceal_ = true;
+    }
     return;
   }
   bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
@@ -785,7 +790,7 @@ void StarboardRenderer::StartOrDeferPlayerBridgeCreation() {
 #endif  // BUILDFLAG(IS_ANDROID)
 
   if (get_sb_window_handle_cb_) {
-    // Get SbWindow from CobaltRenderContentClient.
+    // Get SbWindow from CobaltContentRendererClient.
     ++pending_sb_window_handle_callbacks_;
     get_sb_window_handle_cb_.Run();
     return;
@@ -1449,9 +1454,6 @@ void StarboardRenderer::OnConcealFallbackSuspend() {
     overlay_info_ = OverlayInfo();
     surface_view_ = nullptr;
 #endif  // BUILDFLAG(IS_ANDROID)
-    audio_read_in_progress_ = false;
-    video_read_in_progress_ = false;
-    audio_read_delayed_ = false;
     if (state_ != STATE_INIT_PENDING_CDM && state_ != STATE_ERROR) {
       state_ = STATE_INITIALIZING;
       init_deferred_for_conceal_ = true;
@@ -1502,7 +1504,13 @@ void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
 
 void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
   DCHECK_EQ(overlay, overlay_.get());
-  overlay_ = nullptr;
+  overlay_.reset();
+  if (init_cb_ && (init_deferred_for_conceal_ || IsApplicationConcealed())) {
+    overlay_info_ = OverlayInfo();
+    surface_view_ = nullptr;
+    init_deferred_for_conceal_ = true;
+    return;
+  }
   state_ = STATE_ERROR;
   if (init_cb_) {
     std::move(init_cb_).Run(PipelineStatus(

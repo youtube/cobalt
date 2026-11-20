@@ -1640,6 +1640,31 @@ TEST_F(WebMediaPlayerImplTest,
   EXPECT_EQ(defer_cb_calls, 0);
   CycleThreads();
 }
+
+// Verifies the user journey where the page is hidden when StartPipeline() runs
+// and defer_load_cb_ invokes the closure synchronously (e.g., when WebView is
+// unavailable): moving defer_load_cb_ out prevents recursion and ensures
+// StartPipeline() initializes the demuxer exactly once.
+TEST_F(WebMediaPlayerImplTest,
+       StartPipelineRunsOnceWhenDeferCallbackRunsSyncWhileHidden) {
+  std::unique_ptr<media::MockDemuxer> demuxer =
+      std::make_unique<NiceMock<media::MockDemuxer>>();
+  auto* demuxer_ptr = demuxer.get();
+  InitializeWebMediaPlayerImpl(std::move(demuxer));
+
+  int defer_cb_calls = 0;
+  SetDeferLoadCB(base::BindLambdaForTesting([&](base::OnceClosure closure) {
+    ++defer_cb_calls;
+    std::move(closure).Run();
+    return false;
+  }));
+
+  delegate_.SetPageHiddenForTesting(true);
+  EXPECT_CALL(*demuxer_ptr, OnInitialize(_, _)).Times(1);
+  CallStartPipeline();
+  EXPECT_EQ(defer_cb_calls, 1);
+  CycleThreads();
+}
 #endif  // BUILDFLAG(IS_COBALT)
 
 TEST_F(WebMediaPlayerImplTest, ComputePlayState_PausedSeek) {

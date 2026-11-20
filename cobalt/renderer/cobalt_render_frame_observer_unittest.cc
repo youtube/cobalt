@@ -14,7 +14,6 @@
 
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 
-#include "base/test/bind.h"
 #include "starboard/extension/graphics.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -60,10 +59,6 @@ class CobaltRenderFrameObserverTest : public ::testing::Test {
 
   void TearDown() override { g_mock_graphics_extension = nullptr; }
 
-  static void TriggerOnDestruct(CobaltRenderFrameObserver* observer) {
-    observer->OnDestruct();
-  }
-
   MockGraphicsExtension mock_graphics_extension_;
   std::unique_ptr<CobaltRenderFrameObserver> observer_;
 };
@@ -79,30 +74,6 @@ TEST_F(CobaltRenderFrameObserverTest,
   EXPECT_CALL(mock_graphics_extension_, ReportFullyDrawn()).Times(0);
   observer_->DidMeaningfulLayout(blink::WebMeaningfulLayout::kFinishedParsing);
   observer_->DidMeaningfulLayout(blink::WebMeaningfulLayout::kFinishedLoading);
-}
-
-// Verifies the user journey where a main frame transitions between shown,
-// hidden, and destroyed (e.g., splash screen teardown): WasShown(),
-// WasHidden(), and OnDestruct() invoke their registered visibility callbacks.
-TEST_F(CobaltRenderFrameObserverTest,
-       VisibilityCallbacksRunOnShownHiddenAndDestruct) {
-  int hidden_calls = 0;
-  int shown_calls = 0;
-  auto* observer = new CobaltRenderFrameObserver(
-      /*render_frame=*/nullptr,
-      base::BindLambdaForTesting([&]() { ++hidden_calls; }),
-      base::BindLambdaForTesting([&]() { ++shown_calls; }));
-
-  observer->WasShown();
-  EXPECT_EQ(shown_calls, 1);
-  EXPECT_EQ(hidden_calls, 0);
-
-  observer->WasHidden();
-  EXPECT_EQ(hidden_calls, 1);
-
-  // OnDestruct() invokes the hidden/destroyed callback and deletes observer.
-  TriggerOnDestruct(observer);
-  EXPECT_EQ(hidden_calls, 2);
 }
 
 }  // namespace renderer

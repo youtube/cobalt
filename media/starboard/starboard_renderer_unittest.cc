@@ -1254,15 +1254,18 @@ TEST_F(
   // Conceal while initialization is still in flight. The in-flight SbPlayer
   // must be destroyed before the conceal barrier completes, and init_cb_ must
   // stay pending (not aborted).
-  EXPECT_CALL(mock_sbplayer_interface_, Destroy(player_1))
-      .WillOnce(Invoke([](SbPlayer player) {
-        delete reinterpret_cast<MockSbPlayer*>(player);
-      }));
   EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
   EXPECT_CALL(renderer_client_, OnError(_)).Times(0);
 
   base::MockOnceClosure conceal_done_cb;
-  EXPECT_CALL(conceal_done_cb, Run());
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(mock_sbplayer_interface_, Destroy(player_1))
+        .WillOnce(Invoke([](SbPlayer player) {
+          delete reinterpret_cast<MockSbPlayer*>(player);
+        }));
+    EXPECT_CALL(conceal_done_cb, Run());
+  }
   StarboardRenderer::FlushAndSuspendActiveRenderers(conceal_done_cb.Get());
   task_environment_.RunUntilIdle();
   testing::Mock::VerifyAndClearExpectations(&mock_sbplayer_interface_);
@@ -1427,6 +1430,77 @@ TEST_F(
   task_environment_.RunUntilIdle();
 }
 
+// When the user rapidly backgrounds and foregrounds the app twice while a
+// video is waiting for its SbWindow handle, both stale window replies are
+// ignored and only the third (latest) reply creates SbPlayer.
+TEST_F(StarboardRendererTest, RapidDoubleOscillationUsesOnlyLatestWindowReply) {
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  int window_handle_requests = 0;
+  renderer_->SetStarboardRendererCallbacks(
+      /*paint_video_hole_frame_cb=*/base::DoNothing(),
+      /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+      base::BindRepeating([](int* count) { ++(*count); },
+                          base::Unretained(&window_handle_requests))
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      /*request_overlay_info_cb=*/base::DoNothing()
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+  ASSERT_EQ(window_handle_requests, 1);
+
+  for (int i = 0; i < 2; ++i) {
+    StarboardRenderer::FlushAndSuspendActiveRenderers(base::DoNothing());
+    task_environment_.RunUntilIdle();
+    StarboardRenderer::ResumeActiveRenderers();
+    task_environment_.RunUntilIdle();
+  }
+  ASSERT_EQ(window_handle_requests, 3);
+
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .Times(0);
+  renderer_->OnSbWindowHandleReady(0x1111);
+  renderer_->OnSbWindowHandleReady(0x2222);
+  task_environment_.RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&mock_sbplayer_interface_);
+  mock_sbplayer_interface_.SetupDefaultExpectations();
+
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  SbWindow created_window = kSbWindowInvalid;
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(
+          DoAll(SaveArg<0>(&created_window), SaveArg<3>(&decoder_status_cb_),
+                SaveArg<4>(&player_status_cb_), SaveArg<5>(&player_error_cb_),
+                SaveArg<6>(&context_), Return(player)));
+  renderer_->OnSbWindowHandleReady(0x3333);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(created_window, reinterpret_cast<SbWindow>(0x3333));
+}
+
+// When the web application removes the <video> element while StarboardRenderer
+// initialization is deferred in the concealed state, destroying the renderer
+// unregisters cleanly without crashing or firing init_cb_ on subsequent reveal.
+TEST_F(StarboardRendererTest, DestroyWhileDeferredForConcealIsSafe) {
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  StarboardRenderer::FlushAndSuspendActiveRenderers(base::DoNothing());
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  renderer_.reset();
+  StarboardRenderer::ResumeActiveRenderers();
+  task_environment_.RunUntilIdle();
+}
+
 #if BUILDFLAG(IS_ANDROID)
 // Verifies the user journey on Android where a user starts video playback
 // (using an AndroidOverlay Video SurfaceView), immediately backgrounds/conceals
@@ -1501,6 +1575,106 @@ TEST_F(StarboardRendererTest,
   EXPECT_CALL(conceal_done_cb, Run());
   StarboardRenderer::FlushAndSuspendActiveRenderers(conceal_done_cb.Get());
   task_environment_.RunUntilIdle();
+
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
+                      SaveArg<4>(&player_status_cb_),
+                      SaveArg<5>(&player_error_cb_), SaveArg<6>(&context_),
+                      Return(player)));
+
+  StarboardRenderer::ResumeActiveRenderers();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(overlay_info_requests, 2);
+  EXPECT_EQ(overlay_factory_calls, 2);
+
+  overlay_callbacks.OverlayReady.Run();
+  task_environment_.RunUntilIdle();
+
+  ASSERT_TRUE(player_status_cb_);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+}
+
+// Verifies the Android user journey where backgrounding destroys the video
+// SurfaceView and fires OnOverlayFailed() after conceal starts but before
+// OnConcealFallbackSuspend() runs: initialization must defer rather than fail
+// permanently with DECODER_ERROR_NOT_SUPPORTED, and resume with a fresh overlay
+// once the user returns to the app.
+TEST_F(StarboardRendererTest,
+       OnOverlayFailedWhileConcealedDefersAndResumesOnReveal) {
+  base::test::ScopedFeatureList feature_list(media::kCobaltUsingAndroidOverlay);
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  int overlay_factory_calls = 0;
+  MockAndroidOverlay::Callbacks overlay_callbacks;
+  base::android::ScopedJavaGlobalRef<jobject> dummy_surface;
+  renderer_ = std::make_unique<StarboardRenderer>(
+      task_environment_.GetMainThreadTaskRunner(),
+      std::make_unique<NullMediaLog>(),
+      /*overlay_plane_id=*/base::UnguessableToken::Create(),
+      /*audio_write_duration_local=*/base::Seconds(1),
+      /*audio_write_duration_remote=*/base::Seconds(1),
+      /*max_video_capabilities=*/"",
+      /*max_video_resolution=*/"",
+      StarboardRendererConfig::ExperimentalFeatures{},
+      /*viewport_size=*/gfx::Size(1920, 1080),
+      base::BindRepeating(
+          [](int* factory_calls, MockAndroidOverlay::Callbacks* out_callbacks,
+             base::android::ScopedJavaGlobalRef<jobject>* surface,
+             const base::UnguessableToken& /*routing_token*/,
+             AndroidOverlayConfig config) -> std::unique_ptr<AndroidOverlay> {
+            ++(*factory_calls);
+            auto overlay = std::make_unique<MockAndroidOverlay>();
+            EXPECT_CALL(*overlay, GetJavaSurface())
+                .WillRepeatedly(testing::ReturnRef(*surface));
+            overlay->SetConfig(std::move(config));
+            *out_callbacks = overlay->GetCallbacks();
+            return overlay;
+          },
+          base::Unretained(&overlay_factory_calls),
+          base::Unretained(&overlay_callbacks),
+          base::Unretained(&dummy_surface)));
+  renderer_->set_decode_target_graphics_context_provider(base::BindRepeating(
+      [](SbDecodeTargetGraphicsContextProvider* provider) { return provider; },
+      base::Unretained(&decode_target_graphics_context_provider_)));
+
+  OverlayInfo overlay_info;
+  overlay_info.routing_token = base::UnguessableToken::Create();
+  int overlay_info_requests = 0;
+  renderer_->SetStarboardRendererCallbacks(
+      /*paint_video_hole_frame_cb=*/base::DoNothing(),
+      /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+      /*get_sb_window_handle_cb=*/base::NullCallback(),
+      base::BindRepeating(
+          [](StarboardRenderer* renderer, const OverlayInfo& info,
+             int* requests, bool /*restart_for_transitions*/) {
+            ++(*requests);
+            renderer->OnOverlayInfoChanged(info);
+          },
+          base::Unretained(renderer_.get()), overlay_info,
+          base::Unretained(&overlay_info_requests)));
+
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+  ASSERT_EQ(overlay_info_requests, 1);
+  ASSERT_EQ(overlay_factory_calls, 1);
+
+  EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
+  EXPECT_CALL(renderer_client_, OnError(_)).Times(0);
+
+  // Start conceal (marks registry concealed synchronously) and fire
+  // OnOverlayFailed() before the posted OnConcealFallbackSuspend() executes.
+  base::MockOnceClosure conceal_done_cb;
+  EXPECT_CALL(conceal_done_cb, Run());
+  StarboardRenderer::FlushAndSuspendActiveRenderers(conceal_done_cb.Get());
+  overlay_callbacks.OverlayFailed.Run();
+  task_environment_.RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_);
 
   SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
