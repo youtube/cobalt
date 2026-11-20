@@ -20,11 +20,19 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker_impl.h"
 #include "base/thread_annotations.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include <optional>
+
+#include "base/time/time.h"
+#include "starboard/extension/graphics.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 class PrefService;
 
@@ -72,6 +80,15 @@ void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
 // |user_data_dir|. Fast-paths with PathExists() so subsequent launches perform
 // zero disk writes.
 void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir);
+
+#if BUILDFLAG(IS_STARBOARD)
+// The platform's minimum frame interval is the shortest time allowed between
+// two frames. Returns the interval to throttle frames to, rounded to a whole
+// number of |refresh_interval|s, or nullopt if no throttling is needed.
+std::optional<base::TimeDelta> GetThrottledFrameInterval(
+    const CobaltExtensionGraphicsApi* graphics_extension,
+    base::TimeDelta refresh_interval);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.
