@@ -121,7 +121,8 @@ jobs:
             --source-branch "${SOURCE_BRANCH}" \
             --autoroll-file "${AUTOROLL_FILE}" \
             --max-commits "${MAX_COMMITS}" \
-            --existing-pr-sha "${FIRST_SHA}")
+            --existing-pr-sha "${FIRST_SHA}" \
+            --verbose)
 
           if [[ -n "${PR_LINKS}" ]]; then
             echo "cherry_picked=true" >> "${GITHUB_OUTPUT}"
