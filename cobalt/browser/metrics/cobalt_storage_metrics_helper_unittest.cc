@@ -18,6 +18,7 @@
 #include <string>
 #include <utility>
 
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -93,10 +94,49 @@ TEST(CobaltStorageMetricsHelperTest, RecordStartupStorageAndIoMetricsForPaths) {
   histogram_tester.ExpectUniqueSample(
       "Cobalt.Storage.UserData.StartupTotalSizeKB", 24, 1);
   histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.UserData.StartupTotalSizeKB2", 24, 1);
+  histogram_tester.ExpectUniqueSample(
       "Cobalt.Storage.DirCache.StartupTotalSizeKB", 64, 1);
   // /proc/self/io does not report major page faults.
   histogram_tester.ExpectTotalCount(
       "Cobalt.Storage.ProcessIo.StartupMajorPageFaults", 0);
+}
+
+TEST(CobaltStorageMetricsHelperTest,
+     UserDataSizeAbove100MBUnclippedInStartupTotalSizeKB2) {
+  base::ScopedTempDir user_data_dir;
+  ASSERT_TRUE(user_data_dir.CreateUniqueTempDir());
+
+  // Create a 250 MiB (256,000 KiB) sparse file so st_size exceeds v1's
+  // 100,000 KiB max without allocating 250 MiB on disk.
+  constexpr int64_t kLargeUserDataKB = 256000;
+  base::File sparse_file(
+      user_data_dir.GetPath().AppendASCII("OrphanedHttpCacheBlob"),
+      base::File::FLAG_CREATE | base::File::FLAG_WRITE);
+  ASSERT_TRUE(sparse_file.IsValid());
+  ASSERT_TRUE(sparse_file.SetLength(kLargeUserDataKB * 1024));
+  sparse_file.Close();
+
+  base::HistogramTester histogram_tester;
+  RecordStartupStorageAndIoMetricsForPaths(user_data_dir.GetPath(),
+                                           base::FilePath(), nullptr);
+
+  // v1 clips >= 100,000 KiB into the overflow bucket, while v2 (max 1,000,000
+  // KiB) resolves the 256,000 KiB sample below its ceiling.
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.UserData.StartupTotalSizeKB", kLargeUserDataKB, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.UserData.StartupTotalSizeKB2", kLargeUserDataKB, 1);
+
+  const auto v1_buckets = histogram_tester.GetAllSamples(
+      "Cobalt.Storage.UserData.StartupTotalSizeKB");
+  const auto v2_buckets = histogram_tester.GetAllSamples(
+      "Cobalt.Storage.UserData.StartupTotalSizeKB2");
+  ASSERT_EQ(v1_buckets.size(), 1u);
+  ASSERT_EQ(v2_buckets.size(), 1u);
+  EXPECT_EQ(v1_buckets[0].min, 100000);
+  EXPECT_GT(v2_buckets[0].min, 100000);
+  EXPECT_LE(v2_buckets[0].min, kLargeUserDataKB);
 }
 
 TEST(CobaltStorageMetricsHelperTest, ProcessIoCountersFromRusage) {
@@ -112,8 +152,12 @@ TEST(CobaltStorageMetricsHelperTest, ProcessIoCountersFromRusage) {
   // Reads can legitimately be 0 when every page was already cached.
   EXPECT_TRUE(ProcessIoCountersFromRusage(0, 8, 0, &counters));
 
-  // Both block counts at 0 means the kernel does not account task I/O.
-  EXPECT_FALSE(ProcessIoCountersFromRusage(0, 0, 5, &counters));
+  // Both block counts at 0 is a valid warm-start scenario.
+  ASSERT_TRUE(ProcessIoCountersFromRusage(0, 0, 5, &counters));
+  EXPECT_EQ(counters.read_bytes, 0);
+  EXPECT_EQ(counters.write_bytes, 0);
+  EXPECT_EQ(counters.major_page_faults, 5);
+
   EXPECT_FALSE(ProcessIoCountersFromRusage(-1, 8, 0, &counters));
   EXPECT_FALSE(ProcessIoCountersFromRusage(8, -1, 0, &counters));
   EXPECT_FALSE(ProcessIoCountersFromRusage(8, 8, -1, &counters));

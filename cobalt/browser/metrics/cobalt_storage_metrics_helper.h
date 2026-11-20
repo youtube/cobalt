@@ -37,9 +37,8 @@ bool ParseProcIoCounters(std::string_view proc_io_contents,
                          ProcessIoCounters* out_counters);
 
 // Converts getrusage() ru_inblock, ru_oublock (512-byte blocks) and ru_majflt
-// to ProcessIoCounters. Returns false if the values are negative, or if both
-// block counts are 0, which means the kernel does not account task I/O (a
-// browser process always writes some data in its first seconds).
+// to ProcessIoCounters. Returns false if out_counters is null or any value is
+// negative. Both block counts being 0 is valid on a fully cached warm start.
 bool ProcessIoCountersFromRusage(int64_t in_blocks,
                                  int64_t out_blocks,
                                  int64_t major_page_faults,
@@ -57,8 +56,10 @@ bool ReadCurrentProcessIoCounters(ProcessIoCounters* out_counters);
 // Enables base's I/O jank monitoring (base::EnableIOJankMonitoringForProcess)
 // for the browser process and records
 // Cobalt.Responsiveness.IOJankyIntervalsPerMinute and
-// Cobalt.Responsiveness.IOJanksTotalPerMinute once per minute. Call at most
-// once per process.
+// Cobalt.Responsiveness.IOJanksTotalPerMinute once per minute. Piggybacks on
+// ScopedBlockingCall's existing foreground-thread hook (skipping BEST_EFFORT
+// workers and sub-1s calls) with one timer task per minute. Call at most once
+// per process.
 void EnableCobaltIOJankMonitoring();
 
 // Emits startup process block I/O histograms first (from |io_counters| if
@@ -78,9 +79,10 @@ bool RecordSteadyStateWriteRateForInterval(int64_t baseline_write_bytes,
                                            int64_t current_write_bytes,
                                            base::TimeTicks current_time);
 
-// Schedules the deferred (+10s) post-startup storage footprint and block I/O
-// telemetry task and periodic (every 5 minutes) steady-state write-rate
-// sampling on a BEST_EFFORT background sequence.
+// Schedules the deferred (+10s, inside Android's +15s Initial UMA Log window
+// and before the +30s RunDelayedStorageCleanup task) post-startup storage
+// footprint and block I/O telemetry task and periodic (every 5 minutes)
+// steady-state write-rate sampling on a BEST_EFFORT background sequence.
 void ScheduleCobaltStorageMetricsRecording();
 
 }  // namespace cobalt

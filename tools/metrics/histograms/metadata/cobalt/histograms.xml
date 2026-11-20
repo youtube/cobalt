@@ -628,6 +628,18 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.SplashScreen.ClearCachedFilesResult"
+    enum="SplashCacheClearResult" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records the result of deleting the splash assets that the WebApp cached
+    (splash.webm and splash.png in the default and music caches), as they may
+    have crashed Cobalt. Recorded once per launch in Finch's crash safe mode,
+    i.e., when the empty experiment config is used due to the crash streak.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.ContentEndedBeforeSwitch.{SplashMode}"
     enum="Boolean" expires_after="never">
   <owner>borongchen@google.com</owner>
@@ -643,18 +655,6 @@ Always run the pretty print utility on this file after editing:
     <variant name="Image" summary="The splash screen showed an image."/>
     <variant name="Video" summary="The splash screen played a video."/>
   </token>
-</histogram>
-
-<histogram name="Cobalt.SplashScreen.ClearCachedFilesResult"
-    enum="SplashCacheClearResult" expires_after="never">
-  <owner>linxinan@google.com</owner>
-  <owner>borongchen@google.com</owner>
-  <summary>
-    Records the result of deleting the splash assets that the WebApp cached
-    (splash.webm and splash.png in the default and music caches), as they may
-    have crashed Cobalt. Recorded once per launch in Finch's crash safe mode,
-    i.e., when the empty experiment config is used due to the crash streak.
-  </summary>
 </histogram>
 
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
@@ -1246,6 +1246,25 @@ Always run the pretty print utility on this file after editing:
     on a BEST_EFFORT background thread. Recorded once per browser process
     launch; it is not recorded again when Cobalt resumes from the background or
     is revealed after a preload, so each sample represents one process launch.
+    Capped at 100,000 KB (~97.7 MiB); use
+    Cobalt.Storage.UserData.StartupTotalSizeKB2 for unclipped upper-tail values
+    up to 1,000,000 KB (~976.6 MiB) on profiles carrying legacy 6.x caches.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.UserData.StartupTotalSizeKB2" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total on-disk size in kilobytes (1 KB to 1,000,000 KB across 100
+    exponential buckets) of Cobalt's persistent user data directory
+    (content::SHELL_DIR_USER_DATA), 10 seconds after browser startup, on a
+    BEST_EFFORT background thread. Emitted alongside
+    Cobalt.Storage.UserData.StartupTotalSizeKB to resolve upgraded profiles
+    above 100,000 KB without altering v1 bucket boundaries. Recorded once per
+    browser process launch; not re-emitted on background resume or preload
+    reveal.
   </summary>
 </histogram>
 

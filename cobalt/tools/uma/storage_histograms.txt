@@ -14,6 +14,7 @@
 # Phase-2 Vega/Perfgate core subset (b/586376647), to register first. All are
 # recorded once per launch, before teardown, except as noted:
 #   Cobalt.Storage.UserData.StartupTotalSizeKB
+#   Cobalt.Storage.UserData.StartupTotalSizeKB2
 #   Cobalt.Storage.DirCache.StartupTotalSizeKB
 #   Cobalt.Storage.ProcessIo.StartupReadKB
 #   Cobalt.Storage.ProcessIo.StartupWriteKB
@@ -31,6 +32,7 @@
 
 # --- P0.1 Persistent & Cache Disk Footprint + RAM ---
 Cobalt.Storage.UserData.StartupTotalSizeKB
+Cobalt.Storage.UserData.StartupTotalSizeKB2
 Cobalt.Storage.DirCache.StartupTotalSizeKB
 Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite

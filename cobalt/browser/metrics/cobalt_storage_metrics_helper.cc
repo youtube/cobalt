@@ -66,6 +66,11 @@ constexpr int kMaxStartupReadKB = 500000;
 // and 4x the 24 MB DIR_CACHE quota; larger values land in the overflow bucket.
 constexpr int kMinStorageSizeKB = 1;
 constexpr int kMaxStorageSizeKB = 100000;
+// Widened 1 KB to 1,000,000 KB (~1 GB) range (~14.8% bucket width) for
+// Cobalt.Storage.UserData.StartupTotalSizeKB2, unclipping the ~40% of upgraded
+// fleet profiles whose legacy 6.x caches exceed 100,000 KB without mutating v1
+// bucket bounds (preserving PMA prior-session merge and launch-count parity).
+constexpr int kMaxUserDataSizeKB2 = 1000000;
 constexpr int kStorageSizeBuckets = 100;
 
 // getrusage() reports block I/O in 512-byte units.
@@ -224,7 +229,7 @@ bool ProcessIoCountersFromRusage(int64_t in_blocks,
                                  int64_t major_page_faults,
                                  ProcessIoCounters* out_counters) {
   if (!out_counters || in_blocks < 0 || out_blocks < 0 ||
-      major_page_faults < 0 || (in_blocks == 0 && out_blocks == 0)) {
+      major_page_faults < 0) {
     return false;
   }
   out_counters->read_bytes = in_blocks * kRusageBlockSizeBytes;
@@ -260,6 +265,9 @@ bool ReadCurrentProcessIoCounters(ProcessIoCounters* out_counters) {
 void EnableCobaltIOJankMonitoring() {
   // As in Chrome, monitor only when TimeTicks are consistent across processes
   // (true on Android and Linux); the algorithm is unsafe otherwise.
+  // Negligible CPU cost: ScopedBlockingCall on foreground threads already
+  // enters ScopedMonitoredCall; enabling sets its callback (one TimeTicks::Now
+  // exit check, lock-free return if < 1s, plus one 60s window rollover task).
   if (base::TimeTicks::IsConsistentAcrossProcesses()) {
     base::EnableIOJankMonitoringForProcess(base::BindRepeating(&RecordIOJank));
   }
@@ -288,10 +296,13 @@ void RecordStartupStorageAndIoMetricsForPaths(
 
   if (!user_data_dir.empty() && base::DirectoryExists(user_data_dir)) {
     const int64_t user_data_bytes = base::ComputeDirectorySize(user_data_dir);
+    const int user_data_kb = base::saturated_cast<int>(user_data_bytes / 1024);
+    base::UmaHistogramCustomCounts("Cobalt.Storage.UserData.StartupTotalSizeKB",
+                                   user_data_kb, kMinStorageSizeKB,
+                                   kMaxStorageSizeKB, kStorageSizeBuckets);
     base::UmaHistogramCustomCounts(
-        "Cobalt.Storage.UserData.StartupTotalSizeKB",
-        base::saturated_cast<int>(user_data_bytes / 1024), kMinStorageSizeKB,
-        kMaxStorageSizeKB, kStorageSizeBuckets);
+        "Cobalt.Storage.UserData.StartupTotalSizeKB2", user_data_kb,
+        kMinStorageSizeKB, kMaxUserDataSizeKB2, kStorageSizeBuckets);
   }
 
   if (!cache_dir.empty() && base::DirectoryExists(cache_dir)) {
