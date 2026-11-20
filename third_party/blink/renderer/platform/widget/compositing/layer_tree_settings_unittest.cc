@@ -10,6 +10,7 @@
 #if BUILDFLAG(IS_COBALT)
 #include "base/features.h"
 #include "base/test/scoped_feature_list.h"
+#include "cc/base/features.h"
 #endif
 
 namespace blink {
@@ -66,6 +67,62 @@ TEST(LayerTreeSettings, CobaltForceGpuMemAvailableFeature) {
   auto policy =
       GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256), gfx::Size(), 1.f);
   EXPECT_EQ(128u * 1024u * 1024u, policy.bytes_limit_when_visible);
+}
+
+TEST(LayerTreeSettings, CobaltAnimationTileLookaheadSettings) {
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeaturesAndParameters(
+        {{::features::kSmallerInterestArea, {}},
+         {base::features::kCobaltSkewportTargetTime, {}},
+         {base::features::kCobaltAnimationTileLookahead,
+          {{"target_time_seconds", "0.3"}, {"max_viewport_fraction", "0.4"}}}},
+        {});
+    cc::LayerTreeSettings settings_1080p = GenerateLayerTreeSettings(
+        /*is_threaded=*/true, /*is_for_embedded_frame=*/false,
+        /*is_for_scalable_page=*/false, gfx::Size(1920, 1080), 1.f);
+    EXPECT_FLOAT_EQ(0.3f, settings_1080p.skewport_target_time_in_seconds);
+    EXPECT_FLOAT_EQ(
+        0.3f, settings_1080p.gpu_rasterization_skewport_target_time_in_seconds);
+    EXPECT_EQ(432,
+              settings_1080p.skewport_extrapolation_limit_in_screen_pixels);
+    EXPECT_EQ(500, settings_1080p.tiling_interest_area_padding);
+
+    cc::LayerTreeSettings settings_4k = GenerateLayerTreeSettings(
+        /*is_threaded=*/true, /*is_for_embedded_frame=*/false,
+        /*is_for_scalable_page=*/false, gfx::Size(3840, 2160), 1.f);
+    EXPECT_EQ(864, settings_4k.skewport_extrapolation_limit_in_screen_pixels);
+    EXPECT_EQ(994, settings_4k.tiling_interest_area_padding);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeaturesAndParameters(
+        {{base::features::kCobaltSkewportTargetTime,
+          {{"skewport_target_time_in_seconds", "0.6"},
+           {"gpu_rasterization_skewport_target_time_in_seconds", "0.5"}}},
+         {base::features::kCobaltAnimationTileLookahead,
+          {{"target_time_seconds", "0.3"}}}},
+        {});
+    cc::LayerTreeSettings settings = GenerateLayerTreeSettings(
+        /*is_threaded=*/true, /*is_for_embedded_frame=*/false,
+        /*is_for_scalable_page=*/false, gfx::Size(1920, 1080), 1.f);
+    EXPECT_FLOAT_EQ(0.6f, settings.skewport_target_time_in_seconds);
+    EXPECT_FLOAT_EQ(0.5f,
+                    settings.gpu_rasterization_skewport_target_time_in_seconds);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        {base::features::kCobaltSkewportTargetTime},
+        {base::features::kCobaltAnimationTileLookahead});
+    cc::LayerTreeSettings settings_disabled = GenerateLayerTreeSettings(
+        /*is_threaded=*/true, /*is_for_embedded_frame=*/false,
+        /*is_for_scalable_page=*/false, gfx::Size(1920, 1080), 1.f);
+    EXPECT_FLOAT_EQ(0.0f, settings_disabled.skewport_target_time_in_seconds);
+    EXPECT_FLOAT_EQ(
+        0.0f,
+        settings_disabled.gpu_rasterization_skewport_target_time_in_seconds);
+  }
 }
 #endif
 
