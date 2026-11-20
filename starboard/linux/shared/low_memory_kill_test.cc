@@ -243,6 +243,26 @@ TEST_F(LowMemoryKillTest, MarkerThatCannotBeRemovedIsNotKilled) {
   EXPECT_EQ(rmdir(kTmpMarkerPath), 0);
 }
 
+// Verifies that when a non-regular file (FIFO) occupies the watchdog marker
+// path in /tmp on startup, checking low-memory kill status consumes the
+// marker without blocking on open()/read() and falls back to default
+// unavailable details.
+TEST_F(LowMemoryKillTest, NonRegularMarkerFifoConsumedWithoutBlocking) {
+  ASSERT_EQ(mkfifo(kTmpMarkerPath, 0600), 0);
+  ExpectDetailsEq(kDefaultDetails, GetDetailsFromPublicApi());
+}
+
+TEST_F(LowMemoryKillTest, OversizedMarkerCappedAt4MiB) {
+  std::string payload = "pressure_source=cobalt\n";
+  payload.append(4 * 1024 * 1024, '#');
+  payload.append("\npressure_source=system\n");
+  CreateTmpMarkerWithContents(payload);
+
+  SbLowMemoryKillDetails expected = kDefaultDetails;
+  expected.pressure_source = kSbLowMemoryKillPressureSourceCobalt;
+  ExpectDetailsEq(expected, GetDetailsFromPublicApi());
+}
+
 TEST_F(LowMemoryKillTest, PartialAndEmptyMarkersPopulateOnlyPresentFields) {
   CreateTmpMarkerWithContents("");
   ExpectDetailsEq(kDefaultDetails, GetDetailsFromPublicApi());

@@ -128,6 +128,10 @@ TEST(NonNullResultTest, Failure) {
   EXPECT_NE(result.error().find("Something went wrong"), std::string::npos);
 }
 
+#if !defined(__ANDROID__)
+// Death tests fork() without exec() inside a multi-threaded ART process on
+// Android, and Android's SbLog writes fatal messages to logcat rather than
+// stderr.
 class NonNullResultDeathTest : public ::testing::Test {};
 
 TEST_F(NonNullResultDeathTest, DeathTest_RawPointer) {
@@ -147,6 +151,7 @@ TEST_F(NonNullResultDeathTest, DeathTest_UniquePtr) {
       },
       "NonNullResult value cannot be null.");
 }
+#endif  // !defined(__ANDROID__)
 
 TEST(NonNullResultTest, OperatorArrowRawPointer) {
   TestObject obj;

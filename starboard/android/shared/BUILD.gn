@@ -505,6 +505,7 @@ test("starboard_platform_tests") {
     ":test_support",
     "//base",
     "//starboard:starboard_group",
+    "//starboard/common:common_test",
     "//starboard/shared/starboard:starboard_test",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
