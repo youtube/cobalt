@@ -1246,6 +1246,13 @@ gfx::Size Shell::GetShellDefaultSize() {
 }
 
 void Shell::Focus() {
+  if (splash_screen_web_contents_) {
+    // Keep focus on the splash screen while it overlays the main page so input
+    // does not reach the obscured main WebContents. SwitchToMainWebContents()
+    // transfers focus to web_contents_ once the splash screen dismisses.
+    splash_screen_web_contents_->Focus();
+    return;
+  }
   // Aura silently ignores focus requests for hidden windows. If the shell is
   // not yet visible (e.g. during a rapid Reveal -> Focus sequence), we defer
   // the focus until the WebContents signals it has become visible.
@@ -1339,10 +1346,10 @@ void Shell::ScheduleSwitchToMainWebContents() {
           << "ms, remaining delay: " << remaining_delay.InMilliseconds()
           << "ms.";
   if (web_contents_) {
-    if (is_video_splash_screen_) {
-      // Send hidden event to WebApp if it's video-based splash screen.
-      web_contents_->WasHidden();
-    }
+    // Keep the main WebContents visible while waiting for the splash screen to
+    // dismiss. Hiding it here causes the web app to observe a spurious
+    // hidden/visible cycle (including a 0ms churn when remaining_delay is zero)
+    // and misclassify foreground launches as preloaded.
     // If the minimum duration has already elapsed, the switch only waited for
     // the main WebContents to load.
     const SplashScreenMetrics::SwitchTrigger trigger =
@@ -1378,11 +1385,12 @@ void Shell::SwitchToMainWebContents(
     if (web_contents_) {
       CHECK(GetPlatform());
       GetPlatform()->UpdateContents(this);
-      if (GetPlatform()->IsVisible() || is_video_splash_screen_) {
+      if (GetPlatform()->IsVisible()) {
         web_contents_->WasShown();
-      }
-      if (web_contents()->GetRenderWidgetHostView()) {
-        web_contents()->GetRenderWidgetHostView()->Focus();
+        if (!GetPlatform()->IsWaitingForRevealAck() &&
+            web_contents()->GetRenderWidgetHostView()) {
+          web_contents()->GetRenderWidgetHostView()->Focus();
+        }
       }
     }
     if (splash_screen_web_contents_) {
