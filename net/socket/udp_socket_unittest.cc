@@ -32,6 +32,7 @@
 #include "net/log/net_log_source.h"
 #include "net/log/test_net_log.h"
 #include "net/log/test_net_log_util.h"
+#include "net/net_buildflags.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/udp_client_socket.h"
 #include "net/socket/udp_server_socket.h"
@@ -63,6 +64,11 @@
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
 #endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 using net::test::IsError;
 using net::test::IsOk;
@@ -2089,5 +2095,243 @@ TEST_F(UDPSocketTest, LimitConnectMultithreaded) {
 
   EXPECT_EQ(0, GetGlobalUDPSocketCountForTesting());
 }
+
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+// Clears the process-wide recvmmsg scratch buffer pool on construction and
+// destruction so tests never inherit or leak pooled allocations.
+class ScopedClearRecvmmsgBufferPool {
+ public:
+  ScopedClearRecvmmsgBufferPool() {
+    Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  }
+  ~ScopedClearRecvmmsgBufferPool() {
+    Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  }
+};
+
+// Verifies the QUIC burst-receive journey (for example during video segment
+// downloads on 32-bit Android TV): a single ReadMultiplePackets call is capped
+// at 16 packets so its scratch buffer stays within a 24 KiB PartitionAlloc
+// slot span, and follow-up calls drain remaining queued datagrams intact.
+TEST_F(UDPSocketTest, ReadMultiplePacketsCapsBatchAt16AndDrainsRemaining) {
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  constexpr int kPacketBufSize = 1473;
+  constexpr int kExpectedMaxBatch = 16;
+  constexpr int kNumPackets = 20;
+
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  auto server =
+      std::make_unique<UDPServerSocket>(NetLog::Get(), NetLogSource());
+  ASSERT_THAT(server->Listen(server_address), IsOk());
+  ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
+
+  auto client = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(client->Connect(server_address), IsOk());
+  ASSERT_THAT(client->SetReceiveBufferSize(64 * 1024), IsOk());
+
+  IPEndPoint client_address;
+  ASSERT_THAT(client->GetLocalAddress(&client_address), IsOk());
+
+  for (int i = 0; i < kNumPackets; ++i) {
+    std::string payload = "pkt-" + base::NumberToString(i);
+    ASSERT_EQ(static_cast<int>(payload.size()),
+              SendToSocket(server.get(), payload, client_address));
+  }
+
+  const size_t expected_total_buffer_size =
+      static_cast<size_t>(kExpectedMaxBatch) *
+      (sizeof(Socket::ReadPacketResult) + kPacketBufSize);
+  std::vector<std::string> received;
+  int read_calls = 0;
+  while (static_cast<int>(received.size()) < kNumPackets) {
+    Socket::ReadPacketResults results;
+    TestCompletionCallback callback;
+    int rv = client->ReadMultiplePackets(&results, kPacketBufSize,
+                                         callback.callback());
+    rv = callback.GetResult(rv);
+    ASSERT_GT(rv, 0);
+    EXPECT_LE(rv, kExpectedMaxBatch);
+    ASSERT_NE(results.buffer, nullptr);
+    EXPECT_EQ(results.buffer->span().size(), expected_total_buffer_size);
+    EXPECT_LE(results.buffer->span().size(), 24u * 1024u);
+    EXPECT_EQ(results.result, rv);
+
+    // SAFETY: |results.packets| points to |kExpectedMaxBatch| entries in
+    // |results.buffer|, and |rv| is verified in (0, kExpectedMaxBatch].
+    auto packets =
+        UNSAFE_BUFFERS(base::span(results.packets, static_cast<size_t>(rv)));
+    for (int i = 0; i < rv; ++i) {
+      ASSERT_GT(packets[i].result, 0);
+      received.emplace_back(packets[i].buffer,
+                            static_cast<size_t>(packets[i].result));
+    }
+    ++read_calls;
+  }
+
+  EXPECT_GE(read_calls, 2);
+  ASSERT_EQ(static_cast<int>(received.size()), kNumPackets);
+  for (int i = 0; i < kNumPackets; ++i) {
+    EXPECT_EQ(received[i], "pkt-" + base::NumberToString(i));
+  }
+}
+
+// Verifies the idle QUIC connection memory-conservation journey (for example
+// when multiple origin sockets sit idle while browsing YouTube TV): waiting
+// for incoming datagrams (ERR_IO_PENDING) releases the scratch buffer back to
+// the shared bounded pool so idle sockets hold zero bytes, and subsequent reads
+// reuse the pooled allocation without getting poisoned by mismatched sizes.
+TEST_F(UDPSocketTest, ReadMultiplePacketsReleasesBufferWhenIdleAndReusesPool) {
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  constexpr int kPacketBufSize = 1473;
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 0u);
+
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  auto server =
+      std::make_unique<UDPServerSocket>(NetLog::Get(), NetLogSource());
+  ASSERT_THAT(server->Listen(server_address), IsOk());
+  ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
+
+  auto client1 = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  auto client2 = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(client1->Connect(server_address), IsOk());
+  ASSERT_THAT(client2->Connect(server_address), IsOk());
+
+  IPEndPoint client1_address;
+  IPEndPoint client2_address;
+  ASSERT_THAT(client1->GetLocalAddress(&client1_address), IsOk());
+  ASSERT_THAT(client2->GetLocalAddress(&client2_address), IsOk());
+
+  // Both idle sockets return ERR_IO_PENDING with no pinned buffer, sharing the
+  // single pooled buffer across both attempts.
+  Socket::ReadPacketResults results1;
+  TestCompletionCallback cb1;
+  ASSERT_EQ(
+      client1->ReadMultiplePackets(&results1, kPacketBufSize, cb1.callback()),
+      ERR_IO_PENDING);
+  EXPECT_EQ(results1.buffer, nullptr);
+  EXPECT_EQ(results1.packets, nullptr);
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  Socket::ReadPacketResults results2;
+  TestCompletionCallback cb2;
+  ASSERT_EQ(
+      client2->ReadMultiplePackets(&results2, kPacketBufSize, cb2.callback()),
+      ERR_IO_PENDING);
+  EXPECT_EQ(results2.buffer, nullptr);
+  EXPECT_EQ(results2.packets, nullptr);
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  // Receiving on client1 checks out the pooled buffer; releasing it returns
+  // the exact same allocation for client2's subsequent receive.
+  ASSERT_EQ(5, SendToSocket(server.get(), "first", client1_address));
+  ASSERT_EQ(cb1.WaitForResult(), 1);
+  ASSERT_NE(results1.buffer, nullptr);
+  const IOBufferWithSize* first_buffer = results1.buffer.get();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 0u);
+  EXPECT_EQ(std::string(UNSAFE_TODO(results1.packets[0]).buffer,
+                        static_cast<size_t>(
+                            UNSAFE_TODO(results1.packets[0]).result)),
+            "first");
+  results1.ReleaseBuffer();
+  EXPECT_EQ(results1.buffer, nullptr);
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  ASSERT_EQ(6, SendToSocket(server.get(), "second", client2_address));
+  ASSERT_EQ(cb2.WaitForResult(), 1);
+  ASSERT_NE(results2.buffer, nullptr);
+  EXPECT_EQ(results2.buffer.get(), first_buffer);
+  EXPECT_EQ(std::string(UNSAFE_TODO(results2.packets[0]).buffer,
+                        static_cast<size_t>(
+                            UNSAFE_TODO(results2.packets[0]).result)),
+            "second");
+  results2.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  // Verify the shared pool remains bounded at 2 cached buffers even if 3
+  // concurrent readers acquire and release buffers simultaneously, and evicts
+  // a stale entry if a different buffer size is released while full.
+  Socket::ReadPacketResults r1;
+  Socket::ReadPacketResults r2;
+  Socket::ReadPacketResults r3;
+  r1.AcquireBuffer(16, kPacketBufSize);
+  r2.AcquireBuffer(16, kPacketBufSize);
+  r3.AcquireBuffer(16, kPacketBufSize);
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 0u);
+  r1.ReleaseBuffer();
+  r2.ReleaseBuffer();
+  r3.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 2u);
+
+  Socket::ReadPacketResults alt_size;
+  alt_size.AcquireBuffer(16, kPacketBufSize + 64);
+  const IOBufferWithSize* alt_buf = alt_size.buffer.get();
+  alt_size.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 2u);
+
+  Socket::ReadPacketResults alt_reuse;
+  alt_reuse.AcquireBuffer(16, kPacketBufSize + 64);
+  EXPECT_EQ(alt_reuse.buffer.get(), alt_buf);
+}
+
+// Verifies closing a QUIC UDP socket while waiting on an asynchronous
+// multi-packet read (for example during connection teardown or network switch)
+// clears pending socket state, releases the results pointer so reopening the
+// socket for a single-packet Read() works cleanly, and never fires a stale
+// completion callback.
+TEST_F(UDPSocketTest, ReadMultiplePacketsCloseWhilePendingReleasesState) {
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  constexpr int kPacketBufSize = 1473;
+
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  auto server =
+      std::make_unique<UDPServerSocket>(NetLog::Get(), NetLogSource());
+  ASSERT_THAT(server->Listen(server_address), IsOk());
+  ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
+
+  UDPSocket client(DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(client.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(client.Connect(server_address), IsOk());
+
+  IPEndPoint client_address;
+  ASSERT_THAT(client.GetLocalAddress(&client_address), IsOk());
+
+  TestCompletionCallback pending_cb;
+  {
+    Socket::ReadPacketResults results;
+    ASSERT_EQ(client.ReadMultiplePackets(&results, kPacketBufSize,
+                                         pending_cb.callback()),
+              ERR_IO_PENDING);
+    EXPECT_EQ(results.buffer, nullptr);
+
+    client.Close();
+    SendToSocket(server.get(), "late-packet", client_address);
+    base::RunLoop().RunUntilIdle();
+
+    EXPECT_FALSE(pending_cb.have_result());
+    EXPECT_EQ(results.buffer, nullptr);
+  }  // Destroys |results| before reopening |client|.
+
+  // Reopen the socket and complete an async single-packet RecvFrom(): if
+  // Close() failed to clear |results_|, ReadWatcher would dispatch
+  // DidCompleteMultiplePacketRead() into the destroyed |results|.
+  ASSERT_THAT(client.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(client.Bind(IPEndPoint(IPAddress::IPv4Localhost(), 0)), IsOk());
+  IPEndPoint reopened_address;
+  ASSERT_THAT(client.GetLocalAddress(&reopened_address), IsOk());
+
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kPacketBufSize);
+  IPEndPoint from_address;
+  TestCompletionCallback read_cb;
+  ASSERT_EQ(client.RecvFrom(read_buf.get(), read_buf->size(), &from_address,
+                            read_cb.callback()),
+            ERR_IO_PENDING);
+  ASSERT_EQ(5, SendToSocket(server.get(), "after", reopened_address));
+  ASSERT_EQ(read_cb.WaitForResult(), 5);
+  EXPECT_EQ(std::string(read_buf->data(), 5), "after");
+}
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 }  // namespace net

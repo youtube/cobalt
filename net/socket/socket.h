@@ -11,11 +11,14 @@
 #include <string>
 
 #include "net/base/completion_once_callback.h"
-#if BUILDFLAG(IS_COBALT)
-#include "net/base/io_buffer.h"
-#endif
 #include "net/base/net_export.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include <stddef.h>
+
+#include "net/base/io_buffer.h"
+#endif
 
 namespace net {
 
@@ -42,29 +45,30 @@ class NET_EXPORT Socket {
                    int buf_len,
                    CompletionOnceCallback callback) = 0;
 
-// The structs' raw pointers (char* buffer and ReadPacketResult* packets) are both 
-// safely deallocated when the QuicChromiumPacketReader itself is destroyed. It 
-// calls ReadPacketResults' destructor, which safely deallocates ReadPacketResult* 
-// buffer and also frees the scoped_refptr<IOBufferWithSize> buffer. As used in 
-// udp_socket_posix.cc, this buffer holds all of the allocated memory which is then 
-// divided into smaller chunks with multiple ReadPacketResult char* buffer pointers 
-// point to. Thus, when the scoped_refptr<IOBufferWithSize> buffer is freed, it also 
-// frees the char* pointers. 
 #if BUILDFLAG(IS_COBALT)
+  // The structs' raw pointers (char* buffer and ReadPacketResult* packets)
+  // alias memory owned by ReadPacketResults::buffer. Calling ReleaseBuffer()
+  // (or destroying ReadPacketResults) recycles the backing IOBufferWithSize
+  // into a small bounded pool and clears the raw pointers.
   struct ReadPacketResult {
     RAW_PTR_EXCLUSION char* buffer;
     int result;
   };
   struct ReadPacketResults {
     ReadPacketResults();
+    ReadPacketResults(ReadPacketResults&& other) noexcept;
+    ReadPacketResults& operator=(ReadPacketResults&& other) noexcept;
+    ReadPacketResults(const ReadPacketResults&) = delete;
+    ReadPacketResults& operator=(const ReadPacketResults&) = delete;
     ~ReadPacketResults();
 
-    void clear() {
-      buffer = nullptr;
-      result = 0;
-      packet_buffer_size = 0;
-      packets = nullptr;
-    }
+    void AcquireBuffer(int max_packets, int packet_buffer_size);
+    void ReleaseBuffer();
+    void clear() { ReleaseBuffer(); }
+
+    static void ClearBufferPoolForTesting();
+    static size_t GetBufferPoolSizeForTesting();
+
     scoped_refptr<IOBufferWithSize> buffer;
     int result = 0;
     int packet_buffer_size = 0;
