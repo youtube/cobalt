@@ -8,6 +8,7 @@
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 
 namespace blink {
@@ -73,6 +74,10 @@ GetLoadingPhaseBufferTimeAfterFirstMeaningfulPaint();
 
 // Kill switch for throttling timed-out requestIdleCallback tasks.
 PLATFORM_EXPORT BASE_DECLARE_FEATURE(kThrottleTimedOutIdleTasks);
+
+#if BUILDFLAG(IS_COBALT)
+PLATFORM_EXPORT BASE_DECLARE_FEATURE(kCobaltCompositorQueuePriority);
+#endif  // BUILDFLAG(IS_COBALT)
 
 // crbug.com/40785325 and crbug.com/378738907: If enabled, the signals used for
 // idle periods are requested via WidgetScheduler::Delegate instead of via

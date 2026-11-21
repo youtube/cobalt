@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/platform/scheduler/common/features.h"
 
 #include "base/command_line.h"
+#include "build/build_config.h"
 #include "components/miracle_parameter/common/public/miracle_parameter.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/switches.h"
@@ -101,6 +102,16 @@ base::TimeDelta GetLoadingPhaseBufferTimeAfterFirstMeaningfulPaint() {
 BASE_FEATURE(kThrottleTimedOutIdleTasks,
              "ThrottleTimedOutIdleTasks",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltCompositorQueuePriority,
+             "CobaltCompositorQueuePriority",
+#if !BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace scheduler
 }  // namespace blink

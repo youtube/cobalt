@@ -377,7 +377,12 @@ class MainThreadSchedulerImplTest : public testing::Test {
     feature_list_.InitWithFeaturesAndParameters(features_to_enable, {});
   }
 
+#if BUILDFLAG(IS_COBALT)
+  MainThreadSchedulerImplTest()
+      : MainThreadSchedulerImplTest({}, {kCobaltCompositorQueuePriority}) {}
+#else
   MainThreadSchedulerImplTest() : MainThreadSchedulerImplTest({}, {}) {}
+#endif  // BUILDFLAG(IS_COBALT)
 
   MainThreadSchedulerImplTest(const MainThreadSchedulerImplTest&) = delete;
   MainThreadSchedulerImplTest& operator=(const MainThreadSchedulerImplTest&) =
@@ -4155,6 +4160,52 @@ INSTANTIATE_TEST_SUITE_P(
           return "AllTypes";
       }
     });
+
+#if BUILDFLAG(IS_COBALT)
+class CobaltCompositorQueuePriorityTest : public MainThreadSchedulerImplTest {
+ public:
+  CobaltCompositorQueuePriorityTest()
+      : MainThreadSchedulerImplTest({kCobaltCompositorQueuePriority}, {}) {}
+};
+
+TEST_F(CobaltCompositorQueuePriorityTest,
+       ElevatesIdleCompositorPriorityAndRecoversAfterLoading) {
+  // 1. Interactive browsing (UseCase::kNone / RAILMode::kDefault):
+  // Input (P1, P2) runs at kHighestPriority; compositor (C1, C2) runs at
+  // kVeryHighPriority ahead of default/loading (L1, D1, D2).
+  Vector<String> run_order;
+  PostTestTasks(&run_order, "L1 D1 P1 C1 D2 P2 C2");
+  base::RunLoop().RunUntilIdle();
+  EXPECT_THAT(run_order,
+              testing::ElementsAre("P1", "P2", "C1", "C2", "L1", "D1", "D2"));
+
+  // 2. Page loading (RAILMode::kLoad): compositor drops back to kNormalPriority.
+  run_order.clear();
+  ON_CALL(*page_scheduler_, IsWaitingForMainFrameMeaningfulPaint)
+      .WillByDefault(Return(true));
+  ON_CALL(*page_scheduler_, IsMainFrameLoading).WillByDefault(Return(true));
+  scheduler_->DidStartProvisionalLoad(true);
+  EXPECT_EQ(RAILMode::kLoad, GetRAILMode());
+  PostTestTasks(&run_order, "D1 C1 D2");
+  base::RunLoop().RunUntilIdle();
+  EXPECT_THAT(run_order, testing::ElementsAre("D1", "C1", "D2"));
+
+  // 3. Recovery (kLoad -> UseCase::kNone / RAILMode::kDefault): compositor
+  // returns to kVeryHighPriority ahead of default tasks.
+  run_order.clear();
+  ON_CALL(*page_scheduler_, IsWaitingForMainFrameContentfulPaint)
+      .WillByDefault(Return(false));
+  ON_CALL(*page_scheduler_, IsWaitingForMainFrameMeaningfulPaint)
+      .WillByDefault(Return(false));
+  ON_CALL(*page_scheduler_, IsMainFrameLoading).WillByDefault(Return(false));
+  scheduler_->OnMainFramePaint();
+  EXPECT_EQ(UseCase::kNone, ForceUpdatePolicyAndGetCurrentUseCase());
+  EXPECT_EQ(RAILMode::kDefault, GetRAILMode());
+  PostTestTasks(&run_order, "D1 C1 D2 C2");
+  base::RunLoop().RunUntilIdle();
+  EXPECT_THAT(run_order, testing::ElementsAre("C1", "C2", "D1", "D2"));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace main_thread_scheduler_impl_unittest
 }  // namespace scheduler
