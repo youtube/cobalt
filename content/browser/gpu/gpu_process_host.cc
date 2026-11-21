@@ -118,6 +118,12 @@
 #include "ui/ozone/public/ozone_switches.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD) &&          \
+    defined(ARCH_CPU_32_BITS) && !defined(ADDRESS_SANITIZER) && \
+    !defined(THREAD_SANITIZER)
+#include "base/features.h"
+#endif
+
 #if BUILDFLAG(USE_ZYGOTE)
 #include "content/common/zygote/zygote_handle_impl_linux.h"
 #endif
@@ -890,6 +896,14 @@ bool GpuProcessHost::Init() {
     // virtual memory. We explicitly set the GPU main thread stack to 1MB for
     // safety, as GPU workloads can vary and exceed 256KB.
     options.stack_size = 1024 * 1024;
+#elif BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD) &&        \
+    defined(ARCH_CPU_32_BITS) && !defined(ADDRESS_SANITIZER) && \
+    !defined(THREAD_SANITIZER)
+    // Same 1MB carve-out when the 32-bit Starboard stack reduction is enabled.
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltReduceStarboardThreadStackSize)) {
+      options.stack_size = 1024 * 1024;
+    }
 #endif
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
     // WGL needs to create its own window and pump messages on it.

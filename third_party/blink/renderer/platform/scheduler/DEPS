@@ -9,6 +9,7 @@ include_rules = [
   "+base/atomic_sequence_num.h",
   "+base/cancelable_callback.h",
   "+base/containers/circular_deque.h",
+  "+base/features.h",
   "+base/message_loop/message_pump.h",
   "+base/metrics/field_trial.h",
   "+base/pending_task.h",

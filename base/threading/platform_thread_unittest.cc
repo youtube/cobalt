@@ -44,6 +44,11 @@
 #include <unistd.h>
 #endif
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD) && \
+    !defined(THREAD_SANITIZER) && !defined(ADDRESS_SANITIZER)
+#include "base/features.h"
+#endif
+
 namespace base {
 
 // Trivial tests that thread runs and doesn't crash on create, join, or detach -
@@ -459,6 +464,49 @@ TEST(PlatformThreadTest, GetDefaultThreadStackSize) {
   EXPECT_LT(stack_size, 20u * (1 << 20));
 #endif
 }
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD) && \
+    !defined(THREAD_SANITIZER) && !defined(ADDRESS_SANITIZER)
+TEST(PlatformThreadTest, CobaltReduceStarboardThreadStackSize) {
+#if defined(__GLIBC__)
+  constexpr size_t kPlatformDefaultStackSize = 0u;
+#else
+  constexpr size_t kPlatformDefaultStackSize = 2u * (1 << 20);
+#endif
+
+  // Disabled by default.
+  EXPECT_EQ(kPlatformDefaultStackSize,
+            PlatformThread::GetDefaultThreadStackSize());
+
+  {
+    test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(
+        features::kCobaltReduceStarboardThreadStackSize);
+#if defined(ARCH_CPU_32_BITS)
+    EXPECT_EQ(256u * 1024u, PlatformThread::GetDefaultThreadStackSize());
+#else
+    EXPECT_EQ(kPlatformDefaultStackSize,
+              PlatformThread::GetDefaultThreadStackSize());
+#endif
+  }
+
+  {
+    test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(
+        features::kCobaltReduceStarboardThreadStackSize);
+    EXPECT_EQ(kPlatformDefaultStackSize,
+              PlatformThread::GetDefaultThreadStackSize());
+  }
+
+  {
+    test::ScopedFeatureList feature_list;
+    feature_list.InitWithNullFeatureAndFieldTrialLists();
+    EXPECT_EQ(kPlatformDefaultStackSize,
+              PlatformThread::GetDefaultThreadStackSize());
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD) &&
+        // !defined(THREAD_SANITIZER) && !defined(ADDRESS_SANITIZER)
 
 #if BUILDFLAG(IS_APPLE)
 
