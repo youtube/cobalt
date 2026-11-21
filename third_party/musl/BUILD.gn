@@ -809,6 +809,7 @@ static_library("c_internal") {
     "src/regex/fnmatch.c",
     "src/sched/sched_cpucount.c",
     "src/signal/sigaddset.c",
+    "src/signal/sigaltstack.c",
     "src/signal/sigdelset.c",
     "src/signal/sigemptyset.c",
     "src/signal/sigfillset.c",
