@@ -3514,6 +3514,17 @@
         "op": ">",
         "value": "32.0.101.6078"
       }
+    },
+    {
+      "id": 448,
+      "description": "Partial swaps (EGL_NV_post_sub_buffer) leave stale or black regions on unpreserved Android BLASTBufferQueue window surfaces on NVIDIA SHIELD [b/576231761, b/501481985]",
+      "os": {
+        "type": "android"
+      },
+      "gl_vendor": "NVIDIA.*",
+      "features": [
+        "disable_post_sub_buffers_for_onscreen_surfaces"
+      ]
     }
   ]
 }

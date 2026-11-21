@@ -662,6 +662,12 @@ struct FeaturesGL : FeatureSetBase
         &members,
     };
 
+    FeatureInfo resetDefaultFramebufferDrawBuffersAfterSurfaceless = {
+        "resetDefaultFramebufferDrawBuffersAfterSurfaceless",
+        FeatureCategory::OpenGLWorkarounds,
+        &members,
+    };
+
 };
 
 inline FeaturesGL::FeaturesGL()  = default;
