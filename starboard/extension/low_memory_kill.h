@@ -18,12 +18,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "starboard/extension/macro.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define kStarboardExtensionLowMemoryKillName \
-  "dev.starboard.extension.LowMemoryKill"
 
 // Maximum size in bytes of `SbLowMemoryKillDetails::reason`, including the
 // trailing null terminator.
@@ -68,30 +67,23 @@ typedef struct SbLowMemoryKillDetails {
   char reason[kSbLowMemoryKillReasonMaxSize];
 } SbLowMemoryKillDetails;
 
-typedef struct StarboardExtensionLowMemoryKillApi {
-  // Name should be the string |kStarboardExtensionLowMemoryKillName|.
-  // This helps to validate that the extension API is correct.
-  const char* name;
+SB_EXTENSION(
+    LowMemoryKill,
+    // The fields below this point were added in version 1 or later.
 
-  // This specifies the version of the API that is implemented.
-  uint32_t version;
+    // Returns true if the previous Cobalt session was killed by the system due
+    // to memory pressure. Must return the same value across calls for the
+    // lifetime of the process.
+    bool (*WasLowMemoryKilled)();
 
-  // The fields below this point were added in version 1 or later.
+    // The fields below this point were added in version 2 or later.
 
-  // Returns true if the previous Cobalt session was killed by the system due to
-  // memory pressure. Must return the same value across calls for the lifetime
-  // of the process.
-  bool (*WasLowMemoryKilled)();
-
-  // The fields below this point were added in version 2 or later.
-
-  // If `WasLowMemoryKilled()` would return true and `out_details` is non-null,
-  // populates `out_details` with information about why the previous session was
-  // killed and returns true. Otherwise leaves `*out_details` unmodified and
-  // returns false. Must return the same result across calls for the lifetime of
-  // the process.
-  bool (*GetLowMemoryKillDetails)(SbLowMemoryKillDetails* out_details);
-} StarboardExtensionLowMemoryKillApi;
+    // If `WasLowMemoryKilled()` would return true and `out_details` is
+    // non-null, populates `out_details` with information about why the previous
+    // session was killed and returns true. Otherwise leaves `*out_details`
+    // unmodified and returns false. Must return the same result across calls
+    // for the lifetime of the process.
+    bool (*GetLowMemoryKillDetails)(SbLowMemoryKillDetails* out_details););
 
 #ifdef __cplusplus
 }  // extern "C"
