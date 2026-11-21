@@ -62,7 +62,6 @@ class TestRunTestsTemplate(unittest.TestCase):
         'test_target': {
             'deps': 'dummy.runtime_deps',
             'runner': 'dummy_runner.py',
-            'build_dir': '.'
         }
     }
     self.prepare_script(target_map)
