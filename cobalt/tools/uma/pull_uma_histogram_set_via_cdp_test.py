@@ -15,11 +15,20 @@
 # limitations under the License.
 """Tests for pull_uma_histogram_set_via_cdp.py."""
 
+import json
 import os
+import shlex
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 import requests as real_requests
-import pull_uma_histogram_set_via_cdp
+
+try:
+  import websocket  # pylint: disable=unused-import
+except ImportError:
+  # Every test patches the module; this only lets plain python3 import it.
+  sys.modules['websocket'] = MagicMock()
+import pull_uma_histogram_set_via_cdp  # pylint: disable=wrong-import-position
 
 
 class BaseHistogramTest(unittest.TestCase):
@@ -54,66 +63,72 @@ class AndroidHistogramTest(BaseHistogramTest):
         pull_uma_histogram_set_via_cdp.is_package_running_android(
             'test.package'))
 
-  @patch('pull_uma_histogram_set_via_cdp.device_utils')
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   @patch('pull_uma_histogram_set_via_cdp.requests')
-  def test_get_websocket_url_android(self, mock_requests, mock_device_utils):
+  def test_get_websocket_url_android(self, mock_requests, mock_run_adb_command):
+    mock_run_adb_command.return_value = ('', '')
     mock_requests.exceptions.ConnectionError = (
         real_requests.exceptions.ConnectionError)
-    mock_device = MagicMock()
-    mock_device_utils.DeviceUtils.HealthyDevices.return_value = [mock_device]
-    mock_response = self._create_mock_response([{
-        'type': 'page',
-        'title': 'Mock Title',
-        'webSocketDebuggerUrl': 'ws://test_url'
-    }])
+    mock_response = self._create_mock_response(
+        {'webSocketDebuggerUrl': 'ws://test_url'})
     mock_requests.get.return_value = mock_response
     self.assertEqual(
         pull_uma_histogram_set_via_cdp.get_websocket_url(
             platform='android', port=9222, quiet=True), 'ws://test_url')
+    self.assertTrue(
+        mock_requests.get.call_args[0][0].endswith(':9222/json/version'))
+    mock_run_adb_command.assert_called_with([
+        'adb', 'forward', 'tcp:9222',
+        'localabstract:content_shell_devtools_remote'
+    ])
 
-  @patch('pull_uma_histogram_set_via_cdp.device_utils')
-  def test_get_websocket_url_android_no_devices(self, mock_device_utils):
-    mock_device_utils.DeviceUtils.HealthyDevices.return_value = []
+  @patch('pull_uma_histogram_set_via_cdp.time')
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
+  @patch('pull_uma_histogram_set_via_cdp.requests')
+  def test_get_websocket_url_android_no_target(self, mock_requests,
+                                               mock_run_adb_command, mock_time):  # pylint: disable=unused-argument
+    mock_run_adb_command.return_value = ('', '')
+    mock_requests.exceptions.ConnectionError = (
+        real_requests.exceptions.ConnectionError)
+    # /json/version has no WebSocket URL on every attempt.
+    mock_requests.get.return_value = self._create_mock_response({})
     self.assertIsNone(
         pull_uma_histogram_set_via_cdp.get_websocket_url(
             platform='android', port=9222, quiet=True))
 
-  @patch('pull_uma_histogram_set_via_cdp.device_utils')
+  @patch('pull_uma_histogram_set_via_cdp.time')
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   @patch('pull_uma_histogram_set_via_cdp.requests')
   def test_get_websocket_url_android_connection_error(self, mock_requests,
-                                                      mock_device_utils):
+                                                      mock_run_adb_command,
+                                                      mock_time):
+    mock_run_adb_command.return_value = ('', '')
     mock_requests.exceptions.ConnectionError = (
         real_requests.exceptions.ConnectionError)
-    mock_device = MagicMock()
-    mock_device_utils.DeviceUtils.HealthyDevices.return_value = [mock_device]
     mock_requests.get.side_effect = real_requests.exceptions.ConnectionError
     self.assertIsNone(
         pull_uma_histogram_set_via_cdp.get_websocket_url(
             platform='android', port=9222, quiet=True))
+    # Sleeps between attempts.
+    self.assertEqual(mock_time.sleep.call_count,
+                     pull_uma_histogram_set_via_cdp.MAX_WEBSOCKET_RETRIES - 1)
 
-  @patch('pull_uma_histogram_set_via_cdp.device_utils')
   @patch('pull_uma_histogram_set_via_cdp.requests')
-  def test_get_websocket_url_android_new_tab(self, mock_requests,
-                                             mock_device_utils):
-    mock_requests.exceptions.ConnectionError = (
-        real_requests.exceptions.ConnectionError)
-    mock_device = MagicMock()
-    mock_device_utils.DeviceUtils.HealthyDevices.return_value = [mock_device]
-
-    # No existing page, then a new tab is created
-    mock_get_responses = [
-        self._create_mock_response([]),
-        self._create_mock_response({
-            'webSocketDebuggerUrl': 'ws://new_tab_url',
-            'title': 'New Tab'
-        })
-    ]
-    mock_requests.get.side_effect = mock_get_responses
-
+  def test_get_page_target(self, mock_requests):
+    page = {
+        'type': 'page',
+        'url': 'https://x/tv',
+        'webSocketDebuggerUrl': 'ws://p'
+    }
+    mock_requests.get.return_value = self._create_mock_response(
+        ['not a target', {
+            'type': 'worker'
+        }, page])
     self.assertEqual(
-        pull_uma_histogram_set_via_cdp.get_websocket_url(
-            platform='android', port=9222, quiet=True), 'ws://new_tab_url')
-    self.assertEqual(mock_requests.get.call_count, 2)
+        pull_uma_histogram_set_via_cdp.get_page_target(9222),
+        ('ws://p', 'https://x/tv'))
+    # No new tab is created when looking up the page.
+    self.assertEqual(mock_requests.get.call_count, 1)
 
   @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   def test_stop_package(self, mock_run_adb_command):
@@ -127,6 +142,64 @@ class AndroidHistogramTest(BaseHistogramTest):
     self.assertTrue(
         pull_uma_histogram_set_via_cdp.launch_cobalt(
             'test.package', 'test.activity', 'http://test.url', quiet=True))
+    command = mock_run_adb_command.call_args[0][0]
+    self.assertEqual(command[:2], ['adb', 'shell'])
+    self.assertIn('-n test.package/test.activity', command[2])
+
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
+  def test_launch_cobalt_view_intent_without_activity(self,
+                                                      mock_run_adb_command):
+    mock_run_adb_command.return_value = ('Starting: Intent { act=VIEW }', '')
+    url = "http://test.url/?a=1&b='$x'"
+    self.assertTrue(
+        pull_uma_histogram_set_via_cdp.launch_cobalt(
+            'test.package', '', url, quiet=True))
+    command = mock_run_adb_command.call_args[0][0]
+    self.assertEqual(command[:2], ['adb', 'shell'])
+    # The device shell must see the URL as a single, unexpanded argument.
+    device_args = shlex.split(command[2])
+    self.assertIn('android.intent.action.VIEW', device_args)
+    self.assertEqual(device_args[device_args.index('-d') + 1], url)
+    self.assertIn('-p', device_args)
+    self.assertNotIn('-n', device_args)
+
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
+  def test_launch_cobalt_reports_am_error_on_stdout(self, mock_run_adb_command):
+    mock_run_adb_command.return_value = (
+        'Starting: Intent { cmp=test.package/test.activity }\n'
+        'Error type 3\nError: Activity class {test.package/test.activity} '
+        'does not exist.', '')
+    self.assertFalse(
+        pull_uma_histogram_set_via_cdp.launch_cobalt(
+            'test.package', 'test.activity', 'http://test.url', quiet=True))
+
+  @patch('sys.argv', [
+      '', '--platform', 'android', '--package-name', 'test.package',
+      '--duration-s', '0.01', '--quiet'
+  ])
+  @patch('pull_uma_histogram_set_via_cdp.stop_package')
+  @patch('pull_uma_histogram_set_via_cdp.launch_cobalt')
+  @patch('pull_uma_histogram_set_via_cdp.is_package_running_android')
+  @patch(
+      'pull_uma_histogram_set_via_cdp.get_websocket_url',
+      new=MagicMock(return_value='ws://test_url'))
+  @patch('pull_uma_histogram_set_via_cdp.loop')
+  def test_main_android_view_intent_and_duration(self, mock_loop,
+                                                 mock_is_running, mock_launch,
+                                                 mock_stop):
+    mock_is_running.side_effect = [False, True]
+    stop_seen = []
+
+    def fake_loop(stop_event, *unused_args):  # pylint: disable=unused-argument
+      stop_seen.append(stop_event.wait(5))
+
+    mock_loop.side_effect = fake_loop
+    pull_uma_histogram_set_via_cdp.main()
+    # A non-default package without --activity-name uses the VIEW intent.
+    self.assertEqual(mock_launch.call_args.kwargs['activity_name'], '')
+    # --duration-s stops the polling thread instead of running forever.
+    self.assertEqual(stop_seen, [True])
+    mock_stop.assert_called_once()
 
 
 class LinuxHistogramTest(BaseHistogramTest):
@@ -142,31 +215,18 @@ class LinuxHistogramTest(BaseHistogramTest):
     mock_check_output.side_effect = FileNotFoundError
     self.assertFalse(pull_uma_histogram_set_via_cdp.is_cobalt_running_linux())
 
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   @patch('pull_uma_histogram_set_via_cdp.requests')
-  def test_get_websocket_url_linux(self, mock_requests):
+  def test_get_websocket_url_linux(self, mock_requests, mock_run_adb_command):
     mock_requests.exceptions.ConnectionError = (
         real_requests.exceptions.ConnectionError)
-    mock_response = self._create_mock_response([{
-        'type': 'browser',
-        'webSocketDebuggerUrl': 'ws://test_url_linux'
-    }])
+    mock_response = self._create_mock_response(
+        {'webSocketDebuggerUrl': 'ws://test_url_linux'})
     mock_requests.get.return_value = mock_response
     self.assertEqual(
         pull_uma_histogram_set_via_cdp.get_websocket_url(
             platform='linux', port=9222, quiet=True), 'ws://test_url_linux')
-
-  @patch('pull_uma_histogram_set_via_cdp.requests')
-  def test_get_websocket_url_linux_fallback(self, mock_requests):
-    mock_requests.exceptions.ConnectionError = (
-        real_requests.exceptions.ConnectionError)
-    mock_response = self._create_mock_response([{
-        'type': 'page',
-        'webSocketDebuggerUrl': 'ws://test_url_page'
-    }])
-    mock_requests.get.return_value = mock_response
-    self.assertEqual(
-        pull_uma_histogram_set_via_cdp.get_websocket_url(
-            platform='linux', port=9222, quiet=True), 'ws://test_url_page')
+    mock_run_adb_command.assert_not_called()
 
   @patch('pull_uma_histogram_set_via_cdp.requests')
   def test_get_websocket_url_linux_no_target(self, mock_requests):
@@ -176,7 +236,7 @@ class LinuxHistogramTest(BaseHistogramTest):
     mock_requests.get.return_value = mock_response
     self.assertIsNone(
         pull_uma_histogram_set_via_cdp.get_websocket_url(
-            platform='linux', port=9222, quiet=True))
+            platform='linux', port=9222, quiet=True, retries=1))
 
 
 class SharedHistogramTest(BaseHistogramTest):
@@ -212,33 +272,63 @@ class SharedHistogramTest(BaseHistogramTest):
 class CoreLogicTest(BaseHistogramTest):
   """Tests for the core CDP interaction and polling loop."""
 
-  @patch('pull_uma_histogram_set_via_cdp.json.loads')
-  @patch('pull_uma_histogram_set_via_cdp.time')
-  def test_interact_via_cdp(self, mock_time, mock_json_loads):  # pylint: disable=unused-argument
-    mock_ws_connection = MagicMock()
-    self.mock_websocket.create_connection.return_value = mock_ws_connection
-    mock_json_loads.side_effect = [{'id': 1}, {'id': 2}, {'id': 3}]
+  def test_fetch_histograms(self):
+    ws = self.mock_websocket.create_connection.return_value
+    # A non-object message and an event are skipped.
+    ws.recv.side_effect = [
+        '[]', '{"method": "E"}', '{"id": 1, "result": {"histograms": [{}]}}'
+    ]
+    self.assertEqual(
+        pull_uma_histogram_set_via_cdp.fetch_histograms('ws://browser'), [{}])
+    self.mock_websocket.create_connection.assert_called_once_with(
+        'ws://browser', timeout=pull_uma_histogram_set_via_cdp.CDP_TIMEOUT_S)
+    # One call without a query returns every histogram.
+    command = json.loads(ws.send.call_args[0][0])
+    self.assertEqual((command['method'], command['params']),
+                     ('Browser.getHistograms', {}))
+    ws.close.assert_called_once()
 
-    pull_uma_histogram_set_via_cdp._interact_via_cdp(  # pylint: disable=protected-access
-        'ws://test_url', ['hist1'], None, 'http://test.url', True)
+  def test_filter_histograms(self):
+    histograms = [{'name': n} for n in ('A', 'A.B', 'A.BC', 'AB', 'C')]
+    result = pull_uma_histogram_set_via_cdp.filter_histograms(
+        histograms, ['A', 'A.B*', 'A*', 'Z'])
+    # Exact names, prefixes for '*', and each histogram only once.
+    self.assertEqual([(q, [h['name'] for h in m]) for q, m in result],
+                     [('A', ['A']), ('A.B*', ['A.B', 'A.BC']), ('A*', ['AB']),
+                      ('Z', [])])
 
-    self.assertEqual(mock_ws_connection.send.call_count, 3)
-    self.assertEqual(mock_ws_connection.recv.call_count, 3)
-    mock_ws_connection.close.assert_called_once()
-
+  @patch('pull_uma_histogram_set_via_cdp.fetch_histograms')
+  @patch('pull_uma_histogram_set_via_cdp.get_websocket_url', new=MagicMock())
   @patch('pull_uma_histogram_set_via_cdp.is_package_running_android')
-  @patch('pull_uma_histogram_set_via_cdp.time')
-  @patch('pull_uma_histogram_set_via_cdp._interact_via_cdp')
-  def test_loop_android(self, mock_interact, mock_time, mock_is_running):  # pylint: disable=unused-argument
+  def test_poll_once(self, mock_is_running, mock_fetch):
+    mock_is_running.return_value = True
+    mock_fetch.return_value = [{'name': 'A'}, {'name': 'B'}]
+    args = MagicMock(platform='android')
+    ok, text = pull_uma_histogram_set_via_cdp.poll_once(args, ['A', 'Z'], 3)
+    self.assertTrue(ok)
+    lines = text.splitlines()
+    self.assertRegex(lines[0], r'^# poll 3 \S+ \S+ OK: 2 histograms')
+    self.assertEqual([line.split(',', 2)[1:] for line in lines[1:]],
+                     [['A', '{"result": {"histograms": [{"name": "A"}]}}'],
+                      ['Z', '{"result": {"histograms": []}}']])
+
+  @patch('pull_uma_histogram_set_via_cdp.get_websocket_url', new=MagicMock())
+  @patch('pull_uma_histogram_set_via_cdp.is_package_running_android')
+  def test_loop_writes_failed_poll(self, mock_is_running):
+    mock_is_running.return_value = True
+    self.mock_websocket.create_connection.side_effect = TimeoutError(
+        'timed out')
     stop_event = MagicMock()
     stop_event.is_set.side_effect = [False, True]  # Run loop once
-    args = MagicMock(platform='android', package_name='test.package')
-
-    pull_uma_histogram_set_via_cdp.loop('ws://test_url', stop_event, [], args,
-                                        None)
-
-    mock_is_running.assert_called_with('test.package')
-    mock_interact.assert_called_once()
+    output_file = MagicMock()
+    results = []
+    pull_uma_histogram_set_via_cdp.loop(
+        stop_event, ['A'], MagicMock(platform='android', poll_interval_s=30),
+        output_file, results)
+    self.assertEqual(results, [False])
+    output_file.write.assert_called_once()
+    self.assertRegex(output_file.write.call_args[0][0],
+                     r'^# poll 1 \S+ \S+ FAILED: timed out\n$')
 
 
 if __name__ == '__main__':

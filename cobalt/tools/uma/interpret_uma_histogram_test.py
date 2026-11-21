@@ -15,6 +15,7 @@
 # limitations under the License.
 """Tests for interpret_uma_histogram.py."""
 
+import io
 import unittest
 from unittest.mock import patch, mock_open
 import interpret_uma_histogram
@@ -52,11 +53,32 @@ class InterpretUmaHistogramTest(unittest.TestCase):
         ]
     }
     percentiles = interpret_uma_histogram.calculate_percentiles(histogram)
+    # Linear interpolation inside the [low, high) bucket of each percentile.
     self.assertEqual(percentiles[25], 10)
     self.assertEqual(percentiles[50], 20)
     self.assertEqual(percentiles[75], 30)
-    self.assertEqual(percentiles[95], 40)
-    self.assertEqual(percentiles[99], 40)
+    self.assertAlmostEqual(percentiles[95], 38)
+    self.assertAlmostEqual(percentiles[99], 39.6)
+
+  def test_calculate_percentiles_exact_values(self):
+    """Tests width-1 buckets, the overflow bucket, and single samples."""
+
+    def hist(total, *buckets):
+      keys = ('low', 'high', 'count')
+      return {
+          'count': sum(b[2] for b in buckets),
+          'sum': total,
+          'buckets': [dict(zip(keys, b)) for b in buckets]
+      }
+
+    calc = interpret_uma_histogram.calculate_percentiles
+    enum = hist(9, (3, 4, 1), (2, 3, 3))
+    self.assertEqual(calc(enum, (50, 99)), {50: 2, 99: 3})
+    self.assertEqual(enum['buckets'][0]['low'], 3)  # Not sorted in place.
+    self.assertEqual(interpret_uma_histogram.value_counts(enum), {2: 3, 3: 1})
+    overflow = hist(50000, (10000, 2**31 - 1, 2))
+    self.assertEqual(calc(overflow, (50,)), {50: '>= 10000'})
+    self.assertEqual(calc(hist(647, (599, 665, 1)), (50,)), {50: 647})
 
   def test_calculate_percentiles_empty(self):
     """Tests that None is returned for empty histograms."""
@@ -91,6 +113,28 @@ class InterpretUmaHistogramTest(unittest.TestCase):
     self.assertNotIn('Hist.B1', call_args)
     # Check that the data for Hist.A1 is correct.
     self.assertEqual(len(call_args['Hist.A1']), 1)
+
+  @patch('sys.argv', ['', 'test_data.txt'])
+  def test_main_poll_labels_and_no_data(self):
+    """Tests poll labels, queries without data, and failed polls."""
+    mock_file_content = (
+        '# poll 1 2025-11-06 12:00:00 OK: 2 histograms\n'
+        '2025-11-06 12:00:00,Query.A*,{"result": {"histograms": ['
+        '{"name": "Query.A1", "count": 2, "sum": 4, '
+        '"buckets": [{"low": 2, "high": 3, "count": 2}]}]}}\n'
+        '2025-11-06 12:00:00,Query.B,{"result": {"histograms": []}}\n'
+        '# poll 2 2025-11-06 12:00:30 FAILED: timed out\n')
+    with patch('builtins.open', mock_open(read_data=mock_file_content)), patch(
+        'sys.stdout', new_callable=io.StringIO) as stdout:
+      interpret_uma_histogram.main()
+    output = stdout.getvalue()
+    self.assertIn('--- Poll 1 | 2025-11-06 12:00:00 | Query.A1 ---', output)
+    self.assertIn('Mean: 2.0', output)
+    self.assertIn('  Value 2: 2', output)
+    self.assertIn('--- Poll 1 | 2025-11-06 12:00:00 | Query.B: no data ---',
+                  output)
+    self.assertIn('=== Poll 2 | 2025-11-06 12:00:30 | FAILED: timed out ===',
+                  output)
 
 
 if __name__ == '__main__':
