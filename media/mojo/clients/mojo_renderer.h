@@ -66,10 +66,6 @@ class MojoRenderer : public Renderer, public mojom::RendererClient {
   RendererType GetRendererType() override;
 
  private:
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  friend class StarboardRendererClient;
-#endif
-
   // mojom::RendererClient implementation, dispatched on the |task_runner_|.
   void OnTimeUpdate(base::TimeDelta time,
                     base::TimeDelta max_time,

@@ -20,7 +20,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "components/language/core/common/language_util.h"
 #include "components/language_detection/core/chinese_script_classifier.h"
-#include "components/language_detection/core/constants.h"  // nogncheck
+#include "components/language_detection/core/constants.h"
 #include "components/translate/core/common/translate_metrics.h"
 #include "third_party/cld_3/src/src/nnet_language_identifier.h"
 

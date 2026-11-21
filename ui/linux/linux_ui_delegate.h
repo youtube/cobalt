@@ -10,15 +10,10 @@
 
 #include "base/component_export.h"
 #include "base/functional/callback_forward.h"
-#include "build/build_config.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "ui/gfx/native_ui_types.h"  // nogncheck
-#else
 namespace gfx {
 using AcceleratedWidget = uint32_t;
 }
-#endif
 
 namespace ui {
 

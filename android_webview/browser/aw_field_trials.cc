@@ -81,10 +81,8 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
       blink::features::kEnforceNoopenerOnBlobURLNavigation);
 
   // Disable the passthrough on WebView.
-#if BUILDFLAG(ENABLE_VALIDATING_COMMAND_DECODER)
   aw_feature_overrides.DisableFeature(
       ::features::kDefaultPassthroughCommandDecoder);
-#endif
 
   // HDR does not support webview yet. See crbug.com/1493153 for an explanation.
   aw_feature_overrides.DisableFeature(ui::kAndroidHDR);

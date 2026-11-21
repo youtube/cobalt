@@ -23,7 +23,6 @@
 namespace viz {
 class DisplayResourceProvider;
 class DrawQuad;
-class OverlayCandidateFactory;
 
 // TODO(weiliangc): Eventually fold this class into OverlayProcessorMac.
 class VIZ_SERVICE_EXPORT CALayerOverlayProcessor {
@@ -41,8 +40,7 @@ class VIZ_SERVICE_EXPORT CALayerOverlayProcessor {
       AggregatedRenderPass* render_pass,
       const gfx::RectF& display_rect,
       QuadList* quad_list,
-      OverlayCandidateList* ca_layer_overlays,
-      const OverlayCandidateFactory& candidate_factory) const;
+      OverlayCandidateList* ca_layer_overlays) const;
 
   // Returns true if all quads in the root render pass have been replaced by
   // CALayerOverlays. Virtual for testing.
@@ -63,8 +61,7 @@ class VIZ_SERVICE_EXPORT CALayerOverlayProcessor {
       const gfx::RectF& display_rect,
       const DrawQuad* quad,
       gfx::ProtectedVideoType protected_video_type,
-      OverlayCandidateList* ca_layer_overlays,
-      const OverlayCandidateFactory& candidate_factory) const;
+      OverlayCandidateList* ca_layer_overlays) const;
 
   void SaveCALayerResult(gfx::CALayerResult result);
 
