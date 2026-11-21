@@ -12,218 +12,67 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Resolve CODEOWNERS or reviewer frontmatter paths to critic reviewers.
+"""Resolve CODEOWNERS or reviewer frontmatter paths to critic reviewers."""
 
-Modes:
-  Default (--codeowners): Match changed files against .github/CODEOWNERS and
-    output sorted `<team>-reviewer.md` filenames.
-  Path-triggered (--paths): Match changed files against `paths:` globs in
-    reviewer markdown YAML frontmatter and output sorted reviewer file paths.
-    When a reviewer declares `codeowner_teams:` and `.github/CODEOWNERS`
-    assigns a matched file exclusively to other teams (for example,
-    `/.github/CODEOWNERS` owned by `@youtube/cobalt-starboard-owners`), the
-    CODEOWNERS override excludes that file from triggering that reviewer.
-"""
-
-import argparse
 from pathlib import Path
 import re
 import subprocess
 import sys
 import yaml
 
-CODEOWNERS_PATH = Path('.github/CODEOWNERS')
-REVIEWER_DIRS = (
-    Path('.github/reviewers'),
-    Path('.agent/reviewers'),
-    Path('.agent/skills/critic_review/resources/reviewers'),
-)
-TEAM_ALIASES = {'nplb-filters': 'cobalt-starboard'}
+
+def match(path: str, pat: str) -> bool:
+  p = pat.strip().removeprefix('./')
+  anc = p.startswith('/') or '/' in p.rstrip('/')
+  p = p.lstrip('/')
+  rx = re.escape(p).replace(r'\*\*/',
+                            '(?:.+/)?').replace(r'\*\*', '.*').replace(
+                                r'\*', '[^/]*').replace(r'\?', '[^/]')
+  tail = '.*' if p.endswith('/') else (
+      '$' if '*' in p or '?' in p else '(?:$|/.*)')
+  return bool(p and re.match(('^' if anc else '(?:^|.+/)') + rx + tail, path))
 
 
-def _compile_pattern(pattern: str) -> re.Pattern[str] | None:
-  """Compile a CODEOWNERS or frontmatter path glob into a regex."""
-  raw_pat = pattern.strip().removeprefix('./')
-  if not raw_pat:
-    return None
-
-  anchored = raw_pat.startswith('/') or '/' in raw_pat.rstrip('/')
-  pat = raw_pat.lstrip('/')
-  if not pat:
-    return re.compile('.*')
-
-  is_dir = pat.endswith('/')
-  has_glob = any(ch in pat for ch in '*?[')
-
-  parts = ['^' if anchored else '(?:^|.+/)']
-  i = 0
-  while i < len(pat):
-    if pat.startswith('**/', i):
-      parts.append('(?:.+/)?')
-      i += 3
-    elif pat.startswith('**', i):
-      parts.append('.*')
-      i += 2
-    elif pat[i] == '*':
-      parts.append('[^/]*')
-      i += 1
-    elif pat[i] == '?':
-      parts.append('[^/]')
-      i += 1
-    else:
-      parts.append(re.escape(pat[i]))
-      i += 1
-
-  if is_dir:
-    parts.append('.*')
-  elif not has_glob:
-    parts.append('(?:$|/.*)')
-  else:
-    parts.append('$')
-
-  return re.compile(''.join(parts))
-
-
-def match_pattern(path: str, pattern: str) -> bool:
-  """Return True if repo-relative `path` matches CODEOWNERS/glob `pattern`."""
-  norm_path = path.strip().removeprefix('./').lstrip('/')
-  if not norm_path:
-    return False
-  regex = _compile_pattern(pattern)
-  return bool(regex and regex.match(norm_path))
-
-
-def load_codeowners(
-    codeowners_path: Path = CODEOWNERS_PATH,) -> list[tuple[str, list[str]]]:
-  """Parse `.github/CODEOWNERS` into `(pattern, owners)` tuples."""
-  if not codeowners_path.exists():
-    return []
-  rules: list[tuple[str, list[str]]] = []
-  with codeowners_path.open('r', encoding='utf-8') as handle:
-    for line in handle:
-      clean = line.split('#', 1)[0].strip()
-      if clean:
-        parts = clean.split()
-        rules.append((parts[0], parts[1:]))
-  return rules
-
-
-def owners_for_file(
-    file_path: str,
-    rules: list[tuple[str, list[str]]],
-) -> list[str] | None:
-  """Return last-matching CODEOWNERS teams for `file_path`, or None."""
-  for pattern, owners in reversed(rules):
-    if match_pattern(file_path, pattern):
-      return owners
-  return None
-
-
-def _owner_to_reviewer(owner: str) -> str:
-  team = (
-      owner.removeprefix('@youtube/').removesuffix(
-          '-repository-owners').removesuffix('-owners'))
-  name = TEAM_ALIASES.get(team, team)
-  return f'{name}-reviewer.md'
-
-
-def resolve_codeowners(
-    files: list[str],
-    rules: list[tuple[str, list[str]]],
-) -> list[str]:
-  """Resolve changed files to sorted `<name>-reviewer.md` filenames."""
-  reviewers: set[str] = set()
-  for file_path in files:
-    owners = owners_for_file(file_path, rules)
-    if owners:
-      for owner in owners:
-        reviewers.add(_owner_to_reviewer(owner))
-  return sorted(reviewers)
-
-
-def _parse_frontmatter(md_path: Path) -> dict | None:
-  text = md_path.read_text(encoding='utf-8')
-  if not text.startswith('---'):
-    return None
-  parts = text.split('---', 2)
-  if len(parts) < 3:
-    return None
-  try:
-    meta = yaml.safe_load(parts[1])
-  except yaml.YAMLError:
-    return None
-  return meta if isinstance(meta, dict) else None
-
-
-def resolve_paths(
-    files: list[str],
-    rules: list[tuple[str, list[str]]],
-) -> list[str]:
-  """Match changed files against reviewer YAML frontmatter `paths:` globs."""
-  matched: list[str] = []
-  for rdir in REVIEWER_DIRS:
-    for md_path in sorted(rdir.glob('*.md')):
-      meta = _parse_frontmatter(md_path)
-      if not meta:
+def main() -> int:
+  args = [a for a in sys.argv[1:] if a != '--codeowners']
+  raw = [
+      a for a in args if a != '--paths'
+  ] or (sys.stdin.read() if not sys.stdin.isatty() else subprocess.check_output(
+      ['git', 'diff', '--name-only', 'HEAD'], text=True)).splitlines()
+  files = [x.strip().removeprefix('./').lstrip('/') for x in raw if x.strip()]
+  co = Path('.github/CODEOWNERS')
+  rules = [(w[0], w[1:])
+           for ln in (co.read_text('utf-8').splitlines() if co.exists() else ())
+           if (w := ln.split('#', 1)[0].split())]
+  if '--paths' not in args:
+    revs = {
+        ('cobalt-starboard' if
+         (t := o.removeprefix('@youtube/').removesuffix('-repository-owners')
+          .removesuffix('-owners')) == 'nplb-filters' else t) + '-reviewer.md'
+        for f in files
+        for o in next((ow for pat, ow in reversed(rules) if match(f, pat)), ())
+    }
+    return print('\n'.join(sorted(revs))) or 0 if revs else 0
+  for d in (Path('.github/reviewers'), Path('.agent/reviewers')):
+    for md in sorted(d.glob('*.md')):
+      parts = text.split(
+          '---', 2) if (text := md.read_text('utf-8')).startswith('---') else ()
+      try:
+        meta = yaml.safe_load(parts[1]) if len(parts) >= 3 else None
+      except yaml.YAMLError:
         continue
-      paths = meta.get('paths', [])
-      if not isinstance(paths, list):
-        continue
-      patterns = [p for p in paths if isinstance(p, str)]
-      raw_teams = meta.get('codeowner_teams', [])
-      declared_teams = ({t for t in raw_teams if isinstance(t, str)}
-                        if isinstance(raw_teams, list) else set())
-      for file_path in files:
-        if not any(match_pattern(file_path, pat) for pat in patterns):
-          continue
-        if declared_teams:
-          file_owners = owners_for_file(file_path, rules)
-          if file_owners is not None and declared_teams.isdisjoint(file_owners):
-            continue
-        matched.append(str(md_path))
-        break
-  return sorted(set(matched))
-
-
-def _read_files(cli_files: list[str]) -> list[str]:
-  if cli_files:
-    raw = cli_files
-  elif not sys.stdin.isatty():
-    raw = sys.stdin.read().splitlines()
-  else:
-    raw = subprocess.check_output(
-        ['git', 'diff', '--name-only', 'HEAD'],
-        text=True,
-    ).splitlines()
-  return [x.strip().removeprefix('./').lstrip('/') for x in raw if x.strip()]
-
-
-def main(argv: list[str] | None = None) -> int:
-  parser = argparse.ArgumentParser(description=__doc__)
-  mode_group = parser.add_mutually_exclusive_group()
-  mode_group.add_argument(
-      '--codeowners',
-      action='store_true',
-      help='Resolve changed files via .github/CODEOWNERS (default).',
-  )
-  mode_group.add_argument(
-      '--paths',
-      action='store_true',
-      help='Match changed files against reviewer frontmatter paths.',
-  )
-  parser.add_argument('files', nargs='*', help='Changed file paths.')
-  args = parser.parse_args(argv)
-
-  files = _read_files(args.files)
-  if not files:
-    return 0
-
-  rules = load_codeowners()
-  results = (
-      resolve_paths(files, rules) if args.paths else resolve_codeowners(
-          files, rules))
-  for item in results:
-    print(item)
+      if isinstance(meta, dict) and isinstance(meta.get('paths'), list):
+        teams = set(meta['codeowner_teams']) if isinstance(
+            meta['codeowner_teams'], list) else set()
+        if any(
+            any(match(f, p)
+                for p in meta['paths']
+                if isinstance(p, str)) and (not teams or not (ow := next(
+                    (o
+                     for pat, o in reversed(rules)
+                     if match(f, pat)), None)) or not teams.isdisjoint(ow))
+            for f in files):
+          print(md)
   return 0
 
 
