@@ -77,7 +77,7 @@ runs:
             return 1
           }
 
-          retry git -C "${DEST_PATH}" fetch --depth=500 origin "${GITHUB_BASE_REF}" "${REF}"
+          retry git -C "${DEST_PATH}" fetch --depth=500 origin "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}" "${REF}"
           commit_date=$(git -C "${DEST_PATH}" log -1 --format="%cI" "${REF}")
           author_name=$(git -C "${DEST_PATH}" log -1 --format="%an" "${REF}")
           author_email=$(git -C "${DEST_PATH}" log -1 --format="%ae" "${REF}")
