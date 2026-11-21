@@ -45,6 +45,13 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="2" label="Codec2 (C2)"/>
 </enum>
 
+<enum name="CobaltCacheQuotaAllocationOutcome">
+  <int value="0" label="Exact match"/>
+  <int value="1" label="Under budget (excess added to HTTP)"/>
+  <int value="2" label="Over budget (reset to defaults)"/>
+  <int value="3" label="Unsupported platform budget (&lt; 24 MiB)"/>
+</enum>
+
 <enum name="BooleanHung">
   <int value="0" label="Is not hung"/>
   <int value="1" label="Is hung"/>

@@ -20,6 +20,8 @@
 
 #include "base/files/file_path.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 
 namespace cobalt {
 
@@ -55,10 +57,17 @@ bool RecordSteadyStateWriteRateForInterval(int64_t baseline_write_bytes,
                                            int64_t current_write_bytes,
                                            base::TimeTicks current_time);
 
-// Schedules the deferred (+30s) post-startup storage footprint and block I/O
+// Schedules the deferred (+10s) post-startup storage footprint and block I/O
 // telemetry task and periodic (every 5 minutes) steady-state write-rate
 // sampling on a BEST_EFFORT background sequence.
 void ScheduleCobaltStorageMetricsRecording();
+
+#if !BUILDFLAG(IS_ANDROID)
+// Emits Cobalt.Storage.CacheQuota.* allocation outcome, platform budget,
+// excess, and effective quota histograms.
+void RecordCacheQuotaMetrics(
+    const CobaltContentBrowserClient::CacheQuotas& quotas);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace cobalt
 

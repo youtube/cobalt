@@ -69,6 +69,7 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/debug/dump_without_crashing.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 #endif
@@ -125,11 +126,17 @@ void CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(
   command_line->RemoveSwitch(switches::kDisableGpuShaderDiskCache);
   // GrShaderCache only.
   command_line->AppendSwitch(switches::kGpuShaderDiskCacheGrOnly);
-  if (!command_line->HasSwitch(switches::kGpuDiskCacheSizeKB)) {
-    command_line->AppendSwitchASCII(
-        switches::kGpuDiskCacheSizeKB,
-        base::NumberToString(kPreloadGrShaderDiskCacheSizeKB));
-  }
+  // Validate the preload GPU shader cache size against the total DIR_CACHE
+  // budget and rewrite --gpu-disk-cache-size-kb with the resolved quota (for
+  // example, resetting an over-budget or invalid switch value to 2048 KB so
+  // Chromium does not fall back to its 6 MiB default).
+  const CobaltContentBrowserClient::CacheQuotas quotas =
+      CobaltContentBrowserClient::ResolveCacheQuotas(
+          kSbMaxSystemPathCacheDirectorySize, is_visible, *command_line);
+  const uint32_t gpu_kb = quotas.gpu_shader_cache_bytes / 1024;
+  command_line->RemoveSwitch(switches::kGpuDiskCacheSizeKB);
+  command_line->AppendSwitchASCII(switches::kGpuDiskCacheSizeKB,
+                                  base::NumberToString(gpu_kb));
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
@@ -201,6 +208,18 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_STARBOARD)
+  // PostEarlyInitialization() also runs in child processes (where
+  // browser_client_ is null). In the browser process, cache the pre-mutation
+  // quota resolution before ApplyPreloadGpuShaderDiskCache() rewrites
+  // --gpu-disk-cache-size-kb so later browser-side quota readers and startup
+  // UMAs observe the same allocation result.
+  if (browser_client_) {
+    browser_client_->SetStartupCacheQuotas(
+        CobaltContentBrowserClient::ResolveCacheQuotas(
+            kSbMaxSystemPathCacheDirectorySize, is_visible_,
+            *base::CommandLine::ForCurrentProcess(),
+            /*log_warnings_and_errors=*/false));
+  }
   ApplyPreloadGpuShaderDiskCache(base::CommandLine::ForCurrentProcess(),
                                  is_visible_);
 #endif  // BUILDFLAG(IS_STARBOARD)
