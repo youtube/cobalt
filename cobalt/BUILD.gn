@@ -475,6 +475,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_platform_service/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
+    "//cobalt/browser/logging:unit_tests",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
     "//cobalt/gpu:unit_tests",
