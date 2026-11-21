@@ -66,6 +66,11 @@ namespace android_video_decoder_improvements {
 // video surface ownership.
 inline constexpr uint32_t kGuardSurfaceResetAndCleanupByOwnership = 1u << 0;
 
+// Skips redundant `TeardownCodec()` calls in `WriteInputBuffers()` when no
+// active codec exists (e.g., after a flush-seek codec transition, a non-flush
+// `Reset()`, or during deferred AV1 initialization).
+inline constexpr uint32_t kSkipRedundantCodecTeardown = 1u << 3;
+
 }  // namespace android_video_decoder_improvements
 
 inline uint32_t GetAndroidVideoDecoderImprovementsFlags(

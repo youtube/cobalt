@@ -788,5 +788,102 @@ TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
       kGuardSurfaceResetAndCleanupByOwnership));
 }
 
+TEST_F(MediaCodecVideoDecoderTest,
+       SkipRedundantCodecTeardownStillRebuildsActiveSdrCodecOnInitialHdrInput) {
+  CreateDecoder(
+      /*max_video_capabilities=*/"", &kHdrVideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(
+          android_video_decoder_improvements::kSkipRedundantCodecTeardown));
+  // Without bit 2, the constructor creates an active SDR codec, so the first
+  // HDR input must still tear it down and rebuild with HDR metadata.
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_EQ(fake_factory_->last_video_color_metadata()->transfer,
+            kSbMediaTransferIdSmpteSt2084);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       SkipRedundantCodecTeardownHandlesFlushAndNonFlushHdrTransitions) {
+  const auto features = MakeVideoDecoderImprovementsFeatures(
+      android_video_decoder_improvements::kSkipRedundantCodecTeardown);
+
+  // 1. Flush-seek SDR -> HDR transition: `NeedsCodecTransition()` already
+  // tears down the flushed SDR codec, so `input_buffer_written_ == 0` skips
+  // the redundant second teardown and creates a single HDR codec.
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                features, /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+  const int created_before_flush = fake_factory_->video_codec_create_count();
+
+  decoder_->Reset();
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), created_before_flush);
+
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(100'000'000, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(),
+            created_before_flush + 1);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_EQ(fake_factory_->last_video_color_metadata()->transfer,
+            kSbMediaTransferIdSmpteSt2084);
+
+  // 2. Non-flush `Reset()` during HDR playback: `ResetInternal()` tears down
+  // the codec, and the post-reset HDR input skips the redundant teardown.
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                features, /*enable_flush_during_seek=*/false);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  const int created_before_reset = fake_factory_->video_codec_create_count();
+
+  decoder_->Reset();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(50'000'000, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(),
+            created_before_reset + 1);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       SkipRedundantCodecTeardownHandlesDelayedAv1HdrInitialization) {
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  VideoStreamInfo av1_hdr_info = kHdrVideoStreamInfo;
+  av1_hdr_info.codec = kSbMediaVideoCodecAv1;
+
+  for (int64_t flags :
+       {int64_t{0}, int64_t{-1},
+        static_cast<int64_t>(
+            android_video_decoder_improvements::kSkipRedundantCodecTeardown)}) {
+    CreateDecoder(/*max_video_capabilities=*/"", &av1_hdr_info,
+                  MakeVideoDecoderImprovementsFeatures(flags));
+    ASSERT_EQ(GetFakeVideoCodec(), nullptr);
+
+    InitializeDecoder();
+    decoder_->WriteInputBuffers(
+        {CreateDummyVideoInputBuffer(0, 1024, &av1_hdr_info,
+                                     /*is_key_frame=*/true),
+         CreateDummyVideoInputBuffer(33'333, 1024, &av1_hdr_info),
+         CreateDummyVideoInputBuffer(66'666, 1024, &av1_hdr_info)});
+
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+    ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+    EXPECT_EQ(fake_factory_->last_video_color_metadata()->transfer,
+              kSbMediaTransferIdSmpteSt2084);
+    EXPECT_FALSE(error_called_);
+  }
+}
+
 }  // namespace
 }  // namespace starboard
