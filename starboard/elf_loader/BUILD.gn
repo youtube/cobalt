@@ -60,7 +60,6 @@ if (current_toolchain == starboard_toolchain) {
       "file.h",
       "file_impl.cc",
       "file_impl.h",
-      "file_open.h",
       "gnu_hash_table.cc",
       "gnu_hash_table.h",
       "lz4_file_impl.cc",
@@ -79,6 +78,7 @@ if (current_toolchain == starboard_toolchain) {
       ":constants",
       ":evergreen_config",
       ":evergreen_info",
+      ":file_open",
       "//starboard:starboard_group",
       "//starboard/common",
       "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
@@ -96,6 +96,12 @@ if (current_toolchain == starboard_toolchain) {
     if (use_asan) {
       sources += [ "dl_iterate_phdr_override.cc" ]
     }
+  }
+
+  # A separate target so that the Android Starboard implementation can
+  # implement OpenFileInPlace() without depending on :elf_loader.
+  source_set("file_open") {
+    sources = [ "file_open.h" ]
   }
 
   # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
@@ -146,6 +152,7 @@ if (current_toolchain == starboard_toolchain) {
         "dynamic_section_test.cc",
         "elf_header_test.cc",
         "elf_loader_test.cc",
+        "file_impl_test.cc",
         "lz4_file_impl_test.cc",
         "program_table_test.cc",
         "relocations_test.cc",

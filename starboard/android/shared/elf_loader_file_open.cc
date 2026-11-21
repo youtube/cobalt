@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <android/asset_manager.h>
+#include <unistd.h>
 
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
@@ -24,7 +25,7 @@ namespace elf_loader {
 // with open() would copy the whole asset to a temporary file first (see
 // AssetManager::Open), which for the Cobalt core costs most of the load time.
 int OpenFileInPlace(const char* name, int64_t* offset, int64_t* size) {
-  if (!starboard::IsAndroidAssetPath(name)) {
+  if (!offset || !size || !starboard::IsAndroidAssetPath(name)) {
     return -1;
   }
   AAsset* asset = starboard::OpenAndroidAsset(name);
@@ -37,6 +38,10 @@ int OpenFileInPlace(const char* name, int64_t* offset, int64_t* size) {
   AAsset_close(asset);
   if (fd < 0) {
     SB_LOG(INFO) << name << " is compressed in the APK, copying it.";
+    return -1;
+  }
+  if (start < 0 || length < 0) {
+    close(fd);
     return -1;
   }
   SB_LOG(INFO) << "Reading " << name << " from the APK at offset " << start

@@ -370,6 +370,7 @@ static_library("starboard_platform") {
       "//starboard/elf_loader:evergreen_config",
       "//starboard/loader_app:pending_restart",
     ]
+    deps += [ "//starboard/elf_loader:file_open" ]
 
     if (use_evergreen) {
       sources += [

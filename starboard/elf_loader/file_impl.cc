@@ -69,13 +69,15 @@ bool FileImpl::Open(const char* name) {
 }
 
 bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
-  if (file_ < 0 || offset < 0) {
+  if (file_ < 0 || offset < 0 || size < 0 || offset > size_) {
     return false;
   }
   // Stop at the end of the file. With OpenFileInPlace(), |file_| continues
   // past it into the rest of the containing file.
-  int64_t remaining = std::max<int64_t>(size_ - offset, 0);
-  size = static_cast<int>(std::min<int64_t>(size, remaining));
+  size = static_cast<int>(std::min<int64_t>(size, size_ - offset));
+  if (size == 0) {
+    return true;
+  }
   int64_t ret = lseek(file_, offset_ + offset, SEEK_SET);
   SB_DLOG(INFO) << "lseek: ret=" << ret;
   if (ret == -1) {
@@ -85,7 +87,7 @@ bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
 
   int count = starboard::ReadAll(file_, buffer, size);
   SB_DLOG(INFO) << "ReadAll: count=" << count;
-  if (count == -1) {
+  if (count < size) {
     LogLastError("ReadAll failed");
     return false;
   }
@@ -95,6 +97,7 @@ bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
 void FileImpl::Close() {
   if (file_ >= 0) {
     close(file_);
+    file_ = -1;
   }
 }
 
