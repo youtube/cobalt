@@ -132,14 +132,14 @@ ROOT_TITLES = {
     USER_DE: "UserDe: device-encrypted dir, OS shader caches (lab only)",
 }
 
-# Budgets that findings check: the 1 MB USER_DATA partner quota and
-# kSbMaxSystemPathCacheDirectorySize (24 MiB) on Android.
+# Size targets that findings and cards compare with: the 1 MB USER_DATA
+# partner quota and kSbMaxSystemPathCacheDirectorySize (24 MiB) on Android.
+# The browser enforces neither (e.g. the HTTP cache has its own size limit).
 BUDGETS_BYTES = {"UserData": 1 << 20, "DirCache": 24 << 20}
 
-# A sample keeps the largest files, plus every SQLite companion file above
-# this size, for the "largest files" and "SQLite journals" findings.
+# A sample keeps the largest files, plus every non-empty SQLite companion file
+# (and its database) and every crash dump, for the findings.
 NOTABLE_FILE_COUNT = 25
-NOTABLE_COMPANION_BYTES = 32 << 10
 
 _SQLITE_COMPANIONS = ("-journal", "-wal", "-shm")
 _BUCKET_RE = re.compile(r"COBALT_STORAGE_BUCKET\(\s*(\w+)\s*\)")
@@ -305,14 +305,17 @@ def _new_totals() -> List[int]:
   return [0, 0, 0, 0]
 
 
-def aggregate_footprint(entries: Iterable[StatEntry], roots: Sequence[RootSpec],
-                        table: BucketTable) -> Dict[str, Any]:
+def aggregate_footprint(entries: Iterable[StatEntry],
+                        roots: Sequence[RootSpec],
+                        table: BucketTable,
+                        all_files: bool = False) -> Dict[str, Any]:
   """Attributes entries to roots, buckets and folders.
 
   An entry counts in every root that contains it and in the bucket of the
   innermost root; directories count with their own blocks (allocated only;
   logical bytes are regular files' st_size, as base::ComputeDirectorySize()).
-  Folder totals include everything below the folder.
+  Folder totals include everything below the folder. With |all_files|,
+  "files" lists every file instead of the notable ones.
   """
   roots_by_depth = sorted((r for r in roots if r.name != "AppData"),
                           key=lambda r: -len(r.rel))
@@ -370,10 +373,9 @@ def aggregate_footprint(entries: Iterable[StatEntry], roots: Sequence[RootSpec],
       files.append((key, entry.allocated, entry.size))
 
   files.sort(key=lambda f: (-f[1], f[0]))
-  notable = files[:NOTABLE_FILE_COUNT]
-  notable += [
+  notable = files if all_files else files[:NOTABLE_FILE_COUNT] + [
       f for f in files[NOTABLE_FILE_COUNT:]
-      if f[1] >= NOTABLE_COMPANION_BYTES and f[0].endswith(_SQLITE_COMPANIONS)
+      if (f[2] and f[0].endswith(_SQLITE_COMPANIONS)) or f[0].endswith(".dmp")
   ]
   # The main database of each notable journal or WAL, for comparison.
   by_path = {f[0]: f for f in files}
@@ -467,20 +469,24 @@ class FootprintTimeline:
              t: float,
              entries: Sequence[StatEntry],
              pid: Optional[int] = None,
-             io: Optional[Tuple[int, int]] = None) -> Dict[str, Any]:
-    """Records one poll; |io| is (read_bytes, write_bytes) of |pid|."""
+             io: Optional[Sequence[int]] = None) -> Dict[str, Any]:
+    """Records one poll of |pid|.
+
+    |io| is (read_bytes, write_bytes[, cancelled_write_bytes]). The first
+    sample lists every file, so that later files can be told apart as new.
+    """
     if pid != self._last_pid:
       if self._last_pid is not None:
         self.event(t, "process_exit", f"pid {self._last_pid}")
       if pid is not None:
         self.event(t, "process_start", f"pid {pid}")
       self._last_pid = pid
-    footprint = aggregate_footprint(entries, self._roots, self._table)
+    footprint = aggregate_footprint(
+        entries, self._roots, self._table, all_files=not self.sample_count)
     record = {"type": "sample", "t": round(t, 2), "pid": pid}
-    record["io"] = ({
-        "read_bytes": io[0],
-        "write_bytes": io[1]
-    } if io is not None else None)
+    record["io"] = (
+        dict(zip(("read_bytes", "write_bytes",
+                  "cancelled_write_bytes"), io)) if io is not None else None)
     record.update(footprint)
     self._write(record)
     self.sample_count += 1
@@ -634,7 +640,7 @@ def _key_moments(timeline: Timeline, times: List[float]) -> List[Moment]:
     for offset, label in ((10, "+10 s"), (30, "+30 s")):
       index = first_at_or_after(t0 + offset)
       if index is not None and index != len(times) - 1:
-        moments.append(Moment(f"{label} after launch", index))
+        moments.append(Moment(f"{label} after first launch", index))
   phases = _phases(timeline)
   for i, phase in enumerate(phases[:-1]):
     index = last_before(phases[i + 1]["t"])
@@ -763,8 +769,8 @@ def find_issues(analysis: Analysis) -> List[Finding]:
 
   # 1. Over budget.
   # The budgets, like Cobalt.Storage.{UserData,DirCache}.StartupTotalSizeKB,
-  # count base::ComputeDirectorySize(): the st_size of regular files. Allocated
-  # blocks are ~2x that for UserData's small files on f2fs.
+  # count base::ComputeDirectorySize(): the st_size of regular files. Small
+  # files allocate much more than that (see 7).
   for root, budget in budgets.items():
     value = end["roots"].get(root, {}).get("logical_bytes", 0)
     if value > budget:
@@ -776,7 +782,8 @@ def find_issues(analysis: Analysis) -> List[Finding]:
           Finding(
               "high", f"{root} holds {fmt_size(value)} of file data at the "
               f"end, {100 * value / budget:.0f}% of its {fmt_size(budget)} "
-              "budget", [f"Largest buckets: {top}."] if top else []))
+              "budget (a target; the browser does not enforce it)",
+              [f"Largest buckets: {top}."] if top else []))
 
   # 2. Space that kCobaltStorageCleanup would reclaim.
   cleanup = rows.get("CleanupTargets")
@@ -821,10 +828,68 @@ def find_issues(analysis: Analysis) -> List[Finding]:
       title = f"{name} is {fmt_size(at_end)}{vs_db}"
     findings.append(
         Finding("medium", title, [
-            f"{path}. A -wal file keeps its size after a checkpoint (no "
-            "journal_size_limit in Chromium's sql/), so this is its "
-            "high-water mark; data is un-checkpointed only while the "
-            "database stays small. A large -journal means a large transaction."
+            f"{path}. A -wal holds changes that are not checkpointed into the "
+            "database yet; SQLite reuses it after a checkpoint and truncates "
+            "it only down to journal_size_limit, so its size is an upper "
+            "bound. A large -journal means a large transaction."
+        ]))
+
+  # 3b. A -wal that grows in two or more process lifetimes and never shrinks
+  # is probably never checkpointed (e.g. the process is killed first).
+  launches = [
+      e["t"]
+      for e in analysis.timeline.events
+      if e["event"] == "process_start" and e["t"] > analysis.times[0]
+  ]
+  # The last sample before each launch, and the end.
+  marks = [
+      max(i
+          for i, t in enumerate(analysis.times)
+          if t < start)
+      for start in launches
+  ] + [len(samples) - 1]
+  wal_sizes: Dict[str, List[int]] = {}
+  for i, sample in enumerate(samples):
+    for path, _, logical in sample.get("files", []):
+      if path.endswith("-wal"):
+        wal_sizes.setdefault(path, [0] * len(samples))[i] = logical
+  for path, sizes in sorted(wal_sizes.items()):
+    grew = sum(1 for a, b in zip(marks, marks[1:]) if sizes[b] > sizes[a])
+    if grew >= 2 and all(b >= a for a, b in zip(sizes, sizes[1:])):
+      findings.append(
+          Finding(
+              "medium", f"{path.rsplit('/', 1)[-1]} grew after {grew} process "
+              f"starts and never shrank ({fmt_size(sizes[0])} to "
+              f"{fmt_size(sizes[-1])} logical)", [
+                  f"{path}. Its database may never be checkpointed, e.g. "
+                  "because the app is killed before it closes it."
+              ]))
+
+  # 3c. A -journal that is not empty at the end (the large ones are in 3).
+  for path, _, logical in end.get("files", []):
+    if (path.endswith("-journal") and logical and
+        companions.get(path, (0,))[0] < 256 << 10):
+      findings.append(
+          Finding(
+              "medium", f"{path.rsplit('/', 1)[-1]} is not empty at the end "
+              f"({fmt_size(logical)})", [
+                  f"{path}. A transaction was open at the last poll, or a "
+                  "killed process left a hot journal, which SQLite rolls back "
+                  "at the next open (or the database uses PERSIST mode)."
+              ]))
+
+  # 3d. Crash dumps written during the run.
+  start_files = {f[0] for f in samples[0].get("files", [])}
+  dumps: Dict[str, Tuple[float, int]] = {}
+  for sample in samples:
+    for path, allocated, _ in sample.get("files", []):
+      if path.endswith(".dmp") and path not in start_files:
+        dumps.setdefault(path, (sample["t"], allocated))
+  if dumps:
+    findings.append(
+        Finding("medium", f"{_count(len(dumps), 'new crash dump')} (*.dmp)", [
+            f"{p} {fmt_size(a)} (t={t:.0f}s)."
+            for p, (t, a) in sorted(dumps.items())[:5]
         ]))
 
   # 4. Growth over the run.
@@ -899,16 +964,12 @@ def find_issues(analysis: Analysis) -> List[Finding]:
               "info", f"{row.name}: {fmt_size(allocated)} allocated for "
               f"{fmt_size(row.logical_end)} of data in {row.files_end} "
               "files", [
-                  "Small files each take at least one 4 KB block, plus an "
-                  "inode block on f2fs."
+                  "Small files each take whole 4 KB blocks, and filesystems "
+                  "may add a metadata block per file (an extended-attribute "
+                  "block on ext4, an inode block on f2fs)."
               ]))
 
   # 8. Large drops of buckets: one drop, or repeated drops (churn).
-  launches = [
-      e["t"]
-      for e in analysis.timeline.events
-      if e["event"] == "process_start" and e["t"] > analysis.times[0]
-  ]
   reported = []
   for row in rows.values():
     events = drop_events[row.name]
@@ -1034,7 +1095,7 @@ def format_markdown(analysis: Analysis, html_name: str = "") -> str:
   ] + ["Peak", "Change", "Files"]
   lines += [
       "",
-      "### Footprint at key moments",
+      "### Footprint at key moments (allocated)",
       "",
       "| " + " | ".join(header) + " |",
       "| :-- | " + " | ".join(["--:"] * (len(header) - 1)) + " |",
@@ -1046,7 +1107,9 @@ def format_markdown(analysis: Analysis, html_name: str = "") -> str:
   lines.append(_markdown_row(analysis, analysis.total, bold=True))
   lines += [
       "",
-      "File data (sum of `st_size` of regular files, as "
+      _MOMENTS_NOTE,
+      "",
+      "File data (logical: sum of `st_size` of regular files, as "
       "`base::ComputeDirectorySize()` and "
       "`Cobalt.Storage.{UserData,DirCache}.StartupTotalSizeKB` count it):",
       "",
@@ -1090,12 +1153,19 @@ def format_markdown(analysis: Analysis, html_name: str = "") -> str:
   return "\n".join(lines)
 
 
+_MOMENTS_NOTE = (
+    "+10 s and +30 s count from the first process start that the tool saw, "
+    "on its own clock. They are not the browser's UMA sample points: it "
+    "records the startup storage histograms later, 10 s after its storage "
+    "metrics task is scheduled at the end of startup.")
+
+
 def _markdown_row(analysis: Analysis, row: Row, bold: bool = False) -> str:
   name = row.name
   if row.is_group and row.name in ROOT_TITLES:
     budget = BUDGETS_BYTES.get(row.name)
-    name = ROOT_TITLES[row.name] + (f" (budget {fmt_size(budget)})"
-                                    if budget else "")
+    name = ROOT_TITLES[row.name] + (
+        f" (target {fmt_size(budget)}, not enforced)" if budget else "")
   cells = [fmt_size(row.series[m.index]) for m in analysis.moments]
   peak, peak_t = _peak_text(analysis, row)
   peak = f"{peak} ({peak_t})" if peak_t else peak
@@ -1246,7 +1316,7 @@ def format_html(analysis: Analysis) -> str:
       ("<p class='note'>Allocated disk space (st_blocks &times; 512, what "
        "<code>du</code> and Android count); KB/MB are 1024-based. Group rows "
        "hold only the buckets classified under that root; the total is "
-       "everything the app owns.</p>"),
+       "everything the app owns. " + html.escape(_MOMENTS_NOTE) + "</p>"),
       "<h2 id='chart'>Footprint over time</h2>",
       _html_area_chart(analysis),
       _html_io_chart(analysis),
@@ -1275,8 +1345,8 @@ def _html_cards(analysis: Analysis) -> str:
     budget = BUDGETS_BYTES[root]
     cards.append(
         (f"{root} file data at end", fmt_size(value),
-         f"{100 * value / budget:.0f}% of {fmt_size(budget)} budget", value
-         > budget))
+         f"{100 * value / budget:.0f}% of the {fmt_size(budget)} target "
+         "(not enforced)", value > budget))
   launches = sum(
       1 for e in analysis.timeline.events if e["event"] == "process_start")
   cards.append(("Processes", str(launches), "process starts seen", False))
@@ -1371,7 +1441,7 @@ def _html_moments_table(analysis: Analysis) -> str:
     title = ROOT_TITLES.get(subtotal.name, subtotal.name)
     description = title.split(": ", 1)[-1] if ": " in title else ""
     if budget:
-      description += f", budget {fmt_size(budget)}"
+      description += f", target {fmt_size(budget)} (not enforced)"
     label = (f"{html.escape(subtotal.name)}<br><span class='note'>"
              f"{html.escape(description)}</span>")
     out.append(row_html(subtotal, "group", label))

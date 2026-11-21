@@ -305,8 +305,9 @@ class TimelineTest(unittest.TestCase):
     self._write_run()
     analysis = sf.analyze(sf.load_timeline(self.path))
     labels = [(m.label, analysis.times[m.index]) for m in analysis.moments]
-    self.assertEqual(labels, [("Start", 0.0), ("+10 s after launch", 13.0),
-                              ("+30 s after launch", 33.0), ("End", 60.0)])
+    self.assertEqual(labels,
+                     [("Start", 0.0), ("+10 s after first launch", 13.0),
+                      ("+30 s after first launch", 33.0), ("End", 60.0)])
     self.assertEqual([g.name for g, _ in analysis.groups],
                      ["UserData", "DirCache", "AppData", sf.USER_DE])
     user_data_rows = [r.name for r in analysis.groups[0][1]]
@@ -376,6 +377,38 @@ class TimelineTest(unittest.TestCase):
         [(m.label, analysis.times[m.index]) for m in analysis.moments],
         [("Start", 0.0), ("end of pause_flush", 9.0), ("End", 20.0)])
 
+  def test_first_sample_lists_all_files_and_sqlite_and_crash_findings(self):
+    timeline = sf.FootprintTimeline(
+        self.path,
+        package=PKG,
+        platform="android",
+        cuj="warm_relaunch",
+        interval_sec=1.0,
+        extra_args="",
+        roots=sf.android_roots(PKG),
+        table=sf.load_bucket_table())
+    small_files = [_file(f"{APP}/files/f{i:02d}", 100) for i in range(30)]
+    for t in range(9):
+      # Three processes; the WAL grows in each and is never checkpointed.
+      entries = _base_entries() + small_files + [
+          _file(f"{UD}/DIPS-wal", 4096 * (1 + t // 3)),
+          _file(f"{UD}/WebStorage/QuotaManager-journal", 512)
+      ]
+      if t >= 7:
+        entries.append(_file(f"{APP}/cache/crashpad/pending/a.dmp", 4096))
+      timeline.sample(float(t), entries, pid=100 + t // 3)
+    timeline.close()
+    loaded = sf.load_timeline(self.path)
+    self.assertEqual(len(loaded.samples[0]["files"]), 8 + 30 + 2)
+    self.assertLess(len(loaded.samples[1]["files"]), 30)
+    titles = [f.title for f in sf.analyze(loaded).findings]
+    self.assertIn(
+        "DIPS-wal grew after 2 process starts and never shrank "
+        "(4 KB to 12 KB logical)", titles)
+    self.assertIn("QuotaManager-journal is not empty at the end (512 B)",
+                  titles)
+    self.assertIn("1 new crash dump (*.dmp)", titles)
+
   def test_reports(self):
     self._write_run()
     html_path = os.path.join(self.temp_dir.name, "run.html")
@@ -384,7 +417,7 @@ class TimelineTest(unittest.TestCase):
     with open(md_path, encoding="utf-8") as f:
       markdown = f.read()
     for text in ("## Storage Footprint by Bucket", "### Findings",
-                 "### Footprint at key moments", "+10 s after launch",
+                 "### Footprint at key moments", "+10 s after first launch",
                  "### Largest folders at the end", "### Largest files",
                  "| `DIPS` |", "**Total**"):
       self.assertIn(text, markdown)
