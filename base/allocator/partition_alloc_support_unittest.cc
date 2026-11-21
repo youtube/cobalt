@@ -17,6 +17,14 @@
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/dangling_raw_ptr_checks.h"
 #include "partition_alloc/partition_alloc_base/cpu.h"
+#include "partition_alloc/partition_alloc_constants.h"
+#include "partition_alloc/partition_lock.h"
+#include "partition_alloc/partition_root.h"
+#include "partition_alloc/superpage_region_32bit.h"
+
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
+#endif
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -363,5 +371,163 @@ TEST_F(MemoryReclaimerSupportTest, ForegroundToBackgroundAndBack) {
   EXPECT_TRUE(instance.has_pending_task_for_testing());
   EXPECT_EQ(1u, task_environment_.GetPendingMainThreadTaskCount());
 }
+
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS) && BUILDFLAG(IS_POSIX)
+class SuperPagePlacementFor32BitTest : public ::testing::Test {
+ protected:
+  static constexpr uintptr_t kMiB = 1024 * 1024;
+  static constexpr char kPrefix[] = "CobaltPartitionAllocSuperPageRegions_";
+
+  void SetUp() override {
+    partition_alloc::internal::ResetSuperPageRegionsForTesting();
+    partition_alloc::SetRandomHintsDisabledFor32Bit(false);
+  }
+  void TearDown() override {
+    partition_alloc::internal::ResetSuperPageRegionsForTesting();
+    partition_alloc::SetRandomHintsDisabledFor32Bit(false);
+  }
+
+  static std::string P(const char* name) {
+    return std::string(kPrefix) + name;
+  }
+
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  // A super-page-aligned hint outside every placement the tests configure.
+  static constexpr uintptr_t kSeedNextSuperPage = 3500 * kMiB;
+
+  static void SeedMallocRootNextSuperPage() {
+    partition_alloc::PartitionRoot* root =
+        allocator_shim::internal::PartitionAllocMalloc::Allocator();
+    partition_alloc::internal::ScopedGuard guard(
+        partition_alloc::internal::PartitionRootLock(root));
+    root->next_super_page = kSeedNextSuperPage;
+  }
+
+  // The malloc root's chain hint after configuration: 0, or an address that
+  // a super page reserved since then set.
+  static uintptr_t MallocRootNextSuperPage() {
+    partition_alloc::PartitionRoot* root =
+        allocator_shim::internal::PartitionAllocMalloc::Allocator();
+    partition_alloc::internal::ScopedGuard guard(
+        partition_alloc::internal::PartitionRootLock(root));
+    return root->next_super_page;
+  }
+#endif
+};
+
+TEST_F(SuperPagePlacementFor32BitTest, DisabledByDefault) {
+  EXPECT_FALSE(ConfigureSuperPagePlacementFor32Bit());
+  EXPECT_EQ(partition_alloc::GetSuperPageRegionStats().bottom_up_cursor, 0u);
+  EXPECT_FALSE(partition_alloc::AreRandomHintsDisabledFor32Bit());
+}
+
+TEST_F(SuperPagePlacementFor32BitTest, RegionsModeUsesParams) {
+  // ResetSuperPageRegionsForTesting() leaves a region mapped if the test
+  // process's own allocations took a super page from it meanwhile.
+  test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kCobaltPartitionAllocSuperPageRegions,
+      {{P("mode"), "regions"},
+       {P("initial_mb"), "4"},
+       {P("step_mb"), "16"},
+       {P("max_mb"), "32"}});
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  SeedMallocRootNextSuperPage();
+#endif
+  EXPECT_TRUE(ConfigureSuperPagePlacementFor32Bit());
+  const partition_alloc::SuperPageRegionStats stats =
+      partition_alloc::GetSuperPageRegionStats();
+  EXPECT_GE(stats.regions, 1u);
+  // The exact-size try may keep the aligned part, one super page less.
+  EXPECT_GE(stats.reserved_bytes, 2 * kMiB);
+  EXPECT_LE(stats.reserved_bytes, 4 * kMiB);
+  // Regions mode leaves random hints on for other mappings (direct maps,
+  // V8).
+  EXPECT_FALSE(partition_alloc::AreRandomHintsDisabledFor32Bit());
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  // The root restarted its chain.
+  const uintptr_t next = MallocRootNextSuperPage();
+  EXPECT_NE(next, kSeedNextSuperPage);
+  EXPECT_TRUE(next == 0 || stats.used_bytes > 0 ||
+              stats.fallback_super_pages > 0)
+      << next;
+#endif
+}
+
+// Bottom-up mode is implemented on these platforms only.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+TEST_F(SuperPagePlacementFor32BitTest, BottomUpModeUsesBaseAndLimit) {
+  // Configuring maps nothing; super pages that the test process's own
+  // allocations need from here on go to the band (MAP_FIXED_NOREPLACE never
+  // replaces a mapping), which can move the cursor up.
+  test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kCobaltPartitionAllocSuperPageRegions,
+      {{P("mode"), "bottom-up"}, {P("base_mb"), "16"}, {P("limit_mb"), "3000"}});
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  SeedMallocRootNextSuperPage();
+#endif
+  EXPECT_TRUE(ConfigureSuperPagePlacementFor32Bit());
+  const partition_alloc::SuperPageRegionStats stats =
+      partition_alloc::GetSuperPageRegionStats();
+  EXPECT_GE(stats.bottom_up_cursor, 16 * kMiB);
+  EXPECT_LE(stats.bottom_up_cursor, 3000 * kMiB);
+  EXPECT_FALSE(partition_alloc::internal::SuperPageRegionShouldDropHint(
+      16 * kMiB - partition_alloc::internal::kSuperPageSize));
+  EXPECT_TRUE(partition_alloc::internal::SuperPageRegionShouldDropHint(
+      16 * kMiB));
+  // Above 2 GiB.
+  EXPECT_TRUE(partition_alloc::internal::SuperPageRegionShouldDropHint(
+      3000 * kMiB));
+  // b1 is on by default in bottom-up mode.
+  EXPECT_TRUE(partition_alloc::AreRandomHintsDisabledFor32Bit());
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  // The root restarted its chain.
+  const uintptr_t next = MallocRootNextSuperPage();
+  EXPECT_NE(next, kSeedNextSuperPage);
+  EXPECT_TRUE(next == 0 || (next >= 16 * kMiB && next <= 3000 * kMiB) ||
+              stats.fallback_super_pages > 0)
+      << next;
+#endif
+}
+
+TEST_F(SuperPagePlacementFor32BitTest, BottomUpModeCanKeepRandomHints) {
+  test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kCobaltPartitionAllocSuperPageRegions,
+      {{P("mode"), "bottom-up"},
+       {P("base_mb"), "16"},
+       {P("limit_mb"), "64"},
+       {P("no_random_hint"), "false"}});
+  EXPECT_TRUE(ConfigureSuperPagePlacementFor32Bit());
+  EXPECT_FALSE(partition_alloc::AreRandomHintsDisabledFor32Bit());
+}
+
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
+
+TEST_F(SuperPagePlacementFor32BitTest, BottomUpModeRejectsEmptyRange) {
+  test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kCobaltPartitionAllocSuperPageRegions,
+      {{P("mode"), "bottom-up"}, {P("base_mb"), "100"}, {P("limit_mb"), "50"}});
+  EXPECT_FALSE(ConfigureSuperPagePlacementFor32Bit());
+  EXPECT_EQ(partition_alloc::GetSuperPageRegionStats().bottom_up_cursor, 0u);
+  // A rejected configuration leaves the hints alone.
+  EXPECT_FALSE(partition_alloc::AreRandomHintsDisabledFor32Bit());
+}
+
+TEST_F(SuperPagePlacementFor32BitTest, UnprefixedParamsAreIgnored) {
+  // Cobalt's Finch loader merges all features' params into one map, so only
+  // the prefixed names count.
+  test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kCobaltPartitionAllocSuperPageRegions,
+      {{"mode", "bottom-up"}, {"base_mb", "16"}, {"limit_mb", "64"}});
+  EXPECT_TRUE(ConfigureSuperPagePlacementFor32Bit());
+  // Default mode (regions), not bottom-up.
+  EXPECT_EQ(partition_alloc::GetSuperPageRegionStats().bottom_up_cursor, 0u);
+}
+#endif  // !PA_BUILDFLAG(HAS_64_BIT_POINTERS) && BUILDFLAG(IS_POSIX)
 
 }  // namespace base::allocator

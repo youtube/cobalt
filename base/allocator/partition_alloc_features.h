@@ -121,6 +121,36 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocEventuallyZeroFreedMemory);
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocFewerMemoryRegions);
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+// 32-bit only (Cobalt): where normal-bucket super pages of the regular pool
+// are placed. Params are prefixed with the feature name because Cobalt's Finch
+// loader puts all features' params in one map. See partition_alloc/superpage_region_32bit.h. Configured once
+// in the browser process, after the FeatureList is initialized; super pages
+// reserved before that stay where they are.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltPartitionAllocSuperPageRegions);
+enum class SuperPagePlacementMode {
+  // Growable PROT_NONE regions, placed by the kernel.
+  kRegions,
+  // A cursor that grows upward from a low base (MAP_FIXED_NOREPLACE).
+  kBottomUp,
+};
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(SuperPagePlacementMode,
+                                       kSuperPagePlacementModeParam);
+// kRegions: MiB reserved at configuration time (0: none), the growth step
+// (0: no growth) and the total cap.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSuperPageRegionInitialMiBParam);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSuperPageRegionStepMiBParam);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSuperPageRegionMaxMiBParam);
+// kBottomUp: the cursor's start and limit, in MiB from address 0, and whether
+// to also drop PartitionAlloc's random placement hints, so that
+// direct maps and V8/Oilpan pages go top-down with the kernel's other
+// mappings, leaving free space as one gap between the two ends.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSuperPageBottomUpBaseMiBParam);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSuperPageBottomUpLimitMiBParam);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                       kSuperPageBottomUpNoRandomHintParam);
+#endif  // !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+
 using BackupRefPtrEnabledProcesses = internal::PAFeatureEnabledProcesses;
 
 enum class BackupRefPtrMode {

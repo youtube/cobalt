@@ -171,6 +171,55 @@ BASE_FEATURE(kPartitionAllocFewerMemoryRegions,
 #endif
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+BASE_FEATURE(kCobaltPartitionAllocSuperPageRegions,
+             "CobaltPartitionAllocSuperPageRegions",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+constexpr FeatureParam<SuperPagePlacementMode>::Option
+    kSuperPagePlacementModeOptions[] = {
+        {SuperPagePlacementMode::kRegions, "regions"},
+        {SuperPagePlacementMode::kBottomUp, "bottom-up"},
+};
+BASE_FEATURE_ENUM_PARAM(SuperPagePlacementMode,
+                        kSuperPagePlacementModeParam,
+                        &kCobaltPartitionAllocSuperPageRegions,
+                        "CobaltPartitionAllocSuperPageRegions_mode",
+                        SuperPagePlacementMode::kRegions,
+                        &kSuperPagePlacementModeOptions);
+BASE_FEATURE_PARAM(int,
+                   kSuperPageRegionInitialMiBParam,
+                   &kCobaltPartitionAllocSuperPageRegions,
+                   "CobaltPartitionAllocSuperPageRegions_initial_mb",
+                   0);
+BASE_FEATURE_PARAM(int,
+                   kSuperPageRegionStepMiBParam,
+                   &kCobaltPartitionAllocSuperPageRegions,
+                   "CobaltPartitionAllocSuperPageRegions_step_mb",
+                   32);
+BASE_FEATURE_PARAM(int,
+                   kSuperPageRegionMaxMiBParam,
+                   &kCobaltPartitionAllocSuperPageRegions,
+                   "CobaltPartitionAllocSuperPageRegions_max_mb",
+                   512);
+BASE_FEATURE_PARAM(int,
+                   kSuperPageBottomUpBaseMiBParam,
+                   &kCobaltPartitionAllocSuperPageRegions,
+                   "CobaltPartitionAllocSuperPageRegions_base_mb",
+                   16);
+// 0x70000000.
+BASE_FEATURE_PARAM(int,
+                   kSuperPageBottomUpLimitMiBParam,
+                   &kCobaltPartitionAllocSuperPageRegions,
+                   "CobaltPartitionAllocSuperPageRegions_limit_mb",
+                   1792);
+BASE_FEATURE_PARAM(bool,
+                   kSuperPageBottomUpNoRandomHintParam,
+                   &kCobaltPartitionAllocSuperPageRegions,
+                   "CobaltPartitionAllocSuperPageRegions_no_random_hint",
+                   true);
+#endif  // !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+
 BASE_FEATURE(kPartitionAllocBackupRefPtr,
              "PartitionAllocBackupRefPtr",
 #if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_FEATURE_FLAG)

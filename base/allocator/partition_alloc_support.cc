@@ -63,6 +63,7 @@
 #include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #include "partition_alloc/shim/allocator_shim_dispatch_to_noop_on_free.h"
 #include "partition_alloc/stack/stack.h"
+#include "partition_alloc/superpage_region_32bit.h"
 #include "partition_alloc/thread_cache.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1000,6 +1001,89 @@ void PartitionAllocSupport::ReconfigureAfterZygoteFork(
   }
 }
 
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+bool ConfigureSuperPagePlacementFor32Bit() {
+  if (!FeatureList::IsEnabled(features::kCobaltPartitionAllocSuperPageRegions)) {
+    return false;
+  }
+  constexpr size_t kMiB = 1024 * 1024;
+  // Up to 4 GiB - 1 MiB, the 32-bit address space.
+  static constexpr int kMaxMiB = 4095;
+  auto mib = [](int value) {
+    return static_cast<size_t>(std::clamp(value, 0, kMaxMiB));
+  };
+  // Before the initial region (regions mode), which counts as mapped too.
+  const size_t mapped_before = partition_alloc::GetTotalMappedSize();
+  bool configured = false;
+  switch (features::kSuperPagePlacementModeParam.Get()) {
+    case features::SuperPagePlacementMode::kRegions: {
+      if (!partition_alloc::AreSuperPageRegionsAvailableFor32Bit()) {
+        return false;
+      }
+      const size_t initial = mib(features::kSuperPageRegionInitialMiBParam.Get());
+      const size_t step = mib(features::kSuperPageRegionStepMiBParam.Get());
+      const size_t max = std::max(
+          initial, mib(features::kSuperPageRegionMaxMiBParam.Get()));
+      const size_t reserved = partition_alloc::ConfigureSuperPageRegionsFor32Bit(
+          initial * kMiB, step * kMiB, max * kMiB);
+      LOG(INFO) << "PartitionAlloc: super-page regions initial=" << initial
+                << " step=" << step << " max=" << max
+                << " MiB; reserved " << reserved / kMiB << " MiB";
+      configured = true;
+      break;
+    }
+    case features::SuperPagePlacementMode::kBottomUp: {
+      const uintptr_t base =
+          mib(features::kSuperPageBottomUpBaseMiBParam.Get()) * kMiB;
+      const uintptr_t limit =
+          mib(features::kSuperPageBottomUpLimitMiBParam.Get()) * kMiB;
+      configured =
+          partition_alloc::ConfigureBottomUpSuperPagesFor32Bit(base, limit);
+      // b1: without random hints, direct maps and V8/Oilpan pages are placed
+      // top-down by the kernel instead of in [0.5, 1.5) GiB, i.e. away from
+      // the bottom-up band.
+      const bool no_random_hint =
+          configured && features::kSuperPageBottomUpNoRandomHintParam.Get();
+      if (no_random_hint) {
+        partition_alloc::SetRandomHintsDisabledFor32Bit(true);
+      }
+      LOG(INFO) << "PartitionAlloc: bottom-up super pages base=0x" << std::hex
+                << base << " limit=0x" << limit << std::dec
+                << " no_random_hint=" << no_random_hint
+                << (configured ? "" : " rejected (empty range or unsupported)");
+      break;
+    }
+  }
+  if (!configured) {
+    return false;
+  }
+  // What stays outside: super pages reserved before this point keep their
+  // place.
+  const size_t preexisting =
+      partition_alloc::GetSuperPageRegionStats().preexisting_super_pages;
+  LOG(INFO) << "PartitionAlloc: " << preexisting
+            << " regular-pool super pages ("
+            << preexisting * (partition_alloc::internal::kSuperPageSize / kMiB)
+            << " MiB) were already reserved; " << mapped_before / kMiB
+            << " MiB mapped by PartitionAlloc in total";
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  // Existing roots chain their next super page from their last one, which
+  // lies outside the new placement; restart them so that a fallback isn't
+  // pulled back there.
+  for (partition_alloc::PartitionRoot* root :
+       {allocator_shim::internal::PartitionAllocMalloc::Allocator(),
+        allocator_shim::internal::PartitionAllocMalloc::OriginalAllocator()}) {
+    if (root) {
+      partition_alloc::internal::ScopedGuard guard(
+          partition_alloc::internal::PartitionRootLock(root));
+      root->next_super_page = 0;
+    }
+  }
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  return true;
+}
+#endif  // !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+
 void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
     const std::string& process_type,
     bool configure_dangling_pointer_detector) {
@@ -1035,6 +1119,15 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
 
     called_after_feature_list_init_ = true;
   }
+
+#if BUILDFLAG(IS_COBALT) && !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+  // Before ConfigurePartitions(), which may create the main root. Browser
+  // only: Cobalt runs single-process, and the bottom-up mode uses
+  // MAP_FIXED_NOREPLACE, which Chromium's seccomp policy doesn't allow.
+  if (process_type.empty()) {
+    ConfigureSuperPagePlacementFor32Bit();
+  }
+#endif  // BUILDFLAG(IS_COBALT) && !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
 
 #if BUILDFLAG(IS_COBALT)
   if (configure_dangling_pointer_detector) {

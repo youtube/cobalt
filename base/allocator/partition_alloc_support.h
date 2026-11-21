@@ -46,6 +46,15 @@ BASE_EXPORT void InstallUnretainedDanglingRawPtrChecks();
 // Does nothing if allocator shim support is not built.
 BASE_EXPORT void MakeFreeNoOp();
 
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+// Applies kCobaltPartitionAllocSuperPageRegions: configures 32-bit super-page
+// regions or the bottom-up cursor (partition_alloc/superpage_region_32bit.h)
+// and restarts the super-page chain of the existing malloc roots. Call once,
+// in the browser process, after the FeatureList is initialized. Returns
+// whether a placement was configured.
+BASE_EXPORT bool ConfigureSuperPagePlacementFor32Bit();
+#endif  // !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+
 // Allows to re-configure PartitionAlloc at run-time.
 class BASE_EXPORT PartitionAllocSupport {
  public:
