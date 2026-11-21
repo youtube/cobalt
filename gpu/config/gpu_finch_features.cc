@@ -52,6 +52,18 @@ BASE_FEATURE(kUseGles2ForOopR,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_COBALT)
+// Caps background/normal-priority RasterCommandBufferStub sequence priority
+// at SchedulingPriority::kNormal during command-buffer token/offset waits so
+// OOP-R tile rasterization does not preempt Viz's display compositor (kHigh).
+// Disabled by default on Android, enabled by default on other platforms.
+BASE_FEATURE(kCobaltCapRasterWaitPriority,
+             "CobaltCapRasterWaitPriority",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // Enables zero-copy, direct in-process rasterization for Cobalt by bypassing
 // PaintOp buffer serialization and transfer cache caching.
 // Disabled by default on Android, enabled by default on other platforms.
