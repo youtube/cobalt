@@ -4,6 +4,8 @@
 
 #include "starboard/common/log.h"
 
+#include <mutex>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -86,7 +88,10 @@ TEST(LogTest, StreamOperator_OptionalEmpty) {
   EXPECT_EQ(ss_absent.str(), "(nullopt)");
 }
 
-struct CapturedSbLog {
+constexpr char kSbLogHandlerTestSentinel[] = "starboard-log-handler-test";
+
+struct CapturedSbLogState {
+  std::mutex mutex;
   SbLogPriority priority = kSbLogPriorityUnknown;
   std::string file;
   int line = 0;
@@ -94,44 +99,68 @@ struct CapturedSbLog {
   int calls = 0;
 };
 
-CapturedSbLog* g_captured_sb_log = nullptr;
+CapturedSbLogState& GetCapturedSbLogState() {
+  static auto* state = new CapturedSbLogState();
+  return *state;
+}
+
+class ScopedSbLogHandlerRestorer {
+ public:
+  explicit ScopedSbLogHandlerRestorer(LogMessageHandlerFunction saved_handler)
+      : saved_handler_(saved_handler) {}
+  ~ScopedSbLogHandlerRestorer() { SetLogMessageHandler(saved_handler_); }
+
+ private:
+  LogMessageHandlerFunction saved_handler_;
+};
 
 bool CaptureSbLogHandler(SbLogPriority priority,
                          const char* file,
                          int line,
                          size_t message_start,
                          const std::string& str) {
-  if (g_captured_sb_log) {
-    g_captured_sb_log->priority = priority;
-    g_captured_sb_log->file = file ? file : "";
-    g_captured_sb_log->line = line;
-    g_captured_sb_log->message =
-        message_start <= str.size() ? str.substr(message_start) : str;
-    ++g_captured_sb_log->calls;
+  std::string payload =
+      message_start <= str.size() ? str.substr(message_start) : std::string();
+  if (payload.find(kSbLogHandlerTestSentinel) == std::string::npos) {
+    return false;
   }
+  CapturedSbLogState& state = GetCapturedSbLogState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  state.priority = priority;
+  state.file = file ? file : "";
+  state.line = line;
+  state.message = std::move(payload);
+  ++state.calls;
   return false;
 }
 
 // Verifies that registering an internal Starboard log handler captures SB_LOG
-// messages with priority, source file/line, and payload offset.
+// messages with exact priority, source file/line, and payload offset past the
+// formatted header prefix.
 TEST(LogTest, LogMessageHandlerInterceptsSbLog) {
-  LogMessageHandlerFunction saved_handler = GetLogMessageHandler();
-  CapturedSbLog captured;
-  g_captured_sb_log = &captured;
+  CapturedSbLogState& state = GetCapturedSbLogState();
+  {
+    std::lock_guard<std::mutex> lock(state.mutex);
+    state.priority = kSbLogPriorityUnknown;
+    state.file.clear();
+    state.line = 0;
+    state.message.clear();
+    state.calls = 0;
+  }
+
+  ScopedSbLogHandlerRestorer restorer(GetLogMessageHandler());
   SetLogMessageHandler(&CaptureSbLogHandler);
   EXPECT_EQ(GetLogMessageHandler(), &CaptureSbLogHandler);
 
-  SB_LOG(WARNING) << "starboard-log-handler-test";
+  const int expected_line = __LINE__ + 1;
+  SB_LOG(WARNING) << kSbLogHandlerTestSentinel;
 
-  SetLogMessageHandler(saved_handler);
-  g_captured_sb_log = nullptr;
-
-  EXPECT_GE(captured.calls, 1);
-  EXPECT_EQ(captured.priority, kSbLogPriorityWarning);
-  EXPECT_NE(captured.file.find("log_unittest.cc"), std::string::npos);
-  EXPECT_GT(captured.line, 0);
-  EXPECT_NE(captured.message.find("starboard-log-handler-test"),
-            std::string::npos);
+  std::lock_guard<std::mutex> lock(state.mutex);
+  EXPECT_EQ(state.calls, 1);
+  EXPECT_EQ(state.priority, kSbLogPriorityWarning);
+  EXPECT_NE(state.file.find("log_unittest.cc"), std::string::npos);
+  EXPECT_EQ(state.line, expected_line);
+  EXPECT_EQ(state.message, std::string(kSbLogHandlerTestSentinel) + "\n");
 }
 
 }  // namespace

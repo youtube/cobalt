@@ -16,9 +16,11 @@
 
 #include <atomic>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
@@ -27,6 +29,7 @@
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
+#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -153,18 +156,154 @@ TEST(CobaltLogCollectorTest, RingOverflowDropAccountingAndUtf8Truncation) {
   EXPECT_EQ(result.entries[1].seq, 4u);
   EXPECT_EQ(result.entries[2].seq, 5u);
 
-  // Verify the UTF-8 truncation boundary with a non-overflowing collector.
+  // Verify UTF-8 truncation boundaries on a non-overflowing collector:
+  // 1) "ab" (2 bytes) + 3-byte euro sign + "z" = 6 bytes -> keeps
+  // "ab\xE2\x82\xAC". 2) "abc" (3 bytes) + 3-byte euro sign = 6 bytes -> backs
+  // up to "abc". 3) "ab" + orphan continuation bytes -> backs up to "ab".
   CobaltLogCollector utf8_collector(config);
   CobaltLogCollector::ScopedConsumer utf8_consumer =
       utf8_collector.RegisterConsumer();
   utf8_collector.RecordLogMessage(LogSeverity::kInfo, "f.cc", 1,
+                                  "ab\xE2\x82\xACz");
+  utf8_collector.RecordLogMessage(LogSeverity::kInfo, "f.cc", 2,
                                   "abc\xE2\x82\xAC");
+  utf8_collector.RecordLogMessage(LogSeverity::kInfo, "f.cc", 3,
+                                  "ab\x80\x80\x80\x80");
   CobaltLogCollector::ReadResult utf8_result =
       utf8_collector.ReadSince(/*after_seq=*/0, /*max_entries=*/10,
                                /*max_bytes=*/64 * 1024);
-  ASSERT_EQ(utf8_result.entries.size(), 1u);
+  ASSERT_EQ(utf8_result.entries.size(), 3u);
   EXPECT_TRUE(utf8_result.entries[0].message_truncated);
-  EXPECT_EQ(utf8_result.entries[0].message, "abc");
+  EXPECT_EQ(utf8_result.entries[0].message, "ab\xE2\x82\xAC");
+  EXPECT_TRUE(utf8_result.entries[1].message_truncated);
+  EXPECT_EQ(utf8_result.entries[1].message, "abc");
+  EXPECT_TRUE(utf8_result.entries[2].message_truncated);
+  EXPECT_EQ(utf8_result.entries[2].message, "ab");
+}
+
+// Verifies that byte-budget pagination splits batches cleanly, still delivers
+// an oversized single entry so readers never stall, supports zero limits for
+// unbounded reads, and drops all entries when ring max_bytes is configured to
+// zero.
+TEST(CobaltLogCollectorTest, ReadSinceByteCapsOversizedEntryAndZeroConfig) {
+  CobaltLogCollector::Config zero_bytes_config;
+  zero_bytes_config.max_entries = 10;
+  zero_bytes_config.max_bytes = 0;
+  CobaltLogCollector zero_collector(zero_bytes_config);
+  CobaltLogCollector::ScopedConsumer zero_consumer =
+      zero_collector.RegisterConsumer();
+  zero_collector.RecordLogMessage(LogSeverity::kInfo, "z.cc", 1, "ignored");
+  EXPECT_EQ(zero_collector.SnapshotStats().buffered_entries, 0u);
+  EXPECT_EQ(zero_collector.SnapshotStats().buffered_bytes, 0u);
+
+  CobaltLogCollector collector;
+  CobaltLogCollector::ScopedConsumer consumer = collector.RegisterConsumer();
+  const std::string payload(80, 'a');
+  collector.RecordLogMessage(LogSeverity::kInfo, "p.cc", 1, payload);
+  collector.RecordLogMessage(LogSeverity::kInfo, "p.cc", 2, payload);
+  collector.RecordLogMessage(LogSeverity::kInfo, "p.cc", 3, payload);
+
+  // A max_bytes smaller than a single entry must still yield 1 entry so the
+  // consumer makes forward progress instead of spinning on seq 0.
+  CobaltLogCollector::ReadResult oversized_page =
+      collector.ReadSince(/*after_seq=*/0, /*max_entries=*/10, /*max_bytes=*/1);
+  ASSERT_EQ(oversized_page.entries.size(), 1u);
+  EXPECT_EQ(oversized_page.entries[0].seq, 1u);
+  EXPECT_EQ(oversized_page.next_seq, 1u);
+  EXPECT_TRUE(oversized_page.truncated);
+
+  // A byte budget that fits two entries splits three entries across two pages.
+  const size_t approx_entry_bytes =
+      sizeof(CobaltLogCollector::LogEntry) + payload.size() + 10;
+  CobaltLogCollector::ReadResult byte_page1 =
+      collector.ReadSince(/*after_seq=*/0, /*max_entries=*/10,
+                          /*max_bytes=*/2 * approx_entry_bytes);
+  ASSERT_EQ(byte_page1.entries.size(), 2u);
+  EXPECT_EQ(byte_page1.entries[0].seq, 1u);
+  EXPECT_EQ(byte_page1.entries[1].seq, 2u);
+  EXPECT_EQ(byte_page1.next_seq, 2u);
+  EXPECT_TRUE(byte_page1.truncated);
+
+  CobaltLogCollector::ReadResult byte_page2 =
+      collector.ReadSince(byte_page1.next_seq, /*max_entries=*/10,
+                          /*max_bytes=*/2 * approx_entry_bytes);
+  ASSERT_EQ(byte_page2.entries.size(), 1u);
+  EXPECT_EQ(byte_page2.entries[0].seq, 3u);
+  EXPECT_EQ(byte_page2.next_seq, 3u);
+  EXPECT_FALSE(byte_page2.truncated);
+
+  // Passing 0 for max_entries and max_bytes disables read caps and returns the
+  // remaining buffered entries in one batch.
+  CobaltLogCollector::ReadResult unbounded =
+      collector.ReadSince(oversized_page.next_seq, /*max_entries=*/0,
+                          /*max_bytes=*/0);
+  ASSERT_EQ(unbounded.entries.size(), 2u);
+  EXPECT_EQ(unbounded.entries[0].seq, 2u);
+  EXPECT_EQ(unbounded.entries[1].seq, 3u);
+  EXPECT_EQ(unbounded.next_seq, 3u);
+  EXPECT_FALSE(unbounded.truncated);
+
+  // Future cursor past latest_seq returns empty without rewinding next_seq.
+  CobaltLogCollector::ReadResult future =
+      collector.ReadSince(/*after_seq=*/999, /*max_entries=*/10,
+                          /*max_bytes=*/64 * 1024);
+  EXPECT_TRUE(future.entries.empty());
+  EXPECT_EQ(future.next_seq, 999u);
+  EXPECT_FALSE(future.truncated);
+}
+
+// Verifies ScopedConsumer move semantics keep collection active across
+// ownership transfers without double-unregistering, and validates Chromium and
+// Starboard severity mappings.
+TEST(CobaltLogCollectorTest, ScopedConsumerMoveSemanticsAndSeverityMappings) {
+  CobaltLogCollector collector;
+  {
+    CobaltLogCollector::ScopedConsumer original = collector.RegisterConsumer();
+    EXPECT_TRUE(static_cast<bool>(original));
+
+    CobaltLogCollector::ScopedConsumer moved_ctor(std::move(original));
+    EXPECT_FALSE(static_cast<bool>(original));
+    EXPECT_TRUE(static_cast<bool>(moved_ctor));
+    EXPECT_TRUE(collector.SnapshotStats().active);
+
+    CobaltLogCollector::ScopedConsumer moved_assign =
+        collector.RegisterConsumer();
+    moved_assign = std::move(moved_ctor);
+    EXPECT_FALSE(static_cast<bool>(moved_ctor));
+    EXPECT_TRUE(static_cast<bool>(moved_assign));
+    EXPECT_TRUE(collector.SnapshotStats().active);
+  }
+  EXPECT_FALSE(collector.SnapshotStats().active);
+
+  EXPECT_EQ(CobaltLogCollector::SeverityFromBaseLogLevel(-1),
+            LogSeverity::kVerbose);
+  EXPECT_EQ(CobaltLogCollector::SeverityFromBaseLogLevel(logging::LOGGING_INFO),
+            LogSeverity::kInfo);
+  EXPECT_EQ(
+      CobaltLogCollector::SeverityFromBaseLogLevel(logging::LOGGING_WARNING),
+      LogSeverity::kWarning);
+  EXPECT_EQ(
+      CobaltLogCollector::SeverityFromBaseLogLevel(logging::LOGGING_ERROR),
+      LogSeverity::kError);
+  EXPECT_EQ(
+      CobaltLogCollector::SeverityFromBaseLogLevel(logging::LOGGING_FATAL),
+      LogSeverity::kFatal);
+
+  EXPECT_EQ(CobaltLogCollector::SeverityFromStarboardLogPriority(
+                kSbLogPriorityUnknown),
+            LogSeverity::kInfo);
+  EXPECT_EQ(
+      CobaltLogCollector::SeverityFromStarboardLogPriority(kSbLogPriorityInfo),
+      LogSeverity::kInfo);
+  EXPECT_EQ(CobaltLogCollector::SeverityFromStarboardLogPriority(
+                kSbLogPriorityWarning),
+            LogSeverity::kWarning);
+  EXPECT_EQ(
+      CobaltLogCollector::SeverityFromStarboardLogPriority(kSbLogPriorityError),
+      LogSeverity::kError);
+  EXPECT_EQ(
+      CobaltLogCollector::SeverityFromStarboardLogPriority(kSbLogPriorityFatal),
+      LogSeverity::kFatal);
 }
 
 // Verifies that the collector enforces its byte-size cap even when entry count
@@ -225,6 +364,66 @@ TEST(CobaltLogCollectorTest, CoalescedPushNotificationsAndSafeTeardown) {
   EXPECT_EQ(callback_count, 1);
 }
 
+// Verifies that replacing the notification listener or dropping the final
+// consumer cancels any in-flight delayed notification so a stale task never
+// invokes a newly registered callback on the old task runner.
+TEST(CobaltLogCollectorTest, StaleNotificationDoesNotInvokeReplacedCallback) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+
+  CobaltLogCollector::Config config;
+  config.notify_delay = base::Milliseconds(50);
+  CobaltLogCollector collector(config);
+  CobaltLogCollector::ScopedConsumer consumer = collector.RegisterConsumer();
+
+  scoped_refptr<base::SequencedTaskRunner> runner_a =
+      base::SequencedTaskRunner::GetCurrentDefault();
+  scoped_refptr<base::SequencedTaskRunner> runner_b =
+      base::ThreadPool::CreateSequencedTaskRunner({});
+
+  int cb_a_calls = 0;
+  std::atomic<int> cb_b_calls{0};
+  std::atomic<bool> cb_b_ran_on_runner_b{true};
+  base::WaitableEvent cb_b_fired;
+
+  collector.SetNotifyCallback(
+      runner_a, base::BindLambdaForTesting([&]() { ++cb_a_calls; }));
+  collector.RecordLogMessage(LogSeverity::kInfo, "stale.cc", 1, "first");
+
+  // Replace with (runner_b, cb_b) before the delayed task on runner_a runs.
+  collector.SetNotifyCallback(
+      runner_b, base::BindLambdaForTesting([&]() {
+        if (!runner_b->RunsTasksInCurrentSequence()) {
+          cb_b_ran_on_runner_b.store(false, std::memory_order_relaxed);
+        }
+        cb_b_calls.fetch_add(1, std::memory_order_relaxed);
+        cb_b_fired.Signal();
+      }));
+
+  // Let runner_a's stale delayed task fire: neither callback may execute.
+  task_environment.FastForwardBy(base::Milliseconds(50));
+  EXPECT_EQ(cb_a_calls, 0);
+  EXPECT_EQ(cb_b_calls.load(std::memory_order_relaxed), 0);
+  EXPECT_TRUE(cb_b_ran_on_runner_b.load(std::memory_order_relaxed));
+
+  // New logs schedule a fresh notification on runner_b and run there.
+  collector.RecordLogMessage(LogSeverity::kInfo, "stale.cc", 2, "second");
+  task_environment.FastForwardBy(base::Milliseconds(50));
+  cb_b_fired.Wait();
+  EXPECT_EQ(cb_b_calls.load(std::memory_order_relaxed), 1);
+  EXPECT_TRUE(cb_b_ran_on_runner_b.load(std::memory_order_relaxed));
+
+  // Dropping the final consumer also invalidates any queued notification.
+  int after_unregister_calls = 0;
+  collector.SetNotifyCallback(runner_a, base::BindLambdaForTesting([&]() {
+                                ++after_unregister_calls;
+                              }));
+  collector.RecordLogMessage(LogSeverity::kInfo, "stale.cc", 3, "third");
+  consumer.Reset();
+  task_environment.FastForwardBy(base::Milliseconds(50));
+  EXPECT_EQ(after_unregister_calls, 0);
+}
+
 // Verifies that logging from many concurrent non-sequenced ThreadPool worker
 // threads succeeds without DCHECKing on SequencedTaskRunner::GetCurrentDefault
 // (regression coverage for b/347723488).
@@ -280,7 +479,7 @@ TEST(CobaltLogCollectorTest, ConcurrentWorkerThreadsSafeWithoutSequence) {
 }
 
 std::atomic<int> g_chained_handler_calls{0};
-bool g_trigger_reentrant_log = false;
+std::atomic<bool> g_trigger_reentrant_log{false};
 
 bool TestPreviousLogHandler(int severity,
                             const char* file,
@@ -288,10 +487,8 @@ bool TestPreviousLogHandler(int severity,
                             size_t message_start,
                             const std::string& str) {
   g_chained_handler_calls.fetch_add(1, std::memory_order_relaxed);
-  if (g_trigger_reentrant_log) {
-    g_trigger_reentrant_log = false;
-    CobaltLogCollector::GetInstance()->RecordLogMessage(
-        LogSeverity::kInfo, "reentrant.cc", 1, "dropped-reentrant-log");
+  if (g_trigger_reentrant_log.exchange(false, std::memory_order_acq_rel)) {
+    LOG(INFO) << "dropped-reentrant-log";
   }
   return false;
 }
@@ -302,11 +499,17 @@ bool TestPreviousLogHandler(int severity,
 TEST(CobaltLogCollectorTest, GlobalBaseLoggingHookChainingAndIdempotency) {
   logging::LogMessageHandlerFunction saved_handler =
       logging::GetLogMessageHandler();
+  CobaltLogCollector* collector = CobaltLogCollector::GetInstance();
+  base::ScopedClosureRunner restore_handlers(base::BindLambdaForTesting([&]() {
+    g_trigger_reentrant_log.store(false, std::memory_order_release);
+    collector->UninstallHooksForTesting();
+    logging::SetLogMessageHandler(saved_handler);
+  }));
+
   g_chained_handler_calls.store(0, std::memory_order_relaxed);
-  g_trigger_reentrant_log = true;
+  g_trigger_reentrant_log.store(true, std::memory_order_release);
   logging::SetLogMessageHandler(&TestPreviousLogHandler);
 
-  CobaltLogCollector* collector = CobaltLogCollector::GetInstance();
   collector->UninstallHooksForTesting();
   collector->InstallHooks();
   // Repeated calls must remain idempotent and never chain to self.
@@ -335,16 +538,15 @@ TEST(CobaltLogCollectorTest, GlobalBaseLoggingHookChainingAndIdempotency) {
     EXPECT_FALSE(found_reentrant);
   }
 
-  EXPECT_FALSE(g_trigger_reentrant_log);
+  EXPECT_FALSE(g_trigger_reentrant_log.load(std::memory_order_acquire));
   EXPECT_GE(g_chained_handler_calls.load(std::memory_order_relaxed), 1);
 
   collector->UninstallHooksForTesting();
   EXPECT_EQ(logging::GetLogMessageHandler(), &TestPreviousLogHandler);
-  logging::SetLogMessageHandler(saved_handler);
 }
 
 std::atomic<int> g_chained_sb_handler_calls{0};
-bool g_trigger_reentrant_sb_log = false;
+std::atomic<bool> g_trigger_reentrant_sb_log{false};
 
 bool TestPreviousStarboardLogHandler(SbLogPriority priority,
                                      const char* file,
@@ -352,10 +554,8 @@ bool TestPreviousStarboardLogHandler(SbLogPriority priority,
                                      size_t message_start,
                                      const std::string& str) {
   g_chained_sb_handler_calls.fetch_add(1, std::memory_order_relaxed);
-  if (g_trigger_reentrant_sb_log) {
-    g_trigger_reentrant_sb_log = false;
-    CobaltLogCollector::GetInstance()->RecordLogMessage(
-        LogSeverity::kInfo, "reentrant_sb.cc", 1, "dropped-reentrant-sb-log");
+  if (g_trigger_reentrant_sb_log.exchange(false, std::memory_order_acq_rel)) {
+    SB_LOG(INFO) << "dropped-reentrant-sb-log";
   }
   return false;
 }
@@ -366,11 +566,17 @@ bool TestPreviousStarboardLogHandler(SbLogPriority priority,
 TEST(CobaltLogCollectorTest, GlobalStarboardLogHookCapturesSbLogAndChains) {
   starboard::LogMessageHandlerFunction saved_sb_handler =
       starboard::GetLogMessageHandler();
+  CobaltLogCollector* collector = CobaltLogCollector::GetInstance();
+  base::ScopedClosureRunner restore_handlers(base::BindLambdaForTesting([&]() {
+    g_trigger_reentrant_sb_log.store(false, std::memory_order_release);
+    collector->UninstallHooksForTesting();
+    starboard::SetLogMessageHandler(saved_sb_handler);
+  }));
+
   g_chained_sb_handler_calls.store(0, std::memory_order_relaxed);
-  g_trigger_reentrant_sb_log = true;
+  g_trigger_reentrant_sb_log.store(true, std::memory_order_release);
   starboard::SetLogMessageHandler(&TestPreviousStarboardLogHandler);
 
-  CobaltLogCollector* collector = CobaltLogCollector::GetInstance();
   collector->UninstallHooksForTesting();
   collector->InstallHooks();
   collector->InstallHooks();
@@ -398,13 +604,12 @@ TEST(CobaltLogCollectorTest, GlobalStarboardLogHookCapturesSbLogAndChains) {
     EXPECT_FALSE(found_reentrant);
   }
 
-  EXPECT_FALSE(g_trigger_reentrant_sb_log);
+  EXPECT_FALSE(g_trigger_reentrant_sb_log.load(std::memory_order_acquire));
   EXPECT_GE(g_chained_sb_handler_calls.load(std::memory_order_relaxed), 1);
 
   collector->UninstallHooksForTesting();
   EXPECT_EQ(starboard::GetLogMessageHandler(),
             &TestPreviousStarboardLogHandler);
-  starboard::SetLogMessageHandler(saved_sb_handler);
 }
 
 }  // namespace

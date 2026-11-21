@@ -84,7 +84,8 @@ class CobaltLogCollector {
     uint64_t latest_seq = 0;
   };
 
-  // Move-only RAII token keeping log collection active while alive.
+  // Move-only RAII token keeping log collection active while alive. A
+  // ScopedConsumer must not outlive the CobaltLogCollector that created it.
   class ScopedConsumer {
    public:
     ScopedConsumer() = default;
@@ -118,20 +119,24 @@ class CobaltLogCollector {
   ~CobaltLogCollector();
 
   // Installs the process-wide base::logging and starboard::logging message
-  // handlers once on the singleton instance. Safe to call multiple times.
+  // handlers once on the singleton instance. Because base::logging's handler
+  // pointer is non-atomic, call during single-threaded early startup. Safe to
+  // call multiple times.
   void InstallHooks();
 
   // Restores the previous base::logging and starboard::logging handlers
   // installed before InstallHooks(). Intended only for tests that exercise
-  // global hooks.
+  // global hooks on the singleton instance.
   void UninstallHooksForTesting();
 
   // Activates log collection until the returned ScopedConsumer is destroyed or
   // reset. When the last consumer unregisters, buffered entries are released.
   [[nodiscard]] ScopedConsumer RegisterConsumer();
 
-  // Registers (or clears when |task_runner| or |callback| is null) a coalesced
-  // push notification callback invoked on |task_runner| after new logs arrive.
+  // Registers (or clears when |task_runner| or |callback| is null) the single
+  // coalesced push notification listener invoked on |task_runner| after new
+  // logs arrive. Subsequent calls replace the previous listener and cancel any
+  // in-flight notification scheduled for it.
   void SetNotifyCallback(scoped_refptr<base::SequencedTaskRunner> task_runner,
                          base::RepeatingClosure callback);
 
@@ -143,7 +148,9 @@ class CobaltLogCollector {
                         std::string_view message);
 
   // Returns buffered entries with seq > |after_seq| and severity >=
-  // |min_severity|, bounded by |max_entries| and |max_bytes|.
+  // |min_severity|, bounded by |max_entries| and |max_bytes| (0 disables that
+  // cap). When |max_bytes| is smaller than the first matching entry, that
+  // single entry is still returned so readers always make forward progress.
   ReadResult ReadSince(uint64_t after_seq,
                        size_t max_entries,
                        size_t max_bytes,
@@ -153,6 +160,9 @@ class CobaltLogCollector {
   Stats SnapshotStats() const;
 
  private:
+  // Shared lifetime bridge for pending delayed notifications so a destroyed
+  // non-singleton test collector safely drops in-flight tasks. Lock ordering:
+  // NotifyState::lock is always acquired before CobaltLogCollector::lock_.
   struct NotifyState : public base::RefCountedThreadSafe<NotifyState> {
     base::Lock lock;
     raw_ptr<CobaltLogCollector> collector GUARDED_BY(lock) = nullptr;
@@ -174,14 +184,15 @@ class CobaltLogCollector {
                                          size_t message_start,
                                          const std::string& str);
 
-  static void DispatchNotification(scoped_refptr<NotifyState> notify_state);
+  static void DispatchNotification(scoped_refptr<NotifyState> notify_state,
+                                   uint64_t generation);
 
   void UnregisterConsumer();
   void RecordLogMessageInternal(LogSeverity severity,
                                 const char* file,
                                 int line,
                                 std::string_view message);
-  base::RepeatingClosure TakePendingNotification();
+  base::RepeatingClosure TakePendingNotification(uint64_t generation);
 
   const Config config_;
   const scoped_refptr<NotifyState> notify_state_;
@@ -208,6 +219,7 @@ class CobaltLogCollector {
       GUARDED_BY(lock_);
   base::RepeatingClosure notify_callback_ GUARDED_BY(lock_);
   bool notify_pending_ GUARDED_BY(lock_) = false;
+  uint64_t notify_generation_ GUARDED_BY(lock_) = 0;
 };
 
 }  // namespace cobalt

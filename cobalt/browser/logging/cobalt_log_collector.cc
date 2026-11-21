@@ -18,9 +18,11 @@
 #include <utility>
 
 #include "base/auto_reset.h"
+#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_util.h"
 #include "base/threading/platform_thread.h"
 
 namespace cobalt {
@@ -62,30 +64,7 @@ std::string TruncateUtf8(std::string_view text,
   if (max_bytes == 0) {
     return std::string();
   }
-
-  size_t end = max_bytes;
-  // Back up over UTF-8 continuation bytes (10xxxxxx) if the cut landed inside
-  // a multi-byte sequence.
-  size_t lead = end;
-  while (lead > 0 &&
-         (static_cast<unsigned char>(text[lead - 1]) & 0xC0) == 0x80) {
-    --lead;
-  }
-  if (lead > 0) {
-    unsigned char lead_byte = static_cast<unsigned char>(text[lead - 1]);
-    size_t expected_len = 1;
-    if ((lead_byte & 0xE0) == 0xC0) {
-      expected_len = 2;
-    } else if ((lead_byte & 0xF0) == 0xE0) {
-      expected_len = 3;
-    } else if ((lead_byte & 0xF8) == 0xF0) {
-      expected_len = 4;
-    }
-    if ((end - (lead - 1)) < expected_len) {
-      end = lead - 1;
-    }
-  }
-  return std::string(text.substr(0, end));
+  return std::string(base::TruncateUTF8ToByteSize(text, max_bytes));
 }
 
 size_t EstimateEntryBytes(const CobaltLogCollector::LogEntry& entry) {
@@ -178,6 +157,7 @@ CobaltLogCollector::~CobaltLogCollector() {
 }
 
 void CobaltLogCollector::InstallHooks() {
+  DCHECK_EQ(this, GetInstance());
   base::AutoLock lock(lock_);
   if (hooks_installed_.load(std::memory_order_relaxed)) {
     return;
@@ -200,6 +180,7 @@ void CobaltLogCollector::InstallHooks() {
 }
 
 void CobaltLogCollector::UninstallHooksForTesting() {
+  DCHECK_EQ(this, GetInstance());
   base::AutoLock lock(lock_);
   if (!hooks_installed_.load(std::memory_order_relaxed)) {
     return;
@@ -228,11 +209,13 @@ CobaltLogCollector::ScopedConsumer CobaltLogCollector::RegisterConsumer() {
 void CobaltLogCollector::UnregisterConsumer() {
   base::AutoLock lock(lock_);
   uint32_t previous = active_consumers_.fetch_sub(1, std::memory_order_acq_rel);
+  DCHECK_GT(previous, 0u);
   if (previous <= 1) {
     // Release ring memory immediately once the last consumer stops.
     std::deque<LogEntry>().swap(entries_);
     buffered_bytes_ = 0;
     notify_pending_ = false;
+    ++notify_generation_;
   }
 }
 
@@ -240,6 +223,7 @@ void CobaltLogCollector::SetNotifyCallback(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     base::RepeatingClosure callback) {
   base::AutoLock lock(lock_);
+  ++notify_generation_;
   if (!task_runner || !callback) {
     notify_task_runner_.reset();
     notify_callback_.Reset();
@@ -286,19 +270,21 @@ void CobaltLogCollector::RecordLogMessageInternal(LogSeverity severity,
   const size_t entry_bytes = EstimateEntryBytes(entry);
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_to_notify;
+  uint64_t notify_generation = 0;
   {
     base::AutoLock lock(lock_);
-    // Re-check under lock so entries are never allocated after the final
-    // consumer unregisters.
+    // Re-check under lock so entries are never retained in the ring buffer
+    // after the final consumer unregisters.
     if (active_consumers_.load(std::memory_order_relaxed) == 0 ||
-        config_.max_entries == 0) {
+        config_.max_entries == 0 || config_.max_bytes == 0) {
       return;
     }
 
     entry.seq = next_seq_++;
     while (!entries_.empty() &&
            (entries_.size() >= config_.max_entries ||
-            buffered_bytes_ + entry_bytes > config_.max_bytes)) {
+            entry_bytes > config_.max_bytes ||
+            buffered_bytes_ > config_.max_bytes - entry_bytes)) {
       buffered_bytes_ -= EstimateEntryBytes(entries_.front());
       entries_.pop_front();
       ++dropped_count_;
@@ -309,6 +295,7 @@ void CobaltLogCollector::RecordLogMessageInternal(LogSeverity severity,
 
     if (!notify_pending_ && notify_task_runner_ && notify_callback_) {
       notify_pending_ = true;
+      notify_generation = notify_generation_;
       task_runner_to_notify = notify_task_runner_;
     }
   }
@@ -316,8 +303,8 @@ void CobaltLogCollector::RecordLogMessageInternal(LogSeverity severity,
   if (task_runner_to_notify) {
     task_runner_to_notify->PostDelayedTask(
         FROM_HERE,
-        base::BindOnce(&CobaltLogCollector::DispatchNotification,
-                       notify_state_),
+        base::BindOnce(&CobaltLogCollector::DispatchNotification, notify_state_,
+                       notify_generation),
         config_.notify_delay);
   }
 }
@@ -338,11 +325,24 @@ CobaltLogCollector::ReadResult CobaltLogCollector::ReadSince(
     return result;
   }
 
+  if (after_seq >= entries_.back().seq) {
+    result.next_seq = after_seq;
+    return result;
+  }
+
+  // Entries in the ring have strictly contiguous sequence numbers starting at
+  // entries_.front().seq, so jump directly to the first unread entry in O(1).
+  const uint64_t first_seq = entries_.front().seq;
+  const size_t start_index =
+      after_seq < first_seq ? 0
+                            : static_cast<size_t>(after_seq - first_seq + 1);
+  DCHECK_LT(start_index, entries_.size());
+  DCHECK_EQ(entries_[start_index].seq,
+            after_seq < first_seq ? first_seq : after_seq + 1);
+
   size_t accumulated_bytes = 0;
-  for (const LogEntry& entry : entries_) {
-    if (entry.seq <= after_seq) {
-      continue;
-    }
+  for (size_t i = start_index; i < entries_.size(); ++i) {
+    const LogEntry& entry = entries_[i];
     if (static_cast<int>(entry.severity) < static_cast<int>(min_severity)) {
       result.next_seq = entry.seq;
       continue;
@@ -350,7 +350,8 @@ CobaltLogCollector::ReadResult CobaltLogCollector::ReadSince(
     const size_t entry_bytes = EstimateEntryBytes(entry);
     if ((max_entries > 0 && result.entries.size() >= max_entries) ||
         (max_bytes > 0 && !result.entries.empty() &&
-         accumulated_bytes + entry_bytes > max_bytes)) {
+         (entry_bytes > max_bytes ||
+          accumulated_bytes > max_bytes - entry_bytes))) {
       result.truncated = true;
       break;
     }
@@ -433,22 +434,27 @@ bool CobaltLogCollector::StarboardLogMessageHandler(SbLogPriority priority,
 
 // static
 void CobaltLogCollector::DispatchNotification(
-    scoped_refptr<NotifyState> notify_state) {
+    scoped_refptr<NotifyState> notify_state,
+    uint64_t generation) {
   base::RepeatingClosure callback;
   {
     base::AutoLock notify_lock(notify_state->lock);
     if (!notify_state->collector) {
       return;
     }
-    callback = notify_state->collector->TakePendingNotification();
+    callback = notify_state->collector->TakePendingNotification(generation);
   }
   if (callback) {
     callback.Run();
   }
 }
 
-base::RepeatingClosure CobaltLogCollector::TakePendingNotification() {
+base::RepeatingClosure CobaltLogCollector::TakePendingNotification(
+    uint64_t generation) {
   base::AutoLock lock(lock_);
+  if (!notify_pending_ || generation != notify_generation_) {
+    return base::RepeatingClosure();
+  }
   notify_pending_ = false;
   return notify_callback_;
 }
