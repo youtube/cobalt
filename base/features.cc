@@ -68,6 +68,28 @@ BASE_FEATURE_PARAM(int,
                    "cooldown-seconds",
                    60);
 
+BASE_FEATURE(kCobaltMseMemoryOptimization,
+             "CobaltMseMemoryOptimization",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMseMemoryOptimizationBackHorizonMs,
+                   &kCobaltMseMemoryOptimization,
+                   "CobaltMseMemoryOptimization_back_horizon_ms",
+                   12000);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMseMemoryOptimizationVideoRetentionFloorMb,
+                   &kCobaltMseMemoryOptimization,
+                   "CobaltMseMemoryOptimization_video_retention_floor_mb",
+                   12);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMseMemoryOptimizationAudioRetentionFloorKb,
+                   &kCobaltMseMemoryOptimization,
+                   "CobaltMseMemoryOptimization_audio_retention_floor_kb",
+                   1024);
+
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
 // Disabled by default on Android and tvOS, enabled by default on other

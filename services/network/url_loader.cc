@@ -39,6 +39,9 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "mojo/public/cpp/system/simple_watcher.h"
 #include "net/base/completion_once_callback.h"
@@ -1252,6 +1255,27 @@ void URLLoader::ContinueOnResponseStarted() {
       if (configured_size > 0) {
         options.capacity_num_bytes = static_cast<uint32_t>(configured_size);
       }
+    }
+
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltMseMemoryOptimization)) {
+      bool is_media_stream =
+          request_destination_ == mojom::RequestDestination::kVideo ||
+          request_destination_ == mojom::RequestDestination::kAudio ||
+          url_request_->url().path() == "/videoplayback";
+      if (!is_media_stream && response_ && !response_->mime_type.empty()) {
+        const std::string& mime = response_->mime_type;
+        is_media_stream =
+            base::StartsWith(mime, "video/", base::CompareCase::SENSITIVE) ||
+            base::StartsWith(mime, "audio/", base::CompareCase::SENSITIVE) ||
+            mime == "application/vnd.yt-ump";
+      }
+      constexpr uint32_t kMseOptMediaPipeBytes = 256 * 1024;
+      constexpr uint32_t kMseOptSubresourcePipeBytes = 128 * 1024;
+      options.capacity_num_bytes =
+          std::min(options.capacity_num_bytes,
+                   is_media_stream ? kMseOptMediaPipeBytes
+                                   : kMseOptSubresourcePipeBytes);
     }
 
     // Shrink the pipe to the response body whenever its length is known and

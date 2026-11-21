@@ -219,8 +219,10 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
       total_allocated_in_bytes_ = 0;
       total_allocated_blocks_ = 0;
 
-      if (enable_decommit_on_idle_ ||
-          enable_decommit_only_on_memory_pressure_) {
+      if (release_empty_fallback_blocks()) {
+        ReleaseIdleFallbackBlocks();
+      } else if (enable_decommit_on_idle_ ||
+                 enable_decommit_only_on_memory_pressure_) {
         ReclaimFallbackBlocks();
       } else {
         EnumerateFallbackAllocations(
@@ -235,6 +237,12 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
       }
       pending_frees_.clear();
     }
+  } else if (release_empty_fallback_blocks() && pending_frees_.size() >= 4) {
+    for (auto address_to_free : pending_frees_) {
+      bool freed = TryFree(address_to_free);
+      SB_DCHECK(freed);
+    }
+    pending_frees_.clear();
   }
 }
 
@@ -369,14 +377,35 @@ bool EmbeddedMetadataReuseAllocatorBase::TryFree(void* memory) {
 
   // Mark this block as free and update the allocated data accordingly.
   MemoryBlock block(metadata->fallback_index, metadata, metadata->size);
-  AddFreeBlock(block);
+  auto free_block_iter = AddFreeBlock(block);
 
   SB_DCHECK_LE(block.size(), total_allocated_in_bytes_);
   total_allocated_in_bytes_ -= block.size();
   --total_allocated_blocks_;
 
-  if ((enable_decommit_on_idle_ || enable_decommit_only_on_memory_pressure_) &&
-      total_allocated_in_bytes_ == 0) {
+  if (release_empty_fallback_blocks()) {
+    if (total_allocated_in_bytes_ == 0) {
+      free_blocks_.clear();
+      ReleaseIdleFallbackBlocks();
+    } else if (IsFullFallbackBlock(free_block_iter->fallback_allocation_index(),
+                                   free_block_iter->address(),
+                                   free_block_iter->size())) {
+      size_t full_free_slabs = 0;
+      for (const auto& candidate : free_blocks_) {
+        if (IsFullFallbackBlock(candidate.fallback_allocation_index(),
+                                candidate.address(), candidate.size())) {
+          ++full_free_slabs;
+        }
+      }
+      if (full_free_slabs > retain_blocks()) {
+        const intptr_t fb_index = free_block_iter->fallback_allocation_index();
+        RemoveFreeBlock(free_block_iter);
+        ReleaseFallbackBlock(fb_index);
+      }
+    }
+  } else if ((enable_decommit_on_idle_ ||
+              enable_decommit_only_on_memory_pressure_) &&
+             total_allocated_in_bytes_ == 0) {
     free_blocks_.clear();
     ReclaimFallbackBlocks();
   }
@@ -616,7 +645,10 @@ EmbeddedMetadataReuseAllocatorBase::AddFreeBlock(MemoryBlock block_to_add) {
 
   if (it != free_blocks_.end()) {
     MemoryBlock right_block = *it;
-    if (block_to_add.Merge(right_block)) {
+    if ((!release_empty_fallback_blocks() ||
+         block_to_add.fallback_allocation_index() ==
+             right_block.fallback_allocation_index()) &&
+        block_to_add.Merge(right_block)) {
       right_to_erase = it;
     }
   }
@@ -626,7 +658,10 @@ EmbeddedMetadataReuseAllocatorBase::AddFreeBlock(MemoryBlock block_to_add) {
     it--;
     MemoryBlock left_block = *it;
     // Are we contiguous with the block to our left?
-    if (block_to_add.Merge(left_block)) {
+    if ((!release_empty_fallback_blocks() ||
+         block_to_add.fallback_allocation_index() ==
+             left_block.fallback_allocation_index()) &&
+        block_to_add.Merge(left_block)) {
       left_to_erase = it;
     }
   }

@@ -19,6 +19,7 @@ OffsetByteQueue::~OffsetByteQueue() = default;
 
 void OffsetByteQueue::Reset() {
   queue_.Reset();
+  queue_.MaybeShrinkIdleBuffer();
   buf_ = nullptr;
   size_ = 0;
   head_ = 0;

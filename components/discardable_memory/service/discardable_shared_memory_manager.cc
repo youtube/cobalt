@@ -600,6 +600,13 @@ void DiscardableSharedMemoryManager::OnMemoryPressure(
     case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
 #if BUILDFLAG(IS_COBALT)
       if (base::FeatureList::IsEnabled(
+              base::features::kCobaltMseMemoryOptimization)) {
+        // Purge all unlocked segments on moderate pressure when MSE memory
+        // optimization is enabled.
+        ReduceMemoryUsageUntilWithinLimit(0);
+        break;
+      }
+      if (base::FeatureList::IsEnabled(
               base::features::kCobaltDiscardableModeratePressureLimit)) {
         const double clamped_fraction = std::clamp(
             base::features::kCobaltDiscardableModeratePressureLimitFraction

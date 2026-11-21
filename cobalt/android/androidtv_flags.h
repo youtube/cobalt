@@ -84,6 +84,11 @@ inline constexpr char kEnableCobaltDynamicMojoPipeSizing[] =
 inline constexpr char kEnableCobaltMmapFontCache[] =
     "EnableCobaltMmapFontCache";
 
+// Enables the unified MSE and playback memory optimization stack.
+// See b/584920427.
+inline constexpr char kEnableCobaltMseMemoryOptimization[] =
+    "EnableCobaltMseMemoryOptimization";
+
 // Enables moderate memory pressure handling on Android.
 // See b/521848285.
 inline constexpr char kEnableModerateMemoryPressure[] =

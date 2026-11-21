@@ -15,6 +15,7 @@
 #ifndef MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
 #define MEDIA_STARBOARD_BIDIRECTIONAL_FIT_DECODER_BUFFER_ALLOCATOR_STRATEGY_H_
 
+#include <algorithm>
 #include <cstddef>
 
 #include "media/starboard/decoder_buffer_allocator.h"
@@ -92,6 +93,98 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
   StarboardMemoryAllocator fallback_allocator_;
   starboard::BidirectionalFitReuseAllocator<ReuseAllocatorBase>
       bidirectional_fit_allocator_;
+};
+
+// Isolated audio/video reuse allocator strategy used when
+// CobaltMseMemoryOptimization is enabled: separates small long-lived audio
+// frames from large video GOP slabs and releases empty slabs beyond the retain
+// window back to the OS during active playback.
+template <typename ReuseAllocatorBase>
+class SplitBidirectionalFitDecoderBufferAllocatorStrategy
+    : public DecoderBufferAllocator::Strategy {
+ public:
+  static constexpr size_t kAudioAllocationIncrement = 256 * 1024;
+
+  SplitBidirectionalFitDecoderBufferAllocatorStrategy(
+      size_t initial_capacity,
+      size_t allocation_increment)
+      : fallback_allocator_(/*enable_decommit=*/true,
+                            /*enable_page_alignment=*/true),
+        audio_allocator_(
+            &fallback_allocator_,
+            /*initial_capacity=*/0,
+            kSmallAllocationThreshold,
+            std::min(allocation_increment > 0 ? allocation_increment
+                                              : kAudioAllocationIncrement,
+                     kAudioAllocationIncrement),
+            /*enable_decommit_on_idle=*/true,
+            /*retain_blocks=*/1,
+            /*conservative_decommit_blocks=*/0,
+            /*aggressive_decommit_on_suspend=*/true,
+            /*memset_on_reclaim=*/false,
+            /*mark_as_cold_on_reclaim=*/false,
+            /*enable_decommit_only_on_memory_pressure=*/false),
+        video_allocator_(&fallback_allocator_,
+                         initial_capacity,
+                         kSmallAllocationThreshold,
+                         allocation_increment,
+                         /*enable_decommit_on_idle=*/true,
+                         /*retain_blocks=*/2,
+                         /*conservative_decommit_blocks=*/0,
+                         /*aggressive_decommit_on_suspend=*/true,
+                         /*memset_on_reclaim=*/false,
+                         /*mark_as_cold_on_reclaim=*/false,
+                         /*enable_decommit_only_on_memory_pressure=*/false) {
+    audio_allocator_.set_release_empty_fallback_blocks(true);
+    video_allocator_.set_release_empty_fallback_blocks(true);
+  }
+
+  void* Allocate(DemuxerStream::Type type, size_t size) override {
+    if (type == DemuxerStream::AUDIO) {
+      return audio_allocator_.Allocate(size);
+    }
+    return video_allocator_.Allocate(size);
+  }
+
+  void Free(DemuxerStream::Type type, void* p) override {
+    if (type == DemuxerStream::AUDIO) {
+      audio_allocator_.Free(p);
+      return;
+    }
+    video_allocator_.Free(p);
+  }
+
+  size_t GetCapacity() const override {
+    return audio_allocator_.GetCapacity() + video_allocator_.GetCapacity();
+  }
+
+  size_t GetAllocated() const override {
+    return audio_allocator_.GetAllocated() + video_allocator_.GetAllocated();
+  }
+
+  void SetSuspended(bool is_suspended) override {
+    audio_allocator_.SetSuspended(is_suspended);
+    video_allocator_.SetSuspended(is_suspended);
+  }
+
+  void DecommitAllDecommitableBlocks(bool include_retained_blocks) override {
+    audio_allocator_.DecommitAllDecommitableBlocks(include_retained_blocks);
+    video_allocator_.DecommitAllDecommitableBlocks(include_retained_blocks);
+  }
+
+  void TryToDecommitOneBlock() override {
+    audio_allocator_.TryToDecommitOneBlock();
+    video_allocator_.TryToDecommitOneBlock();
+  }
+
+ private:
+  static constexpr size_t kSmallAllocationThreshold = 512;
+
+  StarboardMemoryAllocator fallback_allocator_;
+  starboard::BidirectionalFitReuseAllocator<ReuseAllocatorBase>
+      audio_allocator_;
+  starboard::BidirectionalFitReuseAllocator<ReuseAllocatorBase>
+      video_allocator_;
 };
 
 }  // namespace media

@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "base/check_op.h"
+#include "base/features.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
@@ -289,6 +290,84 @@ TEST(DecoderBufferAllocatorNonParameterizedTest, DisabledViaFeatureFlag) {
   DecoderBufferAllocator allocator;
   EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
   EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 0u);
+}
+
+TEST(DecoderBufferAllocatorNonParameterizedTest,
+     MseMemoryOptimizationOffRetainsHighWaterCapacityWhileNonIdle) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      base::features::kCobaltMseMemoryOptimization);
+
+  constexpr int kSlabBytes = 4 * 1024 * 1024;
+  DecoderBufferAllocator allocator(
+      /*is_memory_pool_allocated_on_demand=*/false,
+      /*initial_capacity=*/kSlabBytes, /*allocation_increment=*/kSlabBytes);
+  EXPECT_GE(allocator.GetCurrentMemoryCapacity(),
+            static_cast<size_t>(kSlabBytes));
+
+  Handle audio = allocator.Allocate(DemuxerStream::AUDIO, 1024);
+  std::vector<Handle> video_handles;
+  constexpr size_t kVideoAllocBytes = 3 * 1024 * 1024;
+  for (int i = 0; i < 5; ++i) {
+    video_handles.push_back(
+        allocator.Allocate(DemuxerStream::VIDEO, kVideoAllocBytes));
+  }
+  const size_t peak_capacity = allocator.GetCurrentMemoryCapacity();
+
+  for (size_t i = 0; i < 4; ++i) {
+    allocator.Free(DemuxerStream::VIDEO, video_handles[i], kVideoAllocBytes);
+  }
+  // Stock unified allocator retains empty fallback slabs while non-idle.
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), peak_capacity);
+
+  allocator.Free(DemuxerStream::VIDEO, video_handles[4], kVideoAllocBytes);
+  allocator.Free(DemuxerStream::AUDIO, audio, 1024);
+}
+
+TEST(DecoderBufferAllocatorNonParameterizedTest,
+     MseMemoryOptimizationOnSplitsPoolsAndReleasesEmptySlabs) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      base::features::kCobaltMseMemoryOptimization);
+
+  {
+    DecoderBufferAllocator default_allocator;
+    EXPECT_EQ(default_allocator.GetCurrentMemoryCapacity(), 0u);
+  }
+
+  constexpr int kVideoSlabBytes = 4 * 1024 * 1024;
+  DecoderBufferAllocator allocator(
+      /*is_memory_pool_allocated_on_demand=*/false,
+      /*initial_capacity=*/0, /*allocation_increment=*/kVideoSlabBytes);
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 0u);
+
+  // Audio allocations use the isolated 256 KiB audio pool increment rather than
+  // pulling a 4 MiB video slab.
+  Handle audio = allocator.Allocate(DemuxerStream::AUDIO, 1024);
+  const size_t audio_only_capacity = allocator.GetCurrentMemoryCapacity();
+  EXPECT_GT(audio_only_capacity, 0u);
+  EXPECT_LT(audio_only_capacity, 1024u * 1024u);
+
+  std::vector<Handle> video_handles;
+  constexpr size_t kVideoAllocBytes = 3 * 1024 * 1024;
+  for (int i = 0; i < 5; ++i) {
+    video_handles.push_back(
+        allocator.Allocate(DemuxerStream::VIDEO, kVideoAllocBytes));
+  }
+  const size_t peak_capacity = allocator.GetCurrentMemoryCapacity();
+  EXPECT_GE(peak_capacity, audio_only_capacity + 5u * kVideoSlabBytes);
+
+  // Freeing 4 of the 5 video slabs flushes the 4-entry pending-free batch and
+  // leaves 4 empty video fallback blocks while both 1 video slab and the audio
+  // pool remain active; empty slabs beyond the 2-slab video retain window are
+  // released immediately.
+  for (size_t i = 0; i < 4; ++i) {
+    allocator.Free(DemuxerStream::VIDEO, video_handles[i], kVideoAllocBytes);
+  }
+  EXPECT_LT(allocator.GetCurrentMemoryCapacity(), peak_capacity);
+
+  allocator.Free(DemuxerStream::VIDEO, video_handles[4], kVideoAllocBytes);
+  allocator.Free(DemuxerStream::AUDIO, audio, 1024);
 }
 
 }  // namespace

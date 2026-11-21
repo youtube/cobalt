@@ -25,6 +25,11 @@
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/typed_macros.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 #include "partition_alloc/oom.h"
 #include "partition_alloc/partition_alloc.h"
 #include "third_party/blink/public/common/features.h"
@@ -479,6 +484,17 @@ ParkableStringImpl::AgeOrParkResult ParkableStringImpl::MaybeAgeOrParkString() {
   }
 
   Status status = CurrentStatus();
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltMseMemoryOptimization) &&
+      has_on_disk_data() && status == Status::kUnreferencedExternally &&
+      !is_compression_failed_no_lock()) {
+    metadata_->age_ = Age::kOld;
+    bool ok = ParkInternal(ParkingMode::kCompressThenToDisk);
+    DCHECK(ok);
+    return AgeOrParkResult::kSuccessOrTransientFailure;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   Age age = metadata_->age_;
   if (age == Age::kYoung) {
     if (status == Status::kUnreferencedExternally)
@@ -531,10 +547,28 @@ bool ParkableStringImpl::ParkInternal(ParkingMode mode) {
 
   switch (mode) {
     case ParkingMode::kSynchronousOnly:
+#if BUILDFLAG(IS_COBALT)
+      if (base::FeatureList::IsEnabled(
+              base::features::kCobaltMseMemoryOptimization) &&
+          has_on_disk_data()) {
+        DiscardUncompressedData();
+        DiscardCompressedData();
+        break;
+      }
+#endif  // BUILDFLAG(IS_COBALT)
       if (has_compressed_data())
         DiscardUncompressedData();
       break;
     case ParkingMode::kCompress:
+#if BUILDFLAG(IS_COBALT)
+      if (base::FeatureList::IsEnabled(
+              base::features::kCobaltMseMemoryOptimization) &&
+          has_on_disk_data()) {
+        DiscardUncompressedData();
+        DiscardCompressedData();
+        break;
+      }
+#endif  // BUILDFLAG(IS_COBALT)
       if (has_compressed_data())
         DiscardUncompressedData();
       else
@@ -759,6 +793,15 @@ String ParkableStringImpl::UnparkInternal() {
 #endif  // BUILDFLAG(HAS_ZSTD_COMPRESSION)
   }
 
+#if BUILDFLAG(IS_COBALT)
+  // Once decompressed, strings that already have an on-disk copy do not need to
+  // retain a duplicate compressed buffer in RAM while unparked.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltMseMemoryOptimization) &&
+      has_on_disk_data()) {
+    metadata_->compressed_ = nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   base::TimeDelta elapsed = timer.Elapsed();
   RecordStatistics(CharactersSizeInBytes(), elapsed, ParkingAction::kUnparked);
   metadata_->state_ = State::kUnparked;
