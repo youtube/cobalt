@@ -16,10 +16,14 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/containers/span.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/demuxer_stream.h"
 #include "media/starboard/decoder_buffer_allocator.h"
+#include "media/starboard/media_pool_direct_map.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -177,6 +181,60 @@ TEST_F(StarboardMediaExternalMemoryAllocatorTest, CopyFromPartsReclaimsMemory) {
   ext_mem.reset();
   EXPECT_EQ(DecoderBufferAllocator::Get()->GetAllocatedMemory(),
             initial_allocated);
+}
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest,
+       CopyFromReturnsNullWhenMapFailsUnderSoftFail) {
+  // Replace the global DecoderBufferAllocator with an empty on-demand pool
+  // while MediaPoolDirectMap::Map() always fails so TryAllocate() returns
+  // kInvalidHandle on every non-empty request.
+  struct ScopedFailingPool {
+    explicit ScopedFailingPool()
+        : prev_allocator(DecoderBuffer::Allocator::Get()) {
+      MediaPoolDirectMap::SetEnabledForTesting(true);
+      MediaPoolDirectMap::SetMapFailForTesting(true);
+      DecoderBuffer::Allocator::Set(nullptr);
+      pool.emplace(/*is_memory_pool_allocated_on_demand=*/true,
+                   /*initial_capacity=*/0,
+                   /*allocation_unit=*/4 * 1024 * 1024);
+      DecoderBuffer::Allocator::Set(&*pool);
+    }
+    ~ScopedFailingPool() {
+      DecoderBuffer::Allocator::Set(nullptr);
+      pool.reset();
+      DecoderBuffer::Allocator::Set(prev_allocator);
+      MediaPoolDirectMap::SetMapFailForTesting(false);
+      MediaPoolDirectMap::SetEnabledForTesting(std::nullopt);
+    }
+    DecoderBuffer::Allocator* prev_allocator;
+    std::optional<DecoderBufferAllocator> pool;
+  } scoped_pool;
+
+  StarboardMediaExternalMemoryAllocator allocator;
+  const std::vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04};
+  const std::vector<uint8_t> data2 = {0x05, 0x06};
+
+  // Single-span overloads return nullptr on non-empty input.
+  EXPECT_EQ(allocator.CopyFrom(data), nullptr);
+  EXPECT_EQ(allocator.CopyFrom(data, DemuxerStream::VIDEO), nullptr);
+
+  // Single-part and multi-part overloads also return nullptr on non-empty data.
+  const std::vector<base::span<const uint8_t>> single_part = {data};
+  EXPECT_EQ(allocator.CopyFrom(single_part, DemuxerStream::AUDIO), nullptr);
+  const std::vector<base::span<const uint8_t>> multi_part = {data, data2};
+  EXPECT_EQ(allocator.CopyFrom(multi_part, DemuxerStream::VIDEO), nullptr);
+
+  // Empty span and all-empty parts do not need a pool allocation and still
+  // succeed with a zero-size ExternalMemory wrapper.
+  base::span<const uint8_t> empty;
+  auto empty_mem = allocator.CopyFrom(empty);
+  ASSERT_NE(empty_mem, nullptr);
+  EXPECT_TRUE(empty_mem->Span().empty());
+
+  const std::vector<base::span<const uint8_t>> empty_parts = {empty, empty};
+  auto empty_parts_mem = allocator.CopyFrom(empty_parts, DemuxerStream::AUDIO);
+  ASSERT_NE(empty_parts_mem, nullptr);
+  EXPECT_TRUE(empty_parts_mem->Span().empty());
 }
 
 }  // namespace

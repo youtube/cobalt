@@ -553,6 +553,18 @@ BASE_FEATURE_PARAM(bool,
                    &kCobaltDecoderBufferDecommitOnMemoryPressure,
                    "release_retained_on_critical",
                    true);
+// When enabled on 32-bit builds, every block of the DecoderBufferAllocator pool
+// is a page-aligned mmap() region with a guard page at each end instead of a
+// posix_memalign() allocation, and a block that can't be mapped fails softly:
+// the pool retries with smaller blocks, then reports the failure, which
+// becomes a QuotaExceededError from SourceBuffer.appendBuffer() (or a parse
+// error if the space disappears between the check and the parse) instead of a
+// crash. On 32-bit, PartitionAlloc places each 4 MiB pool block as a direct map
+// on a 2 MiB boundary, so the pool needs 6 MiB holes, and a failed block is
+// fatal. Has no effect on 64-bit builds.
+BASE_FEATURE(kCobaltMediaPoolSoftFail,
+             "CobaltMediaPoolSoftFail",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 // When enabled, the MediaSource stream parsers parse appended data in place
 // rather than copying it into an internal byte queue. Cobalt retains the
 // ArrayBuffer passed to SourceBuffer.appendBuffer() until the StreamParser is

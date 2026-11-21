@@ -426,7 +426,14 @@ EmbeddedMetadataReuseAllocatorBase::EmbeddedMetadataReuseAllocatorBase(
           enable_decommit_only_on_memory_pressure) {
   if (initial_capacity > 0) {
     FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, kMinAlignment);
-    SB_DCHECK(iter != free_blocks_.end());
+    if (FallbackCanAllocateContiguously()) {
+      SB_DCHECK(iter != free_blocks_.end());
+    } else if (iter == free_blocks_.end()) {
+      // A fallback allocator that can fail softly (guarded blocks): start
+      // empty and grow on demand.
+      SB_LOG(WARNING) << "Failed to allocate the initial " << initial_capacity
+                      << " bytes; the pool will grow on demand.";
+    }
   }
 
   pending_frees_.reserve(16 * 1024);

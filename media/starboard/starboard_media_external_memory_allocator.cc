@@ -119,7 +119,7 @@ StarboardMediaExternalMemoryAllocator::CopyFrom(base::span<const uint8_t> span,
         pool, DecoderBuffer::Allocator::kInvalidHandle, 0, nullptr, type);
   }
 
-  auto handle = pool->Allocate(type, span.size());
+  auto handle = pool->TryAllocate(type, span.size());
   if (handle == DecoderBuffer::Allocator::kInvalidHandle) {
     LOG(ERROR) << "Failed to allocate " << span.size()
                << " bytes from Starboard media buffer pool.";
@@ -155,7 +155,7 @@ StarboardMediaExternalMemoryAllocator::CopyFrom(
         pool, DecoderBuffer::Allocator::kInvalidHandle, 0, nullptr, type);
   }
 
-  auto handle = pool->Allocate(type, total_size);
+  auto handle = pool->TryAllocate(type, total_size);
   if (handle == DecoderBuffer::Allocator::kInvalidHandle) {
     LOG(ERROR) << "Failed to allocate " << total_size
                << " bytes from Starboard media buffer pool.";

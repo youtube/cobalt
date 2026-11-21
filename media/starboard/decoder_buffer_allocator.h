@@ -114,6 +114,12 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   Handle Allocate(DemuxerStream::Type type, size_t size) override;
   void Free(DemuxerStream::Type type, Handle p, size_t size) override;
 
+  // Like Allocate(), but returns kInvalidHandle when the pool can't grow
+  // (possible only with kCobaltMediaPoolSoftFail). Used by
+  // StarboardMediaExternalMemoryAllocator, whose callers report the failure
+  // as a parse error.
+  Handle TryAllocate(DemuxerStream::Type type, size_t size);
+
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
   // DecoderBufferMemoryInfo methods.
@@ -183,6 +189,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void EnablePeriodicDecommitLoop();
   void StopPeriodicDecommitLoop();
   void SchedulePeriodicDecommitTask_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  // Releases the pool once it holds no allocations, if it is allocated on
+  // demand or a strategy switch is pending.
+  void MaybeResetStrategy_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);

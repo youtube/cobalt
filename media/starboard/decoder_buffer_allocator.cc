@@ -134,12 +134,29 @@ void DecoderBufferAllocator::SetSuspended(bool is_suspended) {
 DecoderBuffer::Allocator::Handle DecoderBufferAllocator::Allocate(
     DemuxerStream::Type type,
     size_t size) {
+  // DecoderBuffer::Allocator::Allocate() must not fail (DecoderBuffer copies
+  // into the result unconditionally), so failure stays fatal here.
+  Handle handle = TryAllocate(type, size);
+  CHECK_NE(handle, kInvalidHandle);
+  return handle;
+}
+
+DecoderBuffer::Allocator::Handle DecoderBufferAllocator::TryAllocate(
+    DemuxerStream::Type type,
+    size_t size) {
   base::AutoLock scoped_lock(mutex_);
 
   EnsureStrategyIsCreated();
 
   void* p = strategy_->Allocate(type, size);
-  CHECK(p);
+  if (!p) {
+    // Only reachable with kCobaltMediaPoolSoftFail; otherwise the pool's
+    // fallback allocator (posix_memalign) crashes before returning null.
+    // An idle on-demand pool may have just mapped its initial block; release
+    // it as the last Free() would, since no handle will come back.
+    MaybeResetStrategy_Locked();
+    return kInvalidHandle;
+  }
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   if (starboard::Allocator::ExtraLogLevel() >= 2) {
@@ -176,6 +193,11 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
   }
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
+  MaybeResetStrategy_Locked();
+}
+
+void DecoderBufferAllocator::MaybeResetStrategy_Locked() {
+  mutex_.AssertAcquired();
   bool should_reset_strategy =
       is_strategy_switch_pending_ || is_memory_pool_allocated_on_demand_;
 
