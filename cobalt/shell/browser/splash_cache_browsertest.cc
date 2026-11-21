@@ -22,6 +22,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
+#include "cobalt/shell/browser/splash_cache_reader.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -57,8 +58,7 @@ class SplashCacheBrowserTest : public ContentBrowserTest {
     // Navigates away to ensure clean teardown.
     EXPECT_TRUE(NavigateToURL(shell(), GURL("about:blank")));
     H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
-    H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
-        std::nullopt);
+    SetCachedSplashFileEnabledForTesting(std::nullopt);
     H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(std::nullopt);
     ContentBrowserTest::TearDownOnMainThread();
   }
@@ -179,7 +179,7 @@ IN_PROC_BROWSER_TEST_F(SplashCacheBrowserTest, UsesBuiltInSplashAfterClear) {
       sizeof(kSafeSplashHtml) - 1};
   H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
       test_resource_map_.get());
-  H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(true);
+  SetCachedSplashFileEnabledForTesting(true);
   base::HistogramTester histogram_tester;
   EXPECT_TRUE(NavigateToURL(
       shell(), GURL(std::string(kH5vccEmbeddedScheme) + "://splash.html")));
