@@ -32,6 +32,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
+#include "starboard/common/log.h"
 
 namespace cobalt {
 
@@ -108,6 +109,7 @@ class CobaltLogCollector {
   static CobaltLogCollector* GetInstance();
 
   static LogSeverity SeverityFromBaseLogLevel(int base_severity);
+  static LogSeverity SeverityFromStarboardLogPriority(SbLogPriority priority);
 
   CobaltLogCollector();
   explicit CobaltLogCollector(Config config);
@@ -115,12 +117,13 @@ class CobaltLogCollector {
   CobaltLogCollector& operator=(const CobaltLogCollector&) = delete;
   ~CobaltLogCollector();
 
-  // Installs the process-wide base::logging message handler once on the
-  // singleton instance. Safe to call multiple times.
+  // Installs the process-wide base::logging and starboard::logging message
+  // handlers once on the singleton instance. Safe to call multiple times.
   void InstallHooks();
 
-  // Restores the previous base::logging handler installed before
-  // InstallHooks(). Intended only for tests that exercise global hooks.
+  // Restores the previous base::logging and starboard::logging handlers
+  // installed before InstallHooks(). Intended only for tests that exercise
+  // global hooks.
   void UninstallHooksForTesting();
 
   // Activates log collection until the returned ScopedConsumer is destroyed or
@@ -165,6 +168,12 @@ class CobaltLogCollector {
                                     size_t message_start,
                                     const std::string& str);
 
+  static bool StarboardLogMessageHandler(SbLogPriority priority,
+                                         const char* file,
+                                         int line,
+                                         size_t message_start,
+                                         const std::string& str);
+
   static void DispatchNotification(scoped_refptr<NotifyState> notify_state);
 
   void UnregisterConsumer();
@@ -182,8 +191,10 @@ class CobaltLogCollector {
   std::atomic<uint32_t> active_consumers_{0};
 
   // Saved once on InstallHooks() so chaining never recurses and remains
-  // lock-free in BaseLogMessageHandler.
+  // lock-free in the global log handlers.
   std::atomic<logging::LogMessageHandlerFunction> previous_base_handler_{
+      nullptr};
+  std::atomic<starboard::LogMessageHandlerFunction> previous_starboard_handler_{
       nullptr};
   std::atomic<bool> hooks_installed_{false};
 

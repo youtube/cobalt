@@ -18,7 +18,10 @@ source_set("logging") {
     "cobalt_log_collector.h",
   ]
 
-  public_deps = [ "//base" ]
+  public_deps = [
+    "//base",
+    "//starboard/common",
+  ]
 }
 
 source_set("unit_tests") {

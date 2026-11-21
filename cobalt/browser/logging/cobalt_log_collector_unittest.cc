@@ -343,5 +343,69 @@ TEST(CobaltLogCollectorTest, GlobalBaseLoggingHookChainingAndIdempotency) {
   logging::SetLogMessageHandler(saved_handler);
 }
 
+std::atomic<int> g_chained_sb_handler_calls{0};
+bool g_trigger_reentrant_sb_log = false;
+
+bool TestPreviousStarboardLogHandler(SbLogPriority priority,
+                                     const char* file,
+                                     int line,
+                                     size_t message_start,
+                                     const std::string& str) {
+  g_chained_sb_handler_calls.fetch_add(1, std::memory_order_relaxed);
+  if (g_trigger_reentrant_sb_log) {
+    g_trigger_reentrant_sb_log = false;
+    CobaltLogCollector::GetInstance()->RecordLogMessage(
+        LogSeverity::kInfo, "reentrant_sb.cc", 1, "dropped-reentrant-sb-log");
+  }
+  return false;
+}
+
+// Verifies that installing hooks also captures SB_LOG() messages emitted inside
+// libcobalt.so, chains cleanly to any prior Starboard handler, and drops
+// same-thread re-entrant logs without deadlock.
+TEST(CobaltLogCollectorTest, GlobalStarboardLogHookCapturesSbLogAndChains) {
+  starboard::LogMessageHandlerFunction saved_sb_handler =
+      starboard::GetLogMessageHandler();
+  g_chained_sb_handler_calls.store(0, std::memory_order_relaxed);
+  g_trigger_reentrant_sb_log = true;
+  starboard::SetLogMessageHandler(&TestPreviousStarboardLogHandler);
+
+  CobaltLogCollector* collector = CobaltLogCollector::GetInstance();
+  collector->UninstallHooksForTesting();
+  collector->InstallHooks();
+  collector->InstallHooks();
+
+  const uint64_t start_seq = collector->SnapshotStats().latest_seq;
+  {
+    CobaltLogCollector::ScopedConsumer consumer = collector->RegisterConsumer();
+    SB_LOG(ERROR) << "cobalt-collector-sblog-hook-test";
+
+    CobaltLogCollector::ReadResult result =
+        collector->ReadSince(start_seq, /*max_entries=*/50,
+                             /*max_bytes=*/64 * 1024);
+    bool found_error = false;
+    bool found_reentrant = false;
+    for (const CobaltLogCollector::LogEntry& entry : result.entries) {
+      if (entry.message == "cobalt-collector-sblog-hook-test" &&
+          entry.severity == LogSeverity::kError) {
+        found_error = true;
+      }
+      if (entry.message == "dropped-reentrant-sb-log") {
+        found_reentrant = true;
+      }
+    }
+    EXPECT_TRUE(found_error);
+    EXPECT_FALSE(found_reentrant);
+  }
+
+  EXPECT_FALSE(g_trigger_reentrant_sb_log);
+  EXPECT_GE(g_chained_sb_handler_calls.load(std::memory_order_relaxed), 1);
+
+  collector->UninstallHooksForTesting();
+  EXPECT_EQ(starboard::GetLogMessageHandler(),
+            &TestPreviousStarboardLogHandler);
+  starboard::SetLogMessageHandler(saved_sb_handler);
+}
+
 }  // namespace
 }  // namespace cobalt

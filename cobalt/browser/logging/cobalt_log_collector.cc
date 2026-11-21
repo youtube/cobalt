@@ -147,6 +147,23 @@ CobaltLogCollector::LogSeverity CobaltLogCollector::SeverityFromBaseLogLevel(
   return LogSeverity::kFatal;
 }
 
+// static
+CobaltLogCollector::LogSeverity
+CobaltLogCollector::SeverityFromStarboardLogPriority(SbLogPriority priority) {
+  switch (priority) {
+    case kSbLogPriorityWarning:
+      return LogSeverity::kWarning;
+    case kSbLogPriorityError:
+      return LogSeverity::kError;
+    case kSbLogPriorityFatal:
+      return LogSeverity::kFatal;
+    case kSbLogPriorityInfo:
+    case kSbLogPriorityUnknown:
+    default:
+      return LogSeverity::kInfo;
+  }
+}
+
 CobaltLogCollector::CobaltLogCollector() : CobaltLogCollector(Config()) {}
 
 CobaltLogCollector::CobaltLogCollector(Config config)
@@ -165,10 +182,19 @@ void CobaltLogCollector::InstallHooks() {
   if (hooks_installed_.load(std::memory_order_relaxed)) {
     return;
   }
-  logging::LogMessageHandlerFunction existing = logging::GetLogMessageHandler();
-  if (existing != &CobaltLogCollector::BaseLogMessageHandler) {
-    previous_base_handler_.store(existing, std::memory_order_release);
+  logging::LogMessageHandlerFunction existing_base =
+      logging::GetLogMessageHandler();
+  if (existing_base != &CobaltLogCollector::BaseLogMessageHandler) {
+    previous_base_handler_.store(existing_base, std::memory_order_release);
     logging::SetLogMessageHandler(&CobaltLogCollector::BaseLogMessageHandler);
+  }
+  starboard::LogMessageHandlerFunction existing_starboard =
+      starboard::GetLogMessageHandler();
+  if (existing_starboard != &CobaltLogCollector::StarboardLogMessageHandler) {
+    previous_starboard_handler_.store(existing_starboard,
+                                      std::memory_order_release);
+    starboard::SetLogMessageHandler(
+        &CobaltLogCollector::StarboardLogMessageHandler);
   }
   hooks_installed_.store(true, std::memory_order_release);
 }
@@ -178,11 +204,17 @@ void CobaltLogCollector::UninstallHooksForTesting() {
   if (!hooks_installed_.load(std::memory_order_relaxed)) {
     return;
   }
-  logging::LogMessageHandlerFunction previous =
+  logging::LogMessageHandlerFunction previous_base =
       previous_base_handler_.exchange(nullptr, std::memory_order_acq_rel);
   if (logging::GetLogMessageHandler() ==
       &CobaltLogCollector::BaseLogMessageHandler) {
-    logging::SetLogMessageHandler(previous);
+    logging::SetLogMessageHandler(previous_base);
+  }
+  starboard::LogMessageHandlerFunction previous_starboard =
+      previous_starboard_handler_.exchange(nullptr, std::memory_order_acq_rel);
+  if (starboard::GetLogMessageHandler() ==
+      &CobaltLogCollector::StarboardLogMessageHandler) {
+    starboard::SetLogMessageHandler(previous_starboard);
   }
   hooks_installed_.store(false, std::memory_order_release);
 }
@@ -366,6 +398,35 @@ bool CobaltLogCollector::BaseLogMessageHandler(int severity,
       collector->previous_base_handler_.load(std::memory_order_acquire);
   if (previous) {
     return previous(severity, file, line, message_start, str);
+  }
+  return false;
+}
+
+// static
+bool CobaltLogCollector::StarboardLogMessageHandler(SbLogPriority priority,
+                                                    const char* file,
+                                                    int line,
+                                                    size_t message_start,
+                                                    const std::string& str) {
+  if (g_in_cobalt_log_collector) {
+    return false;
+  }
+  base::AutoReset<bool> reentrancy_guard(&g_in_cobalt_log_collector, true);
+
+  CobaltLogCollector* collector = GetInstance();
+  if (collector->active_consumers_.load(std::memory_order_relaxed) > 0) {
+    std::string_view message(str);
+    if (message_start <= message.size()) {
+      message.remove_prefix(message_start);
+    }
+    collector->RecordLogMessageInternal(
+        SeverityFromStarboardLogPriority(priority), file, line, message);
+  }
+
+  starboard::LogMessageHandlerFunction previous =
+      collector->previous_starboard_handler_.load(std::memory_order_acquire);
+  if (previous) {
+    return previous(priority, file, line, message_start, str);
   }
   return false;
 }
