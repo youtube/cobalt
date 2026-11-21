@@ -516,6 +516,9 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
 
   // Stores the current text input type of |webwidget_|.
   ui::TextInputType text_input_type_ = ui::TEXT_INPUT_TYPE_NONE;
+#if BUILDFLAG(IS_COBALT)
+  bool had_non_none_text_input_ = false;
+#endif
 
   // Stores the current text input mode of |webwidget_|.
   ui::TextInputMode text_input_mode_ = ui::TEXT_INPUT_MODE_DEFAULT;

@@ -1092,6 +1092,8 @@ void TestWebFrameWidgetHost::ClearKeyboardTriggeredTooltip() {}
 
 void TestWebFrameWidgetHost::TextInputStateChanged(
     ui::mojom::blink::TextInputStatePtr state) {
+  ++text_input_state_changed_count_;
+  last_text_input_type_ = state->type;
   if (state->show_ime_if_needed)
     ++virtual_keyboard_request_count_;
 }

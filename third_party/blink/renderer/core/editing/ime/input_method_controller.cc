@@ -28,6 +28,9 @@
 
 #include <tuple>
 
+#include "base/feature_list.h"
+#include "build/build_config.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
 #include "third_party/blink/public/web/web_local_frame.h"
@@ -1614,6 +1617,13 @@ void InputMethodController::GetLayoutBounds(gfx::Rect* control_bounds,
   Element* element = RootEditableElementOfSelection(GetFrame().Selection());
   if (!element)
     return;
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltLightweightNonEditableFocus) &&
+      TextInputType() == kWebTextInputTypeNone) {
+    return;
+  }
+#endif
   // Fetch the control bounds of the active editable element.
   // Selection bounds are currently populated only for EditContext.
   // For editable elements we use GetCompositionCharacterBounds to fetch the
@@ -1652,6 +1662,16 @@ WebTextInputInfo InputMethodController::TextInputInfo() const {
   Element* element = RootEditableElementOfSelection(GetFrame().Selection());
   if (!element)
     return info;
+
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltLightweightNonEditableFocus)) {
+    info.type = TextInputType();
+    if (info.type == kWebTextInputTypeNone) {
+      return info;
+    }
+  }
+#endif
 
   info.node_id = NodeIdOfFocusedElement();
   info.action = InputActionOfFocusedElement();

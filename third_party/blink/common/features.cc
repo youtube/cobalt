@@ -464,6 +464,10 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
 // Disabled by default on all platforms: on 3P Starboard devices (RDK) the extra
 // composited layers regress YTS Tile-to-Tile P95 from 30 FPS to 20 FPS. Can be
 // enabled via Finch for experimentation.
+BASE_FEATURE(kCobaltLightweightNonEditableFocus,
+             "CobaltLightweightNonEditableFocus",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
              "CobaltPreserveTrivial3DTransform",
              base::FEATURE_DISABLED_BY_DEFAULT);

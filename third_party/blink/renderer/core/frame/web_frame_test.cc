@@ -47,6 +47,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "cc/base/features.h"
@@ -68,6 +69,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/context_menu_data/context_menu_data.h"
 #include "third_party/blink/public/common/context_menu_data/edit_flags.h"
+#include "third_party/blink/public/common/features.h"
+#include "third_party/blink/renderer/core/accessibility/ax_context.h"
 #include "third_party/blink/public/common/input/web_coalesced_input_event.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
 #include "third_party/blink/public/common/loader/referrer_utils.h"
@@ -14194,9 +14197,15 @@ class TestFocusedElementChangedLocalFrameHost : public FakeLocalFrameHost {
                              const gfx::Rect& bounds_in_frame_widget,
                              blink::mojom::FocusType focus_type) override {
     did_notify_ = true;
+    ++notify_count_;
+    last_is_editable_ = is_editable_element;
+    last_bounds_ = bounds_in_frame_widget;
   }
 
   bool did_notify_ = false;
+  size_t notify_count_ = 0;
+  bool last_is_editable_ = false;
+  gfx::Rect last_bounds_;
 };
 
 TEST_F(WebFrameTest, FocusElementCallsFocusedElementChanged) {
@@ -14232,6 +14241,119 @@ TEST_F(WebFrameTest, FocusElementCallsFocusedElementChanged) {
   RunPendingTasks();
   EXPECT_TRUE(frame_host.did_notify_);
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(WebFrameTest,
+       CobaltLightweightNonEditableFocusPreservesEditableAndImeTransitions) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kCobaltLightweightNonEditableFocus);
+
+  TestFocusedElementChangedLocalFrameHost frame_host;
+  frame_test_helpers::TestWebFrameClient web_frame_client;
+  frame_host.Init(web_frame_client.GetRemoteNavigationAssociatedInterfaces());
+  frame_test_helpers::WebViewHelper web_view_helper;
+  web_view_helper.Initialize(&web_frame_client);
+  RunPendingTasks();
+
+  auto* main_frame = web_view_helper.GetWebView()->MainFrameImpl();
+  frame_test_helpers::TestWebFrameWidgetHost& widget_host =
+      static_cast<frame_test_helpers::TestWebFrameWidget*>(
+          main_frame->FrameWidgetImpl())
+          ->WidgetHost();
+
+  main_frame->GetFrame()->GetDocument()->documentElement()->setInnerHTML(
+      "<div id='d1' tabindex='0'>Tile 1</div>"
+      "<div id='d2' tabindex='0'>Tile 2</div>"
+      "<input id='in1' value='query'></input>");
+  RunPendingTasks();
+  main_frame->ExecuteScript(WebScriptSource("window.focus();"));
+  RunPendingTasks();
+
+  const size_t base_focus_count = frame_host.notify_count_;
+  const size_t base_ime_count = widget_host.TextInputStateChangedCount();
+  const size_t base_vk_count = widget_host.VirtualKeyboardRequestCount();
+
+  // 1. Non-editable <div> -> <div> focus with user activation skips both
+  // FocusedElementChanged and TextInputStateChanged / ShowVirtualKeyboard IPCs.
+  LocalFrame::NotifyUserActivation(
+      main_frame->GetFrame(), mojom::UserActivationNotificationType::kTest);
+  main_frame->ExecuteScript(
+      WebScriptSource("document.getElementById('d1').focus();"));
+  RunPendingTasks();
+  LocalFrame::NotifyUserActivation(
+      main_frame->GetFrame(), mojom::UserActivationNotificationType::kTest);
+  main_frame->ExecuteScript(
+      WebScriptSource("document.getElementById('d2').focus();"));
+  RunPendingTasks();
+
+  EXPECT_EQ(base_focus_count, frame_host.notify_count_);
+  EXPECT_EQ(base_ime_count, widget_host.TextInputStateChangedCount());
+  EXPECT_EQ(base_vk_count, widget_host.VirtualKeyboardRequestCount());
+
+  // 2. Focusing editable <input> from <div> notifies FocusedElementChanged(true)
+  // and requests the virtual keyboard with TEXT_INPUT_TYPE_TEXT.
+  LocalFrame::NotifyUserActivation(
+      main_frame->GetFrame(), mojom::UserActivationNotificationType::kTest);
+  main_frame->ExecuteScript(
+      WebScriptSource("document.getElementById('in1').focus();"));
+  RunPendingTasks();
+
+  EXPECT_EQ(base_focus_count + 1u, frame_host.notify_count_);
+  EXPECT_TRUE(frame_host.last_is_editable_);
+  EXPECT_GT(widget_host.TextInputStateChangedCount(), base_ime_count);
+  EXPECT_GT(widget_host.VirtualKeyboardRequestCount(), base_vk_count);
+  EXPECT_EQ(ui::TEXT_INPUT_TYPE_TEXT, widget_host.LastTextInputType());
+
+  const size_t post_input_focus_count = frame_host.notify_count_;
+  const size_t post_input_ime_count = widget_host.TextInputStateChangedCount();
+
+  // 3. Focusing non-editable <div> from <input> sends the reset
+  // FocusedElementChanged(false) and updates IME state back to NONE.
+  LocalFrame::NotifyUserActivation(
+      main_frame->GetFrame(), mojom::UserActivationNotificationType::kTest);
+  main_frame->ExecuteScript(
+      WebScriptSource("document.getElementById('d1').focus();"));
+  RunPendingTasks();
+
+  EXPECT_EQ(post_input_focus_count + 1u, frame_host.notify_count_);
+  EXPECT_FALSE(frame_host.last_is_editable_);
+  EXPECT_GT(widget_host.TextInputStateChangedCount(), post_input_ime_count);
+  EXPECT_EQ(ui::TEXT_INPUT_TYPE_NONE, widget_host.LastTextInputType());
+
+  // 4. Subsequent <div> -> <div> focus is lightweight again.
+  const size_t post_reset_focus_count = frame_host.notify_count_;
+  const size_t post_reset_ime_count = widget_host.TextInputStateChangedCount();
+  LocalFrame::NotifyUserActivation(
+      main_frame->GetFrame(), mojom::UserActivationNotificationType::kTest);
+  main_frame->ExecuteScript(
+      WebScriptSource("document.getElementById('d2').focus();"));
+  RunPendingTasks();
+
+  EXPECT_EQ(post_reset_focus_count, frame_host.notify_count_);
+  EXPECT_EQ(post_reset_ime_count, widget_host.TextInputStateChangedCount());
+
+  // 5. When AXObjectCache is active, <input> -> <div> computes real element
+  // bounds rather than returning early with an empty gfx::Rect().
+  web_view_helper.Resize(gfx::Size(800, 600));
+  AXContext ax_context(*main_frame->GetFrame()->GetDocument(),
+                       ui::kAXModeComplete);
+  main_frame->ExecuteScript(
+      WebScriptSource("document.getElementById('d1').style.cssText = "
+                      "'width:120px;height:60px;';"
+                      "document.getElementById('in1').focus();"));
+  RunPendingTasks();
+  EXPECT_TRUE(frame_host.last_is_editable_);
+
+  const size_t pre_ax_reset_count = frame_host.notify_count_;
+  main_frame->ExecuteScript(
+      WebScriptSource("document.getElementById('d1').focus();"));
+  RunPendingTasks();
+  EXPECT_EQ(pre_ax_reset_count + 1u, frame_host.notify_count_);
+  EXPECT_FALSE(frame_host.last_is_editable_);
+  EXPECT_FALSE(frame_host.last_bounds_.IsEmpty());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Tests that form.submit() cancels any navigations already sent to the browser
 // process.

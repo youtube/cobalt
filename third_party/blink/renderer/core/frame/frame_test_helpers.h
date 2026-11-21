@@ -171,6 +171,10 @@ class TestWebFrameWidgetHost : public mojom::blink::WidgetHost,
   size_t VirtualKeyboardRequestCount() const {
     return virtual_keyboard_request_count_;
   }
+  size_t TextInputStateChangedCount() const {
+    return text_input_state_changed_count_;
+  }
+  ui::TextInputType LastTextInputType() const { return last_text_input_type_; }
 
   // mojom::blink::WidgetHost overrides:
   void SetCursor(const ui::Cursor& cursor) override;
@@ -226,6 +230,8 @@ class TestWebFrameWidgetHost : public mojom::blink::WidgetHost,
  private:
   size_t cursor_set_count_ = 0;
   size_t virtual_keyboard_request_count_ = 0;
+  size_t text_input_state_changed_count_ = 0;
+  ui::TextInputType last_text_input_type_ = ui::TEXT_INPUT_TYPE_NONE;
   mojo::Remote<mojom::blink::RenderInputRouterClient> client_remote_;
   mojo::AssociatedReceiver<mojom::blink::WidgetHost> receiver_{this};
   mojo::AssociatedReceiver<mojom::blink::FrameWidgetHost> frame_receiver_{this};
