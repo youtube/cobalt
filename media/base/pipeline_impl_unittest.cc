@@ -971,6 +971,52 @@ TEST_F(PipelineImplTest, RendererErrorsReset) {
   base::RunLoop().RunUntilIdle();
 }
 
+#if BUILDFLAG(IS_COBALT)
+// User journey: while a user is seeking or resuming playback and the app is
+// concealed, the Starboard fallback suspend signals a non-fatal hardware
+// context reset. PipelineImpl must forward that error directly to the client so
+// WebMediaPlayerImpl can schedule a pipeline restart without failing the
+// pending seek callback or wedging a subsequent suspend.
+TEST_F(PipelineImplTest,
+       HardwareContextResetDuringSeekPreservesSeekCallbackAndAllowsSuspend) {
+  CreateAudioAndVideoStream();
+  SetDemuxerExpectations();
+  StartPipelineAndExpect(PIPELINE_OK);
+
+  const base::TimeDelta kSeekTime = base::Seconds(5);
+  PipelineStatusCallback demuxer_seek_cb;
+  EXPECT_CALL(*demuxer_, AbortPendingReads());
+  EXPECT_CALL(*renderer_, OnFlush(_)).WillOnce(RunOnceClosure<0>());
+  EXPECT_CALL(*demuxer_, OnSeek(kSeekTime, _))
+      .WillOnce([&](base::TimeDelta, PipelineStatusCallback& cb) {
+        demuxer_seek_cb = std::move(cb);
+      });
+
+  pipeline_->Seek(kSeekTime, base::BindOnce(&CallbackHelper::OnSeek,
+                                            base::Unretained(&callbacks_)));
+  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(demuxer_seek_cb);
+
+  // StrictMock |callbacks_| verifies OnSeek is not invoked with an error.
+  EXPECT_CALL(callbacks_,
+              OnError(HasStatusCode(PIPELINE_ERROR_HARDWARE_CONTEXT_RESET)));
+  renderer_client_->OnError(PIPELINE_ERROR_HARDWARE_CONTEXT_RESET);
+  base::RunLoop().RunUntilIdle();
+
+  // Completing the demuxer seek should still finish the pending seek cleanly.
+  EXPECT_CALL(*renderer_, StartPlayingFrom(kSeekTime));
+  EXPECT_CALL(*renderer_, SetPlaybackRate(_));
+  EXPECT_CALL(callbacks_, OnSeek(HasStatusCode(PIPELINE_OK)));
+  std::move(demuxer_seek_cb).Run(PIPELINE_OK);
+  base::RunLoop().RunUntilIdle();
+
+  // A follow-up suspend triggered by the client's restart request succeeds.
+  ExpectSuspend();
+  DoSuspend();
+  EXPECT_TRUE(pipeline_->IsSuspended());
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 TEST_F(PipelineImplTest, UrlPlayerReportsMetadataAfterRendererInit) {
   const base::TimeDelta kDuration = base::Seconds(10966);

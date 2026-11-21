@@ -366,6 +366,11 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   DCHECK(!pending_flush_cb_);
   DCHECK(flush_cb);
 
+  if (state_ == STATE_ERROR) {
+    std::move(flush_cb).Run();
+    return;
+  }
+
   if (!player_bridge_) {
     return;
   }
@@ -398,6 +403,9 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
 void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (state_ == STATE_ERROR) {
+    return;
+  }
   DCHECK_EQ(buffering_state_, BUFFERING_HAVE_NOTHING);
 
   LOG(INFO) << "StarboardRenderer::StartPlayingFrom() called with " << time
@@ -1467,7 +1475,10 @@ void StarboardRenderer::OnConcealFallbackSuspend() {
     return;
   }
   state_ = STATE_ERROR;
-  NotifyError(PIPELINE_ERROR_ABORT);
+  if (pending_flush_cb_) {
+    std::move(pending_flush_cb_).Run();
+  }
+  NotifyError(PIPELINE_ERROR_HARDWARE_CONTEXT_RESET);
 }
 
 void StarboardRenderer::OnRevealResume() {

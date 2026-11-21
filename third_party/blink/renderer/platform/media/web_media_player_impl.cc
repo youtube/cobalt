@@ -2010,6 +2010,14 @@ void WebMediaPlayerImpl::OnError(media::PipelineStatus status) {
     return;
   }
 #endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_COBALT)
+  // Conceal fallback suspend tears down SbPlayer before SbWindowDestroy;
+  // suspend/restart the pipeline to recover cleanly on reveal.
+  if (status == media::PIPELINE_ERROR_HARDWARE_CONTEXT_RESET) {
+    ScheduleRestart();
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   MaybeSetContainerNameForMetrics();
   simple_watch_timer_.Stop();

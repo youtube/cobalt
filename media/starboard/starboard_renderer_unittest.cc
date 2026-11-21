@@ -1157,11 +1157,104 @@ TEST_F(StarboardRendererTest,
   EXPECT_CALL(mock_sbplayer_interface_, Destroy(player))
       .WillOnce(Invoke(
           [](SbPlayer p) { delete reinterpret_cast<MockSbPlayer*>(p); }));
-  EXPECT_CALL(renderer_client_, OnError(HasStatusCode(PIPELINE_ERROR_ABORT)));
+  EXPECT_CALL(renderer_client_,
+              OnError(HasStatusCode(PIPELINE_ERROR_HARDWARE_CONTEXT_RESET)));
 
   base::MockOnceClosure barrier_cb;
   EXPECT_CALL(barrier_cb, Run()).Times(1);
   StarboardRenderer::FlushAndSuspendActiveRenderers(barrier_cb.Get());
+  task_environment_.RunUntilIdle();
+}
+
+// When the user backgrounds the app while a seek flush is waiting on an
+// in-flight demuxer read, the conceal fallback destroys SbPlayer, completes
+// the pending flush immediately, signals PIPELINE_ERROR_HARDWARE_CONTEXT_RESET,
+// and ensures a later aborted demuxer read or StartPlayingFrom() cannot leave
+// the error state or seek the destroyed player.
+TEST_F(
+    StarboardRendererTest,
+    ConcealFallbackDuringPendingFlushCompletesFlushAndGuardsStartPlayingFrom) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  StartPlayback(player);
+
+  DemuxerStream::ReadCB read_cb;
+  EXPECT_CALL(*streams_[1], OnRead(_))
+      .WillOnce(
+          Invoke([&](DemuxerStream::ReadCB& cb) { read_cb = std::move(cb); }));
+  ASSERT_TRUE(decoder_status_cb_);
+  decoder_status_cb_(player, context_, kSbMediaTypeVideo,
+                     kSbPlayerDecoderStateNeedsData, seek_ticket_);
+  task_environment_.RunUntilIdle();
+  ASSERT_FALSE(read_cb.is_null());
+
+  // Flush() defers flush_cb until the in-flight video read completes.
+  base::MockOnceClosure flush_cb;
+  EXPECT_CALL(flush_cb, Run()).Times(0);
+  renderer_->Flush(flush_cb.Get());
+  task_environment_.RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&flush_cb);
+
+  EXPECT_CALL(mock_sbplayer_interface_, SetPlaybackRate(player, 0.0))
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _));
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(player))
+      .WillOnce(Invoke(
+          [](SbPlayer p) { delete reinterpret_cast<MockSbPlayer*>(p); }));
+  EXPECT_CALL(flush_cb, Run()).Times(1);
+  EXPECT_CALL(renderer_client_,
+              OnError(HasStatusCode(PIPELINE_ERROR_HARDWARE_CONTEXT_RESET)));
+  base::MockOnceClosure barrier_cb;
+  EXPECT_CALL(barrier_cb, Run()).Times(1);
+
+  StarboardRenderer::FlushAndSuspendActiveRenderers(barrier_cb.Get());
+  task_environment_.RunUntilIdle();
+
+  // Late aborted demuxer read must not overwrite STATE_ERROR back to
+  // STATE_FLUSHED, and StartPlayingFrom() must not seek the suspended bridge.
+  std::move(read_cb).Run(DemuxerStream::kAborted, {});
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(mock_sbplayer_interface_, Seek(_, _, _)).Times(0);
+  renderer_->StartPlayingFrom(base::Seconds(5));
+  task_environment_.RunUntilIdle();
+}
+
+// When conceal fallback triggers while playback is presenting
+// (BUFFERING_HAVE_ENOUGH) before SeekTask calls Flush(), subsequent
+// StartPlayingFrom() and Flush() calls must return cleanly without hitting
+// buffering DCHECKs or leaving STATE_ERROR.
+TEST_F(StarboardRendererTest,
+       ConcealFallbackBeforeFlushGuardsStartPlayingFromAndFlush) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  StartPlayback(player);
+
+  EXPECT_CALL(renderer_client_, OnBufferingStateChange(_, _))
+      .Times(AnyNumber());
+  player_status_cb_(player, context_, kSbPlayerStatePresenting, seek_ticket_);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(mock_sbplayer_interface_, SetPlaybackRate(player, 0.0))
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _));
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(player))
+      .WillOnce(Invoke(
+          [](SbPlayer p) { delete reinterpret_cast<MockSbPlayer*>(p); }));
+  EXPECT_CALL(renderer_client_,
+              OnError(HasStatusCode(PIPELINE_ERROR_HARDWARE_CONTEXT_RESET)));
+  base::MockOnceClosure barrier_cb;
+  EXPECT_CALL(barrier_cb, Run()).Times(1);
+  StarboardRenderer::FlushAndSuspendActiveRenderers(barrier_cb.Get());
+  task_environment_.RunUntilIdle();
+
+  // Simulates CompleteSeek() calling StartPlayingFrom() after MojoRenderer
+  // short-circuited Flush() on STATE_ERROR (buffering_state_ is still
+  // BUFFERING_HAVE_ENOUGH), followed by a direct Flush() + StartPlayingFrom().
+  EXPECT_CALL(mock_sbplayer_interface_, Seek(_, _, _)).Times(0);
+  renderer_->StartPlayingFrom(base::Seconds(5));
+  base::MockOnceClosure flush_cb;
+  EXPECT_CALL(flush_cb, Run()).Times(1);
+  renderer_->Flush(flush_cb.Get());
+  renderer_->StartPlayingFrom(base::Seconds(6));
   task_environment_.RunUntilIdle();
 }
 

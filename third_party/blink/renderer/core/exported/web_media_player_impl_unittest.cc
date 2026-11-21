@@ -3424,6 +3424,233 @@ TEST_F(WebMediaPlayerImplTest,
   wmpi_->SuspendForFrameClosed();
   EXPECT_TRUE(IsSuspended());
 }
+
+// Verifies the user journey where the conceal fallback tears down SbPlayer and
+// emits PIPELINE_ERROR_HARDWARE_CONTEXT_RESET during active playback before
+// graceful Suspend() reaches the media thread: the element does not enter a
+// fatal decode error state, stays suspended while concealed (no restart loop),
+// and creates a fresh renderer cleanly on reveal.
+TEST_F(WebMediaPlayerImplTest,
+       CobaltConcealHardwareContextResetDuringPlaybackSuspendsAndResumesOnReveal) {
+  NiceMock<media::MockDemuxerStream> video_stream(media::DemuxerStream::VIDEO);
+  video_stream.set_video_decoder_config(TestVideoConfig::Normal());
+  std::vector<media::DemuxerStream*> streams = {&video_stream};
+
+  auto demuxer = std::make_unique<NiceMock<media::MockDemuxer>>();
+  auto* demuxer_ptr = demuxer.get();
+  ON_CALL(*demuxer_ptr, IsSeekable()).WillByDefault(Return(true));
+  ON_CALL(*demuxer_ptr, GetAllStreams()).WillByDefault(Return(streams));
+  ON_CALL(*demuxer_ptr, OnInitialize(_, _))
+      .WillByDefault([](media::DemuxerHost* host,
+                        media::PipelineStatusCallback& cb) {
+        host->SetDuration(base::Seconds(30));
+        std::move(cb).Run(media::PIPELINE_OK);
+      });
+  ON_CALL(*demuxer_ptr, OnSeek(_, _))
+      .WillByDefault(RunOnceCallback<1>(media::PIPELINE_OK));
+
+  InitializeWebMediaPlayerImpl(std::move(demuxer));
+  wmpi_->SetPreload(WebMediaPlayer::kPreloadAuto);
+
+  media::RendererClient* first_renderer_client = nullptr;
+  int renderer_create_count = 0;
+  auto mock_renderer_factory = std::make_unique<media::MockRendererFactory>();
+  EXPECT_CALL(*mock_renderer_factory, CreateRenderer(_, _, _, _, _, _))
+      .WillRepeatedly(testing::WithoutArgs(Invoke([&]() {
+        ++renderer_create_count;
+        auto mock_renderer = std::make_unique<NiceMock<media::MockRenderer>>();
+        auto client_holder = std::make_shared<media::RendererClient*>(nullptr);
+        ON_CALL(*mock_renderer, OnFlush(_)).WillByDefault(RunOnceCallback<0>());
+        EXPECT_CALL(*mock_renderer, OnInitialize(_, _, _))
+            .WillOnce(Invoke([&, count = renderer_create_count, client_holder](
+                                 media::MediaResource*,
+                                 media::RendererClient* client,
+                                 media::PipelineStatusCallback& init_cb) {
+              *client_holder = client;
+              if (count == 1) {
+                first_renderer_client = client;
+              }
+              std::move(init_cb).Run(media::PIPELINE_OK);
+            }));
+        ON_CALL(*mock_renderer, StartPlayingFrom(_))
+            .WillByDefault(Invoke([client_holder](base::TimeDelta) {
+              if (*client_holder) {
+                (*client_holder)
+                    ->OnBufferingStateChange(
+                        media::BUFFERING_HAVE_ENOUGH,
+                        media::BUFFERING_CHANGE_REASON_UNKNOWN);
+              }
+            }));
+        return mock_renderer;
+      })));
+  renderer_factory_selector_->AddFactory(media::RendererType::kTest,
+                                         std::move(mock_renderer_factory));
+  renderer_factory_selector_->SetBaseRendererType(media::RendererType::kTest);
+
+  Load(kVideoOnlyTestFile);
+  Play();
+  for (int i = 0; i < 4; ++i) {
+    CycleThreads();
+  }
+  ASSERT_EQ(renderer_create_count, 1);
+  ASSERT_NE(first_renderer_client, nullptr);
+  EXPECT_FALSE(IsSuspended());
+
+  // Queue PIPELINE_ERROR_HARDWARE_CONTEXT_RESET on the media thread while the
+  // pipeline is still playing, then mark the frame concealed without invoking
+  // SuspendForFrameClosed() so ScheduleRestart() is the sole trigger that
+  // suspends the pipeline and keeps it suspended until reveal.
+  media_thread_.task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&media::RendererClient::OnError,
+                                base::Unretained(first_renderer_client),
+                                media::PIPELINE_ERROR_HARDWARE_CONTEXT_RESET));
+  media_thread_.FlushForTesting();
+  delegate_.SetPageHiddenForTesting(true);
+  SetWasSuspendedForFrameClosed(true);
+  for (int i = 0; i < 4; ++i) {
+    CycleThreads();
+  }
+
+  EXPECT_NE(wmpi_->GetNetworkState(), WebMediaPlayer::kNetworkStateDecodeError);
+  EXPECT_NE(wmpi_->GetNetworkState(), WebMediaPlayer::kNetworkStateFormatError);
+  EXPECT_TRUE(IsSuspended());
+  EXPECT_EQ(renderer_create_count, 1);
+
+  // Returning to the app recreates the renderer and resumes cleanly.
+  ShowPlayerPage();
+  for (int i = 0; i < 4; ++i) {
+    CycleThreads();
+  }
+  EXPECT_EQ(renderer_create_count, 2);
+  EXPECT_FALSE(IsSuspended());
+
+  EXPECT_CALL(client_, SetCcLayer(nullptr)).Times(AnyNumber());
+  EXPECT_CALL(client_, MediaRemotingStopped(_)).Times(AnyNumber());
+  wmpi_.reset();
+  CycleThreads();
+}
+
+// Verifies the user journey where the user conceals the app while a seek is in
+// flight and the conceal fallback emits PIPELINE_ERROR_HARDWARE_CONTEXT_RESET:
+// the seek completes without latching a fatal error, the pipeline transitions
+// to suspended while concealed, and reveal recreates the renderer cleanly.
+TEST_F(WebMediaPlayerImplTest,
+       CobaltConcealHardwareContextResetDuringSeekSuspendsAndResumesOnReveal) {
+  NiceMock<media::MockDemuxerStream> video_stream(media::DemuxerStream::VIDEO);
+  video_stream.set_video_decoder_config(TestVideoConfig::Normal());
+  std::vector<media::DemuxerStream*> streams = {&video_stream};
+
+  auto demuxer = std::make_unique<NiceMock<media::MockDemuxer>>();
+  auto* demuxer_ptr = demuxer.get();
+  ON_CALL(*demuxer_ptr, IsSeekable()).WillByDefault(Return(true));
+  ON_CALL(*demuxer_ptr, GetAllStreams()).WillByDefault(Return(streams));
+  ON_CALL(*demuxer_ptr, OnInitialize(_, _))
+      .WillByDefault([](media::DemuxerHost* host,
+                        media::PipelineStatusCallback& cb) {
+        host->SetDuration(base::Seconds(30));
+        std::move(cb).Run(media::PIPELINE_OK);
+      });
+  ON_CALL(*demuxer_ptr, OnSeek(_, _))
+      .WillByDefault(RunOnceCallback<1>(media::PIPELINE_OK));
+
+  InitializeWebMediaPlayerImpl(std::move(demuxer));
+  wmpi_->SetPreload(WebMediaPlayer::kPreloadAuto);
+
+  media::RendererClient* first_renderer_client = nullptr;
+  int renderer_create_count = 0;
+  auto mock_renderer_factory = std::make_unique<media::MockRendererFactory>();
+  EXPECT_CALL(*mock_renderer_factory, CreateRenderer(_, _, _, _, _, _))
+      .WillRepeatedly(testing::WithoutArgs(Invoke([&]() {
+        ++renderer_create_count;
+        auto mock_renderer = std::make_unique<NiceMock<media::MockRenderer>>();
+        auto client_holder = std::make_shared<media::RendererClient*>(nullptr);
+        ON_CALL(*mock_renderer, OnFlush(_)).WillByDefault(RunOnceCallback<0>());
+        EXPECT_CALL(*mock_renderer, OnInitialize(_, _, _))
+            .WillOnce(Invoke([&, count = renderer_create_count, client_holder](
+                                 media::MediaResource*,
+                                 media::RendererClient* client,
+                                 media::PipelineStatusCallback& init_cb) {
+              *client_holder = client;
+              if (count == 1) {
+                first_renderer_client = client;
+              }
+              std::move(init_cb).Run(media::PIPELINE_OK);
+            }));
+        ON_CALL(*mock_renderer, StartPlayingFrom(_))
+            .WillByDefault(Invoke([client_holder](base::TimeDelta) {
+              if (*client_holder) {
+                (*client_holder)
+                    ->OnBufferingStateChange(
+                        media::BUFFERING_HAVE_ENOUGH,
+                        media::BUFFERING_CHANGE_REASON_UNKNOWN);
+              }
+            }));
+        return mock_renderer;
+      })));
+  renderer_factory_selector_->AddFactory(media::RendererType::kTest,
+                                         std::move(mock_renderer_factory));
+  renderer_factory_selector_->SetBaseRendererType(media::RendererType::kTest);
+
+  Load(kVideoOnlyTestFile);
+  Play();
+  for (int i = 0; i < 4; ++i) {
+    CycleThreads();
+  }
+  ASSERT_EQ(renderer_create_count, 1);
+  ASSERT_NE(first_renderer_client, nullptr);
+  EXPECT_FALSE(IsSuspended());
+
+  // Hold the demuxer seek callback open so PipelineController stays in
+  // State::SEEKING when conceal and HARDWARE_CONTEXT_RESET arrive.
+  media::PipelineStatusCallback pending_seek_cb;
+  EXPECT_CALL(*demuxer_ptr, OnSeek(base::Seconds(10), _))
+      .WillOnce(Invoke([&](base::TimeDelta, media::PipelineStatusCallback& cb) {
+        pending_seek_cb = std::move(cb);
+      }));
+  wmpi_->Seek(10.0);
+  for (int i = 0; i < 4; ++i) {
+    CycleThreads();
+  }
+  ASSERT_FALSE(pending_seek_cb.is_null());
+  testing::Mock::VerifyAndClearExpectations(demuxer_ptr);
+
+  delegate_.SetPageHiddenForTesting(true);
+  SetWasSuspendedForFrameClosed(true);
+  media_thread_.task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&media::RendererClient::OnError,
+                                base::Unretained(first_renderer_client),
+                                media::PIPELINE_ERROR_HARDWARE_CONTEXT_RESET));
+  for (int i = 0; i < 4; ++i) {
+    CycleThreads();
+  }
+
+  // Completing the in-flight seek transitions SEEKING -> PLAYING -> SUSPENDED
+  // without latching a network error or triggering a restart loop.
+  media_thread_.task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(std::move(pending_seek_cb), media::PIPELINE_OK));
+  for (int i = 0; i < 4; ++i) {
+    CycleThreads();
+  }
+
+  EXPECT_NE(wmpi_->GetNetworkState(), WebMediaPlayer::kNetworkStateDecodeError);
+  EXPECT_NE(wmpi_->GetNetworkState(), WebMediaPlayer::kNetworkStateFormatError);
+  EXPECT_TRUE(IsSuspended());
+  EXPECT_EQ(renderer_create_count, 1);
+
+  // Returning to the app recreates the renderer and resumes cleanly.
+  ShowPlayerPage();
+  for (int i = 0; i < 4; ++i) {
+    CycleThreads();
+  }
+  EXPECT_EQ(renderer_create_count, 2);
+  EXPECT_FALSE(IsSuspended());
+
+  EXPECT_CALL(client_, SetCcLayer(nullptr)).Times(AnyNumber());
+  EXPECT_CALL(client_, MediaRemotingStopped(_)).Times(AnyNumber());
+  wmpi_.reset();
+  CycleThreads();
+}
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink
