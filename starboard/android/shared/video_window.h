@@ -37,8 +37,11 @@ class VideoSurfaceHolder {
  protected:
   ~VideoSurfaceHolder() {}
 
+  // Return true if this holder currently owns a valid video surface.
+  bool OwnsVideoSurface() const;
+
   // Returns the surface which video should be rendered. Surface cannot be
-  // acquired before last holder release the surface.
+  // acquired by another holder before the current holder releases it.
   jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface();
 
   // Release the surface to make the surface available for other holder.

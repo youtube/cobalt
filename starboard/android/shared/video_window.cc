@@ -173,10 +173,15 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   return !g_video_surface_holder && GetGlobalVideoSurface();
 }
 
+bool VideoSurfaceHolder::OwnsVideoSurface() const {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  return g_video_surface_holder == this && GetGlobalVideoSurface();
+}
+
 jni_zero::ScopedJavaLocalRef<jobject>
 VideoSurfaceHolder::AcquireVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder != NULL) {
+  if (g_video_surface_holder != nullptr && g_video_surface_holder != this) {
     return {};
   }
   if (!GetGlobalVideoSurface()) {
