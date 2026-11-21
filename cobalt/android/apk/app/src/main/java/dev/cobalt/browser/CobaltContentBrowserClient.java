@@ -38,6 +38,8 @@ public class CobaltContentBrowserClient {
     boolean isFlushStorageOnFreezeEnabled();
 
     boolean isPlatformServicesOffUiThreadEnabled();
+
+    boolean isMediaSessionUiAndArtworkOptimizationEnabled();
   }
 
   public static void flushCookiesAndLocalStorage() {
@@ -86,5 +88,13 @@ public class CobaltContentBrowserClient {
    */
   public static boolean isPlatformServicesOffUiThreadEnabled() {
     return CobaltContentBrowserClientJni.get().isPlatformServicesOffUiThreadEnabled();
+  }
+
+  /**
+   * Returns whether the CobaltMediaSessionUiAndArtworkOptimization Finch feature is enabled.
+   * Requires native to be initialized.
+   */
+  public static boolean isMediaSessionUiAndArtworkOptimizationEnabled() {
+    return CobaltContentBrowserClientJni.get().isMediaSessionUiAndArtworkOptimizationEnabled();
   }
 }

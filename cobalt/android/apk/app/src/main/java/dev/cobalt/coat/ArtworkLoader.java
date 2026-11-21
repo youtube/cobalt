@@ -24,12 +24,16 @@ import androidx.annotation.CheckResult;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
+import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.util.DisplayUtil;
 import java.util.List;
+import org.chromium.base.FeatureList;
 import org.chromium.services.media_session.MediaImage;
 
 /** Loads MediaImage artwork, and caches one image. */
 public class ArtworkLoader {
+  public static final int OPTIMIZED_MAX_ARTWORK_WIDTH = 640;
+  public static final int OPTIMIZED_MAX_ARTWORK_HEIGHT = 360;
 
   /** Callback to receive the image loaded in the background by getOrLoadArtwork() */
   public interface Callback {
@@ -52,6 +56,9 @@ public class ArtworkLoader {
   @VisibleForTesting
   Bitmap mCurrentArtwork = null;
 
+  @GuardedBy("mLock")
+  private int mGeneration = 0;
+
   private final Handler mHandler = new Handler(Looper.getMainLooper());
   private final ArtworkDownloader mArtworkDownloader;
   private final Callback mCallback;
@@ -67,6 +74,22 @@ public class ArtworkLoader {
     this.mArtworkDownloader = artworkDownloader;
   }
 
+  @VisibleForTesting
+  protected boolean isMediaSessionOptimizationEnabled() {
+    return FeatureList.isNativeInitialized()
+        && CobaltContentBrowserClient.isMediaSessionUiAndArtworkOptimizationEnabled();
+  }
+
+  /** Clears cached artwork reference so GC/NativeAllocationRegistry can reclaim pixel memory. */
+  public void clearCachedArtwork() {
+    synchronized (mLock) {
+      mGeneration++;
+      mRequestedArtworkUrl = "";
+      mCurrentArtworkUrl = "";
+      mCurrentArtwork = null;
+    }
+  }
+
   /**
    * Returns a cached image if available. If not cached, returns null and starts downloading it in
    * the background, and then when ready the callback will be called with the image.
@@ -76,7 +99,11 @@ public class ArtworkLoader {
       return null;
     }
 
-    MediaImage image = getBestFitImage(images, DisplayUtil.getDisplaySize());
+    Size targetSize =
+        isMediaSessionOptimizationEnabled()
+            ? new Size(OPTIMIZED_MAX_ARTWORK_WIDTH, OPTIMIZED_MAX_ARTWORK_HEIGHT)
+            : DisplayUtil.getDisplaySize();
+    MediaImage image = getBestFitImage(images, targetSize);
     String url = image.getSrc().getSpec();
 
     synchronized (mLock) {
@@ -157,6 +184,7 @@ public class ArtworkLoader {
     String url = urlBitmapPair.first;
     Bitmap bitmap = urlBitmapPair.second;
     final Bitmap oldArtwork;
+    final int generation;
 
     synchronized (mLock) {
       if (!mRequestedArtworkUrl.equals(url)) {
@@ -175,16 +203,27 @@ public class ArtworkLoader {
       oldArtwork = mCurrentArtwork;
       mCurrentArtworkUrl = url;
       mCurrentArtwork = bitmap;
+      generation = mGeneration;
     }
 
     mHandler.post(
         new Runnable() {
           @Override
           public void run() {
+            boolean shouldDeliver;
+            boolean recycleStaleBitmap;
+            synchronized (mLock) {
+              shouldDeliver = (generation == mGeneration);
+              recycleStaleBitmap = !shouldDeliver && mCurrentArtwork != bitmap;
+            }
             try {
-              mCallback.onArtworkLoaded(bitmap);
+              if (shouldDeliver) {
+                mCallback.onArtworkLoaded(bitmap);
+              } else if (recycleStaleBitmap && !bitmap.isRecycled()) {
+                bitmap.recycle();
+              }
             } finally {
-              if (oldArtwork != null) {
+              if (oldArtwork != null && !oldArtwork.isRecycled()) {
                 oldArtwork.recycle();
               }
             }

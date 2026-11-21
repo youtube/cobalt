@@ -18,6 +18,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.mock;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.util.Pair;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -100,5 +101,55 @@ public class ArtworkDownloaderDefaultTest {
         };
 
     executeAndVerify(artworkLoader, latch);
+  }
+
+  @Test
+  public void testCalculateInSampleSize_capsDecodeTowards640x360() {
+    BitmapFactory.Options opts = new BitmapFactory.Options();
+
+    opts.outWidth = 640;
+    opts.outHeight = 360;
+    assertThat(
+            ArtworkDownloaderDefault.calculateInSampleSize(
+                opts,
+                ArtworkLoader.OPTIMIZED_MAX_ARTWORK_WIDTH,
+                ArtworkLoader.OPTIMIZED_MAX_ARTWORK_HEIGHT))
+        .isEqualTo(1);
+
+    opts.outWidth = 1920;
+    opts.outHeight = 1080;
+    assertThat(
+            ArtworkDownloaderDefault.calculateInSampleSize(
+                opts,
+                ArtworkLoader.OPTIMIZED_MAX_ARTWORK_WIDTH,
+                ArtworkLoader.OPTIMIZED_MAX_ARTWORK_HEIGHT))
+        .isEqualTo(2);
+
+    opts.outWidth = 2560;
+    opts.outHeight = 1440;
+    assertThat(
+            ArtworkDownloaderDefault.calculateInSampleSize(
+                opts,
+                ArtworkLoader.OPTIMIZED_MAX_ARTWORK_WIDTH,
+                ArtworkLoader.OPTIMIZED_MAX_ARTWORK_HEIGHT))
+        .isEqualTo(4);
+  }
+
+  @Test
+  public void testReadAllBytesBounded_enforcesMaxBytesLimit() throws Exception {
+    byte[] payload = new byte[] {1, 2, 3, 4, 5};
+    byte[] read =
+        ArtworkDownloaderDefault.readAllBytesBounded(
+            new java.io.ByteArrayInputStream(payload), /* maxBytes= */ 5);
+    assertThat(read).isEqualTo(payload);
+
+    boolean threw = false;
+    try {
+      ArtworkDownloaderDefault.readAllBytesBounded(
+          new java.io.ByteArrayInputStream(new byte[1024]), /* maxBytes= */ 512);
+    } catch (java.io.IOException expected) {
+      threw = true;
+    }
+    assertThat(threw).isTrue();
   }
 }

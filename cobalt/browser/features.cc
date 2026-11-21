@@ -206,6 +206,10 @@ BASE_FEATURE(kCobaltPlatformServicesOffUiThread,
              "CobaltPlatformServicesOffUiThread",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltMediaSessionUiAndArtworkOptimization,
+             "CobaltMediaSessionUiAndArtworkOptimization",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltFreezeOnBackground,
              "CobaltFreezeOnBackground",
              base::FEATURE_DISABLED_BY_DEFAULT);

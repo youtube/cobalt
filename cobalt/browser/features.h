@@ -191,6 +191,11 @@ BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
 // dedicated CobaltPlatformService thread instead of the browser UI thread.
 BASE_DECLARE_FEATURE(kCobaltPlatformServicesOffUiThread);
 
+// Deduplicates redundant main-looper MediaSession.setMetadata() Binder IPCs on
+// position ticks, caps MediaSession artwork decoding to 640x360, and releases
+// cached artwork bitmaps when the session is destroyed.
+BASE_DECLARE_FEATURE(kCobaltMediaSessionUiAndArtworkOptimization);
+
 // Freezes the web app (document freeze event, JS timers stopped, freeze-time
 // memory purging) when the Android Activity is stopped, after an optional
 // delay. Disabled by default: Chrobalt currently never freezes in the
