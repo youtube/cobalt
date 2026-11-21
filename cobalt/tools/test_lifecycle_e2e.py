@@ -67,6 +67,36 @@ def _get_vp9_webm_base64() -> str:
   return base64.b64encode(raw_bytes).decode('ascii')
 
 
+_PLAYER_PRESENTING_LOG = (
+    'StarboardRenderer::OnPlayerStatus() called with kSbPlayerStatePresenting')
+
+
+def _wait_for_log_count_increase(runner: 'CobaltRunner',
+                                 substring: str,
+                                 previous_count: int,
+                                 label: str,
+                                 timeout: float = 10.0) -> int:
+  """Waits until substring appears more than previous_count times in logs."""
+  deadline = time.monotonic() + timeout
+  count = previous_count
+  while time.monotonic() < deadline:
+    count = runner.get_log_content().count(substring)
+    if count > previous_count:
+      logger.info(
+          'SUCCESS [%s]: Observed %r count increase (%d -> %d)',
+          label,
+          substring,
+          previous_count,
+          count,
+      )
+      return count
+    time.sleep(0.1)
+
+  raise AssertionError(
+      f'[{label}] Timed out waiting for {substring!r} count to exceed '
+      f'{previous_count} (observed {count}) in {runner.log_file}')
+
+
 def _verify_sbplayer_destroyed_before_conceal_complete(runner: 'CobaltRunner',
                                                        destroy_nth: int,
                                                        conceal_nth: int,
@@ -430,11 +460,18 @@ def run_lifecycle_test(executable: str,
     _verify_sbplayer_destroyed_before_conceal_complete(
         runner, destroy_nth=1, conceal_nth=2, label='Scenario 1')
 
+    presenting_count = runner.get_log_content().count(_PLAYER_PRESENTING_LOG)
     logger.info('Scenario 1: Revealing and verifying auto-resume...')
     controller.resume()
     cdp.wait_for_state('document.visibilityState', 'visible', timeout=10.0)
     cdp.wait_for_state(
         "document.getElementById('test_video').paused", False, timeout=10.0)
+    _wait_for_log_count_increase(
+        runner,
+        _PLAYER_PRESENTING_LOG,
+        presenting_count,
+        label='Scenario 1 reveal',
+        timeout=10.0)
 
     # Scenario 2: Web app explicitly calls video.pause() on conceal.
     logger.info(
@@ -455,9 +492,16 @@ def run_lifecycle_test(executable: str,
     _verify_sbplayer_destroyed_before_conceal_complete(
         runner, destroy_nth=2, conceal_nth=3, label='Scenario 2')
 
+    presenting_count = runner.get_log_content().count(_PLAYER_PRESENTING_LOG)
     logger.info('Scenario 2: Revealing and verifying video remains paused...')
     controller.resume()
     cdp.wait_for_state('document.visibilityState', 'visible', timeout=10.0)
+    _wait_for_log_count_increase(
+        runner,
+        _PLAYER_PRESENTING_LOG,
+        presenting_count,
+        label='Scenario 2 reveal',
+        timeout=10.0)
     time.sleep(1)
     cdp.wait_for_state(
         "document.getElementById('test_video').paused", True, timeout=5.0)
