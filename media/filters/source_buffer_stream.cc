@@ -10,7 +10,6 @@
 #include "media/filters/source_buffer_stream.h"
 
 #include <algorithm>
-#include <limits>
 #include <map>
 #include <memory>
 #include <sstream>

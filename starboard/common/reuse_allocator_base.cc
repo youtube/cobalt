@@ -208,16 +208,6 @@ bool ReuseAllocatorBase::IsFullFallbackBlock(intptr_t fallback_index,
          fb.address == address && fb.size == size;
 }
 
-size_t ReuseAllocatorBase::ActiveFallbackBlockCount() const {
-  size_t active = 0;
-  for (const auto& fb : fallback_allocations_) {
-    if (fb.address != nullptr && fb.state == kActiveInUse) {
-      ++active;
-    }
-  }
-  return active;
-}
-
 void ReuseAllocatorBase::ReleaseFallbackBlock(intptr_t fallback_index) {
   if (!IsValidFallbackIndex(fallback_index)) {
     return;

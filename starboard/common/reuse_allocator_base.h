@@ -108,9 +108,6 @@ class ReuseAllocatorBase : public Allocator {
                            const void* address,
                            size_t size) const;
 
-  // Count of currently active (`kActiveInUse`) non-null fallback blocks.
-  size_t ActiveFallbackBlockCount() const;
-
   size_t retain_blocks() const { return retain_blocks_; }
 
   bool release_empty_fallback_blocks() const {
