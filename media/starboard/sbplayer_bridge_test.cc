@@ -35,6 +35,7 @@
 #include "media/base/test_helpers.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/mock_sbplayer_interface.h"
+#include "media/starboard/sb_media_histograms.h"
 #include "starboard/player.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -304,25 +305,6 @@ TEST_F(SbPlayerBridgeSideDataTest,
   bridge_->Suspend();
 }
 
-constexpr char kSbPlayerCreateHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreate";
-constexpr char kSbPlayerCreateSubsequentHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreate.Subsequent";
-constexpr char kSbPlayerCreateToInitializedHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
-constexpr char kSbPlayerCreateToInitializedSubsequentHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized.Subsequent";
-constexpr char kSbPlayerDestroyHistogramPrefix[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
-constexpr char kSbPlayerDestroyBeforePrerollingHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.BeforePrerolling";
-constexpr char kSbPlayerDestroyPrerollingHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Prerolling";
-constexpr char kSbPlayerDestroyPresentingHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Presenting";
-constexpr char kSbPlayerDestroyEndOfStreamHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.EndOfStream";
-
 // Returns the number of samples recorded in histogram |name|.
 size_t GetTotalCount(const base::HistogramTester& histogram_tester,
                      const std::string& name) {
@@ -449,24 +431,28 @@ TEST(SbPlayerBridgeLatencyTest, RecordsCreateToInitializedOncePerPlayer) {
                        task_environment.GetMainThreadTaskRunner(), &host);
   ASSERT_TRUE(bridge->IsValid());
   ASSERT_TRUE(player_status_func);
-  EXPECT_EQ(
-      GetTotalCountAcrossOccurrences(histogram_tester, kSbPlayerCreateHistogram,
-                                     kSbPlayerCreateSubsequentHistogram),
-      1u);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(
+                histogram_tester, sb_media_histograms::kSbPlayerCreateHistogram,
+                sb_media_histograms::kSbPlayerCreateSubsequentHistogram),
+            1u);
 
   for (int i = 0; i < kInitializedStatusCount; ++i) {
     player_status_func(player, context, kSbPlayerStateInitialized,
                        SB_PLAYER_INITIAL_TICKET);
     task_environment.RunUntilIdle();
   }
-  EXPECT_EQ(GetTotalCountAcrossOccurrences(
-                histogram_tester, kSbPlayerCreateToInitializedHistogram,
-                kSbPlayerCreateToInitializedSubsequentHistogram),
-            1u);
-  // Both metrics for this player are recorded in the same variant.
   EXPECT_EQ(
-      GetTotalCount(histogram_tester, kSbPlayerCreateHistogram),
-      GetTotalCount(histogram_tester, kSbPlayerCreateToInitializedHistogram));
+      GetTotalCountAcrossOccurrences(
+          histogram_tester,
+          sb_media_histograms::kSbPlayerCreateToInitializedHistogram,
+          sb_media_histograms::kSbPlayerCreateToInitializedSubsequentHistogram),
+      1u);
+  // Both metrics for this player are recorded in the same variant.
+  EXPECT_EQ(GetTotalCount(histogram_tester,
+                          sb_media_histograms::kSbPlayerCreateHistogram),
+            GetTotalCount(
+                histogram_tester,
+                sb_media_histograms::kSbPlayerCreateToInitializedHistogram));
 }
 
 // Only the first SbPlayer creation in the process is recorded in the base
@@ -490,11 +476,13 @@ TEST(SbPlayerBridgeLatencyTest, RecordsLaterCreationsAsSubsequent) {
 
   // At most one creation can be the first in the process, so all the others
   // are recorded as subsequent.
-  const size_t first_call_count =
-      GetTotalCount(histogram_tester, kSbPlayerCreateHistogram);
+  const size_t first_call_count = GetTotalCount(
+      histogram_tester, sb_media_histograms::kSbPlayerCreateHistogram);
   EXPECT_LE(first_call_count, 1u);
-  EXPECT_EQ(GetTotalCount(histogram_tester, kSbPlayerCreateSubsequentHistogram),
-            kPlayerCount - first_call_count);
+  EXPECT_EQ(
+      GetTotalCount(histogram_tester,
+                    sb_media_histograms::kSbPlayerCreateSubsequentHistogram),
+      kPlayerCount - first_call_count);
 }
 
 // Tests the SbPlayerDestroy latency histograms, split by player state.
@@ -538,7 +526,7 @@ class SbPlayerBridgeDestroyLatencyTest : public testing::Test {
 
   base::HistogramTester::CountsMap GetDestroyCounts() const {
     return histogram_tester_.GetTotalCountsForPrefix(
-        kSbPlayerDestroyHistogramPrefix);
+        sb_media_histograms::kSbPlayerDestroyHistogramPrefix);
   }
 
   base::test::TaskEnvironment task_environment_;
@@ -561,7 +549,7 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownBeforeInitialized) {
   bridge_.reset();
 
   const base::HistogramTester::CountsMap expected_counts = {
-      {kSbPlayerDestroyBeforePrerollingHistogram, 1}};
+      {sb_media_histograms::kSbPlayerDestroyBeforePrerollingHistogram, 1}};
   EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
 }
 
@@ -575,7 +563,7 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownWhenInitialized) {
   bridge_.reset();
 
   const base::HistogramTester::CountsMap expected_counts = {
-      {kSbPlayerDestroyBeforePrerollingHistogram, 1}};
+      {sb_media_histograms::kSbPlayerDestroyBeforePrerollingHistogram, 1}};
   EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
 }
 
@@ -588,7 +576,7 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownWhenPrerolling) {
   bridge_.reset();
 
   const base::HistogramTester::CountsMap expected_counts = {
-      {kSbPlayerDestroyPrerollingHistogram, 1}};
+      {sb_media_histograms::kSbPlayerDestroyPrerollingHistogram, 1}};
   EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
 }
 
@@ -602,7 +590,7 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownWhenPresenting) {
   bridge_.reset();
 
   const base::HistogramTester::CountsMap expected_counts = {
-      {kSbPlayerDestroyPresentingHistogram, 1}};
+      {sb_media_histograms::kSbPlayerDestroyPresentingHistogram, 1}};
   EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
 }
 
@@ -616,7 +604,7 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownAtEndOfStream) {
   bridge_.reset();
 
   const base::HistogramTester::CountsMap expected_counts = {
-      {kSbPlayerDestroyEndOfStreamHistogram, 1}};
+      {sb_media_histograms::kSbPlayerDestroyEndOfStreamHistogram, 1}};
   EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
 }
 
@@ -631,7 +619,7 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsLastReportedState) {
   bridge_.reset();
 
   const base::HistogramTester::CountsMap expected_counts = {
-      {kSbPlayerDestroyPrerollingHistogram, 1}};
+      {sb_media_histograms::kSbPlayerDestroyPrerollingHistogram, 1}};
   EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
 }
 
@@ -647,7 +635,7 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, IgnoresStatusWithStaleTicket) {
   bridge_.reset();
 
   const base::HistogramTester::CountsMap expected_counts = {
-      {kSbPlayerDestroyPrerollingHistogram, 1}};
+      {sb_media_histograms::kSbPlayerDestroyPrerollingHistogram, 1}};
   EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
 }
 
@@ -662,7 +650,7 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsSuspendOnce) {
   bridge_.reset();
 
   const base::HistogramTester::CountsMap expected_counts = {
-      {kSbPlayerDestroyPresentingHistogram, 1}};
+      {sb_media_histograms::kSbPlayerDestroyPresentingHistogram, 1}};
   EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
 }
 
@@ -682,8 +670,8 @@ TEST_F(SbPlayerBridgeDestroyLatencyTest, ResetsStateForPlayerCreatedOnResume) {
   bridge_.reset();
 
   const base::HistogramTester::CountsMap expected_counts = {
-      {kSbPlayerDestroyPresentingHistogram, 1},
-      {kSbPlayerDestroyBeforePrerollingHistogram, 1}};
+      {sb_media_histograms::kSbPlayerDestroyPresentingHistogram, 1},
+      {sb_media_histograms::kSbPlayerDestroyBeforePrerollingHistogram, 1}};
   EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
 }
 
@@ -702,9 +690,9 @@ TEST(SbPlayerBridgeLatencyTest, DoesNotRecordDestroyForInvalidPlayer) {
   ASSERT_FALSE(bridge->IsValid());
 
   bridge.reset();
-  EXPECT_THAT(
-      histogram_tester.GetTotalCountsForPrefix(kSbPlayerDestroyHistogramPrefix),
-      testing::IsEmpty());
+  EXPECT_THAT(histogram_tester.GetTotalCountsForPrefix(
+                  sb_media_histograms::kSbPlayerDestroyHistogramPrefix),
+              testing::IsEmpty());
 }
 
 }  // namespace
