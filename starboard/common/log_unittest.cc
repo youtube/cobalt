@@ -86,5 +86,53 @@ TEST(LogTest, StreamOperator_OptionalEmpty) {
   EXPECT_EQ(ss_absent.str(), "(nullopt)");
 }
 
+struct CapturedSbLog {
+  SbLogPriority priority = kSbLogPriorityUnknown;
+  std::string file;
+  int line = 0;
+  std::string message;
+  int calls = 0;
+};
+
+CapturedSbLog* g_captured_sb_log = nullptr;
+
+bool CaptureSbLogHandler(SbLogPriority priority,
+                         const char* file,
+                         int line,
+                         size_t message_start,
+                         const std::string& str) {
+  if (g_captured_sb_log) {
+    g_captured_sb_log->priority = priority;
+    g_captured_sb_log->file = file ? file : "";
+    g_captured_sb_log->line = line;
+    g_captured_sb_log->message =
+        message_start <= str.size() ? str.substr(message_start) : str;
+    ++g_captured_sb_log->calls;
+  }
+  return false;
+}
+
+// Verifies that registering an internal Starboard log handler captures SB_LOG
+// messages with priority, source file/line, and payload offset.
+TEST(LogTest, LogMessageHandlerInterceptsSbLog) {
+  LogMessageHandlerFunction saved_handler = GetLogMessageHandler();
+  CapturedSbLog captured;
+  g_captured_sb_log = &captured;
+  SetLogMessageHandler(&CaptureSbLogHandler);
+  EXPECT_EQ(GetLogMessageHandler(), &CaptureSbLogHandler);
+
+  SB_LOG(WARNING) << "starboard-log-handler-test";
+
+  SetLogMessageHandler(saved_handler);
+  g_captured_sb_log = nullptr;
+
+  EXPECT_GE(captured.calls, 1);
+  EXPECT_EQ(captured.priority, kSbLogPriorityWarning);
+  EXPECT_NE(captured.file.find("log_unittest.cc"), std::string::npos);
+  EXPECT_GT(captured.line, 0);
+  EXPECT_NE(captured.message.find("starboard-log-handler-test"),
+            std::string::npos);
+}
+
 }  // namespace
 }  // namespace starboard
