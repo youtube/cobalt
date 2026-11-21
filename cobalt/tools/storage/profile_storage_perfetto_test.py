@@ -19,6 +19,7 @@ import io
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -101,6 +102,13 @@ class FakeSubprocess:
         out = '"col","value"\n"a",1.500000\n'
     return subprocess.CompletedProcess(cmd, rc, out, "")
 
+  def popen(self, cmd, **kwargs):  # --cuj-cmd.
+    del kwargs
+    self.commands.append(cmd)
+    proc = mock.Mock(pid=0)
+    proc.wait.return_value = proc.poll.return_value = self.cuj_cmd_rc
+    return proc
+
 
 class ProfileStoragePerfettoTest(unittest.TestCase):
   """Tests for the Perfetto config, CUJ driver, queries, and reports.
@@ -166,10 +174,13 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
     self.assertEqual(config.count("producer_name_regex_filter"), 4)
 
   def test_duration_cap(self):
-    for argv, cap in (([], 185), (["--duration-s",
-                                   "10"], 130), (["--cuj", "lifecycle"], 242),
-                      (["--cuj", "manual"],
-                       3600), (["--cuj", "manual", "--cuj-cmd", "true"], 3600)):
+    for argv, cap in (([], 185), (["--duration-s", "10"], 130),
+                      (["--cuj", "lifecycle"], 242), (["--cuj",
+                                                       "manual"], 3600),
+                      (["--cuj", "manual", "--cuj-cmd", "true"], 3600), ([
+                          "--cuj", "manual", "--cuj-cmd", "true",
+                          "--duration-s", "10"
+                      ], 130)):
       self.assertEqual(psp.duration_cap_s(psp.parse_args(argv)), cap, argv)
 
   def test_command_line_args_inject_tracing_feature(self):
@@ -229,7 +240,7 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
             s.endswith("; rc=$?; cat /proc/uptime; exit $rc") for s in shells))
     self.assertIn("am start -S ", shells[0])
     self.assertIn(
-        "-d 'https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ' "
+        "-d 'https://www.youtube.com/watch?v=1La4QzGeaaQ' "
         "-p com.google.android.youtube.tv", shells[17])
     self.assertNotIn(" -S ", shells[17])
     self.assertIn("input keyevent KEYCODE_HOME", shells[18])
@@ -373,6 +384,11 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
     health, _ = psp.parse_health(psp.parse_csv(_HEALTH_CSV))
     self.assertTrue(health["healthy"])
     self.assertFalse(health["truncated"])
+    health, _ = psp.parse_health(
+        psp.parse_csv(_HEALTH_CSV +
+                      '"meta","app_slices","[NULL]","[NULL]",0\n'))
+    self.assertFalse(health["healthy"])
+    self.assertIn("**WARNING: NO_APP_DATA**", psp.health_banner(health))
 
   def test_format_markdown_from_canned_csvs(self):
     health, _ = psp.parse_health(psp.parse_csv(_HEALTH_CSV))
@@ -388,6 +404,12 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
             "app_version_name": ""
         },
         "trace_health": health,
+        "coverage": psp._coverage({  # pylint: disable=protected-access
+            "trace_start_ns": "99000000000",
+            "app_start_ns": "100000000000",
+            "first_app_slice_ns": "102830000000",
+            "startup_read_kb": "77312",
+        }),
         "capture": {
             "cuj":
                 "lifecycle",
@@ -432,6 +454,9 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
     self.assertIn("2.5 MB, 140.0 s, sha256 `abc`", md)
     self.assertIn("- Versions: trace_processor `Perfetto v50.1`\n", md)
     self.assertIn("**HEALTHY** (no data loss)", md)
+    self.assertIn("- Trace start: 99.000 s CLOCK_BOOTTIME", md)
+    self.assertIn("The first Chromium trace event came 2.83 s later", md)
+    self.assertIn("`Cobalt.Storage.ProcessIo.StartupReadKB`: 77312 KB", md)
     self.assertIn("| exit | 220.00 | 235.50 | 120.0 | 15.5 |", md)
     self.assertIn("Last storage I/O after HOME (Q5): LocalStorage +10.25 s.",
                   md)
@@ -446,11 +471,14 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
     self.assertEqual(args.cuj, "cold_start")
     self.assertEqual(args.duration_s, 65.0)
     self.assertIsNone(psp.parse_args(["--cuj", "manual"]).duration_s)
+    self.assertEqual(
+        psp.parse_args(
+            ["--cuj", "manual", "--cuj-cmd", "true", "--duration-s",
+             "5"]).duration_s, 5.0)
     for bad in (
         ["--cuj-cmd", "true"],
         ["--cuj", "lifecycle", "--duration-s", "5"],
         ["--package", "a;rm"],
-        ["--cuj", "manual", "--cuj-cmd", "true", "--duration-s", "5"],
         ["--cuj", "manual", "--cuj-cmd", "true", "--duration-s", "0"],
         ["--duration-s", "0"],
         ["--duration-s", "-5"],
@@ -530,6 +558,7 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
       with open(trace_processor, "w", encoding="utf-8") as f:
         f.write("fake")
       with mock.patch.object(psp.subprocess, "run", side_effect=fake.run), \
+          mock.patch.object(psp.subprocess, "Popen", side_effect=fake.popen), \
           mock.patch.object(psp.time, "sleep"), \
           mock.patch("sys.stdout", new_callable=io.StringIO), \
           mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
@@ -546,6 +575,24 @@ class ProfileStoragePerfettoTest(unittest.TestCase):
     self.assertIn("--cuj-cmd exited with 3", stderr.getvalue())
     self.assertEqual(summary["capture"]["cuj_cmd_returncode"], 3)
     self.assertTrue(summary["trace_health"]["healthy"])
+
+  def test_cuj_cmd_is_stopped_with_its_children_at_duration_s(self):
+    proc = mock.Mock(pid=4343)
+    proc.wait.side_effect = [subprocess.TimeoutExpired("drive.sh", 5), -9]
+    proc.poll.return_value = None
+    args = psp.parse_args(
+        ["--cuj", "manual", "--cuj-cmd", "./drive.sh", "--duration-s", "5"])
+    with mock.patch.object(psp.subprocess, "run",
+                           side_effect=FakeSubprocess().run), \
+        mock.patch.object(psp.subprocess, "Popen",
+                          return_value=proc) as popen, \
+        mock.patch.object(psp.os, "killpg") as killpg, \
+        mock.patch("sys.stdout", new_callable=io.StringIO):
+      self.assertEqual(psp.run_cuj(args, []), 0)
+    popen.assert_called_once_with(
+        "./drive.sh", shell=True, start_new_session=True)
+    proc.wait.assert_any_call(timeout=5.0)
+    killpg.assert_called_once_with(4343, signal.SIGKILL)
 
   def test_device_info_parses_prefixed_and_empty_fields(self):
     responses = [
