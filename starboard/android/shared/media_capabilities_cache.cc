@@ -383,6 +383,12 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
     return true;
   }
 
+  if (is_refresh_in_av1_8k_check_enabled_) {
+    std::lock_guard scoped_lock(mutex_);
+    UpdateMediaCapabilities_Locked();
+    return is_av1_8k_capped_at_30_;
+  }
+
   return is_av1_8k_capped_at_30_;
 }
 
