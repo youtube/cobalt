@@ -197,7 +197,7 @@ When something that used to work has broken after a roll, **run both on the rele
      * DO NOT re-add excluded sources to `BUILD.gn` to satisfy linker errors.
      * DO wrap referencing call sites in core C++ files with `#if BUILDFLAG(...)` to completely strip dead code and minimize `libchrobalt.so` binary footprint.
    - **Java/APK side (`Excess Java files`, `Muxed_` or `JNI_<Class>` link errors for classes Cobalt never calls):** `cobalt_apk` has no R8 or resource shrinking, so every transitive Java dep ships whole. Before linking natives or adding `*_jni_stubs.cc` files to make an unused Java class link, trace why the class is in the APK (`gn path //cobalt/android:cobalt_apk <java_target>`) and cut the Java edge instead if Cobalt does not use it. Full protocol and the M149 `thin_webview`/`browser_ui` example (+25 MiB APK) are in `cobalt_rebase_patterns.md` → "JNI Zero Registration & Missing Native Stubs", Step 0.
-   - **Always report `Cobalt.apk` and `libcobalt.so` size deltas** for any fix that adds a dep, links a new target, or changes a feature arg. A fix that grows either by more than 1 MiB must carry a `# TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED]` flag stating the delta.
+   - **Always report `Cobalt.apk` and `libcobalt.so` size deltas** for any fix that adds a dep, links a new target, or changes a feature arg. A fix that grows either by more than 1 MiB must carry a `TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED]` flag stating the delta, in the file's own comment syntax (`// TODO` in C++, `# TODO` in GN).
 7. MISPLACED `#include` DIRECTIVES INSIDE NAMESPACE BLOCKS (NAMESPACE HIJACKING):
    - When Clang reports:
      `error: no template named 'X'; did you mean '::ns::X'?`
