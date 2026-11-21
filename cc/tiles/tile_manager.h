@@ -23,6 +23,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "cc/base/unique_notifier.h"
 #include "cc/cc_export.h"
 #include "cc/paint/target_color_params.h"
@@ -370,7 +371,11 @@ class CC_EXPORT TileManager : CheckerImageTrackerClient,
 
  public:
   static base::TimeDelta GetTrimPrepaintTilesDelay();
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  static constexpr base::TimeDelta kDelayBeforeTimeReclaim = base::Seconds(3);
+#else
   static constexpr base::TimeDelta kDelayBeforeTimeReclaim = base::Minutes(5);
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
  private:
   void InsertNodesForRasterTask(TileTask* raster_task,

@@ -578,6 +578,11 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
       cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetCount();
   settings.decoded_image_persistent_cache_budget_bytes =
       cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes();
+#if !BUILDFLAG(IS_ANDROID)
+  // Immediately release GPU tile textures from hidden/dormant layers (e.g.
+  // Browse shelves during Watch playback), matching ChromeOS UI compositor.
+  settings.release_tile_resources_for_hidden_layers = true;
+#endif  // !BUILDFLAG(IS_ANDROID)
 #endif
 
   if (using_low_memory_policy) {
