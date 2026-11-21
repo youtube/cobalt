@@ -70,12 +70,25 @@ AudioRendererPcm::AudioRendererPcm(
     std::unique_ptr<AudioDecoder> decoder,
     std::unique_ptr<AudioRendererSink> audio_renderer_sink,
     const AudioStreamInfo& audio_stream_info,
-    int max_cached_frames,
-    int min_frames_per_append,
+    const ExperimentalFeatures& experimental_features)
+    : AudioRendererPcm(
+          job_queue,
+          std::move(decoder),
+          &audio_renderer_sink,
+          audio_stream_info,
+          audio_renderer_sink->GetAudioRendererParams(audio_stream_info),
+          experimental_features) {}
+
+AudioRendererPcm::AudioRendererPcm(
+    JobQueue* job_queue,
+    std::unique_ptr<AudioDecoder> decoder,
+    std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
+    const AudioStreamInfo& audio_stream_info,
+    AudioRendererSink::AudioRendererParams renderer_params,
     const ExperimentalFeatures& experimental_features)
     : JobOwner(job_queue),
-      max_cached_frames_(max_cached_frames),
-      min_frames_per_append_(min_frames_per_append),
+      max_cached_frames_(renderer_params.max_cached_frames),
+      min_frames_per_append_(renderer_params.min_frames_per_append),
       allow_audio_writing_on_pause_(
           experimental_features.GetBool(kMediaAllowAudioWritingOnPause)),
       skip_audio_resampling_on_unchanged_sample_rate_(
@@ -83,14 +96,15 @@ AudioRendererPcm::AudioRendererPcm(
               kMediaSkipAudioResamplingOnUnchangedSampleRate)),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),
-      channels_(audio_renderer_sink->GetOutputNumberOfChannels(
-          audio_stream_info.number_of_channels)),
-      sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
+      channels_((*audio_renderer_sink)
+                    ->GetOutputNumberOfChannels(
+                        audio_stream_info.number_of_channels)),
+      sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink->get())),
       bytes_per_frame_(GetBytesPerSample(sink_sample_type_) * channels_),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
       process_audio_data_job_(
           std::bind(&AudioRendererPcm::ProcessAudioData, this)),
-      audio_renderer_sink_(std::move(audio_renderer_sink)) {
+      audio_renderer_sink_(std::move(*audio_renderer_sink)) {
   SB_DLOG(INFO) << "Creating AudioRendererPcm with " << channels_
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
