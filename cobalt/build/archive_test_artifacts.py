@@ -38,6 +38,8 @@ _EXCLUDE_DIRS_JUNIT = [
 
 _EXCLUDE_EXTENSIONS = ('.map',)
 
+_EXCLUDE_EXTENSIONS_ANDROID = ('.apk', '.jar', '.pak.info', '.so')
+
 # Secondary toolchains write their outputs to a subfolder of the out dir.
 _TOOLCHAIN_SUBDIRS = ('starboard', 'native_target')
 
@@ -50,6 +52,13 @@ def _under_toolchain_subdirs(exclude_dirs: list[str]) -> list[str]:
       for subdir in _TOOLCHAIN_SUBDIRS
       for d in out_dir_relative
   ]
+
+
+def _is_staged_evergreen_app_so(dep_path: str) -> bool:
+  """Returns True if dep_path is an uncompressed .so staged under app/."""
+  norm = os.path.normpath(dep_path)
+  return norm.endswith('.so') and '/lib/' in norm and (norm.startswith('app/')
+                                                       or '/app/' in norm)
 
 
 def _find_strip_tool(source_dir: str) -> Optional[str]:
@@ -202,7 +211,9 @@ def create_archive(
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
-    if target.endswith(':cobalt_browsertests'):
+    if target.endswith(':cobalt_browsertests') or (
+        use_android_deps_path and
+        target.endswith(':cobalt_browsertests_loader')):
       if not use_android_deps_path:
         _handle_browsertests(source_dir, out_dir, destination_dir, compression)
         # If this was the only target, we are done.
@@ -262,16 +273,15 @@ def create_archive(
       exclude_dirs = _EXCLUDE_DIRS_DEFAULT
       if is_junit_test:
         exclude_dirs = _EXCLUDE_DIRS_JUNIT
-      elif use_android_deps_path and target_name == 'nplb_loader':
-        # TODO(crbug.com/532068409): remove the test data exclusion and figure
-        # out a workaround for the increase in size.
-        exclude_dirs = _EXCLUDE_DIRS_DEFAULT + [
-            'test/starboard/shared/starboard/player/'
-        ]
       exclude_dirs = _under_toolchain_subdirs(exclude_dirs)
 
       raw_lines = [line.strip() for line in runtime_deps_file if line.strip()]
-      has_uncompressed_so = any(l.endswith('.so') for l in raw_lines)
+      root_so_names = {
+          os.path.basename(l)
+          for l in raw_lines
+          if l.endswith('.so') and not _is_staged_evergreen_app_so(l)
+      }
+      has_uncompressed_so = bool(root_so_names)
 
       for line in raw_lines:
         if any(line.startswith(path) for path in exclude_dirs):
@@ -280,9 +290,21 @@ def create_archive(
         if line.endswith(_EXCLUDE_EXTENSIONS):
           continue
 
+        if use_android_deps_path and line.endswith(_EXCLUDE_EXTENSIONS_ANDROID):
+          continue
+
         # Skip redundant compressed libraries if uncompressed .so is included.
         if has_uncompressed_so and (line.endswith('.lz4') or
                                     line.endswith('.zst')):
+          continue
+
+        # Skip duplicate shared library staged under app/ when the same .so is
+        # already present at the root for elf_loader_sandbox. Keep cobalt_loader
+        # intact because Linux E2E tests launch it via loader_app, which loads
+        # app/cobalt/lib/libcobalt.so.
+        if (target_name != 'cobalt_loader' and
+            _is_staged_evergreen_app_so(line) and
+            os.path.basename(line) in root_so_names):
           continue
 
         if flatten_deps and line.startswith('../../'):

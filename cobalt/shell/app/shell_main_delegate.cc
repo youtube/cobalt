@@ -75,7 +75,7 @@
 #include "content/public/browser/android/compositor.h"
 #endif
 
-#if !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "components/crash/core/app/crashpad.h"  // nogncheck
 #endif
 
@@ -216,7 +216,7 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 
 #if BUILDFLAG(IS_LINUX)
 void ShellMainDelegate::ZygoteForked() {
-#if !BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     std::string process_type =
@@ -226,7 +226,7 @@ void ShellMainDelegate::ZygoteForked() {
     crash_reporter::SetFirstChanceExceptionHandler(
         v8::TryHandleWebAssemblyTrapPosix);
   }
-#endif  // !BUILDFLAG(IS_ANDROIDTV)
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 #endif  // BUILDFLAG(IS_LINUX)
 

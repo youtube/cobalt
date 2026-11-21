@@ -18,6 +18,7 @@
 #include "third_party/starboard/rdk/shared/drm/drm_system_ocdm.h"
 
 #include <dlfcn.h>
+#include <algorithm>
 #include <mutex>
 #include <cstring>
 #include <gst/gst.h>
@@ -102,9 +103,9 @@ class Session {
   ~Session();
   void Close();
   void GenerateChallenge(std::string_view type,
-                         std::string_view initialization_data,
+                         span<const uint8_t> initialization_data,
                          int ticket);
-  void Update(std::string_view key, int ticket);
+  void Update(span<const uint8_t> key, int ticket);
   std::string Id() const { return id_; }
 
   int Decrypt( _GstBuffer* buffer,
@@ -212,7 +213,7 @@ void Session::Close() {
 }
 
 void Session::GenerateChallenge(std::string_view type,
-                                std::string_view initialization_data,
+                                span<const uint8_t> initialization_data,
                                 int ticket) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_LOG(INFO) << "Generating challenge";
@@ -225,7 +226,7 @@ void Session::GenerateChallenge(std::string_view type,
   OpenCDMSession* session = nullptr;
   if (opencdm_construct_session(
           ocdm_system_, Temporary, std::string(type).c_str(),
-          reinterpret_cast<const uint8_t*>(initialization_data.data()),
+          initialization_data.data(),
           static_cast<uint16_t>(initialization_data.size()),
           /*cdm_data=*/nullptr, /*cdm_data_size=*/0, &session_callbacks_,
           /*user_data=*/this, &session) != ERROR_NONE ||
@@ -277,7 +278,7 @@ void Session::DispatchPendingKeyUpdates() {
   }
 }
 
-void Session::Update(std::string_view key, int ticket) {
+void Session::Update(span<const uint8_t> key, int ticket) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   auto id = Id();
   SB_DCHECK(!id.empty());
@@ -288,7 +289,7 @@ void Session::Update(std::string_view key, int ticket) {
     operation_ = Operation::kUpdate;
   }
   if (opencdm_session_update(
-          session_.get(), reinterpret_cast<const uint8_t*>(key.data()),
+          session_.get(), key.data(),
           static_cast<uint16_t>(key.size())) != ERROR_NONE) {
     session_updated_callback_(drm_system_, context_, ticket,
                               kSbDrmStatusUnknownError, nullptr, id.c_str(),
@@ -582,7 +583,7 @@ bool DrmSystemOcdm::IsKeySystemSupported(const char* key_system,
 void DrmSystemOcdm::GenerateSessionUpdateRequest(
     int ticket,
     std::string_view type,
-    std::string_view initialization_data) {
+    span<const uint8_t> initialization_data) {
   SB_CHECK(ocdm_system_ != nullptr);
   SB_LOG(INFO) << "Generate challenge type: " << type;
   std::unique_ptr<Session> session(
@@ -598,7 +599,7 @@ void DrmSystemOcdm::GenerateSessionUpdateRequest(
 }
 
 void DrmSystemOcdm::UpdateSession(int ticket,
-                                  std::string_view key,
+                                  span<const uint8_t> key,
                                   std::string_view session_id) {
   SB_LOG(INFO) << "Update: " << session_id;
   auto* session = GetSessionById(session_id);
@@ -614,10 +615,10 @@ void DrmSystemOcdm::CloseSession(std::string_view session_id) {
 }
 
 void DrmSystemOcdm::UpdateServerCertificate(int ticket,
-                                            std::string_view certificate) {
+                                            span<const uint8_t> certificate) {
   SB_CHECK(ocdm_system_ != nullptr);
   auto status = opencdm_system_set_server_certificate(
-      ocdm_system_, reinterpret_cast<const uint8_t*>(certificate.data()),
+      ocdm_system_, certificate.data(),
       static_cast<int>(certificate.size()));
 
   server_certificate_updated_callback_(
@@ -776,21 +777,25 @@ std::optional<std::string_view> DrmSystemOcdm::GetMetrics() {
       metrics_.resize(out_length, '\0');
       out_length = modp_b64_encode(&(metrics_[0]), reinterpret_cast<const char*>(tmp.data()), buffer_length);
       metrics_.resize(out_length);
+      while (!metrics_.empty() && metrics_.back() == '=') {
+        metrics_.pop_back();
+      }
+      std::replace(metrics_.begin(), metrics_.end(), '+', '-');
+      std::replace(metrics_.begin(), metrics_.end(), '/', '_');
     } else if ( rc == kBufferTooSmallErrorCode && i < (kMaxRetry - 1) ) {
       SB_LOG(INFO) << "GetMetrics: buffer is too small, rc = " << rc << ", i = " << i;
       continue;
     } else {
       metrics_.resize(0);
-      SB_LOG(ERROR) << "GetMetrics: failed, rc = " << rc;
+      SB_LOG(WARNING) << "GetMetrics: opencdm_get_metric_system_data failed, rc = " << rc;
     }
 
     break;
   }
 
-  // Use `opencdm_get_metrics` when `opencdm_get_metric_system_data` fails to
-  // get mertics data. This is observed in RDK/Amlogic where
-  // `opencdm_get_metric_system_data` returns with error code
-  // `INTERFACE_NOT_IMPLEMENTED`.
+  // Use `opencdm_get_metrics` as fallback when `opencdm_get_metric_system_data`
+  // fails. This happens in RDK6 where `opencdm_get_metric_system_data` fails
+  // with error code: `INTERFACE_NOT_IMPLEMENTED`.
   if (g_ocdmGetMetrics && metrics_.size() == 0) {
     std::string buffer;
     auto rc = g_ocdmGetMetrics(ocdm_system_, buffer);
@@ -799,6 +804,13 @@ std::optional<std::string_view> DrmSystemOcdm::GetMetrics() {
       metrics_.resize(out_length, '\0');
       out_length = modp_b64_encode(&(metrics_[0]), buffer.data(), buffer.size());
       metrics_.resize(out_length);
+      while (!metrics_.empty() && metrics_.back() == '=') {
+        metrics_.pop_back();
+      }
+      std::replace(metrics_.begin(), metrics_.end(), '+', '-');
+      std::replace(metrics_.begin(), metrics_.end(), '/', '_');
+    } else {
+      SB_LOG(ERROR) << "GetMetrics: opencdm_get_metrics failed, rc = " << rc;
     }
   }
 

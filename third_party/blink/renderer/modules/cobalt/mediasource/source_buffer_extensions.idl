@@ -18,7 +18,9 @@
 // from the MediaSource object.
 
 [
-    ImplementedAs=SourceBufferWriteHead
+    ImplementedAs=SourceBufferExtensions
 ] partial interface SourceBuffer {
     [RaisesException] readonly attribute double writeHead;
+    [RaisesException] void appendTransferredBuffer(ArrayBuffer data);
+    [RaisesException] void appendTransferredBuffer(ArrayBufferView data);
 };

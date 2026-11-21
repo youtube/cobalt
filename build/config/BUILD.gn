@@ -309,7 +309,9 @@ group("common_deps") {
   }
 
   # Provide an unwinder for the native toolchain. The starboard toolchain gets
-  # its own evergreen-aware copy through unwind_starboard.
+  # its own evergreen-aware copy through unwind_starboard. This is used together
+  # with the static libc++ in //starboard/aosp/shared/platform_configuration so
+  # that the native executables are self-contained.
   if (use_custom_libunwind && is_cobalt && is_native_toolchain) {
     public_deps += [ "//buildtools/third_party/libunwind" ]
   }

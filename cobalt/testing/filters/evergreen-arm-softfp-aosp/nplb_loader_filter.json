@@ -1,12 +1,9 @@
 {
   "comment": "AOSP nplb exclusions.",
   "failing_tests": [
-    "*MaximumPlayerConfigurationExplorer*",
-    "*MultiplePlayer*",
-    "*SbMediaSetAudioWriteDuration*",
-    "*SbPlayer*",
-    "*VerticalVideoTest*",
-    "SbDrmSessionTest.*",
-    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
+    "*SbPlayerWriteSampleTest.SecondaryPlayerTest/*_dmp_output_*widevine*",
+    "*SbPlayerWriteSampleTest.WriteSingleBatch/*_137_avc_*",
+    "*SbPlayerWriteSampleTest.WriteSingleBatch/*sintel_329_ec3*",
+    "MultiplePlayerTest.SunnyDay"
   ]
 }

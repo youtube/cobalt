@@ -78,6 +78,9 @@ AudioRendererPcm::AudioRendererPcm(
       min_frames_per_append_(min_frames_per_append),
       allow_audio_writing_on_pause_(
           experimental_features.GetBool(kMediaAllowAudioWritingOnPause)),
+      skip_audio_resampling_on_unchanged_sample_rate_(
+          experimental_features.GetBool(
+              kMediaSkipAudioResamplingOnUnchangedSampleRate)),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),
       channels_(audio_renderer_sink->GetOutputNumberOfChannels(
@@ -288,15 +291,8 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
-                                              bool* is_eos_played,
-                                              bool* is_underflow,
-                                              double* playback_rate) {
-  SB_DCHECK(is_playing);
-  SB_DCHECK(is_eos_played);
-  SB_DCHECK(is_underflow);
-  SB_DCHECK(playback_rate);
-
+MediaTimeInfo AudioRendererPcm::GetCurrentMediaTime() {
+  MediaTimeInfo info;
   int64_t media_time = 0;
   int64_t now = -1;
   int64_t elasped_since_last_set = 0;
@@ -306,13 +302,14 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
   {
     std::lock_guard scoped_lock(mutex_);
 
-    *is_playing = !paused_ && !seeking_;
-    *is_eos_played = IsEndOfStreamPlayed_Locked();
-    *is_underflow = underflow_;
+    info.is_playing = !paused_ && !seeking_;
+    info.is_eos_played = IsEndOfStreamPlayed_Locked();
+    info.is_underflow = underflow_;
+    info.playback_rate = playback_rate_;
 
     if (seeking_ || !decoder_sample_rate_) {
-      *playback_rate = playback_rate_;
-      return seeking_to_time_;
+      info.media_time = seeking_to_time_;
+      return info;
     }
 
     // |frames_consumed_by_sink_since_last_get_current_time_| could include
@@ -339,7 +336,7 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
         elasped_since_last_set * samples_per_second / 1'000'000LL;
     frames_played =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
-            elapsed_frames, playback_rate);
+            elapsed_frames, &info.playback_rate);
     if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
       frames_played += audio_frame_tracker_.GetOverflowedFrames();
     }
@@ -377,7 +374,8 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
   }
 #endif  // SB_LOG_MEDIA_TIME_STATS
 
-  return media_time;
+  info.media_time = media_time;
+  return info;
 }
 
 int64_t AudioRendererPcm::GetAudioWriteHead() {
@@ -508,7 +506,7 @@ void AudioRendererPcm::ConsumeFrames(int frames_consumed,
 
 void AudioRendererPcm::OnError(bool capability_changed,
                                const std::string& error_message) {
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   if (capability_changed) {
     error_cb_(kSbPlayerErrorCapabilityChanged, error_message);
   } else {
@@ -582,10 +580,21 @@ void AudioRendererPcm::OnFirstOutput(
   buffered_frames_to_start_ = std::min(
       destination_sample_rate / 5, max_cached_frames_ - min_frames_per_append_);
 
-  // |time_stretcher_| only supports kSbMediaAudioSampleTypeFloat32, so we
-  // resample the audio to that format to avoid unnecessary extra conversion.
-  if (decoded_sample_rate != destination_sample_rate ||
-      decoded_sample_type != kSbMediaAudioSampleTypeFloat32) {
+  // |time_stretcher_| only supports kSbMediaAudioSampleTypeFloat32.  Decoded
+  // audio of any other sample type is converted to it in ProcessAudioData(),
+  // but unless |skip_audio_resampling_on_unchanged_sample_rate_| is set it is
+  // also routed through the resampler, at a ratio of 1.0 when the sample rate
+  // doesn't change.
+  const bool sample_rate_changes =
+      decoded_sample_rate != destination_sample_rate;
+  const bool needs_resampler =
+      sample_rate_changes ||
+      (!skip_audio_resampling_on_unchanged_sample_rate_ &&
+       decoded_sample_type != kSbMediaAudioSampleTypeFloat32);
+  SB_LOG_IF(INFO, !needs_resampler &&
+                      decoded_sample_type != kSbMediaAudioSampleTypeFloat32)
+      << "Skipping audio resampling as the sample rate is unchanged.";
+  if (needs_resampler) {
     resampler_ = AudioResampler::Create(
         decoded_sample_type, decoded_sample_rate,
         kSbMediaAudioSampleTypeFloat32, destination_sample_rate, channels_);

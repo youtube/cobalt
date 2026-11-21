@@ -36,7 +36,6 @@
 #include <inttypes.h>
 
 #include "starboard/extension/crash_handler.h"
-#include "starboard/extension/native_stability.h"
 #include "starboard/system.h"
 #endif
 
@@ -1194,14 +1193,6 @@ void HangWatcher::RecordHangStarted() {
       delegate->RecordHangStarted(uuid_to_report);
     }
   }
-
-#if BUILDFLAG(IS_STARBOARD)
-  auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
-      SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
-  if (crash_ext && crash_ext->version >= 2 && crash_ext->SetString) {
-    crash_ext->SetString(kNativeStabilityHangUuidKey, uuid_to_report.c_str());
-  }
-#endif
 }
 
 void HangWatcher::CheckHangState() {
@@ -1253,14 +1244,6 @@ void HangWatcher::CheckHangState() {
         delegate->RecordHangRecovered(uuid_to_report);
       }
     }
-
-#if BUILDFLAG(IS_STARBOARD)
-    auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
-        SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
-    if (crash_ext && crash_ext->version >= 2 && crash_ext->SetString) {
-      crash_ext->SetString(kNativeStabilityHangUuidKey, "");
-    }
-#endif
   } else {
     // If still hanging, check if this is a long hang by now.
     CheckForLongHangs(now);

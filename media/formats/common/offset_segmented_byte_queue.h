@@ -70,6 +70,7 @@ class MEDIA_EXPORT OffsetSegmentedByteQueue {
                           base::ScopedClosureRunner release);
   void Pop(size_t count);
   size_t size() const { return queue_->size(); }
+  bool borrow_mode() const { return queue_->borrow_mode(); }
 
   // The head and tail positions in absolute stream offsets. tail() is an
   // exclusive bound.

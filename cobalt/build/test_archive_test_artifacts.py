@@ -171,6 +171,46 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     tar_cmd = mock_call.call_args_list[1][0][0]
     self.assertIn('tar', tar_cmd)
 
+  @mock.patch('os.path.getsize', return_value=1024)
+  @mock.patch('subprocess.check_call')
+  def test_create_archive_browsertests_loader_android(self, mock_call,
+                                                      unused_mock_getsize):
+    target_path = 'cobalt/testing/browser_tests'
+    target_name = 'cobalt_browsertests_loader'
+    deps_dir = os.path.join(self.out_dir, 'starboard', 'gen.runtime',
+                            target_path)
+    os.makedirs(deps_dir, exist_ok=True)
+    deps_file = os.path.join(deps_dir,
+                             f'{target_name}__test_runner_script.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('cobalt_browsertests_loader_apk/cobalt_browsertests_loader.apk\n')
+      f.write('./libcobalt_browsertests.so\n')
+      f.write('cobalt_shell.pak.info\n')
+      f.write('starboard/obj/cobalt/aosp/cobalt_apk_java.javac.jar\n')
+      f.write('../../cobalt/test/data/file.txt\n')
+
+    archive_test_artifacts.create_archive(
+        targets=[f'{target_path}:{target_name}'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=True,
+        use_android_deps_path=True,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=True)
+
+    self.assertEqual(mock_call.call_count, 2)
+    collect_cmd = mock_call.call_args_list[0][0][0]
+    self.assertIn('collect_test_artifacts.py', collect_cmd[1])
+    self.assertIn('cobalt_browsertests_host_deps.tar.gz', collect_cmd)
+
+    tar_cmd = mock_call.call_args_list[1][0][0]
+    self.assertIn('tar', tar_cmd)
+    self.assertIn(
+        os.path.join(self.dest_dir, 'cobalt_browsertests_loader_deps.tar.gz'),
+        tar_cmd)
+
   @mock.patch('archive_test_artifacts._make_tar')
   def test_create_archive_relative_paths(self, mock_make_tar):
     # Regression test for relative paths.
@@ -291,6 +331,104 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     # Verify strip was NOT invoked
     self.assertFalse(mock_run.called)
     self.assertTrue(mock_make_tar.called)
+
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_skips_duplicate_evergreen_app_so(self, mock_make_tar):
+    target_name = 'update_client_unittests_loader'
+    deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('./libupdate_client_unittests.so\n')
+      f.write('./libloader_app.so\n')
+      f.write('app/update_client_unittests/lib/libupdate_client_unittests.so\n')
+      f.write(
+          'app/update_client_unittests/lib/libupdate_client_unittests.lz4\n')
+      f.write(
+          'app/update_client_unittests/lib/libupdate_client_unittests.zst\n')
+      f.write('app/update_client_unittests/content/icudtl.dat\n')
+      f.write('app/noop_sandbox/lib/libnoop_sandbox.so\n')
+
+    archive_test_artifacts.create_archive(
+        targets=[f'components/update_client:{target_name}'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=True,
+        use_android_deps_path=False,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=True)
+
+    self.assertTrue(mock_make_tar.called)
+    out_deps = mock_make_tar.call_args[0][3][0][0]
+    self.assertIn('libupdate_client_unittests.so', out_deps)
+    self.assertIn('libloader_app.so', out_deps)
+    self.assertIn('app/update_client_unittests/content/icudtl.dat', out_deps)
+    self.assertIn('app/noop_sandbox/lib/libnoop_sandbox.so', out_deps)
+    self.assertNotIn(
+        'app/update_client_unittests/lib/libupdate_client_unittests.so',
+        out_deps)
+    self.assertNotIn(
+        'app/update_client_unittests/lib/libupdate_client_unittests.lz4',
+        out_deps)
+    self.assertNotIn(
+        'app/update_client_unittests/lib/libupdate_client_unittests.zst',
+        out_deps)
+
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_keeps_cobalt_loader_app_so(self, mock_make_tar):
+    target_name = 'cobalt_loader'
+    deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('./libcobalt.so\n')
+      f.write('app/cobalt/lib/libcobalt.so\n')
+      f.write('app/cobalt/lib/libcobalt.lz4\n')
+      f.write('app/cobalt/lib/libcobalt.zst\n')
+
+    archive_test_artifacts.create_archive(
+        targets=[f'//cobalt:{target_name}'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=False,
+        use_android_deps_path=False,
+        compression='zstd',
+        compression_level=1,
+        flatten_deps=False)
+
+    self.assertTrue(mock_make_tar.called)
+    file_list = mock_make_tar.call_args[0][3][0][0]
+    self.assertIn(
+        os.path.relpath(os.path.join(self.out_dir, 'libcobalt.so')), file_list)
+    self.assertIn(
+        os.path.relpath(
+            os.path.join(self.out_dir, 'app/cobalt/lib/libcobalt.so')),
+        file_list)
+    self.assertNotIn(
+        os.path.relpath(
+            os.path.join(self.out_dir, 'app/cobalt/lib/libcobalt.lz4')),
+        file_list)
+
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_keeps_app_so_without_root_so(self, mock_make_tar):
+    target_name = 'sandbox_only_loader'
+    deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('app/custom/lib/libcustom.so\n')
+
+    archive_test_artifacts.create_archive(
+        targets=[f'cobalt/updater:{target_name}'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=True,
+        use_android_deps_path=False,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=True)
+
+    self.assertTrue(mock_make_tar.called)
+    out_deps = mock_make_tar.call_args[0][3][0][0]
+    self.assertIn('app/custom/lib/libcustom.so', out_deps)
 
 
 if __name__ == '__main__':

@@ -1,11 +1,14 @@
 package dev.cobalt.coat;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.app.Dialog;
@@ -30,7 +33,7 @@ public class PlatformErrorTest {
   private static final String TEST_URL = "https://www.youtube.com/tv";
   private static final int TEST_DATA = 0;
   private static final int RETRY_BUTTON_ID = 1;
-  private static final int DISMISS_BUTTON_ID = 3;
+  private static final int NETWORK_SETTINGS_BUTTON_ID = 2;
 
   private PlatformError platformError;
 
@@ -39,7 +42,7 @@ public class PlatformErrorTest {
     CobaltActivity mockActivity = mock(CobaltActivity.class);
     Holder<Activity> holder = new Holder<>();
     holder.set(mockActivity);
-    platformError = new PlatformError(holder, PlatformError.CONNECTION_ERROR, TEST_DATA, "", false);
+    platformError = new PlatformError(holder, PlatformError.CONNECTION_ERROR, TEST_DATA, "");
 
     CobaltActivity.resetRetryCount();
   }
@@ -110,33 +113,26 @@ public class PlatformErrorTest {
   }
 
   @Test
-  public void onClick_dismissesDialog_whenDismissButtonClicked() throws Exception {
+  public void isRetryPending_isTrue_whileDialogIsShowing() {
     Dialog mockDialog = mock(Dialog.class);
+    when(mockDialog.isShowing()).thenReturn(true);
     platformError.setDialog(mockDialog);
 
-    platformError.onClick(null, DISMISS_BUTTON_ID);
+    assertTrue(platformError.isRetryPending());
 
-    int response = platformError.getResponse();
-    assertEquals(PlatformError.NEGATIVE, response);
-    verify(mockDialog).dismiss();
+    // Network settings sets a positive response but leaves the dialog up.
+    platformError.onClick(null, NETWORK_SETTINGS_BUTTON_ID);
+    assertTrue(platformError.isRetryPending());
   }
 
   @Test
-  public void onClick_dismissesDialog_whenDismissButtonClicked_andTrue() throws Exception {
-    CobaltActivity mockActivity = mock(CobaltActivity.class);
-    Holder<Activity> holder = new Holder<>();
-    holder.set(mockActivity);
-    PlatformError testPlatformError =
-        new PlatformError(holder, PlatformError.CONNECTION_ERROR, TEST_DATA, "", true);
-
+  public void isRetryPending_isFalse_afterRetry() {
     Dialog mockDialog = mock(Dialog.class);
-    testPlatformError.setDialog(mockDialog);
+    platformError.setDialog(mockDialog);
 
-    testPlatformError.onClick(null, DISMISS_BUTTON_ID);
+    platformError.retry();
 
-    int response = testPlatformError.getResponse();
-    assertEquals(PlatformError.NEGATIVE, response);
-    verify(mockDialog).dismiss();
+    assertFalse(platformError.isRetryPending());
   }
 
   @Test
@@ -153,8 +149,7 @@ public class PlatformErrorTest {
     holder.set(mockActivity);
 
     PlatformError testPlatformError =
-        new PlatformError(
-            holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv", false);
+        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv");
     testPlatformError.setDialog(mockDialog);
 
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
@@ -180,8 +175,7 @@ public class PlatformErrorTest {
     holder.set(mockActivity);
 
     PlatformError testPlatformError =
-        new PlatformError(
-            holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv", false);
+        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv");
     testPlatformError.setDialog(mockDialog);
 
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
@@ -210,7 +204,7 @@ public class PlatformErrorTest {
     holder.set(mockActivity);
 
     PlatformError testPlatformError =
-        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "", false);
+        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "");
     testPlatformError.setDialog(mockDialog);
 
     org.mockito.Mockito.when(mockActivity.getActiveWebContents()).thenReturn(mockWebContents);
@@ -240,8 +234,7 @@ public class PlatformErrorTest {
     holder.set(mockActivity);
 
     PlatformError testPlatformError =
-        new PlatformError(
-            holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv", false);
+        new PlatformError(holder, PlatformError.CONNECTION_ERROR, 0, "https://www.youtube.com/tv");
     testPlatformError.setDialog(mockDialog);
     org.mockito.Mockito.when(mockDialog.isShowing()).thenReturn(true);
 

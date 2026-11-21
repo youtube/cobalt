@@ -121,7 +121,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
     SB_DCHECK(video_renderer_);
   }
-  SB_DCHECK(media_time_provider_);
+  SB_CHECK(media_time_provider_);
 
   if (audio_renderer_) {
     SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
@@ -438,13 +438,10 @@ void FilterBasedPlayerWorkerHandler::Update() {
     if (video_renderer_) {
       dropped_frames = video_renderer_->GetDroppedFrames();
     }
-    bool is_playing;
-    bool is_eos_played;
-    bool is_underflow;
-    double playback_rate;
-    auto media_time = media_time_provider_->GetCurrentMediaTime(
-        &is_playing, &is_eos_played, &is_underflow, &playback_rate);
-    update_media_info_cb_(media_time, dropped_frames, !is_underflow);
+    const MediaTimeInfo media_time_info =
+        media_time_provider_->GetCurrentMediaTime();
+    update_media_info_cb_(media_time_info.media_time, dropped_frames,
+                          !media_time_info.is_underflow);
   }
 
   RemoveJobByToken(&update_job_token_);

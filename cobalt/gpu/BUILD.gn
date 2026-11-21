@@ -27,5 +27,19 @@ source_set("gpu") {
     "//components/viz/service",
     "//content/public/child",
     "//content/public/gpu",
+    "//ui/gl",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "cobalt_content_gpu_client_unittest.cc" ]
+
+  deps = [
+    ":gpu",
+    "//base",
+    "//testing/gtest",
+    "//ui/gl",
   ]
 }

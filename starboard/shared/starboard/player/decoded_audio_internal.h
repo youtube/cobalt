@@ -15,7 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_
 
-#include <optional>
 #include <ostream>
 
 #include "starboard/media.h"
@@ -47,8 +46,6 @@ class DecodedAudio {
   // Disable copy and assignment.
   DecodedAudio(const DecodedAudio&) = delete;
   DecodedAudio& operator=(const DecodedAudio&) = delete;
-
-  static void EnableSimdBasedAudioFormatSwitching();
 
   int channels() const { return channels_; }
   SbMediaAudioSampleType sample_type() const { return sample_type_; }
@@ -85,28 +82,15 @@ class DecodedAudio {
 
   // During format switching, this method can perform sample type conversions
   // on-the-fly.
-  // Note: The `force_simd` parameter allows explicitly forcing or disabling
-  // the SIMD path, which is primarily intended for unit testing different
-  // execution paths. When left as `nullopt` (default), it automatically
-  // resolves to the global experimental setting.
-  DecodedAudio SwitchFormatTo(SbMediaAudioSampleType new_sample_type,
-                              std::optional<bool> force_simd =
-                                  std::nullopt) const SB_WARN_UNUSED_RESULT;
+  DecodedAudio SwitchFormatTo(SbMediaAudioSampleType new_sample_type) const
+      SB_WARN_UNUSED_RESULT;
 
   DecodedAudio CloneForTesting() const;
 
  private:
   DecodedAudio();
 
-  DecodedAudio SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type,
-                                  bool enable_simd) const;
-
-  // These NEON helper methods are always declared to avoid leaking platform-
-  // specific preprocessor macros (like USE_NEON_FOR_AUDIO) to this header
-  // file. They are only defined and called in the implementation (.cc) file
-  // when NEON is enabled on the target platform.
-  bool SwitchSampleTypeTo_NEON(SbMediaAudioSampleType new_sample_type,
-                               DecodedAudio* destination_audio) const;
+  DecodedAudio SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type) const;
 
   int channels_;
   SbMediaAudioSampleType sample_type_;

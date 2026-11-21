@@ -17,8 +17,11 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/web_contents.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -111,6 +114,19 @@ void H5vccSystemImpl::OnFlushCookiesComplete(
   UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.CookieFlushDuration",
                       timer->Elapsed());
   PerformExitStrategy();
+}
+
+void H5vccSystemImpl::NotifyMainReady() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Only count the main frame of the main WebContents.
+  if (!render_frame_host().IsInPrimaryMainFrame()) {
+    return;
+  }
+  content::Shell* shell = content::Shell::FromWebContents(
+      content::WebContents::FromRenderFrameHost(&render_frame_host()));
+  if (shell) {
+    shell->OnMainReady();
+  }
 }
 
 }  // namespace h5vcc_system

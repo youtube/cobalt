@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #include "starboard/common/check_op.h"
@@ -45,7 +46,7 @@ class VideoConfig {
 
   const AvcParameterSets& avc_parameter_sets() const {
     SB_DCHECK_EQ(video_codec_, kSbMediaVideoCodecH264);
-    SB_DCHECK(avc_parameter_sets_);
+    SB_CHECK(avc_parameter_sets_);
     return avc_parameter_sets_.value();
   }
 
@@ -69,8 +70,8 @@ class VideoConfig {
 // Attempts to determine an SbMediaAudioCodec from |codec|, returning
 // kSbMediaAudioCodecNone if no match is found. |subtype| may be checked in
 // cases of ambiguous codec strings.
-SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
-                                          const char* subtype);
+SbMediaAudioCodec GetAudioCodecFromString(std::string_view codec,
+                                          std::string_view subtype);
 
 }  // namespace starboard
 

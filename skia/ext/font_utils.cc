@@ -21,6 +21,10 @@
 #include "third_party/skia/include/ports/SkFontScanner_Fontations.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
+#include "base/base_switches.h"
+#endif
+
 #if BUILDFLAG(IS_APPLE)
 #include "third_party/skia/include/ports/SkFontMgr_mac_ct.h"
 #endif
@@ -76,7 +80,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
   // hermetic custom XML font fallbacks (`cobalt_android_fonts.xml`) extracted
   // into the app data directory.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "use-custom-android-fonts-xml")) {
+          switches::kUseCustomAndroidFontsXml)) {
     base::FilePath app_data_dir;
     if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
       std::string xml_path = app_data_dir.Append("storage").Append("cobalt_android_fonts.xml").value();

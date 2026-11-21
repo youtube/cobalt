@@ -17,6 +17,12 @@
 #include "gpu/ipc/common/gpu_preferences.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#include "base/test/scoped_feature_list.h"
+#include "gpu/config/gpu_finch_features.h"
+#include "gpu/config/gpu_preferences.h"
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
 namespace gpu {
 
 namespace {
@@ -184,6 +190,26 @@ TEST(GpuPreferencesTest, EncodeDecode) {
     CheckGpuPreferencesEqual(input_prefs, decoded_prefs);
   }
 }
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+TEST(GpuPreferencesTest, CobaltGpuShaderDiskCacheSize) {
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeaturesAndParameters(
+        {{::features::kCobaltGpuShaderDiskCache,
+          {{::features::kCobaltGpuShaderDiskCacheSizeKb.name, "1024"}}}},
+        {::features::kAggressiveShaderCacheLimits});
+    EXPECT_EQ(GetDefaultGpuDiskCacheSize(), 1024u * 1024u);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeaturesAndParameters(
+        {{::features::kCobaltGpuShaderDiskCache, {}}},
+        {::features::kAggressiveShaderCacheLimits});
+    EXPECT_EQ(GetDefaultGpuDiskCacheSize(), 2048u * 1024u);
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
 // Helper test for decoding GPU preferences from a crash dump string.
 TEST(GpuPreferencesTest, DISABLED_DecodePreferences) {

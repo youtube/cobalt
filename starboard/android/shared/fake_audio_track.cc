@@ -25,8 +25,11 @@ namespace starboard {
 
 FakeAudioTrack::FakeAudioTrack(int channels,
                                int sampling_frequency_hz,
-                               SbMediaAudioSampleType sample_type)
-    : channels_(channels), sample_type_(sample_type) {
+                               SbMediaAudioSampleType sample_type,
+                               std::optional<int> tunnel_mode_audio_session_id)
+    : channels_(channels),
+      sample_type_(sample_type),
+      tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {
   SB_CHECK_GT(channels_, 0);
 }
 
@@ -53,7 +56,7 @@ void FakeAudioTrack::PauseAndFlush() {
   ++pause_and_flush_count_;
 }
 
-int FakeAudioTrack::WriteSample(Span<const float> samples) {
+int FakeAudioTrack::WriteSample(span<const float> samples) {
   std::lock_guard lock(mutex_);
   if (write_error_code_ != 0) {
     return write_error_code_;
@@ -65,7 +68,7 @@ int FakeAudioTrack::WriteSample(Span<const float> samples) {
   return static_cast<int>(samples.size());
 }
 
-int FakeAudioTrack::WriteSample(Span<const uint16_t> samples,
+int FakeAudioTrack::WriteSample(span<const uint16_t> samples,
                                 int64_t sync_time) {
   std::lock_guard lock(mutex_);
   if (write_error_code_ != 0) {
@@ -78,7 +81,7 @@ int FakeAudioTrack::WriteSample(Span<const uint16_t> samples,
   return static_cast<int>(samples.size());
 }
 
-int FakeAudioTrack::WriteSample(Span<const uint8_t> buffer, int64_t sync_time) {
+int FakeAudioTrack::WriteSample(span<const uint8_t> buffer, int64_t sync_time) {
   std::lock_guard lock(mutex_);
   if (write_error_code_ != 0) {
     return write_error_code_;
@@ -175,6 +178,17 @@ void FakeAudioTrack::simulate_device_change(bool changed) {
 void FakeAudioTrack::set_underrun_count(int count) {
   std::lock_guard lock(mutex_);
   underrun_count_ = count;
+}
+
+void FakeAudioTrack::set_start_threshold(int start_threshold) {
+  std::lock_guard lock(mutex_);
+  start_threshold_ = start_threshold;
+}
+
+void FakeAudioTrack::simulate_track_recreation(int start_threshold) {
+  std::lock_guard lock(mutex_);
+  start_threshold_ = start_threshold;
+  written_frames_ = 0;
 }
 
 void FakeAudioTrack::set_write_error(int error_code) {

@@ -89,3 +89,15 @@ static_library("test_support") {
     "//base",
   ]
 }
+
+if (is_cobalt) {
+  import("//testing/test.gni")
+
+  test("memory_pressure_unittests") {
+    testonly = true
+    deps = [
+      ":unit_tests",
+      "//base/test:run_all_unittests",
+    ]
+  }
+}

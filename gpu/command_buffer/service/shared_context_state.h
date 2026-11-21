@@ -167,6 +167,12 @@ class GPU_GLES2_EXPORT SharedContextState
 
   void StoreVkPipelineCacheIfNeeded();
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Writes GrShaderCache entries whose disk writes were deferred (see
+  // kCobaltGpuShaderDiskCache). No-op if nothing was deferred.
+  void FlushGrShaderCacheDiskWrites();
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
   void UseShaderCache(
       std::optional<gpu::raster::GrShaderCache::ScopedCacheUse>& cache_use,
       int32_t client_id) const;

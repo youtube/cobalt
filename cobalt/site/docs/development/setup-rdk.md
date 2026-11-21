@@ -46,8 +46,8 @@ The source for the RDK Starboard implementation originates in the [RDK Central r
    mkdir -p ~/cobalt && cd ~/cobalt
    git clone --branch 27.lts --single-branch https://github.com/youtube/cobalt.git src
    git -C src remote add _gclient https://github.com/youtube/cobalt.git
-   gclient config --unmanaged --name=src https://github.com/youtube/cobalt.git
-   gclient sync --no-history -r src@$(git -C src rev-parse @)
+   gclient config --name=src https://github.com/youtube/cobalt.git
+   gclient sync --no-history
 
    cd ~/cobalt/src
    ./build/install-build-deps.sh

@@ -14,6 +14,10 @@
 #include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_face.h"
 #include "third_party/blink/renderer/platform/fonts/simple_font_data.h"
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
+#include "base/base_switches.h"
+#endif
+
 namespace blink {
 
 FontFallbackIterator::FontFallbackIterator(
@@ -163,7 +167,7 @@ FontDataForRangeSet* FontFallbackIterator::Next(const HintCharList& hint_list) {
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
     // Don't crash the application if first_candidate is null when custom fonts are enabled.
     if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-            "use-custom-android-fonts-xml")) {
+            switches::kUseCustomAndroidFontsXml)) {
       if (first_candidate_)
         return first_candidate_;
       return MakeGarbageCollected<FontDataForRangeSet>();

@@ -18,6 +18,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
@@ -259,10 +260,23 @@ public class MemoryPressureMonitor {
             return mThrottlingIntervalMs;
         }
         int cooldownSeconds = MemoryPressureListener.getMemoryPressureCooldownSeconds();
+        if (BuildConfig.IS_COBALT) {
+            return cooldownSeconds >= 0 ? cooldownSeconds * 1000 : DEFAULT_THROTTLING_INTERVAL_MS;
+        }
         return cooldownSeconds > 0 ? cooldownSeconds * 1000 : DEFAULT_THROTTLING_INTERVAL_MS;
     }
 
     private void startThrottlingInterval() {
+        if (BuildConfig.IS_COBALT) {
+            int intervalMs = getThrottlingIntervalMs();
+            if (intervalMs <= 0) {
+                mIsInsideThrottlingInterval = false;
+                return;
+            }
+            ThreadUtils.postOnUiThreadDelayed(mThrottlingIntervalTask, intervalMs);
+            mIsInsideThrottlingInterval = true;
+            return;
+        }
         ThreadUtils.postOnUiThreadDelayed(mThrottlingIntervalTask, getThrottlingIntervalMs());
         mIsInsideThrottlingInterval = true;
     }
@@ -311,7 +325,8 @@ public class MemoryPressureMonitor {
             return MemoryPressureListener.isTrimMemoryBackgroundCritical()
                     ? MemoryPressureLevel.CRITICAL
                     : MemoryPressureLevel.MODERATE;
-        } else if (MemoryPressureListener.isModerateMemoryPressureEnabled()
+        } else if (BuildConfig.IS_COBALT
+                && MemoryPressureListener.isModerateMemoryPressureEnabled()
                 && (level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
                         || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE)) {
             return MemoryPressureLevel.MODERATE;

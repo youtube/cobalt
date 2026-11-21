@@ -62,14 +62,12 @@ public class PlatformError
   // Button IDs for CONNECTION_ERROR
   private static final int RETRY_BUTTON = 1;
   private static final int NETWORK_SETTINGS_BUTTON = 2;
-  private static final int DISMISS_BUTTON = 3;
 
   private final Holder<Activity> mActivityHolder;
   private final @ErrorType int mErrorType;
   private final long mData;
   private final Handler mUiThreadHandler;
   @NonNull private final String mUrl;
-  private final boolean mDisableDismissButton;
 
   private Dialog mDialog;
   private int mResponse;
@@ -78,16 +76,11 @@ public class PlatformError
    * @param url The URL that caused the navigation error.
    */
   public PlatformError(
-      Holder<Activity> activityHolder,
-      @ErrorType int errorType,
-      long data,
-      String url,
-      boolean disableDismissButton) {
+      Holder<Activity> activityHolder, @ErrorType int errorType, long data, String url) {
     mActivityHolder = activityHolder;
     mErrorType = errorType;
     mData = data;
     mUrl = url == null ? "" : url;
-    mDisableDismissButton = disableDismissButton;
     mUiThreadHandler = new Handler(Looper.getMainLooper());
     mResponse = CANCELLED;
   }
@@ -120,9 +113,6 @@ public class PlatformError
             .setMessage(R.string.starboard_platform_connection_error)
             .addButton(RETRY_BUTTON, R.string.starboard_platform_retry)
             .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
-        if (!mDisableDismissButton) {
-          dialogBuilder.addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
-        }
         break;
       default:
         Log.e(TAG, "Unknown platform error " + mErrorType);
@@ -161,6 +151,10 @@ public class PlatformError
     }
   }
 
+  public boolean isRetryPending() {
+    return isShowing() || mResponse != POSITIVE;
+  }
+
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
     if (mErrorType == CONNECTION_ERROR) {
@@ -178,10 +172,6 @@ public class PlatformError
           break;
         case RETRY_BUTTON:
           retry();
-          break;
-        case DISMISS_BUTTON:
-          mResponse = NEGATIVE;
-          mDialog.dismiss();
           break;
         default: // fall out
       }

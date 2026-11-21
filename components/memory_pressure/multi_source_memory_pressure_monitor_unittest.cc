@@ -42,4 +42,58 @@ TEST(MultiSourceMemoryPressureMonitorTest, RunDispatchCallback) {
       base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE, std::nullopt);
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST(MultiSourceMemoryPressureMonitorTest,
+     CobaltCooldownAndImmediateEscalation) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+
+  MultiSourceMemoryPressureMonitor monitor;
+  std::vector<base::MemoryPressureListener::MemoryPressureLevel> dispatches;
+  monitor.SetDispatchCallbackForTesting(base::BindLambdaForTesting(
+      [&](base::MemoryPressureListener::MemoryPressureLevel level) {
+        dispatches.push_back(level);
+      }));
+
+  auto voter1 = monitor.CreateVoter();
+  auto voter2 = monitor.CreateVoter();
+
+  // Initial MODERATE signal from voter1 dispatches immediately.
+  voter1->SetVote(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE, true);
+  ASSERT_EQ(dispatches.size(), 1u);
+  EXPECT_EQ(dispatches[0],
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+
+  // Duplicate MODERATE signal from voter2 arrives 1s later, suppressed by
+  // shared cooldown.
+  task_environment.FastForwardBy(base::Seconds(1));
+  voter2->SetVote(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE, true);
+  EXPECT_EQ(dispatches.size(), 1u);
+
+  // Severity increases to CRITICAL from voter2 1s later, bypassing cooldown.
+  task_environment.FastForwardBy(base::Seconds(1));
+  voter2->SetVote(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL, true);
+  ASSERT_EQ(dispatches.size(), 2u);
+  EXPECT_EQ(dispatches[1],
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+
+  // Another CRITICAL from voter1 arrives 2s later, suppressed by cooldown.
+  task_environment.FastForwardBy(base::Seconds(2));
+  voter1->SetVote(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL, true);
+  EXPECT_EQ(dispatches.size(), 2u);
+
+  // After cooldown expires (>= 60s), re-evaluation dispatches again.
+  task_environment.FastForwardBy(base::Seconds(61));
+  voter1->SetVote(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL, true);
+  ASSERT_EQ(dispatches.size(), 3u);
+  EXPECT_EQ(dispatches[2],
+            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+}
+#endif
+
 }  // namespace memory_pressure

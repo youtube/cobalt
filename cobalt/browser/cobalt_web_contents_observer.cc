@@ -14,13 +14,11 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
-#include "cobalt/browser/features.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "cobalt/build/configs/buildflags.h"
@@ -132,6 +130,12 @@ void CobaltWebContentsObserver::DidStartNavigation(
     base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 22);
   }
 
+  // Same-document navigations (pushState, fragment changes) don't load a new
+  // document, so they don't restart the web app's splash screen state.
+  if (!handle->IsSameDocument()) {
+    OnPrimaryMainFrameNavigationStarted();
+  }
+
   // Start a navigation timer with a timeout callback to raise a
   // network error dialog
   timeout_timer_->Stop();
@@ -212,6 +216,14 @@ void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
 #endif
 }
 
+void CobaltWebContentsObserver::OnPrimaryMainFrameNavigationStarted() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::StarboardBridge::GetInstance()
+      ->OnPrimaryMainFrameNavigationStarted(env);
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+}
+
 void CobaltWebContentsObserver::OnNavigationTimeout(int64_t navigation_id,
                                                     const std::string& url) {
   base::UmaHistogramBoolean("Cobalt.Network.NavigationTimeout", true);
@@ -236,11 +248,8 @@ void CobaltWebContentsObserver::RaisePlatformError(int64_t navigation_id,
   platform_error_raised_count_++;
   base::UmaHistogramCounts100("Cobalt.Network.PlatformErrorCount",
                               platform_error_raised_count_);
-
-  bool disable_dismiss_button = base::FeatureList::IsEnabled(
-      features::kDisableNetworkDialogDismissButton);
   starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0,
-                                       url, disable_dismiss_button);
+                                       url);
 #elif BUILDFLAG(IS_IOS_TVOS)
   ShowPlatformErrorDialog(web_contents());
 #elif BUILDFLAG(IS_STARBOARD)

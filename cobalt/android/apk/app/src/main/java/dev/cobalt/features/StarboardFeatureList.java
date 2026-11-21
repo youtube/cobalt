@@ -14,7 +14,6 @@
 
 package dev.cobalt.features;
 
-import org.chromium.base.FeatureList;
 import org.chromium.build.annotations.NullMarked;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -35,7 +34,6 @@ public class StarboardFeatureList {
    * @return Whether the feature is enabled or not.
    */
   public static boolean isEnabled(String featureName) {
-    assert FeatureList.isNativeInitialized();
     return StarboardFeatureListJni.get().isEnabled(featureName);
   }
 

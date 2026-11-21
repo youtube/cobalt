@@ -25,7 +25,7 @@ bool SbPlayerGetAudioConfiguration(
     SbPlayer player,
     int index,
     SbMediaAudioConfiguration* out_audio_configuration) {
-  SB_DCHECK(SbPlayerIsValid(player));
+  SB_CHECK(SbPlayerIsValid(player));
   SB_DCHECK_GE(index, 0);
   SB_DCHECK(out_audio_configuration);
 

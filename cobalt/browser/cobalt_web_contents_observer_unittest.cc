@@ -27,6 +27,7 @@
 #include "url/gurl.h"
 
 using ::testing::_;
+using ::testing::NiceMock;
 using ::testing::Return;
 
 namespace cobalt {
@@ -57,6 +58,8 @@ class TestCobaltWebContentsObserver : public CobaltWebContentsObserver {
     // Do nothing in tests to avoid JNI calls.
   }
 
+  MOCK_METHOD(void, OnPrimaryMainFrameNavigationStarted, (), (override));
+
   void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer) {
     CobaltWebContentsObserver::SetTimerForTestInternal(std::move(timer));
   }
@@ -72,8 +75,10 @@ class CobaltWebContentsObserverTest : public content::ShellTestBase {
   void SetUp() override {
     content::ShellTestBase::SetUp();
     web_contents_ = CreateScopedTestWebContents();
-    observer_ =
-        std::make_unique<TestCobaltWebContentsObserver>(web_contents_.get());
+    // NiceMock: every cross-document navigation in the primary main frame calls
+    // OnPrimaryMainFrameNavigationStarted(), which most tests don't care about.
+    observer_ = std::make_unique<NiceMock<TestCobaltWebContentsObserver>>(
+        web_contents_.get());
 
     auto mock_timer = std::make_unique<base::MockOneShotTimer>();
     mock_timer_ = mock_timer.get();
@@ -216,5 +221,23 @@ TEST_F(CobaltWebContentsObserverTest, SuccessAfterTimeout) {
   // The navigation finally finishes successfully after the timeout.
   navigation_handle().set_net_error_code(net::OK);
   observer()->DidFinishNavigation(&navigation_handle());
+}
+
+TEST_F(CobaltWebContentsObserverTest, NotifiesPrimaryMainFrameNavigationStart) {
+  EXPECT_CALL(*observer(), OnPrimaryMainFrameNavigationStarted()).Times(1);
+
+  observer()->DidStartNavigation(&navigation_handle());
+}
+
+TEST_F(CobaltWebContentsObserverTest,
+       DoesNotNotifyNavigationStart_ForSameDocumentOrSubFrame) {
+  EXPECT_CALL(*observer(), OnPrimaryMainFrameNavigationStarted()).Times(0);
+
+  navigation_handle().set_is_same_document(true);
+  observer()->DidStartNavigation(&navigation_handle());
+
+  navigation_handle().set_is_same_document(false);
+  navigation_handle().set_is_in_primary_main_frame(false);
+  observer()->DidStartNavigation(&navigation_handle());
 }
 }  // namespace cobalt

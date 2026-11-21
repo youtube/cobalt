@@ -20,30 +20,40 @@
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
-#include "starboard/android/shared/crash_handler.h"
-#include "starboard/android/shared/features_extension.h"
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_settings.h"
 #include "starboard/android/shared/system_info_api.h"
 #include "starboard/common/string.h"
-#include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/extension/configuration.h"
-#include "starboard/extension/crash_handler.h"
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
-#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/media_session.h"
-#include "starboard/extension/native_stability.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_settings.h"
 #include "starboard/extension/system_info.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/features_extension.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/elf_loader/evergreen_config.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
+#if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/shared/starboard/crash_handler.h"
+#endif
+#else  // BUILDFLAG(IS_STARBOARD)
+#include "starboard/android/shared/crash_handler.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
+#if !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/crash_handler.h"
+#include "starboard/extension/native_stability.h"
 #include "starboard/shared/starboard/native_stability.h"
+#endif  // !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_EVERGREEN)
 
 const void* SbSystemGetExtension(const char* name) {
 #if BUILDFLAG(IS_STARBOARD)
@@ -79,9 +89,14 @@ const void* SbSystemGetExtension(const char* name) {
     // return starboard::GetGraphicsApi();
     return NULL;
   }
+#if !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
   }
+  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
+    return starboard::GetNativeStabilityApi();
+  }
+#endif  // !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionPlatformInfoName) == 0) {
     return starboard::GetPlatformInfoApi();
   }
@@ -93,9 +108,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetPlayerSettingsApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
-    // TODO(b/377052218): Re-enable
-    // return starboard::GetAccessibilityApi();
-    return NULL;
+    return starboard::GetAccessibilityApi();
   }
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::GetSystemInfoApi();
@@ -105,10 +118,5 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetLoaderAppMetricsApi();
   }
 #endif  // BUILDFLAG(IS_STARBOARD)
-#if BUILDFLAG(USE_EVERGREEN)
-  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
-    return starboard::GetNativeStabilityApi();
-  }
-#endif  // BUILDFLAG(USE_EVERGREEN)
   return NULL;
 }

@@ -155,11 +155,11 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   OffsetByteQueue queue_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Created by the first AppendToParseBuffer() call that comes with a release
-  // runner, after which it holds the stream instead of `queue_`, and the
-  // overload without a runner must no longer be called. The "borrow_mode"
-  // param of kCobaltInPlaceMediaSourceParser decides whether the queue borrows
-  // or copies each append.
+  // Created on the first AppendToParseBuffer() call when in-place parsing is
+  // used, after which it holds the stream instead of `queue_`. The two
+  // AppendToParseBuffer() overloads must not be mixed: the overload with a
+  // release runner always uses borrow mode, while the copying overload uses
+  // copy mode when kCobaltInPlaceMediaSourceParser is enabled.
   std::unique_ptr<OffsetSegmentedByteQueue> segmented_queue_;
 
   // Scratch buffer to reuse capacity for video frame bitstream conversion.

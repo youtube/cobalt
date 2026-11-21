@@ -17,6 +17,8 @@
 
 #include <jni.h>
 
+#include <optional>
+
 #include "base/memory/singleton.h"
 #include "starboard/common/size.h"
 #include "starboard/player.h"
@@ -44,8 +46,7 @@ class StarboardBridge {
   void RaisePlatformError(JNIEnv* env,
                           jint errorType,
                           jlong data,
-                          const std::string& url,
-                          bool disable_dismiss_button = false);
+                          const std::string& url);
 
   bool IsPlatformErrorShowing(JNIEnv* env);
 
@@ -64,6 +65,7 @@ class StarboardBridge {
   std::string GetFriendlyName(JNIEnv* env);
   double GetScreenDiagonal(JNIEnv* env);
   bool GetWasLowMemoryKilled(JNIEnv* env);
+  std::optional<int> GetUsedGraphicsMemoryKb(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
   void RequestStop(JNIEnv* env, jint error_level);
@@ -97,6 +99,8 @@ class StarboardBridge {
 
   jni_zero::ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
 
+  jni_zero::ScopedJavaLocalRef<jobject> GetExoPlayerManager(JNIEnv* env);
+
   std::string GetUserAgentAuxField(JNIEnv* env) const;
 
   bool IsAmatiDevice(JNIEnv* env) const;
@@ -114,6 +118,7 @@ class StarboardBridge {
   void CloseAllCobaltService(JNIEnv* env) const;
 
   void HideSplashScreen(JNIEnv* env) const;
+  void OnPrimaryMainFrameNavigationStarted(JNIEnv* env) const;
 
   void SetStartupMilestone(jint milestone) const;
   void SetStartupDiagnosisInfo(const char* key, const char* value) const;

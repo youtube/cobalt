@@ -17,15 +17,19 @@
 #include <vector>
 
 #include "base/base_switches.h"
-#include "build/buildflag.h"
+#include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
+#include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
 
 namespace cobalt {
@@ -70,6 +74,29 @@ TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
                         "WebAudioRemoveAudioDestinationResampler, "
                         "DomStorageSmartFlushing"),
             enabled_features);
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeEnabledBlinkFeatures) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--enable-blink-features=UseFoo"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  EXPECT_EQ(std::string("UseFoo,PreciseMemoryInfo"),
+            GetSwitchValue(cmd_line_pxr, ::switches::kEnableBlinkFeatures));
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeJavaScriptFlags) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--js-flags=--expose-gc"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  // V8 flags are last-wins, so defaults are prepended and the caller's flags
+  // come last.
+  EXPECT_EQ(std::string("--no-decommit-pooled-pages --no-concurrent-marking,"
+                        "--expose-gc"),
+            GetSwitchValue(cmd_line_pxr, blink::switches::kJavaScriptFlags));
 }
 
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
@@ -120,11 +147,11 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
   std::vector<const char*> always_on_switches{
-      ::switches::kSingleProcess, ::switches::kIgnoreGpuBlocklist,
-#if BUILDFLAG(IS_ANDROID)
-      ::switches::kUserLevelMemoryPressureSignalParams,
-#endif  // BUILDFLAG(IS_ANDROID)
-      sandbox::policy::switches::kNoSandbox, ::switches::kHideScrollbars};
+      ::switches::kSingleProcess,
+      ::switches::kIgnoreGpuBlocklist,
+      sandbox::policy::switches::kNoSandbox,
+      ::switches::kHideScrollbars,
+  };
 
   for (const auto& switch_key : always_on_switches) {
     EXPECT_TRUE(HasSwitch(cmd_line_pxr, switch_key));
@@ -172,6 +199,65 @@ TEST(CobaltSwitchDefaultsTest, StartupURLDefault) {
   EXPECT_EQ("https://www.youtube.com/tv",
             cmd_line_pxr.get_startup_url_for_test());
   EXPECT_EQ("", GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
+}
+
+// CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache.
+base::CommandLine ApplyPreloadGpuShaderDiskCache(bool is_visible) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line, is_visible);
+  return command_line;
+}
+
+bool DiskCacheEnabled(const base::CommandLine& command_line) {
+  return !command_line.HasSwitch(::switches::kDisableGpuShaderDiskCache);
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, PreloadLaunchEnablesGrShaderCacheOnly) {
+  const base::CommandLine command_line =
+      ApplyPreloadGpuShaderDiskCache(/*is_visible=*/false);
+  EXPECT_TRUE(DiskCacheEnabled(command_line));
+  EXPECT_TRUE(command_line.HasSwitch(::switches::kGpuShaderDiskCacheGrOnly));
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, PreloadLaunchSetsDefaultCacheSize) {
+  const base::CommandLine command_line =
+      ApplyPreloadGpuShaderDiskCache(/*is_visible=*/false);
+  EXPECT_EQ(command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB),
+            base::NumberToString(
+                CobaltMainDelegate::kPreloadGrShaderDiskCacheSizeKB));
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, PreloadLaunchRespectsExplicitCacheSize) {
+  constexpr char kExplicitSizeKB[] = "512";
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB,
+                                 kExplicitSizeKB);
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line,
+                                                     /*is_visible=*/false);
+  EXPECT_TRUE(DiskCacheEnabled(command_line));
+  EXPECT_EQ(command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB),
+            kExplicitSizeKB);
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, VisibleLaunchLeavesCacheDisabled) {
+  const base::CommandLine command_line =
+      ApplyPreloadGpuShaderDiskCache(/*is_visible=*/true);
+  EXPECT_FALSE(DiskCacheEnabled(command_line));
+  EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuShaderDiskCacheGrOnly));
+  EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuDiskCacheSizeKB));
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, DisableSwitchLeavesCacheDisabled) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line.AppendSwitch(::switches::kDisablePreloadGpuShaderDiskCache);
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line,
+                                                     /*is_visible=*/false);
+  EXPECT_FALSE(DiskCacheEnabled(command_line));
+  EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuShaderDiskCacheGrOnly));
+  EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuDiskCacheSizeKB));
 }
 
 }  // namespace

@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -51,6 +52,35 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
+
+// Bitfield flags for `kMediaAndroidVideoDecoderImprovements`
+// ("Media.AndroidVideoDecoderImprovements"). Non-positive values (<= 0) are
+// treated as disabled/placebo. Follow-up changes will add additional
+// improvement bits.
+namespace android_video_decoder_improvements {
+
+// Note: Only bits 0 to 30 are supported. Bit 31 (the sign bit) must not be
+// used as a flag because negative values are treated as disabled/placebo.
+
+// Guards video surface reset and cleanup in `~MediaCodecVideoDecoder()` by
+// video surface ownership.
+inline constexpr uint32_t kGuardSurfaceResetAndCleanupByOwnership = 1u << 0;
+
+}  // namespace android_video_decoder_improvements
+
+inline uint32_t GetAndroidVideoDecoderImprovementsFlags(
+    const ExperimentalFeatures& experimental_features) {
+  const int flags =
+      experimental_features.Get(kMediaAndroidVideoDecoderImprovements)
+          .value_or(0);
+  return flags > 0 ? static_cast<uint32_t>(flags) : 0u;
+}
+
+inline bool IsAndroidVideoDecoderImprovementEnabled(
+    uint32_t decoder_improvements_flags,
+    uint32_t improvement_flag) {
+  return (decoder_improvements_flags & improvement_flag) != 0;
+}
 
 class MediaCodecVideoDecoder : public VideoDecoder,
                                public MediaCodecDecoder::Host,
@@ -215,7 +245,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   const bool ignore_stale_rendered_frames_after_seek_;
   const bool enable_trivial_optimizations_;
+  const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
+  const uint32_t decoder_improvements_flags_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -267,10 +299,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   volatile int64_t first_buffer_timestamp_;  // microseconds
   std::atomic_bool has_new_texture_available_{false};
 
-  // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
-  // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
-  // do nothing if not own the surface.
+  // Accessed only on the decoder thread. |owns_video_surface_| tracks active
+  // surface ownership, while |needs_surface_reset_or_cleanup_| remains true
+  // across codec resets/teardowns unless the surface itself is destroyed.
   bool owns_video_surface_ = false;
+  bool needs_surface_reset_or_cleanup_ = false;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.

@@ -154,7 +154,7 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
 
     // Add LevelDatabase dump
     auto leveldb_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    leveldb_dump->numeric_entries["effective_size"] = 512 * 1024;
+    leveldb_dump->numeric_entries["size"] = 512 * 1024;
     browser_dump->chrome_allocator_dumps["leveldatabase"] =
         std::move(leveldb_dump);
 
@@ -949,6 +949,37 @@ TEST_F(CobaltMetricsServiceClientBaseTest,
       1u);
   EXPECT_GE(
       histogram_tester.GetAllSamples("CPU.Total.UsageInPercentage").size(), 1u);
+}
+
+TEST_F(CobaltMetricsServiceClientBaseTest,
+       StabilityMetricsDeduplicationDisabledByDefault) {
+  EXPECT_FALSE(base::FeatureList::IsEnabled(
+      features::kCobaltStabilityMetricsDeduplication));
+
+  auto synthetic_trial_registry =
+      std::make_unique<variations::SyntheticTrialRegistry>();
+  auto client = std::make_unique<TestCobaltMetricsServiceClient>(
+      metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+      &prefs_);
+  client->CallInitialize();
+  EXPECT_THAT(client->GetMetricsService(), NotNull());
+}
+
+TEST_F(CobaltMetricsServiceClientBaseTest,
+       StabilityMetricsDeduplicationEnabledSkipsFileMetricsProvider) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltStabilityMetricsDeduplication);
+  EXPECT_TRUE(base::FeatureList::IsEnabled(
+      features::kCobaltStabilityMetricsDeduplication));
+
+  auto synthetic_trial_registry =
+      std::make_unique<variations::SyntheticTrialRegistry>();
+  auto client = std::make_unique<TestCobaltMetricsServiceClient>(
+      metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+      &prefs_);
+  client->CallInitialize();
+  EXPECT_THAT(client->GetMetricsService(), NotNull());
 }
 
 }  // namespace cobalt

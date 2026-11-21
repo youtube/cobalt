@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include <cstring>
 #include <vector>
 
 #include "starboard/common/file.h"
@@ -113,6 +114,34 @@ TEST_F(ReadEvergreenVersionTest, ReadEvergreenVersionReturnsFalseIfTruncated) {
 
   ASSERT_FALSE(ReadEvergreenVersion(manifest_path_, current_version.data(),
                                     kMaxEgVersionSize));
+}
+
+TEST_F(ReadEvergreenVersionTest, ReadEvergreenVersionReturnsFalseIfMalformed) {
+  // Malformed manifests must be rejected rather than crashing.
+  const char* const kMalformedManifests[] = {
+      "[]",
+      "[\"version\"]",
+      "\"1.2.3\"",
+      "123",
+      "{\"version\": 123}",
+      "{\"version\": [\"1.2.3\"]}",
+      "{\"version\": {\"a\": 1}}",
+      "{\"version\": null}",
+      "{\"version\": true}",
+  };
+  for (const char* manifest : kMalformedManifests) {
+    SCOPED_TRACE(manifest);
+    {
+      starboard::ScopedFile manifest_file(
+          manifest_path_.data(), O_RDWR | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG);
+      ASSERT_TRUE(manifest_file.IsValid());
+      const int length = static_cast<int>(strlen(manifest));
+      ASSERT_EQ(manifest_file.WriteAll(manifest, length), length);
+    }
+    std::vector<char> current_version(kMaxEgVersionSize);
+    EXPECT_FALSE(ReadEvergreenVersion(manifest_path_, current_version.data(),
+                                      kMaxEgVersionSize));
+  }
 }
 
 }  // namespace

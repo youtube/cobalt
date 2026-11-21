@@ -91,10 +91,7 @@ class AudioRendererPcm : public AudioRenderer,
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
   void Seek(int64_t seek_to_time) override;
-  int64_t GetCurrentMediaTime(bool* is_playing,
-                              bool* is_eos_played,
-                              bool* is_underflow,
-                              double* playback_rate) override;
+  MediaTimeInfo GetCurrentMediaTime() override;
   int64_t GetAudioWriteHead() override;
   int64_t AdjustTimestampToAudioClock(int64_t timestamp) override;
 
@@ -109,6 +106,7 @@ class AudioRendererPcm : public AudioRenderer,
   const int max_cached_frames_;
   const int min_frames_per_append_;
   const bool allow_audio_writing_on_pause_;
+  const bool skip_audio_resampling_on_unchanged_sample_rate_;
   // |buffered_frames_to_start_| would be initialized in OnFirstOutput().
   // Before it's initialized, set it to a large number.
   int buffered_frames_to_start_ = 48 * 1024;

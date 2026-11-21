@@ -20,7 +20,7 @@
 #include "starboard/shared/starboard/decode_target/decode_target_internal.h"
 
 void SbDecodeTargetRelease(SbDecodeTarget decode_target) {
-  SB_DCHECK(SbDecodeTargetIsValid(decode_target));
+  SB_CHECK(SbDecodeTargetIsValid(decode_target));
 
   decode_target->Release();
 }

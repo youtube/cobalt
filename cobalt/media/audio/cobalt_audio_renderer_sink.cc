@@ -14,8 +14,16 @@
 
 #include "cobalt/media/audio/cobalt_audio_renderer_sink.h"
 
+#include <atomic>
+#include <utility>
+
+#include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/task/bind_post_task.h"
+#include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "cobalt/media/audio/audio_helpers.h"
 #include "media/base/audio_glitch_info.h"
 
@@ -29,14 +37,60 @@ int AlignUp(int value, int alignment) {
   int decremented_value = value - 1;
   return decremented_value + alignment - (decremented_value % alignment);
 }
+
+// Records the latency of an SbAudioSinkCreate() call. The first call in the
+// process is recorded under kFirstCallHistogram; every later call (e.g. from
+// another AudioContext or Flush()) is recorded under kSubsequentCallHistogram.
+void RecordSbAudioSinkCreateLatency(base::TimeDelta elapsed) {
+  static constexpr char kFirstCallHistogram[] =
+      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate";
+  static constexpr char kSubsequentCallHistogram[] =
+      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate.Subsequent";
+  static std::atomic<bool> first_call_pending{true};
+
+  const bool is_first_call = first_call_pending.exchange(false);
+  base::UmaHistogramCustomMicrosecondsTimes(
+      is_first_call ? kFirstCallHistogram : kSubsequentCallHistogram, elapsed,
+      /*min=*/base::Microseconds(100), /*max=*/base::Seconds(1),
+      /*buckets=*/50);
+  LOG(INFO) << (is_first_call ? "First" : "Subsequent")
+            << " SbAudioSinkCreate() took " << elapsed.InMicroseconds() << "us";
+}
+
+// Wraps SbAudioSinkCreate() and records its latency to UMA.
+SbAudioSink CreateSbAudioSinkWithUmaLatency(
+    int channels,
+    int sampling_frequency_hz,
+    SbMediaAudioSampleType audio_sample_type,
+    SbMediaAudioFrameStorageType audio_frame_storage_type,
+    SbAudioSinkFrameBuffers frame_buffers,
+    int frames_per_channel,
+    SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+    SbAudioSinkConsumeFramesFunc consume_frames_func,
+    void* context) {
+  base::ElapsedTimer timer;
+  SbAudioSink audio_sink = SbAudioSinkCreate(
+      channels, sampling_frequency_hz, audio_sample_type,
+      audio_frame_storage_type, frame_buffers, frames_per_channel,
+      update_source_status_func, consume_frames_func, context);
+  RecordSbAudioSinkCreateLatency(timer.Elapsed());
+  return audio_sink;
+}
 }  // namespace
 
 void SbAudioSinkDeleter::operator()(SbAudioSink sink) const {
   SbAudioSinkDestroy(sink);
 }
 
+CobaltAudioRendererSink::CobaltAudioRendererSink(
+    scoped_refptr<base::SequencedTaskRunner> sink_task_runner)
+    : sink_task_runner_(std::move(sink_task_runner)) {}
+
+CobaltAudioRendererSink::~CobaltAudioRendererSink() = default;
+
 void CobaltAudioRendererSink::Initialize(const AudioParameters& params,
                                          RenderCallback* callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
   LOG(INFO) << "CobaltAudioRendererSink::Initialize - called with following "
                "parameters:"
             << params.AsHumanReadableString();
@@ -44,12 +98,68 @@ void CobaltAudioRendererSink::Initialize(const AudioParameters& params,
   output_sample_type_ = GetPreferredOutputStarboardSampleType();
 
   DCHECK(callback);
+  base::AutoLock lock(callback_lock_);
   DCHECK(!callback_);
   callback_ = callback;
 }
 
 void CobaltAudioRendererSink::Start() {
-  DCHECK(callback_);
+  DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+  // |callback_| is GUARDED_BY(|callback_lock_|), so even a DCHECK must read it
+  // under the lock. Compile the block out of release builds so they don't
+  // take the lock just for a DCHECK that compiles away.
+#if DCHECK_IS_ON()
+  {
+    base::AutoLock lock(callback_lock_);
+    DCHECK(callback_);
+  }
+#endif
+  Run(base::BindOnce(&CobaltAudioRendererSink::StartInternal,
+                     base::WrapRefCounted(this)));
+}
+
+void CobaltAudioRendererSink::Stop() {
+  DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+  is_eos_reached_.store(true);
+  {
+    // Once |callback_| is cleared, UpdateSourceStatus() never calls Render()
+    // again, which is what the AudioRendererSink contract requires of Stop().
+    base::AutoLock lock(callback_lock_);
+    callback_ = nullptr;
+  }
+  Run(base::BindOnce(&CobaltAudioRendererSink::StopInternal,
+                     base::WrapRefCounted(this)));
+}
+
+void CobaltAudioRendererSink::Play() {
+  is_playing_.store(true);
+}
+
+void CobaltAudioRendererSink::Pause() {
+  is_playing_.store(false);
+}
+
+void CobaltAudioRendererSink::Flush() {
+  DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+  if (sink_task_runner_) {
+    // The flush runs later on the sink sequence; until then, stop pulling
+    // frames into the sink that is about to be destroyed.
+    pending_flushes_.fetch_add(1);
+  }
+  Run(base::BindOnce(&CobaltAudioRendererSink::FlushInternal,
+                     base::WrapRefCounted(this)));
+}
+
+void CobaltAudioRendererSink::Run(base::OnceClosure task) {
+  if (sink_task_runner_) {
+    sink_task_runner_->PostTask(FROM_HERE, std::move(task));
+    return;
+  }
+  std::move(task).Run();
+}
+
+void CobaltAudioRendererSink::StartInternal() {
+  DCHECK(!audio_sink_);
   int frames_per_render_buffer = params_.frames_per_buffer();
 
   frames_per_channel_ = std::max(
@@ -66,13 +176,13 @@ void CobaltAudioRendererSink::Start() {
       frames_per_channel_ * params_.channels() *
       GetStarboardSampleTypeSize(output_sample_type_));
 
-  DCHECK(frames_per_channel_ % frames_per_render_buffer == 0);
+  CHECK_EQ(frames_per_channel_ % frames_per_render_buffer, 0);
 
-  int nearest_supported_sample_rate_ =
+  int nearest_supported_sample_rate =
       SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate());
-  if (nearest_supported_sample_rate_ != params_.sample_rate()) {
+  if (nearest_supported_sample_rate != params_.sample_rate()) {
     resample_ratio_ = static_cast<double>(params_.sample_rate() /
-                                          nearest_supported_sample_rate_);
+                                          nearest_supported_sample_rate);
     resampler_ = std::make_unique<MultiChannelResampler>(
         params_.channels(), resample_ratio_, frames_per_render_buffer,
         base::BindRepeating(&CobaltAudioRendererSink::ResamplerReadCallback,
@@ -82,30 +192,19 @@ void CobaltAudioRendererSink::Start() {
   }
 
   output_frame_buffers_[0] = output_frame_buffer_.get();
-  audio_sink_ = AudioSinkUniquePtr(SbAudioSinkCreate(
-      params_.channels(), nearest_supported_sample_rate_, output_sample_type_,
-      kSbMediaAudioFrameStorageTypeInterleaved, &output_frame_buffers_[0],
-      frames_per_channel_, &CobaltAudioRendererSink::UpdateSourceStatusFunc,
-      &CobaltAudioRendererSink::ConsumeFramesFunc, /*context=*/this));
+  audio_sink_ = CreateAudioSink(nearest_supported_sample_rate);
   CHECK(audio_sink_);
 }
 
-void CobaltAudioRendererSink::Stop() {
-  is_eos_reached_.store(true);
+void CobaltAudioRendererSink::StopInternal() {
   audio_sink_.reset();
-  callback_ = nullptr;
 }
 
-void CobaltAudioRendererSink::Play() {
-  is_playing_.store(true);
-}
-
-void CobaltAudioRendererSink::Pause() {
-  is_playing_.store(false);
-}
-
-void CobaltAudioRendererSink::Flush() {
+void CobaltAudioRendererSink::FlushInternal() {
   if (!audio_sink_) {
+    if (sink_task_runner_) {
+      pending_flushes_.fetch_sub(1);
+    }
     return;
   }
   // TODO(b/390468794) consolidate this recreation as it duplicates code from
@@ -113,14 +212,21 @@ void CobaltAudioRendererSink::Flush() {
   audio_sink_.reset();
   frames_rendered_ = 0;
   frames_consumed_ = 0;
-  audio_sink_ = AudioSinkUniquePtr(SbAudioSinkCreate(
-      params_.channels(),
-      SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate()),
-      output_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
-      &output_frame_buffers_[0], frames_per_channel_,
-      &CobaltAudioRendererSink::UpdateSourceStatusFunc,
-      &CobaltAudioRendererSink::ConsumeFramesFunc, /*context=*/this));
+  if (sink_task_runner_) {
+    pending_flushes_.fetch_sub(1);
+  }
+  audio_sink_ = CreateAudioSink(
+      SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate()));
   CHECK(audio_sink_);
+}
+
+CobaltAudioRendererSink::AudioSinkUniquePtr
+CobaltAudioRendererSink::CreateAudioSink(int sampling_frequency_hz) {
+  return AudioSinkUniquePtr(CreateSbAudioSinkWithUmaLatency(
+      params_.channels(), sampling_frequency_hz, output_sample_type_,
+      kSbMediaAudioFrameStorageTypeInterleaved, &output_frame_buffers_[0],
+      frames_per_channel_, &CobaltAudioRendererSink::UpdateSourceStatusFunc,
+      &CobaltAudioRendererSink::ConsumeFramesFunc, /*context=*/this));
 }
 
 bool CobaltAudioRendererSink::SetVolume(double volume) {
@@ -190,6 +296,12 @@ void CobaltAudioRendererSink::UpdateSourceStatus(int* frames_in_buffer,
   *is_eos_reached = is_eos_reached_.load();
 
   *frames_in_buffer = static_cast<int>(frames_rendered_ - frames_consumed_);
+
+  base::AutoLock lock(callback_lock_);
+  if (!callback_ || pending_flushes_.load() != 0) {
+    *offset_in_frames = frames_consumed_ % frames_per_channel_;
+    return;
+  }
 
   while ((frames_per_channel_ - *frames_in_buffer) >=
          params_.frames_per_buffer()) {

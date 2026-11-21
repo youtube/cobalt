@@ -114,7 +114,7 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
 }
 
 void Rank(const char* dir, char* app_key, size_t len) {
-  SB_DCHECK(dir);
+  SB_CHECK(dir);
   SB_DCHECK(app_key);
 
   std::vector<std::string> filenames = FindAllWithPrefix(dir, kDrainFilePrefix);
@@ -156,8 +156,8 @@ void Rank(const char* dir, char* app_key, size_t len) {
 }
 
 bool TryDrain(const char* dir, const char* app_key) {
-  SB_DCHECK(dir);
-  SB_DCHECK(app_key);
+  SB_CHECK(dir);
+  SB_CHECK(app_key);
 
   std::vector<std::string> filenames = FindAllWithPrefix(dir, kDrainFilePrefix);
 
@@ -197,8 +197,8 @@ bool TryDrain(const char* dir, const char* app_key) {
 }
 
 bool RankAndCheck(const char* dir, const char* app_key) {
-  SB_DCHECK(dir);
-  SB_DCHECK(app_key);
+  SB_CHECK(dir);
+  SB_CHECK(app_key);
 
   std::vector<char> ranking_app_key(kSbFileMaxName);
 
@@ -208,7 +208,7 @@ bool RankAndCheck(const char* dir, const char* app_key) {
 }
 
 void ClearExpired(const char* dir) {
-  SB_DCHECK(dir);
+  SB_CHECK(dir);
   std::vector<std::string> filenames = FindAllWithPrefix(dir, kDrainFilePrefix);
 
   for (const auto& filename : filenames) {
@@ -224,8 +224,8 @@ void ClearExpired(const char* dir) {
 }
 
 void ClearForApp(const char* dir, const char* app_key) {
-  SB_DCHECK(dir);
-  SB_DCHECK(app_key);
+  SB_CHECK(dir);
+  SB_CHECK(app_key);
 
   const std::string prefix = std::string(kDrainFilePrefix) + app_key;
   const std::vector<std::string> filenames =
@@ -240,8 +240,8 @@ void ClearForApp(const char* dir, const char* app_key) {
 }
 
 void PrepareDirectory(const char* dir, const char* app_key) {
-  SB_DCHECK(dir);
-  SB_DCHECK(app_key);
+  SB_CHECK(dir);
+  SB_CHECK(app_key);
 
   const std::string prefix = std::string(kDrainFilePrefix) + app_key;
   const std::vector<std::string> entries = FindAllWithPrefix(dir, "");
@@ -260,8 +260,8 @@ void PrepareDirectory(const char* dir, const char* app_key) {
 }
 
 bool IsAppDraining(const char* dir, const char* app_key) {
-  SB_DCHECK(dir);
-  SB_DCHECK(app_key);
+  SB_CHECK(dir);
+  SB_CHECK(app_key);
   SB_DCHECK(strlen(app_key));
 
   std::string prefix(kDrainFilePrefix);
@@ -279,7 +279,7 @@ bool IsAppDraining(const char* dir, const char* app_key) {
 }
 
 bool IsAnotherAppDraining(const char* dir, const char* app_key) {
-  SB_DCHECK(dir);
+  SB_CHECK(dir);
   SB_DCHECK(app_key);
   SB_DCHECK(strlen(app_key));
   std::vector<std::string> filenames = FindAllWithPrefix(dir, kDrainFilePrefix);

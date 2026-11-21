@@ -22,6 +22,7 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread_options.h"
 #include "starboard/common/time.h"
@@ -75,10 +76,12 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
 
 // static
 NonNullResult<std::unique_ptr<AudioRendererPassthrough>>
-AudioRendererPassthrough::Create(JobQueue* job_queue,
-                                 const AudioStreamInfo& audio_stream_info,
-                                 SbDrmSystem drm_system,
-                                 bool enable_flush_during_seek) {
+AudioRendererPassthrough::Create(
+    JobQueue* job_queue,
+    const AudioStreamInfo& audio_stream_info,
+    SbDrmSystem drm_system,
+    bool enable_flush_during_seek,
+    std::optional<int> tunnel_mode_audio_session_id) {
   std::unique_ptr<AudioDecoder> decoder;
   if (SbDrmSystemIsValid(drm_system)) {
     SB_LOG(INFO) << "Creating AudioDecoder as decryptor.";
@@ -98,7 +101,7 @@ AudioRendererPassthrough::Create(JobQueue* job_queue,
 
   return std::make_unique<AudioRendererPassthrough>(
       PassKey<AudioRendererPassthrough>(), job_queue, audio_stream_info,
-      std::move(decoder), &AudioTrack::Create);
+      std::move(decoder), &AudioTrack::Create, tunnel_mode_audio_session_id);
 }
 
 // static
@@ -107,11 +110,13 @@ AudioRendererPassthrough::CreateForTesting(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder> decoder,
-    AudioTrackFactory audio_track_factory) {
+    AudioTrackFactory audio_track_factory,
+    std::optional<int> tunnel_mode_audio_session_id) {
   SB_CHECK(audio_track_factory);
   return std::make_unique<AudioRendererPassthrough>(
       PassKey<AudioRendererPassthrough>(), job_queue, audio_stream_info,
-      std::move(decoder), std::move(audio_track_factory));
+      std::move(decoder), std::move(audio_track_factory),
+      tunnel_mode_audio_session_id);
 }
 
 // static
@@ -126,9 +131,11 @@ AudioRendererPassthrough::AudioRendererPassthrough(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder> decoder,
-    AudioTrackFactory audio_track_factory)
+    AudioTrackFactory audio_track_factory,
+    std::optional<int> tunnel_mode_audio_session_id)
     : JobOwner(job_queue),
       audio_stream_info_(audio_stream_info),
+      tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       decoder_(std::move(decoder)),
       audio_track_factory_(std::move(audio_track_factory)) {
   SB_CHECK(decoder_);
@@ -202,6 +209,13 @@ void AudioRendererPassthrough::WriteEndOfStream() {
 
   SB_LOG(INFO) << "Audio eos reached without any samples written.";
   end_of_stream_played_.store(true);
+  // No samples were written, so the AudioTrack thread, where
+  // prerolled_cb_() is normally called on end of stream, is never started.
+  // Preroll here, otherwise the player never reaches the presenting state
+  // and stays stuck
+  if (!prerolled_.exchange(true)) {
+    prerolled_cb_();
+  }
   ended_cb_();
 }
 
@@ -335,23 +349,17 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
 }
 
 // This function can be called from *any* threads.
-int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
-                                                      bool* is_eos_played,
-                                                      bool* is_underflow,
-                                                      double* playback_rate) {
-  SB_DCHECK(is_playing);
-  SB_DCHECK(is_eos_played);
-  SB_DCHECK(is_underflow);
-  SB_DCHECK(playback_rate);
-
+MediaTimeInfo AudioRendererPassthrough::GetCurrentMediaTime() {
+  MediaTimeInfo info;
   std::lock_guard scoped_lock(mutex_);
-  *is_playing = !paused_;
-  *is_eos_played = end_of_stream_played_.load();
-  *is_underflow = false;  // TODO: Support underflow
-  *playback_rate = playback_rate_;
+  info.is_playing = !paused_;
+  info.is_eos_played = end_of_stream_played_.load();
+  info.is_underflow = false;  // TODO: Support underflow
+  info.playback_rate = playback_rate_;
 
   if (!audio_track_) {
-    return seek_to_time_;
+    info.media_time = seek_to_time_;
+    return info;
   }
 
   int64_t audio_start_time;
@@ -377,7 +385,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     playback_time =
         audio_start_time + total_frames_played * 1'000'000LL /
                                audio_stream_info_.samples_per_second;
-    return std::max(playback_time, seek_to_time_);
+    info.media_time = std::max(playback_time, seek_to_time_);
+    return info;
   }
 
   int64_t updated_at;
@@ -385,7 +394,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   if (playback_head_position <= 0) {
     // The playback is warming up, don't adjust the media time by the monotonic
     // system time.
-    return std::max(audio_start_time, seek_to_time_);
+    info.media_time = std::max(audio_start_time, seek_to_time_);
+    return info;
   }
 
   // TODO: This may cause time regression, because the unadjusted time will be
@@ -402,7 +412,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   // before calling AudioTrack.Play(), the returned playback time and last frame
   // consumed time would be the same as at when we pause the video.
   if (audio_track_paused_) {
-    return std::max(playback_time, seek_to_time_);
+    info.media_time = std::max(playback_time, seek_to_time_);
+    return info;
   }
 
   // TODO: Cap this to the maximum frames written to the AudioTrack.
@@ -416,7 +427,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   playback_time += std::max<int64_t>(now - updated_at, 0);
 
-  return std::max(playback_time, seek_to_time_);
+  info.media_time = std::max(playback_time, seek_to_time_);
+  return info;
 }
 
 void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
@@ -441,11 +453,17 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
       /*sample_type=*/std::nullopt,  // Not required in passthrough mode
       audio_stream_info_.number_of_channels,
       audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      tunnel_mode_audio_session_id_,
       /*is_web_audio=*/false);
 
   if (!audio_track) {
-    error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrack");
+    // In tunnel mode, there is no fallback to non-tunnel mode, as the video
+    // decoder has already been created with the same audio session id.
+    error_cb_(kSbPlayerErrorDecode,
+              FormatString("Error creating AudioTrack for %s passthrough "
+                           "(tunnel mode: %s).",
+                           GetMediaAudioCodecName(audio_stream_info_.codec),
+                           tunnel_mode_audio_session_id_ ? "true" : "false"));
     return;
   }
 
@@ -493,7 +511,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   SB_DCHECK(audio_track_thread_);
   SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
   SB_DCHECK(error_cb_);
-  SB_DCHECK(audio_track_);
+  SB_CHECK(audio_track_);
 
   // Encoded passthrough bitstreams (e.g. AC3/E-AC3) cannot be seamlessly routed
   // across different sinks (e.g. Bluetooth or built-in speakers), so any device
@@ -565,12 +583,14 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       auto samples_to_write =
           (decoded_audio_writing_in_progress_->size_in_bytes() -
            decoded_audio_writing_offset_);
-      // TODO: |sync_time| currently doesn't take partial writes into account.
-      //       It is not used in non-tunneled mode so it doesn't matter, but we
-      //       should revisit this.
+      // |sync_time| is only used in tunnel mode, where it's written into the
+      // A/V sync header of the buffer.  On a partial write, AudioTrack keeps
+      // track of the remaining bytes of the current A/V sync packet, and
+      // ignores |sync_time| when the rest of the buffer is written.  So it's
+      // fine to always pass the timestamp of the buffer.
       auto sync_time = decoded_audio_writing_in_progress_->timestamp();
       int samples_written = audio_track_->WriteSample(
-          MakeSpan(sample_buffer, samples_to_write), sync_time);
+          make_span(sample_buffer, samples_to_write), sync_time);
       // Error code returned as negative value, like kAudioTrackErrorDeadObject.
       if (samples_written < 0) {
         if (samples_written == AudioTrack::kAudioTrackErrorDeadObject) {
@@ -675,6 +695,12 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   }
 
   std::lock_guard scoped_lock(mutex_);
+  // Passthrough can't trim e/ac3 syncframes, so drop those that start before
+  // the seek target, instead of playing them all after a seek.
+  if (!decoded_audio->is_end_of_stream() &&
+      decoded_audio->timestamp() < seek_to_time_) {
+    return;
+  }
   decoded_audios_.push(std::move(*decoded_audio));
 }
 

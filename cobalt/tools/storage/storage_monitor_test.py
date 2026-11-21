@@ -16,7 +16,9 @@
 
 import os
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 _REPO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -109,6 +111,14 @@ class StorageMonitorTest(unittest.TestCase):
             "app_content_shell/content_shell/.org.chromium.Chromium.RZDMJu"),
         ("USER_DATA", ".org.chromium.Chromium.*"),
     )
+    self.assertEqual(
+        storage_monitor.classify_storage_path(
+            "/data/data/com.google.android.youtube.tv/"
+            "no_backup/androidx.work.workdb-wal",
+            package="com.google.android.youtube.tv",
+        ),
+        ("NO_BACKUP", "androidx.work.workdb"),
+    )
 
   def test_tracker_detects_transient_journal_and_compaction_spikes(self):
     tracker = storage_monitor.StorageTracker()
@@ -181,19 +191,265 @@ class StorageMonitorTest(unittest.TestCase):
     journal = by_file["app_content_shell/content_shell/Network/Cookies-journal"]
     self.assertFalse(journal["existed_at_end"])
     self.assertEqual(journal["status"], "**Transient (Deleted)**")
+    self.assertEqual(journal["start_kb"], 0.0)
     self.assertEqual(journal["peak_kb"], 16.0)
     self.assertEqual(journal["final_kb"], 0.0)
+    self.assertEqual(journal["delta_kb"], 0.0)
 
     old_log = by_file[
         "app_content_shell/content_shell/Local Storage/leveldb/000003.log"]
     self.assertFalse(old_log["existed_at_end"])
+    self.assertEqual(old_log["start_kb"], 64.0)
     self.assertEqual(old_log["peak_kb"], 64.0)
+    self.assertEqual(old_log["final_kb"], 0.0)
+    self.assertEqual(old_log["delta_kb"], -64.0)
 
-    # Verify Markdown formatting renders Proposal 1 headers and status
+    # Verify Markdown formatting renders Proposal 1 headers, Start/Delta KB,
+    # and status
     md = storage_monitor.format_markdown_report(report)
     self.assertIn("## Section A: Storage Type Summary", md)
     self.assertIn("## Section B: Transient & High-Churn File Hotspots", md)
+    self.assertIn(
+        "| Relative File Path | Storage Type | Status | Lifespan | "
+        "Start KB | Peak KB | Final KB | Delta KB | Writes (`mtime_changes`) |",
+        md,
+    )
+    self.assertIn("-64.00", md)
     self.assertIn("**Transient (Deleted)**", md)
+
+  def test_parse_proc_io_output(self):
+    root = "/data/data/dev.cobalt.coat"
+    sample = storage_monitor.parse_proc_io_output("\n".join([
+        "pid: 1234",
+        "rchar: 102400",
+        "wchar: 204800",
+        "read_bytes: 40960",
+        "write_bytes: 81920",
+        "cancelled_write_bytes: 4096",
+        "total_fds: 310",
+        "total_vmas: 2920",
+        f"fd_path: {root}/app_content_shell/content_shell/Cookies",
+        f"fd_path: {root}/cache/.org.chromium.Chromium.abc (deleted)",
+        f"vma_path: {root}/app_content_shell/BrowserStabilityMetrics/1.pma",
+    ]))
+    self.assertEqual(
+        sample,
+        storage_monitor.ProcIoSample(
+            pid=1234,
+            read_bytes=40960,
+            write_bytes=81920,
+            total_fds=310,
+            total_vmas=2920,
+            storage_fd_paths=(
+                f"{root}/app_content_shell/content_shell/Cookies",
+                f"{root}/cache/.org.chromium.Chromium.abc",
+            ),
+            storage_vma_paths=(
+                f"{root}/app_content_shell/BrowserStabilityMetrics/1.pma",),
+        ))
+    # No output (process not running) or no pid line.
+    self.assertIsNone(storage_monitor.parse_proc_io_output(""))
+    self.assertIsNone(
+        storage_monitor.parse_proc_io_output("read_bytes: 1\nwrite_bytes: 2"))
+
+  def test_tracks_block_io_and_fds_vmas_across_restarts(self):
+    pkg = "com.google.android.youtube.tv"
+    ud = f"/data/data/{pkg}/app_content_shell/content_shell"
+    tracker = storage_monitor.StorageTracker(package=pkg)
+    sample = storage_monitor.ProcIoSample
+    # PID 100 is already running at t=0 (e.g. manual mode), so its counters
+    # predate monitoring and only set the baseline.
+    tracker.record_proc_io(
+        0.0,
+        sample(
+            pid=100,
+            read_bytes=4096,
+            write_bytes=8192,
+            total_fds=400,
+            total_vmas=2800,
+            storage_fd_paths=(
+                f"{ud}/Cookies",
+                f"{ud}/Local Storage/leveldb/000001.ldb",
+                f"{ud}/Local Storage/leveldb/LOCK",
+                f"/data/data/{pkg}/lib/arm/libchrobalt.so",
+            ),
+            storage_vma_paths=(
+                f"{ud}/Cookies",
+                f"/data/data/{pkg}/lib/arm/libchrobalt.so",
+            ),
+        ))
+    # +8 KB read and +16 KB written in 1 s.
+    tracker.record_proc_io(
+        1.0,
+        sample(
+            pid=100,
+            read_bytes=12288,
+            write_bytes=24576,
+            total_fds=420,
+            total_vmas=2950,
+            storage_fd_paths=(f"{ud}/Cookies",),
+            storage_vma_paths=(f"{ud}/Cookies",),
+        ))
+    # The app is force-stopped, then relaunched as PID 200.
+    tracker.record_proc_io(2.0, None)
+    tracker.record_proc_io(3.0,
+                           sample(pid=200, read_bytes=4096, write_bytes=8192))
+    # PID 200 restarts with the same (recycled) PID, so its counters go back.
+    tracker.record_proc_io(4.0,
+                           sample(pid=200, read_bytes=2048, write_bytes=1024))
+
+    tracker.storage_api_verification = {
+        "passed": True,
+        "session_storage_ok": True,
+        "local_storage_ok": True,
+        "cookie_ok": True,
+        "media_capabilities_ok": True,
+        "media_capabilities_smooth": True,
+    }
+
+    report = tracker.build_summary_data(
+        platform="android",
+        cuj="warm_relaunch",
+        duration_sec=4.0,
+        interval_sec=1.0,
+    )
+    pio = report["process_io_summary"]
+    self.assertEqual(pio["pids_tracked"], 2)
+    # Read: 8 + 4 + 2 KB. Write: 16 + 8 + 1 KB.
+    self.assertEqual(pio["read_kb"], 14.0)
+    self.assertEqual(pio["write_kb"], 25.0)
+    self.assertEqual(pio["peak_read_kbps"], 8.0)
+    self.assertEqual(pio["peak_read_at_sec"], 1.0)
+    self.assertEqual(pio["peak_write_kbps"], 16.0)
+    self.assertEqual(pio["peak_write_at_sec"], 1.0)
+    self.assertEqual(pio["peak_total_fds"], 420)
+    self.assertEqual(pio["peak_storage_fds"], 3)
+    self.assertEqual(pio["peak_total_vmas"], 2950)
+    self.assertEqual(pio["peak_storage_vmas"], 1)
+
+    by_type = {r["storage_type"]: r for r in report["storage_type_summary"]}
+    self.assertEqual(by_type["Cookies"]["peak_open_fds"], 1)
+    self.assertEqual(by_type["Cookies"]["peak_vmas"], 1)
+    self.assertEqual(by_type["Local Storage"]["peak_open_fds"], 2)
+    self.assertEqual(by_type["Local Storage"]["peak_vmas"], 0)
+    self.assertNotIn("lib", by_type)
+
+    md = storage_monitor.format_markdown_report(report)
+    self.assertIn("- **Platform**: `android` (`com.google.android.youtube.tv`)",
+                  md)
+    self.assertIn(
+        "- **Block I/O (`/proc/<pid>/io`)**: "
+        "Read: `14.00 KB` (peak `8.00 KB/s` at `t=1.0s`) | "
+        "Write: `25.00 KB` (peak `16.00 KB/s` at `t=1.0s`) | "
+        "Processes: `2`", md)
+    self.assertIn(
+        "- **Open FDs & VMAs (`/proc/<pid>/fd`, `maps`)**: "
+        "Peak FDs: `420` (Storage: `3` peak / `0` final) | "
+        "Peak VMAs: `2950` (Storage `mmap`: `1` peak / `0` final)", md)
+    self.assertIn(
+        "- **Web API Parity (CDP)**: `PASS` (`sessionStorage`: `OK`, "
+        "`localStorage`: `OK`, `cookie`: `OK`, "
+        "`mediaCapabilities`: `OK` [`smooth=True`])", md)
+
+  def test_counts_all_io_of_process_started_after_first_poll(self):
+    tracker = storage_monitor.StorageTracker()
+    # Not running when monitoring starts (e.g. right before cold_start).
+    tracker.record_proc_io(0.0, None)
+    tracker.record_proc_io(
+        1.0,
+        storage_monitor.ProcIoSample(pid=7, read_bytes=10240, write_bytes=2048))
+    pio = tracker.build_summary_data(
+        platform="android",
+        cuj="cold_start",
+        duration_sec=1.0,
+        interval_sec=1.0)["process_io_summary"]
+    self.assertEqual(pio["read_kb"], 10.0)
+    self.assertEqual(pio["write_kb"], 2.0)
+
+  def test_parse_args_defaults_and_custom_package(self):
+    args = storage_monitor.parse_args([])
+    self.assertEqual(args.cuj, "manual")
+    self.assertEqual(args.package, "dev.cobalt.coat")
+    self.assertFalse(args.verify_storage_apis)
+    self.assertEqual(args.cdp_port, 9222)
+    self.assertEqual(args.extra_args, "")
+
+    custom = storage_monitor.parse_args([
+        "--cuj",
+        "cold_start",
+        "--package",
+        "com.google.android.youtube.tv",
+        "--verify-storage-apis",
+        "--cdp-port",
+        "9333",
+        "--extra-args=--enable-features=CobaltStorageCleanup",
+    ])
+    self.assertEqual(custom.cuj, "cold_start")
+    self.assertEqual(custom.package, "com.google.android.youtube.tv")
+    self.assertTrue(custom.verify_storage_apis)
+    self.assertEqual(custom.cdp_port, 9333)
+    self.assertEqual(custom.extra_args,
+                     "--enable-features=CobaltStorageCleanup")
+
+  @mock.patch("cobalt.tools.storage.storage_monitor._poll_for_duration")
+  def test_manual_cuj_polls_passively(self, mock_poll_for_duration):
+    tracker = storage_monitor.StorageTracker()
+    duration = storage_monitor.run_cuj_android(
+        cuj="manual",
+        interval_sec=1.0,
+        tracker=tracker,
+        package="dev.cobalt.coat",
+        snapshot_fn=lambda: {},
+        proc_io_fn=lambda: None,
+    )
+    self.assertGreaterEqual(duration, 0.0)
+    mock_poll_for_duration.assert_called_once()
+    self.assertEqual(
+        mock_poll_for_duration.call_args.kwargs["duration_sec"],
+        float("inf"),
+    )
+    self.assertEqual(
+        mock_poll_for_duration.call_args.kwargs["phase_label"],
+        "manual",
+    )
+
+  @mock.patch("cobalt.tools.storage.storage_monitor.time.sleep")
+  @mock.patch("cobalt.tools.storage.storage_monitor.run_adb_shell")
+  def test_launch_other_package_restricts_intent_and_supports_cdp(
+      self, mock_adb, _):
+    # pylint: disable=protected-access
+    storage_monitor._launch_cobalt_android(
+        "https://www.youtube.com/tv", package="com.google.android.youtube.tv")
+    mock_adb.assert_called_with(
+        "am start -a android.intent.action.VIEW "
+        "-d 'https://www.youtube.com/tv' -p com.google.android.youtube.tv",
+        package=None)
+
+    storage_monitor._launch_cobalt_android(
+        "https://www.youtube.com/tv",
+        package="com.google.android.youtube.tv",
+        enable_cdp=True,
+        extra_args="enable-features=CobaltStorageCleanup")
+    mock_adb.assert_called_with(
+        "am start -a android.intent.action.VIEW "
+        "-d 'https://www.youtube.com/tv' "
+        "--esa commandLineArgs "
+        "'--remote-allow-origins=*,--enable-features=CobaltStorageCleanup' "
+        "-p com.google.android.youtube.tv",
+        package=None)
+
+    storage_monitor._launch_cobalt_android(
+        "https://www.youtube.com/tv",
+        package="dev.cobalt.coat",
+        enable_cdp=True,
+        extra_args="--enable-features=CobaltStorageCleanup")
+    mock_adb.assert_called_with(
+        "am start -n dev.cobalt.coat/dev.cobalt.app.MainActivity "
+        "--esa commandLineArgs "
+        "'--remote-allow-origins=*,"
+        "--enable-features=CobaltStorageCleanup,"
+        "--url=https://www.youtube.com/tv'",
+        package=None)
 
   def test_format_adb_command(self):
     # pylint: disable=protected-access
@@ -210,6 +466,77 @@ class StorageMonitorTest(unittest.TestCase):
         storage_monitor._format_adb_command([], "ls /data"),
         "ls /data",
     )
+
+  @mock.patch("cobalt.tools.storage.storage_monitor.subprocess.run")
+  def test_adb_calls_pass_serial(self, mock_run):
+    mock_run.return_value = mock.Mock(
+        returncode=0, stdout="device\n", stderr="")
+    with mock.patch.object(storage_monitor, "_ADB_SERIAL", None):
+      storage_monitor.verify_android_device_connected()
+      self.assertEqual(mock_run.call_args.args[0], ["adb", "get-state"])
+    with mock.patch.object(storage_monitor, "_ADB_SERIAL", "localhost:40501"):
+      storage_monitor.verify_android_device_connected()
+      self.assertEqual(mock_run.call_args.args[0],
+                       ["adb", "-s", "localhost:40501", "get-state"])
+      storage_monitor.run_adb_shell("input keyevent KEYCODE_HOME", package=None)
+      self.assertEqual(mock_run.call_args.args[0], [
+          "adb", "-s", "localhost:40501", "shell", "input keyevent KEYCODE_HOME"
+      ])
+
+  def test_serial_defaults_to_android_serial(self):
+    with mock.patch.dict(os.environ, {"ANDROID_SERIAL": "emulator-5554"}):
+      self.assertEqual(storage_monitor.parse_args([]).serial, "emulator-5554")
+      self.assertEqual(
+          storage_monitor.parse_args(["--serial", "localhost:40501"]).serial,
+          "localhost:40501")
+    with mock.patch.dict(os.environ):
+      os.environ.pop("ANDROID_SERIAL", None)
+      self.assertIsNone(storage_monitor.parse_args([]).serial)
+
+  # Covers the user journey where an initial run fails ADB preflight (e.g.
+  # missing --serial) and the user immediately retries with the same --output
+  # path once the device connection is fixed.
+  def test_main_does_not_leave_empty_timeline_on_preflight_failure(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      timeline_path = os.path.join(temp_dir, "run_footprint.jsonl")
+      output_path = os.path.join(temp_dir, "run.md")
+      with mock.patch(
+          "cobalt.tools.storage.storage_monitor.run_cuj_android",
+          side_effect=RuntimeError("No active Android TV device"),
+      ):
+        rc = storage_monitor.main(
+            ["--output", output_path, "--timeline", timeline_path])
+      self.assertEqual(rc, 1)
+      self.assertFalse(os.path.exists(timeline_path))
+
+      # Also cleans up if an event was written before failing with 0 samples.
+      def _fail_after_event(**kwargs):
+        kwargs["timeline"].event(0.0, "cuj", "cold_start")
+        raise RuntimeError("Launch failed")
+
+      with mock.patch(
+          "cobalt.tools.storage.storage_monitor.run_cuj_android",
+          side_effect=_fail_after_event,
+      ):
+        rc = storage_monitor.main(
+            ["--output", output_path, "--timeline", timeline_path])
+      self.assertEqual(rc, 1)
+      self.assertFalse(os.path.exists(timeline_path))
+
+      # Retrying with the exact same paths succeeds once the device is ready.
+      def _succeed(**kwargs):
+        kwargs["timeline"].sample(0.0, [], pid=123)
+        return 1.0
+
+      with mock.patch(
+          "cobalt.tools.storage.storage_monitor.run_cuj_android",
+          side_effect=_succeed,
+      ):
+        rc = storage_monitor.main(
+            ["--output", output_path, "--timeline", timeline_path])
+      self.assertEqual(rc, 0)
+      self.assertTrue(os.path.exists(timeline_path))
+      self.assertTrue(os.path.exists(output_path))
 
 
 if __name__ == "__main__":

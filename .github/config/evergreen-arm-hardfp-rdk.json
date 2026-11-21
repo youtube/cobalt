@@ -7,7 +7,9 @@
   "test_on_device": true,
   "test_device_family": "rdk",
   "test_e2e": true,
+  "test_yts": true,
   "test_root_target": "//cobalt:gn_all",
+  "test_artifact_name": "Cobalt.apk",
   "test_dimensions": {
     "device_type": "rdk",
     "device_pool": "maneki"
@@ -23,12 +25,6 @@
     {
       "name": "arm-hardfp-rdk",
       "platform": "evergreen-arm-hardfp-rdk"
-    }
-  ],
-  "e2e_test_targets": [
-    {
-      "target": "//video/youtube/web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_cobalt_rdk",
-      "test_attempts": "6"
     }
   ]
 }

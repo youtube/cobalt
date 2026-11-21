@@ -58,6 +58,7 @@ static_library("starboard_platform") {
 
 source_set("aosp_loader_glue") {
   sources = [
+    "chromium_switches.h",
     "main_activity.cc",
     "starboard_library_loader.cc",
   ]

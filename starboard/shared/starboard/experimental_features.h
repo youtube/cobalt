@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 #define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -192,18 +193,25 @@ inline const char* ToString(NdkAudioMode mode) {
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
 
+// Bitfield controlling Android video decoder improvements. Non-positive values
+// (<= 0) are treated as disabled/placebo. Follow-up changes will expand the
+// supported bits.
+// TODO: b/588129850 - Remove this flag once the experiment is complete.
+inline constexpr ExperimentalFeatureKey<int>
+    kMediaAndroidVideoDecoderImprovements(
+        "Media.AndroidVideoDecoderImprovements");
+
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
+
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaEnableCodecThreadImprovements("Media.EnableCodecThreadImprovements");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
     "Media.EnableResetAudioDecoder");
-
-inline constexpr ExperimentalFeatureKey<bool>
-    kMediaEnableSimdBasedAudioFormatSwitching(
-        "Media.EnableSimdBasedAudioFormatSwitching");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
@@ -237,8 +245,14 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 inline constexpr ExperimentalFeatureKey<bool> kMediaPauseUsingAudioTrackState(
     "Media.PauseUsingAudioTrackState");
 
-inline constexpr ExperimentalFeatureKey<bool> kMediaSeamlessAudioSwitching(
-    "Media.SeamlessAudioSwitching");
+// When set, AudioRendererPcm only resamples decoded audio when its sample rate
+// has to change.  By default decoded audio that merely needs to be converted
+// to float32 for the time stretcher is also routed through the resampler at
+// a ratio of 1.0.
+// TODO(b/511356295): Remove this flag once the experiment is complete.
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaSkipAudioResamplingOnUnchangedSampleRate(
+        "Media.SkipAudioResamplingOnUnchangedSampleRate");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");

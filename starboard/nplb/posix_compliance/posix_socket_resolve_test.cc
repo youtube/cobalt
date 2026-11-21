@@ -319,7 +319,21 @@ TEST_P(PosixSocketResolveTest, RainyDayNullHostname) {
   EXPECT_FALSE(getaddrinfo(nullptr, nullptr, &hints, &ai) == 0);
 }
 
-#if SB_HAS(IPV6)
+TEST_P(PosixSocketResolveTest, RainyDayUnknownHostname) {
+  struct addrinfo hints = {0};
+  hints.ai_family = GetAddressFamily();
+  hints.ai_socktype = GetSocketType();
+  hints.ai_protocol = GetProtocol();
+  struct addrinfo* ai = nullptr;
+
+  // The .invalid top-level domain never resolves. See RFC 6761 section 6.4.
+  int result = getaddrinfo("unknown-host.invalid", nullptr, &hints, &ai);
+  EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+              result == EAI_AGAIN || result == EAI_FAIL)
+      << " result = " << result;
+  EXPECT_EQ(nullptr, ai);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     PosixSocketHints,
     PosixSocketResolveTest,
@@ -333,21 +347,6 @@ INSTANTIATE_TEST_SUITE_P(
                           std::make_pair(SOCK_DGRAM, IPPROTO_UDP),
                           std::make_pair(SOCK_STREAM, IPPROTO_TCP))),
     GetPosixSocketHintsName);
-#else
-INSTANTIATE_TEST_SUITE_P(
-    PosixSocketHints,
-    PosixSocketResolveTest,
-    ::testing::Combine(
-        ::testing::Values(AF_UNSPEC, AF_INET),
-        ::testing::Values(std::make_pair(0, 0),
-                          std::make_pair(0, IPPROTO_UDP),
-                          std::make_pair(0, IPPROTO_TCP),
-                          std::make_pair(SOCK_STREAM, 0),
-                          std::make_pair(SOCK_DGRAM, 0),
-                          std::make_pair(SOCK_DGRAM, IPPROTO_UDP),
-                          std::make_pair(SOCK_STREAM, IPPROTO_TCP))),
-    GetPosixSocketHintsName);
-#endif
 
 }  // namespace
 }  // namespace nplb

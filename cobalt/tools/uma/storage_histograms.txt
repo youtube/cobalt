@@ -1,0 +1,122 @@
+# Cobalt storage, cache, and disk I/O UMA histograms.
+#
+# Usage from the repository root:
+#   vpython3 cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py \
+#     --histogram-file cobalt/tools/uma/storage_histograms.txt
+#
+# Note: CDP Browser.getHistograms performs a substring match on each query line.
+# Lines starting with '#' are ignored. Histograms are organized by priority tier:
+#   - P0: Primary causal mechanism metrics (footprint, quotas, cache hits, commits)
+#   - P1: Subsystem latency, throughput, and commit delay metrics
+#   - P2: Startup, thread congestion, data integrity, and migration guardrails
+# Superseded or confounded histograms are documented as comments at the bottom.
+
+# ==============================================================================
+# P0: Primary Causal Mechanism UMAs
+# ==============================================================================
+
+# --- P0.1 Persistent & Cache Disk Footprint + RAM ---
+Cobalt.Storage.UserData.StartupTotalSizeKB
+Cobalt.Storage.DirCache.StartupTotalSizeKB
+Memory.Experimental.Browser2.Small.LevelDatabase
+Memory.Experimental.Browser2.Small.Sqlite
+
+# --- P0.2 Cache Quotas, Init Sizes & Hit Behavior ---
+SimpleCache.Http.CacheSizeOnInit
+SimpleCache.Http.MaxCacheSizeOnInit
+SimpleCache.Code.CacheSizeOnInit
+SimpleCache.Code.MaxCacheSizeOnInit
+Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB
+Cobalt.Storage.GpuShaderCache.LoadedEntriesCount
+Cobalt.Storage.GpuShaderCache.LoadedBytesKB
+V8.CompileScript.CacheBehaviour
+WebCore.Scripts.V8CodeCacheMetadata.Get
+WebCore.Scripts.V8CodeCacheMetadata.Set
+HttpCache.Pattern
+
+# --- P0.3 Commit, Sync & Batching Counters ---
+Cobalt.Storage.Cookie.CommitDuration
+Cobalt.Storage.Cookie.PendingOperationsAtCommit
+Cobalt.Storage.LocalStorage.CommitDuration
+DOMStorage.CommitSizeBytesAggregated
+LevelDBEnv.SyncResult
+SessionStorageContext.CommitResult
+
+# ==============================================================================
+# P1: Subsystem Latency, Throughput & Delay UMAs
+# ==============================================================================
+
+# --- P1.1 Cookie & LocalStorage Load / Flush / Delay Latency ---
+Cobalt.Storage.Cookie.LoadDuration
+Cookie.TimeBlockedOnLoad
+Cobalt.Storage.OnPause.FlushDuration
+# HttpServerProperties flush on onPause when
+# CobaltFlushHttpServerPropertiesOnPause is enabled (duration only when an
+# update was actually written; Flushed gives the pending/no-op ratio).
+Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration
+Cobalt.Storage.OnPause.HttpServerPropertiesFlushed
+Cobalt.Storage.Exit.CookieFlushDuration
+DOMStorage.CommitMeasuredDelay
+
+# --- P1.2 Cache & V8 Compile Latency ---
+Cobalt.Storage.GpuShaderCache.LoadDuration
+HttpCache.AccessToDone2.Used
+HttpCache.BeforeSend
+SimpleCache.Http.DiskOpenLatency
+SimpleCache.Http.DiskWriteLatency
+SimpleCache.Code.DiskOpenLatency
+SimpleCache.Code.DiskWriteLatency
+V8.CompileScriptMicroSeconds
+V8.ProduceCodeCacheMicroseconds
+
+# --- P1.3 Process Block I/O Volume ---
+Cobalt.Storage.ProcessIo.StartupReadKB
+Cobalt.Storage.ProcessIo.StartupWriteKB
+Cobalt.Storage.ProcessIo.WriteRateKBPerMin
+
+# ==============================================================================
+# P2: Startup, Congestion, Data Integrity & Migration Guardrails
+# ==============================================================================
+
+# --- P2.1 Cold-Start Latency & Thread Congestion Guardrails ---
+Cobalt.Startup.Time.NavigationDispatchToCommit
+Cobalt.Startup.MilestoneReached
+Cobalt.Startup.TimeToMilestone.
+Browser.MainThreadsCongestion
+
+# --- P2.2 Data Integrity & Error Guardrails ---
+Cobalt.LocalStorage.DatabaseOpenError
+Cobalt.LocalStorage.DatabaseReadError
+Cobalt.LocalStorage.DatabaseCommitError
+Cobalt.LocalStorage.DatabaseVersionMismatch
+LocalStorage.DatabaseOpen
+Cookie.LoadProblem
+Cookie.CommitProblem
+
+# ==============================================================================
+# P2.3 Cobalt 25 -> 27 Storage Migration Guardrails
+# ==============================================================================
+Cobalt.StorageMigration.Outcome
+Cobalt.StorageMigration.Duration
+Cobalt.StorageMigration.ReadResult
+Cobalt.StorageMigration.CookieInjectionResult
+Cobalt.StorageMigration.LocalStorageInjectionResult
+Cobalt.StorageMigration.SentinelWriteResult
+
+# ==============================================================================
+# Dropped / Not Queried (Comments Only)
+# ==============================================================================
+# Cobalt.Storage.Cookie.CommitDurationPerOperation
+#   Divides transaction duration by ops.size(). Use Cobalt.Storage.Cookie.CommitDuration.
+# Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration
+#   Measures CPU time to post the async Mojo flush message, not disk write completion.
+#   Use Cobalt.Storage.LocalStorage.CommitDuration instead.
+# LevelDBWrapper.CommitDelay
+#   Never recorded in Cobalt because --enable-aggressive-domstorage-flushing
+#   returns 1s before the histogram macro in StorageAreaImpl::ComputeCommitDelay().
+#   Use DOMStorage.CommitMeasuredDelay instead.
+# HttpCache.AccessToDone2
+#   Includes live origin download time on cache misses. Use AccessToDone2.Used
+#   and HttpCache.BeforeSend instead.
+# Cookie.CookieJarSize
+#   Counts cookies in RAM; use Cobalt.Storage.UserData.StartupTotalSizeKB for disk.

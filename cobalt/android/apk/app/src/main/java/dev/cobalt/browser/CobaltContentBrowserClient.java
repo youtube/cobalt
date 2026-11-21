@@ -14,6 +14,7 @@
 
 package dev.cobalt.browser;
 
+import org.chromium.content_public.browser.WebContents;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -21,16 +22,30 @@ import org.jni_zero.NativeMethods;
 public class CobaltContentBrowserClient {
   @JNINamespace("cobalt")
   @NativeMethods
-  interface Natives {
+  public interface Natives {
     void flushCookiesAndLocalStorage();
+
+    void freezeAndFlushCookiesAndLocalStorage(WebContents webContents);
 
     void dispatchBlur();
 
     void dispatchFocus();
+
+    boolean isFreezeOnBackgroundEnabled();
+
+    int getFreezeOnBackgroundDelayMs();
+
+    boolean isFlushStorageOnFreezeEnabled();
+
+    boolean isPlatformServicesOffUiThreadEnabled();
   }
 
   public static void flushCookiesAndLocalStorage() {
     CobaltContentBrowserClientJni.get().flushCookiesAndLocalStorage();
+  }
+
+  public static void freezeAndFlushCookiesAndLocalStorage(WebContents webContents) {
+    CobaltContentBrowserClientJni.get().freezeAndFlushCookiesAndLocalStorage(webContents);
   }
 
   public static void dispatchBlur() {
@@ -39,5 +54,37 @@ public class CobaltContentBrowserClient {
 
   public static void dispatchFocus() {
     CobaltContentBrowserClientJni.get().dispatchFocus();
+  }
+
+  /**
+   * Returns whether the CobaltFreezeOnBackground Finch feature is enabled, i.e. whether the web app
+   * should receive a freeze event when the Activity is stopped. Requires native to be initialized.
+   */
+  public static boolean isFreezeOnBackgroundEnabled() {
+    return CobaltContentBrowserClientJni.get().isFreezeOnBackgroundEnabled();
+  }
+
+  /**
+   * Returns the delay in milliseconds between the hidden event and the freeze event when
+   * CobaltFreezeOnBackground is enabled (CobaltFreezeOnBackground_delay_ms Finch param, default 0).
+   */
+  public static int getFreezeOnBackgroundDelayMs() {
+    return CobaltContentBrowserClientJni.get().getFreezeOnBackgroundDelayMs();
+  }
+
+  /**
+   * Returns whether the CobaltFlushStorageOnFreeze Finch feature is enabled. Requires native to be
+   * initialized.
+   */
+  public static boolean isFlushStorageOnFreezeEnabled() {
+    return CobaltContentBrowserClientJni.get().isFlushStorageOnFreezeEnabled();
+  }
+
+  /**
+   * Returns whether the CobaltPlatformServicesOffUiThread Finch feature is enabled. Requires native
+   * to be initialized.
+   */
+  public static boolean isPlatformServicesOffUiThreadEnabled() {
+    return CobaltContentBrowserClientJni.get().isPlatformServicesOffUiThreadEnabled();
   }
 }

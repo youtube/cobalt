@@ -9,8 +9,13 @@
 
 #include "base/functional/callback.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cc/trees/layer_tree_host_client.h"
 #include "cc/trees/paint_holding_reason.h"
+
+namespace viz {
+struct FrameTimingDetails;
+}
 
 namespace cc {
 class LayerTreeFrameSink;
@@ -69,6 +74,12 @@ class LayerTreeViewDelegate {
   // the commit.
   virtual void DidCommitCompositorFrame(base::TimeTicks commit_start_time,
                                         base::TimeTicks commit_finish_time) = 0;
+
+#if BUILDFLAG(IS_COBALT)
+  virtual void DidPresentCobaltFrame(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& frame_timing_details) {}
+#endif
 
   // Called by the compositor when page scale animation completed.
   virtual void DidCompletePageScaleAnimation() = 0;

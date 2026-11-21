@@ -28,6 +28,7 @@ BROWSER_TEST_SUITES = [
     'android_browsertests',
     'android_sync_integration_tests',
     'cobalt_browsertests',
+    'cobalt_browsertests_loader',
     'components_browsertests',
     'content_browsertests',
     'weblayer_browsertests',

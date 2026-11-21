@@ -197,7 +197,8 @@ Application preload and lifecycle transitions are covered by unit tests in
 
 ### Integration Testing
 
-An end-to-end integration test is provided in `cobalt/tools/test_preload.sh`:
+A robust integration test is provided in `cobalt/tools/test_lifecycle_e2e.py`
+(see `cobalt/tools/linux_e2e_tests.md`). This test:
 
 1.  Launches Cobalt in preload mode (`--preload`).
 2.  Uses the Chrome DevTools Protocol (CDP) to verify that:

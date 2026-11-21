@@ -79,6 +79,11 @@ static void JNI_SysUtils_LogPageFaultCountToTracing(JNIEnv* env) {
                    "major", counts.major);
 }
 
+int GetCachedLowMemoryDeviceThresholdMb() {
+  JNIEnv* env = AttachCurrentThread();
+  return static_cast<int>(Java_SysUtils_getLowMemoryDeviceThresholdMb(env));
+}
+
 }  // namespace android
 
 }  // namespace base

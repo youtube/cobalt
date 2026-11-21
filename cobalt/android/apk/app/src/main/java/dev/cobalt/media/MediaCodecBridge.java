@@ -32,19 +32,21 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Size;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import dev.cobalt.features.StarboardFeatureList;
+import dev.cobalt.features.StarboardFeatures;
 import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.base.metrics.RecordHistogram;
@@ -223,10 +225,7 @@ class MediaCodecBridge {
     }
   }
 
-  private static class ColorInfo {
-    private static final int MAX_CHROMATICITY = 50000; // Defined in CTA-861.3.
-    private static final int DEFAULT_MAX_CLL = 1000;
-    private static final int DEFAULT_MAX_FALL = 200;
+  public static class ColorInfo {
 
     public int colorRange;
     public int colorStandard;
@@ -253,34 +252,20 @@ class MediaCodecBridge {
       this.colorRange = colorRange;
       this.colorStandard = colorStandard;
       this.colorTransfer = colorTransfer;
-
-      if (maxCll <= 0) {
-        maxCll = DEFAULT_MAX_CLL;
-      }
-      if (maxFall <= 0) {
-        maxFall = DEFAULT_MAX_FALL;
-      }
-
-      // This logic is inspired by
-      // https://cs.android.com/android/_/android/platform/external/exoplayer/+/3423b4bbfffbb62b5f2d8f16cfdc984dc107cd02:tree/library/extractor/src/main/java/com/google/android/exoplayer2/extractor/mkv/MatroskaExtractor.java;l=2200-2215;drc=9af07bc62f8115cbaa6f1178ce8aa3533d2b9e29.
-      ByteBuffer hdrStaticInfo = ByteBuffer.allocateDirect(25);
-      hdrStaticInfo.order(ByteOrder.LITTLE_ENDIAN);
-
-      hdrStaticInfo.put((byte) 0);
-      hdrStaticInfo.putShort((short) ((primaryRChromaticityX * MAX_CHROMATICITY) + 0.5f));
-      hdrStaticInfo.putShort((short) ((primaryRChromaticityY * MAX_CHROMATICITY) + 0.5f));
-      hdrStaticInfo.putShort((short) ((primaryGChromaticityX * MAX_CHROMATICITY) + 0.5f));
-      hdrStaticInfo.putShort((short) ((primaryGChromaticityY * MAX_CHROMATICITY) + 0.5f));
-      hdrStaticInfo.putShort((short) ((primaryBChromaticityX * MAX_CHROMATICITY) + 0.5f));
-      hdrStaticInfo.putShort((short) ((primaryBChromaticityY * MAX_CHROMATICITY) + 0.5f));
-      hdrStaticInfo.putShort((short) ((whitePointChromaticityX * MAX_CHROMATICITY) + 0.5f));
-      hdrStaticInfo.putShort((short) ((whitePointChromaticityY * MAX_CHROMATICITY) + 0.5f));
-      hdrStaticInfo.putShort((short) (maxMasteringLuminance + 0.5f));
-      hdrStaticInfo.putShort((short) (minMasteringLuminance + 0.5f));
-      hdrStaticInfo.putShort((short) maxCll);
-      hdrStaticInfo.putShort((short) maxFall);
-      hdrStaticInfo.rewind();
-      this.hdrStaticInfo = hdrStaticInfo;
+      hdrStaticInfo =
+          MediaCodecUtil.getHdrStaticInfo(
+              primaryRChromaticityX,
+              primaryRChromaticityY,
+              primaryGChromaticityX,
+              primaryGChromaticityY,
+              primaryBChromaticityX,
+              primaryBChromaticityY,
+              whitePointChromaticityX,
+              whitePointChromaticityY,
+              maxMasteringLuminance,
+              minMasteringLuminance,
+              maxCll,
+              maxFall);
     }
   }
 
@@ -538,6 +523,21 @@ class MediaCodecBridge {
               + " (%d, %d)",
           maxWidth,
           maxHeight);
+
+      // TODO(b/568493652): Remove the feature once the experiment is complete.
+      if (MimeTypes.VIDEO_H264.equals(mime)
+          && StarboardFeatureList.isEnabled(StarboardFeatures.LIMIT_H264_MAX_VIDEO_SIZE_TO1080P)) {
+        Size limitedSize = limitMaxVideoSizeTo1080p(maxWidth, maxHeight, widthHint, heightHint);
+        maxWidth = limitedSize.getWidth();
+        maxHeight = limitedSize.getHeight();
+        Log.i(
+            TAG,
+            "Limited H264 maxWidth and maxHeight to (%d, %d) for size hint (%d, %d)",
+            maxWidth,
+            maxHeight,
+            widthHint,
+            heightHint);
+      }
     }
 
     if (fps > 0) {
@@ -1008,6 +1008,26 @@ class MediaCodecBridge {
   private static int alignDimension(int size, int alignment) {
     int ceilDivide = (size + alignment - 1) / alignment;
     return ceilDivide * alignment;
+  }
+
+  /**
+   * Returns the minimum of the decoder's max size and 1080p in the stream's orientation (1920x1080
+   * for landscape, 1080x1920 for portrait), but never smaller than the initial stream size.
+   *
+   * @param maxWidth The decoder's max supported width.
+   * @param maxHeight The decoder's max supported height.
+   * @param widthHint The initial stream width.
+   * @param heightHint The initial stream height.
+   * @return The limited max video size.
+   */
+  private static Size limitMaxVideoSizeTo1080p(
+      int maxWidth, int maxHeight, int widthHint, int heightHint) {
+    boolean isPortrait = heightHint > widthHint;
+    int targetWidth = Math.max(widthHint, isPortrait ? 1080 : 1920);
+    int targetHeight = Math.max(heightHint, isPortrait ? 1920 : 1080);
+    int limitedWidth = Math.min(maxWidth, targetWidth);
+    int limitedHeight = Math.min(maxHeight, targetHeight);
+    return new Size(limitedWidth, limitedHeight);
   }
 
   // Use some heuristics to set KEY_MAX_INPUT_SIZE (the size of the input buffers).
