@@ -17,6 +17,8 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_preferences.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -32,7 +34,10 @@ const char kCacheValue2[] = "cached value2";
 
 class GpuDiskCacheTest : public testing::Test {
  protected:
-  GpuDiskCacheTest() {
+  explicit GpuDiskCacheTest(
+      base::test::TaskEnvironment::TimeSource time_source =
+          base::test::TaskEnvironment::TimeSource::DEFAULT)
+      : task_environment_(time_source) {
     // Leak the factory on purpose. In production, the factory is a singleton,
     // and when a GpuDiskCache object is created, a second reference to it is
     // added to a globally held Backend object. These instances may leak, by
@@ -366,6 +371,175 @@ TEST_F(GpuDiskCacheTest, CobaltHistograms) {
   GpuDiskCacheFactory disabled_factory;
   disabled_histogram_tester.ExpectUniqueSample(
       "Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB", 0, 1);
+}
+
+TEST_F(GpuDiskCacheTest, CobaltMaxPreloadEntries) {
+  InitCache();
+
+  scoped_refptr<GpuDiskCache> cache = factory()->Create(handle_);
+  ASSERT_TRUE(cache.get() != nullptr);
+  net::TestCompletionCallback available_cb;
+  int rv = cache->SetAvailableCallback(available_cb.callback());
+  ASSERT_EQ(net::OK, available_cb.GetResult(rv));
+
+  const std::string blob_1kb(1024, 'a');
+  cache->Cache(kCacheKey, blob_1kb);
+  cache->Cache(kCacheKey2, blob_1kb);
+  net::TestCompletionCallback complete_cb;
+  rv = cache->SetCacheCompleteCallback(complete_cb.callback());
+  ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
+  EXPECT_EQ(2, cache->Size());
+
+  // Re-open with max_preload_entries = 1 and verify only 1 entry (1 KB) is
+  // preloaded at startup.
+  cache = nullptr;
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeaturesAndParameters(
+      {{::features::kCobaltGpuShaderDiskCache,
+        {{::features::kCobaltGpuShaderDiskCacheMaxPreloadEntries.name, "1"}}}},
+      {});
+  base::HistogramTester histogram_tester;
+  int loaded_calls = 0;
+  cache = factory()->Create(
+      handle_,
+      base::BindLambdaForTesting(
+          [&loaded_calls](const GpuDiskCacheHandle&, const std::string&,
+                          const std::string&) { ++loaded_calls; }));
+  ASSERT_TRUE(cache.get() != nullptr);
+  net::TestCompletionCallback available_cb2;
+  int rv2 = cache->SetAvailableCallback(available_cb2.callback());
+  ASSERT_EQ(net::OK, available_cb2.GetResult(rv2));
+  EXPECT_EQ(1, loaded_calls);
+
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.GpuShaderCache.LoadDuration", 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.GpuShaderCache.LoadedEntriesCount", 1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.GpuShaderCache.LoadedBytesKB", 1, 1);
+}
+
+class GpuDiskCacheMockTimeTest : public GpuDiskCacheTest {
+ protected:
+  GpuDiskCacheMockTimeTest()
+      : GpuDiskCacheTest(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+};
+
+TEST_F(GpuDiskCacheMockTimeTest, CobaltHitTouchPromotesEntryForBoundedPreload) {
+  InitCache();
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeaturesAndParameters(
+      {{::features::kCobaltGpuShaderDiskCache,
+        {{::features::kCobaltGpuShaderDiskCacheMaxPreloadEntries.name, "1"}}}},
+      {});
+
+  scoped_refptr<GpuDiskCache> cache = factory()->Create(handle_);
+  ASSERT_TRUE(cache.get() != nullptr);
+  {
+    net::TestCompletionCallback available_cb;
+    int rv = cache->SetAvailableCallback(available_cb.callback());
+    ASSERT_EQ(net::OK, available_cb.GetResult(rv));
+  }
+
+  cache->Cache(kCacheKey, kCacheValue);
+  {
+    net::TestCompletionCallback complete_cb;
+    int rv = cache->SetCacheCompleteCallback(complete_cb.callback());
+    ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
+  }
+
+  task_environment_.FastForwardBy(base::Seconds(2));
+  cache->Cache(kCacheKey2, kCacheValue2);
+  {
+    net::TestCompletionCallback complete_cb;
+    int rv = cache->SetCacheCompleteCallback(complete_cb.callback());
+    ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
+  }
+
+  // Promote |kCacheKey| via an empty-blob hit touch so it becomes more recent
+  // than |kCacheKey2| without rewriting its data.
+  task_environment_.FastForwardBy(base::Seconds(2));
+  cache->Cache(kCacheKey, std::string());
+  task_environment_.RunUntilIdle();
+
+  // Re-open with max_preload_entries = 1 and verify |kCacheKey| is preloaded.
+  cache = nullptr;
+  task_environment_.RunUntilIdle();
+
+  std::vector<std::pair<std::string, std::string>> loaded_entries;
+  cache = factory()->Create(
+      handle_,
+      base::BindLambdaForTesting([&loaded_entries](const GpuDiskCacheHandle&,
+                                                   const std::string& key,
+                                                   const std::string& value) {
+        loaded_entries.emplace_back(key, value);
+      }));
+  {
+    net::TestCompletionCallback available_cb;
+    int rv = cache->SetAvailableCallback(available_cb.callback());
+    ASSERT_EQ(net::OK, available_cb.GetResult(rv));
+  }
+  EXPECT_THAT(loaded_entries,
+              testing::ElementsAre(std::pair(kCacheKey, kCacheValue)));
+}
+
+TEST_F(GpuDiskCacheMockTimeTest,
+       CobaltHitTouchPromotesEntryWhenFeatureDisabled) {
+  InitCache();
+
+  base::test::ScopedFeatureList disabled_features;
+  disabled_features.InitAndDisableFeature(::features::kCobaltGpuShaderDiskCache);
+
+  scoped_refptr<GpuDiskCache> cache = factory()->Create(handle_);
+  ASSERT_TRUE(cache.get() != nullptr);
+  {
+    net::TestCompletionCallback available_cb;
+    int rv = cache->SetAvailableCallback(available_cb.callback());
+    ASSERT_EQ(net::OK, available_cb.GetResult(rv));
+  }
+
+  cache->Cache(kCacheKey, kCacheValue);
+  {
+    net::TestCompletionCallback complete_cb;
+    int rv = cache->SetCacheCompleteCallback(complete_cb.callback());
+    ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
+  }
+
+  task_environment_.FastForwardBy(base::Seconds(2));
+  cache->Cache(kCacheKey2, kCacheValue2);
+  {
+    net::TestCompletionCallback complete_cb;
+    int rv = cache->SetCacheCompleteCallback(complete_cb.callback());
+    ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
+  }
+
+  // Simulate a Starboard preload cache hit (feature off): empty blob must
+  // refresh |kCacheKey|'s index timestamp without overwriting |kCacheValue|.
+  task_environment_.FastForwardBy(base::Seconds(2));
+  cache->Cache(kCacheKey, std::string());
+  task_environment_.RunUntilIdle();
+
+  cache = nullptr;
+  task_environment_.RunUntilIdle();
+
+  std::vector<std::pair<std::string, std::string>> loaded_entries;
+  cache = factory()->Create(
+      handle_,
+      base::BindLambdaForTesting([&loaded_entries](const GpuDiskCacheHandle&,
+                                                   const std::string& key,
+                                                   const std::string& value) {
+        loaded_entries.emplace_back(key, value);
+      }));
+  {
+    net::TestCompletionCallback available_cb;
+    int rv = cache->SetAvailableCallback(available_cb.callback());
+    ASSERT_EQ(net::OK, available_cb.GetResult(rv));
+  }
+  // MRU enumeration returns |kCacheKey| first with its original value intact.
+  EXPECT_THAT(loaded_entries,
+              testing::ElementsAre(std::pair(kCacheKey, kCacheValue),
+                                   std::pair(kCacheKey2, kCacheValue2)));
 }
 #endif  // BUILDFLAG(IS_COBALT)
 

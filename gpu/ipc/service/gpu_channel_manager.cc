@@ -1188,6 +1188,12 @@ void GpuChannelManager::StoreShader(const std::string& key,
   delegate_->StoreBlobToDisk(kGrShaderGpuDiskCacheHandle, key, shader);
 }
 
+#if BUILDFLAG(IS_COBALT)
+void GpuChannelManager::RecordShaderCacheHit(const std::string& key) {
+  delegate_->StoreBlobToDisk(kGrShaderGpuDiskCacheHandle, key, std::string());
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void GpuChannelManager::SetImageDecodeAcceleratorWorkerForTesting(
     ImageDecodeAcceleratorWorker* worker) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
