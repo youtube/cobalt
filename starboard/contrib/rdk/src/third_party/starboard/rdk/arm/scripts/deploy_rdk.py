@@ -33,11 +33,12 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
 import time
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 # Disable AI agent environment variables to avoid siso wrapper flag issues
 os.environ.pop("ANTIGRAVITY_AGENT", None)
@@ -48,6 +49,19 @@ PLATFORM = "evergreen-arm-hardfp-rdk"
 DEFAULT_REMOTE_DIR = "/data/out_cobalt"
 TEST_REMOTE_DIR = "/data/test"
 MIN_SYSTEM_SOFTWARE_VERSION = "20260420"
+MIN_SYSTEM_SOFTWARE_VERSIONS = {
+    6: "20260420",
+    7: "20261110",
+}
+TOOLCHAIN_INSTALLER_FILENAMES = {
+    6: "20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh",
+    7: "20260415_rdk-glibc-x86_64-arm-toolchain-2.0.sh",
+}
+TOOLCHAIN_INSTALLER_BASE_URL = (
+    "https://storage.googleapis.com/cobalt-static-storage-public"
+)
+RDK7_ABI_MARKERS = (b"GLIBC_2.34", b"GLIBCXX_3.4.29")
+_RDK_MAJOR_VERSION_RE = re.compile(r"^RDK_V(\d+)_", re.IGNORECASE)
 
 
 def run_command(
@@ -55,6 +69,8 @@ def run_command(
     verbose: bool = True,
     check: bool = True,
     sleep_time: int = 0,
+    cwd: Optional[str] = None,
+    env: Optional[Dict[str, str]] = None,
 ) -> str:
     """Utility to run shell commands."""
     if verbose:
@@ -63,7 +79,13 @@ def run_command(
 
     is_shell = isinstance(command, str)
     process = subprocess.Popen(
-        command, shell=is_shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        command,
+        shell=is_shell,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        cwd=cwd,
+        env=env,
     )
     stdout_lines = []
     for line in process.stdout:
@@ -134,7 +156,14 @@ def push_to_device(
         raise ValueError("Either device_id or device_ip must be provided to push file.")
 
 
-def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = False) -> None:
+def configure_build(
+    platform: str,
+    config: str,
+    out_dir: Path,
+    no_rbe: bool = False,
+    rdk_version: Optional[int] = None,
+    rdk_home: Optional[str] = None,
+) -> None:
     """Runs GN configuration."""
     print(f"=== Configuring {platform} ({config}) ===")
     cmd = [
@@ -143,6 +172,10 @@ def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = Fa
     ]
     if no_rbe:
         cmd.append("--no-rbe")
+    if rdk_version is not None:
+        cmd.extend(["--rdk-version", str(rdk_version)])
+    if rdk_home:
+        cmd.extend(["--rdk-home", rdk_home])
     run_command(cmd)
 
 
@@ -159,6 +192,7 @@ def deploy_only_lib(device_id: Optional[str], device_ip: Optional[str], out_dir:
     if not local_lz4.exists():
         print(f"Error: {local_lz4} not found.")
         sys.exit(1)
+        return
 
     remote_lib_dir = f"{remote_dir}/app/cobalt/lib"
     run_remote_command(f"mkdir -p {remote_lib_dir}", device_id, device_ip)
@@ -177,10 +211,18 @@ def package_and_deploy(
 
     if deps_file and deps_file.exists():
         tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
-        if not is_test:
+        try:
+            deps_entries = {
+                os.path.normpath(line.strip())
+                for line in deps_file.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            }
+        except OSError:
+            deps_entries = set()
+        if not is_test and "libloader_app.so" not in deps_entries:
             tar_cmd.append("libloader_app.so")
         build_info = out_dir / "gen/build_info.json"
-        if build_info.exists():
+        if build_info.exists() and os.path.normpath("gen/build_info.json") not in deps_entries:
             tar_cmd.append("gen/build_info.json")
     else:
         if deps_file:
@@ -193,10 +235,11 @@ def package_and_deploy(
     if not remote_dir or remote_dir == "/":
         print(f"Error: remote_dir '{remote_dir}' is invalid or dangerous for cleanup.")
         sys.exit(1)
+        return
     print("=== Cleaning previous remote deployment ===")
     # Remove old app directories and binaries, ignoring errors if they don't exist
     run_remote_command(
-        f"rm -rf {remote_dir}/app {remote_dir}/*.so {remote_dir}/loader_app {remote_dir}/*.lz4 {remote_dir}/archive.tar.gz || true",
+        f"rm -rf {remote_dir}/app {remote_dir}/native_target {remote_dir}/*.so {remote_dir}/loader_app {remote_dir}/*.lz4 {remote_dir}/archive.tar.gz || true",
         device_id, device_ip, check=False)
 
     run_remote_command(f"mkdir -p {remote_dir}", device_id, device_ip)
@@ -294,7 +337,9 @@ def launch_on_device(
         remote_cmds += [
             "rdkDisplay create",
             "sleep 2",
-            f"XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=test-0 ./{test_name}_loader.py {xml_out}{gtest_filter}",
+            "if [ -S /tmp/test-0 ]; then xdg_runtime_dir=/tmp; else xdg_runtime_dir=/run; fi",
+            r"if [ ! -e /etc/localtime ]; then export TZ=\${TZ:-UTC}; fi",
+            f"XDG_RUNTIME_DIR=\\$xdg_runtime_dir WAYLAND_DISPLAY=test-0 ./{test_name}_loader.py {xml_out}{gtest_filter}",
             "rdkDisplay remove",
             "sleep 2",
         ]
@@ -453,7 +498,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--setup-toolchain",
         action="store_true",
-        help="Download and install the RDK toolchain to RDK_HOME.",
+        help="Download and install the RDK toolchain (to RDK_HOME or ~/rdk/toolchain_ah212_{6,7}).",
+    )
+    parser.add_argument(
+        "--rdk-version",
+        type=int,
+        choices=[6, 7],
+        default=None,
+        help="Target RDK OS major version (6 or 7; defaults to 6).",
+    )
+    parser.add_argument(
+        "--rdk-home",
+        type=str,
+        default=None,
+        help="Path to the RDK SDK toolchain root (forwarded to gn.py and --setup-toolchain).",
+    )
+    parser.add_argument(
+        "--toolchain-installer",
+        type=str,
+        default=None,
+        help="Path to a local Yocto SDK .sh installer for --setup-toolchain.",
     )
     parser.add_argument(
         "--revert-c25",
@@ -571,14 +635,19 @@ def get_device_id() -> str:
     return dev
 
 
-def assert_software_version(device_id: Optional[str], device_ip: Optional[str], min_version_date: str) -> None:
-    """Asserts that the device software date is at least the min_version_date."""
+def assert_software_version(
+    device_id: Optional[str],
+    device_ip: Optional[str],
+    min_version_date: Optional[str] = None,
+) -> Optional[int]:
+    """Verifies device software version floor and returns the RDK major version."""
     try:
         output = run_remote_command("cat /version.txt", device_id, device_ip, check=False)
         if "imagename:" not in output:
             print("Error: Could not read /version.txt from the device to verify system software version.")
             print(f"Details: {output}")
             sys.exit(1)
+            return None
 
         custom_version = None
         for line in output.splitlines():
@@ -589,76 +658,200 @@ def assert_software_version(device_id: Optional[str], device_ip: Optional[str], 
         if not custom_version:
             print("Error: 'custom version' field not found in /version.txt.")
             sys.exit(1)
+            return None
+
+        major_match = _RDK_MAJOR_VERSION_RE.match(custom_version)
+        device_major = int(major_match.group(1)) if major_match else None
+        required_date_str = min_version_date or MIN_SYSTEM_SOFTWARE_VERSIONS.get(
+            device_major, MIN_SYSTEM_SOFTWARE_VERSION
+        )
 
         # Extract date suffix from custom version (e.g. RDK_V6_AH212_20260330 -> 20260330)
         parts = custom_version.split("_")
         if not parts:
             print(f"Error: Could not parse date from custom version: {custom_version}")
             sys.exit(1)
+            return None
 
         date_str = parts[-1]
         try:
-            min_date = datetime.strptime(min_version_date, "%Y%m%d").date()
+            min_date = datetime.strptime(required_date_str, "%Y%m%d").date()
         except ValueError:
-            print(f"Error: Invalid min_version_date format: {min_version_date}. Expected YYYYMMDD.")
+            print(f"Error: Invalid min_version_date format: {required_date_str}. Expected YYYYMMDD.")
             sys.exit(1)
+            return None
 
         try:
             device_date = datetime.strptime(date_str, "%Y%m%d").date()
         except ValueError:
             print(f"Error: Extracted version suffix '{date_str}' is not a valid YYYYMMDD calendar date.")
             sys.exit(1)
+            return None
 
         if device_date < min_date:
-            print(f"Error: Device system software version ({date_str}) is older than the required minimum version ({min_version_date}).")
+            print(
+                f"Error: Device system software version ({custom_version}) is older than "
+                f"the required minimum version ({required_date_str})."
+            )
             sys.exit(1)
+            return None
 
-        print(f"Device system software version verified: {date_str} (required: >= {min_version_date})")
+        print(
+            f"Device system software version verified: {custom_version} "
+            f"(required: >= {required_date_str})"
+        )
+        return device_major
 
     except Exception as e:
         print(f"Error checking software version: {e}")
         sys.exit(1)
+        return None
+
+
+def detect_binary_rdk_version(binary_path: Path) -> Optional[int]:
+    """Detects whether a native Starboard binary targets RDK7 or RDK6 ABI."""
+    if not binary_path.exists():
+        return None
+    overlap = max(len(marker) for marker in RDK7_ABI_MARKERS) - 1
+    try:
+        with binary_path.open("rb") as f:
+            tail = b""
+            while True:
+                chunk = f.read(65536)
+                if not chunk:
+                    break
+                search_buf = tail + chunk
+                if any(marker in search_buf for marker in RDK7_ABI_MARKERS):
+                    return 7
+                tail = search_buf[-overlap:] if overlap > 0 else b""
+    except OSError:
+        return None
+    return 6
+
+
+def verify_abi_compatibility(
+    out_dir: Path,
+    device_rdk_version: Optional[int],
+    *,
+    is_test: bool,
+    only_lib: bool,
+) -> bool:
+    """Checks that local native Starboard binaries are ABI-compatible with the target device."""
+    if only_lib or device_rdk_version is None:
+        return True
+
+    binary_path = out_dir / ("elf_loader_sandbox" if is_test else "libloader_app.so")
+    binary_rdk_version = detect_binary_rdk_version(binary_path)
+    if binary_rdk_version is None:
+        return True
+
+    if binary_rdk_version == 7 and device_rdk_version == 6:
+        print(
+            f"Error: Local binary {binary_path} was compiled with the RDK7 toolchain "
+            "(links GLIBC_2.34 / GLIBCXX_3.4.29) and cannot load on an RDK6 device "
+            "(glibc 2.31 / libstdc++.so.6.0.28)."
+        )
+        print("Build with --rdk-version 6 for this device, or target an RDK7 device.")
+        sys.exit(1)
+        return False
+
+    if binary_rdk_version == 6 and device_rdk_version == 7:
+        print(
+            f"[WARNING] Deploying an RDK6-compiled binary ({binary_path}) to an RDK7 device. "
+            "Pass --rdk-version 7 to build with the native RDK7 toolchain."
+        )
+
+    return True
 
 
 def check_and_switch_cobalt_version(device_id: Optional[str], device_ip: Optional[str]) -> None:
-    """Checks if Cobalt 26 is active on the device, otherwise switches and reboots."""
+    """Checks if custom Cobalt is active on the device, otherwise switches and reboots."""
     try:
         current_target = run_remote_command(
             "readlink /usr/lib/libloader_app.so", device_id, device_ip, check=False
         ).strip()
+        current_plugin_config = run_remote_command(
+            "readlink /etc/WPEFramework/plugins/Cobalt.json",
+            device_id,
+            device_ip,
+            check=False,
+        ).strip()
 
-        if current_target == "/data/out_cobalt/libloader_app.so":
-            print("Cobalt 26 configuration is already active on the device.")
+        if (
+            current_target == "/data/out_cobalt/libloader_app.so"
+            and current_plugin_config == "/etc/WPEFramework/plugins/Cobalt_custom.json"
+        ):
+            print("Custom Cobalt configuration is already active on the device.")
             return
 
-        print("Cobalt configuration is not active. Running 'chCobalt custom_cobalt' on the device...")
+        boot_id_before = run_remote_command(
+            "cat /proc/sys/kernel/random/boot_id",
+            device_id,
+            device_ip,
+            check=False,
+            verbose=False,
+        ).strip()
+
+        print("Custom Cobalt configuration is not active. Running 'chCobalt custom_cobalt' on the device...")
         run_remote_command("chCobalt custom_cobalt", device_id, device_ip)
 
         print("Device is being rebooted to apply changes...")
-        run_remote_command("bash -l -c 'reboot'", device_id, device_ip, check=False)
+        run_remote_command("bash -l -c 'sync && reboot'", device_id, device_ip, check=False)
 
         print("Waiting 30 seconds for the device to reboot...")
         time.sleep(30)
 
         print("Attempting to reconnect to device...")
         reconnected = False
-        for i in range(10): # try up to 10 times with 3 second intervals
+        for i in range(15):  # try up to 15 times with 3 second intervals
             out = run_remote_command("echo ok", device_id, device_ip, check=False, verbose=False).strip()
             if out == "ok":
+                if boot_id_before:
+                    boot_id_after = run_remote_command(
+                        "cat /proc/sys/kernel/random/boot_id",
+                        device_id,
+                        device_ip,
+                        check=False,
+                        verbose=False,
+                    ).strip()
+                    if boot_id_after and boot_id_after == boot_id_before:
+                        print(f"Device has not finished rebooting yet. Retrying in 3 seconds... ({i+1}/15)")
+                        time.sleep(3)
+                        continue
                 reconnected = True
                 break
-            print(f"Device not ready yet. Retrying in 3 seconds... ({i+1}/10)")
+            print(f"Device not ready yet. Retrying in 3 seconds... ({i+1}/15)")
             time.sleep(3)
 
         if not reconnected:
             print("Error: Could not reconnect to the device after reboot.")
             sys.exit(1)
+            return
 
-        print("Reconnected to device successfully.")
+        print("Reconnected to device successfully. Waiting for WPEFramework readiness...")
+        status_payload = '{"jsonrpc":"2.0","id":1,"method":"Controller.1.status"}'
+        wpe_ready = False
+        for i in range(15):
+            status_out = run_remote_command(
+                f"curl -s http://127.0.0.1:9998/jsonrpc -d '{status_payload}'",
+                device_id,
+                device_ip,
+                check=False,
+                verbose=False,
+            )
+            if '"result"' in status_out:
+                wpe_ready = True
+                break
+            print(f"WPEFramework not ready yet. Retrying in 2 seconds... ({i+1}/15)")
+            time.sleep(2)
+
+        if not wpe_ready:
+            print("[WARNING] Timed out waiting for WPEFramework JSON-RPC readiness; continuing.")
 
     except Exception as e:
         print(f"Error during Cobalt version switch: {e}")
         sys.exit(1)
+        return
 
 
 def revert_to_cobalt_25(device_id: Optional[str], device_ip: Optional[str]) -> None:
@@ -682,24 +875,128 @@ def is_toolchain_installed(rdk_home: Optional[str]) -> bool:
     return bool(rdk_home and os.path.exists(os.path.join(rdk_home, "sysroots")))
 
 
-def setup_toolchain() -> None:
-    """Downloads and installs the RDK toolchain."""
-    rdk_home = os.environ.get("RDK_HOME")
-    if not rdk_home:
-        print("Error: RDK_HOME environment variable is not set.")
-        print("Please add it to your ~/.bashrc (e.g., export RDK_HOME=/workspaces/rdk/toolchain) and restart your shell.")
-        sys.exit(1)
+def _normalize_path(path: str) -> str:
+    return os.path.abspath(os.path.expanduser(path))
 
-    if is_toolchain_installed(rdk_home):
-        print(f"RDK toolchain is already installed in: {rdk_home}. Skipping setup.")
+
+def _default_toolchain_dir(rdk_version: int) -> str:
+    return _normalize_path(f"~/rdk/toolchain_ah212_{rdk_version}")
+
+
+def resolve_toolchain_dir(
+    rdk_version: Optional[int],
+    rdk_home_arg: Optional[str],
+    *,
+    for_setup: bool = False,
+) -> Optional[str]:
+    """Resolves the RDK toolchain directory using the same precedence as gn.py."""
+    if rdk_home_arg:
+        return _normalize_path(rdk_home_arg)
+
+    if rdk_version is not None:
+        env_version_home = os.environ.get(f"RDK{rdk_version}_HOME")
+        if env_version_home:
+            return _normalize_path(env_version_home)
+
+        well_known = _default_toolchain_dir(rdk_version)
+        if for_setup or is_toolchain_installed(well_known):
+            return well_known
+
+        env_rdk_home = os.environ.get("RDK_HOME")
+        if env_rdk_home:
+            return _normalize_path(env_rdk_home)
+
+        if rdk_version == 6 and is_toolchain_installed("/workspaces/rdk/toolchain"):
+            return "/workspaces/rdk/toolchain"
+        return well_known
+
+    env_rdk_home = os.environ.get("RDK_HOME")
+    if env_rdk_home:
+        return _normalize_path(env_rdk_home)
+
+    if for_setup:
+        return _default_toolchain_dir(6)
+
+    for candidate in (_default_toolchain_dir(6), "/workspaces/rdk/toolchain"):
+        if is_toolchain_installed(candidate):
+            return candidate
+    return None
+
+
+def _build_clean_installer_env() -> Dict[str, str]:
+    """Returns a sanitized environment for Yocto SDK relocation scripts."""
+    clean_env = os.environ.copy()
+    for var in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "LD_LIBRARY_PATH"):
+        clean_env.pop(var, None)
+    clean_env["PATH"] = "/usr/local/bin:/usr/bin:/bin"
+    return clean_env
+
+
+def setup_toolchain(
+    rdk_version: Optional[int] = None,
+    rdk_home_arg: Optional[str] = None,
+    toolchain_installer: Optional[str] = None,
+) -> None:
+    """Downloads (or uses local) and installs the RDK6 or RDK7 toolchain."""
+    target_version = rdk_version or 6
+    rdk_home = resolve_toolchain_dir(rdk_version, rdk_home_arg, for_setup=True)
+    if not rdk_home:
+        print("Error: Could not determine target toolchain installation directory.")
+        sys.exit(1)
         return
 
-    url = "https://storage.googleapis.com/cobalt-static-storage-public/20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh"
-    print(f"=== Setting up toolchain in: {rdk_home} ===")
+    if is_toolchain_installed(rdk_home):
+        print(f"RDK{target_version} toolchain is already installed in: {rdk_home}. Skipping setup.")
+        return
+
+    os.makedirs(rdk_home, exist_ok=True)
+    clean_env = _build_clean_installer_env()
+    installer_filename = TOOLCHAIN_INSTALLER_FILENAMES[target_version]
+
+    if toolchain_installer:
+        local_installer = _normalize_path(toolchain_installer)
+        if not os.path.exists(local_installer):
+            print(f"Error: Local toolchain installer not found: {local_installer}")
+            sys.exit(1)
+            return
+        print(f"=== Setting up RDK{target_version} toolchain in: {rdk_home} (local installer) ===")
+        run_command(
+            ["sh", local_installer, "-d", rdk_home, "-y"],
+            cwd="/tmp",
+            env=clean_env,
+        )
+        return
+
+    url = f"{TOOLCHAIN_INSTALLER_BASE_URL}/{installer_filename}"
+    print(f"=== Setting up RDK{target_version} toolchain in: {rdk_home} ===")
     with tempfile.TemporaryDirectory() as tmp_dir:
-        installer_path = os.path.join(tmp_dir, "installer.sh")
-        run_command(f"wget {url} -O '{installer_path}'")
-        run_command(f"sh '{installer_path}' -d '{rdk_home}' -y")
+        installer_path = os.path.join(tmp_dir, installer_filename)
+        try:
+            run_command(["wget", url, "-O", installer_path])
+        except (SystemExit, OSError):
+            downloads_fallback = _normalize_path(f"~/Downloads/{installer_filename}")
+            if os.path.isfile(downloads_fallback):
+                print(
+                    f"Download from {url} failed; using local fallback {downloads_fallback}."
+                )
+                installer_path = downloads_fallback
+            else:
+                print(
+                    f"Error: Failed to download RDK{target_version} toolchain from {url} "
+                    f"and no local installer was found at {downloads_fallback}."
+                )
+                print(
+                    f"Download {installer_filename} from your RDK{target_version} release "
+                    f"distribution and re-run with --toolchain-installer /path/to/{installer_filename}."
+                )
+                sys.exit(1)
+                return
+
+        run_command(
+            ["sh", installer_path, "-d", rdk_home, "-y"],
+            cwd="/tmp",
+            env=clean_env,
+        )
 
 
 def main() -> None:
@@ -709,9 +1006,14 @@ def main() -> None:
     if args.deeplink and args.tests:
         print("Error: --deeplink is only supported when running the Cobalt plugin (not tests).")
         sys.exit(1)
+        return
 
     if args.setup_toolchain:
-        setup_toolchain()
+        setup_toolchain(
+            rdk_version=args.rdk_version,
+            rdk_home_arg=args.rdk_home,
+            toolchain_installer=args.toolchain_installer,
+        )
         return
 
     if args.device_ip and args.device_id:
@@ -719,6 +1021,7 @@ def main() -> None:
             "Error: --device-ip and --device-id are mutually exclusive.",
             file=sys.stderr)
         sys.exit(1)
+        return
 
     device_ip = args.device_ip
     device_id = None
@@ -768,13 +1071,16 @@ def main() -> None:
             print("=== Reset finished. ===")
             return
 
-    assert_software_version(device_id, device_ip, MIN_SYSTEM_SOFTWARE_VERSION)
+    device_rdk_version = assert_software_version(device_id, device_ip)
     if not args.tests:
         check_and_switch_cobalt_version(device_id, device_ip)
 
     # Setup Build Paths
     config = args.config or ("devel" if args.tests else "qa")
-    out_dir = Path(args.out_dir or f"out/{PLATFORM}_{config}")
+    default_out_prefix = (
+        "evergreen-arm-hardfp-rdk7" if args.rdk_version == 7 else PLATFORM
+    )
+    out_dir = Path(args.out_dir or f"out/{default_out_prefix}_{config}")
 
     if args.tests:
         targets = [f"{args.tests}_loader"]
@@ -791,14 +1097,34 @@ def main() -> None:
         remote_dir = DEFAULT_REMOTE_DIR
 
     if not args.skip_build:
-        rdk_home = os.environ.get("RDK_HOME")
-        if not is_toolchain_installed(rdk_home):
-            print(f"Error: RDK toolchain is not set up in RDK_HOME ({rdk_home}).")
-            print("Please run this script with --setup-toolchain to download and install the toolchain.")
-            print("Also, make sure to add it to your ~/.bashrc (e.g., export RDK_HOME=/workspaces/rdk/toolchain).")
+        if not args.only_lib and args.rdk_version == 7 and device_rdk_version == 6:
+            print(
+                "Error: --rdk-version 7 produces binaries requiring GLIBC_2.34 / GLIBCXX_3.4.29 "
+                "which cannot run on an RDK6 device."
+            )
+            print("Re-run with --rdk-version 6 (or omit --rdk-version) for this RDK6 device.")
             sys.exit(1)
+            return
 
-        configure_build(PLATFORM, config, out_dir, args.no_rbe)
+        rdk_home = resolve_toolchain_dir(args.rdk_version, args.rdk_home)
+        if not is_toolchain_installed(rdk_home):
+            target_version = args.rdk_version or 6
+            print(f"Error: RDK{target_version} toolchain is not set up ({rdk_home}).")
+            print(
+                f"Please run this script with --setup-toolchain --rdk-version {target_version} "
+                "(or pass --rdk-home <path> / set RDK_HOME)."
+            )
+            sys.exit(1)
+            return
+
+        configure_build(
+            PLATFORM,
+            config,
+            out_dir,
+            args.no_rbe,
+            rdk_version=args.rdk_version,
+            rdk_home=args.rdk_home,
+        )
         build_output = build_targets(out_dir, targets)
         is_up_to_date = build_output and any(
             msg in build_output for msg in ["Everything is up-to-date", "no work to do"])
@@ -828,6 +1154,13 @@ def main() -> None:
         if not args.run:
             return
     else:
+        if not verify_abi_compatibility(
+            out_dir,
+            device_rdk_version,
+            is_test=bool(args.tests),
+            only_lib=args.only_lib,
+        ):
+            return
         if args.only_lib:
             deploy_only_lib(device_id, device_ip, out_dir, remote_dir)
         else:

@@ -28,14 +28,16 @@ The source for the RDK Starboard implementation originates in the [RDK Central r
    echo 'export PATH="$HOME/depot_tools:$PATH"' >> ~/.bashrc
    ```
 
-4. Install the RDK ARM toolchain:
+4. Install the RDK ARM toolchain (run the installer from `/tmp` with Python and library path variables unset so Yocto relocation succeeds inside virtual environments):
 
    ```bash
    export RDK_HOME=$HOME/rdk/toolchain
    mkdir -p ${RDK_HOME}
    wget https://storage.googleapis.com/cobalt-static-storage-public/20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh \
      -O /tmp/rdk-toolchain.sh
-   sh /tmp/rdk-toolchain.sh -d ${RDK_HOME} -y
+   (cd /tmp && env -u PYTHONPATH -u VIRTUAL_ENV -u LD_LIBRARY_PATH \
+     PATH=/usr/local/bin:/usr/bin:/bin \
+     sh /tmp/rdk-toolchain.sh -d "${RDK_HOME}" -y)
    echo 'export RDK_HOME=$HOME/rdk/toolchain' >> ~/.bashrc
    ```
 
@@ -83,11 +85,11 @@ For testing and certification, always use the official prebuilt Cobalt library a
    autoninja -C out/evergreen-arm-hardfp-rdk_qa libloader_app.so cobalt:cobalt_build_info
    ```
 
-3. Package the archive:
+3. Package the archive (include `native_target/crashpad_handler` so Crashpad initializes cleanly on device):
 
    ```bash
    cd ~/cobalt/src/out/evergreen-arm-hardfp-rdk_qa
-   tar -czvf ~/archive.tar.gz libloader_app.so gen/build_info.json app/cobalt
+   tar -czvf ~/archive.tar.gz libloader_app.so native_target/crashpad_handler gen/build_info.json app/cobalt
    ```
 
 4. Deploy `~/archive.tar.gz` as described in [Deploy and run Cobalt](#deploy-and-run-cobalt).
@@ -111,7 +113,7 @@ For testing and certification, always use the official prebuilt Cobalt library a
    export OUT_DIR=~/cobalt/src/out/evergreen-arm-hardfp-rdk_qa
    cp ~/cobalt/src/cobalt/updater/version_manifest/manifest.json ${OUT_DIR}/app/cobalt/
    cd ${OUT_DIR}
-   tar -czvf ~/archive.tar.gz libloader_app.so gen/build_info.json app/cobalt
+   tar -czvf ~/archive.tar.gz libloader_app.so native_target/crashpad_handler gen/build_info.json app/cobalt
    ```
 
 3. Deploy `~/archive.tar.gz` as described in [Deploy and run Cobalt](#deploy-and-run-cobalt). In that section, before you run the step 3 commands, run only the two `find` commands from [Why is the device not running your Cobalt build?](#why-is-the-device-not-running-your-cobalt-build).
@@ -243,8 +245,10 @@ chCobalt c25 && sync && reboot -f
 
 ### Why does `gn.py` fail with an `RDK_HOME` error?
 
-If `gn.py` or `autoninja` fails with `RDK builds require the 'RDK_HOME' environment variable to be set.`, set `RDK_HOME` to the toolchain directory and re-run the command:
+If `gn.py` or `autoninja` fails with an `RDK_HOME` or `rdk_home_dir` error, set `RDK_HOME` to the toolchain directory (or pass `--rdk-home <path>` to `gn.py`) and re-run the command:
 
 ```bash
 export RDK_HOME=$HOME/rdk/toolchain
 ```
+
+To build side-by-side against multiple RDK SDK versions from the same checkout without cross-contaminating output directories, pass `--rdk-version 6` or `--rdk-version 7` (and optionally `--rdk-home <path>`) to `cobalt/build/gn.py`; each output directory pins its resolved `rdk_home_dir` and `rdk_sysroot` in `args.gn`.
